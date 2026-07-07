@@ -1,0 +1,10 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: hanoman
+      POSTGRES_PASSWORD: hanoman
+      POSTGRES_DB: hanoman
+    ports: ["5432:5432"]
+    volumes: ["hanoman_pg:/var/lib/postgresql/data"]
+volumes: { hanoman_pg: {} }

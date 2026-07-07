@@ -1,0 +1,245 @@
+<!-- Hanoman — logo exploration. Five geometric directions for a real
+     brand mark, each rooted in a lakon, built on the Hanoman Design
+     System tokens. Presentation sheet (flowing, printable). -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>hanoman — logo exploration</title>
+
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/fonts.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/colors.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/typography.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/spacing.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/effects.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/base.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/styles.css" />
+
+<script src="https://unpkg.com/lucide@0.400.0/dist/umd/lucide.js"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/_ds_bundle.js"></script>
+
+<style>
+  html, body { background: var(--surface-page); }
+  #root { max-width: 1080px; margin: 0 auto; padding: 64px 40px 96px; }
+  .brass-rule { height: 2px; background: var(--brass-500); border: none; }
+  .swatch { width: 34px; height: 34px; border-radius: var(--radius-sm); border: 1px solid var(--border-hair); flex: 0 0 auto; }
+  @media print { #root { padding: 24px; } .no-print { display: none !important; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#b8863b"/>
+    <circle cx="50" cy="52" r="26" fill="none" stroke="#17130c" stroke-width="7"/>
+    <circle cx="50" cy="26" r="6" fill="#17130c"/>
+  </svg>
+</template>
+
+<script type="text/babel" src="app/marks.jsx"></script>
+<script type="text/babel">
+const { Card, Badge, Icon } = window.HanomanDesignSystem_c639ad;
+const { Mark, Wordmark } = window;
+
+const CONCEPTS = [
+  { id: "cincin", no: "01", kavi: "Cincin", en: "The signet ring",
+    lakon: ["Anoman Duta", "Chiranjivi"], rec: true,
+    copy: "Rama's ring, carried to Sinta as proof. A closed, unbroken circle — the eternal — set with a single stone. Trust isn't asked for; it's sealed. It reads as a mark of authenticity: the docs are the record, this is its seal." },
+  { id: "bayu", no: "02", kavi: "Bayu", en: "Son of the wind",
+    lakon: ["Batara Bayu"],
+    copy: "Three gusts in motion. Anoman inherits his father's wind — speed, breath, reach. The direction that carries the lineage most literally, and the closest kin to today's placeholder tick, redrawn with intent." },
+  { id: "buntut", no: "03", kavi: "Buntut", en: "The coiled tail",
+    lakon: ["Anoman Obong"],
+    copy: "The tail Rahwana set alight — and Anoman turned into a torch across Alengka. One coiling stroke: energy held, ready to run. Singular at a glance, unmistakable at favicon size." },
+  { id: "anoman", no: "04", kavi: "Anoman", en: "The h monogram",
+    lakon: ["the wordmark"], recAlt: true,
+    copy: "The lowercase h of hanoman, its leg curling off into wind. Locks tightest to the wordmark and sits cleanly in an app tile — one glyph that is already the name." },
+  { id: "dronagiri", no: "05", kavi: "Dronagiri", en: "The whole mountain",
+    lakon: ["Gunung Dronagiri"],
+    copy: "Unsure which herb, Anoman carried the entire mountain. A summit with the one stone at its peak: document everything to be certain the right thing is there. Thoroughness as a mark." },
+];
+
+/* ---- reusable pieces ---- */
+function Tile({ id, bg, color, size = 76, radius = "var(--radius-lg)" }) {
+  return (
+    <span style={{
+      width: size, height: size, borderRadius: radius, background: bg,
+      border: bg === "var(--bone-000)" ? "1px solid var(--border-hair)" : "none",
+      display: "inline-flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto",
+      boxShadow: "var(--shadow-sm)",
+    }}>
+      <Mark id={id} size={size * 0.56} color={color} />
+    </span>
+  );
+}
+
+function ScaleRow({ id }) {
+  const sizes = [44, 32, 24, 16];
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 18 }}>
+      {sizes.map((s) => (
+        <div key={s} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+          <span style={{ height: 44, display: "inline-flex", alignItems: "center" }}>
+            <Mark id={id} size={s} color="var(--ink-900)" />
+          </span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-subtle)" }}>{s}px</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LockupH({ id, dark }) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 14, padding: "16px 20px",
+      borderRadius: "var(--radius-md)",
+      background: dark ? "var(--ink-900)" : "var(--bone-100)",
+      border: dark ? "none" : "1px solid var(--border-hair)",
+    }}>
+      <Mark id={id} size={34} color={dark ? "var(--brass-400)" : "var(--brass-500)"} />
+      <Wordmark size={28} color={dark ? "var(--bone-100)" : "var(--ink-900)"} />
+    </div>
+  );
+}
+
+function ConceptBlock({ c }) {
+  return (
+    <div style={{
+      border: "1px solid var(--border-hair)", borderRadius: "var(--radius-lg)",
+      background: "var(--surface-card)", overflow: "hidden",
+      boxShadow: c.rec ? "var(--shadow-md)" : "var(--shadow-sm)",
+      outline: c.rec ? "1px solid var(--brass-300)" : "none",
+    }}>
+      <div style={{ display: "grid", gridTemplateColumns: "380px 1fr" }}>
+        {/* left — the mark */}
+        <div style={{ padding: 28, borderRight: "1px solid var(--border-hair)", background: "var(--bone-100)" }}>
+          <div style={{
+            height: 220, borderRadius: "var(--radius-lg)", background: "var(--bone-000)",
+            border: "1px solid var(--border-hair)", boxShadow: "var(--shadow-inset)",
+            display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 22,
+          }}>
+            <Mark id={c.id} size={150} color="var(--brass-500)" />
+          </div>
+          <div className="hn-eyebrow" style={{ marginBottom: 12 }}>Scales to</div>
+          <div style={{ marginBottom: 24 }}><ScaleRow id={c.id} /></div>
+          <div className="hn-eyebrow" style={{ marginBottom: 12 }}>App icon</div>
+          <div style={{ display: "flex", gap: 14 }}>
+            <Tile id={c.id} bg="var(--ink-900)" color="var(--brass-400)" />
+            <Tile id={c.id} bg="var(--brass-500)" color="#fff" />
+            <Tile id={c.id} bg="var(--bone-000)" color="var(--brass-500)" />
+          </div>
+        </div>
+
+        {/* right — the story + lockups */}
+        <div style={{ padding: 28, display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <div className="hn-eyebrow">{c.no} · {c.kavi}</div>
+            {c.rec && <Badge tone="brass" size="sm" icon="sparkles">Recommended</Badge>}
+            {c.recAlt && <Badge tone="neutral" size="sm" icon="link">Wordmark-tied</Badge>}
+          </div>
+          <h3 style={{ fontSize: "var(--text-3xl)", margin: "8px 0 12px" }}>{c.en}</h3>
+          <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginBottom: 14 }}>
+            {c.lakon.map((l) => <Badge key={l} tone="neutral" size="sm" variant="outline">{l}</Badge>)}
+          </div>
+          <p style={{ fontSize: "var(--text-base)", color: "var(--text-body)", lineHeight: "var(--leading-relaxed)", margin: 0, maxWidth: "60ch" }}>
+            {c.copy}
+          </p>
+
+          <div style={{ marginTop: "auto", paddingTop: 22 }}>
+            <div className="hn-eyebrow" style={{ marginBottom: 10 }}>Wordmark lockup</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <LockupH id={c.id} />
+              <LockupH id={c.id} dark />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Header() {
+  return (
+    <header style={{ marginBottom: 44 }}>
+      <div className="hn-eyebrow" style={{ marginBottom: 16 }}>Hanoman · brand mark</div>
+      <h1 style={{ fontSize: "var(--text-6xl)", margin: "0 0 20px", letterSpacing: "-0.03em" }}>Logo exploration</h1>
+      <p style={{ fontSize: "var(--text-lg)", color: "var(--text-body)", lineHeight: "var(--leading-relaxed)", maxWidth: "68ch", margin: 0 }}>
+        Anoman — the white wind-monkey, loyal servant of dharma; proof over promise. Five geometric
+        directions toward a real mark, each drawn from a lakon and built on the system's warm bone,
+        ink, and single gold-leaf brass.
+      </p>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 20, marginTop: 32, padding: "18px 22px", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border-strong)", background: "var(--bone-100)" }}>
+        <span style={{ width: 44, height: 44, borderRadius: "var(--radius-sm)", background: "var(--brass-500)", color: "var(--ink-900)", display: "inline-flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto" }}>
+          <Icon name="wind" size={22} stroke={2.4} />
+        </span>
+        <Wordmark size={26} />
+        <div style={{ marginLeft: "auto", textAlign: "right" }}>
+          <div className="hn-eyebrow" style={{ marginBottom: 3 }}>Today</div>
+          <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>a placeholder wind tick — not yet a mark</div>
+        </div>
+      </div>
+      <hr className="brass-rule" style={{ marginTop: 32 }} />
+    </header>
+  );
+}
+
+function Footer() {
+  const pal = [
+    { c: "var(--brass-500)", n: "brass · the gilded trust" },
+    { c: "var(--ink-900)", n: "ink · the record" },
+    { c: "var(--bone-100)", n: "bone · the white monkey" },
+    { c: "var(--wind-600)", n: "wind · Bayu / links" },
+  ];
+  return (
+    <footer style={{ marginTop: 48 }}>
+      <hr className="brass-rule" style={{ marginBottom: 32 }} />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
+        <div>
+          <div className="hn-eyebrow" style={{ marginBottom: 14 }}>Palette</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {pal.map((p) => (
+              <div key={p.n} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span className="swatch" style={{ background: p.c }} />
+                <span style={{ fontSize: "var(--text-sm)", color: "var(--text-body)" }}>{p.n}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div className="hn-eyebrow" style={{ marginBottom: 14 }}>Type</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-2xl)", color: "var(--ink-900)", letterSpacing: "-0.02em", marginBottom: 10 }}>hanoman</div>
+          <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", lineHeight: "var(--leading-relaxed)" }}>
+            IBM Plex Mono sets the wordmark; Plex Serif carries display voice; Plex Sans reads the body.
+          </div>
+          <div style={{ marginTop: 22, padding: "14px 16px", borderRadius: "var(--radius-md)", background: "var(--brass-050)", border: "1px solid var(--brass-300)", fontSize: "var(--text-sm)", color: "var(--ink-700)", lineHeight: "var(--leading-relaxed)" }}>
+            Pick a direction and I'll build the full lockup set — clearspace, size floors, favicon, on-dark, monochrome — and drop the chosen mark into the dashboard wordmark.
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+function App() {
+  return (
+    <React.Fragment>
+      <Header />
+      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        {CONCEPTS.map((c) => <ConceptBlock key={c.id} c={c} />)}
+      </div>
+      <Footer />
+    </React.Fragment>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>

@@ -1,0 +1,224 @@
+<!-- Hanoman Component Kit — a documented gallery of every component in the
+     Hanoman Design System, composed from the design-system bundle. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>hanoman — component kit</title>
+
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/fonts.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/colors.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/typography.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/spacing.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/effects.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/base.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/styles.css" />
+
+<script src="https://unpkg.com/lucide@0.400.0/dist/umd/lucide.js"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/_ds_bundle.js"></script>
+
+<style>
+  html, body { margin: 0; background: var(--surface-page); color: var(--text-body); }
+  * { box-sizing: border-box; }
+  a { color: var(--text-link); text-decoration: none; }
+  a:hover { color: var(--wind-700); }
+
+  .layout { display: grid; grid-template-columns: 248px 1fr; min-height: 100vh; }
+
+  /* Sidebar */
+  .side { position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto;
+    border-right: 1px solid var(--border-hair); background: var(--surface-card);
+    padding: 22px 16px; }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 0 8px 20px; margin-bottom: 8px; border-bottom: 1px solid var(--border-hair); }
+  .brand .glyph { width: 30px; height: 30px; border-radius: var(--radius-sm); background: var(--brass-500); color: #fff; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+  .brand .wm { font-family: var(--font-mono); font-size: 15px; font-weight: 500; letter-spacing: -0.01em; color: var(--ink-900); }
+  .brand .sub { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-subtle); margin-top: 2px; }
+
+  .nav-group { margin-top: 18px; }
+  .nav-group > .lbl { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-subtle); padding: 0 8px; margin-bottom: 6px; }
+  .nav-link { display: block; padding: 6px 8px; border-radius: var(--radius-sm); font-family: var(--font-sans); font-size: 13px; color: var(--text-body); transition: var(--transition-fast); }
+  .nav-link:hover { background: var(--bone-200); color: var(--text-strong); }
+  .nav-link.active { background: var(--brass-100); color: var(--brass-700); font-weight: 500; }
+
+  /* Topbar */
+  .topbar { position: sticky; top: 0; z-index: 20; height: 56px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 40px; border-bottom: 1px solid var(--border-hair);
+    background: color-mix(in srgb, var(--bone-100) 82%, transparent); backdrop-filter: blur(8px); }
+  .topbar .t { font-family: var(--font-display); font-size: 18px; font-weight: 600; letter-spacing: -0.02em; color: var(--text-strong); }
+  .topbar .meta { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
+
+  .main { min-width: 0; }
+  .content { max-width: 1000px; margin: 0 auto; padding: 44px 40px 120px; }
+  .hero { margin-bottom: 48px; }
+  .hero h1 { margin: 0; font-family: var(--font-display); font-size: 52px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.05; color: var(--text-strong); }
+  .hero p { margin: 16px 0 0; max-width: 620px; font-family: var(--font-sans); font-size: 17px; line-height: 1.6; color: var(--text-body); }
+  .hero .stats { display: flex; gap: 28px; margin-top: 24px; flex-wrap: wrap; }
+  .hero .stat .n { font-family: var(--font-display); font-size: 28px; font-weight: 600; color: var(--brass-600); letter-spacing: -0.02em; }
+  .hero .stat .l { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-subtle); margin-top: 2px; }
+
+  textarea, input, button, select { font-family: inherit; }
+  /* Primary Button + solid IconButton: text & icon white (they use --accent-on,
+     which defaults to ink; scoped to buttons so Badge/Checkbox ticks stay ink). */
+  button { --accent-on: #fff; }
+  ::selection { background: var(--brass-100); }
+</style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="side">
+      <div class="brand">
+        <span class="glyph"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg></span>
+        <div>
+          <div class="wm">hanoman</div>
+          <div class="sub">component kit</div>
+        </div>
+      </div>
+      <nav id="nav"></nav>
+    </aside>
+
+    <div class="main">
+      <div class="topbar">
+        <div class="t">Component kit</div>
+        <div class="meta">14 components · 5 categories</div>
+      </div>
+      <div class="content">
+        <div class="hero">
+          <h1>The Hanoman<br/>component kit</h1>
+          <p>Every component in the design system, shown with its variants, sizes, and states — composed from the same bundle you build with. Warm bone paper, ink text, one brass accent. Restraint over decoration.</p>
+          <div class="stats">
+            <div class="stat"><div class="n">14</div><div class="l">components</div></div>
+            <div class="stat"><div class="n">5</div><div class="l">categories</div></div>
+            <div class="stat"><div class="n">3</div><div class="l">type families</div></div>
+            <div class="stat"><div class="n">1</div><div class="l">brass accent</div></div>
+          </div>
+        </div>
+
+        <div id="foundations-color"></div>
+        <div id="foundations-type"></div>
+        <div id="foundations-spacing"></div>
+        <div id="foundations-icons"></div>
+        <div id="forms"></div>
+        <div id="feedback"></div>
+        <div id="surfaces"></div>
+      </div>
+    </div>
+  </div>
+
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#b8863b"/>
+    <g fill="none" stroke="#17130c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M35 42 h22 a7 7 0 1 0 -7 -7"/>
+      <path d="M32 58 h30 a7 7 0 1 1 -7 7"/>
+    </g>
+  </svg>
+</template>
+
+<script type="text/babel" src="kit/kit-ui.jsx"></script>
+<script type="text/babel" src="kit/kit-foundations.jsx"></script>
+<script type="text/babel" src="kit/kit-forms.jsx"></script>
+<script type="text/babel" src="kit/kit-feedback.jsx"></script>
+<script type="text/babel" src="kit/kit-surfaces.jsx"></script>
+<script type="text/babel">
+  const { KSection, ColorFoundation, TypeFoundation, SpacingFoundation, IconFoundation,
+          FormsSection, FeedbackSection, SurfacesSection } = window;
+
+  // ---- Build the sidebar nav ----
+  const NAV = [
+    { group: "Foundations", links: [
+      { id: "sec-color", label: "Color" },
+      { id: "sec-type", label: "Type" },
+      { id: "sec-spacing", label: "Spacing & elevation" },
+      { id: "sec-icons", label: "Iconography" },
+    ]},
+    { group: "Forms", links: [
+      { id: "button", label: "Button" },
+      { id: "iconbutton", label: "IconButton" },
+      { id: "input", label: "Input" },
+      { id: "select", label: "Select" },
+      { id: "checkbox", label: "Checkbox" },
+      { id: "switch", label: "Switch" },
+    ]},
+    { group: "Feedback", links: [
+      { id: "badge", label: "Badge" },
+      { id: "statuspill", label: "StatusPill" },
+      { id: "callout", label: "Callout" },
+      { id: "progressbar", label: "ProgressBar" },
+      { id: "tooltip", label: "Tooltip" },
+    ]},
+    { group: "Surfaces & Nav", links: [
+      { id: "card", label: "Card" },
+      { id: "tabs", label: "Tabs" },
+    ]},
+  ];
+  const nav = document.getElementById("nav");
+  NAV.forEach((g) => {
+    const wrap = document.createElement("div");
+    wrap.className = "nav-group";
+    const lbl = document.createElement("div");
+    lbl.className = "lbl"; lbl.textContent = g.group;
+    wrap.appendChild(lbl);
+    g.links.forEach((l) => {
+      const a = document.createElement("a");
+      a.className = "nav-link"; a.href = "#" + l.id; a.textContent = l.label;
+      a.dataset.target = l.id;
+      wrap.appendChild(a);
+    });
+    nav.appendChild(wrap);
+  });
+
+  // Scroll-spy: highlight the nav link nearest the top.
+  const links = Array.from(document.querySelectorAll(".nav-link"));
+  const spy = () => {
+    let best = null, bestTop = -Infinity;
+    links.forEach((a) => {
+      const el = document.getElementById(a.dataset.target);
+      if (!el) return;
+      const top = el.getBoundingClientRect().top;
+      if (top < 120 && top > bestTop) { bestTop = top; best = a; }
+    });
+    links.forEach((a) => a.classList.toggle("active", a === best));
+  };
+  window.addEventListener("scroll", spy, { passive: true });
+
+  // ---- Foundations: mixed React + section headers ----
+  function FoundationsColor() {
+    return <div><KSection id="sec-color" eyebrow="Foundations · 01" title="Color" lede="Warm neutrals — never blue-gray. Bone paper for surfaces, warm ink for text, and a single brass accent for the primary action, active nav, and brand moments. Semantics are earthy, tuned to the paper." /><ColorFoundation /></div>;
+  }
+  function FoundationsType() {
+    return <div><KSection id="sec-type" eyebrow="Foundations · 02" title="Type" lede="The IBM Plex trio, three clear jobs: Serif for the editorial display voice (sentence case, tight tracking), Sans for UI and reading, Mono for paths, data, and uppercase eyebrow labels." /><TypeFoundation /></div>;
+  }
+  function FoundationsSpacing() {
+    return <div><KSection id="sec-spacing" eyebrow="Foundations · 03" title="Spacing & elevation" lede="A 4px base grid. Controls take tighter radii than containers. Elevation is soft and warm-tinted — four steps, no colored glows." /><SpacingFoundation /></div>;
+  }
+  function FoundationsIcons() {
+    return <div><KSection id="sec-icons" eyebrow="Foundations · 04" title="Iconography" lede="Lucide outline icons at 2px stroke, wrapped by the Icon component so they inherit color and size. No emoji — meaning is carried by icon, dot, and color." /><IconFoundation /></div>;
+  }
+
+  function FormsWrap() {
+    return <div><KSection id="sec-forms" eyebrow="Components · Forms" title="Forms" lede="Inputs, actions, and toggles. Brass focus rings, inset wells, and a single accented primary per view." /><FormsSection /></div>;
+  }
+  function FeedbackWrap() {
+    return <div><KSection id="sec-feedback" eyebrow="Components · Feedback" title="Feedback" lede="Status vocabulary, chips, callouts, and progress — how the dashboard states what is true and what will happen." /><FeedbackSection /></div>;
+  }
+  function SurfacesWrap() {
+    return <div><KSection id="sec-surfaces" eyebrow="Components · Surfaces & Navigation" title="Surfaces & navigation" lede="The paper card and the section switcher — the containers that hold everything else." /><SurfacesSection /></div>;
+  }
+
+  const mount = (id, el) => { const n = document.getElementById(id); if (n) ReactDOM.createRoot(n).render(el); };
+  mount("foundations-color", <FoundationsColor />);
+  mount("foundations-type", <FoundationsType />);
+  mount("foundations-spacing", <FoundationsSpacing />);
+  mount("foundations-icons", <FoundationsIcons />);
+  mount("forms", <FormsWrap />);
+  mount("feedback", <FeedbackWrap />);
+  mount("surfaces", <SurfacesWrap />);
+
+  setTimeout(spy, 300);
+</script>
+</body>
+</html>

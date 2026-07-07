@@ -1,0 +1,239 @@
+<!-- Hanoman dashboard — hi-fi static mockup for nafanesia.id.
+     Every screen is composed from the Hanoman Design System bundle
+     and laid out as a frame on a pannable canvas. -->
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="design_doc_mode" content="canvas" />
+<title>hanoman — dashboard nafanesia.id</title>
+
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/fonts.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/colors.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/typography.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/spacing.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/effects.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/base.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/styles.css" />
+
+<script src="https://unpkg.com/lucide@0.400.0/dist/umd/lucide.js"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/_ds_bundle.js"></script>
+
+<style>
+  html, body { margin: 0; background: #ece5d6; }
+  body { position: relative; }
+
+  .title { position: absolute; }
+  .title-t { font-family: var(--font-mono); font-size: 20px; font-weight: 500; letter-spacing: -0.01em; color: var(--ink-900); display: flex; align-items: center; gap: 10px; }
+  .title-t .glyph { width: 30px; height: 30px; border-radius: var(--radius-sm); background: var(--brass-500); color: var(--ink-900); display: inline-flex; align-items: center; justify-content: center; }
+  .title-s { font-family: var(--font-sans); font-size: 14px; color: var(--ink-600); margin-top: 8px; }
+
+  .band { position: absolute; }
+  .band-t { font-family: var(--font-display); font-size: 26px; font-weight: 600; letter-spacing: -0.02em; color: var(--ink-900); line-height: 1.1; }
+  .band-s { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-500); margin-top: 6px; }
+
+  .frame { position: absolute; }
+  .cap { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-500); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .cap::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--brass-500); }
+  .screen { border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-lg); border: 1px solid var(--border-hair); background: var(--surface-page); }
+  .mount { height: 100%; }
+
+  /* textareas — matched to the DS Input well (DS ships no Textarea) */
+  textarea.hn-ta {
+    display: block; width: 100%; font-family: var(--font-sans); font-size: 13px;
+    color: var(--text-body); background: var(--surface-card);
+    border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+    padding: 9px 11px; line-height: 1.5; resize: none; box-shadow: var(--shadow-inset);
+  }
+  textarea.hn-ta:focus { outline: none; border-color: var(--border-focus); box-shadow: var(--ring); }
+  textarea.hn-ta.mono { font-family: var(--font-mono); }
+
+  /* Primary button: text + icon white (override --accent-on, buttons only —
+     leaves solid badges / checkbox ticks on their default ink) */
+  button { --accent-on: #fff; }
+</style>
+</head>
+<body>
+  <div class="title" data-title>
+    <div class="title-t"><span class="glyph" data-glyph><svg viewBox="0 0 128 128" width="18" height="18" fill="#fff" aria-hidden="true"><path d="M 74.0 116.6 L 76.3 115.9 L 78.8 115.0 L 81.3 113.9 L 83.6 112.7 L 85.9 111.5 L 88.1 110.1 L 90.2 108.5 L 92.2 106.9 L 94.2 105.2 L 96.0 103.5 L 97.7 101.6 L 99.3 99.6 L 100.8 97.6 L 102.2 95.5 L 103.4 93.4 L 104.5 91.2 L 105.5 89.0 L 106.4 86.7 L 107.2 84.4 L 107.8 82.1 L 108.3 79.8 L 108.7 77.4 L 109.0 75.1 L 109.1 72.8 L 109.1 70.4 L 109.0 68.1 L 108.8 65.8 L 108.4 63.6 L 107.9 61.4 L 107.4 59.2 L 106.7 57.0 L 105.9 55.0 L 105.0 52.9 L 104.0 51.0 L 102.9 49.1 L 101.7 47.3 L 100.4 45.5 L 99.1 43.9 L 97.7 42.3 L 96.2 40.8 L 94.6 39.4 L 93.0 38.1 L 91.3 36.9 L 89.6 35.8 L 87.8 34.8 L 86.0 33.9 L 84.1 33.1 L 82.3 32.4 L 80.4 31.8 L 78.5 31.3 L 76.6 30.9 L 74.7 30.6 L 72.7 30.5 L 70.8 30.4 L 68.9 30.4 L 67.1 30.6 L 65.2 30.8 L 63.4 31.1 L 61.6 31.5 L 59.9 32.0 L 58.2 32.6 L 56.5 33.3 L 54.9 34.0 L 53.3 34.9 L 51.9 35.8 L 50.4 36.8 L 49.1 37.8 L 47.8 38.9 L 46.5 40.1 L 45.4 41.3 L 44.3 42.6 L 43.3 43.9 L 42.4 45.2 L 41.6 46.6 L 40.8 48.0 L 40.2 49.5 L 39.6 51.0 L 39.1 52.4 L 38.7 53.9 L 38.4 55.4 L 38.1 56.9 L 37.9 58.4 L 37.9 59.9 L 37.9 61.4 L 37.9 62.8 L 38.1 64.2 L 38.3 65.7 L 38.6 67.0 L 39.0 68.4 L 39.4 69.7 L 40.0 71.0 L 40.5 72.2 L 41.2 73.4 L 41.8 74.5 L 42.6 75.6 L 43.4 76.6 L 44.2 77.6 L 45.1 78.5 L 46.0 79.4 L 47.0 80.2 L 47.9 80.9 L 48.9 81.6 L 50.0 82.2 L 51.0 82.8 L 52.1 83.2 L 53.2 83.7 L 54.3 84.0 L 55.4 84.3 L 56.4 84.5 L 57.5 84.7 L 58.6 84.8 L 59.7 84.8 L 60.7 84.8 L 61.8 84.7 L 62.8 84.6 L 63.8 84.4 L 64.8 84.1 L 65.7 83.8 L 66.6 83.5 L 67.5 83.1 L 68.3 82.6 L 69.1 82.2 L 69.9 81.6 L 70.6 81.1 L 71.3 80.5 L 71.9 79.9 L 72.5 79.3 L 73.0 78.6 L 73.5 77.9 L 74.0 77.3 L 74.4 76.6 L 74.7 75.8 L 75.0 75.1 L 75.2 74.4 L 75.4 73.7 L 75.6 73.0 L 75.7 72.2 L 75.8 71.5 L 75.8 70.8 L 75.8 70.1 L 75.7 69.5 L 75.6 68.8 L 75.4 68.2 L 75.3 67.6 L 75.0 67.0 L 74.8 66.5 L 74.5 65.9 L 74.2 65.5 L 73.9 65.0 L 73.5 64.6 L 73.2 64.2 L 72.8 63.8 L 72.4 63.5 L 72.0 63.2 L 71.6 63.0 L 71.1 62.7 L 70.7 62.6 L 70.3 62.4 L 69.8 62.3 L 69.5 62.3 L 68.9 64.2 L 69.1 64.3 L 69.4 64.5 L 69.6 64.7 L 69.8 64.9 L 70.0 65.1 L 70.2 65.3 L 70.4 65.5 L 70.6 65.8 L 70.8 66.1 L 70.9 66.4 L 71.1 66.7 L 71.2 67.0 L 71.3 67.4 L 71.4 67.7 L 71.4 68.1 L 71.5 68.5 L 71.5 68.9 L 71.5 69.3 L 71.4 69.7 L 71.4 70.1 L 71.3 70.5 L 71.2 70.9 L 71.1 71.3 L 70.9 71.7 L 70.7 72.1 L 70.5 72.5 L 70.3 72.9 L 70.0 73.3 L 69.7 73.7 L 69.4 74.1 L 69.1 74.4 L 68.7 74.8 L 68.3 75.1 L 67.9 75.4 L 67.5 75.7 L 67.0 76.0 L 66.5 76.2 L 66.0 76.4 L 65.5 76.6 L 64.9 76.8 L 64.4 77.0 L 63.8 77.1 L 63.2 77.2 L 62.6 77.2 L 62.0 77.3 L 61.4 77.2 L 60.8 77.2 L 60.1 77.1 L 59.5 77.0 L 58.9 76.9 L 58.2 76.7 L 57.6 76.4 L 57.0 76.2 L 56.4 75.9 L 55.8 75.5 L 55.2 75.2 L 54.6 74.8 L 54.0 74.3 L 53.5 73.8 L 53.0 73.3 L 52.5 72.8 L 52.0 72.2 L 51.5 71.6 L 51.1 71.0 L 50.7 70.3 L 50.4 69.6 L 50.0 68.9 L 49.7 68.1 L 49.5 67.4 L 49.3 66.6 L 49.1 65.8 L 49.0 64.9 L 48.9 64.1 L 48.8 63.2 L 48.8 62.4 L 48.9 61.5 L 49.0 60.6 L 49.1 59.8 L 49.3 58.9 L 49.6 58.0 L 49.8 57.2 L 50.2 56.3 L 50.6 55.5 L 51.0 54.6 L 51.5 53.8 L 52.0 53.0 L 52.6 52.2 L 53.2 51.5 L 53.9 50.8 L 54.6 50.1 L 55.3 49.4 L 56.1 48.8 L 56.9 48.2 L 57.8 47.7 L 58.7 47.2 L 59.6 46.7 L 60.6 46.3 L 61.6 45.9 L 62.6 45.6 L 63.6 45.4 L 64.7 45.2 L 65.8 45.0 L 66.9 44.9 L 68.0 44.9 L 69.1 44.9 L 70.2 45.0 L 71.3 45.1 L 72.4 45.3 L 73.6 45.6 L 74.7 45.9 L 75.8 46.3 L 76.9 46.7 L 77.9 47.2 L 79.0 47.8 L 80.0 48.4 L 81.0 49.1 L 82.0 49.8 L 82.9 50.6 L 83.8 51.4 L 84.7 52.3 L 85.5 53.3 L 86.3 54.3 L 87.0 55.3 L 87.7 56.4 L 88.3 57.5 L 88.9 58.7 L 89.4 59.9 L 89.8 61.1 L 90.2 62.4 L 90.5 63.7 L 90.8 65.0 L 91.0 66.3 L 91.1 67.6 L 91.1 69.0 L 91.1 70.4 L 91.0 71.8 L 90.8 73.1 L 90.6 74.5 L 90.2 75.9 L 89.9 77.2 L 89.4 78.6 L 88.9 79.9 L 88.2 81.2 L 87.6 82.5 L 86.8 83.7 L 86.0 84.9 L 85.1 86.1 L 84.1 87.2 L 83.1 88.3 L 82.0 89.4 L 80.9 90.4 L 79.7 91.3 L 78.5 92.2 L 77.2 93.0 L 75.8 93.7 L 74.4 94.4 L 73.0 95.0 L 71.5 95.5 L 70.0 96.0 L 68.2 96.5 A 10.5 10.5 0 0 1 74.0 116.6 Z"/></svg></span> hanoman</div>
+    <div class="title-s">Dashboard orkestrasi Claude Code · docs-driven · nafanesia.id — mockup hi-fi</div>
+  </div>
+
+  <!-- MONITOR -->
+  <div class="band" data-group="monitor"><div class="band-t">Monitor</div><div class="band-s">multi-project · Claude Code dalam satu dashboard</div></div>
+  <div class="frame" data-group="monitor" data-screen-label="Home · grid" style="width:1380px">
+    <div class="cap">Home · grid · comfortable</div>
+    <div class="screen" style="height:908px"><div class="mount" data-screen="home-grid"></div></div>
+  </div>
+  <div class="frame" data-group="monitor" data-screen-label="Home · list" style="width:1380px">
+    <div class="cap">Home · list · dense</div>
+    <div class="screen" style="height:908px"><div class="mount" data-screen="home-list"></div></div>
+  </div>
+  <div class="frame" data-group="monitor" data-screen-label="Home · compact" style="width:1380px">
+    <div class="cap">Home · compact · 3 kolom</div>
+    <div class="screen" style="height:908px"><div class="mount" data-screen="home-compact"></div></div>
+  </div>
+
+  <!-- LIVE RUN -->
+  <div class="band" data-group="run"><div class="band-t">Live run</div><div class="band-s">spec → plan → execute · pipeline, diff, token & biaya</div></div>
+  <div class="frame" data-group="run" data-screen-label="Runs" style="width:1560px">
+    <div class="cap">Runs · list + focused run</div>
+    <div class="screen" style="height:812px"><div class="mount" data-screen="runs"></div></div>
+  </div>
+
+  <!-- WORKFLOW -->
+  <div class="band" data-group="workflow"><div class="band-t">Workflow</div><div class="band-s">backlog · Source of Truth · triggers</div></div>
+  <div class="frame" data-group="workflow" data-screen-label="Backlog" style="width:1380px">
+    <div class="cap">Backlog · specs dari brief & QA</div>
+    <div class="screen" style="height:1180px"><div class="mount" data-screen="backlog"></div></div>
+  </div>
+  <div class="frame" data-group="workflow" data-screen-label="Docs · SoT" style="width:1380px">
+    <div class="cap">Docs · Source of Truth index</div>
+    <div class="screen" style="height:1004px"><div class="mount" data-screen="docs"></div></div>
+  </div>
+  <div class="frame" data-group="workflow" data-screen-label="Triggers" style="width:1380px">
+    <div class="cap">Triggers · automation</div>
+    <div class="screen" style="height:1004px"><div class="mount" data-screen="triggers"></div></div>
+  </div>
+
+  <!-- HUMAN → HANOMAN -->
+  <div class="band" data-group="flows"><div class="band-t">Human → hanoman</div><div class="band-s">tuang ide · brief · QA finding · scaffold docs</div></div>
+  <div class="frame" data-group="flows" data-screen-label="Idea → objective" style="width:1560px">
+    <div class="cap">From-scratch · brainstorm → MVP objective</div>
+    <div class="screen" style="height:812px"><div class="mount" data-screen="idea"></div></div>
+  </div>
+  <div class="frame" data-group="flows" data-screen-label="Feature brief" style="width:1320px">
+    <div class="cap">Human · feature brief</div>
+    <div class="screen" style="height:966px"><div class="mount" data-screen="brief"></div></div>
+  </div>
+  <div class="frame" data-group="flows" data-screen-label="QA finding" style="width:1320px">
+    <div class="cap">Human · QA finding</div>
+    <div class="screen" style="height:966px"><div class="mount" data-screen="qa"></div></div>
+  </div>
+  <div class="frame" data-group="flows" data-screen-label="Scaffold docs" style="width:1380px">
+    <div class="cap">hanoman · scaffold Source of Truth</div>
+    <div class="screen" style="height:966px"><div class="mount" data-screen="scaffold"></div></div>
+  </div>
+
+<!-- brass wind glyph for title + bundler thumbnail -->
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#b8863b"/>
+    <g fill="none" stroke="#17130c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M35 42 h22 a7 7 0 1 0 -7 -7"/>
+      <path d="M32 58 h30 a7 7 0 1 1 -7 7"/>
+    </g>
+  </svg>
+</template>
+
+<script src="app/data.js"></script>
+<script>
+  // Brand glyph in the page title is inlined Buntut SVG (above) — no JS needed.
+
+  // Layout: place bands + frames into vertical bands, frames left-to-right.
+  // Sizes are fixed (frame width + inner screen height), so this is safe to
+  // run before React fills each mount.
+  window.hnLayout = function () {
+    var GROUPS = ["monitor", "run", "workflow", "flows"];
+    var X0 = 90, GAPX = 110, GAPY = 132, BAND_GAP = 16;
+    var titleEl = document.querySelector(".title");
+    var y = 40;
+    if (titleEl) { titleEl.style.left = X0 + "px"; titleEl.style.top = y + "px"; y += titleEl.offsetHeight + 56; }
+    var maxRight = 0;
+    GROUPS.forEach(function (g) {
+      var band = document.querySelector('.band[data-group="' + g + '"]');
+      var rowTop = y;
+      if (band) { band.style.left = X0 + "px"; band.style.top = y + "px"; rowTop = y + band.offsetHeight + BAND_GAP; }
+      var frames = Array.prototype.slice.call(document.querySelectorAll('.frame[data-group="' + g + '"]'));
+      var x = X0, rowH = 0;
+      frames.forEach(function (f) {
+        f.style.left = x + "px"; f.style.top = rowTop + "px";
+        x += f.offsetWidth + GAPX;
+        if (f.offsetHeight > rowH) rowH = f.offsetHeight;
+      });
+      if (x - GAPX > maxRight) maxRight = x - GAPX;
+      y = rowTop + rowH + GAPY;
+    });
+    document.body.style.minWidth = (maxRight + X0) + "px";
+    document.body.style.minHeight = (y + 40) + "px";
+  };
+  window.hnLayout();
+  window.addEventListener("load", window.hnLayout);
+  window.addEventListener("resize", window.hnLayout);
+</script>
+
+<script type="text/babel" src="app/marks.jsx"></script>
+<script type="text/babel" src="app/Shell.jsx"></script>
+<script type="text/babel" src="app/ProjectsScreen.jsx"></script>
+<script type="text/babel" src="app/RunsScreen.jsx"></script>
+<script type="text/babel" src="app/BacklogScreen.jsx"></script>
+<script type="text/babel" src="app/DocsScreen.jsx"></script>
+<script type="text/babel" src="app/TriggersScreen.jsx"></script>
+<script type="text/babel" src="app/flows.jsx"></script>
+<script type="text/babel">
+  const H = window.HN;
+  const DS = window.HanomanDesignSystem_c639ad;
+  const { Shell, ProjectsScreen, RunsScreen, BacklogScreen, DocsScreen, TriggersScreen,
+          IdeaFlow, BriefForm, QaForm, ScaffoldDocs } = window;
+  const { Button, StatusPill, Select } = DS;
+
+  const homeAction = <Button size="sm" leftIcon="radar">Scan semua</Button>;
+
+  function screenFor(key) {
+    switch (key) {
+      case "home-grid":
+        return <Shell active="projects" title="Projects" breadcrumb="nafanesia.id · workspace" showSearch actions={homeAction}>
+          <ProjectsScreen projects={H.projects} runs={H.runs} variant="grid" /></Shell>;
+      case "home-list":
+        return <Shell active="projects" title="Projects" breadcrumb="nafanesia.id · workspace" showSearch actions={homeAction}>
+          <ProjectsScreen projects={H.projects} runs={H.runs} variant="list" /></Shell>;
+      case "home-compact":
+        return <Shell active="projects" title="Projects" breadcrumb="nafanesia.id · workspace" showSearch actions={homeAction}>
+          <ProjectsScreen projects={H.projects} runs={H.runs} variant="compact" /></Shell>;
+      case "runs":
+        return <Shell active="runs" title="Runs" breadcrumb="Claude Code · live activity"
+          actions={<StatusPill status="running" size="sm">2 aktif</StatusPill>}>
+          <RunsScreen runs={H.runs} selectedId="RUN-8842" /></Shell>;
+      case "backlog":
+        return <Shell active="backlog" title="Backlog" breadcrumb="specs · brainstorm → execute"
+          actions={<Button size="sm" leftIcon="plus">Brief baru</Button>}>
+          <BacklogScreen backlog={H.backlog} /></Shell>;
+      case "docs":
+        return <Shell active="docs" title="Source of Truth" breadcrumb={"internal/docs · " + H.docsProject}
+          actions={<Select size="sm" defaultValue={H.docsProject} options={H.projects.map((p) => ({ value: p.id, label: p.name }))} />}>
+          <DocsScreen projectName={H.docsProject} docTree={H.docTree} /></Shell>;
+      case "triggers":
+        return <Shell active="triggers" title="Triggers" breadcrumb="automation · plan + execute"
+          actions={<Button size="sm" leftIcon="plus">Trigger baru</Button>}>
+          <TriggersScreen triggers={H.triggers} /></Shell>;
+      case "idea":
+        return <Shell active="projects" title="kirana" breadcrumb="project baru · brainstorm → MVP objective">
+          <IdeaFlow idea={H.idea} /></Shell>;
+      case "brief":
+        return <Shell active="backlog" title="Feature brief" breadcrumb="human → hanoman · arta">
+          <BriefForm brief={H.brief} /></Shell>;
+      case "qa":
+        return <Shell active="backlog" title="QA finding" breadcrumb="human → hanoman · candra">
+          <QaForm qa={H.qa} /></Shell>;
+      case "scaffold":
+        return <Shell active="docs" title="Scaffold Source of Truth" breadcrumb="internal/docs · kirana"
+          actions={<StatusPill status="running" size="sm">menulis</StatusPill>}>
+          <ScaffoldDocs scaffold={H.scaffold} /></Shell>;
+      default: return null;
+    }
+  }
+
+  document.querySelectorAll(".mount").forEach((m) => {
+    const el = screenFor(m.dataset.screen);
+    if (el) ReactDOM.createRoot(m).render(el);
+  });
+
+  requestAnimationFrame(() => window.hnLayout && window.hnLayout());
+  setTimeout(() => window.hnLayout && window.hnLayout(), 400);
+</script>
+</body>
+</html>

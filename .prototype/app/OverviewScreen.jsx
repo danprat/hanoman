@@ -1,0 +1,208 @@
+/* OverviewScreen.jsx — the "lihat overall" dashboard. Aggregates the
+   whole workspace: KPIs, what needs attention, live Claude Code runs,
+   Source-of-Truth coverage, backlog health, triggers, and recent
+   activity. Composed from the design system; rows deep-link into the
+   relevant section. */
+const { Card: OCard, StatusPill: OPill, Badge: OBadge, ProgressBar: OBar, Icon: OIcon, Button: OBtn } =
+  window.HanomanDesignSystem_c639ad;
+
+const O_TRIGGER_ICON = {
+  commit: "git-commit-horizontal", schedule: "calendar-clock",
+  manual: "mouse-pointer-click", interval: "timer",
+};
+function oCovTone(s) { return s === "broken" ? "err" : s === "drift" ? "warn" : "ok"; }
+function oAttention(p) {
+  if (p.docStatus === "broken" || p.run.status === "failed") return "high";
+  if (p.docStatus === "drift") return "low";
+  return "none";
+}
+const O_ATT = {
+  high: { bar: "var(--clay-500)", tint: "var(--clay-100)", text: "var(--clay-600)", label: "perlu perhatian" },
+  low: { bar: "var(--amber-500)", tint: "var(--amber-100)", text: "var(--amber-600)", label: "docs drift" },
+};
+
+function KpiStrip({ items }) {
+  return (
+    <div style={{
+      display: "grid", gridTemplateColumns: `repeat(${items.length}, 1fr)`, gap: 1,
+      background: "var(--border-hair)", border: "1px solid var(--border-hair)",
+      borderRadius: "var(--radius-lg)", overflow: "hidden", marginBottom: 20,
+    }}>
+      {items.map((s) => (
+        <div key={s.label} style={{ background: "var(--surface-card)", padding: "16px 18px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: s.dot }} />
+            <span style={{ fontFamily: "var(--font-display)", fontSize: 27, fontWeight: 600, color: "var(--text-strong)", lineHeight: 1 }}>{s.value}</span>
+          </div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6 }}>{s.label}</div>
+          {s.sub && <div style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--text-subtle)", marginTop: 3 }}>{s.sub}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AttnRow({ p, onOpen }) {
+  const att = oAttention(p);
+  const meta = O_ATT[att];
+  const reason = p.run.status === "failed" ? "Plan gagal · docs stale"
+    : p.docStatus === "broken" ? "Docs off-convention"
+    : "Docs drift — sebagian kategori belum ter-index";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 4px", borderBottom: "1px solid var(--border-hair)", borderLeft: `3px solid ${meta.bar}`, paddingLeft: 12 }}>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <OIcon name="box" size={13} color="var(--text-muted)" />
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 13.5, fontWeight: 500, color: "var(--text-strong)" }}>{p.name}</span>
+          <OBadge tone={att === "high" ? "err" : "warn"} size="sm">{meta.label}</OBadge>
+        </div>
+        <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>{reason} · {p.coverage}% ter-index</div>
+      </div>
+      <OBtn size="sm" variant="secondary" leftIcon="book-open" onClick={() => onOpen(p)}>Buka SoT</OBtn>
+    </div>
+  );
+}
+
+function LiveRunRow({ r, onGoto }) {
+  const phase = (r.phases.find((x) => x.state === "active") || {}).name || r.phase;
+  return (
+    <div onClick={() => onGoto("runs")} style={{ display: "flex", flexDirection: "column", gap: 8, padding: "12px 4px", borderBottom: "1px solid var(--border-hair)", cursor: "pointer" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <OPill status={r.status} size="sm">{phase}</OPill>
+        <span style={{ fontSize: 13.5, fontWeight: 500, color: "var(--text-strong)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.title}</span>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)" }}>{r.id}</span>
+      </div>
+      <OBar value={r.progress} tone="ok" size="sm" />
+      <div style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-muted)" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><OIcon name="box" size={12} /> {r.project}</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><OIcon name={O_TRIGGER_ICON[r.trigger]} size={12} /> {r.trigger}</span>
+        <span>{r.cost} · {r.duration}</span>
+      </div>
+    </div>
+  );
+}
+
+function CoverageRow({ p, onOpen }) {
+  return (
+    <div onClick={() => onOpen(p)} style={{ display: "grid", gridTemplateColumns: "92px 1fr 78px", alignItems: "center", gap: 12, padding: "9px 4px", cursor: "pointer", borderBottom: "1px solid var(--border-hair)" }}>
+      <span style={{ fontFamily: "var(--font-mono)", fontSize: 12.5, color: "var(--text-strong)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
+      <OBar value={p.coverage} tone={oCovTone(p.docStatus)} size="sm" />
+      <OPill status={p.docStatus} size="sm" />
+    </div>
+  );
+}
+
+function MiniStat({ icon, label, value, tone }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", border: "1px solid var(--border-hair)", borderRadius: "var(--radius-md)", background: "var(--bone-100)" }}>
+      <span style={{ width: 30, height: 30, borderRadius: "var(--radius-sm)", flex: "0 0 auto", background: "var(--surface-card)", border: "1px solid var(--border-hair)", color: tone || "var(--text-muted)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+        <OIcon name={icon} size={15} />
+      </span>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 600, color: "var(--text-strong)", lineHeight: 1 }}>{value}</div>
+        <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 3 }}>{label}</div>
+      </div>
+    </div>
+  );
+}
+
+function OverviewScreen({ projects, runs, backlog, triggers, onOpenProject, onGoto }) {
+  const activeRuns = runs.filter((r) => r.status === "running");
+  const attention = projects.filter((p) => oAttention(p) !== "none")
+    .sort((a, b) => (oAttention(a) === "high" ? 0 : 1) - (oAttention(b) === "high" ? 0 : 1));
+  const onConv = projects.filter((p) => p.docStatus === "ok").length;
+  const highAtt = projects.filter((p) => oAttention(p) === "high").length;
+  const cost = runs.reduce((n, r) => n + (parseFloat(String(r.cost).replace(/[^0-9.]/g, "")) || 0), 0);
+  const coverageAvg = Math.round(projects.reduce((n, p) => n + p.coverage, 0) / projects.length);
+
+  const briefN = backlog.filter((s) => s.source === "brief").length;
+  const qaN = backlog.filter((s) => s.source === "qa").length;
+  const hiPrio = backlog.filter((s) => s.priority === "tinggi").length;
+
+  const trigOn = triggers.filter((t) => t.enabled).length;
+  const trigByType = ["commit", "schedule", "manual", "interval"].map((k) => ({ k, n: triggers.filter((t) => t.type === k && t.enabled).length }));
+
+  const coverageSorted = [...projects].sort((a, b) => a.coverage - b.coverage);
+  const activity = projects.map((p) => ({ project: p.name, status: p.run.status, text: p.activity, commit: p.commit }));
+
+  const kpis = [
+    { label: "Run aktif", value: activeRuns.length, dot: "var(--brass-500)" },
+    { label: "Perlu perhatian", value: highAtt, dot: "var(--clay-600)" },
+    { label: "Docs on-convention", value: onConv + "/" + projects.length, sub: "rata-rata " + coverageAvg + "%", dot: "var(--leaf-600)" },
+    { label: "Spec di backlog", value: backlog.length, sub: briefN + " brief · " + qaN + " QA", dot: "var(--wind-600)" },
+    { label: "Biaya runs", value: "$" + cost.toFixed(2), sub: "hari ini", dot: "var(--ink-500)" },
+  ];
+
+  return (
+    <div>
+      <KpiStrip items={kpis} />
+
+      <div style={{ display: "grid", gridTemplateColumns: "1.35fr 1fr", gap: 20, alignItems: "start" }}>
+        {/* left */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <OCard eyebrow={"needs attention · " + attention.length} title="Perlu perhatian"
+            actions={<OBtn size="sm" variant="ghost" leftIcon="layout-grid" onClick={() => onGoto("projects")}>Semua project</OBtn>}>
+            {attention.length === 0
+              ? <div style={{ padding: "18px 0", color: "var(--text-muted)", fontSize: 13 }}>Semua project on-convention. Source of Truth utuh.</div>
+              : <div style={{ marginTop: 4 }}>{attention.map((p) => <AttnRow key={p.id} p={p} onOpen={onOpenProject} />)}</div>}
+          </OCard>
+
+          <OCard eyebrow={"live · " + activeRuns.length + " berjalan"} title="Claude Code sedang jalan"
+            actions={<OBtn size="sm" variant="ghost" leftIcon="activity" onClick={() => onGoto("runs")}>Buka Runs</OBtn>}>
+            {activeRuns.length === 0
+              ? <div style={{ padding: "18px 0", color: "var(--text-muted)", fontSize: 13 }}>Tidak ada run aktif.</div>
+              : <div style={{ marginTop: 4 }}>{activeRuns.map((r) => <LiveRunRow key={r.id} r={r} onGoto={onGoto} />)}</div>}
+          </OCard>
+        </div>
+
+        {/* right */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <OCard eyebrow="Source of Truth" title="Docs coverage"
+            actions={<OBtn size="sm" variant="ghost" leftIcon="book-open" onClick={() => onGoto("docs")}>Docs</OBtn>}>
+            <div style={{ marginTop: 4 }}>{coverageSorted.map((p) => <CoverageRow key={p.id} p={p} onOpen={onOpenProject} />)}</div>
+          </OCard>
+
+          <OCard eyebrow="brainstorm → execute" title="Backlog"
+            actions={<OBtn size="sm" variant="ghost" leftIcon="list-checks" onClick={() => onGoto("backlog")}>Buka</OBtn>}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 6 }}>
+              <MiniStat icon="lightbulb" label="dari brief" value={briefN} tone="var(--brass-600)" />
+              <MiniStat icon="bug" label="dari QA" value={qaN} tone="var(--clay-500)" />
+              <MiniStat icon="flame" label="prioritas tinggi" value={hiPrio} tone="var(--clay-500)" />
+              <MiniStat icon="layers" label="total spec" value={backlog.length} tone="var(--wind-600)" />
+            </div>
+          </OCard>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.35fr", gap: 20, alignItems: "start", marginTop: 20 }}>
+        <OCard eyebrow={trigOn + " aktif · " + triggers.length + " total"} title="Triggers"
+          actions={<OBtn size="sm" variant="ghost" leftIcon="zap" onClick={() => onGoto("triggers")}>Kelola</OBtn>}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 6 }}>
+            {trigByType.map((t) => (
+              <MiniStat key={t.k} icon={O_TRIGGER_ICON[t.k]} label={t.k} value={t.n} tone="var(--brass-600)" />
+            ))}
+          </div>
+        </OCard>
+
+        <OCard eyebrow="workspace" title="Aktivitas terbaru">
+          <div style={{ marginTop: 4 }}>
+            {activity.map((a, i) => {
+              const dot = a.status === "running" ? "var(--brass-500)" : a.status === "failed" ? "var(--clay-500)"
+                : a.status === "done" ? "var(--leaf-500)" : a.status === "queued" ? "var(--wind-600)" : "var(--bone-400)";
+              return (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 4px", borderBottom: "1px solid var(--border-hair)" }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: dot, flex: "0 0 auto" }} />
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 12.5, color: "var(--text-strong)", width: 84, flex: "0 0 auto" }}>{a.project}</span>
+                  <span style={{ fontSize: 12.5, color: "var(--text-body)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.text}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 160 }}>{a.commit}</span>
+                </div>
+              );
+            })}
+          </div>
+        </OCard>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { OverviewScreen });

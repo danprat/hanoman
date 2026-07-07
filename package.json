@@ -1,0 +1,14 @@
+{
+  "name": "hanoman",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "pnpm --parallel --filter ./server --filter ./src dev",
+    "build": "pnpm --filter ./src build && pnpm --filter ./server build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run",
+    "seed": "pnpm --filter ./server seed"
+  },
+  "devDependencies": { "typescript": "^5.5.0", "vitest": "^2.0.0" }
+}

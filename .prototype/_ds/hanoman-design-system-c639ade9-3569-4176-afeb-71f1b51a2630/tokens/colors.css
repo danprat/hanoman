@@ -1,0 +1,105 @@
+/* ============================================================
+   Hanoman — Color tokens
+   Palette metaphor: white monkey (bone paper) + ink + wayang
+   gold-leaf brass. Warm-tinted neutrals; earthy semantics.
+   ============================================================ */
+
+:root {
+  /* ---- Base neutrals: warm "ink on bone" ---- */
+  --ink-900: #17130c;   /* near-black, warm        */
+  --ink-800: #241d13;
+  --ink-700: #3a3125;   /* strong body text        */
+  --ink-600: #574b3a;
+  --ink-500: #6f6250;   /* secondary text          */
+  --ink-400: #90826c;
+  --ink-300: #b3a794;   /* muted / placeholder     */
+  --ink-200: #d6ccb9;
+
+  --bone-000: #fffdf8;  /* card / paper white      */
+  --bone-100: #faf6ec;  /* app background          */
+  --bone-200: #f2ebdc;  /* raised panel            */
+  --bone-300: #e8dfcc;  /* hairline / divider      */
+  --bone-400: #dccfb6;  /* stronger border         */
+
+  /* ---- Brass: wayang gold-leaf, the primary accent ---- */
+  --brass-700: #7a5417;
+  --brass-600: #97671f; /* pressed / text-on-light */
+  --brass-500: #b8863b; /* primary action          */
+  --brass-400: #cf9d55;
+  --brass-300: #e3c988;
+  --brass-100: #f3e6c4; /* tint fill               */
+  --brass-050: #faf2df;
+
+  /* ---- Wind: Batara Bayu, weathered teal-slate (info/links) ---- */
+  --wind-700: #2f5560;
+  --wind-600: #3f6e7a;
+  --wind-500: #517f8c; /* info accent             */
+  --wind-100: #dbe7ea;
+  --wind-050: #eef4f5;
+
+  /* ---- Earthy semantics ---- */
+  --leaf-600: #4d6b30;  /* success / on-convention */
+  --leaf-500: #5f8340;
+  --leaf-100: #e6eed7;
+
+  --amber-600: #b3771a; /* warning / drift         */
+  --amber-500: #cf8f28;
+  --amber-100: #f7e9c9;
+
+  --clay-600: #a23b2e;  /* danger / broken         */
+  --clay-500: #bd4a3a;
+  --clay-100: #f5dcd6;
+
+  /* ---- Terminal / code surface (dark ink panel) ---- */
+  --term-bg:   #1c1810;
+  --term-fg:   #e9e0cd;
+  --term-dim:  #8f8467;
+  --term-line: #2c2618;
+
+  /* =========================================================
+     SEMANTIC ALIASES — consume these in components
+     ========================================================= */
+
+  /* Surfaces */
+  --surface-page:    var(--bone-100);
+  --surface-panel:   var(--bone-200);
+  --surface-card:    var(--bone-000);
+  --surface-sunken:  var(--bone-200);
+  --surface-inverse: var(--ink-900);
+  --surface-code:    var(--term-bg);
+
+  /* Text */
+  --text-strong:   var(--ink-900);
+  --text-body:     var(--ink-700);
+  --text-muted:    var(--ink-500);
+  --text-subtle:   var(--ink-400);
+  --text-on-brass: var(--ink-900);
+  --text-on-dark:  var(--term-fg);
+  --text-link:     var(--wind-600);
+
+  /* Lines & borders */
+  --border-hair:   var(--bone-300);
+  --border-strong: var(--bone-400);
+  --border-focus:  var(--brass-500);
+
+  /* Accents */
+  --accent:       var(--brass-500);
+  --accent-hover: var(--brass-600);
+  --accent-press: var(--brass-700);
+  --accent-tint:  var(--brass-100);
+  --accent-on:    var(--ink-900);
+
+  --info:      var(--wind-600);
+  --info-tint: var(--wind-100);
+
+  /* Status */
+  --status-ok:        var(--leaf-600);
+  --status-ok-tint:   var(--leaf-100);
+  --status-warn:      var(--amber-600);
+  --status-warn-tint: var(--amber-100);
+  --status-err:       var(--clay-600);
+  --status-err-tint:  var(--clay-100);
+
+  /* Focus ring */
+  --ring: 0 0 0 3px color-mix(in srgb, var(--brass-500) 45%, transparent);
+}

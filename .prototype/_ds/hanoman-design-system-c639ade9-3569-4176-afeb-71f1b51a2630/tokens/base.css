@@ -1,0 +1,63 @@
+/* ============================================================
+   Hanoman — base element defaults & resets.
+   Kept minimal; components carry their own styling.
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--surface-page);
+  color: var(--text-body);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Headings default to the editorial serif voice */
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  color: var(--text-strong);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  font-weight: var(--weight-semibold);
+  margin: 0 0 var(--space-3);
+}
+
+p { margin: 0 0 var(--space-3); }
+
+/* Links — ALWAYS define default + hover so editor-added links
+   never fall back to browser blue. */
+a {
+  color: var(--text-link);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--text-link) 35%, transparent);
+  transition: var(--transition-fast);
+}
+a:hover {
+  color: var(--wind-700);
+  border-bottom-color: var(--wind-700);
+}
+
+/* Mono is for code, paths, and data labels */
+code, kbd, samp, pre {
+  font-family: var(--font-code);
+  font-size: 0.92em;
+}
+
+/* Eyebrow / label utility used across cards */
+.hn-eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+::selection {
+  background: var(--brass-100);
+  color: var(--ink-900);
+}

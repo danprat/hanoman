@@ -1,0 +1,125 @@
+<!-- Hanoman — interactive prototype for nafanesia.id.
+     Working navigation, a list-based project monitor, a rendered +
+     editable Source-of-Truth docs workspace, and a steerable /
+     interruptible live Claude Code run. Composed from the Hanoman
+     Design System bundle. -->
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>hanoman — nafanesia.id</title>
+
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/fonts.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/colors.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/typography.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/spacing.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/effects.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/base.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/styles.css" />
+
+<script src="https://unpkg.com/lucide@0.400.0/dist/umd/lucide.js"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/_ds_bundle.js"></script>
+
+<style>
+  html, body { margin: 0; height: 100%; background: var(--surface-page); }
+  #root { height: 100vh; overflow: hidden; }
+
+  /* Primary/danger button text + icon white (buttons only) */
+  button { --accent-on: #fff; }
+
+  a { color: var(--text-link); text-decoration: none; }
+  a:hover { color: var(--wind-700); text-decoration: underline; }
+
+  /* ---- rendered markdown (Source of Truth preview) ---- */
+  .hn-md { color: var(--text-body); font-family: var(--font-sans); font-size: 15px; line-height: 1.72; }
+  .hn-md > :first-child { margin-top: 8px; }
+  .hn-md h1, .hn-md h2, .hn-md h3, .hn-md h4 {
+    font-family: var(--font-display); font-weight: 600; letter-spacing: -0.02em;
+    color: var(--ink-900); line-height: 1.2; margin: 1.6em 0 0.5em;
+  }
+  .hn-md h1 { font-size: 30px; margin-top: 0.4em; padding-bottom: 0.34em; border-bottom: 1px solid var(--border-hair); }
+  .hn-md h2 { font-size: 22px; }
+  .hn-md h3 { font-size: 18px; }
+  .hn-md h4 { font-size: 15px; }
+  .hn-md p { margin: 0.7em 0; }
+  .hn-md ul, .hn-md ol { margin: 0.6em 0; padding-left: 1.5em; }
+  .hn-md li { margin: 0.28em 0; }
+  .hn-md li::marker { color: var(--brass-500); }
+  .hn-md ul.contains-task-list, .hn-md li.task-list-item { list-style: none; }
+  .hn-md li.task-list-item { padding-left: 0; }
+  .hn-md input[type="checkbox"] { accent-color: var(--brass-500); margin-right: 8px; transform: translateY(1px); }
+  .hn-md strong { font-weight: 600; color: var(--ink-900); }
+  .hn-md em { color: var(--text-muted); }
+  .hn-md a { color: var(--text-link); }
+  .hn-md hr { border: none; border-top: 1px solid var(--border-hair); margin: 1.6em 0; }
+
+  .hn-md code {
+    font-family: var(--font-mono); font-size: 0.86em;
+    background: var(--bone-200); color: var(--ink-800);
+    padding: 1.5px 5px; border-radius: var(--radius-xs); border: 1px solid var(--border-hair);
+  }
+  .hn-md pre {
+    background: var(--surface-code); border: 1px solid var(--term-line);
+    border-radius: var(--radius-lg); padding: 14px 16px; overflow: auto; margin: 1em 0;
+  }
+  .hn-md pre code {
+    background: transparent; border: none; padding: 0;
+    color: var(--term-fg); font-size: 12.5px; line-height: 1.7;
+  }
+  .hn-md blockquote {
+    margin: 1em 0; padding: 4px 16px; border-left: 3px solid var(--brass-500);
+    background: var(--brass-050); color: var(--text-body); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  }
+  .hn-md blockquote p { margin: 0.4em 0; }
+  .hn-md table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 14px; }
+  .hn-md th {
+    font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text-muted); text-align: left; padding: 8px 12px; background: var(--bone-100);
+    border: 1px solid var(--border-hair);
+  }
+  .hn-md td { padding: 8px 12px; border: 1px solid var(--border-hair); color: var(--text-body); }
+  .hn-md td code { font-size: 0.82em; }
+  .hn-md img { max-width: 100%; border-radius: var(--radius-sm); }
+
+  @keyframes hn-fade-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes hn-modal-in { from { opacity: 0; transform: translateY(8px) scale(0.99); } to { opacity: 1; transform: none; } }
+  @keyframes hn-toast-in { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#b8863b"/>
+    <g fill="none" stroke="#17130c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M35 42 h22 a7 7 0 1 0 -7 -7"/>
+      <path d="M32 58 h30 a7 7 0 1 1 -7 7"/>
+    </g>
+  </svg>
+</template>
+
+<script src="app/data.js"></script>
+<script src="app/docContent.js"></script>
+<script type="text/babel" src="app/marks.jsx"></script>
+<script type="text/babel" src="app/AppUI.jsx"></script>
+<script type="text/babel" src="app/Shell.jsx"></script>
+<script type="text/babel" src="app/ProjectsScreen.jsx"></script>
+<script type="text/babel" src="app/OverviewScreen.jsx"></script>
+<script type="text/babel" src="app/RunsScreen.jsx"></script>
+<script type="text/babel" src="app/BacklogScreen.jsx"></script>
+<script type="text/babel" src="app/DocsWorkspace.jsx"></script>
+<script type="text/babel" src="app/TriggersScreen.jsx"></script>
+<script type="text/babel" src="app/SettingsScreen.jsx"></script>
+<script type="text/babel" src="app/App.jsx"></script>
+<script type="text/babel">
+  const RootApp = window.App;
+  ReactDOM.createRoot(document.getElementById("root")).render(<RootApp />);
+</script>
+</body>
+</html>

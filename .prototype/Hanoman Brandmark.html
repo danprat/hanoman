@@ -1,0 +1,299 @@
+<!-- Hanoman — the brand mark. Full lockup + usage spec for the chosen
+     direction: Buntut, the coiled tail (Anoman Obong). Built on the
+     Hanoman Design System tokens. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>hanoman — brand mark (Buntut)</title>
+
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/fonts.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/colors.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/typography.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/spacing.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/effects.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/tokens/base.css" />
+<link rel="stylesheet" href="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/styles.css" />
+
+<script src="https://unpkg.com/lucide@0.400.0/dist/umd/lucide.js"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="_ds/hanoman-design-system-c639ade9-3569-4176-afeb-71f1b51a2630/_ds_bundle.js"></script>
+
+<style>
+  html, body { background: var(--surface-page); }
+  #root { max-width: 1080px; margin: 0 auto; padding: 64px 40px 96px; }
+  .brass-rule { height: 2px; background: var(--brass-500); border: none; }
+  .sec { margin-top: 56px; }
+  .sec-h { display: flex; align-items: baseline; gap: 14px; margin-bottom: 22px; }
+  .sec-n { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--brass-600); }
+  @media print { #root { padding: 24px; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#b8863b"/>
+    <path transform="translate(14 14) scale(0.56)" fill="#fff" d="M 74 116.6 L 82 113 L 92 106 L 100 97 L 105 88 L 108.5 78 L 109 70 L 108 63 L 105 55 L 100 47 L 94 40 L 86 34 L 78 31 L 70 30.4 L 61 31.5 L 53 35 L 47 40 L 42 46 L 39 52 L 37.9 60 L 38 65 L 40 71 L 43 76 L 47 80 L 52 83 L 58 84.7 L 63 84.5 L 68 82.6 L 72 79 L 74.5 74 L 75.7 68 L 74.5 63 L 71 62.3 L 69.5 62.3 L 71 67 L 71.5 70 L 70 74 L 66 76.4 L 61 77.2 L 55 75.5 L 51 71 L 49 65 L 49 58 L 51.5 53 L 56 49 L 62 46 L 69 45 L 76 46.7 L 82 50 L 87 55 L 90 62 L 91 69 L 90 76 L 86 84 L 80 90 L 72 95 L 68.2 96.5 A 10 10 0 0 1 74 116.6 Z"/>
+  </svg>
+</template>
+
+<script type="text/babel" src="app/marks.jsx"></script>
+<script type="text/babel">
+const { Card, Badge, Icon } = window.HanomanDesignSystem_c639ad;
+const { Mark, Wordmark } = window;
+const BUNTUT = "buntut";
+
+function Panel({ children, dark, pad = 40, style = {} }) {
+  return (
+    <div style={{
+      background: dark ? "var(--ink-900)" : "var(--bone-000)",
+      border: dark ? "none" : "1px solid var(--border-hair)",
+      borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-sm)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      padding: pad, ...style,
+    }}>{children}</div>
+  );
+}
+function SecHead({ n, children }) {
+  return (
+    <div className="sec-h">
+      <span className="sec-n">{n}</span>
+      <h2 style={{ fontSize: "var(--text-2xl)", margin: 0 }}>{children}</h2>
+    </div>
+  );
+}
+function Cap({ children }) {
+  return <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", marginTop: 12, lineHeight: "var(--leading-relaxed)" }}>{children}</div>;
+}
+
+/* ---- lockups ---- */
+function LockupHorizontal({ mark = "var(--brass-500)", word = "var(--ink-900)", markSize = 84, wordSize = 68, gap = 28 }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap }}>
+      <Mark id={BUNTUT} size={markSize} color={mark} />
+      <Wordmark size={wordSize} color={word} />
+    </div>
+  );
+}
+function LockupStacked({ mark = "var(--brass-500)", word = "var(--ink-900)" }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 18 }}>
+      <Mark id={BUNTUT} size={92} color={mark} />
+      <Wordmark size={40} color={word} />
+    </div>
+  );
+}
+
+/* ---- clearspace ---- */
+function Clearspace() {
+  const pad = 34, box = 232, mk = box - pad * 2;
+  return (
+    <Panel pad={0} style={{ position: "relative", height: 232, width: 232, flex: "0 0 auto" }}>
+      <div style={{ position: "absolute", inset: pad, border: "1px dashed var(--brass-400)", borderRadius: 4 }} />
+      {["top", "bottom"].map((s) => (
+        <div key={s} style={{ position: "absolute", left: pad, right: pad, [s]: pad - 1, height: 0 }} />
+      ))}
+      <Mark id={BUNTUT} size={mk - 44} color="var(--brass-500)" />
+      {[["top","left"],["top","right"],["bottom","left"],["bottom","right"]].map((c, i) => (
+        <span key={i} style={{ position: "absolute", [c[0]]: pad - 7, [c[1]]: pad - 7, width: 14, height: 14, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--brass-600)" }}>x</span>
+      ))}
+    </Panel>
+  );
+}
+
+/* ---- color tile ---- */
+function ColorTile({ bg, mark, label, note, ring }) {
+  return (
+    <div>
+      <div style={{
+        height: 128, borderRadius: "var(--radius-lg)", background: bg,
+        border: ring ? "1px solid var(--border-hair)" : "none",
+        display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "var(--shadow-sm)",
+      }}>
+        <Mark id={BUNTUT} size={62} color={mark} />
+      </div>
+      <div className="hn-eyebrow" style={{ marginTop: 12 }}>{note}</div>
+      <div style={{ fontSize: "var(--text-sm)", color: "var(--text-body)", marginTop: 3 }}>{label}</div>
+    </div>
+  );
+}
+
+/* ---- app-icon tile with radius ---- */
+function IconTile({ bg, mark, size, ring }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+      <div style={{ width: size, height: size, borderRadius: size * 0.24, background: bg, border: ring ? "1px solid var(--border-hair)" : "none", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "var(--shadow-sm)" }}>
+        <Mark id={BUNTUT} size={size * 0.58} color={mark} />
+      </div>
+      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-subtle)" }}>{size}</span>
+    </div>
+  );
+}
+
+/* ---- misuse ---- */
+function DontCard({ label, children }) {
+  return (
+    <div>
+      <div style={{ position: "relative", height: 118, borderRadius: "var(--radius-md)", background: "var(--bone-000)", border: "1px solid var(--border-hair)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+        {children}
+        <span style={{ position: "absolute", top: 8, right: 8, width: 20, height: 20, borderRadius: "50%", background: "var(--clay-600)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Icon name="x" size={13} stroke={3} />
+        </span>
+      </div>
+      <div style={{ fontSize: "var(--text-sm)", color: "var(--text-body)", marginTop: 9 }}>{label}</div>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <React.Fragment>
+      {/* Header */}
+      <header>
+        <div className="hn-eyebrow" style={{ marginBottom: 16 }}>Hanoman · brand mark · 03 Buntut</div>
+        <h1 style={{ fontSize: "var(--text-6xl)", margin: "0 0 20px", letterSpacing: "-0.03em" }}>The coiled tail</h1>
+        <p style={{ fontSize: "var(--text-lg)", color: "var(--text-body)", lineHeight: "var(--leading-relaxed)", maxWidth: "66ch", margin: 0 }}>
+          Anoman Obong — the tail Rahwana set alight, turned into a torch across Alengka. One tapered
+          stroke, thick at the root and coiling to a fine tip: energy held, ready to run. This is the
+          Hanoman mark. Everything below is how to set it.
+        </p>
+        <div style={{ display: "flex", gap: 8, marginTop: 22 }}>
+          <Badge tone="brass" size="sm" icon="check">Chosen direction</Badge>
+          <Badge tone="neutral" size="sm" variant="outline">Anoman Obong</Badge>
+        </div>
+        <hr className="brass-rule" style={{ marginTop: 32 }} />
+      </header>
+
+      {/* Primary lockup */}
+      <section className="sec">
+        <SecHead n="01">Primary lockup</SecHead>
+        <Panel pad={52} style={{ boxShadow: "var(--shadow-md)", outline: "1px solid var(--brass-300)" }}>
+          <LockupHorizontal />
+        </Panel>
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 20, marginTop: 20 }}>
+          <Panel pad={40} dark>
+            <LockupHorizontal mark="var(--brass-400)" word="var(--bone-100)" markSize={64} wordSize={52} gap={22} />
+          </Panel>
+          <Panel pad={36}>
+            <LockupStacked />
+          </Panel>
+        </div>
+        <Cap>Horizontal is the default. The mark sits left of the wordmark, its optical centre aligned to the x-height. Use the stacked lockup where width is tight (avatars, tall cards).</Cap>
+      </section>
+
+      {/* Construction & clearspace */}
+      <section className="sec">
+        <SecHead n="02">Construction &amp; clear space</SecHead>
+        <div style={{ display: "grid", gridTemplateColumns: "232px 1fr", gap: 32, alignItems: "center" }}>
+          <Clearspace />
+          <div>
+            <p style={{ fontSize: "var(--text-base)", color: "var(--text-body)", lineHeight: "var(--leading-relaxed)", margin: "0 0 14px", maxWidth: "54ch" }}>
+              The tail is drawn on a 128-unit grid as a single ~1.3-turn spiral, its width tapering from
+              21 units at the root to 2 at the tip — no outline, one solid fill.
+            </p>
+            <p style={{ fontSize: "var(--text-base)", color: "var(--text-body)", lineHeight: "var(--leading-relaxed)", margin: 0, maxWidth: "54ch" }}>
+              Keep clear space of at least <strong>x</strong> on every side, where <strong>x</strong> equals
+              the tail's root width. Nothing — type, edges, other marks — enters that field.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Minimum size */}
+      <section className="sec">
+        <SecHead n="03">Minimum size</SecHead>
+        <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+          <Panel pad={28} style={{ gap: 20, justifyContent: "flex-start" }}>
+            <Mark id={BUNTUT} size={16} color="var(--ink-900)" />
+            <div>
+              <div style={{ fontSize: "var(--text-sm)", color: "var(--text-strong)", fontWeight: 600 }}>Mark · 16 px floor</div>
+              <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: 2 }}>favicon / status glyph</div>
+            </div>
+          </Panel>
+          <Panel pad={28} style={{ gap: 16, justifyContent: "flex-start" }}>
+            <Mark id={BUNTUT} size={20} color="var(--brass-500)" />
+            <Wordmark size={17} />
+            <div style={{ marginLeft: 8, paddingLeft: 16, borderLeft: "1px solid var(--border-hair)" }}>
+              <div style={{ fontSize: "var(--text-sm)", color: "var(--text-strong)", fontWeight: 600 }}>Lockup · 88 px floor</div>
+              <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: 2 }}>below this, use the mark alone</div>
+            </div>
+          </Panel>
+        </div>
+      </section>
+
+      {/* Colorways */}
+      <section className="sec">
+        <SecHead n="04">Colour ways</SecHead>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 18 }}>
+          <ColorTile bg="var(--bone-000)" mark="var(--brass-500)" note="Primary" label="Brass on bone" ring />
+          <ColorTile bg="var(--ink-900)" mark="var(--brass-400)" note="Dark UI" label="Brass on ink" />
+          <ColorTile bg="var(--ink-900)" mark="var(--bone-100)" note="Reverse" label="Bone on ink" />
+          <ColorTile bg="var(--brass-500)" mark="#fff" note="Brand tile" label="White on brass" />
+          <ColorTile bg="var(--bone-000)" mark="var(--ink-900)" note="Monochrome" label="Ink on bone" ring />
+          <ColorTile bg="var(--bone-200)" mark="var(--ink-300)" note="Watermark" label="Muted on panel" ring />
+        </div>
+        <Cap>Brass on bone is the default. Reach for ink monochrome where brass can't reproduce (fax, engraving, single-colour print); the reverse and brass tile carry dark surfaces and the app icon.</Cap>
+      </section>
+
+      {/* App icon */}
+      <section className="sec">
+        <SecHead n="05">App icon &amp; favicon</SecHead>
+        <Panel pad={36} style={{ justifyContent: "flex-start", gap: 34, flexWrap: "wrap" }}>
+          <IconTile bg="var(--brass-500)" mark="#fff" size={72} />
+          <IconTile bg="var(--ink-900)" mark="var(--brass-400)" size={56} />
+          <IconTile bg="var(--brass-500)" mark="#fff" size={40} />
+          <IconTile bg="var(--ink-900)" mark="var(--brass-400)" size={32} />
+          <IconTile bg="var(--brass-500)" mark="#fff" size={16} />
+        </Panel>
+        <Cap>The tail centres in a squircle with ~24% corner radius. White-on-brass is the primary icon; ink surfaces take brass-400 for contrast.</Cap>
+      </section>
+
+      {/* Misuse */}
+      <section className="sec">
+        <SecHead n="06">Misuse</SecHead>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 18 }}>
+          <DontCard label="Don't rotate or flip"><Mark id={BUNTUT} size={62} color="var(--brass-500)" style={{ transform: "rotate(42deg)" }} /></DontCard>
+          <DontCard label="Don't recolour off-palette"><Mark id={BUNTUT} size={62} color="#6c4cd6" /></DontCard>
+          <DontCard label="Don't stretch or distort"><span style={{ display: "inline-flex", transform: "scaleX(1.7)" }}><Mark id={BUNTUT} size={62} color="var(--brass-500)" /></span></DontCard>
+          <DontCard label="Don't add glow or shadow"><Mark id={BUNTUT} size={62} color="var(--brass-500)" style={{ filter: "drop-shadow(0 0 9px var(--brass-400))" }} /></DontCard>
+          <DontCard label="Don't set low-contrast"><Mark id={BUNTUT} size={62} color="var(--bone-300)" /></DontCard>
+          <DontCard label="Don't place on a busy fill">
+            <div style={{ position: "absolute", inset: 0, background: "repeating-linear-gradient(45deg, var(--wind-100) 0 12px, var(--amber-100) 12px 24px)" }} />
+            <Mark id={BUNTUT} size={62} color="var(--brass-500)" style={{ position: "relative" }} />
+          </DontCard>
+        </div>
+      </section>
+
+      {/* Wordmark / type + closing */}
+      <section className="sec">
+        <SecHead n="07">Wordmark</SecHead>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+          <Panel pad={36} style={{ flexDirection: "column", alignItems: "flex-start", gap: 14 }}>
+            <Wordmark size={46} />
+            <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", lineHeight: "var(--leading-relaxed)" }}>
+              IBM Plex Mono · lowercase · Medium (500) · tracking −0.02em. Always lowercase — never
+              capitalise, never letter-space wide.
+            </div>
+          </Panel>
+          <div style={{ padding: "26px 28px", borderRadius: "var(--radius-lg)", background: "var(--brass-050)", border: "1px solid var(--brass-300)" }}>
+            <div className="hn-eyebrow" style={{ marginBottom: 10 }}>Next</div>
+            <p style={{ fontSize: "var(--text-base)", color: "var(--ink-700)", lineHeight: "var(--leading-relaxed)", margin: 0 }}>
+              The tail is now live in the dashboard sidebar and header. Say the word and I'll export SVG /
+              PNG / ICO assets, or refine the coil — tighter turn, longer sweep, rounder tip.
+            </p>
+          </div>
+        </div>
+      </section>
+    </React.Fragment>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
