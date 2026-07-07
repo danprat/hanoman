@@ -7,5 +7,5 @@
   },
   "dependencies": { "@hanoman/shared": "workspace:*", "@prisma/client": "^5.18.0",
     "fastify": "^4.28.0", "@fastify/static": "^7.0.0", "zod": "^3.23.0" },
-  "devDependencies": { "prisma": "^5.18.0", "tsx": "^4.16.0" }
+  "devDependencies": { "@types/node": "^20.14.0", "prisma": "^5.18.0", "tsx": "^4.16.0" }
 }
