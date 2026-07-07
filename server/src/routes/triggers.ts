@@ -1,0 +1,24 @@
+import type { FastifyInstance } from "fastify";
+import { zCreateTrigger } from "@hanoman/shared";
+import { prisma } from "../db";
+export default async function (app: FastifyInstance) {
+  app.get("/triggers", async (req) => {
+    const { project } = req.query as { project?: string };
+    return prisma.trigger.findMany({ where: { projectId: project }, orderBy: { id: "desc" } });
+  });
+  app.post("/triggers", async (req, reply) => {
+    const parsed = zCreateTrigger.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    const b = parsed.data;
+    const id = "t" + Math.floor(Math.random() * 100000);
+    const t = await prisma.trigger.create({ data: {
+      id, projectId: b.project, type: b.type, detail: b.detail, target: b.target, enabled: true } });
+    return reply.code(201).send(t);
+  });
+  app.post("/triggers/:id/toggle", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const t = await prisma.trigger.findUnique({ where: { id } });
+    if (!t) return reply.code(404).send({ error: "not found" });
+    return prisma.trigger.update({ where: { id }, data: { enabled: !t.enabled } });
+  });
+}
