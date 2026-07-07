@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id        String   @id
+  name      String
+  desc      String
+  kind      String
+  repoDir   String?
+  repoUrl   String?
+  stack     String   @default("")
+  docStatus String
+  coverage  Int
+  createdAt DateTime @default(now())
+  specs     Spec[]
+  runs      Run[]
+  triggers  Trigger[]
+  docs      DocFile[]
+}
+
+model Spec {
+  id        String  @id
+  projectId String
+  title     String
+  source    String
+  stage     String
+  priority  String
+  author    String
+  objective String
+  payload   Json?
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Run {
+  id            String  @id
+  projectId     String
+  specId        String?
+  kind          String
+  status        String
+  trigger       String
+  triggerDetail String
+  phases        Json
+  plan          Json
+  files         Json
+  log           Json
+  worktree      String
+  branchFrom    String
+  branchTo      String
+  model         String
+  tokensIn      String
+  tokensOut     String
+  cost          String
+  progress      Int
+  project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Trigger {
+  id        String  @id
+  projectId String
+  type      String
+  detail    String
+  target    String
+  enabled   Boolean
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Setting {
+  id   Int  @id @default(1)
+  data Json
+}
+
+model DocFile {
+  id        Int     @id @default(autoincrement())
+  projectId String
+  path      String
+  category  String
+  content   String
+  linked    Boolean
+  root      Boolean @default(false)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@unique([projectId, path])
+}
