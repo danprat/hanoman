@@ -4,7 +4,8 @@ import projects from "./routes/projects";
 import specs from "./routes/specs";
 import triggers from "./routes/triggers";
 import settings from "./routes/settings";
-// route imports added by later tasks: docs, runs
+import docs from "./routes/docs";
+// route imports added by later tasks: runs
 export function buildApp(): FastifyInstance {
   const app = Fastify({ logger: false });
   app.register(async (api) => {
@@ -13,7 +14,8 @@ export function buildApp(): FastifyInstance {
     await api.register(specs);
     await api.register(triggers);
     await api.register(settings);
-    // await api.register(docs); ... (added in Tasks 13-14)
+    await api.register(docs);
+    // await api.register(runs); ... (added in Task 14)
   }, { prefix: "/api" });
   return app;
 }

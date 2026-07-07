@@ -17,7 +17,7 @@ describe("triggers + settings", () => {
   it("gets and updates settings", async () => {
     const got = await app.inject({ url: "/api/settings" }); expect(got.json()).toHaveProperty("steps");
     const put = await app.inject({ method: "PUT", url: "/api/settings",
-      payload: { ...got.json(), maxConcurrent: 5 } });
+      payload: { ...(got.json() as Record<string, unknown>), maxConcurrent: 5 } });
     expect(put.json().maxConcurrent).toBe(5);
   });
 });
