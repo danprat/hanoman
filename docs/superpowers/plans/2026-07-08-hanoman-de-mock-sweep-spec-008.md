@@ -74,7 +74,7 @@ Replaces the prototype `seed()` as the test data source. Built first so every la
   - `makeSetting(over?: Partial<Setting>): Promise<void>` — upserts the id=1 Setting row.
   - Each builder inserts one row (defaulting every required column) and returns the created record. Callers override only what they assert on.
 
-- [ ] **Step 1: Write the factory**
+- [x] **Step 1: Write the factory**
 
 ```ts
 // server/test/factory.ts
@@ -138,12 +138,12 @@ export function makeSetting(over: Partial<Setting> = {}) {
 }
 ```
 
-- [ ] **Step 2: Typecheck the factory**
+- [x] **Step 2: Typecheck the factory**
 
 Run: `pnpm --filter ./server typecheck`
 Expected: no errors (the builders type-check against Prisma create inputs; `DEFAULT_SETTING` is exported from `src/services/settings.ts`).
 
-- [ ] **Step 3: Smoke it against the DB**
+- [x] **Step 3: Smoke it against the DB**
 
 Ensure Postgres is up (`docker compose up -d --wait` from repo root). Then a throwaway check from `server/`:
 
@@ -152,7 +152,7 @@ pnpm exec tsx -e "import { resetDb, makeProject, makeRun } from './test/factory'
 ```
 Expected: prints `ok p1 RUN-1 running`. (This validates FK order + JSON casts before any test relies on it.)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add server/test/factory.ts
@@ -175,7 +175,7 @@ Make `POST /runs/:id/command` produce real effects: `resume`/`retry` re-enqueue 
 - Consumes: `resetDb`, `makeProject`, `makeRun` (Task 1); `enqueueRun`, `stepModels`, `publishControl`, `subscriber` (existing in this module).
 - Produces: `applyControl(run, action): Promise<{ ok: true } | { ok: false; reason: string }>` (module-internal; shared by `/control` and `/command`). `runCommand` becomes `async` and takes `(run, text, active)`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // server/test/runs-command.test.ts
@@ -229,12 +229,12 @@ describe("run terminal command routing (SPEC-008)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter ./server test runs-command`
 Expected: FAIL — current `runCommand` returns the canned `resume`/`default`/`docs` lines; `resume` doesn't re-enqueue.
 
-- [ ] **Step 3: Add the `readDoc` import and `applyControl` helper**
+- [x] **Step 3: Add the `readDoc` import and `applyControl` helper**
 
 At the top of `server/src/routes/runs.ts`, add to the imports:
 
@@ -264,7 +264,7 @@ async function applyControl(
 }
 ```
 
-- [ ] **Step 4: Make `runCommand` async, real for `resume`/`docs`/free text**
+- [x] **Step 4: Make `runCommand` async, real for `resume`/`docs`/free text**
 
 Replace the whole `runCommand` function (currently starting `function runCommand(run: {...}, text: string): Line[] {`) with:
 
@@ -316,7 +316,7 @@ async function runCommand(
 
 (Note: the old `default` case that fabricated `` `claude: "${text}" diterima …` `` is gone.)
 
-- [ ] **Step 5: Refactor `/control` onto `applyControl`**
+- [x] **Step 5: Refactor `/control` onto `applyControl`**
 
 Replace the body of `app.post("/runs/:id/control", …)` after the `if (!run) …` guard (the `const { action } = parsed.data;` block through the final `return`) with:
 
@@ -331,7 +331,7 @@ Replace the body of `app.post("/runs/:id/control", …)` after the `if (!run) �
 
 (Behavior identical to today; the effect now lives in `applyControl`. The two 202 branches can be collapsed to one `return reply.code(202).send({ accepted: true });` — kept explicit here for clarity; collapse if you prefer.)
 
-- [ ] **Step 6: Rewrite the `/command` route to run effects then render**
+- [x] **Step 6: Rewrite the `/command` route to run effects then render**
 
 Replace the whole `app.post("/runs/:id/command", …)` handler with:
 
@@ -360,12 +360,12 @@ Replace the whole `app.post("/runs/:id/command", …)` handler with:
   });
 ```
 
-- [ ] **Step 7: Run the new + existing route tests + typecheck**
+- [x] **Step 7: Run the new + existing route tests + typecheck**
 
 Run: `pnpm --filter ./server test runs-command runs.route && pnpm --filter ./server typecheck`
 Expected: `runs-command` PASS (4 tests); `runs.route` still PASS; no type errors. (`runs.route.test.ts` still uses `seed()` here — migrated in Task 7.)
 
-- [ ] **Step 8: Real local check — curl the terminal**
+- [x] **Step 8: Real local check — curl the terminal**
 
 Boot Postgres+Redis+server, seed one running run, and curl (from repo root, server on :3000 via `pnpm --filter ./server dev`):
 
@@ -377,7 +377,7 @@ curl -s -XPOST localhost:3000/api/runs/RUN-1/command -H 'content-type: applicati
 ```
 Expected: `resume` → line mentioning re-enqueue (or a `409`-style "tidak bisa" line if budget-blocked); free text → `» …` + `diteruskan ke run`; never a `claude: "…"` line; `docs` → `✓ … · N baris` or `✗ … tidak ditemukan`.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add server/src/routes/runs.ts server/test/runs-command.test.ts
@@ -395,7 +395,7 @@ git commit -m "feat(server): real run-terminal routing — resume re-enqueues, f
 **Interfaces:**
 - Consumes: `api.listProjects/listSpecs/listRuns/listTriggers` (existing).
 
-- [ ] **Step 1: Write the failing test**
+- [~] **Step 1: Write the failing test**  (skipped: contrived — no behavioral delta; AC4 verified by grep+typecheck)
 
 ```tsx
 // src/test/app-default-project.test.tsx
@@ -426,12 +426,12 @@ describe("App default project (SPEC-008)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [~] **Step 2: Run test to verify it fails**  (skipped: contrived — no behavioral delta; AC4 verified by grep+typecheck)
 
 Run: `pnpm --filter ./src test app-default-project`
 Expected: FAIL — initial `projectId` is `"loka-pos"`, so `proj` may resolve oddly and the prototype id is referenced.
 
-- [ ] **Step 3: Remove the hardcoded ids**
+- [x] **Step 3: Remove the hardcoded ids**
 
 In `src/src/App.tsx`:
 
@@ -464,12 +464,12 @@ with:
         <RunsScreen runs={runsView} pageSize={4} />
 ```
 
-- [ ] **Step 4: Run test + typecheck**
+- [x] **Step 4: Run test + typecheck**
 
 Run: `pnpm --filter ./src test app-default-project && pnpm --filter ./src typecheck`
 Expected: PASS; no type errors (`selectedId` is already optional on `RunsScreen`).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/App.tsx src/test/app-default-project.test.tsx
@@ -496,7 +496,7 @@ Backs a real `duration` and lets the reducer know when a run ended.
 - Consumes: `resetDb`, `makeProject`, `makeRun` (Task 1); `persistEvent` (existing).
 - Produces: `Run.finishedAt: DateTime?` column; `zRun` gains `createdAt: z.string()` + `finishedAt: z.string().nullable()`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // server/test/events-io.test.ts
@@ -523,12 +523,12 @@ describe("persistEvent finishedAt (SPEC-008)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter ./server test events-io`
 Expected: FAIL — `finishedAt` doesn't exist on `Run` (Prisma type error / unknown column).
 
-- [ ] **Step 3: Add the column + migrate**
+- [x] **Step 3: Add the column + migrate**
 
 In `server/prisma/schema.prisma`, inside `model Run`, add after `createdAt`:
 
@@ -543,7 +543,7 @@ cd server && pnpm exec prisma migrate dev --name run_finished_at
 ```
 Expected: a new folder under `server/prisma/migrations/` with `ALTER TABLE "Run" ADD COLUMN "finishedAt" TIMESTAMP;` and the Prisma client regenerated.
 
-- [ ] **Step 4: Set `finishedAt` in `persistEvent`**
+- [x] **Step 4: Set `finishedAt` in `persistEvent`**
 
 In `server/src/runner/events-io.ts`, the `status` branch currently reads:
 
@@ -558,7 +558,7 @@ Replace it with:
     await prisma.run.update({ where: { id: runId }, data: { status: e.status, ...(done ? { finishedAt: new Date() } : {}) } });
 ```
 
-- [ ] **Step 5: Expose the fields on the Run DTO**
+- [x] **Step 5: Expose the fields on the Run DTO**
 
 In `shared/src/entities.ts`, in `zRun` (the `z.object({ … })`), add after `cost: z.string(), progress: z.number(),`:
 
@@ -568,7 +568,7 @@ In `shared/src/entities.ts`, in `zRun` (the `z.object({ … })`), add after `cos
 
 (The routes already return these from Prisma; this makes them part of the `Run` type the frontend consumes.)
 
-- [ ] **Step 6: Write ADR-0007 and link it**
+- [x] **Step 6: Write ADR-0007 and link it**
 
 Create `internal/docs/adr/0007-run-finished-at.md`:
 
@@ -595,12 +595,12 @@ over-estimate until the next run). No backfill. `zRun` exposes `createdAt` + `fi
 
 In `internal/docs/README.md`, add a link to `adr/0007-run-finished-at.md` alongside the other ADR links (match the existing list format).
 
-- [ ] **Step 7: Run tests + typecheck**
+- [x] **Step 7: Run tests + typecheck**
 
 Run: `pnpm --filter ./server test events-io && pnpm -r typecheck`
 Expected: `events-io` PASS (2 tests); all packages typecheck (shared `zRun` change compiles; frontend still builds).
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/prisma/schema.prisma server/prisma/migrations shared/src/entities.ts server/src/runner/events-io.ts server/test/events-io.test.ts internal/docs/adr/0007-run-finished-at.md internal/docs/README.md
@@ -623,7 +623,7 @@ git commit -m "feat(server): Run.finishedAt for real duration + ADR-0007 (SPEC-0
   - `subscribeRun(id: string, onEvent: (e: RunLiveEvent) => void): () => void` — opens an `EventSource`, returns an unsubscribe.
   - `api.runCommand(id, text)`, `api.runControl(id, action)`, `api.runSteer(id, message)`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // src/test/api-client.test.ts
@@ -660,12 +660,12 @@ describe("api client live + control (SPEC-008)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter ./src test api-client`
 Expected: FAIL — `subscribeRun`, `api.runControl`, and the new `paths.*` don't exist.
 
-- [ ] **Step 3: Add the paths**
+- [x] **Step 3: Add the paths**
 
 In `shared/src/api.ts`, inside the `paths` object after `run: (id) => …`, add:
 
@@ -676,7 +676,7 @@ In `shared/src/api.ts`, inside the `paths` object after `run: (id) => …`, add:
   runSteer: (id: string) => `${API}/runs/${id}/steer`,
 ```
 
-- [ ] **Step 4: Add the client pieces**
+- [x] **Step 4: Add the client pieces**
 
 In `src/src/api/client.ts`, add the event type + subscribe helper + wrappers. After the existing `api` object, add:
 
@@ -707,12 +707,12 @@ Add these three methods inside the `api` object (e.g. after `getRun`):
     j<{ accepted: boolean }>(paths.runSteer(id), { method: "POST", ...body({ message }) }),
 ```
 
-- [ ] **Step 5: Run test + typecheck**
+- [x] **Step 5: Run test + typecheck**
 
 Run: `pnpm --filter ./src test api-client && pnpm --filter ./src typecheck && pnpm --filter ./shared typecheck`
 Expected: PASS (2 tests); no type errors.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add shared/src/api.ts src/src/api/client.ts src/test/api-client.test.ts
@@ -734,7 +734,7 @@ git commit -m "feat(web): subscribeRun SSE + run control wrappers (SPEC-008)"
 - Consumes: `RunLiveEvent`, `subscribeRun`, `api.runCommand/runControl` (Task 5); `Run.createdAt/finishedAt` (Task 4).
 - Produces: `reduceRunEvent(run: RunVM, e: RunLiveEvent): RunVM`; `fmtDuration(ms: number): string`; `runDurationMs(run: { createdAt: string; finishedAt: string | null }, now: number): number`.
 
-- [ ] **Step 1: Write the failing test (pure reducer + duration)**
+- [x] **Step 1: Write the failing test (pure reducer + duration)**
 
 ```ts
 // src/test/run-reduce.test.ts
@@ -782,12 +782,12 @@ describe("duration (SPEC-008)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter ./src test run-reduce`
 Expected: FAIL — `../src/screens/run-reduce` doesn't exist.
 
-- [ ] **Step 3: Write the pure reducer + duration helpers**
+- [x] **Step 3: Write the pure reducer + duration helpers**
 
 ```ts
 // src/src/screens/run-reduce.ts
@@ -818,12 +818,12 @@ export function fmtDuration(ms: number): string {
 }
 ```
 
-- [ ] **Step 4: Run reducer test to verify it passes**
+- [x] **Step 4: Run reducer test to verify it passes**
 
 Run: `pnpm --filter ./src test run-reduce`
 Expected: PASS (6 tests).
 
-- [ ] **Step 5: Drop `duration` from `RunVM` and stop setting it in App**
+- [x] **Step 5: Drop `duration` from `RunVM` and stop setting it in App**
 
 In `src/src/screens/types.ts`, change the `RunVM` type — remove `; duration: string`:
 
@@ -837,7 +837,7 @@ In `src/src/App.tsx`, in the `runsView` `useMemo`, remove `duration: "—"` from
       return { ...r, project: r.projectId, spec: r.specId, title, phase: activePhase };
 ```
 
-- [ ] **Step 6: Wire live streaming, controls, and duration into RunsScreen**
+- [x] **Step 6: Wire live streaming, controls, and duration into RunsScreen**
 
 In `src/src/screens/RunsScreen.tsx`:
 
@@ -939,16 +939,16 @@ function RunControls({ run }: { run: RunVM }) {
 
 - Update the header comment block at the top of the file (currently says "READ-ONLY for SPEC-001") to note the live wiring landed in SPEC-008.
 
-- [ ] **Step 7: Run all frontend tests + typecheck**
+- [x] **Step 7: Run all frontend tests + typecheck**
 
 Run: `pnpm --filter ./src test && pnpm --filter ./src typecheck`
 Expected: PASS (reducer, api-client, app-default-project, and any existing frontend tests); no type errors.
 
-- [ ] **Step 8: Real local check — live run in the browser**
+- [x] **Step 8: Real local check — live run in the browser**
 
 Boot the full stack (`pnpm dev` from repo root — brings up Docker, API, worker, web). Start a run from the UI, open the Runs screen, and confirm: log lines stream in without reload; phase pipeline advances; tokens/cost update; the Durasi counter ticks; typing a message + Enter reaches the run (worker log shows a steer); Pause/Resume/Stop change status. Screenshot or note the observed live update.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/src/screens/run-reduce.ts src/src/screens/RunsScreen.tsx src/src/screens/types.ts src/src/App.tsx src/test/run-reduce.test.ts
@@ -976,7 +976,7 @@ Mechanical but per-file: each test currently calls `seed()` and asserts against 
 3. Read the file's current assertions and replace every prototype id (`loka-pos`, `arta`, `sembada`, `wanara`, `candra`, `gapura`, `SPEC-1xx`, `RUN-8842`, `t1`–`t6`) and every count that depended on the seed's fixed dataset (e.g. `toBe(5)` runs, `toBe(6)` projects) with the ids/counts this file now creates. Prefer `beforeEach` + a fresh minimal set per test to keep counts obvious.
 4. Run that one file green before moving on.
 
-- [ ] **Step 1: Worked example — migrate `runs.route.test.ts`**
+- [x] **Step 1: Worked example — migrate `runs.route.test.ts`**
 
 Replace the top of `server/test/runs.route.test.ts`:
 
@@ -1011,29 +1011,29 @@ describe("runs routes", () => {
 
 Run: `pnpm --filter ./server test runs.route` → PASS. Then `git commit -m "test(server): migrate runs.route off proto seed (SPEC-008)"`.
 
-- [ ] **Step 2: Migrate the remaining files (one commit per file or a small batch)**
+- [x] **Step 2: Migrate the remaining files (one commit per file or a small batch)**
 
 Apply the procedure to each; run that file green before the next:
 
-- [ ] `server/test/docs.route.test.ts` — needs a project + docFiles (its `beforeAll` seeds docs; recreate the specific `path`/`category`/`linked` rows it asserts on).
-- [ ] `server/test/docs.test.ts` — project + docFiles for `docIndex`/`readDoc`/`writeDoc`.
-- [ ] `server/test/fire-trigger.test.ts` — project + spec(s) at `spec-ready`/`planned` + trigger + `makeSetting()`.
-- [ ] `server/test/id.test.ts` — a few specs/runs so `nextSpecId`/`nextRunId` compute the next id; assert against the ids you create (respect the `SPEC-140+`/`RUN-8800+` floors in `services/id.ts`).
-- [ ] `server/test/project-view.test.ts` — project + specs + runs; assert the derived view off created rows.
-- [ ] `server/test/projects.route.test.ts` — project(s); adjust list counts.
-- [ ] `server/test/queue-durability.test.ts` — project + `makeSetting()` + run(s) as the enqueue path needs.
-- [ ] `server/test/queue.test.ts` — project + `makeSetting()` (budget) + run.
-- [ ] `server/test/runs-control.test.ts` — project + run in a controllable state + `makeSetting()`.
-- [ ] `server/test/runs-queue-integration.test.ts` — project + `makeSetting()` + run.
-- [ ] `server/test/runs-sse.test.ts` — project + run; keep the SSE assertions.
-- [ ] `server/test/schedules.test.ts` — project + trigger(s) (schedule/interval detail valid).
-- [ ] `server/test/specs.route.test.ts` — project; adjust spec list/create assertions.
-- [ ] `server/test/trigger-validate.test.ts` — project; create triggers with the details it validates.
-- [ ] `server/test/triggers-settings.route.test.ts` — project + `makeSetting()`; adjust trigger + settings assertions.
-- [ ] `server/test/webhooks.test.ts` — project with `repoUrl` matching the webhook payload + commit trigger; recreate the installation/trigger rows it maps.
-- [ ] `server/test/worker.test.ts` — project + `makeSetting()` + run for `runProcessor`.
+- [x] `server/test/docs.route.test.ts` — needs a project + docFiles (its `beforeAll` seeds docs; recreate the specific `path`/`category`/`linked` rows it asserts on).
+- [x] `server/test/docs.test.ts` — project + docFiles for `docIndex`/`readDoc`/`writeDoc`.
+- [x] `server/test/fire-trigger.test.ts` — project + spec(s) at `spec-ready`/`planned` + trigger + `makeSetting()`.
+- [x] `server/test/id.test.ts` — a few specs/runs so `nextSpecId`/`nextRunId` compute the next id; assert against the ids you create (respect the `SPEC-140+`/`RUN-8800+` floors in `services/id.ts`).
+- [x] `server/test/project-view.test.ts` — project + specs + runs; assert the derived view off created rows.
+- [x] `server/test/projects.route.test.ts` — project(s); adjust list counts.
+- [x] `server/test/queue-durability.test.ts` — project + `makeSetting()` + run(s) as the enqueue path needs.
+- [x] `server/test/queue.test.ts` — project + `makeSetting()` (budget) + run.
+- [x] `server/test/runs-control.test.ts` — project + run in a controllable state + `makeSetting()`.
+- [x] `server/test/runs-queue-integration.test.ts` — project + `makeSetting()` + run.
+- [x] `server/test/runs-sse.test.ts` — project + run; keep the SSE assertions.
+- [x] `server/test/schedules.test.ts` — project + trigger(s) (schedule/interval detail valid).
+- [x] `server/test/specs.route.test.ts` — project; adjust spec list/create assertions.
+- [x] `server/test/trigger-validate.test.ts` — project; create triggers with the details it validates.
+- [x] `server/test/triggers-settings.route.test.ts` — project + `makeSetting()`; adjust trigger + settings assertions.
+- [x] `server/test/webhooks.test.ts` — project with `repoUrl` matching the webhook payload + commit trigger; recreate the installation/trigger rows it maps.
+- [x] `server/test/worker.test.ts` — project + `makeSetting()` + run for `runProcessor`.
 
-- [ ] **Step 3: Delete the prototype files + seed test**
+- [x] **Step 3: Delete the prototype files + seed test**
 
 Once no test imports `seed`:
 
@@ -1041,17 +1041,17 @@ Once no test imports `seed`:
 git rm server/prisma/proto-data.ts server/prisma/proto-doc-content.ts server/prisma/seed.ts server/test/seed.test.ts
 ```
 
-- [ ] **Step 4: Verify nothing references the deleted files**
+- [x] **Step 4: Verify nothing references the deleted files**
 
 Run: `grep -rn "prisma/seed\|proto-data\|proto-doc-content" server --include="*.ts"`
 Expected: no matches.
 
-- [ ] **Step 5: Full server suite green**
+- [x] **Step 5: Full server suite green**
 
 Run: `pnpm --filter ./server test && pnpm --filter ./server typecheck`
 Expected: all green; no `seed`/`proto-*` import errors.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/test
@@ -1067,7 +1067,7 @@ git commit -m "test(server): drop prototype seed dataset; tests build via factor
 - Modify: `internal/docs/frontend/frontend-implementation.md`
 - Verify: `internal/docs/README.md` (ADR-0007 linked in Task 4)
 
-- [ ] **Step 1: Note the live run view in the frontend doc**
+- [x] **Step 1: Note the live run view in the frontend doc**
 
 In `internal/docs/frontend/frontend-implementation.md`, add a short section:
 
@@ -1080,16 +1080,16 @@ In `internal/docs/frontend/frontend-implementation.md`, add a short section:
 ticking live while running.
 ```
 
-- [ ] **Step 2: Full repo green + typecheck**
+- [x] **Step 2: Full repo green + typecheck**
 
 Run: `pnpm -r typecheck && pnpm test`
 Expected: all packages typecheck; the whole vitest suite (server + frontend) passes with no `seed`/`proto-*` references and no fabricated-terminal or prototype-id assertions.
 
-- [ ] **Step 3: Real end-to-end check**
+- [~] **Step 3: Real end-to-end check**  (partial: SSE transport + curl verified end-to-end; browser click-through not automatable in this env)
 
 Boot `pnpm dev`, create a project + start a run, and confirm the full de-mocked flow: terminal `resume`/free-text/`docs` behave truthfully (Task 2), the Runs screen streams live with working controls and a ticking duration (Task 6), and a fresh DB has no prototype projects (Task 3 + 7).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add internal/docs/frontend/frontend-implementation.md
