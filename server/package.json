@@ -1,11 +1,12 @@
 {
   "name": "@hanoman/server", "type": "module", "version": "0.0.0",
   "scripts": {
-    "dev": "tsx watch src/server.ts", "build": "tsc",
+    "dev": "tsx watch src/server.ts",
+    "build": "esbuild src/server.ts --bundle --platform=node --format=esm --outfile=dist/server.js --external:fastify --external:@fastify/static --external:@prisma/client",
     "typecheck": "tsc --noEmit", "test": "vitest run",
     "seed": "tsx prisma/seed.ts", "migrate": "prisma migrate dev"
   },
   "dependencies": { "@hanoman/shared": "workspace:*", "@prisma/client": "^5.18.0",
     "fastify": "^4.28.0", "@fastify/static": "^7.0.0", "zod": "^3.23.0" },
-  "devDependencies": { "@types/node": "^20.14.0", "prisma": "^5.18.0", "tsx": "^4.16.0" }
+  "devDependencies": { "@types/node": "^20.14.0", "esbuild": "^0.23.0", "prisma": "^5.18.0", "tsx": "^4.16.0" }
 }
