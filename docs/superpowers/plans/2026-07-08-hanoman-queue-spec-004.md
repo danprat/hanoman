@@ -182,7 +182,7 @@ describe("worker processor", () => {
   - Run-start path (dashboard "advance to executing" / a new start route) → `enqueueRun`; `409 {reason}` when rejected.
   - `manager.ts`: delete the semaphore + `EventEmitter`; keep only thin helpers if still referenced.
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 ```ts
 // server/test/runs-queue-integration.test.ts
@@ -208,11 +208,11 @@ describe("runs SSE via redis", () => {
 ```
 (Note: `app.inject` doesn't stream indefinitely; for the SSE assertion, cap the handler to end after the first relayed message in test mode, or use a short server + real socket. Prefer a small helper that closes the stream after N events under `NODE_ENV=test`.)
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement** the refactor per the interface; remove the SPEC-003 in-memory emitter/semaphore. Validate control bodies with `zSteer/zControl`.
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement** the refactor per the interface; remove the SPEC-003 in-memory emitter/semaphore. Validate control bodies with `zSteer/zControl`.
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(server): SSE via redis + control publish + start via enqueue"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(server): SSE via redis + control publish + start via enqueue"`
 
 ---
 

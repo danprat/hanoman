@@ -18,6 +18,13 @@ export const zProjectView = zProject.extend({
   activity: z.string(), commit: z.string() });
 export type ProjectView = z.infer<typeof zProjectView>;
 
+export const zStartRun = z.object({
+  project: z.string(),
+  flow: z.enum(["feature", "qa", "scaffold", "reverse"]),
+  specId: z.string().optional(),
+  branchFrom: z.string().default("main"),
+  branchTo: z.string().optional(),
+});
 export const zControlAction = z.enum(["pause", "resume", "stop", "retry"]);
 export const zControl = z.object({ action: zControlAction });
 export const zSteer = z.object({ message: z.string().min(1) });
