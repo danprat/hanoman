@@ -89,7 +89,7 @@ describe("github schema", () => {
   - `installationToken(installationId): Promise<string>` — via `createAppAuth({ appId, privateKey })({ type: "installation", installationId })` → `.token`; used for git remotes.
   - All accept an optional injected `app` for tests.
 
-- [ ] **Step 1: Write failing test** (inject a fake App)
+- [x] **Step 1: Write failing test** (inject a fake App)
 
 ```ts
 // server/test/github-app.test.ts
@@ -104,8 +104,8 @@ describe("github app", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement**
 
 ```ts
 // server/src/github/app.ts
@@ -130,8 +130,8 @@ export async function installationToken(installationId: number): Promise<string>
 ```
 Add deps to `server/package.json`: `"octokit": "^4.0.0", "@octokit/auth-app": "^7.0.0"`.
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(server): github app auth (octokit)"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(server): github app auth (octokit)"`
 
 ---
 

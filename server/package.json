@@ -21,6 +21,8 @@
     "cron-parser": "^4.9.0",
     "fastify": "^4.28.0",
     "ioredis": "^5.11.1",
+    "octokit": "^4.0.0",
+    "@octokit/auth-app": "^7.0.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {
