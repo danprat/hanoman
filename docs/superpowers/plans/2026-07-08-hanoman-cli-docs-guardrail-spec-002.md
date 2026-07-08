@@ -757,7 +757,7 @@ export default async function (args: string[], ctx: Ctx): Promise<number> {
 - Consumes: `collectViolations`, `Ctx` (with `readStdin`).
 - Produces: `default(args, ctx)` — reads hook payload JSON from `ctx.readStdin()`; if `stop_hook_active === true` prints nothing (allow); else runs `collectViolations` on `payload.cwd ?? env.CLAUDE_PROJECT_DIR ?? ctx.cwd`; if violations, prints `{"decision":"block","reason":…}`. Always returns 0.
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```ts
 // cli/test/hook-stop.cmd.test.ts
@@ -787,8 +787,8 @@ describe("hook stop", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement + rewire**
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement + rewire**
 
 ```ts
 // cli/src/commands/hook-stop.ts
@@ -830,7 +830,7 @@ Konfigurasi per-repo di `hanoman.config.json`. Lihat ADR-0001.
 ```
 (No new doc file, so no index link needed; if you add one, link it in `internal/docs/README.md`.)
 
-- [ ] **Step 4: Build + full acceptance**
+- [x] **Step 4: Build + full acceptance**
 
 Run: `pnpm --filter ./cli build && pnpm --filter ./cli test` → all green.
 Verify SPEC-002 §Acceptance end-to-end in a scratch repo:
@@ -847,7 +847,7 @@ test ! -f .claude/hooks/ensure-docs-updated.py && echo "python hook retired"
 node cli/dist/hanoman.js docs scan --json
 ```
 
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(cli): hook stop adapter + retire python hook + wire settings"`
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(cli): hook stop adapter + retire python hook + wire settings"`
 
 ---
 
