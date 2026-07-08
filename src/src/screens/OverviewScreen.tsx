@@ -74,7 +74,7 @@ function LiveRunRow({ r, onGoto }: { r: RunVM; onGoto: (s: string) => void }) {
       <div style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-muted)" }}>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><Icon name="box" size={12} /> {r.project}</span>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><Icon name={O_TRIGGER_ICON[r.trigger]!} size={12} /> {r.trigger}</span>
-        <span>{r.cost}{r.duration && r.duration !== "—" ? " · " + r.duration : ""}</span>
+        <span>{r.cost}</span>
       </div>
     </div>
   );

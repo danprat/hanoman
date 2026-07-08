@@ -1,9 +1,11 @@
-/* RunsScreen — live Claude Code activity, READ-ONLY for SPEC-001.
-   Steer / pause / resume / stop / retry / worktree-switch / terminal
-   input arrive with the runner in SPEC-003; here we render run data. */
+/* RunsScreen — live Claude Code activity + controls. SPEC-008 wires the runner:
+   subscribes to the SSE log stream for running/paused runs, exposes a terminal
+   input + steer/pause/resume/stop, and shows a live duration (finishedAt, ADR-0007). */
 import React from "react";
-import { Card, StatusPill, Icon, usePaged, Pager } from "../ds";
+import { Card, StatusPill, Icon, usePaged, Pager, Button } from "../ds";
 import type { RunVM } from "./types";
+import { subscribeRun, api } from "../api/client";
+import { reduceRunEvent, runDurationMs, fmtDuration } from "./run-reduce";
 
 const R_TRIGGER_ICON: Record<string, string> = {
   commit: "git-commit-horizontal", schedule: "calendar-clock",
@@ -191,8 +193,44 @@ function LogView({ run }: { run: RunVM }) {
   );
 }
 
+// Ticks once a second while the run is active so the elapsed time stays live.
+function useLiveDuration(run: RunVM): string {
+  const running = run.status === "running" || run.status === "paused";
+  const [now, setNow] = React.useState(() => Date.now());
+  React.useEffect(() => {
+    if (!running) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [running]);
+  return fmtDuration(runDurationMs(run, running ? now : Date.now()));
+}
+
+// Terminal input + control buttons for an active run (drives /command + /control).
+function RunControls({ run }: { run: RunVM }) {
+  const [text, setText] = React.useState("");
+  const send = async () => { const t = text.trim(); if (!t) return; setText(""); await api.runCommand(run.id, t); };
+  const ctl = (action: "pause" | "resume" | "stop") => () => { void api.runControl(run.id, action); };
+  return (
+    <Card padding={14}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <input value={text} onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") void send(); }}
+          placeholder="ketik perintah / arahan untuk run… (steer, pause, resume, stop, docs <path>)"
+          style={{ flex: 1, fontFamily: "var(--font-mono)", fontSize: 12, padding: "8px 10px",
+            border: "1px solid var(--border-hair)", borderRadius: "var(--radius-md)", background: "var(--surface-code)", color: "var(--term-fg)" }} />
+        <Button size="sm" leftIcon="send" onClick={() => void send()}>Kirim</Button>
+        {run.status === "paused"
+          ? <Button size="sm" variant="secondary" leftIcon="play" onClick={ctl("resume")}>Resume</Button>
+          : <Button size="sm" variant="secondary" leftIcon="pause" onClick={ctl("pause")}>Pause</Button>}
+        <Button size="sm" variant="ghost" leftIcon="square" onClick={ctl("stop")}>Stop</Button>
+      </div>
+    </Card>
+  );
+}
+
 function RunDetail({ run }: { run: RunVM }) {
   const hasWork = (run.plan as PlanStep[]).length > 0 || (run.files as FileRow[]).length > 0;
+  const duration = useLiveDuration(run);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <Card padding={20}>
@@ -210,7 +248,7 @@ function RunDetail({ run }: { run: RunVM }) {
           <MetricCell label="Project"><Icon name="box" size={13} color="var(--text-muted)" /> {run.project}</MetricCell>
           <MetricCell label="Spec">{run.spec || "—"}</MetricCell>
           <MetricCell label="Trigger"><Icon name={R_TRIGGER_ICON[run.trigger]!} size={13} color="var(--text-muted)" /> {run.trigger}</MetricCell>
-          <MetricCell label="Durasi">{run.duration}</MetricCell>
+          <MetricCell label="Durasi">{duration}</MetricCell>
           <MetricCell label="Tokens">{run.tokensIn} / {run.tokensOut}</MetricCell>
           <MetricCell label="Biaya">{run.cost}</MetricCell>
         </div>
@@ -223,6 +261,7 @@ function RunDetail({ run }: { run: RunVM }) {
         </div>
       )}
       <LogView run={run} />
+      {(run.status === "running" || run.status === "paused") && <RunControls run={run} />}
     </div>
   );
 }
@@ -231,7 +270,17 @@ export function RunsScreen({ runs, selectedId, pageSize = 4 }:
   { runs: RunVM[]; selectedId?: string; pageSize?: number }) {
   const [selId, setSelId] = React.useState(selectedId || (runs[0] && runs[0].id));
   const pg = usePaged(runs, pageSize, "runs");
-  const active = runs.find((r) => r.id === selId) || runs[0];
+  const picked = runs.find((r) => r.id === selId) || runs[0];
+  // Live overlay: seed from the picked run, merge SSE events while it's active.
+  const [live, setLive] = React.useState<RunVM | undefined>(picked);
+  React.useEffect(() => { setLive(picked); }, [picked?.id]);
+  React.useEffect(() => {
+    if (!picked) return;
+    if (picked.status !== "running" && picked.status !== "paused") return;
+    const off = subscribeRun(picked.id, (e) => setLive((cur) => cur ? reduceRunEvent(cur, e) : cur));
+    return off;
+  }, [picked?.id, picked?.status]);
+  const active = live ?? picked;
   if (!active) return <div style={{ padding: "48px 0", textAlign: "center", color: "var(--text-muted)" }}>Belum ada run.</div>;
   return (
     <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 20, alignItems: "start" }}>

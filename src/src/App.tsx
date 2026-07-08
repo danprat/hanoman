@@ -279,7 +279,7 @@ export default function App() {
       const activePhase = (r.phases as { name: string; state: string }[]).find((f) => f.state === "active")?.name ?? null;
       const spec = r.specId ? byId.get(r.specId) : null;
       const title = spec?.title ?? (r.kind === "scaffold" ? "Scaffold docs dari MVP objective" : r.id);
-      return { ...r, project: r.projectId, spec: r.specId, title, phase: activePhase, duration: "—" };
+      return { ...r, project: r.projectId, spec: r.specId, title, phase: activePhase };
     });
   }, [runs, backlog]);
 
