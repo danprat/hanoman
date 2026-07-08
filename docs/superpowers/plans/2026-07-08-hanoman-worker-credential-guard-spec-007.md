@@ -139,7 +139,7 @@ git commit -m "feat(server): checkRunnerCredentials guard (SPEC-007)"
 **Interfaces:**
 - Consumes: `checkRunnerCredentials(): CredCheck` from Task 1 (`./runner/credentials`).
 
-- [ ] **Step 1: Add the import**
+- [x] **Step 1: Add the import**
 
 At the top of `server/src/worker.ts`, alongside the other `./...` imports, add:
 
@@ -147,7 +147,7 @@ At the top of `server/src/worker.ts`, alongside the other `./...` imports, add:
 import { checkRunnerCredentials } from "./runner/credentials";
 ```
 
-- [ ] **Step 2: Guard the entrypoint bootstrap block**
+- [x] **Step 2: Guard the entrypoint bootstrap block**
 
 In `server/src/worker.ts`, the bootstrap runs only when the file is the process entrypoint. Insert the guard as the first thing inside that `if`, before the `(async () => { ... })()` IIFE. Replace:
 
@@ -178,12 +178,12 @@ if (entry.endsWith("worker.js") || entry.endsWith("worker.ts")) {
 
 (The IIFE body and its closing `})();` are unchanged.)
 
-- [ ] **Step 3: Verify the existing suite still passes + typecheck**
+- [x] **Step 3: Verify the existing suite still passes + typecheck**
 
 Run: `pnpm --filter ./server test && pnpm --filter ./server typecheck`
 Expected: all green (worker.test.ts imports `runProcessor` without hitting the entrypoint block, so the guard doesn't run under tests).
 
-- [ ] **Step 4: Real local check — refuse path (headless, no cred)**
+- [x] **Step 4: Real local check — refuse path (headless, no cred)**
 
 `.env` provides `CLAUDE_CODE_OAUTH_TOKEN`, and `env.ts` only sets a var when it's `undefined`. Passing `CLAUDE_CODE_OAUTH_TOKEN=` (defined-but-empty) blocks that override; redirecting stdout to a file makes `process.stdout.isTTY` false (headless).
 
@@ -193,7 +193,7 @@ CLAUDE_CODE_OAUTH_TOKEN= pnpm exec tsx src/worker.ts > /tmp/hanoman-worker-refus
 ```
 Expected: `exit=1`, and `/tmp/hanoman-worker-refuse.log` contains `refusing to boot — no Claude credential in env` plus the how-to-fix line. (Redis/Postgres are never touched — the guard exits first.)
 
-- [ ] **Step 5: Real local check — boot path (cred present)**
+- [x] **Step 5: Real local check — boot path (cred present)**
 
 Run from `server/` (uses the real `CLAUDE_CODE_OAUTH_TOKEN` from `.env`; background it, grep the log, then kill — Redis + Postgres must be up):
 ```bash
@@ -202,7 +202,7 @@ WPID=$!; sleep 4; grep -E "Claude credential:|worker up" /tmp/hanoman-worker-boo
 ```
 Expected: log shows `[worker] Claude credential: CLAUDE_CODE_OAUTH_TOKEN` and `worker up · queue hanoman-runs`. No credential *value* appears in the log.
 
-- [ ] **Step 6: Bypass check**
+- [x] **Step 6: Bypass check**
 
 Run from `server/`:
 ```bash
@@ -211,7 +211,7 @@ WPID=$!; sleep 4; grep -E "bypassed|worker up" /tmp/hanoman-worker-bypass.log; k
 ```
 Expected: log shows the `bypassed via HANOMAN_SKIP_CRED_CHECK` warning and `worker up` (booted despite no cred).
 
-- [ ] **Step 7: Docs — note the guard**
+- [x] **Step 7: Docs — note the guard**
 
 In `internal/docs/operations/agent-documentation-workflow.md`, append a short section (the file is already linked in `internal/docs/README.md`, so no README change):
 
@@ -224,7 +224,7 @@ tolak boot (exit 1); interaktif (TTY) → warning lalu boot (andalkan keychain).
 darurat: `HANOMAN_SKIP_CRED_CHECK=1`. Lihat `.env.example`.
 ```
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/src/worker.ts internal/docs/operations/agent-documentation-workflow.md

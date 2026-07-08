@@ -8,6 +8,7 @@ import { SCHEDULES_QUEUE, reconcile } from "./schedules";
 import { fireTrigger } from "./fire-trigger";
 import { maxConcurrent } from "./services/settings";
 import { persistEvent, publishEvent } from "./runner/events-io";
+import { checkRunnerCredentials } from "./runner/credentials";
 import { ensureClone } from "./github/clone";
 import { installationToken } from "./github/app";
 import { startStatusReporter } from "./github/status";
@@ -64,6 +65,17 @@ export async function runProcessor(job: Job<RunInput>, deps: RunDeps = prodDeps)
 // (`node dist/worker.js` / `tsx worker.ts`), not when imported by tests.
 const entry = process.argv[1] ?? "";
 if (entry.endsWith("worker.js") || entry.endsWith("worker.ts")) {
+  // Fail fast on a misconfigured deployment: a headless worker with no Claude
+  // credential in env would otherwise fail silently at the first run (the SDK
+  // stream ends without a result). See SPEC-007.
+  const cred = checkRunnerCredentials();
+  if (!cred.ok) {
+    console.error(`[worker] refusing to boot — ${cred.reason}.`);
+    console.error("[worker] set CLAUDE_CODE_OAUTH_TOKEN (run `claude setup-token` for a subscription), or ANTHROPIC_API_KEY, or a cloud-provider flag — see .env.example. Bypass with HANOMAN_SKIP_CRED_CHECK=1.");
+    process.exit(1);
+  }
+  if (cred.hasEnvCred) console.log(`[worker] Claude credential: ${cred.found.join(", ")}`);
+  else console.warn(`[worker] ${cred.reason}. Prefer CLAUDE_CODE_OAUTH_TOKEN for headless runs.`);
   (async () => {
     const worker = new Worker(RUNS_QUEUE, (job) => runProcessor(job), {
       connection: bullConnection, concurrency: await maxConcurrent(), maxStalledCount: 1,

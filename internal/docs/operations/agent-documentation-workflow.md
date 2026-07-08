@@ -21,6 +21,13 @@ Runner memakai `@anthropic-ai/claude-agent-sdk`; fase Execute lewat gate
 `.worktrees/<run-id>`, di-steer/pause/stop lewat dashboard, lalu commit + push ke
 `branchTo`. Lihat ADR-0002 (isolasi) dan ADR-0003 (model per step).
 
+## Worker credentials (SPEC-007)
+Worker boot memverifikasi kredensial Claude (Agent SDK). Ada env credential
+(`CLAUDE_CODE_OAUTH_TOKEN` / `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN` / flag cloud) →
+boot + log nama var-nya (bukan nilainya). Tanpa env credential: headless (non-TTY) →
+tolak boot (exit 1); interaktif (TTY) → warning lalu boot (andalkan keychain). Bypass
+darurat: `HANOMAN_SKIP_CRED_CHECK=1`. Lihat `.env.example`.
+
 ## GitHub App + webhooks (SPEC-006)
 Trigger `commit` lewat GitHub App: push terverifikasi (HMAC atas raw body, `401`
 bila gagal) → `fireTrigger` → run. Repo privat di-clone on demand dan di-push ke
