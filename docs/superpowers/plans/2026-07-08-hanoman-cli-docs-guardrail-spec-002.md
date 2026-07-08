@@ -646,7 +646,7 @@ export default async function (args: string[], ctx: Ctx): Promise<number> {
   - `docs-index.ts`: `default(args, ctx)` — `--check` returns 1 if any unlinked doc OR any index link doesn't resolve to a file; `--fix` calls `addLink` for every unlinked doc, returns 0.
   - `docs-link.ts`: `default(args, ctx)` — positional `<path>`, `--category` (defaults to first path segment); calls `addLink`; returns 0.
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```ts
 // cli/test/index-link.cmd.test.ts
@@ -673,8 +673,8 @@ describe("index + link", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement**
 
 ```ts
 // cli/src/index-edit.ts
@@ -740,8 +740,8 @@ export default async function (args: string[], ctx: Ctx): Promise<number> {
 }
 ```
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(cli): docs index --check/--fix + docs link"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(cli): docs index --check/--fix + docs link"`
 
 ---
 
