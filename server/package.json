@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "esbuild src/server.ts --bundle --platform=node --format=esm --outfile=dist/server.js --external:fastify --external:@fastify/static --external:@prisma/client --external:@anthropic-ai/claude-agent-sdk",
+    "worker": "tsx watch src/worker.ts",
+    "build": "esbuild src/server.ts src/worker.ts --bundle --platform=node --format=esm --outdir=dist --external:fastify --external:@fastify/static --external:@prisma/client --external:@anthropic-ai/claude-agent-sdk --external:bullmq --external:ioredis",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "seed": "tsx prisma/seed.ts",

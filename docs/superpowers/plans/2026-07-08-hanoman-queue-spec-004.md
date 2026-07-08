@@ -140,7 +140,7 @@ Add BullMQ + ioredis to `server/package.json` deps: `"bullmq": "^5.12.0", "iored
   - `events-io.ts`: `persistEvent(runId, e: RunEvent): Promise<void>` (the SPEC-003 `RunManager.persist` logic, standalone), `publishEvent(pub, runId, e): void` (`pub.publish(`run:${runId}:events`, JSON.stringify(e))`).
   - `worker.ts`: builds `new Worker("hanoman:runs", processor, { connection: bullConnection, concurrency: await maxConcurrent(), maxStalledCount: 1 })`. `processor(job)` = create `AbortController` + `SteerQueue`; `subscriber().subscribe(`run:${id}:control`)` and on message apply `steer`→`SteerQueue.push`, `pause`/`stop`→`abortController.abort()`; `onEvent = (e) => { persistEvent(id,e); publishEvent(pub,id,e); }`; `await runOne(job.data, prodDeps, onEvent, { abortController, steer })`. `worker.on("failed"|"stalled", (job) => markFailed(job.data.runId))`.
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 ```ts
 // server/test/worker.test.ts
@@ -162,11 +162,11 @@ describe("worker processor", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement** `events-io.ts`, and `worker.ts` exporting a testable `runProcessor(job, deps=prodDeps)` plus the `Worker` bootstrap guarded by `if (process.argv[1]?.endsWith("worker.js"|"worker.ts"))`. Wire control subscription + persist/publish per the interface. `package.json` scripts: `"worker": "node server/dist/worker.js"`, `"dev": "pnpm --parallel --filter ./server --filter ./src dev"` (add a `worker:dev` = `tsx watch server/src/worker.ts` and include it in `dev`).
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement** `events-io.ts`, and `worker.ts` exporting a testable `runProcessor(job, deps=prodDeps)` plus the `Worker` bootstrap guarded by `if (process.argv[1]?.endsWith("worker.js"|"worker.ts"))`. Wire control subscription + persist/publish per the interface. `package.json` scripts: `"worker": "node server/dist/worker.js"`, `"dev": "pnpm --parallel --filter ./server --filter ./src dev"` (add a `worker:dev` = `tsx watch server/src/worker.ts` and include it in `dev`).
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(server): worker process + event persist/publish + control sub"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(server): worker process + event persist/publish + control sub"`
 
 ---
 

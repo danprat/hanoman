@@ -11,7 +11,9 @@ const input: RunInput = {
 
 describe("queue", () => {
   beforeAll(async () => { await seed(); });
-  afterAll(async () => { await runsQueue.close(); });
+  // These tests add real jobs to Redis; obliterate so a running worker (or the
+  // next test run) doesn't later consume orphaned jobs whose rows were re-seeded.
+  afterAll(async () => { await runsQueue.obliterate({ force: true }); await runsQueue.close(); });
 
   it("enqueues below budget", async () => {
     expect(await todaySpendUsd()).toBeLessThan(50); // seed spend is small

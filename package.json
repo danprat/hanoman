@@ -4,7 +4,11 @@
   "type": "module",
   "engines": { "node": ">=20" },
   "scripts": {
-    "dev": "pnpm --parallel --filter ./server --filter ./src dev",
+    "dev": "pnpm run --parallel \"/^dev:/\"",
+    "dev:api": "pnpm --filter ./server dev",
+    "dev:worker": "pnpm --filter ./server worker",
+    "dev:web": "pnpm --filter ./src dev",
+    "worker": "node server/dist/worker.js",
     "build": "pnpm --filter ./src build && pnpm --filter ./server build",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run --no-file-parallelism",
