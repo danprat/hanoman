@@ -94,7 +94,7 @@ Files that change together live together (routes with their service; screen with
 **Interfaces:**
 - Produces: pnpm workspace with packages `shared`, `server`, `app` (dir `src/`); scripts `dev`, `build`, `typecheck`, `test`, `seed`; a running Postgres on `localhost:5432`.
 
-- [ ] **Step 1: Write the failing smoke test**
+- [x] **Step 1: Write the failing smoke test**
 
 ```ts
 // shared/test/smoke.test.ts
@@ -105,11 +105,11 @@ describe("workspace", () => {
 });
 ```
 
-- [ ] **Step 2: Run it, verify it fails**
+- [x] **Step 2: Run it, verify it fails**
 
 Run: `pnpm -w test shared` → Expected: FAIL, `ping` not exported (or module missing).
 
-- [ ] **Step 3: Create workspace files**
+- [x] **Step 3: Create workspace files**
 
 `pnpm-workspace.yaml`:
 ```yaml
@@ -199,12 +199,12 @@ export * from "./api";
 
 Create empty placeholder files `shared/src/{enums,entities,dto,api}.ts` exporting `export {};` for now (filled in Task 2).
 
-- [ ] **Step 4: Install + start db + run test**
+- [x] **Step 4: Install + start db + run test**
 
 Run: `pnpm install && cp .env.example .env && docker-compose up -d && pnpm -w test shared`
 Expected: PASS. `docker-compose ps` shows `db` healthy.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A && git commit -m "chore: pnpm workspace + postgres + vitest scaffold"
@@ -221,7 +221,7 @@ git add -A && git commit -m "chore: pnpm workspace + postgres + vitest scaffold"
 **Interfaces:**
 - Produces (imported everywhere): `zProject, zSpec, zRun, zTrigger, zSetting, zDocFile`; enums `zStage, zSpecSource, zRunStatus, zRunKind, zTriggerType, zTriggerTarget, zDocStatus, zPriority`; DTOs `zCreateProject, zCreateSpec, zAdvanceResult, zCreateTrigger, zSetting, zProjectView, zDocIndex, zDocFileContent`; and `type Project = z.infer<typeof zProject>` etc. Path constants in `api.ts`.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```ts
 // shared/test/entities.test.ts
@@ -255,11 +255,11 @@ describe("schemas", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail**
+- [x] **Step 2: Run, verify fail**
 
 Run: `pnpm -w test shared` → Expected: FAIL (exports missing).
 
-- [ ] **Step 3: Implement schemas**
+- [x] **Step 3: Implement schemas**
 
 `shared/src/enums.ts`:
 ```ts
@@ -386,8 +386,8 @@ export const paths = {
 } as const;
 ```
 
-- [ ] **Step 4: Run, verify pass** — Run: `pnpm -w test shared` → Expected: PASS.
-- [ ] **Step 5: Commit** — `git commit -am "feat(shared): zod schemas + DTOs = typed API contract"`
+- [x] **Step 4: Run, verify pass** — Run: `pnpm -w test shared` → Expected: PASS.
+- [x] **Step 5: Commit** — `git commit -am "feat(shared): zod schemas + DTOs = typed API contract"`
 
 ---
 
@@ -402,7 +402,7 @@ export const paths = {
 **Interfaces:**
 - Produces: Prisma models `Project, Spec, Run, Trigger, Setting, DocFile`; `prisma` client singleton from `server/src/db.ts` as `export const prisma`.
 
-- [ ] **Step 1: Write the ADR** (justifies the deltas so we don't silently drift the SoT)
+- [x] **Step 1: Write the ADR** (justifies the deltas so we don't silently drift the SoT)
 
 `internal/docs/adr/0004-foundation-schema-deltas.md`:
 ```markdown
@@ -427,7 +427,7 @@ Prototype `Project` menampilkan field UI (`stack`, `activity`, `commit`, `backlo
 ```
 Add to `internal/docs/README.md` under `## adr`: `- [0004 — foundation schema deltas](adr/0004-foundation-schema-deltas.md)`
 
-- [ ] **Step 2: Write failing db test**
+- [x] **Step 2: Write failing db test**
 
 ```ts
 // server/test/db.test.ts
@@ -440,9 +440,9 @@ describe("db", () => {
 });
 ```
 
-- [ ] **Step 3: Run, verify fail** — Run: `pnpm --filter ./server test` → FAIL (no client/tables).
+- [x] **Step 3: Run, verify fail** — Run: `pnpm --filter ./server test` → FAIL (no client/tables).
 
-- [ ] **Step 4: Create server package + schema**
+- [x] **Step 4: Create server package + schema**
 
 `server/package.json`:
 ```json
@@ -553,12 +553,12 @@ import { PrismaClient } from "@prisma/client";
 export const prisma = new PrismaClient();
 ```
 
-- [ ] **Step 5: Migrate + generate + test**
+- [x] **Step 5: Migrate + generate + test**
 
 Run: `cd server && pnpm exec prisma migrate dev --name init && cd .. && pnpm --filter ./server test`
 Expected: migration applied; test PASS (count = 0).
 
-- [ ] **Step 6: Commit** — `git add -A && git commit -m "feat(server): prisma schema + ADR-0004 + db client"`
+- [x] **Step 6: Commit** — `git add -A && git commit -m "feat(server): prisma schema + ADR-0004 + db client"`
 
 ---
 
@@ -572,7 +572,7 @@ Expected: migration applied; test PASS (count = 0).
 - Consumes: `prisma` (Task 3), prototype arrays from `.prototype/app/data.js` and doc bodies from `.prototype/app/docContent.js`.
 - Produces: populated tables. `proto-data.ts` exports `projects, backlog, runs, triggers, docTree, defaultSetting`.
 
-- [ ] **Step 1: Write failing seed-integrity test**
+- [x] **Step 1: Write failing seed-integrity test**
 
 ```ts
 // server/test/seed.test.ts
@@ -591,9 +591,9 @@ describe("seed", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail** — `pnpm --filter ./server test seed` → FAIL.
+- [x] **Step 2: Run, verify fail** — `pnpm --filter ./server test seed` → FAIL.
 
-- [ ] **Step 3: Port the data + write seed**
+- [x] **Step 3: Port the data + write seed**
 
 Create `server/prisma/proto-data.ts` by transcribing the arrays from `.prototype/app/data.js` (`window.HN.projects`, `.backlog`, `.runs`, `.triggers`, `.docTree`) into typed exports. Map fields 1:1; drop UI-only project fields (`run`, `backlog`, `topStage`, `triggers`, `activity`, `commit`) — keep `stack`. For specs, wrap the extra brief/qa fields into `payload` (the demo specs carry only `objective`, so `payload: null`). For runs, keep all fields; the branch/worktree derivation at the bottom of `data.js` is already applied there — copy the resolved values. `defaultSetting` mirrors `data-model.md` §Settings defaults (opus / x-high per step, `blockStale: true`, `requireLinks: true`, `maxConcurrent: 3`, `dailyBudget: 50`, `autoDefault: true`, `autoScaffold: true`, `notifyFail: true`).
 
@@ -624,8 +624,8 @@ if (process.argv[1]?.endsWith("seed.ts")) {
 ```
 (`docFiles` in `proto-data.ts` is the flattened `{projectId,path,category,content,linked,root}[]` built from `docTree` + `docContent.js`.)
 
-- [ ] **Step 4: Run, verify pass** — `pnpm --filter ./server test seed` → PASS.
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(server): seed from prototype data"`
+- [x] **Step 4: Run, verify pass** — `pnpm --filter ./server test seed` → PASS.
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(server): seed from prototype data"`
 
 ---
 
@@ -640,7 +640,7 @@ if (process.argv[1]?.endsWith("seed.ts")) {
 **Interfaces:**
 - Produces: `STAGES: readonly Stage[]`; `nextStage(current: Stage): Stage | null`; `advance(current: Stage): { stage: Stage; toastEvent: string } | null` — mirrors `.prototype/app/App.jsx` `ADV_STAGES` + `ADV_TOAST`.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```ts
 // server/test/stage-machine.test.ts
@@ -657,9 +657,9 @@ describe("stage machine", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail** — `pnpm --filter ./server test stage-machine` → FAIL.
+- [x] **Step 2: Run, verify fail** — `pnpm --filter ./server test stage-machine` → FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```ts
 // server/src/services/stage-machine.ts
@@ -680,8 +680,8 @@ export function advance(current: Stage) {
 ```
 (Add `export type Stage = z.infer<typeof zStage>` to `shared/src/entities.ts` if not already exported.)
 
-- [ ] **Step 4: Run, verify pass** — PASS.
-- [ ] **Step 5: Commit** — `git commit -am "feat(server): spec stage machine"`
+- [x] **Step 4: Run, verify pass** — PASS.
+- [x] **Step 5: Commit** — `git commit -am "feat(server): spec stage machine"`
 
 ---
 
@@ -694,7 +694,7 @@ export function advance(current: Stage) {
 **Interfaces:**
 - Produces: `coverageOf(docs: {category:string; linked:boolean}[]): number` — percent of distinct categories that are linked, rounded; and `docStatusFor(pct:number): "ok"|"drift"|"broken"` (ok ≥ 90, drift ≥ 60, else broken).
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```ts
 // server/test/coverage.test.ts
@@ -713,8 +713,8 @@ describe("coverage", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement**
 
 ```ts
 // server/src/services/coverage.ts
@@ -730,8 +730,8 @@ export function docStatusFor(pct: number): "ok" | "drift" | "broken" {
 }
 ```
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git commit -am "feat(server): doc coverage calc"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git commit -am "feat(server): doc coverage calc"`
 
 ---
 
@@ -745,7 +745,7 @@ export function docStatusFor(pct: number): "ok" | "drift" | "broken" {
 - Consumes: `prisma`, `coverageOf`.
 - Produces: `docIndex(projectId): Promise<{coverage:number; tree:{cat,files,linked,root?}[]}>`; `readDoc(projectId, path): Promise<string | null>`; `writeDoc(projectId, path, content): Promise<void>` (upsert on `[projectId,path]`).
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```ts
 // server/test/docs.test.ts
@@ -775,8 +775,8 @@ describe("docs service", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement**
 
 ```ts
 // server/src/services/docs.ts
@@ -807,8 +807,8 @@ export async function writeDoc(projectId: string, path: string, content: string)
 }
 ```
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git commit -am "feat(server): docs service (index/read/write)"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git commit -am "feat(server): docs service (index/read/write)"`
 
 ---
 
@@ -823,7 +823,7 @@ export async function writeDoc(projectId: string, path: string, content: string)
   - `toProjectView(projectId): Promise<ProjectView>` — Project + `{ backlog: openSpecCount, topStage: furthest non-done stage or "spec", run: latestRunSummary, activity, commit }`. `run` = `{status,phase,kind}` from newest run (or `{status:"idle",phase:null,kind:null}`); `commit` = newest run's `branchTo` prefixed, else "belum ada commit"; `activity` = derived string from newest run status.
   - `nextSpecId(): Promise<string>` and `nextRunId(): Promise<string>` — `SPEC-<max+1>` / `RUN-<max+1>` scanning existing ids (mirrors `App.jsx` createSpec id logic, floor 140 for specs).
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```ts
 // server/test/id.test.ts
@@ -852,8 +852,8 @@ describe("project view", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement**
 
 ```ts
 // server/src/services/id.ts
@@ -897,8 +897,8 @@ export async function toProjectView(projectId: string): Promise<ProjectView> {
 }
 ```
 
-- [ ] **Step 4: Run, verify pass** (adjust seed counts in assertions if transcription differs — the counts above assume the demo data as given).
-- [ ] **Step 5: Commit** — `git commit -am "feat(server): project-view composer + id helpers"`
+- [x] **Step 4: Run, verify pass** (adjust seed counts in assertions if transcription differs — the counts above assume the demo data as given).
+- [x] **Step 5: Commit** — `git commit -am "feat(server): project-view composer + id helpers"`
 
 ---
 
@@ -913,7 +913,7 @@ export async function toProjectView(projectId: string): Promise<ProjectView> {
 **Interfaces:**
 - Produces: `buildApp(): FastifyInstance` registering `/api` routes + (prod) static serving of `../src/dist`; `GET /api/health → {ok:true}`. Route modules export `export default async function (app: FastifyInstance)` and are registered under `/api`.
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 ```ts
 // server/test/app.test.ts
@@ -933,8 +933,8 @@ describe("app", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement**
 
 ```ts
 // server/src/routes/health.ts
@@ -969,8 +969,8 @@ app.listen({ port, host: "0.0.0.0" }).then(() => console.log(`hanoman api :${por
 
 Add `fastify` + `@fastify/static` to deps (already in Task 3 package.json). Static serving (prod) is wired in Task 19.
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git commit -am "feat(server): fastify app + health + 404 guarantee"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git commit -am "feat(server): fastify app + health + 404 guarantee"`
 
 ---
 
@@ -985,7 +985,7 @@ Add `fastify` + `@fastify/static` to deps (already in Task 3 package.json). Stat
 - Consumes: `prisma`, `toProjectView`, `coverageOf/docStatusFor`, `docIndex`, `zCreateProject`, `zProjectView`.
 - Produces routes: `GET /projects → ProjectView[]`; `GET /projects/:id → ProjectView`; `POST /projects {zCreateProject} → ProjectView` (201, id = slug of name); `POST /projects/:id/scan → ProjectView` (recompute coverage+docStatus from docIndex, persist).
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```ts
 // server/test/projects.route.test.ts
@@ -1016,8 +1016,8 @@ describe("projects routes", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement**
 
 ```ts
 // server/src/routes/projects.ts
@@ -1059,8 +1059,8 @@ export default async function (app: FastifyInstance) {
 ```
 Register in `app.ts`: `import projects from "./routes/projects";` and `await api.register(projects);`.
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git commit -am "feat(server): projects routes"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git commit -am "feat(server): projects routes"`
 
 ---
 
@@ -1072,7 +1072,7 @@ Register in `app.ts`: `import projects from "./routes/projects";` and `await api
 - Consumes: `zCreateSpec`, `nextSpecId`, `advance`, `prisma`.
 - Produces: `GET /specs?project=&source= → Spec[]`; `POST /specs {zCreateSpec} → Spec` (201, id via `nextSpecId`, stage `brainstorming`, author from body or "Rangga", priority derived for qa: minor→sedang else tinggi); `POST /specs/:id/advance → {id,stage}` (uses stage machine; 409 if terminal); `DELETE /specs/:id → 204`.
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```ts
 // server/test/specs.route.test.ts
@@ -1107,8 +1107,8 @@ describe("specs routes", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement**
 
 ```ts
 // server/src/routes/specs.ts
@@ -1157,8 +1157,8 @@ export default async function (app: FastifyInstance) {
 ```
 Register in `app.ts`.
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git commit -am "feat(server): specs routes + advance"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git commit -am "feat(server): specs routes + advance"`
 
 ---
 
@@ -1169,7 +1169,7 @@ Register in `app.ts`.
 **Interfaces:**
 - Produces: `GET /triggers?project= → Trigger[]`; `POST /triggers {zCreateTrigger} → Trigger` (201, id `t<random>`, enabled true); `POST /triggers/:id/toggle → Trigger`; `GET /settings → Setting`; `PUT /settings {zSetting} → Setting`.
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```ts
 // server/test/triggers-settings.route.test.ts
@@ -1198,8 +1198,8 @@ describe("triggers + settings", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement**
 
 ```ts
 // server/src/routes/triggers.ts
@@ -1247,8 +1247,8 @@ export default async function (app: FastifyInstance) {
 ```
 Register both in `app.ts`.
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git commit -am "feat(server): triggers + settings routes"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git commit -am "feat(server): triggers + settings routes"`
 
 ---
 
@@ -1260,7 +1260,7 @@ Register both in `app.ts`.
 - Consumes: `docIndex, readDoc, writeDoc`, `zDocFileContent`.
 - Produces: `GET /projects/:id/docs → {coverage,tree}`; `GET /projects/:id/docs/*path → {path,content}` (404 if missing); `PUT /projects/:id/docs/*path {content} → {path,content}`.
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```ts
 // server/test/docs.route.test.ts
@@ -1294,8 +1294,8 @@ describe("docs routes", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement**
 
 ```ts
 // server/src/routes/docs.ts
@@ -1320,8 +1320,8 @@ export default async function (app: FastifyInstance) {
 ```
 Register in `app.ts`.
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git commit -am "feat(server): docs routes (index/read/edit)"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git commit -am "feat(server): docs routes (index/read/edit)"`
 
 ---
 
@@ -1332,7 +1332,7 @@ Register in `app.ts`.
 **Interfaces:**
 - Produces: `GET /runs?project= → Run[]`; `GET /runs/:id → Run` (404 if missing). No control/SSE/execute routes registered.
 
-- [ ] **Step 1: Failing tests** (includes the SPEC-001 §Acceptance #4 guarantee)
+- [x] **Step 1: Failing tests** (includes the SPEC-001 §Acceptance #4 guarantee)
 
 ```ts
 // server/test/runs.route.test.ts
@@ -1357,8 +1357,8 @@ describe("runs routes", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement**
 
 ```ts
 // server/src/routes/runs.ts
@@ -1377,8 +1377,8 @@ export default async function (app: FastifyInstance) {
 ```
 Register in `app.ts`. Confirm no control/log routes exist anywhere.
 
-- [ ] **Step 4: Run, verify pass** — the 404 tests prove the no-stub guarantee.
-- [ ] **Step 5: Commit** — `git commit -am "feat(server): runs read routes + no-stub 404 guard"`
+- [x] **Step 4: Run, verify pass** — the 404 tests prove the no-stub guarantee.
+- [x] **Step 5: Commit** — `git commit -am "feat(server): runs read routes + no-stub 404 guard"`
 
 ---
 
@@ -1394,7 +1394,7 @@ Register in `app.ts`. Confirm no control/log routes exist anywhere.
 **Interfaces:**
 - Produces: a Vite dev server on `:5173` proxying `/api` → `:8787`; global DS token CSS imported in `main.tsx`; `Icon` component wrapping `lucide-react`.
 
-- [ ] **Step 1: Failing smoke test**
+- [x] **Step 1: Failing smoke test**
 
 ```tsx
 // src/test/smoke.test.tsx
@@ -1406,9 +1406,9 @@ describe("app shell", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail** — `pnpm --filter ./src test` → FAIL.
+- [x] **Step 2: Run, verify fail** — `pnpm --filter ./src test` → FAIL.
 
-- [ ] **Step 3: Scaffold**
+- [x] **Step 3: Scaffold**
 
 `src/package.json`:
 ```json
@@ -1465,8 +1465,8 @@ const toPascal = (s: string) => s.split("-").map((w) => w[0]!.toUpperCase() + w.
 
 Copy the DS token CSS files verbatim into `src/src/ds/`.
 
-- [ ] **Step 4: Run, verify pass** — `pnpm --filter ./src test` → PASS. Also `pnpm --filter ./src dev` serves the shell.
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(app): vite scaffold + DS tokens + icon"`
+- [x] **Step 4: Run, verify pass** — `pnpm --filter ./src test` → PASS. Also `pnpm --filter ./src dev` serves the shell.
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(app): vite scaffold + DS tokens + icon"`
 
 ---
 
@@ -1481,7 +1481,7 @@ Copy the DS token CSS files verbatim into `src/src/ds/`.
 **Interfaces:**
 - Produces typed React components matching the prototype's props. Port sources: the 14 components from `.prototype/kit/kit-*.jsx` and `.prototype/_ds/.../_ds_bundle.js`; the kit wrappers (Modal/Toast/Field/HnTextarea/useToast/Shell) from `.prototype/app/Shell.jsx`, `AppUI.jsx`, `marks.jsx`. **Transformation contract:** remove `window.HN`/`window.HanomanDesignSystem_c639ad`/global-React usage → ESM imports; add explicit prop `type`s; replace runtime Lucide global with the `Icon` from Task 15; keep class names, token CSS variables, and copy identical. No visual change.
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 ```tsx
 // src/test/ds.test.tsx
@@ -1499,11 +1499,11 @@ describe("ds components", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Port components** — translate each source file per the transformation contract. Read `.prototype/kit/kit-forms.jsx` (Button/Input/Select/etc.), `kit-feedback.jsx` (Badge/StatusPill/Callout/ProgressBar/Tooltip), `kit-surfaces.jsx` (Card), `kit-ui.jsx` (Tabs), `kit-foundations.jsx` (Icon helpers), and `.prototype/app/AppUI.jsx`/`Shell.jsx` for Modal/Toast/Field/HnTextarea/useToast/Shell. Add `src/src/ds/index.ts` re-exporting all. Keep prop names identical so screens port cleanly.
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Port components** — translate each source file per the transformation contract. Read `.prototype/kit/kit-forms.jsx` (Button/Input/Select/etc.), `kit-feedback.jsx` (Badge/StatusPill/Callout/ProgressBar/Tooltip), `kit-surfaces.jsx` (Card), `kit-ui.jsx` (Tabs), `kit-foundations.jsx` (Icon helpers), and `.prototype/app/AppUI.jsx`/`Shell.jsx` for Modal/Toast/Field/HnTextarea/useToast/Shell. Add `src/src/ds/index.ts` re-exporting all. Keep prop names identical so screens port cleanly.
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(app): port DS components + kit to TS"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(app): port DS components + kit to TS"`
 
 ---
 
@@ -1515,7 +1515,7 @@ describe("ds components", () => {
 - Consumes: `paths`, entity/DTO types from `@hanoman/shared`.
 - Produces: `api = { listProjects, getProject, createProject, scanProject, listSpecs, createSpec, advanceSpec, deleteSpec, listTriggers, createTrigger, toggleTrigger, getSettings, putSettings, listRuns, getRun, getDocs, getDoc, putDoc }` — each a typed `fetch` returning the parsed DTO; throws `ApiError` on non-2xx.
 
-- [ ] **Step 1: Failing test** (mock `fetch`)
+- [x] **Step 1: Failing test** (mock `fetch`)
 
 ```ts
 // src/test/client.test.ts
@@ -1535,8 +1535,8 @@ describe("api client", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement**
 
 ```ts
 // src/src/api/client.ts
@@ -1571,8 +1571,8 @@ export const api = {
 };
 ```
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(app): typed api client"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(app): typed api client"`
 
 ---
 
@@ -1587,7 +1587,7 @@ export const api = {
 - Consumes: `api` client (Task 17), DS components (Task 16).
 - Produces: the 8-screen dashboard. Port sources 1:1 from `.prototype/app/*.jsx` (`OverviewScreen`, `ProjectsScreen`, `BacklogScreen`, `RunsScreen`, `DocsScreen`/`DocsWorkspace`, `TriggersScreen`, `SettingsScreen`, `Shell`, `flows`, `marks`, `docContent`). **Transformation contract:** initial state loads from `api.*` in `useEffect` instead of `window.HN`; the mutating handlers in `App.jsx` (`createSpec`, `advanceSpec`, `deleteSpec`, `createProject`, `createTrigger`, `toggleTrigger`, `scanAll`) call the client and update state from the response; keep all copy, modals, toasts, pagination, and search identical. Runs screen renders `api.getRun`/`listRuns` data read-only — **do not** port steer/pause/retry/worktree/terminal controls (SPEC-003). Markdown via `marked` import.
 
-- [ ] **Step 1: Failing integration test** (mock the client)
+- [x] **Step 1: Failing integration test** (mock the client)
 
 ```tsx
 // src/test/app-flows.test.tsx
@@ -1612,10 +1612,10 @@ describe("app flows", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Port screens + App** per the transformation contract. Work screen-by-screen (Overview → Projects → Backlog → Docs → Triggers → Settings → Runs), committing after each compiles + renders if you prefer finer commits. Wire `App.tsx` state from the client. Keep the `Shell` nav identical.
-- [ ] **Step 4: Run, verify pass** — `pnpm --filter ./src test` green; `pnpm --filter ./src typecheck` clean.
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(app): port 8 screens wired to the api"`
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Port screens + App** per the transformation contract. Work screen-by-screen (Overview → Projects → Backlog → Docs → Triggers → Settings → Runs), committing after each compiles + renders if you prefer finer commits. Wire `App.tsx` state from the client. Keep the `Shell` nav identical.
+- [x] **Step 4: Run, verify pass** — `pnpm --filter ./src test` green; `pnpm --filter ./src typecheck` clean.
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(app): port 8 screens wired to the api"`
 
 ---
 
@@ -1628,7 +1628,7 @@ describe("app flows", () => {
 **Interfaces:**
 - Produces: `pnpm build` → Fastify serves the built dashboard at `/` and API at `/api` from one process when `NODE_ENV=production`.
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 ```ts
 // server/test/static.test.ts
@@ -1644,8 +1644,8 @@ describe("static serving", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail/pass boundary** — before wiring, `/` 404s with a JSON 404, not HTML.
-- [ ] **Step 3: Wire static** in `app.ts`:
+- [x] **Step 2: Run, verify fail/pass boundary** — before wiring, `/` 404s with a JSON 404, not HTML.
+- [x] **Step 3: Wire static** in `app.ts`:
 
 ```ts
 import fastifyStatic from "@fastify/static";
@@ -1660,14 +1660,14 @@ if (process.env.NODE_ENV === "production") {
 }
 ```
 
-- [ ] **Step 4: Full acceptance run** — execute SPEC-001 §Acceptance verbatim:
+- [x] **Step 4: Full acceptance run** — execute SPEC-001 §Acceptance verbatim:
   1. `pnpm install && docker-compose up -d && pnpm --filter ./server exec prisma migrate deploy && pnpm seed && pnpm dev` → dashboard + api up, seed on all 8 screens.
   2. Create project/spec/trigger, advance a spec, toggle a trigger, change a setting → reload → all persist.
   3. Edit a doc in Docs·SoT, save, reload → persists; coverage reflects linked categories.
   4. `curl -X POST localhost:8787/api/runs/RUN-8842/control -d '{"action":"stop"}'` → 404.
   5. `pnpm build && NODE_ENV=production node server/dist/server.js` → single process serves both.
   6. `pnpm -w test` green.
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat: single-process prod serving + acceptance green"`
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat: single-process prod serving + acceptance green"`
 
 ---
 
