@@ -19,8 +19,9 @@ internal/docs/  SOURCE OF TRUTH — baca ini lebih dulu
 ## Mulai
 ```bash
 pnpm install
-pnpm dev        # dashboard + server (dev)
+pnpm dev        # seluruh service: Postgres+Redis (docker compose) → api + worker + dashboard
 ```
+> `pnpm dev` menjalankan `docker compose up -d --wait` dulu, jadi Docker harus hidup.
 
 ## Handoff ke Claude Code
 1. Baca `internal/docs/README.md` (index Source of Truth).

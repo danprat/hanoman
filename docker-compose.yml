@@ -7,7 +7,17 @@ services:
       POSTGRES_DB: hanoman
     ports: ["5432:5432"]
     volumes: ["hanoman_pg:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hanoman"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
   redis:
     image: redis:7
     ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
 volumes: { hanoman_pg: {} }

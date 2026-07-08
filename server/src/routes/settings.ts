@@ -1,8 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import { zSetting } from "@hanoman/shared";
 import { prisma } from "../db";
+import { getSetting } from "../services/settings";
 export default async function (app: FastifyInstance) {
-  app.get("/settings", async () => (await prisma.setting.findUniqueOrThrow({ where: { id: 1 } })).data);
+  app.get("/settings", async () => getSetting());
   app.put("/settings", async (req, reply) => {
     const parsed = zSetting.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });

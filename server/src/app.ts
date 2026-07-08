@@ -10,6 +10,7 @@ import settings from "./routes/settings";
 import docs from "./routes/docs";
 import runs from "./routes/runs";
 import webhooks from "./routes/webhooks";
+import fs from "./routes/fs";
 export function buildApp(): FastifyInstance {
   const app = Fastify({ logger: false });
   // Body-less POSTs (scan / advance / toggle) may still carry a JSON
@@ -32,6 +33,7 @@ export function buildApp(): FastifyInstance {
     await api.register(docs);
     await api.register(runs);
     await api.register(webhooks);
+    await api.register(fs);
   }, { prefix: "/api" });
 
   // Prod: serve the built dashboard from one process; SPA-fallback to

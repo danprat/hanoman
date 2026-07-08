@@ -13,4 +13,5 @@ export const paths = {
   run: (id: string) => `${API}/runs/${id}`,
   docs: (id: string) => `${API}/projects/${id}/docs`,
   docFile: (id: string, path: string) => `${API}/projects/${id}/docs/${path}`,
+  fsBrowse: (path?: string) => `${API}/fs/browse${path ? `?path=${encodeURIComponent(path)}` : ""}`,
 } as const;

@@ -13,16 +13,19 @@ const S_STEPS = [
   { key: "execute", label: "Execute", icon: "play" },
   { key: "audit", label: "Audit (QA)", icon: "radar" },
 ] as const;
+// Valid Claude model ids (Agent SDK passes these straight through). Keep in
+// sync with the server default in services/settings.ts.
 const S_MODELS = [
-  { value: "opus", label: "claude-opus-4" },
-  { value: "sonnet", label: "claude-sonnet-4.5" },
-  { value: "haiku", label: "claude-haiku-4" },
+  { value: "claude-opus-4-8", label: "Opus 4.8" },
+  { value: "claude-sonnet-5", label: "Sonnet 5" },
+  { value: "claude-haiku-4-5", label: "Haiku 4.5" },
 ];
+// Effort keys the runner maps to thinking tokens (server deps.ts THINK).
 const S_EFFORT = [
   { value: "xhigh", label: "x-high" }, { value: "high", label: "high" },
   { value: "medium", label: "medium" }, { value: "low", label: "low" },
 ];
-const S_DEFAULT_STEP = { model: "opus", effort: "xhigh" };
+const S_DEFAULT_STEP = { model: "claude-opus-4-8", effort: "xhigh" };
 const S_DEFAULTS: Setting = {
   steps: { brainstorm: { ...S_DEFAULT_STEP }, spec: { ...S_DEFAULT_STEP }, plan: { ...S_DEFAULT_STEP },
     execute: { ...S_DEFAULT_STEP }, audit: { ...S_DEFAULT_STEP } },
@@ -75,11 +78,11 @@ export function SettingsScreen({ onToast }: { onToast?: ShowToast }) {
 
       <Card eyebrow="model" title="Model per step"
         actions={<div style={{ display: "flex", gap: 8 }}>
-          <Button size="sm" variant="ghost" onClick={() => applyAll("model", "opus", "opus")}>Semua opus</Button>
+          <Button size="sm" variant="ghost" onClick={() => applyAll("model", "claude-opus-4-8", "Opus 4.8")}>Semua Opus 4.8</Button>
           <Button size="sm" variant="ghost" onClick={() => applyAll("effort", "xhigh", "x-high")}>Semua x-high</Button>
         </div>}>
         <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.5 }}>
-          Tiap step pipeline bisa pakai model & effort berbeda. Default: opus, effort x-high.
+          Tiap step pipeline bisa pakai model & effort berbeda. Default: Opus 4.8, effort x-high.
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 190px 130px", gap: 10, padding: "0 2px 8px", borderBottom: "1px solid var(--border-hair)" }}>
           <span className="hn-eyebrow">Step</span>

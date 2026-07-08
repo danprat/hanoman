@@ -2,7 +2,7 @@
    prototype App.jsx: window.HN → api.* on mount; every mutating handler
    calls the client and updates state from the response. */
 import React from "react";
-import { Shell, Modal, Field, HnTextarea, Button, StatusPill, Select, Input, Tabs, Toast, useToast } from "./ds";
+import { Shell, Modal, Field, HnTextarea, Button, StatusPill, Select, Input, Tabs, Toast, useToast, Icon } from "./ds";
 import { api, ApiError } from "./api/client";
 import type { ProjectView, Spec, Trigger, Run } from "@hanoman/shared";
 import type { ProjectVM, RunVM } from "./screens/types";
@@ -132,6 +132,62 @@ function NewTriggerModal({ open, onClose, projects, defaultProject, onCreate }:
   );
 }
 
+type FsEntry = { name: string; path: string };
+function FolderRow({ icon, name, onClick }: { icon: string; name: string; onClick: () => void }) {
+  const [hover, setHover] = React.useState(false);
+  return (
+    <div onClick={onClick}
+      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+      style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", cursor: "pointer",
+        borderBottom: "1px solid var(--border-hair)", background: hover ? "var(--bone-100)" : "transparent",
+        fontSize: 13, color: "var(--text-strong)" }}>
+      <Icon name={icon} size={16} color="var(--brass-700)" />
+      <span style={{ fontFamily: "var(--font-mono)" }}>{name}</span>
+    </div>
+  );
+}
+
+// Real device folder picker: navigates the server's filesystem (same machine)
+// and returns an absolute path — replaces the old mock that faked "~/code/…".
+function FolderPicker({ open, onClose, onPick, start }:
+  { open: boolean; onClose: () => void; onPick: (path: string) => void; start?: string }) {
+  const [cur, setCur] = React.useState("");
+  const [parent, setParent] = React.useState<string | null>(null);
+  const [entries, setEntries] = React.useState<FsEntry[]>([]);
+  const [err, setErr] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
+  const load = React.useCallback((path?: string) => {
+    setLoading(true); setErr("");
+    api.browseFs(path)
+      .then((r) => { setCur(r.path); setParent(r.parent); setEntries(r.entries); })
+      .catch(() => setErr("Tak bisa membuka folder ini"))
+      .finally(() => setLoading(false));
+  }, []);
+  React.useEffect(() => { if (open) load(start && start.trim() ? start.trim() : undefined); }, [open, start, load]);
+  return (
+    <Modal open={open} onClose={onClose} icon="folder-open" eyebrow="device" title="Pilih folder codebase"
+      footer={<>
+        <Button variant="ghost" size="sm" onClick={onClose}>Batal</Button>
+        <Button size="sm" leftIcon="check" disabled={!cur} onClick={() => { onPick(cur); onClose(); }}>Pilih folder ini</Button>
+      </>}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+        <Input value={cur} onChange={(e: any) => setCur(e.target.value)}
+          onKeyDown={(e: any) => { if (e.key === "Enter") load(e.currentTarget.value); }}
+          leftIcon="folder" mono style={{ flex: 1 }} placeholder="/path/ke/folder" />
+        <Button size="sm" variant="secondary" onClick={() => load(cur)}>Buka</Button>
+      </div>
+      <div style={{ border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", maxHeight: 320, overflow: "auto" }}>
+        {parent && <FolderRow icon="corner-left-up" name=".." onClick={() => load(parent)} />}
+        {entries.map((e) => <FolderRow key={e.path} icon="folder" name={e.name} onClick={() => load(e.path)} />)}
+        {err
+          ? <div style={{ padding: 16, fontSize: 12, color: "var(--status-err)" }}>{err}</div>
+          : !loading && entries.length === 0 &&
+            <div style={{ padding: 16, fontSize: 12, color: "var(--text-subtle)" }}>Tak ada sub-folder</div>}
+      </div>
+    </Modal>
+  );
+}
+
 type ProjectForm = { kind: string; name: string; desc: string; dir: string; objective: string };
 function NewProjectModal({ open, onClose, onCreate }:
   { open: boolean; onClose: () => void; onCreate: (f: ProjectForm) => void }) {
@@ -142,7 +198,7 @@ function NewProjectModal({ open, onClose, onCreate }:
   const scratch = f.kind === "from-scratch";
   const canSubmit = scratch ? !!f.name.trim() : !!f.dir.trim();
   const submit = () => { if (!canSubmit) return; onCreate(f); };
-  const browse = () => setF((s) => ({ ...s, dir: "~/code/" + (s.name.trim() || "repo") }));
+  const [picker, setPicker] = React.useState(false);
   return (
     <Modal open={open} onClose={onClose} icon="box" eyebrow="workspace" title="Project baru"
       footer={<>
@@ -177,10 +233,12 @@ function NewProjectModal({ open, onClose, onCreate }:
         <>
           <Field label="Direktori" hint="pilih folder codebase yang akan dipantau">
             <div style={{ display: "flex", gap: 8 }}>
-              <Input value={f.dir} onChange={set("dir")} leftIcon="folder" placeholder="~/code/nama-repo" style={{ flex: 1 }} />
-              <Button size="sm" variant="secondary" leftIcon="folder-open" onClick={browse}>Pilih folder</Button>
+              <Input value={f.dir} onChange={set("dir")} leftIcon="folder" mono placeholder="/path/ke/repo" style={{ flex: 1 }} />
+              <Button size="sm" variant="secondary" leftIcon="folder-open" onClick={() => setPicker(true)}>Pilih folder</Button>
             </div>
           </Field>
+          <FolderPicker open={picker} onClose={() => setPicker(false)}
+            start={f.dir} onPick={(p) => setF((s) => ({ ...s, dir: p }))} />
           <Field label="Deskripsi" hint="opsional">
             <Input value={f.desc} onChange={set("desc")} placeholder="mis. POS ritel + inventori" style={{ width: "100%" }} />
           </Field>

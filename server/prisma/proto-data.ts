@@ -150,7 +150,7 @@ export const triggers: Prisma.TriggerCreateManyInput[] = [
 
 // data-model.md §Settings defaults, coerced to the zSetting shape (numbers, not
 // the prototype's string form). opus / x-high per pipeline step.
-const STEP = { model: "opus", effort: "xhigh" };
+const STEP = { model: "claude-opus-4-8", effort: "xhigh" };
 export const defaultSetting: Setting = {
   steps: { brainstorm: STEP, spec: STEP, plan: STEP, execute: STEP, audit: STEP },
   autoDefault: true, blockStale: true, requireLinks: true, autoScaffold: true,
