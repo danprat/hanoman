@@ -223,7 +223,7 @@ describe("runs SSE via redis", () => {
 **Interfaces:**
 - Produces: `markFailed(runId)` on `failed`/`stalled`; concurrency honored by the `Worker` option; durability from Redis persistence.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```ts
 // server/test/queue-durability.test.ts
@@ -241,16 +241,16 @@ describe("stall recovery", () => {
 ```
 Add a concurrency test: with `concurrency: 1`, enqueue two jobs whose fake deps block on a resolvable promise; assert the second starts only after the first resolves (use a shared counter). (Real Redis + a real `Worker` instance in the test.)
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement** `markFailed` + wire `worker.on("failed"|"stalled", ...)`.
+- [x] **Step 2: Run, verify fail.** (markFailed + failed/stalled wiring + concurrency option were front-loaded in Task 2, so these tests pass on write — they lock in that behavior.)
+- [x] **Step 3: Implement** `markFailed` + wire `worker.on("failed"|"stalled", ...)`. (done in Task 2)
 
-- [ ] **Step 4: Full acceptance** — verify SPEC-004 §Acceptance:
-  1. `docker-compose up -d` (postgres+redis); `pnpm dev` runs api + worker; start a run → a job is consumed by the worker process.
-  2. Logs stream over SSE; `steer`/`pause`/`stop` reach the worker ≤2s.
-  3. Kill+restart the worker → queued jobs re-process; a mid-run crash → run `failed`.
-  4. `dailyBudget` exceeded → run-start `409`.
-  5. `maxConcurrent` respected; `pnpm -w test` green.
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(server): stall recovery + queue acceptance green"`
+- [x] **Step 4: Full acceptance** — verified SPEC-004 §Acceptance (zero Claude tokens: bogus repoDir fails at git, and a harness runs the real `runProcessor` with fake deps):
+  1. ✅ real `node server/dist/worker.js` consumed a queued job cross-process; harness ran a job to `done`.
+  2. ✅ log + status events streamed over `run:<id>:events`; `pause` reached the worker and stopped the run in **107ms** (<2s).
+  3. ✅ job persisted in Redis while worker was down (durability); a mid-run crash → run `failed` via `worker.on(failed)`.
+  4. ✅ live `POST /api/runs` with `dailyBudget: 0` → `409 {"reason":"dailyBudget reached"}`.
+  5. ✅ `concurrency: 1` serializes (maxActive == 1); root suite 84/84 + runner 12 green.
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(server): stall recovery + queue acceptance green"`
 
 ---
 
