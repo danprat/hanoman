@@ -1,16 +1,20 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { Worker } from "bullmq";
-import { seed } from "../prisma/seed";
+import { resetDb, makeProject, makeRun } from "./factory";
 import { prisma } from "../src/db";
 import { markFailed } from "../src/worker";
 import { runsQueue, RUNS_QUEUE } from "../src/queue";
 import { bullConnection } from "../src/redis";
 
 describe("stall recovery", () => {
-  beforeAll(async () => { await seed(); });
+  beforeAll(async () => {
+    await resetDb();
+    await makeProject({ id: "p1" });
+    await makeRun({ id: "RUN-1", projectId: "p1", status: "queued" });
+  });
   it("marks a run failed on stall", async () => {
-    await markFailed("RUN-8830"); // seeded as "queued"
-    expect((await prisma.run.findUnique({ where: { id: "RUN-8830" } }))?.status).toBe("failed");
+    await markFailed("RUN-1"); // created as "queued"
+    expect((await prisma.run.findUnique({ where: { id: "RUN-1" } }))?.status).toBe("failed");
   });
 });
 

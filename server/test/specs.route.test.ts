@@ -1,16 +1,22 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { buildApp } from "../src/app";
-import { seed } from "../prisma/seed";
+import { resetDb, makeProject, makeSpec } from "./factory";
 const app = buildApp();
-beforeAll(async () => { await seed(); });
+beforeAll(async () => {
+  await resetDb();
+  await makeProject({ id: "p1" });
+  await makeSpec({ id: "SPEC-140", projectId: "p1", stage: "brainstorming" });
+  await makeSpec({ id: "SPEC-137", projectId: "p1", stage: "done" });
+  await makeSpec({ id: "SPEC-142", projectId: "p1", stage: "planned" });
+});
 describe("specs routes", () => {
   it("filters by project", async () => {
-    const res = await app.inject({ url: "/api/specs?project=arta" });
-    expect(res.json().every((s: any) => s.projectId === "arta")).toBe(true);
+    const res = await app.inject({ url: "/api/specs?project=p1" });
+    expect(res.json().every((s: any) => s.projectId === "p1")).toBe(true);
   });
   it("creates a brief spec with next id", async () => {
     const res = await app.inject({ method: "POST", url: "/api/specs", payload: {
-      project: "arta", source: "brief", title: "New", priority: "sedang",
+      project: "p1", source: "brief", title: "New", priority: "sedang",
       payload: { context: "c", outcome: "o", constraints: "", priority: "sedang" } } });
     expect(res.statusCode).toBe(201); expect(res.json().id).toMatch(/^SPEC-\d+$/); expect(res.json().stage).toBe("brainstorming");
   });

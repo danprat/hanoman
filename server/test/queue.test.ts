@@ -1,22 +1,22 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { seed } from "../prisma/seed";
+import { resetDb, makeProject, makeSetting } from "./factory";
 import { prisma } from "../src/db";
 import { enqueueRun, todaySpendUsd, runsQueue } from "../src/queue";
 import type { RunInput } from "@hanoman/runner";
 
 const input: RunInput = {
-  runId: "RUN-9001", projectId: "arta", repoDir: "/tmp/x",
+  runId: "RUN-9001", projectId: "p1", repoDir: "/tmp/x",
   branchFrom: "main", branchTo: "feat/x", flow: "feature", steps: {} as any,
 };
 
 describe("queue", () => {
-  beforeAll(async () => { await seed(); });
+  beforeAll(async () => { await resetDb(); await makeProject({ id: "p1" }); await makeSetting(); });
   // These tests add real jobs to Redis; obliterate so a running worker (or the
-  // next test run) doesn't later consume orphaned jobs whose rows were re-seeded.
+  // next test run) doesn't later consume orphaned jobs whose rows were reset.
   afterAll(async () => { await runsQueue.obliterate({ force: true }); await runsQueue.close(); });
 
   it("enqueues below budget", async () => {
-    expect(await todaySpendUsd()).toBeLessThan(50); // seed spend is small
+    expect(await todaySpendUsd()).toBeLessThan(50); // fresh DB: no spend
     const r = await enqueueRun(input);
     expect(r.enqueued).toBe(true);
     expect((await prisma.run.findUnique({ where: { id: "RUN-9001" } }))?.status).toBe("queued");

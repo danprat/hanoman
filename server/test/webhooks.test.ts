@@ -6,12 +6,12 @@ process.env.GITHUB_WEBHOOK_SECRET = "shh";
 process.env.GITHUB_APP_PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----";
 
 const { buildApp } = await import("../src/app");
-const { seed } = await import("../prisma/seed");
+const { resetDb } = await import("./factory");
 
 const sign = (body: string) => "sha256=" + createHmac("sha256", "shh").update(body).digest("hex");
 
 describe("webhooks", () => {
-  beforeAll(async () => { await seed(); });
+  beforeAll(async () => { await resetDb(); });
 
   it("401 on a bad signature", async () => {
     const app = buildApp();

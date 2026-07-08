@@ -1,18 +1,24 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { buildApp } from "../src/app";
-import { seed } from "../prisma/seed";
+import { resetDb, makeProject, makeTrigger, makeSetting } from "./factory";
 const app = buildApp();
-beforeAll(async () => { await seed(); });
+beforeAll(async () => {
+  await resetDb();
+  await makeProject({ id: "p1" });
+  await makeSetting();
+  await makeTrigger({ id: "t1", projectId: "p1", type: "commit", detail: "push → main", enabled: true });
+  await makeTrigger({ id: "t2", projectId: "p1", type: "commit", detail: "push → develop", target: "audit", enabled: false });
+});
 describe("triggers + settings", () => {
-  it("lists triggers", async () => expect((await app.inject({ url: "/api/triggers" })).json().length).toBe(6));
+  it("lists triggers", async () => expect((await app.inject({ url: "/api/triggers" })).json().length).toBe(2));
   it("creates a trigger", async () => {
     const res = await app.inject({ method: "POST", url: "/api/triggers", payload: {
-      project: "arta", type: "commit", detail: "push → main", target: "plan + execute" } });
+      project: "p1", type: "commit", detail: "push → main", target: "plan + execute" } });
     expect(res.statusCode).toBe(201); expect(res.json().enabled).toBe(true);
   });
   it("toggles a trigger", async () => {
-    const res = await app.inject({ method: "POST", url: "/api/triggers/t4/toggle" });
-    expect(res.json().enabled).toBe(true); // t4 seeded false
+    const res = await app.inject({ method: "POST", url: "/api/triggers/t2/toggle" });
+    expect(res.json().enabled).toBe(true); // t2 seeded false
   });
   it("gets and updates settings", async () => {
     const got = await app.inject({ url: "/api/settings" }); expect(got.json()).toHaveProperty("steps");

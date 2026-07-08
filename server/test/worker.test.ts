@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { seed } from "../prisma/seed";
+import { resetDb, makeProject, makeRun, makeSetting } from "./factory";
 import { prisma } from "../src/db";
 import { runProcessor } from "../src/worker";
 import type { RunDeps } from "@hanoman/runner";
@@ -14,10 +14,15 @@ const fakeDeps: RunDeps = {
 };
 
 describe("worker processor", () => {
-  beforeAll(async () => { await seed(); });
+  beforeAll(async () => {
+    await resetDb();
+    await makeProject({ id: "p1" });
+    await makeSetting();
+    await makeRun({ id: "RUN-1", projectId: "p1", status: "running" });
+  });
   it("runs a job and persists final status", async () => {
     const steps = await (await import("../src/services/settings")).stepModels();
-    await runProcessor({ data: { runId: "RUN-8842", repoDir: "/tmp/x", branchFrom: "main", branchTo: "feat/x", flow: "feature", steps } } as any, fakeDeps);
-    expect((await prisma.run.findUnique({ where: { id: "RUN-8842" } }))?.status).toBe("done");
+    await runProcessor({ data: { runId: "RUN-1", repoDir: "/tmp/x", branchFrom: "main", branchTo: "feat/x", flow: "feature", steps } } as any, fakeDeps);
+    expect((await prisma.run.findUnique({ where: { id: "RUN-1" } }))?.status).toBe("done");
   });
 });
