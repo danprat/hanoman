@@ -244,7 +244,7 @@ export async function postStatus(octo: any, at: { owner: string; repo: string; s
 
 **Files:** Create `server/test/github-live.test.ts` (env-gated); Modify `internal/docs/operations/agent-documentation-workflow.md`
 
-- [ ] **Step 1: Env-gated live test**
+- [x] **Step 1: Env-gated live test**
 
 ```ts
 // server/test/github-live.test.ts
@@ -258,16 +258,16 @@ describe.runIf(LIVE)("github live", () => {
 });
 ```
 
-- [ ] **Step 2: Implement** the acceptance walkthrough of SPEC-006 §Acceptance:
-  1. Signed `push` to a watched branch → `fireTrigger` enqueues; bad signature → `401`.
-  2. `installation` events sync `GithubInstallation`; `ping` → `200`.
-  3. A github-triggered run clones a missing repo and pushes to `branchTo` with a token.
-  4. Run start/done/fail post `pending`/`success`/`failure`; no `commitSha` → nothing posted.
-  5. Secrets stay server-side; tokens never persisted.
-  Append to `agent-documentation-workflow.md`: "Trigger `commit` lewat GitHub App (SPEC-006): push terverifikasi → `fireTrigger` → run; status dilaporkan balik."
+- [x] **Step 2: Implement** the acceptance walkthrough of SPEC-006 §Acceptance:
+  1. Signed `push` to a watched branch → `fireTrigger` enqueues; bad signature → `401`. **Driven live** (real HTTP + DB + queue): push→`main` → 200 → exactly one queued run w/ `commitSha`+`reportRepo`; push→`dev` (unwatched) → 200, no enqueue; bad sig → 401.
+  2. `installation` events sync `GithubInstallation`; `ping` → `200`. Ping→200 driven live; installation upsert implemented + typechecked.
+  3. A github-triggered run clones a missing repo and pushes to `branchTo` with a token. `ensureClone` unit-tested (tokenized URL); worker wiring typechecked (full drive needs a real App).
+  4. Run start/done/fail post `pending`/`success`/`failure`; no `commitSha` → nothing posted. `postStatus` unit-tested (mapped + unmapped); reporter integration-tested against real Redis+PG; no-commitSha guard in the reporter.
+  5. Secrets stay server-side; tokens never persisted. Token minted on demand in the worker, redacted from clone/push errors.
+  Appended to `agent-documentation-workflow.md`: GitHub App section (SPEC-006, links ADR-0006).
 
-- [ ] **Step 3: Run** `pnpm -w test` (green, GitHub faked); optionally `HANOMAN_LIVE_GITHUB=1 pnpm --filter ./server test github-live`.
-- [ ] **Step 4: Commit** — `git add -A && git commit -m "feat(server): github live smoke + acceptance + docs"`
+- [x] **Step 3: Run** `pnpm -w test` (green, GitHub faked) — 38 files pass, 1 skipped (env-gated live). Optionally `HANOMAN_LIVE_GITHUB=1 pnpm --filter ./server test github-live`.
+- [x] **Step 4: Commit** — `git add -A && git commit -m "feat(server): github live smoke + acceptance + docs"`
 
 ---
 

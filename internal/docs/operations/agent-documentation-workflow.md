@@ -20,3 +20,10 @@ Runner memakai `@anthropic-ai/claude-agent-sdk`; fase Execute lewat gate
 `hanoman docs verify` (SPEC-002) — plan diblok bila docs stale. Setiap run di
 `.worktrees/<run-id>`, di-steer/pause/stop lewat dashboard, lalu commit + push ke
 `branchTo`. Lihat ADR-0002 (isolasi) dan ADR-0003 (model per step).
+
+## GitHub App + webhooks (SPEC-006)
+Trigger `commit` lewat GitHub App: push terverifikasi (HMAC atas raw body, `401`
+bila gagal) → `fireTrigger` → run. Repo privat di-clone on demand dan di-push ke
+`branchTo` pakai installation token (di-mint on demand, tak pernah disimpan). Run
+start/done/fail dilaporkan balik sebagai commit status (`pending`/`success`/`failure`);
+run tanpa `commitSha` tak melaporkan apa pun. Lihat ADR-0006.
