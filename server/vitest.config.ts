@@ -11,6 +11,19 @@ try {
   }
 } catch { /* .env optional in CI where env is already set */ }
 
+// Tests seed with a wipe-then-load; point them at an ISOLATED throwaway DB so
+// they can never wipe the real hanoman DB. Prefer TEST_DATABASE_URL; else derive
+// a `_test` database from DATABASE_URL. Refuse to run if it would equal the real
+// DB — a missing/misconfigured test DB must fail loudly, not nuke real data.
+{
+  const real = process.env.DATABASE_URL;
+  const test = process.env.TEST_DATABASE_URL
+    ?? real?.replace(/\/([^/?]+)(\?|$)/, "/$1_test$2");
+  if (!test) throw new Error("vitest: no DATABASE_URL/TEST_DATABASE_URL to derive a test database");
+  if (test === real) throw new Error("vitest: refusing to run — test DB would equal the real DATABASE_URL");
+  process.env.DATABASE_URL = test;
+}
+
 export default defineConfig({
   test: {
     environment: "node",
