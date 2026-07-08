@@ -38,7 +38,7 @@ internal/docs/operations/agent-documentation-workflow.md  modify — one SPEC-00
 - Produces: `type CredCheck = { ok: boolean; hasEnvCred: boolean; found: string[]; reason?: string }` and `checkRunnerCredentials(env?: NodeJS.ProcessEnv, isTTY?: boolean): CredCheck`.
   - `ok:false` → refuse boot. `hasEnvCred:false` with `ok:true` → warn-and-boot. `found` = names of set cred vars.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // server/test/runner-credentials.test.ts
@@ -76,12 +76,12 @@ describe("checkRunnerCredentials", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter ./server test runner-credentials`
 Expected: FAIL — cannot resolve `../src/runner/credentials`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```ts
 // server/src/runner/credentials.ts
@@ -116,12 +116,12 @@ export function checkRunnerCredentials(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm --filter ./server test runner-credentials`
 Expected: PASS (7 tests). Then `pnpm --filter ./server typecheck` → no errors.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/runner/credentials.ts server/test/runner-credentials.test.ts
