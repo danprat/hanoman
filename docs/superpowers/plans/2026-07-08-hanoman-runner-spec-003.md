@@ -524,7 +524,7 @@ Add `export * from "./run"; export * from "./sdk"; export * from "./steer-queue"
   - `deps.ts`: `prodDeps: RunDeps` = `{ queryFn: (a)=>query(a), git: realGit, verify: verifyViaCli, effortToThinking }` where `verifyViaCli(cwd)` spawns `node cli/dist/hanoman.js docs verify --block-if-stale --json` in `cwd` and maps exit≠0 → `{blocked:true, reason}`.
   - `manager.ts`: `class RunManager { start(input, deps?): void; steer(runId, msg); control(runId, action); command(runId, text): string; subscribe(runId, cb): () => void; }` — a `maxConcurrent` semaphore; per-run `{ emitter, abortController, steer, log[] }`; every `RunEvent` is persisted (append `Run.log`; update `phases`/`files`/`status`; accumulate tokens/cost) **and** emitted to subscribers.
 
-- [ ] **Step 1: Write failing test** (inject a fake runner via deps)
+- [x] **Step 1: Write failing test** (inject a fake runner via deps)
 
 ```ts
 // server/test/manager.test.ts
@@ -554,8 +554,8 @@ describe("RunManager", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement** `settings.ts`, `deps.ts`, `manager.ts`.
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement** `settings.ts`, `deps.ts`, `manager.ts`.
 
 ```ts
 // server/src/services/settings.ts
@@ -632,8 +632,8 @@ export const runManager = new RunManager();
 ```
 (Note: `resume`/`retry` re-enqueue via `start` with a resume-aware input; keep the semaphore-first `await` as the `maxConcurrent` gate.)
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(server): RunManager + prod deps + settings"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(server): RunManager + prod deps + settings"`
 
 ---
 
