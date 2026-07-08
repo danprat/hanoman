@@ -593,7 +593,7 @@ export default async function (args: string[], ctx: Ctx): Promise<number> {
 **Interfaces:**
 - Produces: `default(args, ctx)` — flag `--json`. Prints coverage + per-category linked/unlinked. Always returns 0.
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 ```ts
 // cli/test/docs-scan.cmd.test.ts
@@ -613,8 +613,8 @@ describe("docs scan", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement**
 
 ```ts
 // cli/src/commands/docs-scan.ts
@@ -631,8 +631,8 @@ export default async function (args: string[], ctx: Ctx): Promise<number> {
 }
 ```
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(cli): docs scan command"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(cli): docs scan command"`
 
 ---
 
