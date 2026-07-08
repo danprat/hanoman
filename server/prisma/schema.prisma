@@ -14,6 +14,7 @@ model Project {
   kind      String
   repoDir   String?
   repoUrl   String?
+  installationId Int?
   stack     String   @default("")
   docStatus String
   coverage  Int
@@ -43,6 +44,8 @@ model Run {
   specId        String?
   kind          String
   status        String
+  commitSha     String?
+  reportRepo    String?
   trigger       String
   triggerDetail String
   phases        Json
@@ -86,4 +89,10 @@ model DocFile {
   root      Boolean @default(false)
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   @@unique([projectId, path])
+}
+
+model GithubInstallation {
+  id      Int      @id
+  account String
+  repos   String[]
 }

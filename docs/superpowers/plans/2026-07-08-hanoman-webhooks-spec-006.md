@@ -43,7 +43,7 @@ server/src/worker.ts   start statusReporter
 **Interfaces:**
 - Produces Prisma models/fields: `GithubInstallation { id Int @id; account String; repos String[] }`; `Project.installationId Int?`; `Run.commitSha String?`; `Run.reportRepo String?`.
 
-- [ ] **Step 1: Write the ADR** `internal/docs/adr/0005-github-app-schema.md`:
+- [x] **Step 1: Write the ADR** `internal/docs/adr/0006-github-app-schema.md` (0005 taken by durable-queue ADR):
 ```markdown
 # ADR 0005 — GitHub App schema deltas
 **Status:** accepted
@@ -58,7 +58,7 @@ Tambah `GithubInstallation { id, account, repos[] }`, `Project.installationId?`,
 ```
 Link it under `## adr` in `internal/docs/README.md`.
 
-- [ ] **Step 2: Write failing test**
+- [x] **Step 2: Write failing test**
 
 ```ts
 // server/test/github-schema.test.ts
@@ -72,9 +72,9 @@ describe("github schema", () => {
 });
 ```
 
-- [ ] **Step 3: Implement** the schema additions; `prisma migrate dev --name github-app`.
-- [ ] **Step 4: Run, verify pass** — `pnpm --filter ./server test github-schema`.
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(server): ADR-0005 + github app schema"`
+- [x] **Step 3: Implement** the schema additions; `prisma migrate dev --name github-app`.
+- [x] **Step 4: Run, verify pass** — `pnpm --filter ./server test github-schema`.
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(server): ADR-0005 + github app schema"`
 
 ---
 

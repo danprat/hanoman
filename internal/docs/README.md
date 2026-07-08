@@ -27,6 +27,7 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 - [0003 — per-step model selection](adr/0003-per-step-model-selection.md)
 - [0004 — foundation schema deltas](adr/0004-foundation-schema-deltas.md)
 - [0005 — durable queue + worker](adr/0005-durable-queue-and-worker.md)
+- [0006 — github app schema](adr/0006-github-app-schema.md)
 
 ## operations
 - [roadmap](operations/roadmap.md) · [gtm](operations/gtm.md) · [agent-documentation-workflow](operations/agent-documentation-workflow.md)
