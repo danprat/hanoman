@@ -2,6 +2,23 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "../src/db";
 import { DEFAULT_SETTING } from "../src/services/settings";
 import type { Setting } from "@hanoman/shared";
+import { mkdtempSync, writeFileSync, mkdirSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, dirname } from "node:path";
+import { spawnSync } from "node:child_process";
+
+// Fresh git repo seeded with { relPath: content }. Files are untracked-but-not-ignored,
+// which `git ls-files --others --exclude-standard` lists — no commit needed.
+export function makeTempRepo(files: Record<string, string>): string {
+  const dir = mkdtempSync(join(tmpdir(), "hanoman-doc-"));
+  spawnSync("git", ["init", "-q"], { cwd: dir });
+  for (const [rel, content] of Object.entries(files)) {
+    const abs = join(dir, rel);
+    mkdirSync(dirname(abs), { recursive: true });
+    writeFileSync(abs, content);
+  }
+  return dir;
+}
 
 // Truncate every table in FK-safe order (mirrors the deleted seed()).
 export async function resetDb(): Promise<void> {
