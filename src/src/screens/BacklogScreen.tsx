@@ -5,14 +5,6 @@ import { Card, Badge, Tabs, Select, Button, IconButton, usePaged, Pager } from "
 import type { Spec } from "./types";
 import type { ProjectVM } from "./types";
 
-const B_ACTION: Record<string, { label: string; icon: string; run?: boolean } | null> = {
-  brainstorming: { label: "Kunci objective", icon: "target" },
-  objective: { label: "Tulis spec", icon: "file-text" },
-  "spec-ready": { label: "Buat plan", icon: "git-branch" },
-  planned: { label: "Execute", icon: "play" },
-  executing: { label: "Buka run", icon: "activity", run: true },
-  done: null,
-};
 const B_STAGES = [
   { key: "brainstorming", label: "Brainstorm" }, { key: "objective", label: "Objective" },
   { key: "spec-ready", label: "Spec" }, { key: "planned", label: "Plan" },
@@ -53,11 +45,11 @@ function StageBar({ stage }: { stage: string }) {
   );
 }
 
-function SpecCard({ spec, onAdvance, onDelete, onOpenRun }:
-  { spec: Spec; onAdvance?: (s: Spec) => void; onDelete?: (s: Spec) => void; onOpenRun?: (s: Spec) => void }) {
+function SpecCard({ spec, onStart, onDelete, onOpenRun, running }:
+  { spec: Spec; onStart?: (s: Spec) => void; onDelete?: (s: Spec) => void;
+    onOpenRun?: (s: Spec) => void; running?: boolean }) {
   const qa = spec.source === "qa";
   const prio = B_PRIO[spec.priority] || B_PRIO.sedang!;
-  const act = B_ACTION[spec.stage];
   return (
     <Card padding={16}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
@@ -81,10 +73,14 @@ function SpecCard({ spec, onAdvance, onDelete, onOpenRun }:
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 12 }}>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)" }}>{spec.author}</span>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {act && (
-              <Button size="sm" variant={act.run ? "secondary" : "primary"} leftIcon={act.icon}
-                onClick={() => act.run ? (onOpenRun && onOpenRun(spec)) : (onAdvance && onAdvance(spec))}>
-                {act.label}
+            {spec.stage !== "done" && running && (
+              <Button size="sm" variant="secondary" leftIcon="activity" onClick={() => onOpenRun && onOpenRun(spec)}>
+                Buka run
+              </Button>
+            )}
+            {spec.stage !== "done" && !running && (
+              <Button size="sm" variant="primary" leftIcon="play" onClick={() => onStart && onStart(spec)}>
+                {spec.stage === "brainstorming" ? "Mulai" : "Jalankan lagi"}
               </Button>
             )}
             {spec.stage === "done" && <Badge tone="ok" size="sm" icon="check-circle-2">selesai</Badge>}
@@ -96,9 +92,10 @@ function SpecCard({ spec, onAdvance, onDelete, onOpenRun }:
   );
 }
 
-export function BacklogScreen({ backlog, projects, pageSize = 4, onAdvance, onDelete, onOpenRun }:
+export function BacklogScreen({ backlog, projects, pageSize = 4, onStart, activeRunSpecs, onDelete, onOpenRun }:
   { backlog: Spec[]; projects: ProjectVM[]; pageSize?: number;
-    onAdvance?: (s: Spec) => void; onDelete?: (s: Spec) => void; onOpenRun?: (s: Spec) => void }) {
+    onStart?: (s: Spec) => void; activeRunSpecs?: Set<string>;
+    onDelete?: (s: Spec) => void; onOpenRun?: (s: Spec) => void }) {
   const [tab, setTab] = React.useState("all");
   const [proj, setProj] = React.useState("all");
   const projOptions = projects || [...new Set(backlog.map((s) => s.projectId))].map((id) => ({ id, name: id }));
@@ -124,7 +121,8 @@ export function BacklogScreen({ backlog, projects, pageSize = 4, onAdvance, onDe
       ) : (
         <>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {pg.pageItems.map((s) => <SpecCard key={s.id} spec={s} onAdvance={onAdvance} onDelete={onDelete} onOpenRun={onOpenRun} />)}
+            {pg.pageItems.map((s) => <SpecCard key={s.id} spec={s} onStart={onStart}
+              running={activeRunSpecs?.has(s.id)} onDelete={onDelete} onOpenRun={onOpenRun} />)}
           </div>
           <div style={{ marginTop: 14, border: "1px solid var(--border-hair)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
             <Pager {...pg} onPage={pg.setPage} unit="spec" />

@@ -28,4 +28,12 @@ describe("api client live + control (SPEC-008)", () => {
     await api.runControl("RUN-1", "pause");
     expect(fetchMock).toHaveBeenCalledWith(paths.runControl("RUN-1"), expect.objectContaining({ method: "POST" }));
   });
+
+  it("startRun posts flow + specId to the runs path", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ runId: "RUN-9" }), { status: 202, headers: { "content-type": "application/json" } }));
+    const res = await api.startRun({ project: "p1", flow: "feature", specId: "SPEC-1" });
+    expect(res.runId).toBe("RUN-9");
+    expect(fetchMock).toHaveBeenCalledWith(paths.runs, expect.objectContaining({ method: "POST" }));
+  });
 });

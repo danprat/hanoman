@@ -283,6 +283,24 @@ export default function App() {
     });
   }, [runs, backlog]);
 
+  const activeRunSpecs = React.useMemo(
+    () => new Set(runs.filter((r) => r.specId && (r.status === "running" || r.status === "paused"))
+      .map((r) => r.specId as string)),
+    [runs]);
+
+  // Stage bar is a live mirror: while any run is active, re-poll specs+runs so the
+  // board reflects real phase progress. Stops when nothing is running.
+  const anyRunActive = runs.some((r) => r.status === "running" || r.status === "paused");
+  React.useEffect(() => {
+    if (!anyRunActive) return;
+    const t = setInterval(() => {
+      Promise.all([api.listSpecs(), api.listRuns()])
+        .then(([s, r]) => { setBacklog(s); setRuns(r); })
+        .catch(() => {});
+    }, 3000);
+    return () => clearInterval(t);
+  }, [anyRunActive]);
+
   const proj = projectsView.find((p) => p.id === projectId) || projectsView[0];
   const q = search.trim().toLowerCase();
   const shownProjects = q
@@ -312,14 +330,20 @@ export default function App() {
     } catch { showToast("Gagal membuat project", "err", "x-circle"); }
   }
 
-  async function advanceSpec(spec: Spec) {
+  async function startRun(spec: Spec) {
     try {
-      const res = await api.advanceSpec(spec.id);
-      setBacklog((b) => b.map((s) => s.id === spec.id ? { ...s, stage: res.stage as Spec["stage"] } : s));
-      showToast(spec.id + " · " + advToast(res.stage), res.stage === "done" ? "ok" : "info",
-        res.stage === "executing" ? "play" : res.stage === "done" ? "check-circle-2" : "arrow-right");
-      if (res.stage === "executing") setSection("runs");
-    } catch (e) { if (e instanceof ApiError && e.status === 409) showToast(spec.id + " sudah selesai", "warn", "check-circle-2"); }
+      const { runId } = await api.startRun({
+        project: spec.projectId,
+        flow: spec.source === "qa" ? "qa" : "feature",
+        specId: spec.id,
+      });
+      setRuns(await api.listRuns());
+      showToast(spec.id + " · run " + runId + " dimulai", "info", "play");
+      setSection("runs");
+    } catch (e) {
+      const budget = e instanceof ApiError && e.status === 409;
+      showToast(spec.id + " · gagal mulai run" + (budget ? " · budget harian tercapai" : ""), "warn", "x-circle");
+    }
   }
 
   async function deleteSpec(spec: Spec) {
@@ -385,7 +409,8 @@ export default function App() {
       <Shell active="backlog" title="Backlog" breadcrumb="specs · brainstorm → execute" onNavigate={setSection}
         actions={<Button size="sm" leftIcon="plus" onClick={() => setModal("brief")}>Tambah</Button>}>
         <BacklogScreen backlog={backlog} projects={projectsView} pageSize={4}
-          onAdvance={advanceSpec} onDelete={deleteSpec} onOpenRun={() => setSection("runs")} />
+          onStart={startRun} activeRunSpecs={activeRunSpecs}
+          onDelete={deleteSpec} onOpenRun={() => setSection("runs")} />
       </Shell>
     );
   } else if (section === "runs") {
@@ -431,9 +456,3 @@ export default function App() {
     </>
   );
 }
-
-const ADV_TOAST: Record<string, string> = {
-  objective: "objective terkunci", "spec-ready": "spec ditulis", planned: "plan dibuat",
-  executing: "execute dimulai", done: "selesai — docs tersinkron",
-};
-function advToast(stage: string) { return ADV_TOAST[stage] || stage; }

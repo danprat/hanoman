@@ -13,8 +13,9 @@ export const api = {
   scanProject: (id: string) => j<ProjectView>(paths.scan(id), { method: "POST" }),
   listSpecs: (q = "") => j<Spec[]>(paths.specs + q),
   createSpec: (b: unknown) => j<Spec>(paths.specs, { method: "POST", ...body(b) }),
-  advanceSpec: (id: string) => j<{ id: string; stage: string }>(paths.advance(id), { method: "POST" }),
   deleteSpec: (id: string) => j<void>(paths.spec(id), { method: "DELETE" }),
+  startRun: (b: { project: string; flow: "feature" | "qa"; specId: string }) =>
+    j<{ runId: string }>(paths.runs, { method: "POST", ...body(b) }),
   listTriggers: () => j<Trigger[]>(paths.triggers),
   createTrigger: (b: unknown) => j<Trigger>(paths.triggers, { method: "POST", ...body(b) }),
   toggleTrigger: (id: string) => j<Trigger>(paths.toggle(id), { method: "POST" }),

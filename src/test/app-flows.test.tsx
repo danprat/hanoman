@@ -6,7 +6,7 @@ vi.mock("../src/api/client", () => ({
       docStatus: "ok", coverage: 94, createdAt: "", backlog: 2, topStage: "execute",
       run: { status: "running", phase: "Execute", kind: "feature" }, activity: "x", commit: "y" }]),
     listSpecs: vi.fn(async () => []), listTriggers: vi.fn(async () => []), listRuns: vi.fn(async () => []),
-    getSettings: vi.fn(async () => ({})), advanceSpec: vi.fn(), createSpec: vi.fn(),
+    getSettings: vi.fn(async () => ({})), startRun: vi.fn(), deleteSpec: vi.fn(), createSpec: vi.fn(),
   },
   ApiError: class extends Error {},
 }));

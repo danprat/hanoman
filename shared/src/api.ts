@@ -4,7 +4,6 @@ export const paths = {
   project: (id: string) => `${API}/projects/${id}`,
   scan: (id: string) => `${API}/projects/${id}/scan`,
   specs: `${API}/specs`,
-  advance: (id: string) => `${API}/specs/${id}/advance`,
   spec: (id: string) => `${API}/specs/${id}`,
   triggers: `${API}/triggers`,
   toggle: (id: string) => `${API}/triggers/${id}/toggle`,
