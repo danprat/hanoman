@@ -157,7 +157,7 @@ Add the control DTOs to `shared/src/dto.ts` (the block above).
   ```
   `addWorktree` → `git -C <repo> worktree add <path> <branchFrom>`; `removeWorktree` → `git -C <repo> worktree remove --force <path>`; `commitAndPush` → `git -C <path> add -A && commit -m && push origin HEAD:<branchTo>`; `switchBase` → `git -C <path> checkout <branchFrom>`. Each throws on non-zero exit with stderr.
 
-- [ ] **Step 1: Write failing test** (real git against temp repos + a bare remote)
+- [x] **Step 1: Write failing test** (real git against temp repos + a bare remote)
 
 ```ts
 // runner/test/git.test.ts
@@ -191,8 +191,8 @@ describe("git worktree ops", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement**
 
 ```ts
 // runner/src/git.ts
@@ -214,8 +214,8 @@ export const realGit: GitOps = {
 ```
 Add `GitOps` to `types.ts` exports (declared in Task 1 interfaces).
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(runner): git worktree lifecycle"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(runner): git worktree lifecycle"`
 
 ---
 
