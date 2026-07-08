@@ -20,6 +20,8 @@ export default async function (app: FastifyInstance) {
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
     const b = parsed.data;
     const id = (b.name || b.repoDir?.split("/").pop() || "repo").trim().toLowerCase().replace(/\s+/g, "-");
+    if (await prisma.project.findUnique({ where: { id } }))
+      return reply.code(409).send({ error: `project "${id}" sudah ada` });
     await prisma.project.create({ data: {
       id, name: id, desc: b.desc || "project baru", kind: b.kind, repoDir: b.repoDir ?? null,
       stack: "", docStatus: "broken", coverage: 0 } });
