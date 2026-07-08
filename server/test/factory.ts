@@ -23,7 +23,7 @@ export function makeTempRepo(files: Record<string, string>): string {
 // Truncate every table in FK-safe order (mirrors the deleted seed()).
 export async function resetDb(): Promise<void> {
   await prisma.$transaction([
-    prisma.docFile.deleteMany(), prisma.trigger.deleteMany(), prisma.run.deleteMany(),
+    prisma.trigger.deleteMany(), prisma.run.deleteMany(),
     prisma.spec.deleteMany(), prisma.setting.deleteMany(), prisma.project.deleteMany(),
   ]);
 }
@@ -61,12 +61,6 @@ export function makeTrigger(over: Partial<Prisma.TriggerCreateManyInput> = {}) {
   return prisma.trigger.create({ data: {
     id: "t1", projectId: "p1", type: "commit", detail: "push → main",
     target: "plan + execute", enabled: true, ...over } });
-}
-
-export function makeDocFile(over: Partial<Prisma.DocFileCreateManyInput> = {}) {
-  return prisma.docFile.create({ data: {
-    projectId: "p1", path: "product/prd.md", category: "product",
-    content: "# prd", linked: true, root: false, ...over } });
 }
 
 export function makeSetting(over: Partial<Setting> = {}) {

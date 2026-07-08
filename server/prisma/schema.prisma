@@ -22,7 +22,6 @@ model Project {
   specs     Spec[]
   runs      Run[]
   triggers  Trigger[]
-  docs      DocFile[]
 }
 
 model Spec {
@@ -78,18 +77,6 @@ model Trigger {
 model Setting {
   id   Int  @id @default(1)
   data Json
-}
-
-model DocFile {
-  id        Int     @id @default(autoincrement())
-  projectId String
-  path      String
-  category  String
-  content   String
-  linked    Boolean
-  root      Boolean @default(false)
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  @@unique([projectId, path])
 }
 
 model GithubInstallation {

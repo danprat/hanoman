@@ -25,9 +25,11 @@ Entitas inti (Postgres via Prisma).
 ## Trigger
 - `id`, `projectId`, `type`, `detail`, `target` ("plan + execute" | "audit" | "scaffold docs"), `enabled`
 
-## DocIndex (Source of Truth)
-- `projectId`, `category`, `files[]`, `linked` (ter-index), `root` (repo-root file)
-- coverage = kategori linked / total.
+## Docs (Source of Truth) — TIDAK dipersist
+Docs bukan entitas DB. Tabel `DocFile` sudah di-drop (ADR-0010). Docs dibaca **live dari
+`Project.repoDir`**: korpus = semua `**/*.md` via `git ls-files`, dikelompokkan per direktori,
+`linked` = reachable dari root index (`internal/docs/README.md` → `README.md`) lewat graf link Markdown.
+- coverage = % direktori yang seluruh Markdown-nya reachable dari index (disimpan sebagai cache di `Project.coverage`, disegarkan oleh `POST /projects/:id/scan`).
 
 ## Settings (per workspace)
 - `steps`: { brainstorm|spec|plan|execute|audit: { model, effort } } (default opus/x-high)

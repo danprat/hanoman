@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { buildApp } from "../src/app";
-import { resetDb, makeProject, makeRun, makeDocFile, makeSetting } from "./factory";
+import { resetDb, makeProject, makeRun, makeTempRepo, makeSetting } from "./factory";
+import { prisma } from "../src/db";
 
 const app = buildApp();
 const cmd = (id: string, text: string) =>
@@ -39,7 +40,8 @@ describe("run terminal command routing (SPEC-008)", () => {
 
   it("docs <path> reflects a real file", async () => {
     await makeRun({ id: "RUN-1", projectId: "p1", status: "running" });
-    await makeDocFile({ projectId: "p1", path: "product/prd.md", content: "a\nb\nc" });
+    const repo = makeTempRepo({ "product/prd.md": "a\nb\nc" });
+    await prisma.project.update({ where: { id: "p1" }, data: { repoDir: repo } });
     const hit = (await cmd("RUN-1", "docs product/prd.md")).json().lines as { t: string; s: string }[];
     expect(hit.some((l) => l.t === "✓" && /product\/prd\.md/.test(l.s))).toBe(true);
     const miss = (await cmd("RUN-1", "docs nope/x.md")).json().lines as { t: string; s: string }[];
