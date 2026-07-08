@@ -226,7 +226,7 @@ Add `GitOps` to `types.ts` exports (declared in Task 1 interfaces).
 **Interfaces:**
 - Produces: `class SteerQueue` with `push(text: string): void`, `close(): void`, and `stream(): AsyncGenerator<SdkUserMessage>` — yields an initial message (set via constructor `new SteerQueue(initialPrompt)`) then each pushed message as it arrives; ends on `close()`. Backed by an internal promise-resolver queue so `stream()` awaits pushes.
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 ```ts
 // runner/test/steer-queue.test.ts
@@ -246,8 +246,8 @@ describe("SteerQueue", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement**
 
 ```ts
 // runner/src/steer-queue.ts
@@ -271,8 +271,8 @@ export class SteerQueue {
 }
 ```
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(runner): steer queue"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(runner): steer queue"`
 
 ---
 
