@@ -33,6 +33,7 @@ export const api = {
   getDoc: (id: string, path: string) => j<{ path: string; content: string }>(paths.docFile(id, path)),
   putDoc: (id: string, path: string, content: string) =>
     j<{ path: string; content: string }>(paths.docFile(id, path), { method: "PUT", ...body({ content }) }),
+  deleteDoc: (id: string, path: string) => j<void>(paths.docFile(id, path), { method: "DELETE" }),
   browseFs: (path?: string) =>
     j<{ path: string; parent: string | null; entries: { name: string; path: string }[] }>(paths.fsBrowse(path)),
 };
