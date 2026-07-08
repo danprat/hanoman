@@ -36,6 +36,7 @@ export const zRun = z.object({
   worktree: z.string(), branchFrom: z.string(), branchTo: z.string(),
   model: z.string(), tokensIn: z.string(), tokensOut: z.string(),
   cost: z.string(), progress: z.number(),
+  createdAt: z.string(), finishedAt: z.string().nullable(),
 });
 export type Run = z.infer<typeof zRun>;
 

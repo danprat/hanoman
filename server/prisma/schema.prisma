@@ -61,6 +61,7 @@ model Run {
   cost          String
   progress      Int
   createdAt     DateTime @default(now())
+  finishedAt    DateTime?
   project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 

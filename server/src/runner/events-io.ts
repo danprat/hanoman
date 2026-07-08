@@ -9,7 +9,8 @@ export async function persistEvent(runId: string, e: RunEvent): Promise<void> {
     const run = await prisma.run.findUniqueOrThrow({ where: { id: runId } });
     await prisma.run.update({ where: { id: runId }, data: { log: [...(run.log as any[]), e.line] } });
   } else if (e.kind === "status") {
-    await prisma.run.update({ where: { id: runId }, data: { status: e.status } });
+    const done = e.status === "done" || e.status === "failed" || e.status === "stopped";
+    await prisma.run.update({ where: { id: runId }, data: { status: e.status, ...(done ? { finishedAt: new Date() } : {}) } });
   } else if (e.kind === "phase") {
     const run = await prisma.run.findUniqueOrThrow({ where: { id: runId } });
     const phases = (run.phases as any[]).map((p) => (p.name === e.name ? { ...p, state: e.state } : p));

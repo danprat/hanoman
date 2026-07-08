@@ -1,0 +1,18 @@
+# ADR-0007 — Run.finishedAt for real run duration
+
+**Status:** accepted (SPEC-008) · 2026-07-08
+
+## Context
+`RunsScreen` showed a hardcoded `duration: "—"`. `Run` stored `createdAt` (start) but no
+end timestamp, so a finished run's elapsed time could not be computed — only a live
+run's elapsed-from-now.
+
+## Decision
+Add a nullable `Run.finishedAt DateTime?`. `events-io.persistEvent` sets it to `now()`
+when a run reaches a terminal status (`done` / `failed` / `stopped`). Duration is
+`(finishedAt ?? now) − createdAt`, computed client-side (live for running runs).
+
+## Consequences
+Additive, nullable column — safe forward migration, existing rows read `null` (their
+duration renders live-from-`createdAt`, which for already-finished rows is a harmless
+over-estimate until the next run). No backfill. `zRun` exposes `createdAt` + `finishedAt`.
