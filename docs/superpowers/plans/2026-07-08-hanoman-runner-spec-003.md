@@ -385,7 +385,7 @@ export async function runPhase(a: RunPhaseArgs) {
   ```
   `runOne`: emit `status:running`; `addWorktree`; for each phase — emit `phase:active`; **if phase === "Execute": call `deps.verify(worktree)`; if blocked → emit `log` (reason) + `phase:failed` + `status:failed`, return failed**; pick model via `stepFor`+`input.steps`; `runPhase` (Execute uses the `steer` stream as prompt, others use `phasePrompt`); accumulate cost; if `subtype` starts `error_max_budget` → `status:failed` return; emit `phase:done`. After all phases: `commitAndPush`, `removeWorktree`, `status:done`. If `abortController.signal.aborted` mid-loop → `status:stopped`, **keep** worktree, return stopped.
 
-- [ ] **Step 1: Write failing tests** (fake deps — no real SDK/git)
+- [x] **Step 1: Write failing tests** (fake deps — no real SDK/git)
 
 ```ts
 // runner/test/run.test.ts
@@ -430,8 +430,8 @@ describe("runOne", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement**
 
 ```ts
 // runner/src/phases.ts
@@ -507,8 +507,8 @@ export async function runOne(
 ```
 Add `export * from "./run"; export * from "./sdk"; export * from "./steer-queue";` to `runner/src/index.ts`.
 
-- [ ] **Step 4: Run, verify pass** — `pnpm --filter ./runner test` green.
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(runner): pipelines + runOne orchestration + guardrail gate"`
+- [x] **Step 4: Run, verify pass** — `pnpm --filter ./runner test` green.
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(runner): pipelines + runOne orchestration + guardrail gate"`
 
 ---
 
