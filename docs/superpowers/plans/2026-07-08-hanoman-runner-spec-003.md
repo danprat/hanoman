@@ -778,7 +778,7 @@ describe("hanoman execute", () => {
 **Interfaces:**
 - Produces: each `default(args, ctx)` calls `runExecute`-style core with its `flow` (`qa`→`qa`, `scaffold`→`scaffold`, `reverse`→`reverse`). `scaffold` takes `--from objective`; `reverse` takes `--dir <path>` (sets `repoDir`). Same event streaming + exit codes.
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 ```ts
 // cli/test/flows.cmd.test.ts
@@ -798,11 +798,11 @@ describe("hanoman scaffold", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement** the three commands (each exports `runX(args,ctx,deps=prodDeps)` + `default`). Reuse the event-printing helper from Task 9 (extract to `cli/src/commands/_run.ts` to stay DRY). Wire into `router.ts`.
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement** the three commands (each exports `runX(args,ctx,deps=prodDeps)` + `default`). Reuse the event-printing helper from Task 9 (extract to `cli/src/commands/_run.ts` to stay DRY). Wire into `router.ts`.
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(cli): qa/scaffold/reverse commands"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(cli): qa/scaffold/reverse commands"`
 
 ---
 
