@@ -529,7 +529,7 @@ export function formatJson(r: ReturnType<typeof collectViolations>): string {
 - Consumes: `collectViolations`, `formatText`, `formatJson`, `Ctx`.
 - Produces: `default(args: string[], ctx: Ctx): Promise<number>` — flags `--block-if-stale`, `--json`. Prints report. Returns `1` only when `--block-if-stale` and violations exist; else `0`.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```ts
 // cli/test/docs-verify.cmd.test.ts
@@ -564,8 +564,8 @@ describe("docs verify command", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail** (stub returns 0, assertions on output fail).
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run, verify fail** (stub returns 0, assertions on output fail).
+- [x] **Step 3: Implement**
 
 ```ts
 // cli/src/commands/docs-verify.ts
@@ -581,8 +581,8 @@ export default async function (args: string[], ctx: Ctx): Promise<number> {
 }
 ```
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(cli): docs verify command"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(cli): docs verify command"`
 
 ---
 
