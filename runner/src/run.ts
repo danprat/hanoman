@@ -43,7 +43,7 @@ export async function runOne(
     onEvent({ kind: "phase", name: phase, state: "done" });
   }
   if (abortController.signal.aborted) { onEvent({ kind: "status", status: "stopped" }); return { status: "stopped", costUsd, tokensIn, tokensOut }; }
-  deps.git.commitAndPush(worktree, `hanoman ${input.flow} ${input.specId ?? ""}`.trim(), input.branchTo);
+  deps.git.commitAndPush(worktree, `hanoman ${input.flow} ${input.specId ?? ""}`.trim(), input.branchTo, input.remoteUrl);
   deps.git.removeWorktree(input.repoDir, worktree);
   onEvent({ kind: "status", status: "done" });
   return { status: "done", costUsd, tokensIn, tokensOut };

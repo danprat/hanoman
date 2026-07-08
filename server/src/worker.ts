@@ -8,6 +8,9 @@ import { SCHEDULES_QUEUE, reconcile } from "./schedules";
 import { fireTrigger } from "./fire-trigger";
 import { maxConcurrent } from "./services/settings";
 import { persistEvent, publishEvent } from "./runner/events-io";
+import { ensureClone } from "./github/clone";
+import { installationToken } from "./github/app";
+import { startStatusReporter } from "./github/status";
 import { prisma } from "./db";
 
 // A stalled/failed job leaves the run mid-flight; mark it failed so the UI and
@@ -20,8 +23,16 @@ export async function markFailed(runId: string): Promise<void> {
 // persist+publish every event. Persists are chained so read-modify-write events
 // (log/phase/file) can't race; awaited before returning so the final status lands.
 export async function runProcessor(job: Job<RunInput>, deps: RunDeps = prodDeps): Promise<void> {
-  const input = job.data;
+  let input = job.data;
   const id = input.runId;
+  // github-backed run: clone the private repo on demand and push over a remote
+  // carrying a freshly-minted installation token (never persisted). Local runs
+  // (no installationId) skip this and behave exactly as before.
+  if (input.installationId != null && input.reportRepo) {
+    await ensureClone({ repoDir: input.repoDir, repoUrl: input.reportRepo, installationId: input.installationId });
+    const token = await installationToken(input.installationId);
+    input = { ...input, remoteUrl: `https://x-access-token:${token}@github.com/${input.reportRepo}.git` };
+  }
   const abortController = new AbortController();
   const steer = new SteerQueue("mulai");
   const pub = publisher();
@@ -71,5 +82,9 @@ if (entry.endsWith("worker.js") || entry.endsWith("worker.ts")) {
     scheduler.on("failed", (job, err) => console.error(`schedule fire ${job?.data.triggerId} failed`, err));
     await reconcile(); // DB → schedulers on boot
     console.log(`scheduler up · queue ${SCHEDULES_QUEUE}`);
+
+    // Report github-backed run outcomes as commit statuses (SPEC-006).
+    startStatusReporter();
+    console.log("status reporter up · run:*:events");
   })();
 }

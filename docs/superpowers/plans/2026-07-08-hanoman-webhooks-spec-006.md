@@ -191,7 +191,7 @@ describe("webhooks", () => {
   - `runner/src/git.ts`: `commitAndPush`/`addWorktree` accept an optional `remoteUrlWithToken` (or a credential-helper env) so pushes on a private remote authenticate. Default behavior (no token) unchanged for local runs.
   - `status.ts`: `startStatusReporter()` — subscribe (Redis) to run status events; for a run with `commitSha`+`reportRepo`+`installationId`, `octokit.rest.repos.createCommitStatus({ owner, repo, sha, state })` with `running→pending`, `done→success`, `failed/stopped→failure`.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```ts
 // server/test/github-clone.test.ts
@@ -223,8 +223,8 @@ describe("status", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement** `ensureClone`, the token-aware `git.ts` remote, and `status.ts` (`postStatus(octo, {owner,repo,sha}, runStatus)` + `startStatusReporter` subscribing to `run:*:events`). Wire `ensureClone` before the worktree add in the worker's processor for github-backed runs; start `startStatusReporter()` in `worker.ts`.
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement** `ensureClone`, the token-aware `git.ts` remote, and `status.ts` (`postStatus(octo, {owner,repo,sha}, runStatus)` + `startStatusReporter` subscribing to `run:*:events`). Wire `ensureClone` before the worktree add in the worker's processor for github-backed runs; start `startStatusReporter()` in `worker.ts`. Also threaded `commitSha`/`reportRepo`/`installationId` through `RunInput`→`fireTrigger`→`enqueueRun`→worker so a github run carries what the reporter/clone/push need. Only `commitAndPush` took the optional tokenized `remoteUrl` (addWorktree is local-only). Added `github-status-reporter.test.ts` (real Redis+PG, fake octokit) to cover the subscribe→lookup→post chain.
 
 ```ts
 // server/src/github/status.ts (core mapping)
@@ -235,8 +235,8 @@ export async function postStatus(octo: any, at: { owner: string; repo: string; s
 }
 ```
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(server): clone-on-demand + tokenized push + commit status reporter"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(server): clone-on-demand + tokenized push + commit status reporter"`
 
 ---
 

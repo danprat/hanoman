@@ -44,7 +44,7 @@ function ensureHandlers(): void {
     const triggers = await prisma.trigger.findMany({ where: { projectId: project.id, type: "commit", enabled: true } });
     for (const t of triggers) {
       if (triggerBranch(t.detail) !== branch) continue;
-      await fireTrigger(t as Trigger, { branch, sha: payload.after });
+      await fireTrigger(t as Trigger, { branch, sha: payload.after, repo, installationId: project.installationId ?? undefined });
     }
   });
 

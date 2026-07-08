@@ -15,12 +15,15 @@ const FLOW: Record<string, "feature" | "qa" | "scaffold"> = {
 // Shared entry point reused by SPEC-006 (webhooks).
 export async function fireTrigger(
   trigger: Trigger,
-  ctx: { branch?: string; sha?: string } = {},
+  ctx: { branch?: string; sha?: string; repo?: string; installationId?: number } = {},
 ): Promise<{ enqueued: string[]; skipped?: string }> {
   const flow = FLOW[trigger.target];
   if (!flow) return { enqueued: [], skipped: `unknown target ${trigger.target}` };
   const project = await prisma.project.findUniqueOrThrow({ where: { id: trigger.projectId } });
-  const base = { repoDir: project.repoDir ?? "", branchFrom: ctx.branch ?? "main", projectId: trigger.projectId };
+  // github-backed context (SPEC-006): the commit + repo to report status on, and
+  // the installation to auth clone/push. Absent for schedule/interval/manual fires.
+  const base = { repoDir: project.repoDir ?? "", branchFrom: ctx.branch ?? "main", projectId: trigger.projectId,
+    commitSha: ctx.sha, reportRepo: ctx.repo, installationId: ctx.installationId };
   const steps = await stepModels();
   const enqueued: string[] = [];
 
