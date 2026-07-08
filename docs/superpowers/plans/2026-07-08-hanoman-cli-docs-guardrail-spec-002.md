@@ -372,7 +372,7 @@ export function catStatus(files: string[], linked: Set<string>) {
   - `changedPaths(root: string): string[]` — `git status --short --untracked-files=all` normalized to plain repo-relative paths (handles rename `->`), `[]` if not a git repo.
   - `freshnessViolation(paths: string[]): boolean` — true iff any path startsWith `src/` and none startsWith a doc prefix. Doc prefixes exactly: `internal/docs/`, `internal/skills/`, `AGENTS.md`, `CLAUDE.md`, `README.md`.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```ts
 // cli/test/git.test.ts
@@ -399,8 +399,8 @@ describe("git freshness", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement**
 
 ```ts
 // cli/src/git.ts
@@ -423,8 +423,8 @@ export function freshnessViolation(paths: string[]): boolean {
 }
 ```
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(cli): git freshness signal (ported from python hook)"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(cli): git freshness signal (ported from python hook)"`
 
 ---
 
