@@ -1,4 +1,5 @@
 import type { QueryFn, RunEvent, SdkUserMessage } from "./types";
+import { canUseTool } from "./safety";
 const DENY = ["Bash(rm -rf *)", "Bash(git push * main*)", "Bash(git push origin main*)"];
 export interface RunPhaseArgs {
   queryFn: QueryFn; cwd: string; model: string; maxThinkingTokens?: number; maxBudgetUsd?: number;
@@ -11,6 +12,7 @@ export async function runPhase(a: RunPhaseArgs) {
     cwd: a.cwd, model: a.model, maxThinkingTokens: a.maxThinkingTokens, maxBudgetUsd: a.maxBudgetUsd,
     abortController: a.abortController, includePartialMessages: true, settingSources: ["project"],
     systemPrompt: { type: "preset", preset: "claude_code" }, permissionMode: "acceptEdits", disallowedTools: DENY,
+    canUseTool, // dynamic guardrail beyond the static disallowedTools list
   } });
   for await (const m of it) {
     if (m.type === "assistant") {

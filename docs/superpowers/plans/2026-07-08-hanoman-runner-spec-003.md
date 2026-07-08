@@ -818,7 +818,7 @@ describe("hanoman scaffold", () => {
 **Interfaces:**
 - Produces: verified deny behavior (the `disallowedTools` list + a `canUseTool` reject for `rm -rf`/push-to-main/out-of-worktree writes) and the opt-in live smoke.
 
-- [ ] **Step 1: Failing safety test**
+- [x] **Step 1: Failing safety test**
 
 ```ts
 // runner/test/safety.test.ts
@@ -831,8 +831,8 @@ describe("safety", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement** `runner/src/safety.ts`:
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement** `runner/src/safety.ts`:
 
 ```ts
 export function deniesDangerous(tool: string, input: Record<string, unknown>): boolean {
@@ -861,11 +861,11 @@ describe.runIf(LIVE)("live smoke", () => {
 });
 ```
 
-- [ ] **Step 4: Full acceptance** — verify SPEC-003 §Acceptance:
+- [x] **Step 4: Full acceptance** — verify SPEC-003 §Acceptance:
   1. `pnpm -r build && pnpm -r test` green (SDK mocked).
   2. Manual/live: `HANOMAN_LIVE_SDK=1 pnpm --filter ./runner test` runs one real execute.
   3. In the dashboard (SPEC-001 running): a run streams logs (<1s), steer injects, pause/stop ≤2s, a stale-docs run blocks at Execute, success pushes to `branchTo`, a `rm -rf` attempt is denied, N+1 concurrent run waits.
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(runner): safety canUseTool + ADR-0003 refresh + live smoke"`
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(runner): safety canUseTool + ADR-0003 refresh + live smoke"`
 
 ---
 
