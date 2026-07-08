@@ -644,7 +644,7 @@ export const runManager = new RunManager();
 **Interfaces:**
 - Produces: `GET /runs/:id/log` — SSE stream: on connect writes the persisted `Run.log` snapshot as `data:` events, then live events from `runManager.subscribe`. Sets `content-type: text/event-stream`. Closes on client disconnect (unsubscribe).
 
-- [ ] **Step 1: Write failing test** (inject Fastify; assert a live run's events reach the stream)
+- [x] **Step 1: Write failing test** (inject Fastify; assert a live run's events reach the stream)
 
 ```ts
 // server/test/runs-sse.test.ts
@@ -663,8 +663,8 @@ describe("runs SSE", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement** — add to `runs.ts`:
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement** — add to `runs.ts`:
 
 ```ts
 import { runManager } from "../runner/manager";
@@ -682,8 +682,8 @@ app.get("/runs/:id/log", async (req, reply) => {
 });
 ```
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(server): SSE run log (replay + live)"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(server): SSE run log (replay + live)"`
 
 ---
 

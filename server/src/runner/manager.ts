@@ -22,6 +22,7 @@ export class RunManager {
     return () => e.off("event", cb);
   }
   logSnapshot(runId: string) { return this.live.get(runId)?.log ?? []; }
+  isLive(runId: string) { return this.live.has(runId); }
   steer(runId: string, message: string) { this.live.get(runId)?.steer.push(message); }
   control(runId: string, action: "pause" | "resume" | "stop" | "retry") {
     const l = this.live.get(runId); if (!l) return;

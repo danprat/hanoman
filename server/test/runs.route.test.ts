@@ -14,6 +14,9 @@ describe("runs routes", () => {
   it.each(["steer","control","worktree","command"])("run-%s is 404 (no stub)", async (a) => {
     expect((await app.inject({ method: "POST", url: `/api/runs/RUN-8842/${a}`, payload: {} })).statusCode).toBe(404);
   });
-  it("SSE log endpoint is 404 (arrives in SPEC-003)", async () =>
-    expect((await app.inject({ url: "/api/runs/RUN-8842/log" })).statusCode).toBe(404));
+  it("SSE log endpoint streams event-stream (SPEC-003)", async () => {
+    const res = await app.inject({ url: "/api/runs/RUN-8842/log", headers: { accept: "text/event-stream" } });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toContain("text/event-stream");
+  });
 });
