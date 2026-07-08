@@ -3,7 +3,7 @@ import { PIPELINES, phasePrompt, stepFor } from "./phases";
 import { runPhase } from "./sdk";
 import { SteerQueue } from "./steer-queue";
 export interface RunDeps {
-  queryFn: QueryFn; git: GitOps; verify: (cwd: string) => { blocked: boolean; reason?: string };
+  queryFn: QueryFn; git: GitOps; verify: (cwd: string) => { blocked: boolean; reason?: string; error?: string };
   effortToThinking: (effort: string) => number | undefined;
 }
 export async function runOne(
@@ -21,6 +21,12 @@ export async function runOne(
     onEvent({ kind: "phase", name: phase, state: "active" });
     if (phase === "Execute") {
       const v = deps.verify(worktree);
+      if (v.error !== undefined) {
+        onEvent({ kind: "log", line: { t: "✗", s: `guardrail tool error · ${v.error}` } });
+        onEvent({ kind: "phase", name: phase, state: "failed" });
+        onEvent({ kind: "status", status: "failed" });
+        return { status: "failed", costUsd, tokensIn, tokensOut };
+      }
       if (v.blocked) {
         onEvent({ kind: "log", line: { t: "✗", s: `plan diblok · ${v.reason ?? "docs stale (Source of Truth)"}` } });
         onEvent({ kind: "phase", name: phase, state: "failed" });

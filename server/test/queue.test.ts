@@ -1,8 +1,21 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { resetDb, makeProject, makeSetting } from "./factory";
 import { prisma } from "../src/db";
-import { enqueueRun, todaySpendUsd, runsQueue } from "../src/queue";
+import { enqueueRun, todaySpendUsd, runsQueue, phasesForFlow } from "../src/queue";
 import type { RunInput } from "@hanoman/runner";
+
+describe("phasesForFlow (SPEC-010, pure)", () => {
+  it("seeds the full feature pipeline as pending", () => {
+    expect(phasesForFlow("feature")).toEqual([
+      { name: "Brainstorm", state: "pending" }, { name: "Objective", state: "pending" },
+      { name: "Spec", state: "pending" }, { name: "Plan", state: "pending" },
+      { name: "Execute", state: "pending" },
+    ]);
+  });
+  it("seeds only the single phase for an only-run", () => {
+    expect(phasesForFlow("feature", "Spec")).toEqual([{ name: "Spec", state: "pending" }]);
+  });
+});
 
 const input: RunInput = {
   runId: "RUN-9001", projectId: "p1", repoDir: "/tmp/x",

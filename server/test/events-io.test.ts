@@ -1,7 +1,18 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { prisma } from "../src/db";
-import { persistEvent, mirrorStage } from "../src/runner/events-io";
+import { persistEvent, mirrorStage, computeProgress } from "../src/runner/events-io";
 import { resetDb, makeProject, makeRun, makeSpec } from "./factory";
+
+describe("computeProgress (SPEC-010, pure)", () => {
+  const P = (states: string[]) => states.map((state, i) => ({ name: `P${i}`, state }));
+  it("is 0 for an empty array", () => expect(computeProgress([])).toBe(0));
+  it("counts only done phases", () =>
+    expect(computeProgress(P(["done", "done", "done", "done", "active"]))).toBe(80));
+  it("is 100 when every phase is done", () =>
+    expect(computeProgress(P(["done", "done"]))).toBe(100));
+  it("does not count a failed phase as done", () =>
+    expect(computeProgress(P(["done", "done", "done", "done", "failed"]))).toBe(80));
+});
 
 describe("persistEvent finishedAt (SPEC-008)", () => {
   beforeEach(async () => { await resetDb(); await makeProject(); await makeRun({ id: "RUN-1", projectId: "p1", status: "running" }); });
@@ -67,5 +78,23 @@ describe("persistEvent stage mirror (SPEC-009, db)", () => {
     await persistEvent("RUN-3", { kind: "phase", name: "Objective", state: "done" });
     const spec = await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-1" } });
     expect(spec.stage).toBe("brainstorming");
+  });
+});
+
+describe("persistEvent progress (SPEC-010, db)", () => {
+  beforeEach(async () => { await resetDb(); await makeProject(); });
+
+  it("sets progress to 100 when the final phase completes", async () => {
+    await makeRun({ id: "RUN-P1", projectId: "p1", status: "running" });
+    await persistEvent("RUN-P1", { kind: "phase", name: "Execute", state: "done" });
+    const run = await prisma.run.findUniqueOrThrow({ where: { id: "RUN-P1" } });
+    expect(run.progress).toBe(100);
+  });
+
+  it("leaves progress at the done-fraction when a phase fails (RUN-8801 shape)", async () => {
+    await makeRun({ id: "RUN-P2", projectId: "p1", status: "running" });
+    await persistEvent("RUN-P2", { kind: "phase", name: "Execute", state: "failed" });
+    const run = await prisma.run.findUniqueOrThrow({ where: { id: "RUN-P2" } });
+    expect(run.progress).toBe(80); // 4 of 5 phases done
   });
 });

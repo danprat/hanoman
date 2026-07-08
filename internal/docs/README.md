@@ -30,6 +30,7 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 - [0006 — github app schema](adr/0006-github-app-schema.md)
 - [0007 — run finishedAt for real duration](adr/0007-run-finished-at.md)
 - [0008 — spec stage mirrors a real run](adr/0008-stage-mirrors-run.md)
+- [0009 — a crashed guardrail tool fails loud](adr/0009-guardrail-crash-fails-loud.md)
 
 ## operations
 - [roadmap](operations/roadmap.md) · [gtm](operations/gtm.md) · [agent-documentation-workflow](operations/agent-documentation-workflow.md)

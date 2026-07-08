@@ -24,6 +24,15 @@ describe("runOne", () => {
     expect(d.git.commitAndPush).not.toHaveBeenCalled();
     expect(events.some((e) => e.kind === "log" && e.line.s.includes("docs stale"))).toBe(true);
   });
+  it("fails at execute with a tool-error log when the guardrail crashes", async () => {
+    const d = fakeDeps({ verify: () => ({ blocked: true, error: "boom" }) }); const events: any[] = [];
+    const r = await runOne(input(), d, (e) => events.push(e));
+    expect(r.status).toBe("failed");
+    expect(d.git.commitAndPush).not.toHaveBeenCalled();
+    expect(events.some((e) => e.kind === "log" && e.line.s === "guardrail tool error · boom")).toBe(true);
+    // NOT reported as a docs-stale policy block
+    expect(events.some((e) => e.kind === "log" && e.line.s.includes("plan diblok"))).toBe(false);
+  });
   it("stops and keeps the worktree when aborted before finishing", async () => {
     const ac = new AbortController();
     const d = fakeDeps({ queryFn: () => (async function* () { ac.abort(); yield okResult; })() });

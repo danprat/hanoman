@@ -15,6 +15,13 @@ const PHASE_DONE_STAGE: Record<string, Stage> = {
   // Brainstorm done → no bump; the spec stays "brainstorming" until Objective locks.
 };
 
+// Run progress = fraction of phases marked done. Failed/active/pending don't count, so a
+// run that dies at the last phase reads e.g. 80%, not 0% or 100%.
+export function computeProgress(phases: { state: string }[]): number {
+  if (!phases.length) return 0;
+  return Math.round((phases.filter((p) => p.state === "done").length / phases.length) * 100);
+}
+
 export function mirrorStage(current: Stage, e: RunEvent): Stage | null {
   let target: Stage | null = null;
   if (e.kind === "phase" && e.state === "done") target = PHASE_DONE_STAGE[e.name] ?? null;
@@ -47,7 +54,7 @@ export async function persistEvent(runId: string, e: RunEvent): Promise<void> {
   } else if (e.kind === "phase") {
     const run = await prisma.run.findUniqueOrThrow({ where: { id: runId } });
     const phases = (run.phases as any[]).map((p) => (p.name === e.name ? { ...p, state: e.state } : p));
-    await prisma.run.update({ where: { id: runId }, data: { phases } });
+    await prisma.run.update({ where: { id: runId }, data: { phases, progress: computeProgress(phases) } });
   } else if (e.kind === "cost") {
     await prisma.run.update({ where: { id: runId }, data: { tokensIn: String(e.tokensIn), tokensOut: String(e.tokensOut), cost: `$${e.costUsd.toFixed(2)}` } });
   } else if (e.kind === "file") {

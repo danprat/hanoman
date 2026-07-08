@@ -21,6 +21,11 @@ Runner memakai `@anthropic-ai/claude-agent-sdk`; fase Execute lewat gate
 `.worktrees/<run-id>`, di-steer/pause/stop lewat dashboard, lalu commit + push ke
 `branchTo`. Lihat ADR-0002 (isolasi) dan ADR-0003 (model per step).
 
+Bila proses `docs verify` **crash** (bukan lapor stale) — mis. path CLI salah karena cwd,
+atau baca doc gagal — hasilnya di-retry sekali; kalau tetap crash, run gagal **fail-closed**
+dengan `guardrail tool error · <stderr>` (bukan disamarkan "docs stale"). Path CLI di-resolve
+dari root workspace (`pnpm-workspace.yaml`), bukan dari `process.cwd()`. Lihat SPEC-010 / ADR-0009.
+
 ## Worker credentials (SPEC-007)
 Worker boot memverifikasi kredensial Claude (Agent SDK). Ada env credential
 (`CLAUDE_CODE_OAUTH_TOKEN` / `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN` / flag cloud) →
