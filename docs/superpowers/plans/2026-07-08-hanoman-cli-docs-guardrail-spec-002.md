@@ -77,7 +77,7 @@ Each command file owns one command; shared logic (`docs-model`, `git`, `verify`)
   - `run(argv: string[], ctx: Ctx): Promise<number>` (cli) with `--version`/`--help` handled; unknown command → prints help, returns 1.
   - `interface Ctx { cwd: string; env: Record<string,string|undefined>; stdout(s:string):void; stderr(s:string):void; readStdin?():Promise<string>; }`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```ts
 // shared/test/coverage.test.ts  (moved — same assertions as SPEC-001)
@@ -110,9 +110,9 @@ describe("config", () => {
 
 (`makeRepo` is created in Task 2's `_fixture.ts`; for Task 1 add a minimal inline version in `_fixture.ts` now — see Step 3.)
 
-- [ ] **Step 2: Run, verify fail** — `pnpm --filter ./cli test config` → FAIL (module missing).
+- [x] **Step 2: Run, verify fail** — `pnpm --filter ./cli test config` → FAIL (module missing).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `pnpm-workspace.yaml` → add `"cli"` to packages.
 
@@ -233,8 +233,8 @@ run(process.argv.slice(2), {
 }).then((code) => process.exit(code));
 ```
 
-- [ ] **Step 4: Run, verify pass** — `pnpm --filter ./shared test coverage && pnpm --filter ./cli test config && pnpm -r typecheck` → PASS.
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(cli): scaffold + shared coverage/config"`
+- [x] **Step 4: Run, verify pass** — `pnpm --filter ./shared test coverage && pnpm --filter ./cli test config && pnpm -r typecheck` → PASS.
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(cli): scaffold + shared coverage/config"`
 
 ---
 

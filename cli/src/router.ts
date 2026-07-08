@@ -1,0 +1,25 @@
+export interface Ctx {
+  cwd: string; env: Record<string, string | undefined>;
+  stdout(s: string): void; stderr(s: string): void; readStdin?(): Promise<string>;
+}
+const VERSION = "0.2.0";
+const HELP = `hanoman <command>
+
+  docs verify [--block-if-stale] [--json]   run the SoT guardrail
+  docs scan [--json]                        coverage + per-category report
+  docs index --check | --fix                index integrity
+  docs link <path> [--category c]           add a doc to the index
+  hook stop                                 Claude Code Stop-hook adapter
+  --version | --help`;
+export async function run(argv: string[], ctx: Ctx): Promise<number> {
+  if (argv.includes("--version")) { ctx.stdout(VERSION + "\n"); return 0; }
+  if (argv.length === 0 || argv.includes("--help")) { ctx.stdout(HELP + "\n"); return 0; }
+  const [group, sub, ...rest] = argv;
+  if (group === "docs" && sub === "verify") return (await import("./commands/docs-verify")).default(rest, ctx);
+  if (group === "docs" && sub === "scan")   return (await import("./commands/docs-scan")).default(rest, ctx);
+  if (group === "docs" && sub === "index")  return (await import("./commands/docs-index")).default(rest, ctx);
+  if (group === "docs" && sub === "link")   return (await import("./commands/docs-link")).default(rest, ctx);
+  if (group === "hook" && sub === "stop")   return (await import("./commands/hook-stop")).default(rest, ctx);
+  ctx.stderr(`unknown command: ${argv.join(" ")}\n\n${HELP}\n`);
+  return 1;
+}
