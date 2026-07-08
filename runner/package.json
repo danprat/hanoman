@@ -1,0 +1,7 @@
+{
+  "name": "@hanoman/runner", "type": "module", "version": "0.0.0",
+  "main": "src/index.ts", "types": "src/index.ts",
+  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run" },
+  "dependencies": { "@hanoman/shared": "workspace:*" },
+  "devDependencies": { "vitest": "^2.0.0", "typescript": "^5.5.0", "@types/node": "^20.14.0" }
+}

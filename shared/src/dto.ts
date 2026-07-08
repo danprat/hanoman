@@ -18,6 +18,12 @@ export const zProjectView = zProject.extend({
   activity: z.string(), commit: z.string() });
 export type ProjectView = z.infer<typeof zProjectView>;
 
+export const zControlAction = z.enum(["pause", "resume", "stop", "retry"]);
+export const zControl = z.object({ action: zControlAction });
+export const zSteer = z.object({ message: z.string().min(1) });
+export const zWorktreePatch = z.object({ branchFrom: z.string().optional(), branchTo: z.string().optional() });
+export const zCommand = z.object({ text: z.string().min(1) });
+
 export const zAdvanceResult = z.object({ id: z.string(), stage: zStage });
 export const zDocFileContent = z.object({ content: z.string() });
 export const zDocIndexCat = z.object({

@@ -1,4 +1,4 @@
-packages: [ "shared", "server", "src", "cli" ]
+packages: [ "shared", "server", "src", "cli", "runner" ]
 allowBuilds:
   '@prisma/client': true
   '@prisma/engines': true

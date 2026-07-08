@@ -87,7 +87,7 @@ internal/docs/adr/0003-per-step-model-selection.md   refresh model IDs
   ```
 - Produces (shared/src/dto.ts): `zControlAction = z.enum(["pause","resume","stop","retry"])`, `zControl = z.object({ action: zControlAction })`, `zSteer = z.object({ message: z.string().min(1) })`, `zWorktreePatch = z.object({ branchFrom: z.string().optional(), branchTo: z.string().optional() })`, `zCommand = z.object({ text: z.string().min(1) })`.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```ts
 // shared/test/control-dto.test.ts
@@ -111,9 +111,9 @@ describe("runner wiring", () => {
 ```
 (`phases.ts` is created in Task 5; for Task 1 add a minimal `runner/src/phases.ts` exporting `export const PIPELINES = { feature:[], qa:[], scaffold:[], reverse:[] } as const;`, fleshed out in Task 5.)
 
-- [ ] **Step 2: Run, verify fail** — `pnpm --filter ./runner test && pnpm --filter ./shared test control-dto` → FAIL.
+- [x] **Step 2: Run, verify fail** — `pnpm --filter ./runner test && pnpm --filter ./shared test control-dto` → FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `pnpm-workspace.yaml` → add `"runner"`.
 
@@ -135,8 +135,8 @@ Write `runner/src/types.ts` (the block above), the minimal `phases.ts`, and `run
 
 Add the control DTOs to `shared/src/dto.ts` (the block above).
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(runner): scaffold + core types + control DTOs"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(runner): scaffold + core types + control DTOs"`
 
 ---
 
