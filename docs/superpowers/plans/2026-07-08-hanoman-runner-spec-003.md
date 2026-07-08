@@ -698,7 +698,7 @@ app.get("/runs/:id/log", async (req, reply) => {
   - `POST /runs/:id/worktree {branchFrom?,branchTo?}` → update `Run.branchFrom/To`, `realGit.switchBase` if live; return updated run.
   - `POST /runs/:id/command {text}` → parse the terminal verb; map to steer/control or read plan/files/status; return `{ lines: {t,s}[] }`.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```ts
 // server/test/runs-control.test.ts
@@ -727,11 +727,11 @@ describe("run control", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement** — add handlers to `runs.ts` using `zSteer/zControl/zWorktreePatch/zCommand`, `runManager`, `realGit`. The `command` verb map mirrors `.prototype/app/RunsScreen.jsx` `runCommand` (`help/status/plan/files/steer <m>/pause/resume/stop/docs <path>/clear`), reading `plan`/`files`/`phases` from the persisted `Run`. Full handler code follows the same validate→act→respond shape as the SPEC-001 routes; each returns `202`/`{lines}` as in the tests. Confirm the previously-404 control paths now resolve.
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement** — add handlers to `runs.ts` using `zSteer/zControl/zWorktreePatch/zCommand`, `runManager`, `realGit`. The `command` verb map mirrors `.prototype/app/RunsScreen.jsx` `runCommand` (`help/status/plan/files/steer <m>/pause/resume/stop/docs <path>/clear`), reading `plan`/`files`/`phases` from the persisted `Run`. Full handler code follows the same validate→act→respond shape as the SPEC-001 routes; each returns `202`/`{lines}` as in the tests. Confirm the previously-404 control paths now resolve.
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(server): run control + worktree + terminal endpoints"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(server): run control + worktree + terminal endpoints"`
 
 ---
 
