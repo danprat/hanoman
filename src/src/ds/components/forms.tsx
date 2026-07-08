@@ -1,0 +1,202 @@
+// Ported verbatim from _ds_bundle.js (forms/*). ESM + typed props. No visual change.
+import React from "react";
+import { Icon } from "../icon";
+const _extends = Object.assign;
+
+type Size = "sm" | "md" | "lg";
+const BTN_SIZES: Record<string, { h: number; px: number; fs: string; gap: number; icon: number }> = {
+  sm: { h: 30, px: 12, fs: "var(--text-sm)", gap: 6, icon: 15 },
+  md: { h: 38, px: 16, fs: "var(--text-md)", gap: 8, icon: 17 },
+  lg: { h: 46, px: 22, fs: "var(--text-base)", gap: 9, icon: 19 },
+};
+function variantStyle(variant: string): React.CSSProperties {
+  switch (variant) {
+    case "secondary": return { background: "var(--surface-card)", color: "var(--text-strong)",
+      border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-xs)" };
+    case "ghost": return { background: "transparent", color: "var(--text-body)", border: "1px solid transparent" };
+    case "danger": return { background: "var(--clay-600)", color: "#fff", border: "1px solid var(--clay-600)" };
+    case "primary": default: return { background: "var(--accent)", color: "var(--accent-on)",
+      border: "1px solid var(--accent)", boxShadow: "var(--shadow-xs)" };
+  }
+}
+type ButtonProps = { children?: React.ReactNode; variant?: "primary" | "secondary" | "ghost" | "danger";
+  size?: Size; leftIcon?: string; rightIcon?: string; loading?: boolean; disabled?: boolean; fullWidth?: boolean;
+  type?: "button" | "submit" | "reset"; style?: React.CSSProperties } & Record<string, any>;
+export function Button({ children, variant = "primary", size = "md", leftIcon, rightIcon, loading = false,
+  disabled = false, fullWidth = false, type = "button", className = "", style = {}, ...rest }: ButtonProps) {
+  const s = BTN_SIZES[size] || BTN_SIZES.md!;
+  const [hover, setHover] = React.useState(false);
+  const [active, setActive] = React.useState(false);
+  const isDisabled = disabled || loading;
+  const base = variantStyle(variant);
+  const hoverOverlay: React.CSSProperties = variant === "ghost" ? { background: "var(--bone-200)" }
+    : variant === "secondary" ? { background: "var(--bone-100)", borderColor: "var(--ink-300)" }
+    : { filter: "brightness(0.95)" };
+  return React.createElement("button", _extends({
+    type, disabled: isDisabled, onMouseEnter: () => setHover(true),
+    onMouseLeave: () => { setHover(false); setActive(false); },
+    onMouseDown: () => setActive(true), onMouseUp: () => setActive(false), className,
+    style: { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: s.gap, height: s.h,
+      padding: `0 ${s.px}px`, width: fullWidth ? "100%" : "auto", font: `var(--weight-medium) ${s.fs}/1 var(--font-ui)`,
+      letterSpacing: "0.005em", borderRadius: "var(--radius-sm)", cursor: isDisabled ? "not-allowed" : "pointer",
+      opacity: isDisabled ? 0.5 : 1, transition: "var(--transition-fast)",
+      transform: active && !isDisabled ? "translateY(0.5px)" : "none", outline: "none", whiteSpace: "nowrap",
+      ...base, ...(hover && !isDisabled ? hoverOverlay : null), ...style },
+  }, rest),
+    loading && React.createElement(Icon, { name: "loader-2", size: s.icon, style: { animation: "hn-spin 0.7s linear infinite" } }),
+    !loading && leftIcon && React.createElement(Icon, { name: leftIcon, size: s.icon }),
+    children != null && React.createElement("span", null, children),
+    !loading && rightIcon && React.createElement(Icon, { name: rightIcon, size: s.icon }),
+    React.createElement("style", null, `@keyframes hn-spin{to{transform:rotate(360deg)}}`));
+}
+
+const IB_SIZES: Record<string, { box: number; icon: number }> = {
+  sm: { box: 30, icon: 16 }, md: { box: 38, icon: 18 }, lg: { box: 46, icon: 20 },
+};
+type IconButtonProps = { icon: string; label?: string; variant?: "solid" | "outline" | "ghost";
+  size?: Size; disabled?: boolean; style?: React.CSSProperties } & Record<string, any>;
+export function IconButton({ icon, label, variant = "ghost", size = "md", disabled = false, className = "", style = {}, ...rest }: IconButtonProps) {
+  const s = IB_SIZES[size] || IB_SIZES.md!;
+  const [hover, setHover] = React.useState(false);
+  const base: React.CSSProperties = variant === "solid" ? { background: "var(--accent)", color: "var(--accent-on)", border: "1px solid var(--accent)" }
+    : variant === "outline" ? { background: "var(--surface-card)", color: "var(--text-body)", border: "1px solid var(--border-strong)" }
+    : { background: "transparent", color: "var(--text-muted)", border: "1px solid transparent" };
+  const hoverOverlay: React.CSSProperties = variant === "solid" ? { filter: "brightness(0.95)" }
+    : variant === "outline" ? { background: "var(--bone-100)", borderColor: "var(--ink-300)", color: "var(--text-strong)" }
+    : { background: "var(--bone-200)", color: "var(--text-strong)" };
+  return React.createElement("button", _extends({
+    type: "button", "aria-label": label, title: label, disabled,
+    onMouseEnter: () => setHover(true), onMouseLeave: () => setHover(false), className,
+    style: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: s.box, height: s.box,
+      borderRadius: "var(--radius-sm)", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1,
+      transition: "var(--transition-fast)", outline: "none", ...base, ...(hover && !disabled ? hoverOverlay : null), ...style },
+  }, rest), React.createElement(Icon, { name: icon, size: s.icon }));
+}
+
+const INPUT_SIZES: Record<string, { h: number; px: number; fs: string; icon: number }> = {
+  sm: { h: 30, px: 10, fs: "var(--text-sm)", icon: 15 },
+  md: { h: 38, px: 12, fs: "var(--text-md)", icon: 17 },
+  lg: { h: 46, px: 14, fs: "var(--text-base)", icon: 19 },
+};
+type InputProps = { size?: Size; leftIcon?: string; rightIcon?: string; invalid?: boolean; disabled?: boolean;
+  mono?: boolean; style?: React.CSSProperties } & Record<string, any>;
+export function Input({ size = "md", leftIcon, rightIcon, invalid = false, disabled = false, mono = false, className = "", style = {}, ...rest }: InputProps) {
+  const s = INPUT_SIZES[size] || INPUT_SIZES.md!;
+  const [focus, setFocus] = React.useState(false);
+  const borderColor = invalid ? "var(--status-err)" : focus ? "var(--border-focus)" : "var(--border-strong)";
+  return React.createElement("div", {
+    className,
+    style: { display: "flex", alignItems: "center", gap: 8, height: s.h, padding: `0 ${s.px}px`,
+      background: disabled ? "var(--bone-200)" : "var(--surface-card)", border: `1px solid ${borderColor}`,
+      borderRadius: "var(--radius-sm)", boxShadow: focus ? "var(--ring)" : invalid ? "none" : "var(--shadow-inset)",
+      transition: "var(--transition-fast)", opacity: disabled ? 0.6 : 1, ...style },
+  },
+    leftIcon && React.createElement(Icon, { name: leftIcon, size: s.icon, color: "var(--text-subtle)" }),
+    React.createElement("input", _extends({
+      disabled,
+      onFocus: (e: React.FocusEvent<HTMLInputElement>) => { setFocus(true); rest.onFocus && rest.onFocus(e); },
+      onBlur: (e: React.FocusEvent<HTMLInputElement>) => { setFocus(false); rest.onBlur && rest.onBlur(e); },
+    }, rest, {
+      style: { flex: 1, minWidth: 0, border: "none", outline: "none", background: "transparent",
+        color: "var(--text-strong)", fontFamily: mono ? "var(--font-mono)" : "var(--font-ui)", fontSize: s.fs, lineHeight: 1.2 },
+    })),
+    rightIcon && React.createElement(Icon, { name: rightIcon, size: s.icon, color: "var(--text-subtle)" }));
+}
+
+const SELECT_SIZES: Record<string, { h: number; px: number; fs: string }> = {
+  sm: { h: 30, px: 10, fs: "var(--text-sm)" }, md: { h: 38, px: 12, fs: "var(--text-md)" }, lg: { h: 46, px: 14, fs: "var(--text-base)" },
+};
+type Option = string | { value: string; label: string };
+type SelectProps = { options?: Option[]; value?: string; defaultValue?: string;
+  onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void; size?: Size; disabled?: boolean; invalid?: boolean;
+  placeholder?: string; style?: React.CSSProperties } & Record<string, any>;
+export function Select({ options = [], value, defaultValue, onChange, size = "md", disabled = false, invalid = false, placeholder, className = "", style = {}, ...rest }: SelectProps) {
+  const s = SELECT_SIZES[size] || SELECT_SIZES.md!;
+  const [focus, setFocus] = React.useState(false);
+  const borderColor = invalid ? "var(--status-err)" : focus ? "var(--border-focus)" : "var(--border-strong)";
+  const norm = options.map((o) => (typeof o === "string" ? { value: o, label: o } : o));
+  return React.createElement("div", {
+    className,
+    style: { position: "relative", display: "inline-flex", alignItems: "center", height: s.h,
+      background: disabled ? "var(--bone-200)" : "var(--surface-card)", border: `1px solid ${borderColor}`,
+      borderRadius: "var(--radius-sm)", boxShadow: focus ? "var(--ring)" : "var(--shadow-inset)",
+      transition: "var(--transition-fast)", opacity: disabled ? 0.6 : 1, ...style },
+  },
+    React.createElement("select", _extends({
+      value, defaultValue, onChange, disabled, onFocus: () => setFocus(true), onBlur: () => setFocus(false),
+    }, rest, {
+      style: { appearance: "none", WebkitAppearance: "none", border: "none", outline: "none", background: "transparent",
+        color: "var(--text-strong)", fontFamily: "var(--font-ui)", fontSize: s.fs, height: "100%",
+        padding: `0 ${s.px + 22}px 0 ${s.px}px`, cursor: disabled ? "not-allowed" : "pointer" },
+    }),
+      placeholder && React.createElement("option", { value: "", disabled: true }, placeholder),
+      norm.map((o) => React.createElement("option", { key: o.value, value: o.value }, o.label))),
+    React.createElement(Icon, { name: "chevron-down", size: 16, color: "var(--text-subtle)",
+      style: { position: "absolute", right: s.px, pointerEvents: "none" } }));
+}
+
+type CheckboxProps = { checked?: boolean; defaultChecked?: boolean; onChange?: (next: boolean, e: React.MouseEvent) => void;
+  label?: React.ReactNode; description?: React.ReactNode; disabled?: boolean; style?: React.CSSProperties } & Record<string, any>;
+export function Checkbox({ checked, defaultChecked, onChange, label, description, disabled = false, className = "", style = {}, ...rest }: CheckboxProps) {
+  const isControlled = checked !== undefined;
+  const [inner, setInner] = React.useState(!!defaultChecked);
+  const on = isControlled ? checked : inner;
+  const toggle = (e: React.MouseEvent) => {
+    if (disabled) return;
+    if (!isControlled) setInner((v) => !v);
+    onChange && onChange(!on, e);
+  };
+  return React.createElement("label", _extends({
+    className,
+    style: { display: "inline-flex", alignItems: description ? "flex-start" : "center", gap: 10,
+      cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.55 : 1, ...style },
+  }, rest),
+    React.createElement("span", {
+      onClick: toggle,
+      style: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18,
+        marginTop: description ? 2 : 0, borderRadius: "var(--radius-xs)",
+        background: on ? "var(--accent)" : "var(--surface-card)",
+        border: `1.5px solid ${on ? "var(--accent)" : "var(--border-strong)"}`,
+        boxShadow: on ? "none" : "var(--shadow-inset)", transition: "var(--transition-fast)", flex: "0 0 auto" },
+    }, on && React.createElement(Icon, { name: "check", size: 13, stroke: 3, color: "var(--accent-on)" })),
+    (label || description) && React.createElement("span", { onClick: toggle, style: { userSelect: "none" } },
+      label && React.createElement("span", { style: { display: "block", fontSize: "var(--text-md)",
+        color: "var(--text-strong)", lineHeight: 1.4 } }, label),
+      description && React.createElement("span", { style: { display: "block", fontSize: "var(--text-sm)",
+        color: "var(--text-muted)", lineHeight: 1.45 } }, description)));
+}
+
+const SWITCH_SIZES: Record<string, { w: number; h: number; knob: number }> = {
+  sm: { w: 32, h: 18, knob: 14 }, md: { w: 40, h: 22, knob: 18 },
+};
+type SwitchProps = { checked?: boolean; defaultChecked?: boolean; onChange?: (next: boolean, e: React.MouseEvent) => void;
+  size?: "sm" | "md"; disabled?: boolean; label?: React.ReactNode; style?: React.CSSProperties } & Record<string, any>;
+export function Switch({ checked, defaultChecked, onChange, size = "md", disabled = false, label, className = "", style = {}, ...rest }: SwitchProps) {
+  const s = SWITCH_SIZES[size] || SWITCH_SIZES.md!;
+  const isControlled = checked !== undefined;
+  const [inner, setInner] = React.useState(!!defaultChecked);
+  const on = isControlled ? checked : inner;
+  const toggle = (e: React.MouseEvent) => {
+    if (disabled) return;
+    if (!isControlled) setInner((v) => !v);
+    onChange && onChange(!on, e);
+  };
+  const track = React.createElement("span", {
+    role: "switch", "aria-checked": on, onClick: toggle,
+    style: { position: "relative", display: "inline-block", width: s.w, height: s.h, borderRadius: "var(--radius-pill)",
+      background: on ? "var(--accent)" : "var(--ink-300)", border: "1px solid " + (on ? "var(--accent-hover)" : "var(--ink-300)"),
+      transition: "var(--transition-fast)", cursor: disabled ? "not-allowed" : "pointer", flex: "0 0 auto" },
+  }, React.createElement("span", {
+    style: { position: "absolute", top: "50%", left: on ? s.w - s.knob - 3 : 2, transform: "translateY(-50%)",
+      width: s.knob, height: s.knob, borderRadius: "50%", background: "var(--bone-000)", boxShadow: "var(--shadow-sm)",
+      transition: "var(--transition-fast)" },
+  }));
+  if (!label) {
+    return React.createElement("span", _extends({ className, style: { opacity: disabled ? 0.55 : 1, ...style } }, rest), track);
+  }
+  return React.createElement("label", _extends({
+    className, style: { display: "inline-flex", alignItems: "center", gap: 10, cursor: disabled ? "not-allowed" : "pointer",
+      opacity: disabled ? 0.55 : 1, ...style },
+  }, rest), track, React.createElement("span", { style: { fontSize: "var(--text-md)", color: "var(--text-strong)",
+    userSelect: "none" } }, label));
+}
