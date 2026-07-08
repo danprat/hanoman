@@ -1,7 +1,7 @@
 /* BacklogScreen — specs on the brainstorm → execute lifecycle.
    Ported; spec.project → spec.projectId; window → ds imports. */
 import React from "react";
-import { Card, Badge, Tabs, Select, Button, IconButton, usePaged, Pager } from "../ds";
+import { Card, Badge, Tabs, Select, Button, IconButton, usePaged, Pager, Modal } from "../ds";
 import type { Spec } from "./types";
 import type { ProjectVM } from "./types";
 
@@ -45,9 +45,50 @@ function StageBar({ stage }: { stage: string }) {
   );
 }
 
-function SpecCard({ spec, onStart, onDelete, onOpenRun, running }:
+const BRIEF_FIELDS = [
+  ["context", "Konteks"], ["outcome", "Outcome"], ["constraints", "Constraints"],
+] as const;
+const QA_FIELDS = [
+  ["severity", "Severity"], ["steps", "Langkah reproduksi"], ["expected", "Diharapkan"],
+  ["actual", "Aktual"], ["env", "Environment"],
+] as const;
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div className="hn-eyebrow" style={{ marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 13.5, color: "var(--text-strong)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+        {value || "—"}
+      </div>
+    </div>
+  );
+}
+
+function SpecDetail({ spec, onClose }: { spec: Spec | null; onClose: () => void }) {
+  if (!spec) return null;
+  const qa = spec.source === "qa";
+  const p = (spec.payload || {}) as Record<string, string>;
+  const fields = qa ? QA_FIELDS : BRIEF_FIELDS;
+  return (
+    <Modal open title={spec.title} eyebrow={spec.id + " · " + spec.projectId}
+      icon={qa ? "bug" : "lightbulb"} onClose={onClose}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+        <Badge tone={qa ? "err" : "brass"} size="sm">{qa ? "QA finding" : "feature brief"}</Badge>
+        <Badge tone={(B_PRIO[spec.priority] || B_PRIO.sedang!).tone} size="sm" variant="outline">
+          {(B_PRIO[spec.priority] || B_PRIO.sedang!).label}
+        </Badge>
+        <Badge tone="neutral" size="sm">{spec.author}</Badge>
+      </div>
+      <div style={{ marginBottom: 18 }}><StageBar stage={spec.stage} /></div>
+      <DetailRow label="Objective" value={spec.objective} />
+      {fields.map(([k, label]) => <DetailRow key={k} label={label} value={p[k] ?? ""} />)}
+    </Modal>
+  );
+}
+
+function SpecCard({ spec, onStart, onDelete, onOpenRun, onOpenDetail, running }:
   { spec: Spec; onStart?: (s: Spec) => void; onDelete?: (s: Spec) => void;
-    onOpenRun?: (s: Spec) => void; running?: boolean }) {
+    onOpenRun?: (s: Spec) => void; onOpenDetail?: (s: Spec) => void; running?: boolean }) {
   const qa = spec.source === "qa";
   const prio = B_PRIO[spec.priority] || B_PRIO.sedang!;
   return (
@@ -61,9 +102,12 @@ function SpecCard({ spec, onStart, onDelete, onOpenRun, running }:
             </Badge>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-muted)" }}>· {spec.projectId}</span>
           </div>
-          <div style={{ fontFamily: "var(--font-sans)", fontSize: 15, fontWeight: 600, color: "var(--text-strong)", marginTop: 8 }}>
+          <button onClick={() => onOpenDetail && onOpenDetail(spec)} style={{
+            border: "none", background: "transparent", padding: 0, textAlign: "left", cursor: "pointer",
+            fontFamily: "var(--font-sans)", fontSize: 15, fontWeight: 600, color: "var(--text-strong)", marginTop: 8,
+          }}>
             {spec.title}
-          </div>
+          </button>
           <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4, lineHeight: 1.45 }}>{spec.objective}</div>
         </div>
         <Badge tone={prio.tone} size="sm" variant={spec.priority === "tinggi" ? "soft" : "outline"}>{prio.label}</Badge>
@@ -98,6 +142,8 @@ export function BacklogScreen({ backlog, projects, pageSize = 4, onStart, active
     onDelete?: (s: Spec) => void; onOpenRun?: (s: Spec) => void }) {
   const [tab, setTab] = React.useState("all");
   const [proj, setProj] = React.useState("all");
+  // keep the id, not the object: backlog re-polls and the stage bar must stay live
+  const [detailId, setDetailId] = React.useState<string | null>(null);
   const projOptions = projects || [...new Set(backlog.map((s) => s.projectId))].map((id) => ({ id, name: id }));
   const filtered = backlog.filter((s) =>
     (tab === "all" || s.source === tab) && (proj === "all" || s.projectId === proj));
@@ -122,13 +168,15 @@ export function BacklogScreen({ backlog, projects, pageSize = 4, onStart, active
         <>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {pg.pageItems.map((s) => <SpecCard key={s.id} spec={s} onStart={onStart}
-              running={activeRunSpecs?.has(s.id)} onDelete={onDelete} onOpenRun={onOpenRun} />)}
+              running={activeRunSpecs?.has(s.id)} onDelete={onDelete} onOpenRun={onOpenRun}
+              onOpenDetail={(x) => setDetailId(x.id)} />)}
           </div>
           <div style={{ marginTop: 14, border: "1px solid var(--border-hair)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
             <Pager {...pg} onPage={pg.setPage} unit="spec" />
           </div>
         </>
       )}
+      <SpecDetail spec={backlog.find((s) => s.id === detailId) || null} onClose={() => setDetailId(null)} />
     </div>
   );
 }
