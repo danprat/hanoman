@@ -145,7 +145,7 @@ Add deps to `server/package.json`: `"octokit": "^4.0.0", "@octokit/auth-app": "^
   - `routes/webhooks.ts`: `POST /webhooks/github` — read raw body + headers (`x-github-delivery`, `x-github-event`, `x-hub-signature-256`), call `handleWebhook`; `401` on `verifyAndReceive` throwing a signature error, else `200`/`204`.
   - `app.ts`: a content-type parser preserving the raw body for `/api/webhooks/github`.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```ts
 // server/test/webhooks.test.ts
@@ -173,11 +173,11 @@ describe("webhooks", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement** `webhooks.ts` (handlers + `handleWebhook`), `routes/webhooks.ts`, and the raw-body parser in `app.ts`. Push matching: parse `ref` (`refs/heads/<branch>`), extract the branch from the trigger `detail` (e.g. `"push → main"` → `main`), compare. Unknown repo/branch → `202` (accepted, no-op). Register the route in `app.ts`.
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement** `webhooks.ts` (handlers + `handleWebhook`), `routes/webhooks.ts`, and the raw-body parser in `app.ts`. Push matching: parse `ref` (`refs/heads/<branch>`), extract the branch from the trigger `detail` (e.g. `"push → main"` → `main`), compare. Unknown repo/branch → route returns `200` (delivered no-op; `verifyAndReceive` doesn't surface a match, and any 2xx satisfies GitHub). Register the route in `app.ts`.
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(server): github webhook receiver + push->fireTrigger"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(server): github webhook receiver + push->fireTrigger"`
 
 ---
 

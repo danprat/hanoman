@@ -9,12 +9,16 @@ import triggers from "./routes/triggers";
 import settings from "./routes/settings";
 import docs from "./routes/docs";
 import runs from "./routes/runs";
+import webhooks from "./routes/webhooks";
 export function buildApp(): FastifyInstance {
   const app = Fastify({ logger: false });
   // Body-less POSTs (scan / advance / toggle) may still carry a JSON
   // content-type; Fastify's default parser 400s on an empty body. Treat
   // empty as undefined so those routes work, while real bodies still parse.
-  app.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body, done) => {
+  // Also stash the raw string on `req.rawBody` so the GitHub webhook route can
+  // verify the HMAC signature against the exact bytes GitHub signed.
+  app.addContentTypeParser("application/json", { parseAs: "string" }, (req, body, done) => {
+    (req as { rawBody?: string }).rawBody = body as string;
     if (!body) return done(null, undefined);
     try { done(null, JSON.parse(body as string)); }
     catch (err) { (err as Error & { statusCode?: number }).statusCode = 400; done(err as Error, undefined); }
@@ -27,6 +31,7 @@ export function buildApp(): FastifyInstance {
     await api.register(settings);
     await api.register(docs);
     await api.register(runs);
+    await api.register(webhooks);
   }, { prefix: "/api" });
 
   // Prod: serve the built dashboard from one process; SPA-fallback to
