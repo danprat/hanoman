@@ -115,7 +115,7 @@ export function scheduleSpecFor(type: string, detail: string): { pattern: string
   `removeSchedule(triggerId): Promise<void>` — `schedulesQueue.removeJobScheduler(triggerId)` (ignore if absent).
   `reconcile(): Promise<void>` — upsert all enabled schedule/interval triggers; `getJobSchedulers()` and remove any whose trigger is gone/disabled.
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 ```ts
 // server/test/schedules.test.ts
@@ -138,11 +138,11 @@ describe("schedules", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement** `schedules.ts` per the interface (using `scheduleSpecFor`).
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement** `schedules.ts` per the interface (using `scheduleSpecFor`).
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(server): schedules queue sync/remove/reconcile"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(server): schedules queue sync/remove/reconcile"`
 
 ---
 
