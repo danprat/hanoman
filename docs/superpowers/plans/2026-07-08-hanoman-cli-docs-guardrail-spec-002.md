@@ -251,7 +251,7 @@ run(process.argv.slice(2), {
   - `catStatus(files: string[], linked: Set<string>): { category: string; linked: boolean; files: string[]; unlinkedFiles: string[] }[]` — grouped by first path segment.
   - `makeRepo(opts: { files?: Record<string,string>; docs?: Record<string,string>; index?: string; git?: boolean }): Promise<{ root: string }>` (fixture) — creates a temp dir, optional `git init`, writes `internal/docs/<path>` for each `docs` entry, an index `internal/docs/README.md`, and arbitrary `files`.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```ts
 // cli/test/docs-model.test.ts
@@ -287,9 +287,9 @@ describe("docs model", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
+- [x] **Step 2: Run, verify fail.**
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `cli/test/_fixture.ts`:
 ```ts
@@ -358,8 +358,8 @@ export function catStatus(files: string[], linked: Set<string>) {
 }
 ```
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(cli): filesystem docs model + fixtures"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(cli): filesystem docs model + fixtures"`
 
 ---
 
