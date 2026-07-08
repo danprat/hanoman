@@ -7,4 +7,7 @@ services:
       POSTGRES_DB: hanoman
     ports: ["5432:5432"]
     volumes: ["hanoman_pg:/var/lib/postgresql/data"]
+  redis:
+    image: redis:7
+    ports: ["6379:6379"]
 volumes: { hanoman_pg: {} }

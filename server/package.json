@@ -13,10 +13,12 @@
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.202",
     "@fastify/static": "^7.0.0",
-    "@hanoman/shared": "workspace:*",
     "@hanoman/runner": "workspace:*",
+    "@hanoman/shared": "workspace:*",
     "@prisma/client": "^5.18.0",
+    "bullmq": "^5.79.2",
     "fastify": "^4.28.0",
+    "ioredis": "^5.11.1",
     "zod": "^3.23.0"
   },
   "devDependencies": {

@@ -47,7 +47,7 @@ package.json              scripts: worker, dev (api+worker)
   - `redis.ts`: `bullConnection` (`{ host, port, maxRetriesPerRequest: null }` from `REDIS_URL`/host+port), `publisher(): Redis`, `subscriber(): Redis` (new ioredis connections).
   - `queue.ts`: `runsQueue = new Queue("hanoman:runs", { connection: bullConnection })`; `todaySpendUsd(): Promise<number>` (parse `$n` from `Run.cost` for runs created today); `enqueueRun(input: RunInput): Promise<{ enqueued: boolean; reason?: string }>` — budget check, upsert `Run` row status `queued`, `runsQueue.add(input.runId, input, { attempts: 1, removeOnComplete: true, removeOnFail: false })`.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```ts
 // server/test/queue.test.ts
@@ -72,9 +72,9 @@ describe("queue", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail** — `pnpm --filter ./server test queue` (start redis: `docker-compose up -d redis`).
+- [x] **Step 2: Run, verify fail** — `pnpm --filter ./server test queue` (start redis: `docker-compose up -d redis`).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `docker-compose.yml` → add:
 ```yaml
@@ -123,8 +123,8 @@ export async function enqueueRun(input: RunInput): Promise<{ enqueued: boolean; 
 
 Add BullMQ + ioredis to `server/package.json` deps: `"bullmq": "^5.12.0", "ioredis": "^5.4.0"`.
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(server): redis + runs queue + budget-gated enqueue"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(server): redis + runs queue + budget-gated enqueue"`
 
 ---
 
