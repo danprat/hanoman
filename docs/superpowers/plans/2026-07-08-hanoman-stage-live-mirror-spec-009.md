@@ -63,7 +63,7 @@ The core. A pure `mirrorStage()` plus a small DB helper wired into `persistEvent
 - Consumes: `STAGES` from `server/src/services/stage-machine.ts`; `Stage` from `@hanoman/shared`; `RunEvent` from `@hanoman/runner`; `prisma` from `../db`; factory helpers `resetDb, makeProject, makeSpec, makeRun`.
 - Produces: `export function mirrorStage(current: Stage, e: RunEvent): Stage | null`. `persistEvent(runId, e)` gains the side effect of advancing the linked spec on `phase`/`status` events.
 
-- [ ] **Step 1: Write the failing tests** — append to `server/test/events-io.test.ts`:
+- [x] **Step 1: Write the failing tests** — append to `server/test/events-io.test.ts`:
 
 ```ts
 import { makeSpec } from "./factory";
@@ -120,12 +120,12 @@ describe("persistEvent stage mirror (SPEC-009, db)", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pnpm --filter @hanoman/server test events-io`
 Expected: FAIL — `mirrorStage is not a function` (not exported yet).
 
-- [ ] **Step 3: Implement `mirrorStage` + wiring** in `server/src/runner/events-io.ts`.
+- [x] **Step 3: Implement `mirrorStage` + wiring** in `server/src/runner/events-io.ts`.
 
 Add imports at the top (after the existing imports):
 
@@ -175,12 +175,12 @@ Then, at the **end** of `persistEvent` (after the existing `if/else if` chain, b
   if (e.kind === "phase" || e.kind === "status") await mirrorSpecStage(runId, e);
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pnpm --filter @hanoman/server test events-io`
 Expected: PASS — all `mirrorStage` + `persistEvent stage mirror` cases green, existing finishedAt cases still green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/runner/events-io.ts server/test/events-io.test.ts
@@ -201,7 +201,7 @@ The backlog card's single button becomes **Mulai** (start a run) / **Buka run** 
 - Consumes: existing `POST /runs` (`paths.runs`), which returns `202 { runId }` or `409 { reason }` (daily budget). `Run.specId`, `Run.status` on the runs list already loaded in `App`.
 - Produces: `api.startRun({ project, flow, specId }): Promise<{ runId: string }>`. `BacklogScreen` prop shape: `onStart(spec)`, `activeRunSpecs: Set<string>`, `onOpenRun(spec)`, `onDelete(spec)` (no more `onAdvance`).
 
-- [ ] **Step 1: Write the failing api-client test** — replace the `advanceSpec`-era gap in `src/test/api-client.test.ts` by adding this test inside the existing `describe`:
+- [x] **Step 1: Write the failing api-client test** — replace the `advanceSpec`-era gap in `src/test/api-client.test.ts` by adding this test inside the existing `describe`:
 
 ```ts
   it("startRun posts flow + specId to the runs path", async () => {
@@ -213,18 +213,18 @@ The backlog card's single button becomes **Mulai** (start a run) / **Buka run** 
   });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm --filter web test api-client` (if the web package name differs, use `pnpm --dir src test api-client`)
 Expected: FAIL — `api.startRun is not a function`.
 
-- [ ] **Step 3: Remove `paths.advance`** in `shared/src/api.ts` — delete this line:
+- [x] **Step 3: Remove `paths.advance`** in `shared/src/api.ts` — delete this line:
 
 ```ts
   advance: (id: string) => `${API}/specs/${id}/advance`,
 ```
 
-- [ ] **Step 4: Swap `advanceSpec` → `startRun`** in `src/src/api/client.ts` — delete:
+- [x] **Step 4: Swap `advanceSpec` → `startRun`** in `src/src/api/client.ts` — delete:
 
 ```ts
   advanceSpec: (id: string) => j<{ id: string; stage: string }>(paths.advance(id), { method: "POST" }),
@@ -237,12 +237,12 @@ and add (next to the other run methods):
     j<{ runId: string }>(paths.runs, { method: "POST", ...body(b) }),
 ```
 
-- [ ] **Step 5: Run the api-client test to verify it passes**
+- [x] **Step 5: Run the api-client test to verify it passes**
 
 Run: `pnpm --filter web test api-client`
 Expected: PASS.
 
-- [ ] **Step 6: Rewire `App.tsx`.** Delete the whole `advanceSpec` function (currently lines ~315–323) and the trailing `ADV_TOAST` map + `advToast` function (bottom of file). Add the `startRun` handler where `advanceSpec` was:
+- [x] **Step 6: Rewire `App.tsx`.** Delete the whole `advanceSpec` function (currently lines ~315–323) and the trailing `ADV_TOAST` map + `advToast` function (bottom of file). Add the `startRun` handler where `advanceSpec` was:
 
 ```ts
   async function startRun(spec: Spec) {
@@ -292,7 +292,7 @@ Update the `BacklogScreen` usage (in the `section === "backlog"` block) — repl
           onDelete={deleteSpec} onOpenRun={() => setSection("runs")} />
 ```
 
-- [ ] **Step 7: Rewire `BacklogScreen.tsx`.** Delete the `B_ACTION` map (lines ~8–15). Change `SpecCard`'s props and action block. Replace the `SpecCard` signature + the `const act = B_ACTION[spec.stage];` line and the action `<Button>`/badge block with:
+- [x] **Step 7: Rewire `BacklogScreen.tsx`.** Delete the `B_ACTION` map (lines ~8–15). Change `SpecCard`'s props and action block. Replace the `SpecCard` signature + the `const act = B_ACTION[spec.stage];` line and the action `<Button>`/badge block with:
 
 ```tsx
 function SpecCard({ spec, onStart, onDelete, onOpenRun, running }:
@@ -335,19 +335,19 @@ and the map:
               running={activeRunSpecs?.has(s.id)} onDelete={onDelete} onOpenRun={onOpenRun} />)}
 ```
 
-- [ ] **Step 8: Update `app-flows.test.tsx` mock** — in `src/test/app-flows.test.tsx`, change the mocked `api` object: replace `advanceSpec: vi.fn(),` with `startRun: vi.fn(), deleteSpec: vi.fn(),`.
+- [x] **Step 8: Update `app-flows.test.tsx` mock** — in `src/test/app-flows.test.tsx`, change the mocked `api` object: replace `advanceSpec: vi.fn(),` with `startRun: vi.fn(), deleteSpec: vi.fn(),`.
 
-- [ ] **Step 9: Run the web tests to verify they pass**
+- [x] **Step 9: Run the web tests to verify they pass**
 
 Run: `pnpm --filter web test`
 Expected: PASS — api-client, app-flows, and the rest green; no `advanceSpec`/`paths.advance` references remain.
 
-- [ ] **Step 10: Typecheck the web + shared packages**
+- [x] **Step 10: Typecheck the web + shared packages**
 
 Run: `pnpm --filter web build` (or the repo's `pnpm -r typecheck` if defined)
 Expected: no TS errors (confirms nothing else referenced `advanceSpec`/`paths.advance`).
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add shared/src/api.ts src/src/api/client.ts src/src/App.tsx src/src/screens/BacklogScreen.tsx src/test/api-client.test.ts src/test/app-flows.test.tsx
@@ -370,7 +370,7 @@ Remove the dead fake-advance surface now that nothing calls it, and update the S
 - Consumes: nothing new. `STAGES` + `nextStage` remain exported from `stage-machine.ts` (`STAGES` is still used by `project-view.ts`).
 - Produces: `stage-machine.ts` no longer exports `advance`; `/specs/:id/advance` no longer exists; `zAdvanceResult` removed from `shared`.
 
-- [ ] **Step 1: Prune the obsolete tests first.** In `server/test/stage-machine.test.ts`, remove the import of `advance` and the two `advance(...)` assertions, leaving ordering tests. The file becomes:
+- [x] **Step 1: Prune the obsolete tests first.** In `server/test/stage-machine.test.ts`, remove the import of `advance` and the two `advance(...)` assertions, leaving ordering tests. The file becomes:
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -385,12 +385,12 @@ describe("stage machine", () => {
 
 In `server/test/specs.route.test.ts`, delete the two advance tests (`"advances a spec"` and `"409 advancing a done spec"`). Keep filter/create/delete.
 
-- [ ] **Step 2: Run those tests to verify they still pass (and no longer reference advance)**
+- [x] **Step 2: Run those tests to verify they still pass (and no longer reference advance)**
 
 Run: `pnpm --filter @hanoman/server test stage-machine specs.route`
 Expected: PASS — the remaining assertions are green; nothing imports `advance`.
 
-- [ ] **Step 3: Remove `advance()` + `TOAST`** from `server/src/services/stage-machine.ts`. The file becomes:
+- [x] **Step 3: Remove `advance()` + `TOAST`** from `server/src/services/stage-machine.ts`. The file becomes:
 
 ```ts
 import type { Stage } from "@hanoman/shared";
@@ -401,13 +401,13 @@ export function nextStage(current: Stage): Stage | null {
 }
 ```
 
-- [ ] **Step 4: Remove the advance route** from `server/src/routes/specs.ts` — delete the `import { advance } from "../services/stage-machine";` line and the entire `app.post("/specs/:id/advance", ...)` handler (leaving GET/POST-create/DELETE).
+- [x] **Step 4: Remove the advance route** from `server/src/routes/specs.ts` — delete the `import { advance } from "../services/stage-machine";` line and the entire `app.post("/specs/:id/advance", ...)` handler (leaving GET/POST-create/DELETE).
 
-- [ ] **Step 5: Fix the stale comment** in `server/src/app.ts` — change the body-less-POST comment (line ~16) from `// Body-less POSTs (scan / advance / toggle) may still carry a JSON` to `// Body-less POSTs (scan / toggle) may still carry a JSON`.
+- [x] **Step 5: Fix the stale comment** in `server/src/app.ts` — change the body-less-POST comment (line ~16) from `// Body-less POSTs (scan / advance / toggle) may still carry a JSON` to `// Body-less POSTs (scan / toggle) may still carry a JSON`.
 
-- [ ] **Step 6: Remove `zAdvanceResult`** from `shared/src/dto.ts` — delete the line `export const zAdvanceResult = z.object({ id: z.string(), stage: zStage });`.
+- [x] **Step 6: Remove `zAdvanceResult`** from `shared/src/dto.ts` — delete the line `export const zAdvanceResult = z.object({ id: z.string(), stage: zStage });`.
 
-- [ ] **Step 7: Update `internal/docs/architecture/api-contract.md`** — replace the line:
+- [x] **Step 7: Update `internal/docs/architecture/api-contract.md`** — replace the line:
 
 ```
 POST /specs/:id/advance   # kunci objective / tulis spec / plan / execute
@@ -420,7 +420,7 @@ with:
 # dan Spec.stage dicerminkan dari fase run nyata (lihat ADR-0008).
 ```
 
-- [ ] **Step 8: Write ADR-0008** — create `internal/docs/adr/0008-stage-mirrors-run.md`:
+- [x] **Step 8: Write ADR-0008** — create `internal/docs/adr/0008-stage-mirrors-run.md`:
 
 ```markdown
 # ADR-0008 — Spec stage mirrors a real run
@@ -452,12 +452,12 @@ Mapping: `Objective`/`Audit` done → `objective`; `Spec` done → `spec-ready`;
   (the bar visually jumps `brainstorming → objective` for QA). Upgrade: per-flow bar.
 ```
 
-- [ ] **Step 9: Run the full server suite**
+- [x] **Step 9: Run the full server suite**
 
 Run: `pnpm --filter @hanoman/server test`
 Expected: PASS — no test references the removed `advance`/route; events-io mirroring green.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add server/src/routes/specs.ts server/src/services/stage-machine.ts server/src/app.ts shared/src/dto.ts server/test/specs.route.test.ts server/test/stage-machine.test.ts internal/docs/architecture/api-contract.md internal/docs/adr/0008-stage-mirrors-run.md
@@ -472,17 +472,17 @@ Prove it end-to-end against a booted server, not just unit tests.
 
 > ⚠️ **Caution (see project memory):** if a dev **worker** is running with Claude credentials, `POST /runs` executes a REAL, billable background run. For verification, either (a) run with **no worker** — the enqueue still returns `202` and the run sits queued, then delete it; or (b) knowingly run one real cheap run. The deterministic proof of stage-mirroring is Task 1's integration test; the curl below proves the enqueue + linkage.
 
-- [ ] **Step 1: Full test suite**
+- [x] **Step 1: Full test suite**
 
 Run: `pnpm -r test` (or `pnpm test` at root)
 Expected: all packages PASS.
 
-- [ ] **Step 2: Boot the server** (build + run, or `pnpm dev`)
+- [x] **Step 2: Boot the server** (build + run, or `pnpm dev`)
 
 Run: `pnpm --filter @hanoman/server build && node server/dist/server.js`
 Expected: server listening; no credential/boot errors for the API process.
 
-- [ ] **Step 3: Seed a project + a brainstorming spec via the API**
+- [x] **Step 3: Seed a project + a brainstorming spec via the API**
 
 ```bash
 BASE=http://localhost:3000/api   # adjust port to your env
@@ -495,7 +495,7 @@ echo "project=$PID spec=$SID"
 
 Expected: a `SPEC-n` id printed; `GET $BASE/specs?project=$PID` shows it at `stage:"brainstorming"`.
 
-- [ ] **Step 4: Confirm the fake advance endpoint is gone**
+- [x] **Step 4: Confirm the fake advance endpoint is gone**
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' -X POST $BASE/specs/$SID/advance
@@ -503,7 +503,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST $BASE/specs/$SID/advance
 
 Expected: `404` (route removed).
 
-- [ ] **Step 5: Start a run for the spec and confirm linkage**
+- [x] **Step 5: Start a run for the spec and confirm linkage**
 
 ```bash
 curl -s -X POST $BASE/runs -H 'content-type: application/json' \
@@ -513,7 +513,7 @@ curl -s "$BASE/runs?project=$PID" | node -pe 'JSON.parse(require("fs").readFileS
 
 Expected: first call returns `202 {"runId":"RUN-n"}` (or `409 {"reason":...}` if the daily budget is already spent — also a valid, real result). The runs list shows a run with `kind:"feature"`, `specId:"<SID>"`.
 
-- [ ] **Step 6: (If a worker + credentials are up) confirm the stage moved**
+- [x] **Step 6: (If a worker + credentials are up) confirm the stage moved**
 
 ```bash
 curl -s "$BASE/specs?project=$PID" | node -pe 'JSON.parse(require("fs").readFileSync(0)).map(s=>({id:s.id,stage:s.stage}))'
@@ -521,7 +521,7 @@ curl -s "$BASE/specs?project=$PID" | node -pe 'JSON.parse(require("fs").readFile
 
 Expected (worker running a real run): the spec's `stage` advances past `brainstorming` as phases complete (`objective` → `spec-ready` → …). Without a worker: stage stays `brainstorming` and the run stays `queued` — mirroring is already proven deterministically by Task 1. Clean up the queued test run/project afterward if desired.
 
-- [ ] **Step 7: Tick the plan + spec checklists, then final commit if any doc ticks changed**
+- [x] **Step 7: Tick the plan + spec checklists, then final commit if any doc ticks changed**
 
 Mark completed steps `- [x]` in this plan file. Commit only if the file changed:
 
