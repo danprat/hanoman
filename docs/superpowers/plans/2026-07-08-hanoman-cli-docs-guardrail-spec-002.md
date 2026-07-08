@@ -439,7 +439,7 @@ export function freshnessViolation(paths: string[]): boolean {
   - `collectViolations(root: string): { coverage: number; cats: ReturnType<typeof catStatus>; violations: Violation[] }` — applies config flags.
   - `formatText(result): string`, `formatJson(result): string`.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```ts
 // cli/test/verify.test.ts
@@ -477,8 +477,8 @@ describe("collectViolations", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement**
 
 ```ts
 // cli/src/verify.ts
@@ -516,8 +516,8 @@ export function formatJson(r: ReturnType<typeof collectViolations>): string {
 }
 ```
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(cli): verify core (link/freshness/coverage)"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(cli): verify core (link/freshness/coverage)"`
 
 ---
 

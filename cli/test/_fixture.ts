@@ -16,6 +16,10 @@ export async function makeRepo(opts: {
     spawnSync("git", ["init", "-q"], { cwd: root });
     spawnSync("git", ["config", "user.email", "t@t"], { cwd: root });
     spawnSync("git", ["config", "user.name", "t"], { cwd: root });
+    // Commit the seeded tree so the freshness signal compares later changes
+    // against a baseline (else the seeded docs read as untracked "doc changes").
+    spawnSync("git", ["add", "-A"], { cwd: root });
+    spawnSync("git", ["commit", "-qm", "seed"], { cwd: root });
   }
   return { root };
 }
