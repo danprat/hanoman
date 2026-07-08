@@ -46,7 +46,7 @@ server/src/
   - `scheduleSpecFor(type, detail): { pattern: string } | { every: number } | null` — cron for `schedule`, `{every}` for `interval`, `null` otherwise.
   - Trigger create validation: reject (`400`) a `schedule` with invalid cron or an `interval` with bad duration.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```ts
 // server/test/schedule-parse.test.ts
@@ -82,8 +82,8 @@ describe("trigger create validation", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement** `schedule-parse.ts` (add `cron-parser` to `server` deps); add the validation branch to `POST /triggers` (return `400` when `scheduleSpecFor` is required by type but the detail is invalid).
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement** `schedule-parse.ts` (add `cron-parser` to `server` deps); add the validation branch to `POST /triggers` (return `400` when `scheduleSpecFor` is required by type but the detail is invalid).
 
 ```ts
 // server/src/schedule-parse.ts
@@ -100,8 +100,8 @@ export function scheduleSpecFor(type: string, detail: string): { pattern: string
 }
 ```
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(server): schedule parsing + trigger detail validation"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(server): schedule parsing + trigger detail validation"`
 
 ---
 

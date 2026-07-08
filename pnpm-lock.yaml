@@ -82,6 +82,9 @@ importers:
       bullmq:
         specifier: ^5.79.2
         version: 5.79.2
+      cron-parser:
+        specifier: ^4.9.0
+        version: 4.9.0
       fastify:
         specifier: ^4.28.0
         version: 4.29.1

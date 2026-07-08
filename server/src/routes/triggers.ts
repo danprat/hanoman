@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { zCreateTrigger } from "@hanoman/shared";
 import { prisma } from "../db";
+import { scheduleSpecFor } from "../schedule-parse";
 export default async function (app: FastifyInstance) {
   app.get("/triggers", async (req) => {
     const { project } = req.query as { project?: string };
@@ -10,6 +11,9 @@ export default async function (app: FastifyInstance) {
     const parsed = zCreateTrigger.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
     const b = parsed.data;
+    // schedule/interval need a valid cron/duration; commit/manual carry no schedule.
+    if ((b.type === "schedule" || b.type === "interval") && scheduleSpecFor(b.type, b.detail) === null)
+      return reply.code(400).send({ error: `invalid ${b.type} detail: ${b.detail}` });
     const id = "t" + Math.floor(Math.random() * 100000);
     const t = await prisma.trigger.create({ data: {
       id, projectId: b.project, type: b.type, detail: b.detail, target: b.target, enabled: true } });
