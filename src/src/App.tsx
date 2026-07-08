@@ -254,7 +254,7 @@ export default function App() {
   const [backlog, setBacklog] = React.useState<Spec[]>([]);
   const [runs, setRuns] = React.useState<Run[]>([]);
   const [triggers, setTriggers] = React.useState<Trigger[]>([]);
-  const [projectId, setProjectId] = React.useState("loka-pos");
+  const [projectId, setProjectId] = React.useState("");
   const [search, setSearch] = React.useState("");
   const [scanning, setScanning] = React.useState(false);
   const [modal, setModal] = React.useState<string | null>(null);
@@ -262,7 +262,10 @@ export default function App() {
 
   React.useEffect(() => {
     Promise.all([api.listProjects(), api.listSpecs(), api.listRuns(), api.listTriggers()])
-      .then(([p, s, r, t]) => { setProjects(p); setBacklog(s); setRuns(r); setTriggers(t); })
+      .then(([p, s, r, t]) => {
+        setProjects(p); setBacklog(s); setRuns(r); setTriggers(t);
+        setProjectId((cur) => cur || p[0]?.id || "");
+      })
       .catch(() => showToast("Gagal memuat data dari server", "err", "x-circle"));
   }, [showToast]);
 
@@ -389,7 +392,7 @@ export default function App() {
     screen = (
       <Shell active="runs" title="Runs" breadcrumb="Claude Code · live activity" onNavigate={setSection}
         actions={<StatusPill status="running" size="sm">{runsView.filter((r) => r.status === "running").length} aktif</StatusPill>}>
-        <RunsScreen runs={runsView} selectedId="RUN-8842" pageSize={4} />
+        <RunsScreen runs={runsView} pageSize={4} />
       </Shell>
     );
   } else if (section === "docs") {
