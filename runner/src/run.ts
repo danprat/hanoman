@@ -16,6 +16,7 @@ export async function runOne(
   onEvent({ kind: "status", status: "running" });
   deps.git.addWorktree(input.repoDir, worktree, input.branchFrom);
   for (const phase of PIPELINES[input.flow]) {
+    if (input.only && phase !== input.only) continue; // spec/plan run a single phase
     if (abortController.signal.aborted) { onEvent({ kind: "status", status: "stopped" }); return { status: "stopped", costUsd, tokensIn, tokensOut }; }
     onEvent({ kind: "phase", name: phase, state: "active" });
     if (phase === "Execute") {

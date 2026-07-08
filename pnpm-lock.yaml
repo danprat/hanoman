@@ -17,6 +17,12 @@ importers:
 
   cli:
     dependencies:
+      '@anthropic-ai/claude-agent-sdk':
+        specifier: ^0.3.202
+        version: 0.3.202(@anthropic-ai/sdk@0.110.0(zod@3.25.76))(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(zod@3.25.76)
+      '@hanoman/runner':
+        specifier: workspace:*
+        version: link:../runner
       '@hanoman/shared':
         specifier: workspace:*
         version: link:../shared

@@ -744,7 +744,7 @@ describe("run control", () => {
 **Interfaces:**
 - Produces: `default(args, ctx)` — resolves repo (`resolveRepo`), builds a `RunInput` (`flow:"feature"`, `steps` from a local default or `hanoman.config.json`), runs `runOne` with `prodDeps` (injectable for test), streams each `RunEvent` log line to `ctx.stdout`. `spec`/`plan` set `flow` and a `--only <phase>` to run a single phase. Returns 0 on `done`, 1 on `failed`.
 
-- [ ] **Step 1: Failing test** (inject fake deps via an exported `runExecute(args, ctx, deps)`)
+- [x] **Step 1: Failing test** (inject fake deps via an exported `runExecute(args, ctx, deps)`)
 
 ```ts
 // cli/test/execute.cmd.test.ts
@@ -763,11 +763,11 @@ describe("hanoman execute", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement** `execute.ts` exporting `runExecute(args, ctx, deps=prodDeps)` and `default` = `(a,c)=>runExecute(a,c)`. Build `RunInput`, call `runOne`, print events (`phase`→`«fase» name state`, `log`→`t s`). `spec.ts`/`plan.ts` reuse `runExecute` with a phase filter. Wire the three into `router.ts`. Default `steps` = all `{model:"claude-opus-4-8",effort:"x-high"}`.
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement** `execute.ts` exporting `runExecute(args, ctx, deps=prodDeps)` and `default` = `(a,c)=>runExecute(a,c)`. Build `RunInput`, call `runOne`, print events (`phase`→`«fase» name state`, `log`→`t s`). `spec.ts`/`plan.ts` reuse `runExecute` with a phase filter. Wire the three into `router.ts`. Default `steps` = all `{model:"claude-opus-4-8",effort:"x-high"}`.
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(cli): execute/spec/plan commands"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(cli): execute/spec/plan commands"`
 
 ---
 

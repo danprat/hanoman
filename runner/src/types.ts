@@ -15,7 +15,7 @@ export type RunEvent =
 export type Flow = "feature" | "qa" | "scaffold" | "reverse";
 export type StepModel = { model: string; effort: string };
 export type StepModels = Record<"brainstorm" | "spec" | "plan" | "execute" | "audit", StepModel>;
-export type RunInput = { runId: string; repoDir: string; branchFrom: string; branchTo: string; flow: Flow; specId?: string; steps: StepModels; maxBudgetUsd?: number };
+export type RunInput = { runId: string; repoDir: string; branchFrom: string; branchTo: string; flow: Flow; specId?: string; steps: StepModels; maxBudgetUsd?: number; only?: string };
 export type RunResult = { status: "done" | "failed" | "stopped"; costUsd: number; tokensIn: number; tokensOut: number };
 
 export interface GitOps {
