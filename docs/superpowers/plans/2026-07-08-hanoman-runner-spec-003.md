@@ -292,7 +292,7 @@ export class SteerQueue {
   ```
   Iterates `queryFn({prompt, options})`; for each `assistant` message emits a `log` event per text block (`{t:"›",s:text}`) and per tool block (`{t:"$",s:"tool "+name}`); on `result` emits a `cost` event and returns `{sessionId, costUsd: total_cost_usd, tokensIn: usage.input_tokens, tokensOut: usage.output_tokens, subtype}`. Passes `options`: `{ cwd, model, maxThinkingTokens, maxBudgetUsd, abortController, includePartialMessages:true, settingSources:['project'], systemPrompt:{type:'preset',preset:'claude_code'}, disallowedTools:[...], permissionMode:'acceptEdits' }`.
 
-- [ ] **Step 1: Write failing test** (fake SDK)
+- [x] **Step 1: Write failing test** (fake SDK)
 
 ```ts
 // runner/test/sdk.test.ts
@@ -321,8 +321,8 @@ describe("runPhase", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement**
 
 ```ts
 // runner/src/sdk.ts
@@ -357,8 +357,8 @@ export async function runPhase(a: RunPhaseArgs) {
 }
 ```
 
-- [ ] **Step 4: Run, verify pass.**
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(runner): sdk adapter runPhase"`
+- [x] **Step 4: Run, verify pass.**
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(runner): sdk adapter runPhase"`
 
 ---
 
