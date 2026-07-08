@@ -5,7 +5,10 @@ export async function docIndex(projectId: string) {
   const byCat = new Map<string, { cat: string; files: string[]; linked: boolean; root: boolean }>();
   for (const r of rows) {
     const c = byCat.get(r.category) ?? { cat: r.category, files: [], linked: true, root: r.root };
-    c.files.push(r.path.split("/").pop()!); c.linked = c.linked && r.linked; c.root = c.root || r.root;
+    // Keep the path minus the category prefix so `${cat}/${file}` round-trips
+    // back to the stored path (handles nested files like agents/.claude/x.json).
+    c.files.push(r.path.startsWith(r.category + "/") ? r.path.slice(r.category.length + 1) : r.path);
+    c.linked = c.linked && r.linked; c.root = c.root || r.root;
     byCat.set(r.category, c);
   }
   const tree = [...byCat.values()];
