@@ -6,6 +6,7 @@ import { subscriber, publisher } from "../redis";
 import { enqueueRun } from "../queue";
 import { stepModels } from "../services/settings";
 import { nextRunId } from "../services/id";
+import { readDoc } from "../services/docs";
 
 type Line = { t: string; s: string };
 
@@ -18,9 +19,14 @@ async function publishControl(runId: string, msg: unknown): Promise<void> {
   finally { await p.quit(); }
 }
 const TERM_HELP = "perintah: help · status · plan · files · steer <pesan> · pause · resume · stop · docs <path> · clear";
-// Terminal interpreter, mirrors .prototype/app/RunsScreen.jsx runCommand, reading
-// plan/files/phases from the persisted Run.
-function runCommand(run: { id: string; status: string; kind: string; progress: number; phases: unknown; plan: unknown; files: unknown }, text: string): Line[] {
+const KNOWN = new Set(["help","status","plan","files","diff","steer","pause","resume","stop","docs","clear"]);
+// Terminal interpreter. Read/display verbs render persisted Run data; effectful
+// verbs (steer/pause/stop/resume/retry) have already run in the route — here we
+// render the truthful outcome. `active` = run is running|paused.
+async function runCommand(
+  run: { id: string; projectId: string; status: string; kind: string; progress: number; phases: unknown; plan: unknown; files: unknown },
+  text: string, active: boolean,
+): Promise<Line[]> {
   const parts = text.trim().split(/\s+/);
   const cmd = (parts[0] ?? "").toLowerCase();
   const arg = parts.slice(1).join(" ");
@@ -41,11 +47,37 @@ function runCommand(run: { id: string; status: string; kind: string; progress: n
     }
     case "steer": return arg ? [{ t: "»", s: "steer · " + arg }, { t: "›", s: "diterima — arahan disisipkan ke langkah berikutnya" }] : [{ t: " ", s: "pakai: steer <pesan>" }];
     case "pause": return [{ t: " ", s: "— dijeda oleh manusia —" }];
-    case "resume": return [{ t: "›", s: "dilanjutkan oleh manusia" }];
+    case "resume": return [{ t: "›", s: "dilanjutkan — run di-enqueue ulang" }];
     case "stop": return [{ t: "✗", s: "dihentikan oleh manusia" }];
-    case "docs": return arg ? [{ t: "›", s: "membuka internal/docs/" + arg }] : [{ t: " ", s: "pakai: docs <path>" }];
-    default: return [{ t: "›", s: `claude: “${text}” diterima — memproses dalam konteks run` }];
+    case "docs": {
+      if (!arg) return [{ t: " ", s: "pakai: docs <path>" }];
+      const content = await readDoc(run.projectId, arg);
+      return content === null
+        ? [{ t: "✗", s: `internal/docs/${arg} tidak ditemukan` }]
+        : [{ t: "✓", s: `internal/docs/${arg} · ${content.split("\n").length} baris` }];
+    }
+    default:
+      return active
+        ? [{ t: "»", s: text.trim() }, { t: "›", s: "diteruskan ke run sebagai arahan" }]
+        : [{ t: " ", s: "run tidak aktif — tidak ada yang menerima arahan" }];
   }
+}
+// Shared control effect for POST /control and the terminal resume/retry verb.
+// pause/stop abort the live turn + set status; resume/retry re-enqueue the same
+// run (budget-gated → { ok:false, reason } maps to 409 / a terminal line).
+async function applyControl(
+  run: { id: string; projectId: string; branchFrom: string; branchTo: string; kind: string; specId: string | null },
+  action: "pause" | "resume" | "stop" | "retry",
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  if (action === "pause" || action === "stop") {
+    await publishControl(run.id, { type: action });
+    await prisma.run.update({ where: { id: run.id }, data: { status: action === "pause" ? "paused" : "stopped" } });
+    return { ok: true };
+  }
+  const project = await prisma.project.findUnique({ where: { id: run.projectId } });
+  const r = await enqueueRun({ runId: run.id, projectId: run.projectId, repoDir: project?.repoDir ?? process.cwd(),
+    branchFrom: run.branchFrom, branchTo: run.branchTo, flow: run.kind as Flow, specId: run.specId ?? undefined, steps: await stepModels() });
+  return r.enqueued ? { ok: true } : { ok: false, reason: r.reason ?? "enqueue ditolak" };
 }
 export default async function (app: FastifyInstance) {
   app.get("/runs", async (req) => {
@@ -111,18 +143,8 @@ export default async function (app: FastifyInstance) {
     const { id } = req.params as { id: string };
     const run = await prisma.run.findUnique({ where: { id } });
     if (!run) return reply.code(404).send({ error: "not found" });
-    const { action } = parsed.data;
-    if (action === "pause" || action === "stop") {
-      await publishControl(id, { type: action });
-      await prisma.run.update({ where: { id }, data: { status: action === "pause" ? "paused" : "stopped" } });
-      return reply.code(202).send({ accepted: true });
-    }
-    // resume/retry: re-enqueue the same run; 409 if budget-rejected.
-    const project = await prisma.project.findUnique({ where: { id: run.projectId } });
-    const r = await enqueueRun({ runId: run.id, projectId: run.projectId, repoDir: project?.repoDir ?? process.cwd(),
-      branchFrom: run.branchFrom, branchTo: run.branchTo, flow: run.kind as Flow, specId: run.specId ?? undefined, steps: await stepModels() });
-    if (!r.enqueued) return reply.code(409).send({ reason: r.reason });
-    return reply.code(202).send({ accepted: true });
+    const res = await applyControl(run, parsed.data.action);
+    return res.ok ? reply.code(202).send({ accepted: true }) : reply.code(409).send({ reason: res.reason });
   });
 
   // Switch the base/target branch on the run (and the live worktree if running).
@@ -146,18 +168,27 @@ export default async function (app: FastifyInstance) {
     return updated;
   });
 
-  // Terminal: parse a verb, apply its side effect, return the rendered lines.
+  // Terminal: run the verb's real effect, then render the truthful lines.
   app.post("/runs/:id/command", async (req, reply) => {
     const parsed = zCommand.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: "invalid command" });
     const { id } = req.params as { id: string };
     const run = await prisma.run.findUnique({ where: { id } });
     if (!run) return reply.code(404).send({ error: "not found" });
-    const parts = parsed.data.text.trim().split(/\s+/);
+    const text = parsed.data.text.trim();
+    const parts = text.split(/\s+/);
     const cmd = (parts[0] ?? "").toLowerCase();
     const arg = parts.slice(1).join(" ");
+    const active = run.status === "running" || run.status === "paused";
+    // Effectful verbs run before rendering; resume/retry can be budget-rejected.
     if (cmd === "steer" && arg) await publishControl(id, { type: "steer", message: arg });
-    else if (cmd === "pause" || cmd === "stop") await publishControl(id, { type: cmd });
-    return { lines: runCommand(run, parsed.data.text) };
+    else if (cmd === "pause" || cmd === "stop") await applyControl(run, cmd);
+    else if (cmd === "resume" || cmd === "retry") {
+      const r = await applyControl(run, cmd);
+      if (!r.ok) return { lines: [{ t: "✗", s: `tidak bisa ${cmd} · ${r.reason}` }] };
+    } else if (!KNOWN.has(cmd) && active) {
+      await publishControl(id, { type: "steer", message: text });   // free text → steer the run
+    }
+    return { lines: await runCommand(run, text, active) };
   });
 }
