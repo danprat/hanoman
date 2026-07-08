@@ -14,7 +14,8 @@ POST /projects/:id/scan   # re-scan docs SoT
 ```
 GET  /specs?project=&source=
 POST /specs               { project, source, ...payload }  -> SPEC-n
-POST /specs/:id/advance   # kunci objective / tulis spec / plan / execute
+# (dihapus) stage tak lagi dinaikkan manual — POST /runs { specId } memulai run,
+# dan Spec.stage dicerminkan dari fase run nyata (lihat ADR-0008).
 DELETE /specs/:id
 ```
 

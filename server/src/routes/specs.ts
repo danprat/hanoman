@@ -2,7 +2,6 @@ import type { FastifyInstance } from "fastify";
 import { zCreateSpec } from "@hanoman/shared";
 import { prisma } from "../db";
 import { nextSpecId } from "../services/id";
-import { advance } from "../services/stage-machine";
 
 export default async function (app: FastifyInstance) {
   app.get("/specs", async (req) => {
@@ -24,15 +23,6 @@ export default async function (app: FastifyInstance) {
       id, projectId: b.project, title: b.title, source: b.source, stage: "brainstorming",
       priority, author: isQa ? "QA · Rangga" : "Rangga", objective, payload: b.payload } });
     return reply.code(201).send(spec);
-  });
-  app.post("/specs/:id/advance", async (req, reply) => {
-    const { id } = req.params as { id: string };
-    const spec = await prisma.spec.findUnique({ where: { id } });
-    if (!spec) return reply.code(404).send({ error: "not found" });
-    const step = advance(spec.stage as any);
-    if (!step) return reply.code(409).send({ error: "terminal stage" });
-    await prisma.spec.update({ where: { id }, data: { stage: step.stage } });
-    return { id, stage: step.stage };
   });
   app.delete("/specs/:id", async (req, reply) => {
     const { id } = req.params as { id: string };

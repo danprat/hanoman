@@ -13,7 +13,7 @@ import webhooks from "./routes/webhooks";
 import fs from "./routes/fs";
 export function buildApp(): FastifyInstance {
   const app = Fastify({ logger: false });
-  // Body-less POSTs (scan / advance / toggle) may still carry a JSON
+  // Body-less POSTs (scan / toggle) may still carry a JSON
   // content-type; Fastify's default parser 400s on an empty body. Treat
   // empty as undefined so those routes work, while real bodies still parse.
   // Also stash the raw string on `req.rawBody` so the GitHub webhook route can

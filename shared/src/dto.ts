@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { zProject, zBriefPayload, zQaPayload } from "./entities";
-import { zProjectKind, zSpecSource, zPriority, zStage, zTriggerType, zTriggerTarget } from "./enums";
+import { zProjectKind, zSpecSource, zPriority, zTriggerType, zTriggerTarget } from "./enums";
 
 export const zCreateProject = z.object({
   name: z.string().min(1), kind: zProjectKind, repoDir: z.string().optional(),
@@ -31,7 +31,6 @@ export const zSteer = z.object({ message: z.string().min(1) });
 export const zWorktreePatch = z.object({ branchFrom: z.string().optional(), branchTo: z.string().optional() });
 export const zCommand = z.object({ text: z.string().min(1) });
 
-export const zAdvanceResult = z.object({ id: z.string(), stage: zStage });
 export const zDocFileContent = z.object({ content: z.string() });
 export const zDocIndexCat = z.object({
   cat: z.string(), files: z.array(z.string()), linked: z.boolean(), root: z.boolean().optional() });
