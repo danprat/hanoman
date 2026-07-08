@@ -31,7 +31,11 @@ POST /runs/:id/command    { text }   # terminal interaktif
 
 ## Triggers / settings / docs
 ```
-GET/POST /triggers ; POST /triggers/:id/toggle
+GET/POST /triggers ; POST /triggers/:id/toggle ; DELETE /triggers/:id
+#   POST validates detail: schedule=cron, interval=duration ("6h"/"30m"); else 400.
+#   create/toggle/delete sync a BullMQ repeatable job (queue hanoman-schedules);
+#   worker reconciles DB->schedulers on boot. On fire: fireTrigger -> enqueueRun
+#   (plan+execute = one feature run per ready spec; audit/qa=qa; scaffold docs=scaffold).
 GET/PUT  /settings
 GET  /projects/:id/docs                 # index + tree
 GET  /projects/:id/docs/*path           # isi file (raw)

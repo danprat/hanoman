@@ -156,7 +156,7 @@ describe("schedules", () => {
   - Scheduler `Worker("hanoman:schedules", async (job) => { const t = await prisma.trigger.findUnique(...); if (t?.enabled) await fireTrigger(t); }, { connection })` in `worker.ts`; `reconcile()` on boot.
   - `routes/triggers.ts`: `POST /triggers` (after create) → `syncTrigger`; `POST /triggers/:id/toggle` → `syncTrigger`; add `DELETE /triggers/:id` → `removeSchedule` (if not already present).
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 ```ts
 // server/test/fire-trigger.test.ts
@@ -186,8 +186,8 @@ describe("fireTrigger", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run, verify fail.**
+- [x] **Step 3: Implement**
 
 ```ts
 // server/src/fire-trigger.ts
@@ -221,8 +221,8 @@ import { stepModels } from "./services/settings";
 ```
 Wire the scheduler `Worker` + `reconcile()` into `worker.ts`; call `syncTrigger`/`removeSchedule` from the trigger routes.
 
-- [ ] **Step 4: Run, verify pass** (adjust the ready-spec assertions to the actual seed if counts differ).
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(server): fireTrigger + scheduler worker + trigger route wiring"`
+- [x] **Step 4: Run, verify pass** (adjust the ready-spec assertions to the actual seed if counts differ).
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat(server): fireTrigger + scheduler worker + trigger route wiring"`
 
 ---
 

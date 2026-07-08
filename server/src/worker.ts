@@ -1,8 +1,11 @@
 import { Worker, type Job } from "bullmq";
+import type { Trigger } from "@hanoman/shared";
 import { runOne, SteerQueue, type RunDeps, type RunEvent, type RunInput } from "@hanoman/runner";
 import { prodDeps } from "./runner/deps";
 import { bullConnection, publisher, subscriber } from "./redis";
 import { RUNS_QUEUE, runsQueue } from "./queue";
+import { SCHEDULES_QUEUE, reconcile } from "./schedules";
+import { fireTrigger } from "./fire-trigger";
 import { maxConcurrent } from "./services/settings";
 import { persistEvent, publishEvent } from "./runner/events-io";
 import { prisma } from "./db";
@@ -58,5 +61,15 @@ if (entry.endsWith("worker.js") || entry.endsWith("worker.ts")) {
     worker.on("failed", (job) => { if (job) void markFailed(job.data.runId); });
     worker.on("stalled", (jobId) => { void runsQueue.getJob(jobId).then((j) => j && markFailed(j.data.runId)); });
     console.log(`worker up · queue ${RUNS_QUEUE} · concurrency ${worker.opts.concurrency}`);
+
+    // A scheduled "fire" job re-reads the trigger (it may have been disabled
+    // between scheduling and firing) and fans it out to run(s) via fireTrigger.
+    const scheduler = new Worker<{ triggerId: string }>(SCHEDULES_QUEUE, async (job) => {
+      const t = await prisma.trigger.findUnique({ where: { id: job.data.triggerId } });
+      if (t?.enabled) await fireTrigger(t as Trigger);
+    }, { connection: bullConnection });
+    scheduler.on("failed", (job, err) => console.error(`schedule fire ${job?.data.triggerId} failed`, err));
+    await reconcile(); // DB → schedulers on boot
+    console.log(`scheduler up · queue ${SCHEDULES_QUEUE}`);
   })();
 }
