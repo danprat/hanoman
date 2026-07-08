@@ -19,6 +19,7 @@ Entitas inti (Postgres via Prisma).
 - `trigger` ("commit"|"schedule"|"manual"|"interval"), `triggerDetail`
 - `phases[]` ({ name, state }), `plan[]`, `files[]` (diff), `log[]`
 - `worktree`, `branchFrom`, `branchTo`, `model` per step, `tokensIn/out`, `cost`, `progress`
+- `createdAt`, `finishedAt?` (null selama berjalan; di-set saat status terminal — durasi = `(finishedAt ?? now) − createdAt`, lihat ADR 0007)
 
 ## Trigger
 - `id`, `projectId`, `type`, `detail`, `target` ("plan + execute" | "audit" | "scaffold docs"), `enabled`

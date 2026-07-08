@@ -22,11 +22,11 @@ DELETE /specs/:id
 ```
 GET  /runs
 GET  /runs/:id
-GET  /runs/:id/log        # SSE stream (log + status)
+GET  /runs/:id/log        # SSE stream: replay snapshot lalu relay live log/phase/status/cost/file
 POST /runs/:id/steer      { message }
 POST /runs/:id/control    { action: "pause"|"resume"|"stop"|"retry" }
 POST /runs/:id/worktree   { branchFrom?, branchTo? }
-POST /runs/:id/command    { text }   # terminal interaktif
+POST /runs/:id/command    { text }   # terminal interaktif: verb baca render Run; resume/retry re-enqueue (jalur /control), free text pada run aktif → steer, docs <path> baca file nyata
 ```
 
 ## Triggers / settings / docs

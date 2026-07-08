@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig, configDefaults } from "vitest/config";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -30,5 +30,9 @@ export default defineConfig({
     // Every server test file re-seeds the same Postgres DB in beforeAll; running
     // files in parallel would race on deleteMany/createMany. Force sequential.
     fileParallelism: false,
+    // `.worktrees/**` holds transient/orphaned hanoman run checkouts — full repo
+    // copies whose test files would collide on the shared DB + Redis queue. Never
+    // let the parent suite scan them.
+    exclude: [...configDefaults.exclude, "**/.worktrees/**"],
   },
 });
