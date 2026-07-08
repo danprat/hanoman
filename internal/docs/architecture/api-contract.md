@@ -38,10 +38,15 @@ GET/POST /triggers ; POST /triggers/:id/toggle ; DELETE /triggers/:id
 #   worker reconciles DB->schedulers on boot. On fire: fireTrigger -> enqueueRun
 #   (plan+execute = one feature run per ready spec; audit/qa=qa; scaffold docs=scaffold).
 GET/PUT  /settings
-GET  /projects/:id/docs                 # index + tree
-GET  /projects/:id/docs/*path           # isi file (raw)
-PUT  /projects/:id/docs/*path           { content }   # edit + simpan
+GET    /projects/:id/docs               # index + tree, live-scanned dari repoDir
+GET    /projects/:id/docs/*path         # isi file .md asli (raw, dari disk)
+PUT    /projects/:id/docs/*path         { content }   # tulis file .md asli; 400 kalau path keluar repo / bukan .md
+DELETE /projects/:id/docs/*path         # hapus file .md asli di disk; 204 sukses, 404 tak ada, 400 guard
 ```
+
+> Docs dibaca/ditulis **live dari `Project.repoDir`** (tanpa salinan DB — ADR-0010). Korpus = semua `**/*.md`
+> via `git ls-files`. `GET /docs` re-scan tiap panggilan; `POST /projects/:id/scan` menyegarkan cache
+> `Project.coverage`/`docStatus`. SoT coverage = % direktori yang seluruh Markdown-nya reachable dari root index.
 
 ## Webhook
 ```

@@ -1,29 +1,46 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { buildApp } from "../src/app";
-import { resetDb, makeProject, makeDocFile } from "./factory";
+import { resetDb, makeProject, makeTempRepo } from "./factory";
+
 const app = buildApp();
-const samplePath = "product/prd.md";
+const P = "internal/docs/product/prd.md";
+let dir: string;
 beforeEach(async () => {
   await resetDb();
-  await makeProject({ id: "p1" });
-  await makeDocFile({ projectId: "p1", path: samplePath, category: "product", content: "# prd" });
+  dir = makeTempRepo({
+    "internal/docs/README.md": "- [prd](product/prd.md)",
+    "internal/docs/product/prd.md": "# prd",
+  });
+  await makeProject({ id: "p1", repoDir: dir });
 });
-describe("docs routes", () => {
-  it("returns index with coverage + tree", async () => {
+
+describe("docs routes (fs-backed)", () => {
+  it("index has coverage + tree", async () => {
     const res = await app.inject({ url: "/api/projects/p1/docs" });
-    expect(res.json()).toHaveProperty("coverage"); expect(Array.isArray(res.json().tree)).toBe(true);
+    expect(res.json()).toHaveProperty("coverage");
+    expect(Array.isArray(res.json().tree)).toBe(true);
   });
   it("reads a doc", async () => {
-    const res = await app.inject({ url: `/api/projects/p1/docs/${samplePath}` });
-    expect(res.statusCode).toBe(200); expect(typeof res.json().content).toBe("string");
+    const res = await app.inject({ url: `/api/projects/p1/docs/${P}` });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().content).toBe("# prd");
   });
-  it("edits and persists a doc", async () => {
-    const put = await app.inject({ method: "PUT", url: `/api/projects/p1/docs/${samplePath}`,
-      payload: { content: "# changed" } });
+  it("edits and persists to disk", async () => {
+    const put = await app.inject({ method: "PUT", url: `/api/projects/p1/docs/${P}`, payload: { content: "# changed" } });
     expect(put.statusCode).toBe(200);
-    const get = await app.inject({ url: `/api/projects/p1/docs/${samplePath}` });
-    expect(get.json().content).toBe("# changed");
+    expect((await app.inject({ url: `/api/projects/p1/docs/${P}` })).json().content).toBe("# changed");
   });
-  it("404 for missing doc", async () =>
-    expect((await app.inject({ url: "/api/projects/p1/docs/nope/x.md" })).statusCode).toBe(404));
+  it("deletes a doc (204 then 404)", async () => {
+    expect((await app.inject({ method: "DELETE", url: `/api/projects/p1/docs/${P}` })).statusCode).toBe(204);
+    expect((await app.inject({ url: `/api/projects/p1/docs/${P}` })).statusCode).toBe(404);
+  });
+  it("rejects a non-markdown write (400)", async () => {
+    const res = await app.inject({ method: "PUT", url: "/api/projects/p1/docs/product/notes.txt", payload: { content: "x" } });
+    expect(res.statusCode).toBe(400);
+  });
+  it("POST /scan recomputes coverage from disk", async () => {
+    const res = await app.inject({ method: "POST", url: "/api/projects/p1/scan" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().coverage).toBe(100);
+  });
 });
