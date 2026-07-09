@@ -33,6 +33,15 @@ export async function runProcessor(job: Job<RunInput>, deps: RunDeps = prodDeps)
     const s = await prisma.spec.findUniqueOrThrow({ where: { id: input.specId } });
     input = { ...input, spec: { id: s.id, title: s.title, source: s.source, priority: s.priority, objective: s.objective, payload: s.payload ?? undefined } };
   }
+  // Run yang di-`resume`/`retry` memakai runId yang sama, dan barisnya menyimpan sesi claude
+  // milik run itu plus fase mana yang sudah selesai. Keduanya dibaca di sini, bukan dititipkan
+  // ke payload job: payload-nya dibuat saat enqueue, sebelum fase terakhir sempat rampung.
+  // Run baru belum punya sessionId → runner membuka sesi baru, persis seperti sebelumnya.
+  const row = await prisma.run.findUnique({ where: { id }, select: { sessionId: true, phases: true } });
+  if (row?.sessionId) {
+    const done = (row.phases as { name: string; state: string }[]).filter((p) => p.state === "done").map((p) => p.name);
+    input = { ...input, resume: row.sessionId, donePhases: done };
+  }
   // github-backed run: clone the private repo on demand and push over a remote
   // carrying a freshly-minted installation token (never persisted). Local runs
   // (no installationId) skip this and behave exactly as before.

@@ -11,6 +11,8 @@ export type CliOptions = {
   cwd: string; model: string; effort?: string;
   abortController?: AbortController; disallowedTools?: string[];
   settingSources?: string[];
+  /** Sambung percakapan yang sudah ada alih-alih memulai yang baru (`claude --resume`). */
+  resume?: string;
 };
 
 // Satu proses `claude` melayani seluruh backlog: tiap pesan pengguna menghasilkan tepat
@@ -42,13 +44,17 @@ export type StepModels = Record<"brainstorm" | "spec" | "plan" | "execute" | "au
 // nothing inside a fresh worktree — so the run had no way to match the backlog.
 export type SpecBrief = { id: string; title: string; source: string; priority: string; objective: string; payload?: unknown };
 export type RunInput = { runId: string; projectId?: string; repoDir: string; branchFrom: string; branchTo: string; flow: Flow; specId?: string; spec?: SpecBrief; steps: StepModels; only?: string;
+  // Melanjutkan run yang terputus (ADR-0017), diisi worker dari baris Run: sesi claude
+  // milik run ini, dan fase yang sudah `done` sehingga tidak dikerjakan dua kali.
+  resume?: string; donePhases?: string[];
   // github-backed runs (SPEC-006): commit to report status on, "owner/repo",
   // installation to auth git ops, and a tokenized push remote (set at run time).
   commitSha?: string; reportRepo?: string; installationId?: number; remoteUrl?: string };
 export type RunResult = { status: "done" | "failed" | "stopped"; costUsd: number; tokensIn: number; tokensOut: number };
 
 export interface GitOps {
-  addWorktree(repo: string, path: string, branchFrom: string): void;
+  /** `reuse`: pakai worktree yang sudah ada apa adanya — artefak fase sebelumnya ada di sana. */
+  addWorktree(repo: string, path: string, branchFrom: string, reuse?: boolean): void;
   removeWorktree(repo: string, path: string): void;
   commitAndPush(worktreePath: string, message: string, branchTo: string, remoteUrl?: string): void;
   switchBase(worktreePath: string, branchFrom: string): void;

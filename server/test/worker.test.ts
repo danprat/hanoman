@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
+import { mkdtempSync, mkdirSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { resetDb, makeProject, makeRun, makeSetting, makeSpec } from "./factory";
 import { prisma } from "../src/db";
 import { runProcessor } from "../src/worker";
@@ -53,6 +56,28 @@ describe("worker processor", () => {
       expect(p).toContain("Ekspor CSV");
       expect(p).toContain("user bisa unduh laporan");
     }
+  });
+
+  // ADR-0017. `resume`/`retry` mengantre ulang runId yang sama; sesi claude dan fase yang
+  // sudah selesai dibaca worker dari baris Run, bukan dari payload job (payload itu dibuat
+  // saat enqueue, sebelum fase terakhir sempat rampung).
+  it("continues an interrupted run from its own session, replaying no finished phase", async () => {
+    const repoDir = mkdtempSync(join(tmpdir(), "hanoman-w-"));
+    mkdirSync(join(repoDir, ".worktrees", "run-4"), { recursive: true }); // artefak fase lalu
+    // Default factory: Brainstorm→Plan done, Execute belum.
+    await makeRun({ id: "RUN-4", projectId: "p1", status: "queued", sessionId: "sess-lama" });
+
+    const sent: string[] = [];
+    let opts: { resume?: string } | undefined;
+    const deps: RunDeps = { ...fakeDeps, openSession: (o) => { opts = o; return fakeSession(sent); } };
+    const steps = await (await import("../src/services/settings")).stepModels();
+    await runProcessor({ data: { runId: "RUN-4", repoDir, branchFrom: "main", branchTo: "feat/x", flow: "feature", steps } } as any, deps);
+
+    expect(opts?.resume).toBe("sess-lama");
+    const prompts = sent.filter((s) => !s.startsWith("/"));
+    expect(prompts).toHaveLength(1);           // hanya Execute, bukan kelima fase
+    expect(prompts[0]).toContain("fase Execute");
+    expect((await prisma.run.findUnique({ where: { id: "RUN-4" } }))?.status).toBe("done");
   });
 
   it("fails the run when its backlog item no longer exists", async () => {

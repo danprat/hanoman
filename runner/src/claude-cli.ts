@@ -17,6 +17,9 @@ export function buildArgs(o: CliOptions, guardCommand: string): string[] {
   const a = [
     "-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
     "--model", o.model,
+    // Run yang terputus menyambung percakapannya sendiri, bukan memulai dari nol (ADR-0017).
+    // Tanpa --fork-session: session_id-nya tetap sama, jadi `Run.sessionId` tetap sah.
+    ...(o.resume ? ["--resume", o.resume] : []),
     // A run is unattended: there is nobody to answer a permission prompt. This makes the
     // PreToolUse hook below the ONLY gate left, which is why deniesDangerous is verified
     // against the real binary (runner/test/live-smoke.test.ts) and not merely unit-tested.

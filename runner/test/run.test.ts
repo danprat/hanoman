@@ -1,7 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
+import { mkdtempSync, mkdirSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { runOne } from "../src/run";
 import { SteerQueue } from "../src/steer-queue";
-import type { ClaudeSession, RunDeps, RunInput, CliMessage } from "../src/index";
+import type { ClaudeSession, CliOptions, RunDeps, RunInput, CliMessage } from "../src/index";
 
 const steps = Object.fromEntries(["brainstorm", "spec", "plan", "execute", "audit"]
   .map((k) => [k, { model: "claude-opus-4-8", effort: "x-high" }])) as any;
@@ -43,7 +46,7 @@ describe("runOne", () => {
 
   // Inti SPEC-013: satu backlog, satu spawn.
   it("opens exactly one claude session for the whole run", async () => {
-    const openSession = vi.fn(() => fakeSession());
+    const openSession = vi.fn((_o: CliOptions) => fakeSession());
     await runOne(input(), fakeDeps({ openSession }), () => {});
     expect(openSession).toHaveBeenCalledTimes(1);
   });
@@ -58,6 +61,14 @@ describe("runOne", () => {
     const events: any[] = [];
     await runOne(input(), fakeDeps(), (e) => events.push(e));
     expect(events.filter((e) => e.kind === "session")).toEqual([{ kind: "session", sessionId: "s" }]);
+  });
+
+  it("starts a fresh conversation when the run has no session yet", async () => {
+    const openSession = vi.fn((_o: CliOptions) => fakeSession());
+    const d = fakeDeps({ openSession });
+    await runOne(input(), d, () => {});
+    expect(openSession.mock.calls[0]![0].resume).toBeUndefined();
+    expect(d.git.addWorktree).toHaveBeenCalledWith("/repo", "/repo/.worktrees/run-1", "main", false);
   });
 
   // REGRESI: worker.ts SELALU mengoper steer; cli/_run.ts tidak. Dulu ini menggantung selamanya
@@ -112,4 +123,59 @@ describe("runOne", () => {
       expect(r.status).toBe("failed");
       expect(d.git.commitAndPush).not.toHaveBeenCalled();
     });
+});
+
+// ADR-0017: run yang terputus melanjutkan percakapannya, bukan mengulang dari brainstorm.
+describe("runOne · melanjutkan run yang terputus", () => {
+  // Worktree yang benar-benar ada di disk: itulah syarat sah "melanjutkan".
+  const withWorktree = () => {
+    const repoDir = mkdtempSync(join(tmpdir(), "hanoman-resume-"));
+    mkdirSync(join(repoDir, ".worktrees", "run-1"), { recursive: true });
+    return repoDir;
+  };
+  const DONE = ["Brainstorm", "Objective", "Spec", "Plan"];
+  const doneNames = (events: any[]) =>
+    events.filter((e) => e.kind === "phase" && e.state === "done").map((e) => e.name);
+
+  it("resumes the session, reuses the worktree, and skips phases already done", async () => {
+    const repoDir = withWorktree();
+    const openSession = vi.fn((_o: CliOptions) => fakeSession());
+    const d = fakeDeps({ openSession });
+    const events: any[] = [];
+    const r = await runOne(input({ repoDir, resume: "sess-1", donePhases: DONE }), d, (e) => events.push(e));
+
+    expect(r.status).toBe("done");
+    expect(openSession.mock.calls[0]![0].resume).toBe("sess-1");
+    // reuse=true → addWorktree TIDAK boleh menghapus pohon yang memuat spec + plan.
+    expect(d.git.addWorktree).toHaveBeenCalledWith(repoDir, `${repoDir}/.worktrees/run-1`, "main", true);
+    expect(doneNames(events)).toEqual(["Execute"]);
+  });
+
+  // Fase yang dilewati mengandalkan artefaknya masih ada. Worktree yang hilang — dipangkas,
+  // atau dihapus run yang sukses — karena itu HARUS memaksa jalur dari nol: sesi yang ingat
+  // "plan sudah kutulis" di atas worktree kosong akan meng-Execute rencana yang tidak ada.
+  it("refuses to resume when the worktree is gone: fresh session, every phase re-run", async () => {
+    const repoDir = mkdtempSync(join(tmpdir(), "hanoman-resume-")); // tanpa .worktrees/run-1
+    const openSession = vi.fn((_o: CliOptions) => fakeSession());
+    const d = fakeDeps({ openSession });
+    const events: any[] = [];
+    await runOne(input({ repoDir, resume: "sess-1", donePhases: DONE }), d, (e) => events.push(e));
+
+    expect(openSession.mock.calls[0]![0].resume).toBeUndefined();
+    expect(d.git.addWorktree).toHaveBeenCalledWith(repoDir, `${repoDir}/.worktrees/run-1`, "main", false);
+    expect(doneNames(events)).toEqual(["Brainstorm", "Objective", "Spec", "Plan", "Execute"]);
+  });
+
+  // Run yang semua fasenya selesai tapi mati di commit/push: yang tersisa hanya push.
+  // Membuka sesi claude di sini cuma membakar token untuk tidak mengerjakan apa pun.
+  it("opens no claude session at all when every phase is already done", async () => {
+    const repoDir = withWorktree();
+    const openSession = vi.fn((_o: CliOptions) => fakeSession());
+    const d = fakeDeps({ openSession });
+    const r = await runOne(input({ repoDir, resume: "sess-1", donePhases: [...DONE, "Execute"] }), d, () => {});
+
+    expect(openSession).not.toHaveBeenCalled();
+    expect(r.status).toBe("done");
+    expect(d.git.commitAndPush).toHaveBeenCalled();
+  });
 });

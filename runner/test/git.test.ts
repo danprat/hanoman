@@ -25,4 +25,24 @@ describe("git worktree ops", () => {
     realGit.removeWorktree(repo, wt);
     expect(existsSync(wt)).toBe(false);
   });
+
+  // ADR-0017. addWorktree biasanya menghapus paksa pohon sisa run sebelumnya. Run yang
+  // dilanjutkan justru butuh isinya — spec dan plan yang ditulis fase-fase terdahulu.
+  it("reuse: keeps an existing worktree untouched, but still rebuilds a missing one", () => {
+    const { repo } = seedRepo();
+    const wt = join(repo, ".worktrees", "run-1");
+    realGit.addWorktree(repo, wt, "main");
+    writeFileSync(join(wt, "plan.md"), "rencana fase Plan");
+
+    realGit.addWorktree(repo, wt, "main", true);
+    expect(existsSync(join(wt, "plan.md"))).toBe(true); // artefaknya selamat
+
+    realGit.addWorktree(repo, wt, "main", false);
+    expect(existsSync(wt)).toBe(true);
+    expect(existsSync(join(wt, "plan.md"))).toBe(false); // tanpa reuse: dibangun ulang bersih
+
+    realGit.removeWorktree(repo, wt);
+    realGit.addWorktree(repo, wt, "main", true); // reuse tapi pohonnya hilang → buat baru
+    expect(existsSync(wt)).toBe(true);
+  });
 });

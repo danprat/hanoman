@@ -20,6 +20,15 @@ describe("buildArgs", () => {
     expect(at(a, "--setting-sources")).toBe("user,project,local");
     expect(JSON.parse(at(a, "--settings")!)).toEqual(guardSettings(GUARD));
   });
+
+  // Run yang terputus menyambung percakapannya sendiri (ADR-0017). Tanpa --fork-session,
+  // sehingga session_id-nya tidak berubah dan `Run.sessionId` tetap menunjuk ke sesi itu.
+  it("resumes an existing conversation only when asked, and never forks it", () => {
+    expect(buildArgs({ cwd: "/w", model: "m" }, GUARD)).not.toContain("--resume");
+    const a = buildArgs({ cwd: "/w", model: "m", resume: "sess-abc" }, GUARD);
+    expect(at(a, "--resume")).toBe("sess-abc");
+    expect(a).not.toContain("--fork-session");
+  });
   it("omits effort when unset, includes it when set", () => {
     expect(buildArgs({ cwd: "/w", model: "m" }, GUARD)).not.toContain("--effort");
     expect(at(buildArgs({ cwd: "/w", model: "m", effort: "xhigh" }, GUARD), "--effort")).toBe("xhigh");

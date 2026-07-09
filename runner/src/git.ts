@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { rmSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import type { GitOps } from "./types";
 function git(cwd: string, args: string[], redact?: string) {
@@ -16,7 +16,10 @@ export const realGit: GitOps = {
   // branch from `main` even while `main` is checked out in the primary tree
   // (git refuses to check out an already-in-use branch). commitAndPush then
   // pushes HEAD:branchTo, creating the target branch from the run's commits.
-  addWorktree: (repo, path, branchFrom) => {
+  addWorktree: (repo, path, branchFrom, reuse) => {
+    // Melanjutkan run: worktree-nya justru yang dicari — di dalamnya ada spec dan plan
+    // yang ditulis fase-fase sebelumnya. Menghapusnya membuat Execute kehilangan plan-nya.
+    if (reuse && existsSync(isAbsolute(path) ? path : resolve(repo, path))) return;
     // Reclaim a leftover .worktrees/<id> from a prior failed/killed run so a
     // re-run (ids can be reused — nextRunId is max-based) isn't blocked by
     // "already exists". Registered worktree → remove+prune; bare dir → rm -rf.
