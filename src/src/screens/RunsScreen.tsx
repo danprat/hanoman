@@ -325,6 +325,19 @@ function RunControls({ run }: { run: RunVM }) {
   );
 }
 
+// Retry a `failed` run — same re-enqueue as resume (continues the same claude
+// session, ADR-0017), just from a terminal status instead of `paused`. No live
+// process to steer/pause/stop, so unlike RunControls this is a single button.
+function RunRetry({ run }: { run: RunVM }) {
+  return (
+    <Card padding={14}>
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <Button size="sm" variant="secondary" leftIcon="rotate-ccw" onClick={() => void api.runControl(run.id, "retry")}>Retry</Button>
+      </div>
+    </Card>
+  );
+}
+
 function RunDetail({ run }: { run: RunVM }) {
   const duration = useLiveDuration(run);
   const { changes, error } = useRunChanges(run);
@@ -367,6 +380,7 @@ function RunDetail({ run }: { run: RunVM }) {
       )}
       <LogView run={run} />
       {(run.status === "running" || run.status === "paused") && <RunControls run={run} />}
+      {run.status === "failed" && <RunRetry run={run} />}
     </div>
   );
 }
