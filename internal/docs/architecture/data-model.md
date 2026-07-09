@@ -4,8 +4,8 @@ Entitas inti (Postgres via Prisma).
 
 ## Project
 - `id` (slug), `name`, `desc`, `kind` ("from-scratch" | "existing"), `repoDir`/`repoUrl`
-- `docStatus` ("ok" | "drift" | "broken"), `coverage` (0–100)
 - `createdAt`
+- `docStatus` ("ok" | "drift" | "broken") + `coverage` (0–100) **bukan kolom** — diturunkan dari disk tiap `toProjectView` (ADR-0018).
 
 ## Spec (backlog item)
 - `id` (SPEC-n), `projectId`, `title`, `source` ("brief" | "qa")
@@ -30,7 +30,7 @@ Entitas inti (Postgres via Prisma).
 Docs bukan entitas DB. Tabel `DocFile` sudah di-drop (ADR-0011). Docs dibaca **live dari
 `Project.repoDir`**: korpus = semua `**/*.md` via `git ls-files`, dikelompokkan per direktori,
 `linked` = reachable dari root index (`internal/docs/README.md` → `README.md`) lewat graf link Markdown.
-- coverage = % direktori yang seluruh Markdown-nya reachable dari index (disimpan sebagai cache di `Project.coverage`, disegarkan oleh `POST /projects/:id/scan`).
+- coverage = % direktori yang seluruh Markdown-nya reachable dari index. **Tidak dipersist**: `toProjectView` menghitungnya dari `Project.repoDir` setiap kali project dibaca (ADR-0018).
 
 ## Settings (per workspace)
 - `steps`: { brainstorm|spec|plan|execute|audit: { model, effort } } (default opus/x-high)

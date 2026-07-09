@@ -14,7 +14,7 @@ describe("startStatusReporter", () => {
     await prisma.project.upsert({
       where: { id: "rpt-proj" },
       update: { installationId: 77 },
-      create: { id: "rpt-proj", name: "rpt", desc: "", kind: "app", docStatus: "ok", coverage: 0, installationId: 77 },
+      create: { id: "rpt-proj", name: "rpt", desc: "", kind: "app", installationId: 77 },
     });
     await prisma.run.upsert({
       where: { id: runId },

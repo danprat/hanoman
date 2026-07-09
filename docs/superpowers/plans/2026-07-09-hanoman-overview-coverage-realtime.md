@@ -516,7 +516,7 @@ test toggle — dulu POST /scan satu-satunya yang menjaganya. SPEC-141."
 - Consumes: `toProjectView` (Task 2) — sudah tidak membaca kolomnya, jadi drop ini aman.
 - Produces: `model Project` tanpa `docStatus`/`coverage`. `ProjectView` DTO **tetap** punya keduanya.
 
-- [ ] **Step 1: Berhenti menulis kolom saat create**
+- [x] **Step 1: Berhenti menulis kolom saat create**
 
 Ganti `server/src/routes/projects.ts` baris 25-27 dengan:
 
@@ -526,7 +526,7 @@ Ganti `server/src/routes/projects.ts` baris 25-27 dengan:
       stack: "" } });
 ```
 
-- [ ] **Step 2: Berhenti menulis kolom di test factory**
+- [x] **Step 2: Berhenti menulis kolom di test factory**
 
 Ganti `server/test/factory.ts` baris 32-34 dengan:
 
@@ -542,7 +542,7 @@ Di `server/test/github-status-reporter.test.ts` baris 17, buang `docStatus: "ok"
       create: { id: "rpt-proj", name: "rpt", desc: "", kind: "app", installationId: 77 },
 ```
 
-- [ ] **Step 3: Buang kolom dari skema**
+- [x] **Step 3: Buang kolom dari skema**
 
 Di `server/prisma/schema.prisma`, hapus dua baris ini dari `model Project` (baris 20-21):
 
@@ -551,7 +551,7 @@ Di `server/prisma/schema.prisma`, hapus dua baris ini dari `model Project` (bari
   coverage  Int
 ```
 
-- [ ] **Step 4: Bikin migration, terapkan ke DB nyata dan DB test**
+- [x] **Step 4: Bikin migration, terapkan ke DB nyata dan DB test**
 
 Run:
 
@@ -578,12 +578,12 @@ Expected: `All migrations have been successfully applied.` pada keduanya.
 
 Catatan: Postgres berjalan di Docker (memory proyek). Kalau `prisma` tak bisa connect, pastikan `docker compose up -d --wait` sudah jalan; `psql -d hanoman` lewat unix socket memang gagal dan itu bukan tanda DB mati.
 
-- [ ] **Step 5: Jalankan seluruh test server**
+- [x] **Step 5: Jalankan seluruh test server**
 
 Run: `pnpm --filter ./server test`
 Expected: PASS. Kalau ada `Unknown argument 'coverage'` dari Prisma, berarti masih ada penulis kolom yang tertinggal — cari dengan `grep -rn "docStatus:\|coverage:" server/src server/test`.
 
-- [ ] **Step 6: ADR-0018 jadi `accepted`**
+- [x] **Step 6: ADR-0018 jadi `accepted`**
 
 Di `internal/docs/adr/0018-coverage-nilai-turunan.md`, ganti baris 3 dengan:
 
@@ -591,7 +591,7 @@ Di `internal/docs/adr/0018-coverage-nilai-turunan.md`, ganti baris 3 dengan:
 **Status:** accepted · **Date:** 2026-07-09 · **Spec:** SPEC-141
 ```
 
-- [ ] **Step 7: `data-model.md` berhenti mendeskripsikan kolom**
+- [x] **Step 7: `data-model.md` berhenti mendeskripsikan kolom**
 
 Ganti baris 5-8 (blok `## Project`), dari:
 
@@ -617,7 +617,7 @@ Ganti baris 33 dengan:
 - coverage = % direktori yang seluruh Markdown-nya reachable dari index. **Tidak dipersist**: `toProjectView` menghitungnya dari `Project.repoDir` setiap kali project dibaca (ADR-0018).
 ```
 
-- [ ] **Step 8: `api-contract.md` kehilangan route `scan`**
+- [x] **Step 8: `api-contract.md` kehilangan route `scan`**
 
 Hapus baris 10 seluruhnya:
 
@@ -636,7 +636,7 @@ Ganti blok kutipan baris 51-56 dengan:
 > yang seluruh Markdown-nya **transitif reachable** dari `docsDir/README.md` (ADR-0013).
 ```
 
-- [ ] **Step 9: `frontend-implementation.md` berhenti menjanjikan tombol Scan**
+- [x] **Step 9: `frontend-implementation.md` berhenti menjanjikan tombol Scan**
 
 Di baris 5, ganti frasa `tombol **Scan** per project menyegarkan coverage, **Hapus** menghapus file asli` dengan:
 
@@ -644,12 +644,12 @@ Di baris 5, ganti frasa `tombol **Scan** per project menyegarkan coverage, **Hap
 tombol **Muat ulang** membaca ulang tree, **Hapus** menghapus file asli
 ```
 
-- [ ] **Step 10: Guardrail atas repo sendiri**
+- [x] **Step 10: Guardrail atas repo sendiri**
 
 Run: `node cli/dist/hanoman.js docs verify --json`
 Expected: `{"ok":true,"coverage":100,"violations":[]}`. Kalau `cli/dist` belum ada: `pnpm --filter ./cli build` dulu.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add server/prisma/schema.prisma server/prisma/migrations \

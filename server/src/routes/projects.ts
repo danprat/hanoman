@@ -22,7 +22,7 @@ export default async function (app: FastifyInstance) {
       return reply.code(409).send({ error: `project "${id}" sudah ada` });
     await prisma.project.create({ data: {
       id, name: id, desc: b.desc || "project baru", kind: b.kind, repoDir: b.repoDir ?? null,
-      stack: "", docStatus: "broken", coverage: 0 } });
+      stack: "" } });
     return reply.code(201).send(await toProjectView(id));
   });
   app.delete("/projects/:id", async (req, reply) => {

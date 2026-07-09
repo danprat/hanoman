@@ -40,7 +40,7 @@ describe("projects routes", () => {
       "internal/docs/product/prd.md": "# prd",
       "internal/docs/loose/orphan.md": "# orphan",   // tak ter-link -> nyatanya 50%
     });
-    await makeProject({ id: "p-cov", repoDir: dir });  // factory menyimpan coverage 100 / ok
+    await makeProject({ id: "p-cov", repoDir: dir });
     const res = await app.inject({ url: "/api/projects/p-cov" });
     expect(res.json().coverage).toBe(50);
     expect(res.json().docStatus).toBe("broken");
