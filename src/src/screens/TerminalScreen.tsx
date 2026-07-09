@@ -51,7 +51,7 @@ export function TerminalScreen({ projects }: { projects: { id: string; name: str
                 color: s.exited ? "var(--text-muted)" : "var(--text-body)",
                 border: "1px solid var(--border-hair)",
               }}>
-              <span>{nameOf(s.projectId)} · {s.id.slice(0, 6)}</span>
+              <span>{s.runId ? `${s.runId} · resume` : nameOf(s.projectId)} · {s.id.slice(0, 6)}</span>
               {s.exited && <span style={{ color: "var(--status-warn)" }}>berakhir</span>}
               <span aria-label={`Tutup sesi ${s.id}`} onClick={(e) => { e.stopPropagation(); void close(s.id); }}
                 style={{ color: "var(--text-subtle)" }}>×</span>

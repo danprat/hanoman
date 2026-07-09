@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { existsSync } from "node:fs";
 import { prisma } from "../db";
 import { zTerminalSession } from "@hanoman/shared";
 import {
@@ -16,6 +17,20 @@ export default async function (app: FastifyInstance) {
   app.post("/terminal/sessions", async (req, reply) => {
     const parsed = zTerminalSession.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: "invalid body" });
+
+    // Sesi run: `claude --resume` di dalam worktree run — sesi run itu sendiri, dengan
+    // seluruh riwayat fasenya, bukan sesi baru yang menyerupainya (SPEC-013).
+    if ("run" in parsed.data) {
+      const run = await prisma.run.findUnique({ where: { id: parsed.data.run } });
+      if (!run) return reply.code(404).send({ error: "run not found" });
+      if (run.status === "done") return reply.code(400).send({ error: `run "${run.id}" sudah selesai — worktree-nya dihapus` });
+      if (!run.sessionId) return reply.code(400).send({ error: `run "${run.id}" belum punya sesi claude` });
+      // Jangan diam-diam jatuh ke repoDir: itu membuka sesi di working tree utama (ADR-0002).
+      if (!existsSync(run.worktree)) return reply.code(400).send({ error: `worktree hilang: ${run.worktree}` });
+      const s = createSession(run.projectId, run.worktree, { runId: run.id, resume: run.sessionId });
+      return reply.code(201).send({ id: s.id });
+    }
+
     const project = await prisma.project.findUnique({ where: { id: parsed.data.project } });
     if (!project) return reply.code(404).send({ error: "project not found" });
     if (!project.repoDir) return reply.code(400).send({ error: `project "${project.id}" belum punya repoDir` });

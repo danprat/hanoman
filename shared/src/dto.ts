@@ -31,7 +31,12 @@ export const zSteer = z.object({ message: z.string().min(1) });
 export const zWorktreePatch = z.object({ branchFrom: z.string().optional(), branchTo: z.string().optional() });
 export const zCommand = z.object({ text: z.string().min(1) });
 
-export const zTerminalSession = z.object({ project: z.string() });
+// Sesi terminal dibuka untuk sebuah project (repoDir-nya) atau untuk sebuah run —
+// yang terakhir me-resume sesi claude milik run itu di dalam worktree-nya (SPEC-013).
+export const zTerminalSession = z.union([
+  z.object({ project: z.string() }),
+  z.object({ run: z.string() }),
+]);
 
 export const zDocFileContent = z.object({ content: z.string() });
 export const zDocIndexCat = z.object({

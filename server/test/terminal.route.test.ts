@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AddressInfo } from "node:net";
 import { buildApp } from "../src/app";
-import { resetDb, makeProject } from "./factory";
+import { resetDb, makeProject, makeRun } from "./factory";
 
 // Lihat pty.test.ts: /bin/cat mati karena --dangerously-skip-permissions ilegal baginya.
 const FAKE_CLAUDE = fileURLToPath(new URL("./fixtures/fake-claude.sh", import.meta.url));
@@ -114,5 +114,55 @@ describe("terminal routes", () => {
     c.opened.catch(() => {}); // socket ini memang ditutup; jangan biarkan rejection-nya menganggur
     const code = await new Promise<number>((res) => c.ws.on("close", (n: number) => res(n)));
     expect(code).toBe(4004);
+  });
+});
+
+// SPEC-013: terminal membuka sesi claude milik sebuah run — sesi yang sama, bukan tiruannya.
+describe("terminal routes · sesi run", () => {
+  const openRun = (run: string) =>
+    app.inject({ method: "POST", url: "/api/terminal/sessions", payload: { run } });
+
+  it("404s an unknown run", async () => {
+    expect((await openRun("RUN-NOPE")).statusCode).toBe(404);
+  });
+
+  it("400s a run that has no claude session yet", async () => {
+    await makeRun({ id: "RUN-Q", projectId: "p1", status: "queued", sessionId: null });
+    const r = await openRun("RUN-Q");
+    expect(r.statusCode).toBe(400);
+    expect(r.json().error).toMatch(/belum punya sesi/);
+  });
+
+  // Run sukses menghapus worktree-nya dengan sengaja; kerjanya sudah di-commit + push.
+  it("400s a done run", async () => {
+    await makeRun({ id: "RUN-D", projectId: "p1", status: "done", sessionId: "sd", worktree: "/nope" });
+    const r = await openRun("RUN-D");
+    expect(r.statusCode).toBe(400);
+    expect(r.json().error).toMatch(/sudah selesai/);
+  });
+
+  // Jangan diam-diam jatuh ke repoDir: itu membuka sesi di working tree utama (ADR-0002).
+  it("400s when the worktree is gone, naming the path it looked for", async () => {
+    await makeRun({ id: "RUN-G", projectId: "p1", status: "failed", sessionId: "sg", worktree: "/tmp/hilang-xyz-013" });
+    const r = await openRun("RUN-G");
+    expect(r.statusCode).toBe(400);
+    expect(r.json().error).toContain("/tmp/hilang-xyz-013");
+  });
+
+  it("resumes the run's own session inside its worktree", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+    const wt = mkdtempSync(join(tmpdir(), "hanoman-wt-"));
+    await makeRun({ id: "RUN-S", projectId: "p1", status: "stopped", sessionId: "sess-xyz", worktree: wt });
+    const res = await openRun("RUN-S");
+    expect(res.statusCode).toBe(201);
+
+    const c = connect(res.json().id as string);
+    await c.opened;
+    await waitFor(() => c.frames.some((f) => f.t === "exit"));
+    expect(c.data()).toContain("--resume sess-xyz");
+    c.ws.close();
+
+    const list = await app.inject({ url: "/api/terminal/sessions" });
+    expect(list.json().find((s: { runId?: string }) => s.runId === "RUN-S")).toMatchObject({ cwd: wt });
   });
 });
