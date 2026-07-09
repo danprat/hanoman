@@ -54,6 +54,10 @@ model Run {
   // Sesi claude milik run ini (SPEC-013). Nullable: run yang masih mengantre belum
   // punya sesi. Dipakai layar Terminal untuk `claude --resume` di dalam worktree.
   sessionId     String?
+  // SPEC-144 · penunjuk, bukan isi. Diff diturunkan; SHA tak dapat direkonstruksi
+  // setelah worktree dan branch run dihapus. Lihat ADR-0019.
+  baseSha       String?
+  headSha       String?
   branchFrom    String
   branchTo      String
   model         String

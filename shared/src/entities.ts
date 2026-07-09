@@ -35,6 +35,7 @@ export const zRun = z.object({
   files: z.array(z.object({ path: z.string(), add: z.number(), del: z.number(), status: z.string() })),
   log: z.array(z.object({ t: z.string(), s: z.string() })),
   worktree: z.string(), branchFrom: z.string(), branchTo: z.string(),
+  baseSha: z.string().nullable(), headSha: z.string().nullable(),
   model: z.string(), tokensIn: z.string(), tokensOut: z.string(),
   cost: z.string(), progress: z.number(),
   createdAt: z.string(), finishedAt: z.string().nullable(),
