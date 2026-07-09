@@ -50,6 +50,7 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 - [spec-142 — audit (status run tidak auto-update dari queued)](operations/spec-142-runs-status-auto-update-audit.md)
 - [spec-142 — spec (status run auto-update dari queued)](operations/spec-142-runs-status-auto-update-spec.md)
 - [spec-143 — objective (select branch di backlog)](operations/spec-143-select-branch-in-backlog-objective.md)
+- [spec-145 — objective (QA after audit: keputusan sebelum spec)](operations/spec-145-qa-after-audit-objective.md)
 
 ## security
 - [security-standard](security/security-standard.md)
