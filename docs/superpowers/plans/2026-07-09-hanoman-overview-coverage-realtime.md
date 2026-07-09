@@ -225,7 +225,7 @@ Di akhir task ini **bug SPEC-141 sudah hilang**. Kolomnya masih ada tapi tak per
 - Consumes: `scanRepoDocs(repoDir: string | null): Promise<{ coverage: number; tree: DocCat[] }>` dari Task 1. `docStatusFor(pct: number): "ok" | "drift" | "broken"` dari `../services/coverage` (re-export `@hanoman/shared`, tidak diubah).
 - Produces: `toProjectView(projectId: string): Promise<ProjectView>` — tanda tangan tidak berubah; `coverage`/`docStatus` kini turunan.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan ke `server/test/projects.route.test.ts`, tepat setelah test `"409s on a duplicate project id (not 500)"` (setelah baris 22):
 
@@ -271,7 +271,7 @@ Ubah import factory di baris 4 menjadi:
 import { resetDb, makeProject, makeSpec, makeRun, makeTempRepo } from "./factory";
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `pnpm --filter ./server exec vitest run test/projects.route.test.ts -t "SPEC-141"`
 Expected: 3 FAIL.
@@ -279,7 +279,7 @@ Expected: 3 FAIL.
 - `"disk beats the stored value"`: `coverage` `100`, `docStatus` `"ok"` — nilai tersimpan factory.
 - `"without repoDir"`: `coverage` `100`, `docStatus` `"ok"` — nilai tersimpan factory, lagi.
 
-- [ ] **Step 3: Turunkan di `toProjectView`**
+- [x] **Step 3: Turunkan di `toProjectView`**
 
 Ganti seluruh isi `server/src/services/project-view.ts` dengan:
 
@@ -315,17 +315,17 @@ export async function toProjectView(projectId: string): Promise<ProjectView> {
 }
 ```
 
-- [ ] **Step 4: Jalankan, pastikan lulus**
+- [x] **Step 4: Jalankan, pastikan lulus**
 
 Run: `pnpm --filter ./server exec vitest run test/projects.route.test.ts`
 Expected: PASS, 11 test (8 lama + 3 baru). Test `"scan recomputes coverage"` masih hijau — `POST /scan` masih ada dan masih mengembalikan `toProjectView`, hanya saja angkanya kini datang dari disk.
 
-- [ ] **Step 5: Jalankan seluruh test server**
+- [x] **Step 5: Jalankan seluruh test server**
 
 Run: `pnpm --filter ./server test`
 Expected: PASS. `makeProject` tanpa `repoDir` → `scanRepoDocs(null)` → `coverage 0` — tak ada test lama yang menegaskan `coverage` pada project tanpa repoDir, jadi tak ada yang perlu diubah.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/services/project-view.ts server/test/projects.route.test.ts
