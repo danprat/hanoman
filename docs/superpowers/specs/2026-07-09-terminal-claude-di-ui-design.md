@@ -147,11 +147,16 @@ lebih dulu, baru kemudian meneruskan output live.
 ### Keamanan
 
 Endpoint ini adalah remote code execution *by design* — sama persis dengan membuka
-terminal di mesin itu. Hanoman hari ini tidak punya autentikasi sama sekali, jadi
-selama server bind ke localhost, endpoint ini tidak menurunkan postur keamanan
-apa pun. Fakta ini ditulis sebagai komentar di `terminal.ts`, tidak dibiarkan
-implisit. Bila kelak hanoman mendengarkan di `0.0.0.0`, endpoint inilah yang
-pertama harus digembok.
+terminal di mesin itu. Hanoman hari ini tidak punya autentikasi sama sekali.
+
+Asumsi awal spec ini — "server bind ke localhost" — **salah**. `server/src/server.ts`
+mendengarkan di `0.0.0.0`, sehingga PTY tak terautentikasi akan terekspos ke seluruh
+jaringan lokal. Implementasi karena itu mengubah default bind menjadi `127.0.0.1`,
+dengan override lewat `HOST`. Perbaikan ini juga menutup `/api/fs/browse`, yang sudah
+lebih dulu mengekspos seluruh filesystem mesin.
+
+Fakta ini ditulis sebagai komentar di `terminal.ts`, tidak dibiarkan implisit. Bila kelak
+`HOST` diarahkan ke `0.0.0.0`, endpoint inilah yang pertama harus digembok.
 
 ## UI
 
@@ -188,9 +193,12 @@ dengan design system (bone paper, brass accent), bukan hitam bawaan.
 
 ## Risiko
 
-1. **`node-pty` dikompilasi saat `pnpm install`** dan memerlukan Xcode Command Line
-   Tools di darwin. Bila gagal, ganti dengan `@homebridge/node-pty-prebuilt-multiarch`
-   yang API-nya identik.
+1. ~~**`node-pty` dikompilasi saat `pnpm install`**~~ — sudah diuji, tidak terjadi.
+   Tarball-nya membawa prebuild `darwin-arm64`; Xcode CLT tidak dibutuhkan. Tapi
+   `spawn-helper` di-publish dengan mode `0644`, dan tanpa exec bit setiap spawn mati
+   dengan `posix_spawnp failed`. Perbaikannya satu `postinstall` yang meng-`chmod +x`.
+   Di Linux tidak ada prebuild, sehingga node-pty dikompilasi dan `pnpm-workspace.yaml`
+   perlu `allowBuilds: { node-pty: true }`.
 2. **Bundling.** Script `build` di `server/package.json` memakai esbuild dengan daftar
    `--external` eksplisit. Tambahkan `--external:node-pty --external:@fastify/websocket`,
    kalau tidak build produksi akan gagal.
