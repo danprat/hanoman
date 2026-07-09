@@ -35,8 +35,13 @@ Proxy dev Vite harus memakai `ws: true`, kalau tidak upgrade WebSocket dijawab 4
 `RunsScreen` berlangganan `GET /runs/:id/log` (SSE) untuk run running/paused via
 `subscribeRun`; event live (`log`/`phase`/`status`/`cost`/`file`) digabung lewat reducer
 murni `reduceRunEvent`. Panel kontrol menggerakkan `POST /runs/:id/command` (teks bebas →
-steer) dan `/control` (pause/resume/stop). Durasi dihitung `(finishedAt ?? now) − createdAt`
+steer) dan `/control` (pause/resume/stop/retry). Durasi dihitung `(finishedAt ?? now) − createdAt`
 (ADR-0007), tick tiap detik selama run berjalan.
+
+Run `failed` merender `RunRetry` alih-alih `RunControls`: satu tombol yang memanggil
+`/control` action `retry` — re-enqueue runId yang sama, melanjutkan sesi claude yang sama
+via `sessionId` tersimpan (ADR-0017), bukan input steer + pause/stop (tidak ada proses hidup
+untuk run yang sudah terminal). SPEC-149.
 
 Daftar run **tidak** berlangganan SSE — SSE hanya mengisi overlay panel detail lewat
 `reduceRunEvent`, tak pernah menyentuh array `runs`. Yang menyegarkan daftar adalah poll
