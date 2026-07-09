@@ -49,7 +49,7 @@ describe("schemas", () => {
 describe("SPEC-144 Run sha", () => {
   const base = {
     id: "RUN-1", projectId: "p1", specId: null, kind: "feature" as const, status: "running" as const,
-    trigger: "manual" as const, triggerDetail: "", phases: [], plan: [], files: [], log: [],
+    trigger: "manual" as const, triggerDetail: "", phases: [], plan: [], log: [],
     worktree: ".worktrees/run-1", branchFrom: "main", branchTo: "hanoman/run-1",
     model: "", tokensIn: "0", tokensOut: "0", cost: "$0.00", progress: 0,
     createdAt: "2026-07-09T00:00:00.000Z", finishedAt: null,

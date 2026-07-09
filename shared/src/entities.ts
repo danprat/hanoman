@@ -32,7 +32,6 @@ export const zRun = z.object({
   id: z.string(), projectId: z.string(), specId: z.string().nullable(),
   kind: zRunKind, status: zRunStatus, trigger: zTriggerType, triggerDetail: z.string(),
   phases: z.array(zPhase), plan: z.array(z.object({ label: z.string(), state: z.string() })),
-  files: z.array(z.object({ path: z.string(), add: z.number(), del: z.number(), status: z.string() })),
   log: z.array(z.object({ t: z.string(), s: z.string() })),
   worktree: z.string(), branchFrom: z.string(), branchTo: z.string(),
   baseSha: z.string().nullable(), headSha: z.string().nullable(),

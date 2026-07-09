@@ -42,7 +42,7 @@ async function mirrorSpecStage(runId: string, e: RunEvent): Promise<void> {
   if (next) await prisma.spec.update({ where: { id: run.specId }, data: { stage: next } });
 }
 
-// Persist a run event to Postgres. Read-modify-write for log/phase/file, so the
+// Persist a run event to Postgres. Read-modify-write for log/phase/commit, so the
 // caller must serialize calls per run (the worker chains them) to avoid races.
 export async function persistEvent(runId: string, e: RunEvent): Promise<void> {
   if (e.kind === "log") {
@@ -68,9 +68,6 @@ export async function persistEvent(runId: string, e: RunEvent): Promise<void> {
     if (e.base && !run.baseSha) data.baseSha = e.base;
     if (e.head) data.headSha = e.head;
     if (Object.keys(data).length) await prisma.run.update({ where: { id: runId }, data });
-  } else if (e.kind === "file") {
-    const run = await prisma.run.findUniqueOrThrow({ where: { id: runId } });
-    await prisma.run.update({ where: { id: runId }, data: { files: [...(run.files as any[]), e] } });
   }
   if (e.kind === "phase" || e.kind === "status") await mirrorSpecStage(runId, e);
 }

@@ -22,7 +22,7 @@ describe("startStatusReporter", () => {
       create: {
         id: runId, projectId: "rpt-proj", kind: "feature", status: "queued", trigger: "commit", triggerDetail: "",
         commitSha: "deadbee", reportRepo: "nafanesia/arta",
-        phases: [], plan: [], files: [], log: [], worktree: "", branchFrom: "main", branchTo: "hanoman/x",
+        phases: [], plan: [], log: [], worktree: "", branchFrom: "main", branchTo: "hanoman/x",
         model: "", tokensIn: "—", tokensOut: "—", cost: "$0.00", progress: 0,
       },
     });

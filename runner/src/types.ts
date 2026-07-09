@@ -32,7 +32,6 @@ export type PhaseState = "pending" | "active" | "done" | "failed";
 export type RunEvent =
   | { kind: "log"; line: { t: string; s: string } }
   | { kind: "phase"; name: string; state: PhaseState }
-  | { kind: "file"; path: string; add: number; del: number; status: string }
   | { kind: "cost"; tokensIn: number; tokensOut: number; costUsd: number }
   | { kind: "session"; sessionId: string }
   | { kind: "commit"; base?: string; head?: string }

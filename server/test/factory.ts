@@ -62,7 +62,6 @@ export function makeRun(over: Partial<Prisma.RunCreateManyInput> = {}) {
       { name: "Execute", state: "active" },
     ] as unknown as Prisma.InputJsonValue,
     plan: [] as unknown as Prisma.InputJsonValue,
-    files: [] as unknown as Prisma.InputJsonValue,
     log: [] as unknown as Prisma.InputJsonValue,
     worktree: ".worktrees/run-1", branchFrom: "main", branchTo: "hanoman/run-1",
     model: "claude-opus-4-8", tokensIn: "0", tokensOut: "0", cost: "$0.00", progress: 0,

@@ -48,7 +48,6 @@ model Run {
   triggerDetail String
   phases        Json
   plan          Json
-  files         Json
   log           Json
   worktree      String
   // Sesi claude milik run ini (SPEC-013). Nullable: run yang masih mengantre belum
