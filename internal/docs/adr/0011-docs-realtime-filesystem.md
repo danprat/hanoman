@@ -1,4 +1,4 @@
-# ADR-0010 — Docs are the real filesystem, not a DB copy
+# ADR-0011 — Docs are the real filesystem, not a DB copy
 
 **Status:** accepted · **Date:** 2026-07-09 · **Spec:** SPEC-011
 

@@ -26,7 +26,7 @@ Entitas inti (Postgres via Prisma).
 - `id`, `projectId`, `type`, `detail`, `target` ("plan + execute" | "audit" | "scaffold docs"), `enabled`
 
 ## Docs (Source of Truth) — TIDAK dipersist
-Docs bukan entitas DB. Tabel `DocFile` sudah di-drop (ADR-0010). Docs dibaca **live dari
+Docs bukan entitas DB. Tabel `DocFile` sudah di-drop (ADR-0011). Docs dibaca **live dari
 `Project.repoDir`**: korpus = semua `**/*.md` via `git ls-files`, dikelompokkan per direktori,
 `linked` = reachable dari root index (`internal/docs/README.md` → `README.md`) lewat graf link Markdown.
 - coverage = % direktori yang seluruh Markdown-nya reachable dari index (disimpan sebagai cache di `Project.coverage`, disegarkan oleh `POST /projects/:id/scan`).

@@ -44,7 +44,7 @@ PUT    /projects/:id/docs/*path         { content }   # tulis file .md asli; 400
 DELETE /projects/:id/docs/*path         # hapus file .md asli di disk; 204 sukses, 404 tak ada, 400 guard
 ```
 
-> Docs dibaca/ditulis **live dari `Project.repoDir`** (tanpa salinan DB — ADR-0010). Korpus = semua `**/*.md`
+> Docs dibaca/ditulis **live dari `Project.repoDir`** (tanpa salinan DB — ADR-0011). Korpus = semua `**/*.md`
 > via `git ls-files`. `GET /docs` re-scan tiap panggilan; `POST /projects/:id/scan` menyegarkan cache
 > `Project.coverage`/`docStatus`. SoT coverage = % direktori yang seluruh Markdown-nya reachable dari root index.
 
