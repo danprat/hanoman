@@ -153,8 +153,9 @@ Selebihnya:
 - `server/test/scan.test.ts` — temp git repo berisi `internal/docs/**` + `docs/plans/x.md` + root
   `README.md`: denominator mengabaikan yang di luar `docsDir`; `scored` terisi benar; tanpa `internal/docs`
   → `coverage 0` dengan tree tetap terisi.
-- `cli/test/docs-index.test.ts` — `--fix` tidak menambahkan ulang doc yang reachable lewat sub-index, dan
-  tidak pernah meng-`addLink` index root ke dirinya sendiri.
+- `cli/test/index-link.cmd.test.ts` — `--fix` tidak menambahkan ulang doc yang reachable lewat sub-index,
+  dan tidak pernah meng-`addLink` index root ke dirinya sendiri.
+- `cli/test/verify.test.ts` — index hilang → melempar, bukan melaporkan semua doc unlinked (ADR-0009).
 
 Cek nyata sesuai CLAUDE.md: boot server, `curl /projects/:id/docs` menunjuk repo ini → `coverage: 100`,
 tree memuat kategori `scored: false`.
