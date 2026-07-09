@@ -36,6 +36,7 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 ## operations
 - [roadmap](operations/roadmap.md) · [gtm](operations/gtm.md) · [agent-documentation-workflow](operations/agent-documentation-workflow.md)
 - [spec-008 — objective (de-mock sweep)](operations/spec-008-de-mock-objective.md)
+- [spec-011 — objective (realtime SoT scan)](operations/spec-011-realtime-sot-scan-objective.md)
 
 ## security
 - [security-standard](security/security-standard.md)
