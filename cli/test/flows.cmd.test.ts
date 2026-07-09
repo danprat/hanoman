@@ -9,6 +9,43 @@ const fakeSession = () => {
     close() {}, kill() {},
   };
 };
+// SPEC-143: branch sumber worktree dapat dipilih dari CLI. Flag-nya `--branch-from`,
+// berpasangan dengan `--branch-to` yang sudah ada. `--from` TIDAK dipakai: AGENTS.md
+// memberinya arti lain (`hanoman scaffold --from objective`).
+const captureBranch = () => {
+  const seen: string[] = [];
+  const deps = {
+    openSession: fakeSession,
+    git: { addWorktree: (_r: string, _p: string, b: string) => { seen.push(b); },
+      removeWorktree() {}, commitAndPush() {}, switchBase() {} },
+    verify: () => ({ blocked: false }),
+  } as any;
+  return { seen, deps };
+};
+const ctx = (root: string) => ({ cwd: root, env: {}, stdout: () => {}, stderr: () => {} });
+
+describe("hanoman spec --branch-from", () => {
+  it("passes the branch through to the worktree", async () => {
+    const { root } = await makeRepo({ index: "\n" });
+    const { seen, deps } = captureBranch();
+    await (await import("../src/commands/spec")).runSpec(["SPEC-1", "--branch-from", "release/v2"], ctx(root), deps);
+    expect(seen[0]).toBe("release/v2");
+  });
+  it("defaults to main when omitted", async () => {
+    const { root } = await makeRepo({ index: "\n" });
+    const { seen, deps } = captureBranch();
+    await (await import("../src/commands/spec")).runSpec(["SPEC-1"], ctx(root), deps);
+    expect(seen[0]).toBe("main");
+  });
+  // `--from objective` milik scaffold (AGENTS.md). Ia tak boleh dibaca sebagai nama branch.
+  it("leaves --from alone for scaffold", async () => {
+    const { root } = await makeRepo({ index: "\n" });
+    const { seen, deps } = captureBranch();
+    await (await import("../src/commands/scaffold")).runScaffold(["--from", "objective"], ctx(root), deps);
+    expect(seen[0]).toBe("main");
+  });
+});
+
 describe("hanoman scaffold", () => {
   it("runs the scaffold pipeline", async () => {
     const { root } = await makeRepo({ index: "\n" });

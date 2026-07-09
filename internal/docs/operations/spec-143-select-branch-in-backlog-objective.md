@@ -68,8 +68,9 @@ dependency runtime, tanpa menyentuh guardrail Source-of-Truth maupun isolasi wor
   - `fireTrigger`: hari ini menyusun **satu** objek `base` dan menyebarnya (`...base`) ke setiap spec
     dalam fan-out. Branch per-spec di-override **di dalam loop**. Tanpa ini, memperbaiki jalur
     `POST /runs` saja membuat tombol "Mulai" bekerja sementara run dari trigger diam-diam tetap di `main`.
-  - CLI: `--from` berhenti berbohong — `FlowArgs.from` diteruskan ke `RunInput.branchFrom`, dan
-    komentar `ponytail:` di `_run.ts:29` dicabut bersama utangnya.
+  - CLI: flag **`--branch-from`** (berpasangan dengan `--branch-to` yang sudah ada) diteruskan ke
+    `RunInput.branchFrom`, dan komentar `ponytail:` di `_run.ts:29` dicabut bersama utangnya.
+    Lihat *Amandemen 2* — `--from` tidak dipakai.
 
 - **Presedens branch pada trigger** — `ctx.branch` menang untuk trigger `commit` (yang ingin diuji
   adalah branch yang baru menerima commit); `spec.branchFrom` menang untuk `manual`, `schedule`, dan
@@ -87,7 +88,7 @@ dependency runtime, tanpa menyentuh guardrail Source-of-Truth maupun isolasi wor
 
 - **Termasuk:** kolom `Spec.branchFrom`; `GET /projects/:id/branches`; field branch di form **brief
   dan QA**; `PATCH /specs/:id` + `Select` di `SpecDetail`; `startRun()`; presedens branch di
-  `fireTrigger`; `--from` CLI yang selama ini dibuang — dan hanya itu.
+  `fireTrigger`; flag `--branch-from` di CLI — dan hanya itu.
 
 - **Tidak termasuk:** mengedit `branchTo` (sudah ada per-run lewat `PATCH /runs/:id/worktree`);
   branch **remote** (`origin/*`) — repo ini tak punya remote, `refs/heads` lokal cukup; membuat
@@ -154,5 +155,23 @@ String heksadesimal tak pernah bisa terbaca sebagai opsi, sehingga desainnya tid
 pada perilaku parsing yang tak teruji. `switchBase` memakai `git checkout --end-of-options`.
 Keduanya diverifikasi terhadap git 2.50.1. Rinciannya di
 [`docs/superpowers/specs/2026-07-09-hanoman-select-branch-in-backlog-spec-143-design.md`].
+
+Sisa objective ini tetap berlaku utuh.
+
+## Amandemen 2 — 2026-07-09 (fase Execute)
+
+Bagian **Masalah** di atas menyebut `cli/src/commands/_run.ts:41` mem-parse `--from` lalu membuangnya,
+dan mengusulkan `--from` dipakai sebagai branch. Usulan itu **dicabut**. `--from` sudah punya arti lain
+yang terdokumentasi: `AGENTS.md` menuliskan `hanoman scaffold --project P --from objective`, dan
+`cli/test/flows.cmd.test.ts` memanggilnya persis begitu. Memaknainya sebagai branch akan membuat
+`hanoman scaffold --from objective` mencoba meresolusikan branch bernama `objective` lalu gagal.
+
+Gantinya: flag baru **`--branch-from`**, berpasangan dengan `--branch-to` yang sudah ada di
+`parseFlowArgs`. Diteruskan hanya oleh flow yang terikat backlog item (`spec`, `plan`, `execute`, `qa`);
+`scaffold` dan `reverse` tidak.
+
+**Utang yang tetap terbuka, di luar scope SPEC-143:** `--from` masih diparse dan dibuang oleh
+`runFlow`, sehingga `hanoman scaffold --from objective` yang didokumentasikan `AGENTS.md` tetap tidak
+melakukan apa pun. Itu fitur scaffold yang belum diimplementasikan, bukan milik backlog item ini.
 
 Sisa objective ini tetap berlaku utuh.

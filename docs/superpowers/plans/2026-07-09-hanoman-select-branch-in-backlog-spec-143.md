@@ -625,7 +625,7 @@ git commit -m "feat(spec-143): fireTrigger memakai branch per-spec, ctx.branch m
 
 ---
 
-### Task 6: CLI `--from` berhenti berbohong
+### Task 6: CLI dapat memilih branch (`--branch-from`)
 
 **Files:**
 - Modify: `cli/src/commands/_run.ts:21-31,38-44`, `cli/src/commands/spec.ts:6-7`, `cli/src/commands/plan.ts:6-7`, `cli/src/commands/execute.ts:5-6`, `cli/src/commands/qa.ts:5-6`
@@ -634,11 +634,16 @@ git commit -m "feat(spec-143): fireTrigger memakai branch per-spec, ctx.branch m
 **Interfaces:**
 - Produces: `FlowArgs` bertambah `from?: string`; `runFlow` memakai `branchFrom: a.from ?? "main"`.
 
-**Kenapa:** `parseFlowArgs` sudah mem-parse `--from` dan mengembalikannya, tetapi `FlowArgs` tak punya
-field itu, sehingga `runFlow` menimpanya dengan `branchFrom: "main"`. `hanoman spec X --from release/v2`
-menerima branch itu dan diam-diam berjalan di `main`.
+**Kenapa `--branch-from`, bukan `--from`:** `parseFlowArgs` memang mem-parse `--from` lalu membuangnya,
+tapi flag itu **sudah punya pemilik**. `AGENTS.md` mendokumentasikan `hanoman scaffold --project P --from
+objective`, dan `cli/test/flows.cmd.test.ts` memanggilnya persis begitu. Memaknai `--from` sebagai branch
+akan membuat scaffold mencoba meresolusikan branch bernama `objective`. Pasangan alami dari `--branch-to`
+yang sudah ada adalah `--branch-from`. Hanya flow yang terikat backlog item (`spec`/`plan`/`execute`/`qa`)
+yang meneruskannya; `scaffold`/`reverse` tidak.
 
-- [ ] **Step 1: Tulis test yang gagal**
+*(Ditemukan saat Execute — Objective dan Spec mengunci mekanisme yang salah; keduanya diamandemen.)*
+
+- [x] **Step 1: Tulis test yang gagal**
 
 Baca `cli/test/flows.cmd.test.ts` lebih dulu untuk memakai bentuk `deps` palsu yang sudah ada di sana,
 lalu tambahkan (sesuaikan nama helper dengan yang ada):
@@ -658,12 +663,12 @@ it("tanpa --from tetap main", async () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./cli test flows`
 Expected: FAIL — test pertama melihat `"main"`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 `cli/src/commands/_run.ts`:
 
@@ -686,12 +691,12 @@ Keempat pemanggil menambahkan `from: p.from` ke argumen `runFlow`. Contoh `cli/s
 Lakukan hal yang sama di `plan.ts` (`only: p.only ?? "Plan"`), `execute.ts` (`only: p.only`), `qa.ts`
 (`flow: "qa"`, `only: p.only`).
 
-- [ ] **Step 4: Jalankan test, pastikan hijau**
+- [x] **Step 4: Jalankan test, pastikan hijau**
 
 Run: `pnpm --filter ./cli test`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add cli/src/commands/_run.ts cli/src/commands/spec.ts cli/src/commands/plan.ts cli/src/commands/execute.ts cli/src/commands/qa.ts cli/test/flows.cmd.test.ts

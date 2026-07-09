@@ -151,9 +151,15 @@ Whitelist untuk `PATCH /runs/:id/worktree` tetap **di luar scope** (lihat *Out o
 
   Tanpa ini tombol "Mulai" bekerja sementara run dari trigger diam-diam tetap di `main`.
 
-- **CLI** — `FlowArgs` bertambah `from?: string`; `runFlow` memakai `branchFrom: a.from ?? "main"`;
-  empat pemanggil (`spec.ts`, `plan.ts`, `execute.ts`, `qa.ts`) meneruskan `from: p.from`. Komentar
-  `ponytail:` di `_run.ts:29` dicabut bersama utangnya.
+- **CLI** — flag baru `--branch-from`, berpasangan dengan `--branch-to` yang sudah ada. `FlowArgs`
+  bertambah `branchFrom?: string`; `runFlow` memakai `branchFrom: a.branchFrom ?? "main"`; empat
+  pemanggil (`spec.ts`, `plan.ts`, `execute.ts`, `qa.ts`) meneruskan `branchFrom: p.branchFrom`.
+  Komentar `ponytail:` di `_run.ts:29` dicabut bersama utangnya.
+
+  **`--from` tidak dipakai.** `AGENTS.md` sudah memberinya arti lain (`hanoman scaffold --project P
+  --from objective`) dan `cli/test/flows.cmd.test.ts` memanggilnya begitu; memaknainya sebagai branch
+  akan membuat scaffold meresolusikan branch bernama `objective`. `scaffold`/`reverse` tidak menerima
+  `--branch-from` — flow-nya tidak terikat backlog item. Lihat *Amandemen 2* di objective.
 
 ### 6. Web
 
