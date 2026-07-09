@@ -98,3 +98,14 @@ describe("persistEvent progress (SPEC-010, db)", () => {
     expect(run.progress).toBe(80); // 4 of 5 phases done
   });
 });
+
+// SPEC-013: satu sesi per run, jadi sessionId adalah fakta tingkat-run — bukan tingkat-fase.
+describe("persistEvent sessionId (SPEC-013)", () => {
+  beforeEach(async () => { await resetDb(); await makeProject(); await makeRun({ id: "RUN-1", projectId: "p1", status: "running" }); });
+
+  it("stores the claude session id so the terminal can resume the run", async () => {
+    await persistEvent("RUN-1", { kind: "session", sessionId: "abc-123" });
+    const run = await prisma.run.findUniqueOrThrow({ where: { id: "RUN-1" } });
+    expect(run.sessionId).toBe("abc-123");
+  });
+});

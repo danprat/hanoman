@@ -52,6 +52,9 @@ model Run {
   files         Json
   log           Json
   worktree      String
+  // Sesi claude milik run ini (SPEC-013). Nullable: run yang masih mengantre belum
+  // punya sesi. Dipakai layar Terminal untuk `claude --resume` di dalam worktree.
+  sessionId     String?
   branchFrom    String
   branchTo      String
   model         String

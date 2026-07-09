@@ -57,6 +57,9 @@ export async function persistEvent(runId: string, e: RunEvent): Promise<void> {
     await prisma.run.update({ where: { id: runId }, data: { phases, progress: computeProgress(phases) } });
   } else if (e.kind === "cost") {
     await prisma.run.update({ where: { id: runId }, data: { tokensIn: String(e.tokensIn), tokensOut: String(e.tokensOut), cost: fmtEstCost(e.costUsd) } });
+  } else if (e.kind === "session") {
+    // Satu sesi per run (SPEC-013). Layar Terminal memakainya untuk `claude --resume`.
+    await prisma.run.update({ where: { id: runId }, data: { sessionId: e.sessionId } });
   } else if (e.kind === "file") {
     const run = await prisma.run.findUniqueOrThrow({ where: { id: runId } });
     await prisma.run.update({ where: { id: runId }, data: { files: [...(run.files as any[]), e] } });
