@@ -56,6 +56,8 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 - [spec-143 — objective (select branch di backlog)](operations/spec-143-select-branch-in-backlog-objective.md)
 - [spec-144 — objective (Runs menampilkan changes yang dibuat hanoman)](operations/spec-144-run-changes-preview-objective.md)
 - [spec-145 — objective (QA after audit: keputusan sebelum spec)](operations/spec-145-qa-after-audit-objective.md)
+- [spec-146 — audit (belum ada detail project)](operations/spec-146-detail-project-audit.md)
+- [spec-146 — spec (detail project)](operations/spec-146-detail-project-spec.md)
 
 ## security
 - [security-standard](security/security-standard.md)

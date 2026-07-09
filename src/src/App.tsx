@@ -10,6 +10,7 @@ import type { ProjectVM, RunVM } from "./screens/types";
 import { branchOptions } from "./screens/branch";
 import { OverviewScreen } from "./screens/OverviewScreen";
 import { ProjectsScreen } from "./screens/ProjectsScreen";
+import { ProjectDetailScreen } from "./screens/ProjectDetailScreen";
 import { BacklogScreen } from "./screens/BacklogScreen";
 import { RunsScreen } from "./screens/RunsScreen";
 import { TerminalScreen } from "./screens/TerminalScreen";
@@ -271,6 +272,31 @@ function NewProjectModal({ open, onClose, onCreate }:
   );
 }
 
+function EditProjectModal({ open, project, onClose, onSave }:
+  { open: boolean; project?: ProjectVM; onClose: () => void; onSave: (f: { name: string; desc: string }) => void }) {
+  const [f, setF] = React.useState({ name: "", desc: "" });
+  React.useEffect(() => { if (open && project) setF({ name: project.name, desc: project.desc }); }, [open, project]);
+  const canSubmit = !!f.name.trim();
+  return (
+    <Modal open={open} onClose={onClose} icon="pencil" eyebrow={project ? project.id : "project"}
+      title="Edit project"
+      footer={<>
+        <Button variant="ghost" size="sm" onClick={onClose}>Batal</Button>
+        <Button size="sm" leftIcon="check" onClick={() => canSubmit && onSave(f)}>Simpan</Button>
+      </>}>
+      {/* `id` tak ikut: ia kunci asing spec/run/trigger (SPEC-146). */}
+      <Field label="Nama project" hint="label tampilan — boleh berbeda dari id">
+        <Input value={f.name} onChange={(e: React.ChangeEvent<any>) => setF((s) => ({ ...s, name: e.target.value }))}
+          style={{ width: "100%" }} />
+      </Field>
+      <Field label="Deskripsi">
+        <Input value={f.desc} onChange={(e: React.ChangeEvent<any>) => setF((s) => ({ ...s, desc: e.target.value }))}
+          style={{ width: "100%" }} />
+      </Field>
+    </Modal>
+  );
+}
+
 export default function App() {
   const [section, setSection] = React.useState("overview");
   const [projects, setProjects] = React.useState<ProjectView[]>([]);
@@ -278,6 +304,10 @@ export default function App() {
   const [runs, setRuns] = React.useState<Run[]>([]);
   const [triggers, setTriggers] = React.useState<Trigger[]>([]);
   const [projectId, setProjectId] = React.useState("");
+  // Pemilik tunggal "daftar disaring ke project mana?" (SPEC-146). Sengaja terpisah dari
+  // `projectId` ("project yang sedang dibuka Docs/detail"): menyatukannya membuat klik
+  // sidebar Runs diam-diam menyaring ke project terakhir yang dibuka Docs.
+  const [projectFilter, setProjectFilter] = React.useState("all");
   const [search, setSearch] = React.useState("");
   const [modal, setModal] = React.useState<string | null>(null);
   const [toast, showToast] = useToast();
@@ -336,7 +366,17 @@ export default function App() {
     ? projectsView.filter((p) => (p.name + " " + p.desc + " " + p.stack).toLowerCase().includes(q))
     : projectsView;
 
-  function openProject(p: ProjectVM) { setProjectId(p.id); setSection("docs"); }
+  function openProject(p: ProjectVM) { setProjectId(p.id); setSection("project"); }
+
+  async function updateProject(f: { name: string; desc: string }) {
+    if (!proj) return;
+    try {
+      const updated = await api.updateProject(proj.id, { name: f.name.trim(), desc: f.desc.trim() });
+      setProjects((list) => list.map((x) => (x.id === updated.id ? updated : x)));
+      setModal(null);
+      showToast("Project " + updated.name + " diperbarui", "ok", "box");
+    } catch { showToast("Gagal memperbarui project", "err", "x-circle"); }
+  }
 
   async function createProject(f: ProjectForm) {
     const scratch = f.kind === "from-scratch";
@@ -359,7 +399,8 @@ export default function App() {
       setRuns((r) => r.filter((x) => x.projectId !== p.id));
       setTriggers((t) => t.filter((x) => x.projectId !== p.id));
       setProjectId((cur) => (cur === p.id ? "" : cur));
-      if (section === "docs") setSection("projects");
+      setProjectFilter((cur) => (cur === p.id ? "all" : cur));
+      if (section === "docs" || section === "project") setSection("projects");
       showToast("Project " + p.id + " dihapus", "warn", "trash-2");
     } catch (e) {
       const busy = e instanceof ApiError && e.status === 409;
@@ -483,20 +524,38 @@ export default function App() {
               : <ProjectsScreen projects={shownProjects} runs={runsView} variant="list" onOpen={openProject} onDelete={deleteProject} pageSize={5} />)}
       </Shell>
     );
+  } else if (section === "project") {
+    screen = (
+      <Shell active="projects" title={proj ? proj.name : "Project"}
+        breadcrumb={proj ? "projects · " + proj.id : "projects"} onNavigate={setSection}>
+        {gate(proj
+          ? <ProjectDetailScreen p={proj} onEdit={() => setModal("project-edit")}
+              onGotoDocs={() => setSection("docs")}
+              onGotoRuns={() => { setProjectFilter(proj.id); setSection("runs"); }}
+              onGotoBacklog={() => { setProjectFilter(proj.id); setSection("backlog"); }}
+              onDelete={() => deleteProject(proj)} />
+          : <StateBlock kind="empty" icon="box" title="Belum ada project"
+              hint="Mulai dari nol atau tambahkan codebase yang sudah ada."
+              action={() => setModal("project")} actionLabel="Project baru" />)}
+      </Shell>
+    );
   } else if (section === "backlog") {
     screen = (
       <Shell active="backlog" title="Backlog" breadcrumb="specs · brainstorm → execute" onNavigate={setSection}
         actions={<Button size="sm" leftIcon="plus" onClick={() => setModal("brief")}>Tambah</Button>}>
         {gate(<BacklogScreen backlog={backlog} projects={projectsView} pageSize={4}
           onStart={startRun} activeRunSpecs={activeRunSpecs} onNew={() => setModal("brief")}
-          onDelete={deleteSpec} onOpenRun={() => setSection("runs")} onEditBranch={editBranch} />)}
+          onDelete={deleteSpec} onOpenRun={() => setSection("runs")} onEditBranch={editBranch}
+          projectFilter={projectFilter} onProjectFilter={setProjectFilter} />)}
       </Shell>
     );
   } else if (section === "runs") {
     screen = (
       <Shell active="runs" title="Runs" breadcrumb="Claude Code · live activity" onNavigate={setSection}
         actions={<StatusPill status="running" size="sm">{runsView.filter((r) => r.status === "running").length} aktif</StatusPill>}>
-        {gate(<RunsScreen runs={runsView} pageSize={4} onDelete={deleteRun} onGotoBacklog={() => setSection("backlog")} />)}
+        {gate(<RunsScreen runs={runsView} pageSize={4} onDelete={deleteRun}
+          onGotoBacklog={() => setSection("backlog")}
+          projectFilter={projectFilter} onProjectFilter={setProjectFilter} />)}
       </Shell>
     );
   } else if (section === "terminal") {
@@ -546,6 +605,7 @@ export default function App() {
       <NewSpecModal open={modal === "brief"} onClose={() => setModal(null)} projects={projectsView} defaultProject={proj ? proj.id : ""} onCreate={createSpec} />
       <NewTriggerModal open={modal === "trigger"} onClose={() => setModal(null)} projects={projectsView} defaultProject={proj ? proj.id : ""} onCreate={createTrigger} />
       <NewProjectModal open={modal === "project"} onClose={() => setModal(null)} onCreate={createProject} />
+      <EditProjectModal open={modal === "project-edit"} project={proj} onClose={() => setModal(null)} onSave={updateProject} />
       <Toast toast={toast} />
     </>
   );

@@ -158,13 +158,16 @@ function SpecCard({ spec, onStart, onDelete, onOpenRun, onOpenDetail, running }:
   );
 }
 
-export function BacklogScreen({ backlog, projects, pageSize = 4, onStart, activeRunSpecs, onDelete, onOpenRun, onNew, onEditBranch }:
+export function BacklogScreen({ backlog, projects, pageSize = 4, onStart, activeRunSpecs, onDelete, onOpenRun, onNew, onEditBranch, projectFilter, onProjectFilter }:
   { backlog: Spec[]; projects: ProjectVM[]; pageSize?: number;
     onStart?: (s: Spec) => void; activeRunSpecs?: Set<string>;
     onDelete?: (s: Spec) => void; onOpenRun?: (s: Spec) => void; onNew?: () => void;
-    onEditBranch?: (s: Spec, b: string | null) => void }) {
+    onEditBranch?: (s: Spec, b: string | null) => void;
+    projectFilter: string; onProjectFilter: (id: string) => void }) {
   const [tab, setTab] = React.useState("all");
-  const [proj, setProj] = React.useState("all");
+  // Filter project dimiliki App (SPEC-146): detail project membuka layar ini sudah tersaring.
+  const proj = projectFilter;
+  const setProj = onProjectFilter;
   // keep the id, not the object: backlog re-polls and the stage bar must stay live
   const [detailId, setDetailId] = React.useState<string | null>(null);
   const projOptions = projects || [...new Set(backlog.map((s) => s.projectId))].map((id) => ({ id, name: id }));

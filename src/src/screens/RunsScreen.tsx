@@ -2,7 +2,7 @@
    subscribes to the SSE log stream for running/paused runs, exposes a terminal
    input + steer/pause/resume/stop, and shows a live duration (finishedAt, ADR-0007). */
 import React from "react";
-import { Card, StatusPill, Icon, usePaged, Pager, Button, IconButton, StateBlock } from "../ds";
+import { Card, StatusPill, Icon, usePaged, Pager, Button, IconButton, StateBlock, Select } from "../ds";
 import type { RunVM } from "./types";
 import { subscribeRun, api, type RunChanges, type RunCommit, type FilePreview } from "../api/client";
 import { reduceRunEvent, runDurationMs, fmtDuration } from "./run-reduce";
@@ -371,11 +371,13 @@ function RunDetail({ run }: { run: RunVM }) {
   );
 }
 
-export function RunsScreen({ runs, selectedId, pageSize = 4, onDelete, onGotoBacklog }:
-  { runs: RunVM[]; selectedId?: string; pageSize?: number; onDelete?: (r: RunVM) => void; onGotoBacklog?: () => void }) {
+export function RunsScreen({ runs, selectedId, pageSize = 4, onDelete, onGotoBacklog, projectFilter = "all", onProjectFilter }:
+  { runs: RunVM[]; selectedId?: string; pageSize?: number; onDelete?: (r: RunVM) => void;
+    onGotoBacklog?: () => void; projectFilter?: string; onProjectFilter?: (id: string) => void }) {
+  const shown = projectFilter === "all" ? runs : runs.filter((r) => r.project === projectFilter);
   const [selId, setSelId] = React.useState(selectedId || (runs[0] && runs[0].id));
-  const pg = usePaged(runs, pageSize, "runs");
-  const picked = runs.find((r) => r.id === selId) || runs[0];
+  const pg = usePaged(shown, pageSize, "runs|" + projectFilter);
+  const picked = shown.find((r) => r.id === selId) || shown[0];
   // Live overlay: seed from the picked run, merge SSE events while it's active.
   // Re-seed saat id ATAU status berubah. Poll 3 dtk membawa status baru dari DB, tapi
   // overlay ini di-snapshot sekali per run — tanpa `status` di deps, panel detail
@@ -391,14 +393,22 @@ export function RunsScreen({ runs, selectedId, pageSize = 4, onDelete, onGotoBac
     return off;
   }, [picked?.id, picked?.status]);
   const active = live ?? picked;
+  if (!active && runs.length) return <StateBlock kind="empty" icon="filter"
+    title="Tidak ada run untuk project ini"
+    hint={`${runs.length} run ada, tapi tak satu pun milik project "${projectFilter}".`}
+    action={() => onProjectFilter?.("all")} actionLabel="Semua project" actionIcon="rotate-ccw" />;
   if (!active) return <StateBlock kind="empty" icon="activity" title="Belum ada run"
     hint="Jalankan spec dari backlog — log Claude Code akan streaming di sini."
     action={onGotoBacklog} actionLabel="Buka backlog" actionIcon="list-checks" />;
   return (
     <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 20, alignItems: "start" }}>
       <Card padding={0}>
-        <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--border-hair)" }}>
-          <span className="hn-eyebrow">Activity · {runs.length} runs</span>
+        <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--border-hair)",
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <span className="hn-eyebrow">Activity · {shown.length} runs</span>
+          <Select size="sm" value={projectFilter} onChange={(e) => onProjectFilter?.(e.target.value)}
+            options={[{ value: "all", label: "Semua project" }].concat(
+              [...new Set(runs.map((r) => r.project))].map((id) => ({ value: id, label: id })))} />
         </div>
         {pg.pageItems.map((r) => <RunListRow key={r.id} run={r} active={r.id === active.id} onClick={() => setSelId(r.id)} onDelete={onDelete} />)}
         <Pager {...pg} onPage={pg.setPage} unit="run" />
