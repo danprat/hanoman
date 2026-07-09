@@ -278,6 +278,10 @@ export default function App() {
   const [runs, setRuns] = React.useState<Run[]>([]);
   const [triggers, setTriggers] = React.useState<Trigger[]>([]);
   const [projectId, setProjectId] = React.useState("");
+  // Pemilik tunggal "daftar disaring ke project mana?" (SPEC-146). Sengaja terpisah dari
+  // `projectId` ("project yang sedang dibuka Docs/detail"): menyatukannya membuat klik
+  // sidebar Runs diam-diam menyaring ke project terakhir yang dibuka Docs.
+  const [projectFilter, setProjectFilter] = React.useState("all");
   const [search, setSearch] = React.useState("");
   const [modal, setModal] = React.useState<string | null>(null);
   const [toast, showToast] = useToast();
@@ -359,6 +363,7 @@ export default function App() {
       setRuns((r) => r.filter((x) => x.projectId !== p.id));
       setTriggers((t) => t.filter((x) => x.projectId !== p.id));
       setProjectId((cur) => (cur === p.id ? "" : cur));
+      setProjectFilter((cur) => (cur === p.id ? "all" : cur));
       if (section === "docs") setSection("projects");
       showToast("Project " + p.id + " dihapus", "warn", "trash-2");
     } catch (e) {
@@ -489,14 +494,17 @@ export default function App() {
         actions={<Button size="sm" leftIcon="plus" onClick={() => setModal("brief")}>Tambah</Button>}>
         {gate(<BacklogScreen backlog={backlog} projects={projectsView} pageSize={4}
           onStart={startRun} activeRunSpecs={activeRunSpecs} onNew={() => setModal("brief")}
-          onDelete={deleteSpec} onOpenRun={() => setSection("runs")} onEditBranch={editBranch} />)}
+          onDelete={deleteSpec} onOpenRun={() => setSection("runs")} onEditBranch={editBranch}
+          projectFilter={projectFilter} onProjectFilter={setProjectFilter} />)}
       </Shell>
     );
   } else if (section === "runs") {
     screen = (
       <Shell active="runs" title="Runs" breadcrumb="Claude Code · live activity" onNavigate={setSection}
         actions={<StatusPill status="running" size="sm">{runsView.filter((r) => r.status === "running").length} aktif</StatusPill>}>
-        {gate(<RunsScreen runs={runsView} pageSize={4} onDelete={deleteRun} onGotoBacklog={() => setSection("backlog")} />)}
+        {gate(<RunsScreen runs={runsView} pageSize={4} onDelete={deleteRun}
+          onGotoBacklog={() => setSection("backlog")}
+          projectFilter={projectFilter} onProjectFilter={setProjectFilter} />)}
       </Shell>
     );
   } else if (section === "terminal") {
