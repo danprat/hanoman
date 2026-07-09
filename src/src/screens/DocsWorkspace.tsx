@@ -74,6 +74,7 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
   const [cache, setCache] = React.useState<Record<string, string>>({});
   const [mode, setMode] = React.useState<"preview" | "edit">("preview");
   const [draft, setDraft] = React.useState("");
+  const [scanning, setScanning] = React.useState(false);
 
   // load index when the project changes
   React.useEffect(() => {
@@ -99,10 +100,11 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
   }, [selected, projectId]);
 
   const current = cache[selected] ?? "";
-  const cat = selected.split("/")[0];
+  // `selected` is the full repo-relative path (cat + "/" + basename); category is
+  // everything before the last slash.
+  const cat = selected.includes("/") ? selected.slice(0, selected.lastIndexOf("/")) : ".";
   const node = tree.find((n) => n.cat === cat);
-  const relPath = selected.split("/").slice(1).join("/");
-  const displayPath = node && node.root ? relPath : "internal/docs/" + selected;
+  const displayPath = selected;
 
   const covTone = docStatus === "broken" ? "err" : docStatus === "drift" ? "warn" : "ok";
   const status = docStatus === "broken" ? "broken" : docStatus === "drift" ? "drift" : "ok";
@@ -116,13 +118,39 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
   }
   function selectFile(k: string) { setSelected(k); setMode("preview"); }
 
+  async function reloadIndex() {
+    const ix = await api.getDocs(projectId);
+    const t = ix.tree as DocCat[];
+    setTree(t); setCoverage(ix.coverage);
+    if (!t.some((n) => `${n.cat}/${n.files[0]}` === selected)) {
+      const first = t.find((n) => n.linked) || t[0];
+      setSelected(first ? `${first.cat}/${first.files[0]}` : "");
+    }
+  }
+  async function rescan() {
+    if (scanning) return;
+    setScanning(true);
+    try { await api.scanProject(projectId); await reloadIndex(); } finally { setScanning(false); }
+  }
+  async function removeDoc() {
+    if (!selected || !window.confirm(`Hapus ${selected}? File aslinya di disk akan dihapus.`)) return;
+    await api.deleteDoc(projectId, selected);
+    setCache((c) => { const n = { ...c }; delete n[selected]; return n; });
+    await reloadIndex();
+  }
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "288px 1fr", gap: 20, alignItems: "start" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 12 }}>
         <Card padding={0}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", borderBottom: "1px solid var(--border-hair)" }}>
-            <span className="hn-eyebrow">internal/docs</span>
-            <StatusPill status={status} size="sm" />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "12px 14px", borderBottom: "1px solid var(--border-hair)" }}>
+            <span className="hn-eyebrow">docs · {projectName}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <StatusPill status={status} size="sm" />
+              <Button size="sm" variant="ghost" leftIcon={scanning ? "loader" : "radar"} onClick={rescan} disabled={scanning}>
+                {scanning ? "…" : "Scan"}
+              </Button>
+            </div>
           </div>
           <div style={{ padding: "4px 8px" }}>
             {tree.map((n) => <DocTreeCat key={n.cat} node={n} selected={selected} onSelect={selectFile} />)}
@@ -146,7 +174,10 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
             : <Badge tone="err" size="sm" icon="unlink">unlinked</Badge>)}
           <span style={{ flex: 1 }} />
           {mode === "preview" ? (
-            <Button size="sm" variant="secondary" leftIcon="pencil" onClick={startEdit} disabled={!selected}>Edit</Button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Button size="sm" variant="ghost" leftIcon="trash-2" onClick={removeDoc} disabled={!selected}>Hapus</Button>
+              <Button size="sm" variant="secondary" leftIcon="pencil" onClick={startEdit} disabled={!selected}>Edit</Button>
+            </div>
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <Button size="sm" variant="ghost" onClick={cancelEdit}>Batal</Button>

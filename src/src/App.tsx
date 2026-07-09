@@ -422,7 +422,7 @@ export default function App() {
     );
   } else if (section === "docs") {
     screen = (
-      <Shell active="docs" title="Source of Truth" breadcrumb={"internal/docs · " + (proj ? proj.name : "")}
+      <Shell active="docs" title="Source of Truth" breadcrumb={proj ? proj.name : "workspace"}
         onNavigate={setSection} wide
         actions={proj && <Select size="sm" value={proj.id} onChange={(e) => setProjectId(e.target.value)}
           options={projectsView.map((p) => ({ value: p.id, label: p.name }))} />}>
