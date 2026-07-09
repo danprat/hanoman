@@ -15,7 +15,8 @@ Premis itu salah, dan dicatat di sini supaya tidak dicari lagi. **Tidak ada SDK 
 tersisa.** ADR-0010 sudah mencabut `@anthropic-ai/claude-agent-sdk`; `grep -r '@anthropic'`
 menghasilkan nol baris, termasuk di `pnpm-lock.yaml`. Yang tersisa hanya kosakata:
 `runner/src/types.ts` masih menamai tipenya `SdkMessage`, `SdkUserMessage`, `QueryFn`, dan
-`deps.ts` memanggilnya `queryFn`. Nama peninggalan, bukan dependency.
+`deps.ts` memanggilnya `queryFn`. Nama peninggalan, bukan dependency. Menghapus `pump()` membuat
+`SdkUserMessage` jadi kode mati, jadi rename itu ikut dikerjakan di sini alih-alih ditunda.
 
 Permintaan berikutnya lebih tepat: **tidak ada lagi `claude -p` oneshot; setiap backlog jadi satu
 spawn di worktree terpisah, dan bisa dimasuki lewat terminal.**
@@ -208,8 +209,6 @@ Regresi yang menjadi alasan spec ini harus punya test yang gagal sebelum diperba
 
 ## Yang sengaja tidak dikerjakan
 
-- Rename kosakata `Sdk*`/`queryFn` → pekerjaan mekanis terpisah; mencampurnya akan menenggelamkan
-  diff spec ini.
 - Memindahkan eksekusi fase ke PTY. Fakta 6 menjelaskan alasannya. Bila suatu saat `claude`
   memancarkan batas giliran di mode interaktif, timbang ulang.
 - `--fork-session` untuk run `running`. Tambahkan bila `steer` terbukti kurang, dengan bukti dari
