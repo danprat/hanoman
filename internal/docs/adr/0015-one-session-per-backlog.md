@@ -2,7 +2,7 @@
 
 **Status:** accepted
 **Melengkapi:** ADR-0010 (runner spawn `claude` CLI), ADR-0003 (per-step model selection)
-**Menyentuh:** ADR-0012 (`subtype` adalah sinyal gagal terakhir)
+**Menyentuh:** ADR-0012 (`subtype` + `is_error` adalah sinyal gagal terakhir)
 
 ## Konteks
 `runOne` men-spawn satu proses `claude` per fase. Akibatnya konteks fase Brainstorm hilang bagi
@@ -31,7 +31,9 @@ Diverifikasi langsung terhadap binary `claude` v2.1.205, bukan disimpulkan dari 
   sebagai hasil fase akan menandai fase selesai sebelum ia sempat bekerja.
 - `--output-format` bertuliskan "only works with --print", jadi sesi PTY interaktif tidak dapat
   melaporkan `subtype`. Eksekusi fase karena itu **tidak** dipindahkan ke PTY: ADR-0012 mencatat
-  `subtype` adalah satu-satunya sinyal gagal yang tersisa setelah rem anggaran dicabut.
+  `subtype` adalah satu-satunya sinyal gagal yang tersisa setelah rem anggaran dicabut. (Amandemen,
+  lihat Catatan ADR-0012: `subtype` hanya separuh sinyalnya — kegagalan API di tengah giliran datang
+  sebagai `success` + `is_error`, jadi `result.is_error` sama wajibnya untuk dibaca.)
 
 Batas giliran **dihitung**: N pesan pengguna berpasangan dengan N `result` menurut urutan
 (`runner/src/turns.ts`). Tidak ada lagi penyamaan "fase selesai" dengan "stream proses berakhir".

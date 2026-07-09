@@ -43,7 +43,11 @@ export const realGit: GitOps = {
   // remoteUrl (with an installation token) authenticates a push to a private
   // github remote; absent, push to `origin` (local runs, behaviour unchanged).
   commitAndPush: (path, message, branchTo, remoteUrl) => {
-    git(path, ["add", "-A"]); git(path, ["commit", "-m", message]);
+    git(path, ["add", "-A"]);
+    // Agen yang sudah commit sendiri meninggalkan pohon bersih, dan `git commit` di atasnya keluar
+    // dengan status 1. Dulu itu melempar *setelah* fase terakhir ditandai done, jadi run yang
+    // sebenarnya mati karena error API dilaporkan sebagai "nothing to commit" — error aslinya hilang.
+    if (git(path, ["status", "--porcelain"]).trim()) git(path, ["commit", "-m", message]);
     // Project lokal boleh tak punya `origin`. Push-nya dulu selalu melempar — dan melempar
     // *setelah* fase terakhir sudah ditandai done, jadi run yang pekerjaannya beres tak
     // pernah sampai `status: done`. Yang opsional di sini remote-nya, bukan branch-nya:

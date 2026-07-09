@@ -82,9 +82,12 @@ export async function runOne(
         if (!sessionId && r.sessionId) { sessionId = r.sessionId; onEvent({ kind: "session", sessionId }); }
 
         // Any error_* subtype (error_during_execution, error_max_turns, …) is a failed phase.
-        // Matching only one of them would silently report the rest as `done`.
-        if (r.subtype.startsWith("error")) {
-          onEvent({ kind: "log", line: { t: "✗", s: `fase ${phase} gagal · ${r.subtype}` } });
+        // Matching only one of them would silently report the rest as `done`. `subtype` alone is
+        // not enough either: an API error mid-turn (502, 401) arrives as `success` + `is_error`,
+        // and reading only the subtype marked the phase `done` on a turn that never ran.
+        if (r.subtype.startsWith("error") || r.isError) {
+          const why = r.apiErrorStatus ? `API ${r.apiErrorStatus}` : r.subtype;
+          onEvent({ kind: "log", line: { t: "✗", s: `fase ${phase} gagal · ${why}` } });
           onEvent({ kind: "phase", name: phase, state: "failed" });
           onEvent({ kind: "status", status: "failed" });
           return failed();
