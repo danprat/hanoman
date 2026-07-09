@@ -1,6 +1,6 @@
 # SPEC-011 Realtime Source-of-Truth Scan — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Replace the empty DB-backed `DocFile` docs store with realtime filesystem scanning of every Markdown file in `Project.repoDir`, scoring SoT coverage from the live link graph and letting the dashboard edit/delete the real files.
 
@@ -31,7 +31,7 @@
   - `resolveLink(fromRel: string, target: string): string` — resolve a Markdown link target to a repo-relative posix path.
   - `linkedSetFrom(indexRel: string, docs: string[], read: (rel: string) => string | null): Set<string>` — set of `docs` transitively reachable from `indexRel`. `read` is the caller's fs.
 
-- [ ] **Step 1: Write failing tests** — append to `shared/test/coverage.test.ts`:
+- [x] **Step 1: Write failing tests** — append to `shared/test/coverage.test.ts`:
 
 ```ts
 import { coverageOf, docStatusFor, linkedSetFrom, resolveLink } from "../src/index";
@@ -66,12 +66,12 @@ describe("linkedSetFrom", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail**
+- [x] **Step 2: Run, verify fail**
 
 Run: `pnpm exec vitest run shared/test/coverage.test.ts`
 Expected: FAIL — `linkedSetFrom is not a function`.
 
-- [ ] **Step 3: Implement** — append to `shared/src/coverage.ts`:
+- [x] **Step 3: Implement** — append to `shared/src/coverage.ts`:
 
 ```ts
 const LINK_RE = /\]\(([^)]+)\)/g;
@@ -122,12 +122,12 @@ export function linkedSetFrom(
 }
 ```
 
-- [ ] **Step 4: Run, verify pass**
+- [x] **Step 4: Run, verify pass**
 
 Run: `pnpm exec vitest run shared/test/coverage.test.ts`
 Expected: PASS (all cases).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add shared/src/coverage.ts shared/test/coverage.test.ts
@@ -154,7 +154,7 @@ git commit -m "feat(shared): linkedSetFrom + resolveLink — pure link-graph rea
   - `deleteDocFile(repoDir, rel): boolean`
   - `makeTempRepo(files: Record<string,string>): string` (from factory) — a fresh `git init` dir seeded with files.
 
-- [ ] **Step 1: Add the test helper** — append to `server/test/factory.ts`:
+- [x] **Step 1: Add the test helper** — append to `server/test/factory.ts`:
 
 ```ts
 import { mkdtempSync, writeFileSync, mkdirSync } from "node:fs";
@@ -176,7 +176,7 @@ export function makeTempRepo(files: Record<string, string>): string {
 }
 ```
 
-- [ ] **Step 2: Write failing tests** — `server/test/scan.test.ts`:
+- [x] **Step 2: Write failing tests** — `server/test/scan.test.ts`:
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -226,12 +226,12 @@ describe("doc fs ops", () => {
 });
 ```
 
-- [ ] **Step 3: Run, verify fail**
+- [x] **Step 3: Run, verify fail**
 
 Run: `pnpm exec vitest run server/test/scan.test.ts`
 Expected: FAIL — cannot find `../src/services/scan`.
 
-- [ ] **Step 4: Implement** — `server/src/services/scan.ts`:
+- [x] **Step 4: Implement** — `server/src/services/scan.ts`:
 
 ```ts
 import { spawnSync } from "node:child_process";
@@ -308,12 +308,12 @@ export function deleteDocFile(repoDir: string, rel: string): boolean {
 }
 ```
 
-- [ ] **Step 5: Run, verify pass**
+- [x] **Step 5: Run, verify pass**
 
 Run: `pnpm exec vitest run server/test/scan.test.ts`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/services/scan.ts server/test/scan.test.ts server/test/factory.ts
@@ -332,7 +332,7 @@ git commit -m "feat(server): fs doc scanner — git ls-files corpus, guarded rea
 - Consumes: `scanRepoDocs`, `readDocFile`, `writeDocFile`, `deleteDocFile` (Task 2); `prisma`.
 - Produces: `docIndex(id)`, `readDoc(id, path)`, `writeDoc(id, path, content)`, `deleteDoc(id, path): Promise<boolean>` — same names the routes already import, now disk-backed.
 
-- [ ] **Step 1: Rewrite the test** — replace `server/test/docs.test.ts` entirely:
+- [x] **Step 1: Rewrite the test** — replace `server/test/docs.test.ts` entirely:
 
 ```ts
 import { describe, it, expect, beforeEach } from "vitest";
@@ -370,12 +370,12 @@ describe("docs service (fs-backed)", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail**
+- [x] **Step 2: Run, verify fail**
 
 Run: `pnpm exec vitest run server/test/docs.test.ts`
 Expected: FAIL — `deleteDoc` not exported / still DB-backed.
 
-- [ ] **Step 3: Rewrite** — replace `server/src/services/docs.ts` entirely:
+- [x] **Step 3: Rewrite** — replace `server/src/services/docs.ts` entirely:
 
 ```ts
 import { prisma } from "../db";
@@ -404,12 +404,12 @@ export async function deleteDoc(projectId: string, path: string): Promise<boolea
 }
 ```
 
-- [ ] **Step 4: Run, verify pass**
+- [x] **Step 4: Run, verify pass**
 
 Run: `pnpm exec vitest run server/test/docs.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/docs.ts server/test/docs.test.ts
@@ -428,7 +428,7 @@ git commit -m "refactor(server): docs service reads/writes the real repo filesys
 **Interfaces:**
 - Consumes: `docIndex`, `readDoc`, `writeDoc`, `deleteDoc` (Task 3); `POST /projects/:id/scan` in `routes/projects.ts` is unchanged (its `docIndex` call is now fs-backed).
 
-- [ ] **Step 1: Rewrite the route test** — replace `server/test/docs.route.test.ts` entirely:
+- [x] **Step 1: Rewrite the route test** — replace `server/test/docs.route.test.ts` entirely:
 
 ```ts
 import { describe, it, expect, beforeEach } from "vitest";
@@ -479,12 +479,12 @@ describe("docs routes (fs-backed)", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail**
+- [x] **Step 2: Run, verify fail**
 
 Run: `pnpm exec vitest run server/test/docs.route.test.ts`
 Expected: FAIL — DELETE returns 404 (no route) / non-md write not guarded.
 
-- [ ] **Step 3: Implement** — replace `server/src/routes/docs.ts` entirely:
+- [x] **Step 3: Implement** — replace `server/src/routes/docs.ts` entirely:
 
 ```ts
 import type { FastifyInstance } from "fastify";
@@ -527,19 +527,19 @@ export default async function (app: FastifyInstance) {
 }
 ```
 
-- [ ] **Step 4: Document the endpoint** — in `internal/docs/architecture/api-contract.md`, under the project docs routes, add:
+- [x] **Step 4: Document the endpoint** — in `internal/docs/architecture/api-contract.md`, under the project docs routes, add:
 
 ```md
 - `DELETE /api/projects/:id/docs/*path` — delete the real Markdown file on disk. 204 on success, 404 if absent, 400 if the path escapes the repo or is not `.md`.
 - Docs are read/written **live from `Project.repoDir`** (no DB copy). `GET /docs` re-scans the repo on each call; `POST /scan` refreshes the cached `Project.coverage`/`docStatus`.
 ```
 
-- [ ] **Step 5: Run, verify pass**
+- [x] **Step 5: Run, verify pass**
 
 Run: `pnpm exec vitest run server/test/docs.route.test.ts`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/routes/docs.ts server/test/docs.route.test.ts internal/docs/architecture/api-contract.md
@@ -560,20 +560,20 @@ git commit -m "feat(server): DELETE /docs + guarded PUT; document realtime docs 
 **Interfaces:**
 - Consumes: nothing new. After Tasks 3–4 the only remaining `prisma.docFile` references are in `factory.ts`.
 
-- [ ] **Step 1: Remove from schema** — in `server/prisma/schema.prisma`:
+- [x] **Step 1: Remove from schema** — in `server/prisma/schema.prisma`:
   - delete the whole `model DocFile { … }` block, and
   - delete the line `  docs      DocFile[]` from `model Project`.
 
-- [ ] **Step 2: Drop `prisma.docFile` from the factory** — in `server/test/factory.ts`:
+- [x] **Step 2: Drop `prisma.docFile` from the factory** — in `server/test/factory.ts`:
   - remove `prisma.docFile.deleteMany(),` from the `resetDb` transaction, and
   - delete the entire `export function makeDocFile(...) { … }`.
 
-- [ ] **Step 3: Generate the migration**
+- [x] **Step 3: Generate the migration**
 
 Run: `cd server && pnpm prisma migrate dev --name drop_docfile`
 Expected: creates `migrations/<ts>_drop_docfile/migration.sql` with `DROP TABLE "DocFile"`, regenerates the client (no more `prisma.docFile`).
 
-- [ ] **Step 4: Write the ADR** — `internal/docs/adr/0010-docs-realtime-filesystem.md`:
+- [x] **Step 4: Write the ADR** — `internal/docs/adr/0010-docs-realtime-filesystem.md`:
 
 ```md
 # ADR-0010 — Docs are the real filesystem, not a DB copy
@@ -600,14 +600,14 @@ computed by the pure `linkedSetFrom` in `@hanoman/shared`.
   metric later (out of scope here).
 ```
 
-- [ ] **Step 5: Update the data model doc** — in `internal/docs/architecture/data-model.md`, remove the `DocFile` entity/row and note: "Docs are not persisted — they are read live from `Project.repoDir` (ADR-0010)."
+- [x] **Step 5: Update the data model doc** — in `internal/docs/architecture/data-model.md`, remove the `DocFile` entity/row and note: "Docs are not persisted — they are read live from `Project.repoDir` (ADR-0010)."
 
-- [ ] **Step 6: Verify the whole server suite is green**
+- [x] **Step 6: Verify the whole server suite is green**
 
 Run: `pnpm exec vitest run --no-file-parallelism server/test`
 Expected: PASS (no `prisma.docFile` type errors; docs/scan suites green).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/prisma/schema.prisma server/prisma/migrations server/test/factory.ts \
@@ -628,7 +628,7 @@ git commit -m "feat(server)!: drop DocFile table; docs live on the filesystem + 
 - Consumes: `paths.docFile(id, path)` (already exists).
 - Produces: `api.deleteDoc(id: string, path: string): Promise<void>`.
 
-- [ ] **Step 1: Write the failing test** — append to `src/test/client.test.ts`:
+- [x] **Step 1: Write the failing test** — append to `src/test/client.test.ts`:
 
 ```ts
 it("deleteDoc issues DELETE to the doc path", async () => {
@@ -640,25 +640,25 @@ it("deleteDoc issues DELETE to the doc path", async () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify fail**
+- [x] **Step 2: Run, verify fail**
 
 Run: `pnpm exec vitest run src/test/client.test.ts`
 Expected: FAIL — `api.deleteDoc is not a function`.
 
-- [ ] **Step 3: Implement** — in `src/src/api/client.ts`, add after `putDoc`:
+- [x] **Step 3: Implement** — in `src/src/api/client.ts`, add after `putDoc`:
 
 ```ts
   deleteDoc: (id: string, path: string) => j<void>(paths.docFile(id, path), { method: "DELETE" }),
 ```
 
-- [ ] **Step 4: Run, verify pass**
+- [x] **Step 4: Run, verify pass**
 
 Run: `pnpm exec vitest run src/test/client.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Update the frontend doc** (same commit) — in `internal/docs/frontend/frontend-implementation.md`, in the Docs section, note: "Docs workspace can Scan per project and Delete a document (hits the real file via `DELETE /docs/*`)."
+- [x] **Step 5: Update the frontend doc** (same commit) — in `internal/docs/frontend/frontend-implementation.md`, in the Docs section, note: "Docs workspace can Scan per project and Delete a document (hits the real file via `DELETE /docs/*`)."
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/src/api/client.ts src/test/client.test.ts internal/docs/frontend/frontend-implementation.md
@@ -678,7 +678,7 @@ git commit -m "feat(web): api.deleteDoc client wrapper (SPEC-011)"
 - Consumes: `api.getDocs`, `api.getDoc`, `api.putDoc`, `api.deleteDoc`, `api.scanProject`.
 - Note: `selected` is now the **full repo-relative path** (`cat + "/" + file` round-trips to it). Delete the old `displayPath = "internal/docs/" + selected` logic.
 
-- [ ] **Step 1: Add Scan + Delete handlers** — in `DocsWorkspace.tsx`, inside the component (after `save()`), add:
+- [x] **Step 1: Add Scan + Delete handlers** — in `DocsWorkspace.tsx`, inside the component (after `save()`), add:
 
 ```tsx
   const [scanning, setScanning] = React.useState(false);
@@ -704,7 +704,7 @@ git commit -m "feat(web): api.deleteDoc client wrapper (SPEC-011)"
   }
 ```
 
-- [ ] **Step 2: Fix the display path** — replace line ~105:
+- [x] **Step 2: Fix the display path** — replace line ~105:
 
 ```tsx
   const displayPath = selected;
@@ -712,7 +712,7 @@ git commit -m "feat(web): api.deleteDoc client wrapper (SPEC-011)"
 
 (delete the `node && node.root ? relPath : "internal/docs/" + selected` expression and the now-unused `relPath` line).
 
-- [ ] **Step 3: Add the Scan button to the sidebar header** — replace the sidebar card header (`<span className="hn-eyebrow">internal/docs</span>` block, ~line 124):
+- [x] **Step 3: Add the Scan button to the sidebar header** — replace the sidebar card header (`<span className="hn-eyebrow">internal/docs</span>` block, ~line 124):
 
 ```tsx
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", borderBottom: "1px solid var(--border-hair)" }}>
@@ -723,7 +723,7 @@ git commit -m "feat(web): api.deleteDoc client wrapper (SPEC-011)"
           </div>
 ```
 
-- [ ] **Step 4: Add the Delete button** — in the editor header, next to Edit (preview mode branch, ~line 148):
+- [x] **Step 4: Add the Delete button** — in the editor header, next to Edit (preview mode branch, ~line 148):
 
 ```tsx
           {mode === "preview" ? (
@@ -734,20 +734,20 @@ git commit -m "feat(web): api.deleteDoc client wrapper (SPEC-011)"
           ) : (
 ```
 
-- [ ] **Step 5: Drop the fixed breadcrumb prefix** — in `src/src/App.tsx` line ~425, change the Docs `Shell` breadcrumb:
+- [x] **Step 5: Drop the fixed breadcrumb prefix** — in `src/src/App.tsx` line ~425, change the Docs `Shell` breadcrumb:
 
 ```tsx
       <Shell active="docs" title="Source of Truth" breadcrumb={proj ? proj.name : "workspace"}
 ```
 
-- [ ] **Step 6: Update the frontend doc** (same commit) — in `internal/docs/frontend/frontend-implementation.md`, Docs section: "Docs = realtime tree of every `.md` in the repo (via `GET /docs`), grouped by directory; per-project **Scan** refreshes coverage, **Hapus** deletes the real file, paths shown repo-relative (no fixed `internal/docs` prefix)."
+- [x] **Step 6: Update the frontend doc** (same commit) — in `internal/docs/frontend/frontend-implementation.md`, Docs section: "Docs = realtime tree of every `.md` in the repo (via `GET /docs`), grouped by directory; per-project **Scan** refreshes coverage, **Hapus** deletes the real file, paths shown repo-relative (no fixed `internal/docs` prefix)."
 
-- [ ] **Step 7: Verify web suite + typecheck**
+- [x] **Step 7: Verify web suite + typecheck**
 
 Run: `pnpm exec vitest run src/test && pnpm -r typecheck`
 Expected: PASS, no type errors.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/src/screens/DocsWorkspace.tsx src/src/App.tsx internal/docs/frontend/frontend-implementation.md
@@ -760,13 +760,13 @@ git commit -m "feat(web): per-project Scan + Delete in Docs workspace; repo-rela
 
 **Files:** none (verification only).
 
-- [ ] **Step 1: Boot the server** (port `8787`)
+- [x] **Step 1: Boot the server** (port `8787`)
 
 Postgres/Redis up first (`docker compose up -d`), then run: `pnpm dev:api` (or `node server/dist/server.js` after `pnpm build`). Ensure a project with a real `repoDir` exists (create via UI or `POST /api/projects`).
 
 > ⚠️ Per memory: a live dev worker + shared Redis means `POST /runs` would fire a REAL background run. Docs endpoints below don't enqueue runs, so they're safe — just don't trigger runs during the smoke.
 
-- [ ] **Step 2: Exercise the live docs API**
+- [x] **Step 2: Exercise the live docs API**
 
 ```bash
 PID=<projectId>
@@ -778,9 +778,9 @@ git -C <repoDir> diff --stat internal/docs/README.md                  # the REAL
 curl -s -XPOST localhost:8787/api/projects/$PID/scan | head -c 200    # coverage recomputed
 ```
 
-- [ ] **Step 3: Confirm + restore** — verify the working tree of `<repoDir>` actually changed (proves realtime, not DB), then `git -C <repoDir> checkout internal/docs/README.md` to undo the smoke edit.
+- [x] **Step 3: Confirm + restore** — verify the working tree of `<repoDir>` actually changed (proves realtime, not DB), then `git -C <repoDir> checkout internal/docs/README.md` to undo the smoke edit.
 
-- [ ] **Step 4: Full test sweep**
+- [x] **Step 4: Full test sweep**
 
 Run: `pnpm test` (root: `vitest run --no-file-parallelism` across shared/server/src).
 Expected: all packages green.
