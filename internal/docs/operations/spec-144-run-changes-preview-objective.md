@@ -3,7 +3,7 @@
 **Fase:** Brainstorm → Objective (dikunci) · 2026-07-09
 **Jenis:** fitur — sumber `brief`, prioritas **tinggi**
 **Source of Truth:** `internal/docs/**` — dokumen ini subordinat terhadapnya.
-**Turunan:** brainstorm → [`docs/superpowers/specs/2026-07-09-hanoman-run-changes-preview-spec-144-brainstorm.md`], design → [`docs/superpowers/specs/2026-07-09-hanoman-run-changes-preview-spec-144-design.md`].
+**Turunan:** brainstorm → [`docs/superpowers/specs/2026-07-09-hanoman-run-changes-preview-spec-144-brainstorm.md`], design → [`docs/superpowers/specs/2026-07-09-hanoman-run-changes-preview-spec-144-design.md`], plan → [`docs/superpowers/plans/2026-07-09-hanoman-run-changes-preview-spec-144.md`].
 
 ## Masalah
 
