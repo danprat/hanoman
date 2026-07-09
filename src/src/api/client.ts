@@ -1,5 +1,6 @@
 import { paths, type ProjectView, type Spec, type Trigger, type Setting, type Run } from "@hanoman/shared";
 export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
+export type TerminalSession = { id: string; projectId: string; cwd: string; exited: boolean };
 async function j<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { headers: { "content-type": "application/json" }, ...init });
   if (!res.ok) throw new ApiError(res.status, `${init?.method ?? "GET"} ${url} → ${res.status}`);
@@ -39,6 +40,9 @@ export const api = {
   deleteDoc: (id: string, path: string) => j<void>(paths.docFile(id, path), { method: "DELETE" }),
   browseFs: (path?: string) =>
     j<{ path: string; parent: string | null; entries: { name: string; path: string }[] }>(paths.fsBrowse(path)),
+  listTerminals: () => j<TerminalSession[]>(paths.terminalSessions),
+  createTerminal: (project: string) => j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project }) }),
+  deleteTerminal: (id: string) => j<void>(paths.terminalSession(id), { method: "DELETE" }),
 };
 
 export type RunLiveEvent =

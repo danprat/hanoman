@@ -764,13 +764,13 @@ git commit -m "feat(server): endpoint terminal PTY + bind localhost by default"
   - `api.deleteTerminal(id: string): Promise<void>`
   - `<TerminalScreen projects={ProjectVM[]} />`
 
-- [ ] **Step 1: Pasang xterm**
+- [x] **Step 1: Pasang xterm**
 
 ```bash
 pnpm --filter ./src add @xterm/xterm@^6 @xterm/addon-fit@^0.11
 ```
 
-- [ ] **Step 2: Loloskan upgrade WebSocket lewat proxy Vite**
+- [x] **Step 2: Loloskan upgrade WebSocket lewat proxy Vite**
 
 Di `src/vite.config.ts`, ganti baris `server`:
 
@@ -779,7 +779,7 @@ Di `src/vite.config.ts`, ganti baris `server`:
   server: { proxy: { "/api": { target: "http://localhost:8787", ws: true } } },
 ```
 
-- [ ] **Step 3: Tulis test yang gagal**
+- [x] **Step 3: Tulis test yang gagal**
 
 Buat `src/test/terminal-screen.test.tsx`. Test ini sengaja menghindari me-mount `xterm`
 (butuh canvas, yang tidak ada di jsdom); yang diuji adalah tab strip dan empty state.
@@ -832,12 +832,12 @@ describe("TerminalScreen", () => {
 });
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan gagal**
+- [x] **Step 4: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./src exec vitest run test/terminal-screen.test.tsx`
 Expected: FAIL — `Failed to resolve import "../src/screens/TerminalScreen"`.
 
-- [ ] **Step 5: Tambahkan method API**
+- [x] **Step 5: Tambahkan method API**
 
 Di `src/src/api/client.ts`, tambahkan tipe setelah `ApiError`:
 
@@ -853,7 +853,7 @@ dan tiga method di dalam objek `api`, setelah `browseFs`:
   deleteTerminal: (id: string) => j<void>(paths.terminalSession(id), { method: "DELETE" }),
 ```
 
-- [ ] **Step 6: Tulis `TerminalPane`**
+- [x] **Step 6: Tulis `TerminalPane`**
 
 Buat `src/src/screens/TerminalPane.tsx`. Dipisah dari screen supaya test bisa mem-mock-nya
 tanpa menyeret `xterm` masuk ke jsdom.
@@ -914,7 +914,7 @@ export function TerminalPane({ sessionId, onExit }: { sessionId: string; onExit:
 }
 ```
 
-- [ ] **Step 7: Tulis `TerminalScreen`**
+- [x] **Step 7: Tulis `TerminalScreen`**
 
 Buat `src/src/screens/TerminalScreen.tsx`:
 
@@ -997,12 +997,12 @@ export function TerminalScreen({ projects }: { projects: { id: string; name: str
 }
 ```
 
-- [ ] **Step 8: Jalankan test, pastikan lulus**
+- [x] **Step 8: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./src exec vitest run test/terminal-screen.test.tsx`
 Expected: PASS, 3 test.
 
-- [ ] **Step 9: Tambahkan nav item**
+- [x] **Step 9: Tambahkan nav item**
 
 Di `src/src/ds/shell.tsx`, sisipkan ke `HN_NAV` tepat sesudah entri `runs`:
 
@@ -1010,7 +1010,7 @@ Di `src/src/ds/shell.tsx`, sisipkan ke `HN_NAV` tepat sesudah entri `runs`:
   { key: "terminal", label: "Terminal", icon: "terminal" },
 ```
 
-- [ ] **Step 10: Wiring di App.tsx**
+- [x] **Step 10: Wiring di App.tsx**
 
 Import di `src/src/App.tsx`, setelah import `RunsScreen`:
 
@@ -1033,11 +1033,11 @@ Tambahkan cabang tepat sesudah blok `else if (section === "runs") { … }`:
     );
 ```
 
-- [ ] **Step 11: Tidak ada yang perlu dilakukan untuk ikon**
+- [x] **Step 11: Tidak ada yang perlu dilakukan untuk ikon**
 
 `src/src/ds/icon.tsx:8` meng-PascalCase-kan `name` lalu mencarinya di `icons` milik `lucide-react`, dengan `icons.Circle` sebagai fallback. `"terminal"` → `Terminal`, yang ada di lucide. Tidak ada pemetaan yang perlu ditambahkan. Langkah ini disebut agar tidak ada yang menghabiskan waktu mencarinya.
 
-- [ ] **Step 12: Typecheck dan seluruh suite frontend**
+- [x] **Step 12: Typecheck dan seluruh suite frontend**
 
 ```bash
 pnpm --filter ./src typecheck
@@ -1046,7 +1046,7 @@ pnpm --filter ./src test
 
 Expected: keduanya lulus.
 
-- [ ] **Step 13: Uji nyata di browser (wajib per CLAUDE.md)**
+- [x] **Step 13: Uji nyata di browser (wajib per CLAUDE.md)**
 
 ```bash
 pnpm dev
@@ -1064,11 +1064,19 @@ Buka `http://localhost:5173`, klik **Terminal**, pilih project, klik **Sesi baru
 
 Kalau WebSocket-nya 404, `ws: true` di Step 2 terlewat. Perbaiki dan ulangi sebelum lanjut.
 
-- [ ] **Step 14: Update dokumentasi frontend**
+**Apa yang benar-benar diverifikasi.** Agen yang mengeksekusi tidak bisa mengklik browser. Yang
+dibuktikan lewat klien WebSocket sungguhan **melalui proxy Vite** (`:5199`, bukan `:8787`):
+upgrade WS lolos proxy, splash `Claude Code v2.1.205` tiba (984 byte), `resize` diterima tanpa
+mematikan sesi, reconnect memutar ulang scrollback yang identik, `DELETE` mematikan PTY dan
+mengosongkan daftar sesi. Yang **belum** diverifikasi mata manusia: rendering `xterm` itu sendiri,
+dua tab berdampingan, relayout claude saat window diubah, dan badge `berakhir` sesudah `/exit`.
+Butir-butir itu masih menunggu satu kali pemeriksaan visual.
+
+- [x] **Step 14: Update dokumentasi frontend**
 
 Di `internal/docs/frontend/frontend-implementation.md`, tambahkan Terminal ke daftar screen, dengan kalimat: sesi PTY hidup di server, hanya tab aktif yang memegang WebSocket, dan berpindah tab me-replay scrollback dari server, bukan dari state browser.
 
-- [ ] **Step 15: Commit**
+- [x] **Step 15: Commit**
 
 ```bash
 git add src/package.json src/vite.config.ts src/src/api/client.ts \

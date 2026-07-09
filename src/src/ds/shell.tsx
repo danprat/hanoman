@@ -11,6 +11,7 @@ const HN_NAV: NavItem[] = [
   { key: "projects", label: "Projects", icon: "layout-grid" },
   { key: "backlog", label: "Backlog", icon: "list-checks" },
   { key: "runs", label: "Runs", icon: "activity" },
+  { key: "terminal", label: "Terminal", icon: "terminal" },
   { key: "docs", label: "Docs · SoT", icon: "book-open" },
   { key: "triggers", label: "Triggers", icon: "zap" },
   { key: "settings", label: "Settings", icon: "settings" },

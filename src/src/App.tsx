@@ -10,6 +10,7 @@ import { OverviewScreen } from "./screens/OverviewScreen";
 import { ProjectsScreen } from "./screens/ProjectsScreen";
 import { BacklogScreen } from "./screens/BacklogScreen";
 import { RunsScreen } from "./screens/RunsScreen";
+import { TerminalScreen } from "./screens/TerminalScreen";
 import { DocsWorkspace } from "./screens/DocsWorkspace";
 import { TriggersScreen } from "./screens/TriggersScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
@@ -480,6 +481,16 @@ export default function App() {
       <Shell active="runs" title="Runs" breadcrumb="Claude Code · live activity" onNavigate={setSection}
         actions={<StatusPill status="running" size="sm">{runsView.filter((r) => r.status === "running").length} aktif</StatusPill>}>
         {gate(<RunsScreen runs={runsView} pageSize={4} onDelete={deleteRun} onGotoBacklog={() => setSection("backlog")} />)}
+      </Shell>
+    );
+  } else if (section === "terminal") {
+    screen = (
+      <Shell active="terminal" title="Terminal" breadcrumb="Claude Code · sesi interaktif" onNavigate={setSection} wide>
+        {gate(projectsView.length === 0
+          ? <StateBlock kind="empty" icon="box" title="Belum ada project"
+              hint="Terminal butuh project dengan repoDir untuk dijalankan."
+              action={() => setModal("project")} actionLabel="Project baru" />
+          : <TerminalScreen projects={projectsView} />)}
       </Shell>
     );
   } else if (section === "docs") {
