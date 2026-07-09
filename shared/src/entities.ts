@@ -27,7 +27,7 @@ export const zSpec = z.object({
 });
 export type Spec = z.infer<typeof zSpec>;
 
-const zPhase = z.object({ name: z.string(), state: z.enum(["done","active","failed","pending"]) });
+const zPhase = z.object({ name: z.string(), state: z.enum(["done","active","failed","pending","skipped"]) });
 export const zRun = z.object({
   id: z.string(), projectId: z.string(), specId: z.string().nullable(),
   kind: zRunKind, status: zRunStatus, trigger: zTriggerType, triggerDetail: z.string(),

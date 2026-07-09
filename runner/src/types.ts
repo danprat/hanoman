@@ -28,7 +28,9 @@ export interface ClaudeSession {
 }
 export type OpenSession = (o: CliOptions) => ClaudeSession;
 
-export type PhaseState = "pending" | "active" | "done" | "failed";
+// `skipped`: run memutuskan untuk tidak menjalankan fase ini (SPEC-145) — berbeda dari
+// `pending` ("belum jalan"). Ia keluar dari penyebut progress dan tidak diulang saat resume.
+export type PhaseState = "pending" | "active" | "done" | "failed" | "skipped";
 export type RunEvent =
   | { kind: "log"; line: { t: string; s: string } }
   | { kind: "phase"; name: string; state: PhaseState }

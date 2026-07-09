@@ -16,10 +16,13 @@ const PHASE_DONE_STAGE: Record<string, Stage> = {
 };
 
 // Run progress = fraction of phases marked done. Failed/active/pending don't count, so a
-// run that dies at the last phase reads e.g. 80%, not 0% or 100%.
+// run that dies at the last phase reads e.g. 80%, not 0% or 100%. `skipped` (SPEC-145) is
+// different in kind: the run DECIDED not to do it, so it leaves the DENOMINATOR entirely —
+// counting it caps a successful qa fast-track run at 50%.
 export function computeProgress(phases: { state: string }[]): number {
-  if (!phases.length) return 0;
-  return Math.round((phases.filter((p) => p.state === "done").length / phases.length) * 100);
+  const counted = phases.filter((p) => p.state !== "skipped");
+  if (!counted.length) return 0;
+  return Math.round((counted.filter((p) => p.state === "done").length / counted.length) * 100);
 }
 
 export function mirrorStage(current: Stage, e: RunEvent): Stage | null {

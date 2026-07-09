@@ -12,6 +12,14 @@ describe("computeProgress (SPEC-010, pure)", () => {
     expect(computeProgress(P(["done", "done"]))).toBe(100));
   it("does not count a failed phase as done", () =>
     expect(computeProgress(P(["done", "done", "done", "done", "failed"]))).toBe(80));
+  // SPEC-145: fase yang dipangkas keputusan audit keluar dari PENYEBUT. Tanpa ini, run
+  // jalur cepat yang sukses (Audit + Execute done, Spec + Plan skipped) melapor 50%.
+  it("excludes skipped phases from the denominator", () =>
+    expect(computeProgress(P(["done", "skipped", "skipped", "done"]))).toBe(100));
+  it("does not count a skipped phase as done", () =>
+    expect(computeProgress(P(["done", "skipped", "skipped", "active"]))).toBe(50));
+  it("is 0 when every phase is skipped", () =>
+    expect(computeProgress(P(["skipped", "skipped"]))).toBe(0));
 });
 
 describe("persistEvent finishedAt (SPEC-008)", () => {

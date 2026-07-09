@@ -20,11 +20,11 @@ Entitas inti (Postgres via Prisma).
 - `id` (RUN-n), `projectId`, `specId?`, `kind` ("feature" | "qa" | "scaffold")
 - `status` ("queued" | "running" | "paused" | "stopped" | "failed" | "done")
 - `trigger` ("commit"|"schedule"|"manual"|"interval"), `triggerDetail`
-- `phases[]` ({ name, state }), `plan[]`, `files[]` (diff), `log[]`
+- `phases[]` ({ name, state: "pending"|"active"|"done"|"failed"|"skipped" }), `plan[]`, `files[]` (diff), `log[]`
 - `worktree`, `branchFrom`, `branchTo`, `model` per step, `tokensIn/out`, `cost`, `progress`
 - `createdAt`, `finishedAt?` (null selama berjalan; di-set saat status terminal — durasi = `(finishedAt ?? now) − createdAt`, lihat ADR 0007)
 - Run dengan `specId` = run untuk satu backlog item. Worker memuat Spec itu dari DB saat run dieksekusi dan menyisipkan `title`/`objective`/`payload` ke prompt **setiap fase** (termasuk Execute) — id saja tidak resolvable dari dalam worktree. Spec-nya hilang → job gagal, bukan jalan tanpa scope.
-- `phases[]` di-seed dari pipeline flow saat enqueue (semua `pending`), lalu tiap event membalik state di tempat (`active`/`done`/`failed`); `progress` = persen phase ber-state `done` (run yang mati di fase akhir tampil mis. 80%, bukan 0%). Lihat SPEC-010.
+- `phases[]` di-seed dari pipeline flow saat enqueue (semua `pending`), lalu tiap event membalik state di tempat (`active`/`done`/`failed`/`skipped`); `progress` = persen phase ber-state `done` **di antara phase yang tidak `skipped`** (run yang mati di fase akhir tampil mis. 80%, bukan 0%). `skipped` = fase yang sengaja tidak dijalankan run (alur `qa`, SPEC-145); ia keluar dari penyebut, sehingga run jalur cepat yang sukses tetap 100%. Lihat SPEC-010, SPEC-145.
 - Status terminal hanya ditulis oleh worker yang hidup (`persistEvent` saat `status`, atau `markFailed` dari `on("failed")`/`on("stalled")`). Worker mati — atau Redis di-restart — di tengah run: job-nya lenyap dan barisnya tersangkut `running` selamanya. Karena itu `reconcileRuns()` jalan saat worker boot: tiap run `queued`/`running` yang tidak lagi punya job di queue (`jobId = runId`) ditandai `failed` + `finishedAt`.
 
 ## Trigger
