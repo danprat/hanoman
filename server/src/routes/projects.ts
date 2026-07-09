@@ -3,6 +3,7 @@ import { zCreateProject } from "@hanoman/shared";
 import { prisma } from "../db";
 import { toProjectView } from "../services/project-view";
 import { docIndex } from "../services/docs";
+import { listRepoBranches } from "../services/branches";
 import { docStatusFor } from "../services/coverage";
 
 export default async function (app: FastifyInstance) {
@@ -35,6 +36,14 @@ export default async function (app: FastifyInstance) {
     // ponytail: worktree di server/.worktrees/ tidak ikut dibersihkan; tambahkan kalau disknya penuh.
     await prisma.project.delete({ where: { id } }); // specs/runs/triggers ikut lewat onDelete: Cascade
     return reply.code(204).send();
+  });
+  // SPEC-143: memasok dropdown branch di backlog. Server duduk di mesin yang sama dengan
+  // repo — preseden GET /fs/browse. repoDir null / bukan repo git → [], bukan error.
+  app.get("/projects/:id/branches", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const p = await prisma.project.findUnique({ where: { id } });
+    if (!p) return reply.code(404).send({ error: "not found" });
+    return { branches: listRepoBranches(p.repoDir) };
   });
   app.post("/projects/:id/scan", async (req, reply) => {
     const { id } = req.params as { id: string };

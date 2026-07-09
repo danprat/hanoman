@@ -188,7 +188,7 @@ git commit -m "feat(spec-143): kolom Spec.branchFrom nullable + skema shared"
 - Consumes: tak ada dari Task 1.
 - Produces: `listRepoBranches(repoDir: string | null): string[]` — terurut, unik, `[]` bila `repoDir` null / bukan repo git. `GET /projects/:id/branches` → `{ branches: string[] }`. `paths.branches(id)`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 ```ts
 // server/test/branches.test.ts
@@ -223,12 +223,12 @@ describe("listRepoBranches", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./server test branches`
 Expected: FAIL — cannot resolve `../src/services/branches`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 ```ts
 // server/src/services/branches.ts
@@ -245,12 +245,12 @@ export function listRepoBranches(repoDir: string | null): string[] {
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan hijau**
+- [x] **Step 4: Jalankan test, pastikan hijau**
 
 Run: `pnpm --filter ./server test branches`
 Expected: PASS.
 
-- [ ] **Step 5: Tambahkan route + path (test dulu)**
+- [x] **Step 5: Tambahkan route + path (test dulu)**
 
 `shared/src/api.ts` — setelah `scan`:
 
@@ -258,8 +258,11 @@ Expected: PASS.
   branches: (id: string) => `${API}/projects/${id}/branches`,
 ```
 
-`server/test/factory.ts` — `makeProject` sudah menerima `Partial<Prisma.ProjectCreateManyInput>`,
-jadi `repoDir` bisa dioper apa adanya. Tidak ada perubahan; verifikasi saja saat menulis test.
+`server/test/factory.ts` — tambahkan `makeRepoWithBranches(...branches)`. `makeTempRepo` yang ada tak cukup:
+ia tak pernah commit, dan repo tanpa commit belum punya branch apa pun untuk `for-each-ref`.
+
+**Sisipkan test baru di AKHIR `describe`**, bukan di awal: `lists project views` menghitung jumlah
+project dan akan merah bila test lain membuat project lebih dulu.
 
 Tambahkan di `server/test/projects.route.test.ts`:
 
@@ -294,12 +297,12 @@ tambahkan sebelum `POST /projects/:id/scan`:
   });
 ```
 
-- [ ] **Step 6: Jalankan suite server penuh**
+- [x] **Step 6: Jalankan suite server penuh**
 
 Run: `pnpm --filter ./server test`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/services/branches.ts server/test/branches.test.ts server/src/routes/projects.ts server/test/projects.route.test.ts shared/src/api.ts

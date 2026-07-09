@@ -20,6 +20,18 @@ export function makeTempRepo(files: Record<string, string>): string {
   return dir;
 }
 
+// Git repo dengan satu commit + branch tambahan (SPEC-143). `for-each-ref refs/heads` butuh
+// commit: repo yang baru di-init belum punya branch apa pun, jadi makeTempRepo tak cukup.
+export function makeRepoWithBranches(...branches: string[]): string {
+  const dir = mkdtempSync(join(tmpdir(), "hanoman-branch-"));
+  const g = (...a: string[]) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });
+  g("init", "-q"); g("config", "user.email", "t@t"); g("config", "user.name", "t");
+  writeFileSync(join(dir, "README.md"), "x"); g("add", "-A"); g("commit", "-qm", "init");
+  g("branch", "-M", "main");
+  for (const b of branches) g("branch", b);
+  return dir;
+}
+
 // Truncate every table in FK-safe order (mirrors the deleted seed()).
 export async function resetDb(): Promise<void> {
   await prisma.$transaction([

@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { buildApp } from "../src/app";
 import { prisma } from "../src/db";
-import { resetDb, makeProject, makeSpec, makeRun } from "./factory";
+import { resetDb, makeProject, makeSpec, makeRun, makeRepoWithBranches } from "./factory";
 const app = buildApp();
 beforeAll(async () => { await resetDb(); await makeProject({ id: "p1" }); });
 describe("projects routes", () => {
+
   it("lists project views", async () => {
     const res = await app.inject({ url: "/api/projects" });
     expect(res.statusCode).toBe(200); expect(res.json().length).toBe(1);
@@ -46,5 +47,22 @@ describe("projects routes", () => {
     expect(res.statusCode).toBe(204);
     expect(await prisma.project.findUnique({ where: { id: "p1" } })).toBeNull();
     expect(await prisma.spec.count({ where: { id: "SPEC-del" } })).toBe(0);
+  });
+  // SPEC-143: daftar branch memasok dropdown backlog dan whitelist validasi.
+  it("GET /projects/:id/branches lists the repo's branches", async () => {
+    await makeProject({ id: "pb", repoDir: makeRepoWithBranches("dev") });
+    const res = await app.inject({ url: "/api/projects/pb/branches" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().branches).toContain("main");
+  });
+  it("GET /projects/:id/branches: no repoDir → []", async () => {
+    await makeProject({ id: "pn", repoDir: null });
+    const res = await app.inject({ url: "/api/projects/pn/branches" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().branches).toEqual([]);
+  });
+  it("GET /projects/:id/branches: unknown project → 404", async () => {
+    const res = await app.inject({ url: "/api/projects/hantu/branches" });
+    expect(res.statusCode).toBe(404);
   });
 });
