@@ -50,4 +50,5 @@ subscription (`CLAUDE_CODE_OAUTH_TOKEN`), sehingga `total_cost_usd` adalah jumla
 dibayar pengguna API key, bukan tagihan. Tidak ada `dailyBudget` dan tidak ada `--max-budget-usd`.
 Format/parse dipusatkan di `fmtEstCost`/`parseEstCost` (`@hanoman/shared`). Kendali run yang
 tersisa: `maxConcurrent`, pause/stop dari UI, dan guardrail tool di atas.
-Setiap `result.subtype` berawalan `error` menggagalkan run.
+Setiap `result.subtype` berawalan `error` menggagalkan run — begitu pula `result.is_error`, yang
+menandai kegagalan API di tengah giliran (502, 401) yang justru datang bersubtype `success`.

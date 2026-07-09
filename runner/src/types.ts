@@ -4,7 +4,10 @@
 export type CliUserMessage = { type: "user"; message: { role: "user"; content: string } };
 export type CliMessage =
   | { type: "assistant"; session_id?: string; message: { content: Array<{ type: string; text?: string; name?: string }> } }
-  | { type: "result"; subtype: string; session_id: string; total_cost_usd: number; usage: { input_tokens: number; output_tokens: number } }
+  // Kegagalan API di tengah giliran TIDAK memakai subtype `error_*`: claude v2.1.205 memancarkan
+  // `subtype: "success"` dengan `is_error: true` dan `api_error_status` berisi kode HTTP-nya.
+  // Karena itu `subtype` saja bukan sinyal gagal yang cukup — lihat ADR-0012.
+  | { type: "result"; subtype: string; is_error?: boolean; api_error_status?: number; session_id: string; total_cost_usd: number; usage: { input_tokens: number; output_tokens: number } }
   | { type: "system"; session_id?: string };
 
 export type CliOptions = {

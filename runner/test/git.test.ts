@@ -44,6 +44,24 @@ describe("git worktree ops", () => {
     realGit.removeWorktree(repo, wt);
   });
 
+  // Agen men-commit pekerjaannya sendiri, jadi pohonnya bersih saat runOne sampai di sini.
+  // `git commit` di atas pohon bersih keluar dengan status 1: dulu itu melempar setelah fase
+  // terakhir done, menutupi sebab kematian run yang sesungguhnya (RUN-8804/8805).
+  it("pushes the agent's own commits when the worktree is already clean", () => {
+    const { repo } = seedRepo();
+    const wt = join(repo, ".worktrees", "run-1");
+    realGit.addWorktree(repo, wt, "main");
+    writeFileSync(join(wt, "new.txt"), "hi");
+    g(wt, "add", "-A"); g(wt, "commit", "-qm", "agen commit sendiri");
+
+    expect(() => realGit.commitAndPush(wt, "feat: x", "feat/run-1")).not.toThrow();
+    expect(g(repo, "branch", "-r").stdout).toContain("origin/feat/run-1");
+    expect(g(repo, "show", "origin/feat/run-1:new.txt").stdout).toBe("hi");
+    // Tidak ada commit kosong yang ditumpuk di atas milik agen.
+    expect(g(repo, "log", "--format=%s", "-1", "origin/feat/run-1").stdout.trim()).toBe("agen commit sendiri");
+    realGit.removeWorktree(repo, wt);
+  });
+
   // ADR-0017. addWorktree biasanya menghapus paksa pohon sisa run sebelumnya. Run yang
   // dilanjutkan justru butuh isinya — spec dan plan yang ditulis fase-fase terdahulu.
   it("reuse: keeps an existing worktree untouched, but still rebuilds a missing one", () => {

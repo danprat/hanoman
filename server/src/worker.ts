@@ -16,8 +16,10 @@ import { prisma } from "./db";
 
 // A stalled/failed job leaves the run mid-flight; mark it failed so the UI and
 // budget see a terminal state. Best-effort: the row may already be gone.
+// `finishedAt` ikut ditulis — tanpanya run yang mati lewat jalur ini terlihat terminal tapi
+// tak pernah selesai, tidak seperti setiap penulis status terminal yang lain.
 export async function markFailed(runId: string): Promise<void> {
-  await prisma.run.update({ where: { id: runId }, data: { status: "failed" } }).catch(() => {});
+  await prisma.run.update({ where: { id: runId }, data: { status: "failed", finishedAt: new Date() } }).catch(() => {});
 }
 
 // Status terminal hanya pernah ditulis oleh worker yang hidup — lewat `worker.on("failed")`

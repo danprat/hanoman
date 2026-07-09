@@ -1,7 +1,8 @@
 import type { ClaudeSession, CliMessage } from "./types";
 
 export type TurnResult = {
-  sessionId?: string; subtype: string; tokensIn: number; tokensOut: number; costUsd: number;
+  sessionId?: string; subtype: string; isError: boolean; apiErrorStatus?: number;
+  tokensIn: number; tokensOut: number; costUsd: number;
 };
 
 // Satu pesan pengguna menghasilkan tepat satu `result` — diverifikasi terhadap claude
@@ -19,6 +20,7 @@ export async function takeTurn(
     if (m.type === "result") {
       return {
         sessionId: m.session_id ?? sessionId, subtype: m.subtype,
+        isError: m.is_error === true, apiErrorStatus: m.api_error_status,
         tokensIn: m.usage.input_tokens, tokensOut: m.usage.output_tokens, costUsd: m.total_cost_usd,
       };
     }

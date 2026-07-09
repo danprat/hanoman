@@ -24,7 +24,17 @@ describe("takeTurn", () => {
     const s = fakeSession([[result()]]);
     const r = await takeTurn(s, "do it");
     expect(s.sent).toEqual(["do it"]);
-    expect(r).toEqual({ sessionId: "s1", subtype: "success", tokensIn: 100, tokensOut: 20, costUsd: 0.42 });
+    expect(r).toEqual({ sessionId: "s1", subtype: "success", isError: false, tokensIn: 100, tokensOut: 20, costUsd: 0.42 });
+  });
+
+  // claude v2.1.205 melaporkan 502/401 di tengah giliran sebagai `success` + `is_error`.
+  // Kalau takeTurn menelan kedua field itu, pemanggilnya tak punya cara membedakannya dari sukses.
+  it("surfaces an API error hiding behind a success subtype", async () => {
+    const s = fakeSession([[result({ is_error: true, api_error_status: 502 })]]);
+    const r = await takeTurn(s, "x");
+    expect(r.subtype).toBe("success");
+    expect(r.isError).toBe(true);
+    expect(r.apiErrorStatus).toBe(502);
   });
 
   it("streams messages to onMessage but stops at the result", async () => {

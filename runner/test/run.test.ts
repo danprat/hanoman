@@ -123,6 +123,26 @@ describe("runOne", () => {
       expect(r.status).toBe("failed");
       expect(d.git.commitAndPush).not.toHaveBeenCalled();
     });
+
+  // REGRESI (RUN-8804/8805): 502/401 di tengah giliran datang sebagai `success` + `is_error`.
+  // Membaca `subtype` saja menandai fase yang tak pernah jalan sebagai `done`, lalu run melaju
+  // ke commit — dan `progress: 100` membuat retry MELEWATI setiap fase.
+  it("fails the run on an API error carrying a success subtype", async () => {
+    const d = fakeDeps({ openSession: () => fakeSession(() => okResult({ is_error: true, api_error_status: 502 })) });
+    const events: any[] = [];
+    const r = await runOne(input(), d, (e) => events.push(e));
+    expect(r.status).toBe("failed");
+    expect(d.git.commitAndPush).not.toHaveBeenCalled();
+    expect(events.some((e) => e.kind === "phase" && e.state === "done")).toBe(false);
+    expect(events.some((e) => e.kind === "log" && e.line.s === "fase Brainstorm gagal · API 502")).toBe(true);
+  });
+
+  // is_error tanpa kode HTTP (mis. "server disconnected") tetap gagal; alasannya jatuh ke subtype.
+  it("fails the run on is_error with no api_error_status", async () => {
+    const d = fakeDeps({ openSession: () => fakeSession(() => okResult({ is_error: true })) });
+    const r = await runOne(input(), d, () => {});
+    expect(r.status).toBe("failed");
+  });
 });
 
 // ADR-0017: run yang terputus melanjutkan percakapannya, bukan mengulang dari brainstorm.

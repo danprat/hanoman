@@ -43,3 +43,13 @@ Penghapusan gate ini membongkar bug laten di `runOne`: `subtype` hanya diperiksa
 `error_max_budget*`, sehingga setiap subtype error lain (`error_during_execution`, `error_max_turns`)
 diperlakukan sebagai fase `done` dan run tetap commit + push. Sekarang **semua** `error_*` menggagalkan
 run, diuji lewat `it.each` di `runner/test/run.test.ts`.
+
+Perbaikan itu ternyata belum menutup lubangnya. RUN-8804 (502) dan RUN-8805 (401) memperlihatkan
+bahwa kegagalan API di tengah giliran **tidak memakai subtype `error_*` sama sekali**: claude
+v2.1.205 memancarkan `subtype: "success"` dengan `is_error: true` dan `api_error_status` berisi kode
+HTTP-nya. `subtype` karena itu bukan "satu-satunya sinyal gagal yang tersisa" seperti ditulis
+ADR-0015 — ia hanya separuhnya. Fase yang tak pernah jalan ditandai `done`, `progress` mencapai 100,
+dan karena `donePhases` dibaca dari fase `done`, sebuah retry akan **melewati seluruh pipeline**.
+`runOne` sekarang menggagalkan fase saat `subtype` berawalan `error` **atau** `is_error` bernilai
+true. Sebab kematian aslinya dulu tertutup lagi oleh `commitAndPush`, yang melempar
+"nothing to commit" di atas pohon yang sudah bersih di-commit agen; ia kini melewati commit kosong.
