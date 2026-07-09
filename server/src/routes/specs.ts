@@ -24,7 +24,7 @@ export default async function (app: FastifyInstance) {
     if (!project) return reply.code(404).send({ error: `project "${b.project}" tidak ada` });
     if (b.branchFrom && branchUnknown(project.repoDir, b.branchFrom))
       return reply.code(400).send({ error: `branch "${b.branchFrom}" tidak ada di repo project` });
-    const id = await nextSpecId();
+    const id = await nextSpecId(project.repoDir);
     const isQa = b.source === "qa";
     const priority = isQa && "severity" in b.payload
       ? (b.payload.severity === "minor" ? "sedang" : "tinggi") : b.priority;
