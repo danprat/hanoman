@@ -12,6 +12,9 @@ Entitas inti (Postgres via Prisma).
 - `stage` ("brainstorming" | "objective" | "spec-ready" | "planned" | "executing" | "done")
 - `priority` ("tinggi" | "sedang" | "rendah"), `author`, `objective`
 - payload brief (context/outcome/constraints) atau qa (severity/steps/expected/actual/env)
+- `branchFrom?` — branch sumber worktree bagi run yang lahir dari item ini. `null` = default project
+  (`main`). Divalidasi terhadap `refs/heads` repo project; lihat
+  [ADR-0018](../adr/0018-branch-adalah-properti-backlog-item.md).
 
 ## Run
 - `id` (RUN-n), `projectId`, `specId?`, `kind` ("feature" | "qa" | "scaffold")

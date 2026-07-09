@@ -15,7 +15,11 @@ export const api = {
   listSpecs: (q = "") => j<Spec[]>(paths.specs + q),
   createSpec: (b: unknown) => j<Spec>(paths.specs, { method: "POST", ...body(b) }),
   deleteSpec: (id: string) => j<void>(paths.spec(id), { method: "DELETE" }),
-  startRun: (b: { project: string; flow: "feature" | "qa"; specId: string }) =>
+  // SPEC-143 · branch sumber worktree milik backlog item. `null` = default project (main).
+  listBranches: (id: string) => j<{ branches: string[] }>(paths.branches(id)),
+  patchSpec: (id: string, b: { branchFrom: string | null }) =>
+    j<Spec>(paths.spec(id), { method: "PATCH", ...body(b) }),
+  startRun: (b: { project: string; flow: "feature" | "qa"; specId: string; branchFrom?: string }) =>
     j<{ runId: string }>(paths.runs, { method: "POST", ...body(b) }),
   listTriggers: () => j<Trigger[]>(paths.triggers),
   createTrigger: (b: unknown) => j<Trigger>(paths.triggers, { method: "POST", ...body(b) }),

@@ -7,7 +7,11 @@ export const zCreateProject = z.object({
   desc: z.string().default("") });
 export const zCreateSpec = z.object({
   project: z.string(), source: zSpecSource, title: z.string().min(1),
-  priority: zPriority, payload: z.union([zBriefPayload, zQaPayload]) });
+  priority: zPriority, payload: z.union([zBriefPayload, zQaPayload]),
+  branchFrom: z.string().min(1).optional() });
+// nullable, bukan optional: `null` berarti "kosongkan, kembali ke default project",
+// dan itu harus terbedakan dari "jangan sentuh".
+export const zPatchSpec = z.object({ branchFrom: z.string().min(1).nullable() });
 export const zCreateTrigger = z.object({
   project: z.string(), type: zTriggerType, detail: z.string(), target: zTriggerTarget });
 

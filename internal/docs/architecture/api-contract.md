@@ -7,6 +7,8 @@ REST + SSE. Semua di bawah `/api`.
 GET  /projects
 POST /projects            { name, kind, repoDir?, desc }
 GET  /projects/:id
+POST /projects/:id/scan   # re-scan docs SoT
+GET  /projects/:id/branches  -> { branches: string[] }   # refs/heads repoDir; [] bila tanpa repo. 404 project tak ada.
 DELETE /projects/:id      # 409 bila ada run queued/running/paused; cascade ke spec/run/trigger.
 #   Worktree on-disk di server/.worktrees/ tidak ikut dibersihkan.
 ```
@@ -14,7 +16,11 @@ DELETE /projects/:id      # 409 bila ada run queued/running/paused; cascade ke s
 ## Backlog / specs
 ```
 GET  /specs?project=&source=
-POST /specs               { project, source, ...payload }  -> SPEC-n
+POST /specs               { project, source, ...payload, branchFrom? }  -> SPEC-n
+#   404 bila project tak dikenal; 400 bila branchFrom tak ada di refs/heads repo project.
+PATCH /specs/:id          { branchFrom: string | null }   -> Spec
+#   null = kembali ke default project (main). Menentukan basis run BERIKUTNYA; run yang
+#   sudah jalan diubah lewat PATCH /runs/:id/worktree. Lihat ADR-0018.
 # (dihapus) stage tak lagi dinaikkan manual — POST /runs { specId } memulai run,
 # dan Spec.stage dicerminkan dari fase run nyata (lihat ADR-0008).
 DELETE /specs/:id

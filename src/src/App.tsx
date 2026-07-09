@@ -7,6 +7,7 @@ import { api, ApiError } from "./api/client";
 import { isRunActive } from "@hanoman/shared";
 import type { ProjectView, Spec, Trigger, Run } from "@hanoman/shared";
 import type { ProjectVM, RunVM } from "./screens/types";
+import { branchOptions } from "./screens/branch";
 import { OverviewScreen } from "./screens/OverviewScreen";
 import { ProjectsScreen } from "./screens/ProjectsScreen";
 import { BacklogScreen } from "./screens/BacklogScreen";
@@ -21,14 +22,28 @@ const SEVERITY = [{ value: "critical", label: "Critical" }, { value: "major", la
 const PRIORITY = [{ value: "tinggi", label: "Tinggi" }, { value: "sedang", label: "Sedang" }, { value: "rendah", label: "Rendah" }];
 
 type SpecForm = { kind: string; project: string; title: string; context: string; outcome: string; constraints: string;
-  priority: string; severity: string; steps: string; expected: string; actual: string; env: string };
+  priority: string; severity: string; steps: string; expected: string; actual: string; env: string; branchFrom: string };
 
 function NewSpecModal({ open, onClose, projects, defaultProject, onCreate }:
   { open: boolean; onClose: () => void; projects: ProjectVM[]; defaultProject: string; onCreate: (f: SpecForm) => void }) {
   const blank: SpecForm = { kind: "brief", project: defaultProject, title: "", context: "", outcome: "", constraints: "",
-    priority: "sedang", severity: "major", steps: "", expected: "", actual: "", env: "" };
+    priority: "sedang", severity: "major", steps: "", expected: "", actual: "", env: "", branchFrom: "" };
   const [f, setF] = React.useState<SpecForm>(blank);
   React.useEffect(() => { if (open) setF({ ...blank, project: defaultProject }); }, [open, defaultProject]);
+  const [branches, setBranches] = React.useState<string[]>([]);
+  React.useEffect(() => {
+    if (!open || !f.project) { setBranches([]); return; }
+    let alive = true;
+    api.listBranches(f.project)
+      .then((r) => {
+        if (!alive) return;
+        setBranches(r.branches);
+        // ganti project → branch pilihan lama bisa tak ada di repo baru; server akan menolaknya (400)
+        setF((s) => (s.branchFrom && !r.branches.includes(s.branchFrom) ? { ...s, branchFrom: "" } : s));
+      })
+      .catch(() => { if (alive) setBranches([]); });
+    return () => { alive = false; };
+  }, [open, f.project]);
   const set = (k: keyof SpecForm) => (e: React.ChangeEvent<any>) => setF((s) => ({ ...s, [k]: e.target.value }));
   const isQa = f.kind === "qa";
   const submit = () => { if (!f.title.trim()) return; onCreate(f); };
@@ -54,6 +69,10 @@ function NewSpecModal({ open, onClose, projects, defaultProject, onCreate }:
       <Field label="Project">
         <Select value={f.project} onChange={set("project")} style={{ width: "100%" }}
           options={projects.map((p) => ({ value: p.id, label: p.name }))} />
+      </Field>
+      <Field label="Branch" hint="branch yang di-copy ke git worktree saat run">
+        <Select value={f.branchFrom} onChange={set("branchFrom")} disabled={!branches.length}
+          style={{ width: "100%" }} options={branchOptions(branches)} />
       </Field>
       <Field label="Judul">
         <Input value={f.title} onChange={set("title")}
@@ -365,6 +384,7 @@ export default function App() {
         project: spec.projectId,
         flow: spec.source === "qa" ? "qa" : "feature",
         specId: spec.id,
+        branchFrom: spec.branchFrom ?? "main",   // SPEC-143 · pilihan backlog, bukan default tersembunyi
       });
       setRuns(await api.listRuns());
       showToast(spec.id + " · run " + runId + " dimulai", "info", "play");
@@ -373,6 +393,15 @@ export default function App() {
       const budget = e instanceof ApiError && e.status === 409;
       showToast(spec.id + " · gagal mulai run" + (budget ? " · budget harian tercapai" : ""), "warn", "x-circle");
     }
+  }
+
+  // SPEC-143. Hanya menentukan basis run BERIKUTNYA; run yang sudah jalan diubah dari layar Runs.
+  async function editBranch(spec: Spec, branchFrom: string | null) {
+    try {
+      const updated = await api.patchSpec(spec.id, { branchFrom });
+      setBacklog((b) => b.map((s) => (s.id === updated.id ? updated : s)));
+      showToast(spec.id + " · branch " + (branchFrom ?? "main (default project)"), "ok", "git-branch");
+    } catch { showToast("Gagal mengubah branch " + spec.id, "err", "x-circle"); }
   }
 
   async function deleteSpec(spec: Spec) {
@@ -387,7 +416,8 @@ export default function App() {
       ? { severity: f.severity, steps: f.steps, expected: f.expected, actual: f.actual, env: f.env }
       : { context: f.context, outcome: f.outcome, constraints: f.constraints, priority: f.priority };
     try {
-      const created = await api.createSpec({ project: f.project, source: f.kind, title: f.title.trim(), priority: f.priority, payload });
+      const created = await api.createSpec({ project: f.project, source: f.kind, title: f.title.trim(),
+        priority: f.priority, payload, branchFrom: f.branchFrom || undefined });
       setBacklog((b) => [created, ...b]);
       setModal(null); setSection("backlog");
       showToast(created.id + (isQa ? " difilekan · masuk audit" : " dibuat · masuk brainstorm"), "ok", isQa ? "bug" : "lightbulb");
@@ -459,7 +489,7 @@ export default function App() {
         actions={<Button size="sm" leftIcon="plus" onClick={() => setModal("brief")}>Tambah</Button>}>
         {gate(<BacklogScreen backlog={backlog} projects={projectsView} pageSize={4}
           onStart={startRun} activeRunSpecs={activeRunSpecs} onNew={() => setModal("brief")}
-          onDelete={deleteSpec} onOpenRun={() => setSection("runs")} />)}
+          onDelete={deleteSpec} onOpenRun={() => setSection("runs")} onEditBranch={editBranch} />)}
       </Shell>
     );
   } else if (section === "runs") {

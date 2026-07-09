@@ -23,6 +23,7 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 
 ## adr
 - [0018 — Coverage diturunkan saat dibaca, bukan disimpan](adr/0018-coverage-nilai-turunan.md)
+- [0018 — Branch adalah properti backlog item](adr/0018-branch-adalah-properti-backlog-item.md)
 - [0017 — Run terputus melanjutkan sesinya](adr/0017-run-terputus-melanjutkan-sesinya.md)
 - [0016 — Sesi terminal hidup di tmux](adr/0016-sesi-terminal-hidup-di-tmux.md)
 - [0015 — Satu backlog, satu sesi Claude](adr/0015-one-session-per-backlog.md)
@@ -48,6 +49,7 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 - [spec-141 — objective (overview coverage realtime)](operations/spec-141-overview-coverage-realtime-objective.md)
 - [spec-142 — audit (status run tidak auto-update dari queued)](operations/spec-142-runs-status-auto-update-audit.md)
 - [spec-142 — spec (status run auto-update dari queued)](operations/spec-142-runs-status-auto-update-spec.md)
+- [spec-143 — objective (select branch di backlog)](operations/spec-143-select-branch-in-backlog-objective.md)
 
 ## security
 - [security-standard](security/security-standard.md)

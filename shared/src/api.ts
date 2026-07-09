@@ -2,6 +2,8 @@ export const API = "/api";
 export const paths = {
   projects: `${API}/projects`,
   project: (id: string) => `${API}/projects/${id}`,
+  scan: (id: string) => `${API}/projects/${id}/scan`,
+  branches: (id: string) => `${API}/projects/${id}/branches`,
   specs: `${API}/specs`,
   spec: (id: string) => `${API}/specs/${id}`,
   triggers: `${API}/triggers`,
