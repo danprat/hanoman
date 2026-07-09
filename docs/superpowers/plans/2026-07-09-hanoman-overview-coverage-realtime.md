@@ -672,17 +672,17 @@ Docs SoT menyusul: data-model, api-contract, frontend-implementation."
 
 **Files:** tidak ada perubahan kode. Task ini gerbang, bukan deliverable.
 
-- [ ] **Step 1: Seluruh test workspace**
+- [x] **Step 1: Seluruh test workspace**
 
 Run: `pnpm test`
 Expected: PASS. `queue-durability > honors concurrency 1` bisa gagal bila dijalankan terisolasi, tapi hijau di suite penuh (memory proyek) — bukan regresi dari plan ini.
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
 Run: `pnpm -r typecheck`
 Expected: keluar 0, tanpa error.
 
-- [ ] **Step 3: Smoke API nyata (wajib per CLAUDE.md)**
+- [x] **Step 3: Smoke API nyata (wajib per CLAUDE.md)**
 
 Server mendengarkan di `PORT ?? 8787`, semua route berprefiks `/api`. **Jangan sentuh `/runs`** — worker dev yang hidup akan menjalankan run nyata.
 
@@ -716,14 +716,14 @@ scan: 404
 ```
 `92` adalah angka repo ini dengan satu kategori tak ter-link tambahan (16 kategori berskor); yang penting ia **turun dari 100 tanpa scan** — itulah bug yang diperbaiki. `docStatus` tetap `ok` karena 92 ≥ 90.
 
-- [ ] **Step 4: Pastikan tak ada sisa `scan` di kode**
+- [x] **Step 4: Pastikan tak ada sisa `scan` di kode**
 
 Run: `grep -rn "scanProject\|paths\.scan\|projects/:id/scan" src shared server cli --include='*.ts' --include='*.tsx'`
 Expected: tanpa hasil (exit 1).
 
-- [ ] **Step 5: Centang checklist plan ini**
+- [x] **Step 5: Centang checklist plan ini**
 
-Ubah setiap `- [ ]` yang sudah selesai menjadi `- [x]` di file ini, lalu commit:
+Ubah setiap `- [x]` yang sudah selesai menjadi `- [x]` di file ini, lalu commit:
 
 ```bash
 git add docs/superpowers/plans/2026-07-09-hanoman-overview-coverage-realtime.md
