@@ -563,7 +563,7 @@ git commit -m "feat(spec-143): validasi branchFrom di POST /specs + PATCH /specs
 menyebarnya (`...base`) ke setiap spec dalam fan-out. Memperbaiki hanya `POST /runs` membuat tombol
 "Mulai" bekerja sementara run dari trigger diam-diam tetap di `main`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 ```ts
 it("trigger commit: ctx.branch menang atas spec.branchFrom", async () => {
@@ -591,12 +591,12 @@ it("spec tanpa branch → main", async () => {
 
 Tambahkan `import { prisma } from "../src/db";` di berkas test.
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./server test fire-trigger`
 Expected: FAIL — dua test pertama melihat `branchFrom: "main"`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Di dalam blok `if (flow === "feature")`, ganti isi loop:
 
@@ -611,12 +611,12 @@ Di dalam blok `if (flow === "feature")`, ganti isi loop:
     }
 ```
 
-- [ ] **Step 4: Jalankan suite server penuh**
+- [x] **Step 4: Jalankan suite server penuh**
 
 Run: `pnpm --filter ./server test`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/fire-trigger.ts server/test/fire-trigger.test.ts

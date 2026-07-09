@@ -32,7 +32,10 @@ export async function fireTrigger(
     if (!specs.length) return { enqueued, skipped: "no ready spec" };
     for (const s of specs) {
       const runId = await nextRunId();
-      const r = await enqueueRun({ runId, ...base, branchTo: `hanoman/${runId.toLowerCase()}`, flow, specId: s.id, steps });
+      // SPEC-143. Trigger `commit` menguji branch yang baru menerima commit; di luar itu pilihan
+      // backlog yang menang. `...base` membawa branchFrom lama — override HARUS sesudah spread.
+      const branchFrom = trigger.type === "commit" && ctx.branch ? ctx.branch : (s.branchFrom ?? "main");
+      const r = await enqueueRun({ runId, ...base, branchFrom, branchTo: `hanoman/${runId.toLowerCase()}`, flow, specId: s.id, steps });
       if (r.enqueued) enqueued.push(runId);
     }
   } else {
