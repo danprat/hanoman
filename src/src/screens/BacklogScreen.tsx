@@ -2,6 +2,8 @@
    Ported; spec.project → spec.projectId; window → ds imports. */
 import React from "react";
 import { Card, Badge, Tabs, Select, Button, IconButton, usePaged, Pager, Modal, StateBlock } from "../ds";
+import { api } from "../api/client";
+import { branchOptions } from "./branch";
 import type { Spec } from "./types";
 import type { ProjectVM } from "./types";
 
@@ -64,7 +66,19 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SpecDetail({ spec, onClose }: { spec: Spec | null; onClose: () => void }) {
+function SpecDetail({ spec, onClose, onEditBranch }:
+  { spec: Spec | null; onClose: () => void; onEditBranch?: (s: Spec, b: string | null) => void }) {
+  // Hook HARUS mendahului early-return `if (!spec)` — rules-of-hooks.
+  const [branches, setBranches] = React.useState<string[]>([]);
+  const projectId = spec?.projectId;
+  React.useEffect(() => {
+    if (!projectId) { setBranches([]); return; }
+    let alive = true;
+    api.listBranches(projectId)
+      .then((r) => { if (alive) setBranches(r.branches); })
+      .catch(() => { if (alive) setBranches([]); });
+    return () => { alive = false; };
+  }, [projectId]);
   if (!spec) return null;
   const qa = spec.source === "qa";
   const p = (spec.payload || {}) as Record<string, string>;
@@ -81,6 +95,13 @@ function SpecDetail({ spec, onClose }: { spec: Spec | null; onClose: () => void 
       </div>
       <div style={{ marginBottom: 18 }}><StageBar stage={spec.stage} /></div>
       <DetailRow label="Objective" value={spec.objective} />
+      {/* SPEC-143 · dapat diubah selama item masih di backlog; hanya menentukan basis run berikutnya. */}
+      <div style={{ marginBottom: 14 }}>
+        <div className="hn-eyebrow" style={{ marginBottom: 4 }}>Branch worktree</div>
+        <Select size="sm" value={spec.branchFrom ?? ""} disabled={!branches.length}
+          onChange={(e) => onEditBranch && onEditBranch(spec, e.target.value || null)}
+          options={branchOptions(branches)} />
+      </div>
       {fields.map(([k, label]) => <DetailRow key={k} label={label} value={p[k] ?? ""} />)}
     </Modal>
   );
@@ -100,6 +121,7 @@ function SpecCard({ spec, onStart, onDelete, onOpenRun, onOpenDetail, running }:
             <Badge tone={qa ? "err" : "brass"} size="sm" icon={qa ? "bug" : "lightbulb"}>
               {qa ? "QA finding" : "feature brief"}
             </Badge>
+            {spec.branchFrom && <Badge tone="neutral" size="sm" icon="git-branch">{spec.branchFrom}</Badge>}
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-muted)" }}>· {spec.projectId}</span>
           </div>
           <button onClick={() => onOpenDetail && onOpenDetail(spec)} style={{
@@ -136,10 +158,11 @@ function SpecCard({ spec, onStart, onDelete, onOpenRun, onOpenDetail, running }:
   );
 }
 
-export function BacklogScreen({ backlog, projects, pageSize = 4, onStart, activeRunSpecs, onDelete, onOpenRun, onNew }:
+export function BacklogScreen({ backlog, projects, pageSize = 4, onStart, activeRunSpecs, onDelete, onOpenRun, onNew, onEditBranch }:
   { backlog: Spec[]; projects: ProjectVM[]; pageSize?: number;
     onStart?: (s: Spec) => void; activeRunSpecs?: Set<string>;
-    onDelete?: (s: Spec) => void; onOpenRun?: (s: Spec) => void; onNew?: () => void }) {
+    onDelete?: (s: Spec) => void; onOpenRun?: (s: Spec) => void; onNew?: () => void;
+    onEditBranch?: (s: Spec, b: string | null) => void }) {
   const [tab, setTab] = React.useState("all");
   const [proj, setProj] = React.useState("all");
   // keep the id, not the object: backlog re-polls and the stage bar must stay live
@@ -180,7 +203,8 @@ export function BacklogScreen({ backlog, projects, pageSize = 4, onStart, active
           </div>
         </>
       )}
-      <SpecDetail spec={backlog.find((s) => s.id === detailId) || null} onClose={() => setDetailId(null)} />
+      <SpecDetail spec={backlog.find((s) => s.id === detailId) || null} onClose={() => setDetailId(null)}
+        onEditBranch={onEditBranch} />
     </div>
   );
 }

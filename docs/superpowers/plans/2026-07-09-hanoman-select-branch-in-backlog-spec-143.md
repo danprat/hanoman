@@ -714,7 +714,7 @@ git commit -m "fix(spec-143): --from CLI diteruskan ke branchFrom, bukan dibuang
 - Consumes: `paths.branches` (Task 2); `PATCH /specs/:id` (Task 4); `Spec.branchFrom` (Task 1).
 - Produces: `api.listBranches(id): Promise<{ branches: string[] }>`, `api.patchSpec(id, { branchFrom })`.
 
-- [ ] **Step 1: Perluas api client**
+- [x] **Step 1: Perluas api client**
 
 `src/src/api/client.ts`:
 
@@ -726,7 +726,7 @@ git commit -m "fix(spec-143): --from CLI diteruskan ke branchFrom, bukan dibuang
     j<{ runId: string }>(paths.runs, { method: "POST", ...body(b) }),
 ```
 
-- [ ] **Step 2: `NewSpecModal` — satu Select untuk brief dan QA**
+- [x] **Step 2: `NewSpecModal` — satu Select untuk brief dan QA**
 
 `src/src/App.tsx`. Tambahkan `branchFrom: string` ke `type SpecForm` dan `branchFrom: ""` ke `blank`.
 Di dalam `NewSpecModal`, setelah `const [f, setF] = React.useState<SpecForm>(blank);`:
@@ -757,7 +757,7 @@ muncul untuk brief maupun QA:
 
 Dan di `createSpec`, tambahkan ke argumen `api.createSpec`: `branchFrom: f.branchFrom || undefined`.
 
-- [ ] **Step 3: `startRun` meneruskan branch backlog**
+- [x] **Step 3: `startRun` meneruskan branch backlog**
 
 `src/src/App.tsx`:
 
@@ -770,7 +770,7 @@ Dan di `createSpec`, tambahkan ke argumen `api.createSpec`: `branchFrom: f.branc
       });
 ```
 
-- [ ] **Step 4: `editBranch` di App + prop ke BacklogScreen**
+- [x] **Step 4: `editBranch` di App + prop ke BacklogScreen**
 
 ```tsx
   async function editBranch(spec: Spec, branchFrom: string | null) {
@@ -784,7 +784,12 @@ Dan di `createSpec`, tambahkan ke argumen `api.createSpec`: `branchFrom: f.branc
 
 Oper `onEditBranch={editBranch}` ke `<BacklogScreen … />`.
 
-- [ ] **Step 5: `BacklogScreen` — Badge di kartu, Select di detail**
+> **Deviasi Execute.** `branchOptions` tinggal di `src/src/screens/branch.ts`, bukan `App.tsx`:
+> `App` meng-import `BacklogScreen`, jadi mengekspornya dari salah satu keduanya membuat import
+> melingkar. Ditambahkan juga reset `f.branchFrom` saat project di form berganti — tanpa itu pilihan
+> branch project lama ikut terkirim dan ditolak server (400).
+
+- [x] **Step 5: `BacklogScreen` — Badge di kartu, Select di detail**
 
 Import `api`: `import { api } from "../api/client";`
 
@@ -832,7 +837,7 @@ Di `SpecCard`, dalam baris badge pertama (sesudah badge `qa ? "QA finding" : "fe
 Teruskan prop: `BacklogScreen` menerima `onEditBranch?: (s: Spec, b: string | null) => void` dan
 mengopernya ke `<SpecDetail … onEditBranch={onEditBranch} />`.
 
-- [ ] **Step 6: Typecheck + build web**
+- [x] **Step 6: Typecheck + build web**
 
 Run: `pnpm -r typecheck`
 Expected: PASS.
@@ -840,7 +845,7 @@ Expected: PASS.
 Run: `pnpm --filter ./src build`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/src/api/client.ts src/src/App.tsx src/src/screens/BacklogScreen.tsx
