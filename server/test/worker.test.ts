@@ -2,12 +2,23 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { resetDb, makeProject, makeRun, makeSetting, makeSpec } from "./factory";
 import { prisma } from "../src/db";
 import { runProcessor } from "../src/worker";
-import type { RunDeps } from "@hanoman/runner";
+import type { ClaudeSession, RunDeps, SdkMessage } from "@hanoman/runner";
+
+const result = (): SdkMessage => ({ type: "result", subtype: "success", session_id: "s",
+  total_cost_usd: 0.2, usage: { input_tokens: 9, output_tokens: 3 } });
+
+// Satu `result` per `send`, seperti binary aslinya. `sent` merekam tiap giliran.
+function fakeSession(sent: string[] = []): ClaudeSession {
+  const queue: SdkMessage[] = [];
+  return {
+    send(t) { sent.push(t); queue.push(result()); },
+    async next() { return queue.shift() ?? null; },
+    close() { /* empty */ }, kill() { /* empty */ },
+  };
+}
 
 const fakeDeps: RunDeps = {
-  queryFn: () => (async function* () {
-    yield { type: "result", subtype: "success", session_id: "s", total_cost_usd: 0.2, usage: { input_tokens: 9, output_tokens: 3 } };
-  })(),
+  openSession: () => fakeSession(),
   git: { addWorktree() {}, removeWorktree() {}, commitAndPush() {}, switchBase() {} },
   verify: () => ({ blocked: false }),
 };
@@ -26,17 +37,16 @@ describe("worker processor", () => {
   });
 
   // A run queued for SPEC-n must carry that backlog item's content into every
-  // phase prompt — including Execute, which streams rather than takes a string.
+  // phase prompt. Setiap fase kini sebuah giliran di sesi yang sama; giliran
+  // `/model`/`/effort` bukan prompt fase, jadi disaring.
   it("feeds the backlog item into every phase prompt", async () => {
     await makeSpec({ id: "SPEC-9", title: "Ekspor CSV", objective: "user bisa unduh laporan", payload: { outcome: "unduh laporan" } });
     await makeRun({ id: "RUN-2", specId: "SPEC-9", status: "running" });
-    const prompts: string[] = [];
-    const deps: RunDeps = { ...fakeDeps, queryFn: (a) => (async function* () {
-      prompts.push(typeof a.prompt === "string" ? a.prompt : (await a.prompt[Symbol.asyncIterator]().next()).value.message.content);
-      yield { type: "result", subtype: "success", session_id: "s", total_cost_usd: 0, usage: { input_tokens: 1, output_tokens: 1 } };
-    })() };
+    const sent: string[] = [];
+    const deps: RunDeps = { ...fakeDeps, openSession: () => fakeSession(sent) };
     const steps = await (await import("../src/services/settings")).stepModels();
     await runProcessor({ data: { runId: "RUN-2", specId: "SPEC-9", repoDir: "/tmp/x", branchFrom: "main", branchTo: "feat/x", flow: "feature", steps } } as any, deps);
+    const prompts = sent.filter((s) => !s.startsWith("/"));
     expect(prompts).toHaveLength(5); // Brainstorm → Execute
     for (const p of prompts) {
       expect(p).toContain("SPEC-9");

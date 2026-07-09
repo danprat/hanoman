@@ -1,40 +1,72 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { runPhase } from "../src/phase";
-import type { SdkMessage, QueryFn } from "../src/types";
-const fake = (msgs: SdkMessage[]): QueryFn => () => (async function* () { for (const m of msgs) yield m; })();
-const result = (over: Partial<Extract<SdkMessage, { type: "result" }>> = {}) => ({
-  type: "result" as const, subtype: "success", session_id: "s1", total_cost_usd: 0.42,
+import type { ClaudeSession, SdkMessage } from "../src/types";
+
+const result = (over: Partial<Extract<SdkMessage, { type: "result" }>> = {}): SdkMessage => ({
+  type: "result", subtype: "success", session_id: "s1", total_cost_usd: 0.42,
   usage: { input_tokens: 100, output_tokens: 20 }, ...over,
 });
+// Giliran slash-command memancarkan `result` sintetisnya sendiri (claude v2.1.205).
+const synthetic = (): SdkMessage =>
+  result({ total_cost_usd: 0.001, usage: { input_tokens: 1, output_tokens: 1 } });
+
+function fakeSession(scripts: SdkMessage[][]): ClaudeSession & { sent: string[] } {
+  const sent: string[] = [];
+  let queue: SdkMessage[] = [];
+  return {
+    sent,
+    send(t) { sent.push(t); queue = queue.concat(scripts.shift() ?? [result()]); },
+    async next() { return queue.shift() ?? null; },
+    close() { /* empty */ }, kill() { /* empty */ },
+  };
+}
+
 describe("runPhase", () => {
-  it("emits log events for assistant text and returns cost from result", async () => {
-    const events: any[] = [];
-    const q = fake([
-      { type: "assistant", message: { content: [{ type: "text", text: "hello" }] } },
+  it("sends no slash command when the step matches the current session state", async () => {
+    const s = fakeSession([[result()]]);
+    await runPhase({ session: s, step: { model: "m1", effort: "low" }, current: { model: "m1", effort: "low" },
+      prompt: "do it", onEvent: () => {} });
+    expect(s.sent).toEqual(["do it"]);
+  });
+
+  it("switches model and effort, discarding one synthetic result each", async () => {
+    const s = fakeSession([[synthetic()], [synthetic()], [result({ total_cost_usd: 9 })]]);
+    const cur = { model: "m1", effort: "low" };
+    const r = await runPhase({ session: s, step: { model: "m2", effort: "xhigh" }, current: cur,
+      prompt: "do it", onEvent: () => {} });
+    expect(s.sent).toEqual(["/model m2", "/effort xhigh", "do it"]);
+    // Hasil fase adalah result prompt, BUKAN result sintetis slash-command.
+    expect(r.costUsd).toBe(9);
+    // current di-mutate agar fase berikutnya tak mengirim ulang slash command yang sama.
+    expect(cur).toEqual({ model: "m2", effort: "xhigh" });
+  });
+
+  it("switches only the model when effort is unchanged", async () => {
+    const s = fakeSession([[synthetic()], [result()]]);
+    await runPhase({ session: s, step: { model: "m2", effort: "low" }, current: { model: "m1", effort: "low" },
+      prompt: "p", onEvent: () => {} });
+    expect(s.sent).toEqual(["/model m2", "p"]);
+  });
+
+  it("emits log events for assistant text and tool_use of the phase turn only", async () => {
+    const s = fakeSession([[synthetic()], [
+      { type: "assistant", message: { content: [{ type: "text", text: "hello" }, { type: "tool_use", name: "Bash" }] } },
       result(),
-    ]);
-    const r = await runPhase({ queryFn: q, cwd: "/x", model: "claude-opus-4-8",
-      prompt: "do it", abortController: new AbortController(), onEvent: (e) => events.push(e) });
-    expect(events.some((e) => e.kind === "log" && e.line.s === "hello")).toBe(true);
-    expect(r).toMatchObject({ sessionId: "s1", costUsd: 0.42, tokensIn: 100, tokensOut: 20, subtype: "success" });
+    ]]);
+    const events: { kind: string; line?: { s: string } }[] = [];
+    await runPhase({ session: s, step: { model: "m2" }, current: { model: "m1" },
+      prompt: "p", onEvent: (e) => events.push(e as never) });
+    const logs = events.filter((e) => e.kind === "log").map((e) => e.line!.s);
+    expect(logs).toEqual(["hello", "tool Bash"]);
   });
-  // Steering emits one result per turn: usage is per-turn, total_cost_usd is cumulative.
-  it("sums tokens across turns but takes the last cumulative cost", async () => {
-    const q = fake([
-      result({ total_cost_usd: 0.01, usage: { input_tokens: 10, output_tokens: 222 } }),
-      result({ total_cost_usd: 0.03, usage: { input_tokens: 10, output_tokens: 64 } }),
+
+  it("emits one cost event carrying the phase turn's usage", async () => {
+    const s = fakeSession([[result({ total_cost_usd: 1.5, usage: { input_tokens: 7, output_tokens: 3 } })]]);
+    const events: { kind: string }[] = [];
+    await runPhase({ session: s, step: { model: "m1" }, current: { model: "m1" },
+      prompt: "p", onEvent: (e) => events.push(e) });
+    expect(events.filter((e) => e.kind === "cost")).toEqual([
+      { kind: "cost", tokensIn: 7, tokensOut: 3, costUsd: 1.5 },
     ]);
-    const r = await runPhase({ queryFn: q, cwd: "/x", model: "m",
-      prompt: "x", abortController: new AbortController(), onEvent: () => {} });
-    expect(r).toMatchObject({ costUsd: 0.03, tokensIn: 20, tokensOut: 286 });
-  });
-  it("passes cwd + model + effort through to the query options", async () => {
-    const spy = vi.fn(fake([result({ total_cost_usd: 0, usage: { input_tokens: 0, output_tokens: 0 } })]));
-    await runPhase({ queryFn: spy as any, cwd: "/work", model: "claude-sonnet-5", effort: "xhigh",
-      prompt: "x", abortController: new AbortController(), onEvent: () => {} });
-    expect(spy.mock.calls[0]![0].options).toMatchObject({
-      cwd: "/work", model: "claude-sonnet-5", effort: "xhigh",
-      settingSources: ["user", "project", "local"],
-    });
   });
 });

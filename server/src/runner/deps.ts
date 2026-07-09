@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { makeClaudeCliQuery, realGit, type RunDeps } from "@hanoman/runner";
+import { makeClaudeCliSession, realGit, type RunDeps } from "@hanoman/runner";
 
 // The docs-verify CLI lives in a sibling workspace package, so its path must NOT be
 // derived from process.cwd(): the dev worker runs from `server/` (`pnpm --filter ./server
@@ -54,6 +54,6 @@ export function verifyViaCli(cwd: string): VerifyResult {
 // Quoted: resolveCliEntry can sit under a path with spaces, and hook commands are shell-run.
 export const guardCommand = () => `node "${resolveCliEntry()}" hook pretooluse`;
 export const prodDeps: RunDeps = {
-  queryFn: makeClaudeCliQuery({ guardCommand: guardCommand() }),
+  openSession: makeClaudeCliSession({ guardCommand: guardCommand() }),
   git: realGit, verify: verifyViaCli,
 };

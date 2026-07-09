@@ -62,7 +62,6 @@ export async function runProcessor(job: Job<RunInput>, deps: RunDeps = prodDeps)
     await runOne(input, deps, onEvent, { abortController, steer });
   } finally {
     await pending;
-    steer.close();
     await sub.quit();
     await pub.quit();
   }
