@@ -330,6 +330,35 @@ export default function App() {
     } catch { showToast("Gagal membuat project", "err", "x-circle"); }
   }
 
+  // Cascade di DB ikut menghapus spec/run/trigger project ini — cermin state lokalnya.
+  async function deleteProject(p: ProjectVM) {
+    if (!window.confirm(`Hapus project "${p.name}"? Semua spec, run, dan trigger-nya ikut terhapus.`)) return;
+    try {
+      await api.deleteProject(p.id);
+      setProjects((list) => list.filter((x) => x.id !== p.id));
+      setBacklog((b) => b.filter((s) => s.projectId !== p.id));
+      setRuns((r) => r.filter((x) => x.projectId !== p.id));
+      setTriggers((t) => t.filter((x) => x.projectId !== p.id));
+      setProjectId((cur) => (cur === p.id ? "" : cur));
+      if (section === "docs") setSection("projects");
+      showToast("Project " + p.id + " dihapus", "warn", "trash-2");
+    } catch (e) {
+      const busy = e instanceof ApiError && e.status === 409;
+      showToast("Gagal hapus " + p.id + (busy ? " · masih ada run aktif" : ""), "err", "x-circle");
+    }
+  }
+
+  async function deleteRun(run: RunVM) {
+    try {
+      await api.deleteRun(run.id);
+      setRuns((list) => list.filter((r) => r.id !== run.id));
+      showToast("Run " + run.id + " dihapus", "warn", "trash-2");
+    } catch (e) {
+      const busy = e instanceof ApiError && e.status === 409;
+      showToast("Gagal hapus " + run.id + (busy ? " · run masih aktif" : ""), "err", "x-circle");
+    }
+  }
+
   async function startRun(spec: Spec) {
     try {
       const { runId } = await api.startRun({
@@ -401,7 +430,7 @@ export default function App() {
         </>}>
         {shownProjects.length === 0
           ? <div style={{ padding: "60px 0", textAlign: "center", color: "var(--text-muted)", fontFamily: "var(--font-sans)" }}>Tidak ada project cocok dengan “{search}”.</div>
-          : <ProjectsScreen projects={shownProjects} runs={runsView} variant="list" onOpen={openProject} pageSize={5} />}
+          : <ProjectsScreen projects={shownProjects} runs={runsView} variant="list" onOpen={openProject} onDelete={deleteProject} pageSize={5} />}
       </Shell>
     );
   } else if (section === "backlog") {
@@ -417,15 +446,18 @@ export default function App() {
     screen = (
       <Shell active="runs" title="Runs" breadcrumb="Claude Code · live activity" onNavigate={setSection}
         actions={<StatusPill status="running" size="sm">{runsView.filter((r) => r.status === "running").length} aktif</StatusPill>}>
-        <RunsScreen runs={runsView} pageSize={4} />
+        <RunsScreen runs={runsView} pageSize={4} onDelete={deleteRun} />
       </Shell>
     );
   } else if (section === "docs") {
     screen = (
       <Shell active="docs" title="Source of Truth" breadcrumb={proj ? proj.name : "workspace"}
         onNavigate={setSection} wide
-        actions={proj && <Select size="sm" value={proj.id} onChange={(e) => setProjectId(e.target.value)}
-          options={projectsView.map((p) => ({ value: p.id, label: p.name }))} />}>
+        actions={proj && <>
+          <Select size="sm" value={proj.id} onChange={(e) => setProjectId(e.target.value)}
+            options={projectsView.map((p) => ({ value: p.id, label: p.name }))} />
+          <Button size="sm" variant="ghost" leftIcon="trash-2" onClick={() => deleteProject(proj)}>Hapus project</Button>
+        </>}>
         {proj
           ? <DocsWorkspace projectId={proj.id} projectName={proj.name} docStatus={proj.docStatus} />
           : <div style={{ padding: "48px 0", textAlign: "center", color: "var(--text-muted)" }}>Memuat…</div>}

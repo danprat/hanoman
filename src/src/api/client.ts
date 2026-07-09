@@ -10,6 +10,7 @@ export const api = {
   listProjects: () => j<ProjectView[]>(paths.projects),
   getProject: (id: string) => j<ProjectView>(paths.project(id)),
   createProject: (b: unknown) => j<ProjectView>(paths.projects, { method: "POST", ...body(b) }),
+  deleteProject: (id: string) => j<void>(paths.project(id), { method: "DELETE" }),
   scanProject: (id: string) => j<ProjectView>(paths.scan(id), { method: "POST" }),
   listSpecs: (q = "") => j<Spec[]>(paths.specs + q),
   createSpec: (b: unknown) => j<Spec>(paths.specs, { method: "POST", ...body(b) }),
@@ -23,6 +24,7 @@ export const api = {
   putSettings: (b: unknown) => j<Setting>(paths.settings, { method: "PUT", ...body(b) }),
   listRuns: () => j<Run[]>(paths.runs),
   getRun: (id: string) => j<Run>(paths.run(id)),
+  deleteRun: (id: string) => j<void>(paths.run(id), { method: "DELETE" }),
   runCommand: (id: string, text: string) =>
     j<{ lines: { t: string; s: string }[] }>(paths.runCommand(id), { method: "POST", ...body({ text }) }),
   runControl: (id: string, action: "pause" | "resume" | "stop" | "retry") =>

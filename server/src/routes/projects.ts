@@ -27,6 +27,15 @@ export default async function (app: FastifyInstance) {
       stack: "", docStatus: "broken", coverage: 0 } });
     return reply.code(201).send(await toProjectView(id));
   });
+  app.delete("/projects/:id", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (!(await prisma.project.findUnique({ where: { id } }))) return reply.code(404).send({ error: "not found" });
+    const active = await prisma.run.count({ where: { projectId: id, status: { in: ["queued", "running", "paused"] } } });
+    if (active) return reply.code(409).send({ error: `project "${id}" masih punya ${active} run aktif` });
+    // ponytail: worktree di server/.worktrees/ tidak ikut dibersihkan; tambahkan kalau disknya penuh.
+    await prisma.project.delete({ where: { id } }); // specs/runs/triggers ikut lewat onDelete: Cascade
+    return reply.code(204).send();
+  });
   app.post("/projects/:id/scan", async (req, reply) => {
     const { id } = req.params as { id: string };
     if (!(await prisma.project.findUnique({ where: { id } }))) return reply.code(404).send({ error: "not found" });

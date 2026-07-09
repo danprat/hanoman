@@ -2,7 +2,7 @@
    subscribes to the SSE log stream for running/paused runs, exposes a terminal
    input + steer/pause/resume/stop, and shows a live duration (finishedAt, ADR-0007). */
 import React from "react";
-import { Card, StatusPill, Icon, usePaged, Pager, Button } from "../ds";
+import { Card, StatusPill, Icon, usePaged, Pager, Button, IconButton } from "../ds";
 import type { RunVM } from "./types";
 import { subscribeRun, api } from "../api/client";
 import { reduceRunEvent, runDurationMs, fmtDuration } from "./run-reduce";
@@ -121,8 +121,10 @@ function FileDiff({ files }: { files: FileRow[] }) {
   );
 }
 
-function RunListRow({ run, active, onClick }: { run: RunVM; active: boolean; onClick: () => void }) {
+function RunListRow({ run, active, onClick, onDelete }:
+  { run: RunVM; active: boolean; onClick: () => void; onDelete?: (r: RunVM) => void }) {
   const [hover, setHover] = React.useState(false);
+  const busy = run.status === "queued" || run.status === "running" || run.status === "paused";
   return (
     <div onClick={onClick} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} style={{
       display: "block", width: "100%", textAlign: "left", cursor: "pointer",
@@ -133,6 +135,11 @@ function RunListRow({ run, active, onClick }: { run: RunVM; active: boolean; onC
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)" }}>{run.id}</span>
         <StatusPill status={run.status} size="sm" />
+        {onDelete && !busy && hover && (
+          <span onClick={(e) => { e.stopPropagation(); onDelete(run); }}>
+            <IconButton size="sm" variant="ghost" icon="trash-2" label={"Hapus run " + run.id} />
+          </span>
+        )}
       </div>
       <div style={{ fontSize: 13.5, color: "var(--text-strong)", fontWeight: 500, marginTop: 5 }}>{run.title}</div>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-muted)" }}>
@@ -266,8 +273,8 @@ function RunDetail({ run }: { run: RunVM }) {
   );
 }
 
-export function RunsScreen({ runs, selectedId, pageSize = 4 }:
-  { runs: RunVM[]; selectedId?: string; pageSize?: number }) {
+export function RunsScreen({ runs, selectedId, pageSize = 4, onDelete }:
+  { runs: RunVM[]; selectedId?: string; pageSize?: number; onDelete?: (r: RunVM) => void }) {
   const [selId, setSelId] = React.useState(selectedId || (runs[0] && runs[0].id));
   const pg = usePaged(runs, pageSize, "runs");
   const picked = runs.find((r) => r.id === selId) || runs[0];
@@ -288,7 +295,7 @@ export function RunsScreen({ runs, selectedId, pageSize = 4 }:
         <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--border-hair)" }}>
           <span className="hn-eyebrow">Activity · {runs.length} runs</span>
         </div>
-        {pg.pageItems.map((r) => <RunListRow key={r.id} run={r} active={r.id === active.id} onClick={() => setSelId(r.id)} />)}
+        {pg.pageItems.map((r) => <RunListRow key={r.id} run={r} active={r.id === active.id} onClick={() => setSelId(r.id)} onDelete={onDelete} />)}
         <Pager {...pg} onPage={pg.setPage} unit="run" />
       </Card>
       <RunDetail run={active} />

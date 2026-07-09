@@ -21,37 +21,72 @@ function hnDocHtml(text: string, name: string) {
   return hnRender(md);
 }
 
-function DocTreeCat({ node, selected, onSelect }: { node: DocCat; selected: string; onSelect: (k: string) => void }) {
-  const anyOpen = node.files.some((f) => (node.cat + "/" + f) === selected);
-  const [open, setOpen] = React.useState(!node.linked || anyOpen);
+type TreeNode = { path: string; label: string; cat?: DocCat; kids: TreeNode[] };
+
+// A folder that owns no files and has a single child is just a longer path
+// (`internal` + `docs`), so fold it into one row.
+function collapse(n: TreeNode): TreeNode {
+  let m: TreeNode = { ...n, kids: n.kids.map(collapse) };
+  while (!m.cat && m.kids.length === 1) {
+    const only = m.kids[0]!;
+    m = { ...only, label: m.label + "/" + only.label };
+  }
+  return m;
+}
+
+// The API's `tree` is a flat list of full dir paths; nest it so siblings under
+// the same parent live in one group.
+export function buildTree(cats: DocCat[]): TreeNode[] {
+  const root: TreeNode = { path: "", label: "", kids: [] };
+  for (const c of cats) {
+    if (c.cat === ".") { root.kids.push({ path: ".", label: ".", cat: c, kids: [] }); continue; }
+    let cur = root;
+    for (const seg of c.cat.split("/")) {
+      const path = cur.path ? cur.path + "/" + seg : seg;
+      let next = cur.kids.find((k) => k.path === path);
+      if (!next) { next = { path, label: seg, kids: [] }; cur.kids.push(next); }
+      cur = next;
+    }
+    cur.cat = c;
+  }
+  return root.kids.map(collapse);
+}
+
+function DocTreeCat({ node, selected, onSelect, depth = 0 }:
+  { node: TreeNode; selected: string; onSelect: (k: string) => void; depth?: number }) {
+  const [open, setOpen] = React.useState(false);
+  const linked = node.cat?.linked ?? true;
   return (
-    <div style={{ borderBottom: "1px solid var(--border-hair)" }}>
+    <div style={depth === 0 ? { borderBottom: "1px solid var(--border-hair)" } : undefined}>
       <button onClick={() => setOpen((o) => !o)} style={{
         display: "flex", alignItems: "center", gap: 8, width: "100%",
-        padding: "9px 6px", border: "none", background: "transparent", cursor: "pointer", textAlign: "left",
+        padding: "9px 6px", paddingLeft: 6 + depth * 12,
+        border: "none", background: "transparent", cursor: "pointer", textAlign: "left",
       }}>
         <Icon name={open ? "chevron-down" : "chevron-right"} size={14} color="var(--text-subtle)" />
-        <Icon name="folder" size={15} color={node.linked ? "var(--brass-500)" : "var(--clay-500)"} />
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12.5, color: "var(--text-strong)", fontWeight: 500 }}>{node.cat}/</span>
+        <Icon name="folder" size={15} color={linked ? "var(--brass-500)" : "var(--clay-500)"} />
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12.5, color: "var(--text-strong)", fontWeight: 500 }}>{node.label}/</span>
         <span style={{ flex: 1 }} />
-        {node.linked
+        {node.cat && (node.cat.linked
           ? <Icon name="link" size={13} color="var(--leaf-600)" />
-          : <Icon name="unlink" size={13} color="var(--clay-500)" />}
+          : <Icon name="unlink" size={13} color="var(--clay-500)" />)}
       </button>
       {open && (
-        <div style={{ padding: "0 6px 8px 12px", display: "flex", flexDirection: "column", gap: 1 }}>
-          {node.files.map((f) => {
-            const key = node.cat + "/" + f;
+        <div style={{ display: "flex", flexDirection: "column", gap: 1, paddingBottom: 4 }}>
+          {node.kids.map((k) => <DocTreeCat key={k.path} node={k} selected={selected} onSelect={onSelect} depth={depth + 1} />)}
+          {node.cat?.files.map((f) => {
+            const key = node.path + "/" + f;
             const on = key === selected;
             return (
               <button key={f} onClick={() => onSelect(key)} style={{
                 display: "flex", alignItems: "center", gap: 8, width: "100%",
-                padding: "6px 8px", borderRadius: "var(--radius-sm)", border: "none", cursor: "pointer", textAlign: "left",
+                padding: "6px 8px", paddingLeft: 18 + depth * 12,
+                borderRadius: "var(--radius-sm)", border: "none", cursor: "pointer", textAlign: "left",
                 background: on ? "var(--brass-100)" : "transparent",
               }}>
                 <Icon name="file-text" size={13} color={on ? "var(--brass-700)" : "var(--text-subtle)"} />
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 12,
-                  color: on ? "var(--brass-700)" : (node.linked ? "var(--text-body)" : "var(--text-muted)"),
+                  color: on ? "var(--brass-700)" : (linked ? "var(--text-body)" : "var(--text-muted)"),
                   fontWeight: on ? 600 : 400 }}>{f}</span>
               </button>
             );
@@ -99,6 +134,7 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
     return () => { alive = false; };
   }, [selected, projectId]);
 
+  const nested = React.useMemo(() => buildTree(tree), [tree]);
   const current = cache[selected] ?? "";
   // `selected` is the full repo-relative path (cat + "/" + basename); category is
   // everything before the last slash.
@@ -153,7 +189,7 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
             </div>
           </div>
           <div style={{ padding: "4px 8px" }}>
-            {tree.map((n) => <DocTreeCat key={n.cat} node={n} selected={selected} onSelect={selectFile} />)}
+            {nested.map((n) => <DocTreeCat key={n.path} node={n} selected={selected} onSelect={selectFile} />)}
           </div>
         </Card>
         <Card padding={16}>

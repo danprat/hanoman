@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { buildApp } from "../src/app";
-import { resetDb, makeProject } from "./factory";
+import { prisma } from "../src/db";
+import { resetDb, makeProject, makeSpec, makeRun } from "./factory";
 const app = buildApp();
 beforeAll(async () => { await resetDb(); await makeProject({ id: "p1" }); });
 describe("projects routes", () => {
@@ -28,5 +29,22 @@ describe("projects routes", () => {
   it("rejects invalid create body", async () => {
     const res = await app.inject({ method: "POST", url: "/api/projects", payload: { kind: "x" } });
     expect(res.statusCode).toBe(400);
+  });
+  it("404s deleting an unknown project", async () => {
+    const res = await app.inject({ method: "DELETE", url: "/api/projects/nope" });
+    expect(res.statusCode).toBe(404);
+  });
+  it("409s deleting a project with an active run", async () => {
+    await makeRun({ id: "RUN-active", projectId: "p1", status: "running" });
+    const res = await app.inject({ method: "DELETE", url: "/api/projects/p1" });
+    expect(res.statusCode).toBe(409);
+    await prisma.run.delete({ where: { id: "RUN-active" } });
+  });
+  it("deletes a project and cascades its specs", async () => {
+    await makeSpec({ id: "SPEC-del", projectId: "p1" });
+    const res = await app.inject({ method: "DELETE", url: "/api/projects/p1" });
+    expect(res.statusCode).toBe(204);
+    expect(await prisma.project.findUnique({ where: { id: "p1" } })).toBeNull();
+    expect(await prisma.spec.count({ where: { id: "SPEC-del" } })).toBe(0);
   });
 });

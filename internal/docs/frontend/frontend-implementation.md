@@ -2,7 +2,7 @@
 
 - React + TypeScript (Vite). Komponen dari Hanoman Design System.
 - Layout: sidebar 248px + topbar 56px; konten maks 1200px (Docs full-width).
-- Bagian: Overview, Projects (list + pagination + cari), Backlog (filter project + tab + aksi per spec + detail spec via modal: judul, stage bar, objective, field brief/QA), Runs (list + detail: pipeline, worktree, kendali, terminal), Docs (tree realtime semua `.md` di repo via `GET /docs`, dikelompokkan per direktori; tombol **Scan** per project menyegarkan coverage, **Hapus** menghapus file asli, path ditampilkan repo-relative tanpa prefix `internal/docs`), Triggers, Settings (model per step).
+- Bagian: Overview, Projects (list + pagination + cari + hapus project per baris; tombol hapus juga di header Docs — konfirmasi dulu, ditolak bila ada run aktif), Backlog (filter project + tab + aksi per spec + detail spec via modal: judul, stage bar, objective, field brief/QA), Runs (list + detail: pipeline, worktree, kendali, terminal), Docs (tree realtime semua `.md` di repo via `GET /docs`, dikelompokkan per direktori; tombol **Scan** per project menyegarkan coverage, **Hapus** menghapus file asli, path ditampilkan repo-relative tanpa prefix `internal/docs`), Triggers, Settings (model per step).
 - Realtime: konsumsi SSE `/runs/:id/log` untuk log & status; optimistic UI untuk kontrol.
 - Biaya ditampilkan sebagai **estimasi** (`~$0.03`), bukan tagihan, dan tidak menggerakkan
   apa pun (ADR-0012): run memakai auth OAuth subscription, jadi `total_cost_usd` dari claude

@@ -1,7 +1,7 @@
 /* ProjectsScreen — multi-project monitor. Ported; window → ds imports.
    p.triggers comes from the App view model. */
 import React from "react";
-import { Card, StatusPill, Badge, ProgressBar, Icon, usePaged, Pager } from "../ds";
+import { Card, StatusPill, Badge, ProgressBar, Icon, IconButton, usePaged, Pager } from "../ds";
 import type { ProjectVM, RunVM } from "./types";
 
 const HN_TRIGGER_ICON: Record<string, string> = {
@@ -65,7 +65,8 @@ function StatStrip({ projects, runs }: { projects: ProjectVM[]; runs: RunVM[] })
   );
 }
 
-function ProjectRow({ p, onOpen }: { p: ProjectVM; onOpen?: (p: ProjectVM) => void }) {
+function ProjectRow({ p, onOpen, onDelete }:
+  { p: ProjectVM; onOpen?: (p: ProjectVM) => void; onDelete?: (p: ProjectVM) => void }) {
   const att = hnAttention(p);
   const running = p.run.status === "running" || p.run.status === "queued";
   const [hover, setHover] = React.useState(false);
@@ -96,14 +97,20 @@ function ProjectRow({ p, onOpen }: { p: ProjectVM; onOpen?: (p: ProjectVM) => vo
       <div><TriggerGlyphs list={p.triggers} /></div>
       <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between" }}>
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.activity}</span>
+        {onDelete && (
+          <span onClick={(e) => { e.stopPropagation(); onDelete(p); }}>
+            <IconButton size="sm" variant="ghost" icon="trash-2" label={"Hapus project " + p.name} />
+          </span>
+        )}
         {onOpen && <Icon name="chevron-right" size={14} color="var(--text-subtle)" />}
       </div>
     </div>
   );
 }
 
-export function ProjectsScreen({ projects, runs, onOpen, pageSize }:
-  { projects: ProjectVM[]; runs: RunVM[]; variant?: string; onOpen?: (p: ProjectVM) => void; pageSize?: number }) {
+export function ProjectsScreen({ projects, runs, onOpen, onDelete, pageSize }:
+  { projects: ProjectVM[]; runs: RunVM[]; variant?: string; onOpen?: (p: ProjectVM) => void;
+    onDelete?: (p: ProjectVM) => void; pageSize?: number }) {
   const cols = ["Project", "Status", "Docs · SoT", "Backlog", "Triggers", "Aktivitas"];
   const tmpl = "1.7fr 1.2fr 1.5fr 1.1fr 0.9fr 1.4fr";
   const pg = usePaged(projects, pageSize || projects.length, "proj");
@@ -115,7 +122,7 @@ export function ProjectsScreen({ projects, runs, onOpen, pageSize }:
         <div style={{ display: "grid", gridTemplateColumns: tmpl, gap: 12, padding: "10px 14px 10px 15px", borderBottom: "1px solid var(--border-hair)" }}>
           {cols.map((c) => <span key={c} className="hn-eyebrow">{c}</span>)}
         </div>
-        {rows.map((p) => <ProjectRow key={p.id} p={p} onOpen={onOpen} />)}
+        {rows.map((p) => <ProjectRow key={p.id} p={p} onOpen={onOpen} onDelete={onDelete} />)}
         {pageSize && <Pager {...pg} onPage={pg.setPage} unit="project" />}
       </Card>
     </div>

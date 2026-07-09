@@ -89,6 +89,18 @@ export default async function (app: FastifyInstance) {
     return run ?? reply.code(404).send({ error: "not found" });
   });
 
+  // Hapus run dari Activity. Run aktif ditolak (409) — hentikan dulu.
+  // ponytail: worktree on-disk tidak ikut dibersihkan, sama seperti DELETE /projects.
+  app.delete("/runs/:id", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const run = await prisma.run.findUnique({ where: { id } });
+    if (!run) return reply.code(404).send({ error: "not found" });
+    if (["queued", "running", "paused"].includes(run.status))
+      return reply.code(409).send({ error: `run "${id}" masih ${run.status}` });
+    await prisma.run.delete({ where: { id } });
+    return reply.code(204).send();
+  });
+
   // Start a run: enqueue it. 409 when enqueue is refused (e.g. no resolvable projectId).
   app.post("/runs", async (req, reply) => {
     const parsed = zStartRun.safeParse(req.body);

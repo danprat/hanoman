@@ -8,6 +8,8 @@ GET  /projects
 POST /projects            { name, kind, repoDir?, desc }
 GET  /projects/:id
 POST /projects/:id/scan   # re-scan docs SoT
+DELETE /projects/:id      # 409 bila ada run queued/running/paused; cascade ke spec/run/trigger.
+#   Worktree on-disk di server/.worktrees/ tidak ikut dibersihkan.
 ```
 
 ## Backlog / specs
@@ -23,6 +25,7 @@ DELETE /specs/:id
 ```
 GET  /runs
 GET  /runs/:id
+DELETE /runs/:id          # 409 bila run masih queued/running/paused
 GET  /runs/:id/log        # SSE stream: replay snapshot lalu relay live log/phase/status/cost/file
 POST /runs/:id/steer      { message }
 POST /runs/:id/control    { action: "pause"|"resume"|"stop"|"retry" }
