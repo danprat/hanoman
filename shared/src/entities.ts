@@ -23,6 +23,7 @@ export const zSpec = z.object({
   id: z.string(), projectId: z.string(), title: z.string(), source: zSpecSource,
   stage: zStage, priority: zPriority, author: z.string(), objective: z.string(),
   payload: z.union([zBriefPayload, zQaPayload]).nullable(),
+  branchFrom: z.string().nullable(),                   // SPEC-143 · null = default project (main)
 });
 export type Spec = z.infer<typeof zSpec>;
 

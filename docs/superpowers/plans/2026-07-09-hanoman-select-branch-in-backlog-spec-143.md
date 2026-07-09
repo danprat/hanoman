@@ -17,8 +17,12 @@
 - **`null` = default project = `main`.** Nullable, tanpa default DB, tanpa backfill. Baris `Spec` lama harus tetap sah dan berperilaku persis seperti sebelumnya.
 - **Jangan ubah skema tanpa migration + ADR** (`CLAUDE.md`). ADR tertinggi saat plan ini ditulis = **0017**; nomor berikutnya **0018**, tapi **hitung ulang lintas branch sebelum mengklaimnya** — worktree bersebelahan bisa mengincar nomor yang sama.
 - **Root `pnpm test` hanya menjalankan `shared`, `server`, `src`** (`vitest.workspace.ts`). Test `runner` dan `cli` **tidak ikut** — jalankan `pnpm --filter ./runner test` dan `pnpm --filter ./cli test` secara eksplisit.
-- **Gate akhir server pakai suite penuh**, bukan file tunggal: `queue-durability.test.ts` gagal bila diisolasi dan hijau di suite penuh. `pnpm --filter ./server test`.
+- **Gate akhir server pakai suite penuh**, bukan file tunggal: `queue-durability.test.ts` gagal bila diisolasi dan hijau di suite penuh.
+- **Suite server WAJIB `--no-file-parallelism`.** `pnpm --filter ./server test` menjalankan `vitest run` polos: file-file test berebut satu DB dan ~4 test `triggers-settings` gagal acak. Root `pnpm test` memakai flag itu. Untuk server saja: `pnpm --filter ./server exec vitest run --no-file-parallelism`. *(Ditemukan saat Execute — baseline merah sebelum ada satu baris kode pun ditulis.)*
+- **`pnpm vitest run --project shared` tidak menemukan test.** Panggil berkasnya: `pnpm vitest run shared/test/entities.test.ts`.
 - **Postgres jalan di Docker.** `psql -d hanoman` di unix socket akan gagal dan terlihat seperti DB mati. Pakai `docker exec hanoman-db-1 psql -U hanoman -d hanoman`.
+- **JANGAN `prisma migrate dev`.** DB dev `hanoman` tak punya `_prisma_migrations` (dikelola `db push` dari branch lain) dan schema-nya menyimpang; `migrate dev` akan menawarkan **reset** dan menghapus project/spec/run nyata — termasuk baris SPEC-143 sendiri. Tulis migration dengan tangan, verifikasi lewat `prisma migrate diff --from-migrations … --to-schema-datamodel … --shadow-database-url … --script`, lalu `migrate deploy` ke DB test/smoke saja.
+- **`cd` di dalam Bash bertahan antar perintah.** Selalu pakai path absolut atau `cd` kembali ke root worktree; `cd server` sekali membuat `mkdir server/prisma/...` mendarat di `server/server/prisma/...`.
 - **Jangan `POST /runs` saat smoke lokal** kalau ada worker dev hidup — itu benar-benar mengeksekusi run background. Smoke di plan ini hanya menyentuh `/specs` dan `/projects/:id/branches`.
 - **Jangan `git stash`, jangan `git add -A`** di repo ini — checkout ini dibagi dengan sesi lain.
 - Presedens trigger `commit` (`ctx.branch` menang) masih **default yang belum dikonfirmasi manusia**. Bila ditolak sebelum Execute, hanya Task 5 yang berubah.
@@ -67,7 +71,7 @@ internal/docs/architecture/api-contract.md      modify — route baru
 - Produces: `zSpec` bertambah `branchFrom: string | null`; `zCreateSpec` bertambah `branchFrom?: string`; `zPatchSpec = z.object({ branchFrom: z.string().min(1).nullable() })` diekspor dari `@hanoman/shared`.
 - `zPatchSpec.branchFrom` **nullable, bukan optional**: `null` berarti "kosongkan, kembali ke default". Optional akan membuat "kosongkan" tak terbedakan dari "jangan sentuh".
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `shared/test/entities.test.ts`:
 
@@ -98,12 +102,12 @@ describe("SPEC-143 branchFrom", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `pnpm vitest run --project shared entities`
 Expected: FAIL — `zPatchSpec` tidak diekspor; `branchFrom` unrecognized/undefined.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 `server/prisma/schema.prisma` — di dalam `model Spec`, tepat setelah `payload Json?`:
 
@@ -134,26 +138,38 @@ export const zCreateSpec = z.object({
 export const zPatchSpec = z.object({ branchFrom: z.string().min(1).nullable() });
 ```
 
-- [ ] **Step 4: Buat migration**
+- [x] **Step 4: Buat migration** *(tanpa `migrate dev` — lihat Global Constraints)*
 
 Pastikan Postgres hidup: `docker compose up -d --wait`
 
-Run: `pnpm --filter ./server exec prisma migrate dev --name add_spec_branch_from`
+Generate SQL-nya secara read-only lewat shadow DB, jangan sentuh `DATABASE_URL`:
 
-Expected: direktori `server/prisma/migrations/<ts>_add_spec_branch_from/migration.sql` berisi
-`ALTER TABLE "Spec" ADD COLUMN "branchFrom" TEXT;` — **tanpa** `NOT NULL`, **tanpa** `DEFAULT`.
-Bila prisma menawarkan reset database, **tolak**: kolom nullable tidak menuntut reset.
+```bash
+docker exec hanoman-db-1 psql -U hanoman -d hanoman -c 'CREATE DATABASE hanoman_shadow OWNER hanoman;'
+pnpm --filter ./server exec prisma migrate diff \
+  --from-migrations ./prisma/migrations --to-schema-datamodel ./prisma/schema.prisma \
+  --shadow-database-url 'postgresql://hanoman:hanoman@localhost:5432/hanoman_shadow' --script
+```
 
-- [ ] **Step 5: Jalankan test, pastikan hijau**
+Expected: tepat satu `ALTER TABLE "Spec" ADD COLUMN "branchFrom" TEXT;` — tanpa `NOT NULL`, tanpa `DEFAULT`.
 
-Run: `pnpm vitest run --project shared entities`
-Expected: PASS.
+Tulis ke `server/prisma/migrations/20260709130000_add_spec_branch_from/migration.sql`. **Nama direktori
+harus mengurut sesudah `20260709121144_run_session_id`** — `date -u` di mesin ini menghasilkan timestamp
+yang justru lebih kecil, dan Prisma menerapkan migration berdasarkan urutan nama.
 
-Run: `pnpm --filter ./server test` — suite penuh, memastikan `zSpec` yang lebih ketat tidak
-memecahkan route yang mengembalikan baris Spec.
-Expected: PASS.
+Terapkan ke DB test saja:
+`DATABASE_URL=…/hanoman_test pnpm --filter ./server exec prisma migrate deploy`
 
-- [ ] **Step 6: Commit**
+- [x] **Step 5: Jalankan test, pastikan hijau**
+
+Run: `pnpm vitest run shared/test/entities.test.ts`
+Expected: PASS (8).
+
+Run: `pnpm --filter ./server exec vitest run --no-file-parallelism` — suite penuh, memastikan `zSpec`
+yang lebih ketat tidak memecahkan route yang mengembalikan baris Spec.
+Expected: PASS (38 file).
+
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/prisma/schema.prisma server/prisma/migrations shared/src/entities.ts shared/src/dto.ts shared/test/entities.test.ts
