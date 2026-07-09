@@ -26,10 +26,14 @@ Dijalankan sungguhan pada Node v24.11.1 / darwin-arm64 / pnpm 11.10.0 saat plan 
 
 1. `node-pty@1.1.0` **tidak** perlu dikompilasi di darwin-arm64 — tarball-nya membawa prebuild `prebuilds/darwin-arm64/{pty.node,spawn-helper}`. Xcode CLT tidak dibutuhkan.
 2. Namun `spawn-helper` di-publish dengan mode `0644`. Tanpa exec bit, setiap `spawn()` gagal dengan `Error: posix_spawnp failed.` Ini terjadi di npm maupun pnpm — mode itu tersimpan di dalam tarball.
-3. `chmod +x` pada `spawn-helper` **cukup**. `allowBuilds` di `pnpm-workspace.yaml` tidak diperlukan di darwin, karena jalur prebuild tidak menjalankan `node-gyp`.
+3. `chmod +x` pada `spawn-helper` **cukup** agar runtime-nya jalan.
 4. Sesudah chmod: `spawn` → `onData` → `onExit(0)`, `write()` (echo balik lewat line discipline), `resize()`, dan `kill()` semuanya berfungsi.
 
-Konsekuensi Linux: `prebuilds/` tidak punya direktori `linux-*`, jadi di sana node-pty **akan** dikompilasi lewat `node-gyp`, dan pnpm memblokir script build dependency secara default. Bila hanoman kelak dijalankan di Linux, tambahkan `node-pty: true` ke `allowBuilds` di `pnpm-workspace.yaml`. Di darwin hal itu tidak berpengaruh apa-apa, jadi jangan ditambahkan sekarang.
+Dikoreksi saat eksekusi Task 1:
+
+5. `allowBuilds: { node-pty: true }` di `pnpm-workspace.yaml` **wajib**, bukan opsional. Tanpa itu pnpm memblokir script node-pty dan setiap `pnpm exec` di repo ini mati dengan `ERR_PNPM_IGNORED_BUILDS`. Nilai `true` benar di kedua OS: `scripts/prebuild.js` keluar 0 di darwin (prebuild ada, tidak ada yang dibangun) dan keluar 1 di Linux, jatuh ke `node-gyp rebuild`.
+6. `pnpm install` melewati `postinstall` proyek workspace bila tree sudah up-to-date, jadi chmod-nya tidak bisa diandalkan sendirian. `createSession` karena itu menerjemahkan `posix_spawnp failed` menjadi pesan yang menyebut perintah obatnya.
+7. **`/bin/cat` bukan pengganti binary claude yang sah.** `createSession` selalu menambahkan `--dangerously-skip-permissions`, dan cat mati seketika dengan "illegal option". Test memakai `server/test/fixtures/fake-claude.sh`, yang mencetak argv-nya lalu `exec cat` — sekaligus membuktikan flag-nya sungguh diteruskan. `/bin/echo` tetap sah untuk test exit.
 
 ## Temuan keamanan yang mengubah spec
 
@@ -46,7 +50,8 @@ Mengekspos PTY tak terautentikasi di `0.0.0.0` berarti menyerahkan shell ke siap
 | File | Tanggung jawab |
 |---|---|
 | `server/src/services/pty.ts` (baru) | Siklus hidup sesi PTY: spawn, scrollback, broadcast, kill. Tidak tahu apa-apa soal HTTP maupun Prisma. |
-| `server/test/pty.test.ts` (baru) | Unit test service di atas, memakai PTY asli dengan binary `/bin/echo` dan `/bin/cat`. |
+| `server/test/pty.test.ts` (baru) | Unit test service di atas, memakai PTY asli dengan `/bin/echo` dan fixture di bawah. |
+| `server/test/fixtures/fake-claude.sh` (baru) | Berdiri sebagai `claude` di test: cetak argv, lalu `exec cat`. |
 | `server/src/routes/terminal.ts` (baru) | REST + WebSocket di atas service. Tahu Prisma (resolve `repoDir`), tidak tahu `node-pty`. |
 | `server/test/terminal.route.test.ts` (baru) | Integration test lewat `app.listen({port:0})` + klien `ws`. |
 | `server/src/app.ts` | Register plugin websocket + route terminal + hook `onClose`. |
@@ -87,7 +92,7 @@ Service ini murni: tidak menyentuh Prisma dan tidak menyentuh Fastify, sehingga 
   - `writeTo(s: Session, d: string): void`
   - `resize(s: Session, cols: number, rows: number): void`
 
-- [ ] **Step 1: Pasang dependency dan perbaiki exec bit `spawn-helper`**
+- [x] **Step 1: Pasang dependency dan perbaiki exec bit `spawn-helper`**
 
 ```bash
 pnpm --filter ./server add node-pty@^1.1.0
@@ -104,13 +109,21 @@ Lalu tambahkan `postinstall` ke `server/package.json` (letakkan tepat sebelum `"
 
 Ini bukan kehati-hatian yang mengada-ada. node-pty mem-publish `spawn-helper` dengan mode `0644`; tanpa exec bit setiap spawn mati dengan `posix_spawnp failed`. `|| true` menjaga perintah tetap lolos di Linux, di mana `prebuilds/` tidak punya direktori yang cocok dan node-pty dikompilasi dari source. Dengan pnpm, `node_modules/node-pty` adalah symlink ke store global, jadi chmod ini mengubah file di store — idempoten dan tidak berbahaya.
 
-Jalankan sekali sekarang, karena `pnpm add` sudah terlanjur berjalan tanpa hook itu:
+`pnpm add` akan mengeluh `ERR_PNPM_IGNORED_BUILDS` dan menaruh baris placeholder di `pnpm-workspace.yaml`. Sampai baris itu diisi, **setiap** perintah pnpm di repo ini gagal. Isi:
 
-```bash
-pnpm --filter ./server exec chmod +x node_modules/node-pty/prebuilds/*/spawn-helper
+```yaml
+  # Di darwin scripts/prebuild.js keluar 0 (prebuild ada) dan tidak ada yang dibangun.
+  # Di linux tidak ada prebuild, jadi ia jatuh ke node-gyp rebuild. `true` benar di keduanya.
+  node-pty: true
 ```
 
-- [ ] **Step 2: Tulis test yang gagal**
+Lalu `pnpm install`, dan jalankan chmod-nya sekali karena `pnpm add` sudah terlanjur berjalan tanpa hook itu:
+
+```bash
+pnpm --filter ./server run postinstall
+```
+
+- [x] **Step 2: Tulis test yang gagal**
 
 Buat `server/test/pty.test.ts`:
 
@@ -164,7 +177,7 @@ describe("pty service", () => {
   });
 
   it("forwards stdin to a live process and keeps it listed", async () => {
-    process.env.HANOMAN_CLAUDE_BIN = "/bin/cat";
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
     const s = createSession("p2", process.cwd());
     const c = fakeClient();
     attach(s, c);
@@ -175,7 +188,7 @@ describe("pty service", () => {
   });
 
   it("killSession stops the process and forgets the session; a second kill is false", async () => {
-    process.env.HANOMAN_CLAUDE_BIN = "/bin/cat";
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
     const s = createSession("p3", process.cwd());
     expect(killSession(s.id)).toBe(true);
     expect(listSessions()).toEqual([]);
@@ -185,12 +198,12 @@ describe("pty service", () => {
 });
 ```
 
-- [ ] **Step 3: Jalankan test, pastikan gagal**
+- [x] **Step 3: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./server exec vitest run test/pty.test.ts`
 Expected: FAIL — `Failed to resolve import "../src/services/pty"`.
 
-- [ ] **Step 4: Tulis implementasi minimal**
+- [x] **Step 4: Tulis implementasi minimal**
 
 Buat `server/src/services/pty.ts`:
 
@@ -223,11 +236,28 @@ function broadcast(s: Session, f: Frame): void {
   for (const c of s.clients) c.send(msg);
 }
 
+// node-pty mem-publish prebuilds/*/spawn-helper dengan mode 0644. Tanpa exec bit setiap
+// fork mati dengan "posix_spawnp failed", pesan yang tidak menyebut node-pty sama sekali.
+// `postinstall` di package.json memperbaikinya, tapi pnpm melewati script itu saat tree
+// sudah up-to-date — jadi terjemahkan errornya alih-alih membiarkan orang menebak.
+function spawnPty(cwd: string): IPty {
+  try {
+    return spawn(claudeBin(), ["--dangerously-skip-permissions"], {
+      cwd, name: "xterm-256color", cols: 80, rows: 24,
+      env: process.env as Record<string, string>,
+    });
+  } catch (e) {
+    const msg = (e as Error).message;
+    if (!msg.includes("posix_spawnp")) throw e;
+    throw new Error(
+      `${msg} — spawn-helper node-pty kemungkinan kehilangan exec bit. ` +
+      `Jalankan: pnpm --filter ./server run postinstall`,
+    );
+  }
+}
+
 export function createSession(projectId: string, cwd: string): Session {
-  const pty = spawn(claudeBin(), ["--dangerously-skip-permissions"], {
-    cwd, name: "xterm-256color", cols: 80, rows: 24,
-    env: process.env as Record<string, string>,
-  });
+  const pty = spawnPty(cwd);
   const s: Session = {
     id: randomUUID().slice(0, 8), projectId, cwd, pty,
     scrollback: "", exited: false, clients: new Set(),
@@ -286,7 +316,7 @@ export function resize(s: Session, cols: number, rows: number): void {
 }
 ```
 
-- [ ] **Step 5: Jalankan test, pastikan lulus**
+- [x] **Step 5: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./server exec vitest run test/pty.test.ts`
 Expected: PASS, 4 test.
@@ -294,12 +324,12 @@ Expected: PASS, 4 test.
 Kalau muncul `Error: posix_spawnp failed.`, Step 1 chmod-nya tidak jalan. Ulangi:
 `pnpm --filter ./server exec chmod +x node_modules/node-pty/prebuilds/*/spawn-helper`
 
-- [ ] **Step 6: Typecheck**
+- [x] **Step 6: Typecheck**
 
 Run: `pnpm --filter ./server typecheck`
 Expected: keluar tanpa error.
 
-- [ ] **Step 7: Update stack.md**
+- [x] **Step 7: Update stack.md**
 
 Tambahkan dua baris ke tabel di `internal/docs/architecture/stack.md`, tepat setelah baris `Scheduler`:
 
@@ -308,7 +338,7 @@ Tambahkan dua baris ke tabel di `internal/docs/architecture/stack.md`, tepat set
 | Terminal (web) | xterm.js | render TUI Claude Code apa adanya |
 ```
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/package.json server/src/services/pty.ts server/test/pty.test.ts internal/docs/architecture/stack.md pnpm-lock.yaml
@@ -357,9 +387,13 @@ import WebSocket from "ws";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { AddressInfo } from "node:net";
 import { buildApp } from "../src/app";
 import { resetDb, makeProject } from "./factory";
+
+// Lihat pty.test.ts: /bin/cat mati karena --dangerously-skip-permissions ilegal baginya.
+const FAKE_CLAUDE = fileURLToPath(new URL("./fixtures/fake-claude.sh", import.meta.url));
 
 const app = buildApp();
 let origin = "";
@@ -411,7 +445,7 @@ describe("terminal routes", () => {
   });
 
   it("forwards stdin, and replays scrollback to a reconnecting client", async () => {
-    process.env.HANOMAN_CLAUDE_BIN = "/bin/cat";
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
     const id = await createSession();
     const first = connect(id);
     await first.opened;
@@ -426,7 +460,7 @@ describe("terminal routes", () => {
   });
 
   it("accepts a resize without killing the session", async () => {
-    process.env.HANOMAN_CLAUDE_BIN = "/bin/cat";
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
     const id = await createSession();
     const c = connect(id);
     await c.opened;
@@ -438,7 +472,7 @@ describe("terminal routes", () => {
   });
 
   it("lists sessions, and DELETE removes one exactly once", async () => {
-    process.env.HANOMAN_CLAUDE_BIN = "/bin/cat";
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
     const id = await createSession();
     const list = await app.inject({ url: "/api/terminal/sessions" });
     expect(list.json().map((s: { id: string }) => s.id)).toContain(id);

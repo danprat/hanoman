@@ -8,6 +8,8 @@
 | Queue | BullMQ + Redis | jadwal & konkurensi run |
 | DB | PostgreSQL (Prisma) | state project/spec/run/trigger/docs |
 | Scheduler | cron (node-cron / BullMQ repeatable) | trigger schedule/interval |
+| Terminal (server) | node-pty | sesi `claude` interaktif butuh TTY sungguhan |
+| Terminal (web) | xterm.js | render TUI Claude Code apa adanya |
 | VCS | git + **git worktree** | isolasi run per branch |
 | Agent | Claude Code headless (CLI) + hooks | eksekusi spec → plan → execute |
 | Webhooks | GitHub App | trigger commit |

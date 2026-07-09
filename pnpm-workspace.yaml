@@ -4,4 +4,7 @@ allowBuilds:
   '@prisma/engines': true
   esbuild: true
   msgpackr-extract: false
+  # Di darwin scripts/prebuild.js keluar 0 (prebuild ada) dan tidak ada yang dibangun.
+  # Di linux tidak ada prebuild, jadi ia jatuh ke node-gyp rebuild. `true` benar di keduanya.
+  node-pty: true
   prisma: true
