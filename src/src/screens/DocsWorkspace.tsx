@@ -6,7 +6,7 @@ import { marked } from "marked";
 import { Card, StatusPill, Badge, Button, ProgressBar, Icon, StateBlock } from "../ds";
 import { api } from "../api/client";
 
-type DocCat = { cat: string; files: string[]; linked: boolean; root?: boolean };
+type DocCat = { cat: string; files: string[]; linked: boolean; scored: boolean; root?: boolean };
 
 function hnRender(md: string) {
   try { return marked.parse(md || "", { gfm: true, breaks: false }) as string; }
@@ -52,9 +52,17 @@ export function buildTree(cats: DocCat[]): TreeNode[] {
   return root.kids.map(collapse);
 }
 
+// Preselect: kategori SoT yang ter-link dulu, lalu kategori SoT mana pun. Jangan
+// pernah membuka file yang tidak dinilai kalau ada yang dinilai.
+export function firstDoc(cats: DocCat[]): string {
+  const pick = cats.find((c) => c.scored && c.linked) ?? cats.find((c) => c.scored) ?? cats[0];
+  return pick && pick.files[0] ? `${pick.cat}/${pick.files[0]}` : "";
+}
+
 function DocTreeCat({ node, selected, onSelect, depth = 0 }:
   { node: TreeNode; selected: string; onSelect: (k: string) => void; depth?: number }) {
   const [open, setOpen] = React.useState(false);
+  const scored = node.cat?.scored ?? true;
   const linked = node.cat?.linked ?? true;
   return (
     <div style={depth === 0 ? { borderBottom: "1px solid var(--border-hair)" } : undefined}>
@@ -64,10 +72,10 @@ function DocTreeCat({ node, selected, onSelect, depth = 0 }:
         border: "none", background: "transparent", cursor: "pointer", textAlign: "left",
       }}>
         <Icon name={open ? "chevron-down" : "chevron-right"} size={14} color="var(--text-subtle)" />
-        <Icon name="folder" size={15} color={linked ? "var(--brass-500)" : "var(--clay-500)"} />
+        <Icon name="folder" size={15} color={!scored ? "var(--text-subtle)" : linked ? "var(--brass-500)" : "var(--clay-500)"} />
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 12.5, color: "var(--text-strong)", fontWeight: 500 }}>{node.label}/</span>
         <span style={{ flex: 1 }} />
-        {node.cat && (node.cat.linked
+        {node.cat && scored && (node.cat.linked
           ? <Icon name="link" size={13} color="var(--leaf-600)" />
           : <Icon name="unlink" size={13} color="var(--clay-500)" />)}
       </button>
@@ -86,7 +94,7 @@ function DocTreeCat({ node, selected, onSelect, depth = 0 }:
               }}>
                 <Icon name="file-text" size={13} color={on ? "var(--brass-700)" : "var(--text-subtle)"} />
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 12,
-                  color: on ? "var(--brass-700)" : (linked ? "var(--text-body)" : "var(--text-muted)"),
+                  color: on ? "var(--brass-700)" : (!scored || linked ? "var(--text-body)" : "var(--text-muted)"),
                   fontWeight: on ? 600 : 400 }}>{f}</span>
               </button>
             );
@@ -122,8 +130,7 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
       if (!alive) return;
       const t = ix.tree as DocCat[];
       setTree(t); setCoverage(ix.coverage); setCache({}); setMode("preview"); setIxStatus("ready");
-      const first = t.find((n) => n.linked) || t[0];
-      setSelected(first ? `${first.cat}/${first.files[0]}` : "");
+      setSelected(firstDoc(t));
     }).catch(() => { if (alive) { setTree([]); setSelected(""); setIxStatus("error"); } });
     return () => { alive = false; };
   }, [projectId, ixTry]);
@@ -142,7 +149,8 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
   const docFailed = selected ? cache[selected] === null : false;
   const retryDoc = () => setCache((c) => { const n = { ...c }; delete n[selected]; return n; });
 
-  const nested = React.useMemo(() => buildTree(tree), [tree]);
+  const nested = React.useMemo(() => buildTree(tree.filter((c) => c.scored)), [tree]);
+  const unscored = React.useMemo(() => buildTree(tree.filter((c) => !c.scored)), [tree]);
   const current = cache[selected] ?? "";
   // `selected` is the full repo-relative path (cat + "/" + basename); category is
   // everything before the last slash.
@@ -166,10 +174,9 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
     const ix = await api.getDocs(projectId);
     const t = ix.tree as DocCat[];
     setTree(t); setCoverage(ix.coverage);
-    if (!t.some((n) => `${n.cat}/${n.files[0]}` === selected)) {
-      const first = t.find((n) => n.linked) || t[0];
-      setSelected(first ? `${first.cat}/${first.files[0]}` : "");
-    }
+    // Cocokkan SELURUH file kategori, bukan cuma files[0] — versi lama memilih ulang
+    // tiap kali file kedua sebuah kategori sedang dibuka.
+    if (!t.some((n) => n.files.some((f) => `${n.cat}/${f}` === selected))) setSelected(firstDoc(t));
   }
   async function rescan() {
     if (scanning) return;
@@ -203,7 +210,15 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
               : tree.length === 0 ? <StateBlock kind="empty" compact icon="folder-open" title="Belum ada docs"
                   hint="Scan project untuk menyusun Source of Truth-nya."
                   action={rescan} actionLabel="Scan sekarang" actionIcon="radar" />
-              : nested.map((n) => <DocTreeCat key={n.path} node={n} selected={selected} onSelect={selectFile} />)}
+              : (<>
+                  {nested.map((n) => <DocTreeCat key={n.path} node={n} selected={selected} onSelect={selectFile} />)}
+                  {unscored.length > 0 && (
+                    <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--border-hair)" }}>
+                      <div className="hn-eyebrow" style={{ padding: "4px 6px", color: "var(--text-subtle)" }}>Lainnya (tidak dinilai)</div>
+                      {unscored.map((n) => <DocTreeCat key={n.path} node={n} selected={selected} onSelect={selectFile} />)}
+                    </div>
+                  )}
+                </>)}
           </div>
         </Card>
         <Card padding={16}>
@@ -219,7 +234,7 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--border-hair)", flexWrap: "wrap" }}>
           <Icon name="file-text" size={15} color="var(--text-muted)" />
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--text-strong)", fontWeight: 500 }}>{displayPath}</span>
-          {node && (node.linked
+          {node && node.scored && (node.linked
             ? <Badge tone="ok" size="sm" icon="link">indexed</Badge>
             : <Badge tone="err" size="sm" icon="unlink">unlinked</Badge>)}
           <span style={{ flex: 1 }} />
