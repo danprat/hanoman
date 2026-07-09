@@ -1,21 +1,21 @@
 import { describe, it, expect, vi } from "vitest";
 import { runOne } from "../src/run";
 import { SteerQueue } from "../src/steer-queue";
-import type { ClaudeSession, RunDeps, RunInput, SdkMessage } from "../src/index";
+import type { ClaudeSession, RunDeps, RunInput, CliMessage } from "../src/index";
 
 const steps = Object.fromEntries(["brainstorm", "spec", "plan", "execute", "audit"]
   .map((k) => [k, { model: "claude-opus-4-8", effort: "x-high" }])) as any;
 const input = (over: Partial<RunInput> = {}): RunInput => ({ runId: "RUN-1", repoDir: "/repo",
   branchFrom: "main", branchTo: "feat/x", flow: "feature", steps, ...over });
-const okResult = (over: Partial<Extract<SdkMessage, { type: "result" }>> = {}): SdkMessage => ({
+const okResult = (over: Partial<Extract<CliMessage, { type: "result" }>> = {}): CliMessage => ({
   type: "result", subtype: "success", session_id: "s", total_cost_usd: 0.1,
   usage: { input_tokens: 10, output_tokens: 5 }, ...over });
 
 // Sesi palsu: satu `result` per `send`, seperti binary aslinya.
 // `closed` lewat getter — Object.assign akan menyalinnya sebagai nilai dan fake-nya berbohong.
-function fakeSession(res: () => SdkMessage = okResult): ClaudeSession & { sent: string[]; readonly closed: boolean } {
+function fakeSession(res: () => CliMessage = okResult): ClaudeSession & { sent: string[]; readonly closed: boolean } {
   const sent: string[] = [];
-  const queue: SdkMessage[] = [];
+  const queue: CliMessage[] = [];
   let closed = false;
   return {
     sent,

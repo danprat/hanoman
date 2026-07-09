@@ -2,14 +2,14 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { resetDb, makeProject, makeRun, makeSetting, makeSpec } from "./factory";
 import { prisma } from "../src/db";
 import { runProcessor } from "../src/worker";
-import type { ClaudeSession, RunDeps, SdkMessage } from "@hanoman/runner";
+import type { ClaudeSession, RunDeps, CliMessage } from "@hanoman/runner";
 
-const result = (): SdkMessage => ({ type: "result", subtype: "success", session_id: "s",
+const result = (): CliMessage => ({ type: "result", subtype: "success", session_id: "s",
   total_cost_usd: 0.2, usage: { input_tokens: 9, output_tokens: 3 } });
 
 // Satu `result` per `send`, seperti binary aslinya. `sent` merekam tiap giliran.
 function fakeSession(sent: string[] = []): ClaudeSession {
-  const queue: SdkMessage[] = [];
+  const queue: CliMessage[] = [];
   return {
     send(t) { sent.push(t); queue.push(result()); },
     async next() { return queue.shift() ?? null; },

@@ -21,10 +21,11 @@ dan `hook stop` tetap benar walau dipanggil dari subdir. `hook stop` sendiri mem
 `CLAUDE_PROJECT_DIR` lebih dulu — `cwd` di payload ikut `cd` di sesi dan bisa keluar dari repo.
 
 ## Runner (SPEC-003)
-Runner memakai `@anthropic-ai/claude-agent-sdk`; fase Execute lewat gate
-`hanoman docs verify` (SPEC-002) — plan diblok bila docs stale. Setiap run di
-`.worktrees/<run-id>`, di-steer/pause/stop lewat dashboard, lalu commit + push ke
-`branchTo`. Lihat ADR-0002 (isolasi) dan ADR-0003 (model per step).
+Runner men-spawn binary `claude` langsung — Agent SDK sudah dicabut (ADR-0010). Satu backlog
+dijalankan **satu proses** di `.worktrees/<run-id>`, dengan fase sebagai giliran di dalam sesi itu
+(ADR-0015). Fase Execute lewat gate `hanoman docs verify` (SPEC-002) — plan diblok bila docs stale.
+Run di-steer/pause/stop lewat dashboard, lalu commit + push ke `branchTo`. Pesan steer menjadi
+giliran tambahan yang dikuras di antara fase. Lihat ADR-0002 (isolasi) dan ADR-0003 (model per step).
 
 Bila proses `docs verify` **crash** (bukan lapor stale) — mis. path CLI salah karena cwd,
 atau baca doc gagal — hasilnya di-retry sekali; kalau tetap crash, run gagal **fail-closed**
@@ -32,7 +33,7 @@ dengan `guardrail tool error · <stderr>` (bukan disamarkan "docs stale"). Path 
 dari root workspace (`pnpm-workspace.yaml`), bukan dari `process.cwd()`. Lihat SPEC-010 / ADR-0009.
 
 ## Worker credentials (SPEC-007)
-Worker boot memverifikasi kredensial Claude (Agent SDK). Ada env credential
+Worker boot memverifikasi kredensial Claude yang dipakai binary `claude`. Ada env credential
 (`CLAUDE_CODE_OAUTH_TOKEN` / `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN` / flag cloud) →
 boot + log nama var-nya (bukan nilainya). Tanpa env credential: headless (non-TTY) →
 tolak boot (exit 1); interaktif (TTY) → warning lalu boot (andalkan keychain). Bypass

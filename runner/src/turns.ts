@@ -1,4 +1,4 @@
-import type { ClaudeSession, SdkMessage } from "./types";
+import type { ClaudeSession, CliMessage } from "./types";
 
 export type TurnResult = {
   sessionId?: string; subtype: string; tokensIn: number; tokensOut: number; costUsd: number;
@@ -8,7 +8,7 @@ export type TurnResult = {
 // v2.1.205. Karena itu batas giliran dihitung, bukan ditebak dari matinya proses. Penyamaan
 // "fase selesai" dengan "stream berakhir" itulah yang dulu membuat fase Execute menggantung.
 export async function takeTurn(
-  s: ClaudeSession, text: string, onMessage?: (m: SdkMessage) => void,
+  s: ClaudeSession, text: string, onMessage?: (m: CliMessage) => void,
 ): Promise<TurnResult> {
   s.send(text);
   let sessionId: string | undefined;

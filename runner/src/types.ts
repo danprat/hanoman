@@ -1,10 +1,11 @@
-export type SdkUserMessage = { type: "user"; message: { role: "user"; content: string } };
-export type SdkMessage =
+// Bentuk kawat `stream-json` milik binary `claude`. Namanya pernah `Sdk*` sewaktu runner
+// memakai @anthropic-ai/claude-agent-sdk; SDK itu dicabut ADR-0010 dan tidak ada lagi di
+// repo ini. Nama lamanya membuat pembaca menyimpulkan dependency yang sudah tidak ada.
+export type CliUserMessage = { type: "user"; message: { role: "user"; content: string } };
+export type CliMessage =
   | { type: "assistant"; session_id?: string; message: { content: Array<{ type: string; text?: string; name?: string }> } }
   | { type: "result"; subtype: string; session_id: string; total_cost_usd: number; usage: { input_tokens: number; output_tokens: number } }
   | { type: "system"; session_id?: string };
-export type QueryArgs = { prompt: string | AsyncIterable<SdkUserMessage>; options: Record<string, unknown> };
-export type QueryFn = (args: QueryArgs) => AsyncIterable<SdkMessage>;
 
 export type CliOptions = {
   cwd: string; model: string; effort?: string;
@@ -18,7 +19,7 @@ export interface ClaudeSession {
   /** Tulis satu pesan pengguna. Tepat satu `result` akan menyusul. */
   send(text: string): void;
   /** Pesan berikutnya dari stdout, atau null saat stream berakhir. Satu pembaca saja. */
-  next(): Promise<SdkMessage | null>;
+  next(): Promise<CliMessage | null>;
   /** Tutup stdin — inilah satu-satunya cara `claude` keluar. */
   close(): void;
   kill(): void;

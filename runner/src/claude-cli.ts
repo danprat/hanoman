@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
-import type { ClaudeSession, CliOptions, OpenSession, SdkMessage, SdkUserMessage } from "./types";
+import type { ClaudeSession, CliOptions, OpenSession, CliMessage, CliUserMessage } from "./types";
 
 // The Agent SDK's query() only ever spawned this same binary with --output-format
 // stream-json; talking to it directly removes the wrapper, not a layer of behaviour.
@@ -58,9 +58,9 @@ export function makeClaudeCliSession(cfg: { bin?: string; guardCommand: string }
 
     return {
       send(text: string) {
-        child.stdin.write(JSON.stringify({ type: "user", message: { role: "user", content: text } } satisfies SdkUserMessage) + "\n");
+        child.stdin.write(JSON.stringify({ type: "user", message: { role: "user", content: text } } satisfies CliUserMessage) + "\n");
       },
-      async next(): Promise<SdkMessage | null> {
+      async next(): Promise<CliMessage | null> {
         for (;;) {
           const { value, done } = await lines.next();
           if (done) {
@@ -76,7 +76,7 @@ export function makeClaudeCliSession(cfg: { bin?: string; guardCommand: string }
           if (!line) continue;
           // ponytail: non-JSON on stdout is a stray warning; real failures arrive on stderr
           // and are reported via the exit code above.
-          try { return JSON.parse(line) as SdkMessage; } catch { continue; }
+          try { return JSON.parse(line) as CliMessage; } catch { continue; }
         }
       },
       close() { child.stdin.end(); },

@@ -1,4 +1,4 @@
-import type { OpenSession, RunEvent, RunInput, RunResult, GitOps, SdkMessage } from "./types";
+import type { OpenSession, RunEvent, RunInput, RunResult, GitOps, CliMessage } from "./types";
 import { PIPELINES, phasePrompt, stepFor } from "./phases";
 import { DENY, runPhase, type StepState } from "./phase";
 import { takeTurn } from "./turns";
@@ -33,7 +33,7 @@ export async function runOne(
     abortController, disallowedTools: DENY, settingSources: ["user", "project", "local"],
   });
 
-  const onLog = (m: SdkMessage) => {
+  const onLog = (m: CliMessage) => {
     if (m.type !== "assistant") return;
     for (const b of m.message.content) {
       if (b.type === "text" && b.text) onEvent({ kind: "log", line: { t: "›", s: b.text } });

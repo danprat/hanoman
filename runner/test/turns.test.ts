@@ -1,16 +1,16 @@
 import { describe, it, expect, vi } from "vitest";
 import { takeTurn } from "../src/turns";
-import type { ClaudeSession, SdkMessage } from "../src/types";
+import type { ClaudeSession, CliMessage } from "../src/types";
 
-const result = (over: Partial<Extract<SdkMessage, { type: "result" }>> = {}): SdkMessage => ({
+const result = (over: Partial<Extract<CliMessage, { type: "result" }>> = {}): CliMessage => ({
   type: "result", subtype: "success", session_id: "s1", total_cost_usd: 0.42,
   usage: { input_tokens: 100, output_tokens: 20 }, ...over,
 });
 
 // Sesi palsu: tiap `send` mengantre satu skrip pesan yang berakhir dengan `result`.
-function fakeSession(scripts: SdkMessage[][]): ClaudeSession & { sent: string[] } {
+function fakeSession(scripts: CliMessage[][]): ClaudeSession & { sent: string[] } {
   const sent: string[] = [];
-  let queue: SdkMessage[] = [];
+  let queue: CliMessage[] = [];
   return {
     sent,
     send(t) { sent.push(t); queue = queue.concat(scripts.shift() ?? [result()]); },
@@ -33,7 +33,7 @@ describe("takeTurn", () => {
       result(),
       result({ subtype: "leftover" }),
     ]]);
-    const seen: SdkMessage[] = [];
+    const seen: CliMessage[] = [];
     const r = await takeTurn(s, "x", (m) => seen.push(m));
     expect(seen).toHaveLength(2);
     expect(r.subtype).toBe("success");

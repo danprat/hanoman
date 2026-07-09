@@ -1,18 +1,18 @@
 import { describe, it, expect } from "vitest";
 import { runPhase } from "../src/phase";
-import type { ClaudeSession, SdkMessage } from "../src/types";
+import type { ClaudeSession, CliMessage } from "../src/types";
 
-const result = (over: Partial<Extract<SdkMessage, { type: "result" }>> = {}): SdkMessage => ({
+const result = (over: Partial<Extract<CliMessage, { type: "result" }>> = {}): CliMessage => ({
   type: "result", subtype: "success", session_id: "s1", total_cost_usd: 0.42,
   usage: { input_tokens: 100, output_tokens: 20 }, ...over,
 });
 // Giliran slash-command memancarkan `result` sintetisnya sendiri (claude v2.1.205).
-const synthetic = (): SdkMessage =>
+const synthetic = (): CliMessage =>
   result({ total_cost_usd: 0.001, usage: { input_tokens: 1, output_tokens: 1 } });
 
-function fakeSession(scripts: SdkMessage[][]): ClaudeSession & { sent: string[] } {
+function fakeSession(scripts: CliMessage[][]): ClaudeSession & { sent: string[] } {
   const sent: string[] = [];
-  let queue: SdkMessage[] = [];
+  let queue: CliMessage[] = [];
   return {
     sent,
     send(t) { sent.push(t); queue = queue.concat(scripts.shift() ?? [result()]); },

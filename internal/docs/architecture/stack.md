@@ -28,6 +28,13 @@ Dashboard (React) ──SSE/WS──► Server (Fastify)
 ## Runner
 Untuk tiap run: buat worktree `git worktree add .worktrees/<run> <branchFrom>`, jalankan Claude Code headless dengan model per-step dari Settings, stream log via SSE, jalankan Stop hook (`hanoman docs verify`), commit & push ke `branchTo`, lalu `git worktree remove`.
 
+**Satu backlog = satu proses `claude`** di worktree-nya sendiri (ADR-0015). Fase bukan proses
+melainkan **giliran** di dalam sesi itu: `runner/src/turns.ts` memasangkan N pesan pengguna dengan
+N `result` menurut urutan, dan `/model` + `/effort` menggeser sesi saat step berubah — jadi model
+per-step (ADR-0003) tetap berlaku tanpa spawn per fase. Konteks karena itu terbawa antar fase.
+`Run.sessionId` menyimpan sesinya, sehingga layar Terminal dapat membukanya kembali dengan
+`claude --resume` di dalam worktree run — sesi run itu sendiri, bukan tiruannya.
+
 Runner **spawn binary `claude` langsung** (`runner/src/claude-cli.ts`), bukan Agent SDK — lihat
 ADR-0010. Transport `--input-format/--output-format stream-json`; `--setting-sources
 user,project,local` supaya run memuat CLAUDE.md, hook, plugin, dan skill yang sama dengan sesi
