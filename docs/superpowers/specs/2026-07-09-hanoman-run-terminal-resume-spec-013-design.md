@@ -1,160 +1,218 @@
-# SPEC-013 — Pintu terminal interaktif ke sebuah run
+# SPEC-013 — Satu backlog, satu sesi Claude, satu worktree
 
 **Date:** 2026-07-09
 **Status:** design approved, pending implementation plan
 **Source of Truth:** `internal/docs/**` (spec ini tunduk padanya)
-**Depends on:** SPEC-003 (runner), SPEC-004 (worker), SPEC-012 (`runner/src/claude-cli.ts`),
-ADR-0002 (worktree isolation), ADR-0010 (runner spawn `claude` CLI)
+**Depends on:** SPEC-003 (runner), SPEC-004 (worker), SPEC-012 (`runner/src/claude-cli.ts`)
+**Menyentuh ADR:** ADR-0002 (worktree isolation, tetap), ADR-0003 (per-step model, mekanismenya
+berubah), ADR-0010 (spawn `claude` CLI, tetap), ADR-0012 (`subtype` adalah sinyal gagal terakhir)
 
 ## Asal-usul
 
 Permintaan awalnya: "hapus semua penggunaan Anthropic SDK, ganti dengan terminal."
 
-Premis itu salah, dan ini perlu dicatat supaya tidak dicari lagi nanti. **Tidak ada SDK
-Anthropic yang tersisa di repo ini.** ADR-0010 sudah mencabut
-`@anthropic-ai/claude-agent-sdk` dari `server` dan `cli`; `grep -r '@anthropic'` menghasilkan
-nol baris, termasuk di `pnpm-lock.yaml`. Runs sudah men-spawn binary `claude` yang sama persis
-dengan yang dipakai layar Terminal.
+Premis itu salah, dan dicatat di sini supaya tidak dicari lagi. **Tidak ada SDK Anthropic yang
+tersisa.** ADR-0010 sudah mencabut `@anthropic-ai/claude-agent-sdk`; `grep -r '@anthropic'`
+menghasilkan nol baris, termasuk di `pnpm-lock.yaml`. Yang tersisa hanya kosakata:
+`runner/src/types.ts` masih menamai tipenya `SdkMessage`, `SdkUserMessage`, `QueryFn`, dan
+`deps.ts` memanggilnya `queryFn`. Nama peninggalan, bukan dependency.
 
-Yang tersisa hanyalah **kosakata**: `runner/src/types.ts` masih menamai tipenya `SdkMessage`,
-`SdkUserMessage`, `QueryFn`, dan `deps.ts` memanggilnya `queryFn`. Nama peninggalan, bukan
-dependency. Siapa pun yang meng-grep "SDK" akan menemukannya dan menyimpulkan hal yang keliru.
-
-Kebutuhan sebenarnya, setelah digali: **melihat backlog dikerjakan dan sesekali ikut campur,
-memakai claude code device sendiri.** Bukan mengganti transport.
-
-## Konteks
-
-`runOne` (`runner/src/run.ts`) menjalankan fase secara berurutan. Tiap fase memanggil
-`runPhase`, yang memanggil `queryFn`, yang **men-spawn satu proses `claude` baru**. Karena itu
-satu run menghasilkan **beberapa sesi Claude, satu per fase** — bukan satu sesi.
-
-Terverifikasi terhadap disk, bukan disimpulkan: direktori
-`~/.claude/projects/-Users-…-hanoman--worktrees-run-1/` berisi dua file transcript `.jsonl`
-untuk satu run.
-
-`runPhase` sudah menangkap `session_id` dari stream dan mengembalikannya
-(`runner/src/phase.ts:30`). **`runOne` membuangnya** — `run.ts:43` hanya memakai `costUsd`,
-`tokensIn`, `tokensOut`, dan `subtype`. Gagang pintu yang dibutuhkan sudah terhitung, lalu
-dibiarkan jatuh.
+Permintaan berikutnya lebih tepat: **tidak ada lagi `claude -p` oneshot; setiap backlog jadi satu
+spawn di worktree terpisah, dan bisa dimasuki lewat terminal.**
 
 ## Fakta yang diverifikasi terhadap binary
 
-`claude` v2.1.205. Diuji langsung, bukan dibaca dari dokumen (mengikuti preseden ADR-0010).
+`claude` v2.1.205. Diuji langsung, mengikuti preseden ADR-0010 yang menolak menyimpulkan kontrak
+dari dokumen.
 
-1. **`--output-format` dan `--input-format` bertuliskan "only works with --print".**
-   Sesi PTY interaktif secara struktural tidak dapat memancarkan `stream-json`. Karena itu
-   memindahkan eksekusi fase ke PTY berarti kehilangan batas-giliran, `usage`, dan `subtype`
-   sekaligus. Ini alasan pokok penolakan pendekatan "tukar transport".
+1. **`claude -p` bukan oneshot.** Satu proses dengan `--input-format stream-json` melayani banyak
+   giliran, mempertahankan satu `session_id`, dan **membawa konteks antar giliran** (diuji: ia
+   mengingat kata yang dititipkan di giliran pertama). Satu `result` per giliran;
+   `total_cost_usd` kumulatif per sesi, `usage.*_tokens` per giliran — persis seperti sudah
+   dicatat di `runner/src/phase.ts:22`.
 
-2. **`--resume` bersifat cwd-scoped.** Session id yang benar-benar ada tetap dijawab
-   `No conversation found with session ID: …` bila dijalankan dari cwd lain; dari worktree
-   asalnya, sesi yang sama menjawab normal. Transcript disimpan per-slug-cwd di
-   `~/.claude/projects/<slug>/<session-id>.jsonl`.
+2. **Proses tetap hidup saat idle selama stdin terbuka.** Diuji menganggur 25 detik di antara dua
+   giliran, lalu giliran kedua diproses normal dan proses keluar `0` saat stdin ditutup. Inilah
+   yang membuat "fase sebagai giliran" mungkin.
 
-3. **`--settings`, `--setting-sources`, dan `--session-id` tidak print-gated.** Guard hook
-   bisa dipasang pada sesi interaktif.
+3. **`/model <m>` menggeser model di tengah sesi.** Sesi yang dimulai dengan `--model haiku`
+   menjalankan giliran berikutnya di `claude-sonnet-5`, dan memancarkan `system/init` baru.
 
-4. **Transcript menyimpan `usage` per pesan assistant, tetapi tidak menyimpan
-   `total_cost_usd`, dan tidak punya record bertipe `result`.** Tidak ada pengganti untuk
-   `subtype` di luar mode `--print`.
+4. **`/effort <l>` juga berlaku di tengah sesi** ("Set effort level to high (this session only)").
+
+   Fakta 3 dan 4 bersama-sama berarti **ADR-0003 selamat**: pemilihan model dan effort per-step
+   tidak menuntut satu proses per fase.
+
+5. **Giliran slash-command memancarkan `result` sintetis sendiri** (`assistant` dengan
+   `model: <synthetic>`). Orkestrator tidak boleh menganggapnya hasil fase.
+
+6. **`--output-format`/`--input-format` bertuliskan "only works with --print".** Sesi PTY
+   interaktif secara struktural tidak dapat memancarkan `stream-json`, karena itu tidak dapat
+   melaporkan `subtype`. ADR-0012 mencatat `subtype` adalah satu-satunya sinyal gagal yang
+   tersisa, setelah rem anggaran dicabut. Eksekusi fase **tidak** dipindahkan ke PTY.
+
+7. **`--resume` bersifat cwd-scoped.** Session id yang benar-benar ada tetap dijawab
+   `No conversation found` bila dijalankan dari cwd lain; dari worktree asalnya, sesi yang sama
+   menjawab normal. Transcript disimpan di `~/.claude/projects/<slug-cwd>/<session-id>.jsonl`.
+
+## Bug yang ditemukan dalam perjalanan
+
+**Fase Execute di worker tidak pernah selesai.**
+
+`runOne` memberi fase Execute prompt berupa `ctl.steer.stream()` (`run.ts:42`). `pump()` menutup
+stdin hanya setelah iterable itu habis (`claude-cli.ts:44`); `claude` keluar hanya saat stdin EOF
+(fakta 2); dan loop keluaran `runPhase` berakhir hanya saat stdout EOF. `SteerQueue` baru
+di-`close()` di `worker.ts` **sesudah** `runOne` selesai. Ketiganya saling menunggu.
+
+`cli/src/commands/_run.ts:31` memanggil `runOne` tanpa `ctl`, jadi prompt Execute tetap string dan
+jalur CLI selamat. `worker.ts:66` selalu mengoper `{ abortController, steer }` — jadi jalur yang
+dipakai produksi menggantung, dan jalur yang tidak dipakai produksi yang diuji.
+
+Tidak ada test yang menutupinya: `runner/test/run.test.ts` tak pernah mengoper `steer`, dan
+`runner/test/phase.test.ts` tak punya satu pun kasus prompt `AsyncIterable`. Diverifikasi dengan
+fake `queryFn` yang setia pada semantik `pump()` (termasuk `void pump(...)` yang tak di-await):
+`runOne` menembus Brainstorm → Objective → Spec → Plan, lalu menggantung di Execute.
+
+Akar masalahnya: **`runPhase` menyamakan "fase selesai" dengan "stream proses berakhir".** Desain
+di bawah menghapus penyamaan itu, jadi perbaikannya menyatu dengan rewrite-nya dan bukan tambalan
+terpisah.
 
 ## Keputusan
 
-Jangan ganti transport. Tambahkan pintu.
+### 1. Satu backlog = satu run = satu spawn = satu worktree = satu `sessionId`
 
-### 1. Simpan `sessionId` per fase — tanpa migration
+`runOne` mengangkat `queryFn` keluar dari loop fase. Satu proses `claude` hidup sepanjang run,
+di worktree run itu (`.worktrees/<run-id>`, sudah berlaku lewat ADR-0002).
 
-Kolom `Run.phases` sudah bertipe `Json` dan sudah berisi array `{ name, state }`.
-`persistEvent` (`server/src/runner/events-io.ts`) sudah me-map array itu saat menerima event
-`phase`. Tambahkan field opsional `sessionId` pada varian `phase` dari `RunEvent`, diisi saat
-fase selesai.
+Fase berhenti menjadi proses dan menjadi **giliran**. `runPhase` tidak lagi men-spawn; ia menulis
+pesan dan mengkonsumsi giliran.
 
-Tidak ada perubahan skema, jadi tidak ada migration dan tidak ada ADR — larangan di
-`CLAUDE.md` ("jangan ubah skema tanpa migration + ADR") tidak tersentuh. `Run.worktree` juga
-sudah ada, sehingga cwd yang dibutuhkan `--resume` sudah tersimpan.
+Efek samping yang diinginkan: hari ini tiap fase spawn bersih, sehingga penalaran fase Brainstorm
+hilang bagi fase Spec kecuali yang sempat ditulis ke file. Satu sesi menyembuhkan itu.
 
-### 2. Mode resume pada layar Terminal
+### 2. Batas giliran dihitung, tidak ditebak
 
-`createSession` (`server/src/services/pty.ts`) menerima `{ runId }` sebagai alternatif
-`{ projectId }`:
+Orkestrator mengirim N pesan pengguna dan mengkonsumsi N `result`, berpasangan **berdasarkan
+urutan**. Tidak ada parsing heuristik, tidak ada screen-scraping.
 
-- `cwd` = `run.worktree`
-- argv = `claude --resume <sessionId fase terakhir yang punya sessionId>`
+Untuk tiap fase, bila `step.model` atau `step.effort` berbeda dari yang sedang aktif:
 
-Sesi hanya ditawarkan bila `run.worktree` masih ada di disk. Pengecekan ini wajib, bukan
-kehati-hatian berlebih: sebuah worktree dapat lenyap di tengah run ketika sesi lain
-mendaratkan pekerjaan yang sama.
+1. kirim `/model <m>` → konsumsi tepat satu `result`, buang (fakta 5)
+2. kirim `/effort <e>` → konsumsi tepat satu `result`, buang
+3. kirim prompt fase → konsumsi satu `result` → **inilah hasil fase**: `subtype`, `usage`
 
-### 3. Pembagian kanal
+Pesan `steer` yang masuk saat sebuah fase berjalan menjadi giliran tambahan; giliran-giliran itu
+dikuras sampai habis sebelum fase berikutnya dimulai. Karena tiap pesan pengguna menghasilkan
+tepat satu `result`, jumlahnya selalu cocok.
 
-| Status run | Cara ikut campur | Status hari ini |
-|---|---|---|
-| `running` | `steer` → Redis `run:<id>:control` → `SteerQueue` | sudah jalan |
-| `paused` / `failed` / `stopped` | `claude --resume` interaktif di worktree | **yang dibangun** |
-| `done` | tidak ada | disengaja |
+Run berakhir dengan menutup stdin — bukan dengan menunggu proses mati atas kemauannya sendiri.
+Itu yang menghapus deadlock di atas.
 
-`runOne` hanya memanggil `removeWorktree` di jalur sukses (`run.ts:56`). Jadi worktree masih
-utuh persis pada status-status yang ingin dicampuri, dan pintu ini terbuka tanpa mengubah
-cleanup sama sekali.
+### 3. `sessionId` naik jadi fakta tingkat-run
 
-Untuk run berstatus `done`, tidak ada resume. Kerjanya sudah di-commit dan di-push; tidak ada
-yang perlu dicampuri, dan worktree-nya memang sengaja dihapus.
+Dengan satu sesi per run, `sessionId` bukan lagi milik fase. Tambah kolom
+`Run.sessionId String?` — **migration + ADR-0014**, sesuai `CLAUDE.md`. `runPhase` sudah
+menangkapnya hari ini (`phase.ts:30`) dan `runOne` membuangnya; sekarang ia disimpan.
 
-`--fork-session` **tidak** dipakai. Dua agen yang menulis satu worktree adalah bug yang
-menunggu giliran, dan `steer` sudah menjadi kanal aman untuk run yang masih hidup.
+### 4. Terminal masuk lewat sesi yang sama
 
-### 4. Guard PreToolUse di PTY — utang keamanan, bukan bagian dari fitur
+Layar Terminal membuka `claude --resume <run.sessionId>` dengan `cwd` = `run.worktree` (kolom
+sudah ada). Bukan sesi baru yang menyerupai run — **sesi run itu sendiri**, dengan seluruh
+riwayatnya, di device pengguna.
 
-`pty.ts:35` hari ini men-spawn `claude --dangerously-skip-permissions` **tanpa `--settings`**,
-sehingga jalur terminal berjalan tanpa PreToolUse guard sama sekali. ADR-0010 menyebut hook itu
-"satu-satunya gerbang yang tersisa" di bawah `--dangerously-skip-permissions`.
+| Status run | Cara ikut campur |
+|---|---|
+| `running` | `steer` → Redis `run:<id>:control` → giliran baru di sesi yang sama (sudah jalan) |
+| `paused` / `failed` / `stopped` | `claude --resume` interaktif di worktree |
+| `done` | tidak ada — worktree sengaja dihapus, kerja sudah di-commit |
 
-Lubang ini ada sebelum spec ini dan ditutup di dalamnya: `pty.ts` memasang `--settings` berisi
-`guardSettings(guardCommand())`. Keduanya sudah diekspor — `guardSettings` dari
-`@hanoman/runner` (`runner/src/claude-cli.ts:16`), `guardCommand` dari
+`runOne` hanya memanggil `removeWorktree` di jalur sukses (`run.ts:56`), jadi worktree masih utuh
+persis pada status yang ingin dicampuri. Cleanup tidak berubah.
+
+`--fork-session` tidak dipakai. Dua agen menulis satu worktree adalah bug yang menunggu giliran,
+dan `steer` sudah menjadi kanal aman untuk run yang masih hidup.
+
+### 5. Guard PreToolUse di PTY — utang keamanan yang ada sebelum spec ini
+
+`pty.ts:35` men-spawn `claude --dangerously-skip-permissions` **tanpa `--settings`**, sehingga
+layar Terminal hari ini berjalan tanpa PreToolUse guard sama sekali. ADR-0010 menyebut hook itu
+"satu-satunya gerbang yang tersisa" di bawah flag tersebut.
+
+Ditutup di sini: `pty.ts` memasang `--settings` berisi `guardSettings(guardCommand())`. Keduanya
+sudah diekspor — `guardSettings` dari `runner/src/claude-cli.ts:16`, `guardCommand` dari
 `server/src/runner/deps.ts`. Berlaku untuk sesi project maupun sesi resume.
 
 ## Komponen
 
 | Unit | Tanggung jawab | Bergantung pada |
 |---|---|---|
-| `runner/src/types.ts` | `RunEvent.phase` membawa `sessionId?` | — |
-| `runner/src/run.ts` | teruskan `r.sessionId` ke event `phase` state `done` | `runPhase` |
-| `server/src/runner/events-io.ts` | simpan `sessionId` ke entri `phases` | Prisma |
+| `runner/src/claude-cli.ts` | spawn sekali; `pump` menulis pesan sesuai permintaan, tutup stdin saat diminta | — |
+| `runner/src/turns.ts` (baru) | antrean pesan → giliran; pasangkan N pesan dengan N `result` | `types.ts` |
+| `runner/src/phase.ts` | kirim `/model`+`/effort`+prompt, kembalikan hasil fase | `turns.ts` |
+| `runner/src/run.ts` | buka sesi sekali, urutkan fase, tutup stdin di akhir | `phase.ts`, `GitOps` |
+| `server/src/runner/events-io.ts` | simpan `sessionId` ke `Run` | Prisma |
 | `server/src/services/pty.ts` | argv resume + guard `--settings` | `@hanoman/runner` |
-| `server/src/routes/terminal.ts` | terima `{ runId }`, tolak bila worktree hilang | `pty.ts`, Prisma |
-| `src/src/screens/TerminalScreen.tsx` | tab sesi run | API |
+| `server/src/routes/terminal.ts` | terima `{ runId }`, tolak bila worktree/sesi tidak ada | `pty.ts`, Prisma |
 
 ## Penanganan galat
 
-- **Worktree hilang** → `400`, pesan menyebut path yang dicari. Jangan diam-diam jatuh ke
-  `repoDir`: itu akan membuka sesi di working tree utama, melanggar ADR-0002.
-- **Fase belum punya `sessionId`** (run baru mengantre, atau semua fase gagal sebelum sesi
-  terbentuk) → `400`, bukan sesi kosong.
+- **`subtype` `error_*`** → fase gagal, run gagal, tanpa commit. Perilaku ADR-0012 dipertahankan
+  utuh; ini alasan pokok eksekusi tidak dipindahkan ke PTY.
+- **Proses mati di tengah run** → sisa fase tidak berjalan; run gagal dengan stderr yang terbaca
+  (`claude-cli.ts:80` sudah melakukannya).
+- **Worktree hilang** saat membuka terminal → `400` yang menyebut path. Jangan diam-diam jatuh ke
+  `repoDir`: itu membuka sesi di working tree utama dan melanggar ADR-0002.
+- **Run belum punya `sessionId`** (masih mengantre) → `400`, bukan sesi kosong.
 - **Run `done`** → `400` dengan alasan eksplisit, bukan `404`.
-- **`--resume` gagal** (transcript dipangkas, id asing) → `claude` mencetak
-  `No conversation found` lalu keluar; PTY memancarkan frame `exit`, UI menampilkan sesi
-  berakhir. Tidak perlu penanganan khusus.
+- **`--resume` gagal** (transcript dipangkas) → `claude` mencetak `No conversation found` lalu
+  keluar; PTY memancarkan frame `exit` dan UI menampilkan sesi berakhir.
 
 ## Rencana pengujian
 
-- `runner/test/run.test.ts` — `sessionId` dari `runPhase` sampai ke event `phase` yang `done`.
-- `server/test/events-io.test.ts` — `persistEvent` menulis `sessionId` ke entri `phases` yang
-  benar dan tidak menimpa entri lain.
-- `server/test/pty.test.ts` — argv resume berisi `--resume <id>` dan `--settings`; argv project
+Regresi yang menjadi alasan spec ini harus punya test yang gagal sebelum diperbaiki:
+
+- `runner/test/run.test.ts` — **`runOne` dengan `steer` menyelesaikan fase Execute.** Ini test
+  yang hari ini tidak ada dan yang menggantung bila dijalankan terhadap kode sekarang.
+- `runner/test/turns.ts` — N pesan menghasilkan N `result`; giliran slash-command dibuang dan
+  tidak pernah terbaca sebagai hasil fase.
+- `runner/test/phase.test.ts` — `/model` dan `/effort` hanya dikirim saat step berubah; hasil fase
+  membaca `result` yang benar, bukan `result` sintetis.
+- `runner/test/run.test.ts` — satu spawn untuk seluruh run (`queryFn` dipanggil tepat sekali).
+- `runner/test/claude-cli.test.ts` — argv tetap membawa `--settings` guard dan
+  `--setting-sources user,project,local`.
+- `server/test/pty.test.ts` — argv resume berisi `--resume <id>` **dan** `--settings`; argv project
   tetap berisi `--settings`. Guard tidak boleh bisa hilang tanpa membuat test merah.
-- `server/test/terminal-route.test.ts` — worktree hilang → `400`; run `done` → `400`; fase
-  tanpa `sessionId` → `400`.
-- Verifikasi nyata (wajib per `CLAUDE.md`): boot server, `curl` endpoint terminal untuk sebuah
-  run `stopped`, pastikan sesi hidup dan `claude` benar-benar melanjutkan percakapan.
+- `server/test/terminal-route.test.ts` — worktree hilang → `400`; run `done` → `400`; run tanpa
+  `sessionId` → `400`.
+- `runner/test/live-smoke.test.ts` — perluas: satu sesi, dua fase berurutan dengan model berbeda,
+  konteks fase pertama masih terlihat di fase kedua.
+- Verifikasi nyata (wajib per `CLAUDE.md`): boot server + worker, jalankan satu backlog sampai
+  Execute, lalu `curl` endpoint terminal untuk run `stopped` dan pastikan `claude` benar-benar
+  melanjutkan percakapan yang sama.
+
+## Konsekuensi
+
+- (+) `claude -p` oneshot per fase hilang. Satu backlog, satu spawn, satu worktree, satu sesi.
+- (+) Konteks terbawa antar fase, seperti sesi terminal harian — tujuan yang sama dengan ADR-0010.
+- (+) Deadlock Execute hilang, karena batas fase dihitung dari `result`, bukan dari matinya proses.
+- (+) `sessionId` tingkat-run membuat terminal membuka sesi run yang asli, bukan tiruannya.
+- (+) `subtype`, token, cost, `steer`, dan ADR-0003 semuanya utuh.
+- (−) **Token per giliran tumbuh**: konteks menumpuk lintas fase alih-alih bersih tiap fase. Ini
+  harga dari "menyerupai sesi harian", dan ADR-0012 sudah menetapkan biaya tidak menggerakkan
+  apa pun. Rate limit, bukan biaya, adalah plafon sesungguhnya.
+- (−) Satu proses menahan seluruh run: matinya proses mematikan sisa fase. Sebelumnya matinya satu
+  spawn juga menggagalkan run, jadi ini bukan kemunduran, tapi jendelanya kini lebih panjang.
+- (−) Ketergantungan baru pada slash command `/model` dan `/effort` sebagai antarmuka. Keduanya
+  tidak dijamin stabil lintas versi `claude`; `runner/test/live-smoke.test.ts` mengunci perilakunya
+  terhadap binary asli, seperti ADR-0010 mengunci kontrak `stream-json`.
 
 ## Yang sengaja tidak dikerjakan
 
 - Rename kosakata `Sdk*`/`queryFn` → pekerjaan mekanis terpisah; mencampurnya akan menenggelamkan
   diff spec ini.
-- `--fork-session` untuk run `running`. Tambahkan bila `steer` terbukti kurang, dengan bukti
-  dari pemakaian nyata.
-- Menyimpan riwayat sesi lintas run.
-- Memindahkan eksekusi fase ke PTY. Fakta 1 di atas menjelaskan alasannya; bila suatu saat
-  `claude` memancarkan batas-giliran di mode interaktif, timbang ulang.
+- Memindahkan eksekusi fase ke PTY. Fakta 6 menjelaskan alasannya. Bila suatu saat `claude`
+  memancarkan batas giliran di mode interaktif, timbang ulang.
+- `--fork-session` untuk run `running`. Tambahkan bila `steer` terbukti kurang, dengan bukti dari
+  pemakaian nyata.
+- Memangkas konteks (compaction) saat sesi memanjang. Tambahkan saat run nyata menabrak rate limit,
+  bukan sebelumnya.
