@@ -44,10 +44,26 @@ export function retryOnCrash(run: () => VerifyResult): VerifyResult {
   return first.error !== undefined ? run() : first;
 }
 
-export function verifyViaCli(cwd: string): VerifyResult {
+export type Guard = { requireLinks: boolean; blockStale: boolean };
+
+// Switch guardrail dari dashboard, diturunkan ke subprocess verify (yang tak punya akses DB).
+// `coverageThreshold` bukan switch tersendiri di UI: coverage < 100% berarti ada doc tak
+// ter-link — pelanggaran yang sama persis dengan `unlinked`. Membiarkan ambangnya di 100 saat
+// "Wajib link setiap doc" dimatikan hanya menukar pesan blokirnya, bukan mencabut blokirnya.
+export function guardEnv(g: Guard): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    HANOMAN_REQUIRE_LINKS: String(g.requireLinks),
+    HANOMAN_BLOCK_STALE: String(g.blockStale),
+    ...(g.requireLinks ? {} : { HANOMAN_COVERAGE_THRESHOLD: "0" }),
+  };
+}
+
+export function verifyViaCli(cwd: string, guard?: Guard): VerifyResult {
   const cli = resolveCliEntry();
+  const env = guard ? guardEnv(guard) : process.env;
   const run = () => classifyVerify(
-    spawnSync("node", [cli, "docs", "verify", "--block-if-stale", "--json"], { cwd, encoding: "utf8" }),
+    spawnSync("node", [cli, "docs", "verify", "--block-if-stale", "--json"], { cwd, encoding: "utf8", env }),
   );
   return retryOnCrash(run);
 }
@@ -57,3 +73,6 @@ export const prodDeps: RunDeps = {
   openSession: makeClaudeCliSession({ guardCommand: guardCommand() }),
   git: realGit, verify: verifyViaCli,
 };
+// Guardrail dibaca per-run, bukan sekali saat worker boot: mematikan switch di dashboard harus
+// berlaku untuk run berikutnya tanpa restart worker.
+export const depsWithGuard = (guard: Guard): RunDeps => ({ ...prodDeps, verify: (cwd) => verifyViaCli(cwd, guard) });

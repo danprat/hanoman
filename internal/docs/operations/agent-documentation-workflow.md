@@ -15,6 +15,14 @@ Stop hook memanggil `hanoman hook stop` → `hanoman docs verify`. Blok bila: do
 ter-link di index, `src/` berubah tanpa perubahan doc, atau coverage di bawah ambang.
 Konfigurasi per-repo di `hanoman.config.json`. Lihat ADR-0001.
 
+Switch **Source of Truth** di Settings dashboard menang atas `hanoman.config.json`. Gate Execute
+milik run berjalan sebagai subprocess `hanoman docs verify` di dalam worktree run — subprocess itu
+tak punya akses DB, jadi worker menurunkan switch-nya lewat env (`HANOMAN_REQUIRE_LINKS`,
+`HANOMAN_BLOCK_STALE`, `HANOMAN_COVERAGE_THRESHOLD`), dibaca per-run sehingga tak perlu restart
+worker. Env yang tak diset = konfigurasi repo yang berlaku, jadi CLI dan hook manusia tak berubah.
+Mematikan "Wajib link setiap doc" ikut menurunkan ambang coverage ke 0: coverage di bawah 100%
+**adalah** doc tak ter-link, jadi tanpa itu blokirnya cuma berganti nama, tidak tercabut.
+
 Guardrail berjangkar ke **repo root**, bukan cwd. `collectViolations` memakai root hasil
 `git rev-parse --show-toplevel` untuk seluruh akses filesystem, jadi `hanoman docs verify`
 dan `hook stop` tetap benar walau dipanggil dari subdir. `hook stop` sendiri membaca

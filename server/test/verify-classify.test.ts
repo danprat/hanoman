@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { classifyVerify, retryOnCrash, resolveCliEntry } from "../src/runner/deps";
+import { classifyVerify, retryOnCrash, resolveCliEntry, guardEnv } from "../src/runner/deps";
 
 describe("resolveCliEntry (SPEC-010) — cwd-independent CLI path", () => {
   // RUN-8801: the dev worker runs from `server/`, so a cwd-relative path pointed at the
@@ -17,6 +17,22 @@ describe("resolveCliEntry (SPEC-010) — cwd-independent CLI path", () => {
   });
   it("the anchored root actually contains the workspace marker", () => {
     expect(existsSync(join(repoRoot, "pnpm-workspace.yaml"))).toBe(true);
+  });
+});
+
+describe("guardEnv — switch guardrail dashboard turun ke subprocess verify", () => {
+  it("guardrail on: no coverage override, both switches on", () => {
+    const e = guardEnv({ requireLinks: true, blockStale: true });
+    expect(e.HANOMAN_REQUIRE_LINKS).toBe("true");
+    expect(e.HANOMAN_BLOCK_STALE).toBe("true");
+    expect(e.HANOMAN_COVERAGE_THRESHOLD).toBeUndefined();
+  });
+  // Tanpa ambang 0, mematikan "wajib link" hanya menukar violation `unlinked` jadi `coverage`
+  // — run tetap diblok, persis keluhan yang memicu perbaikan ini.
+  it("requireLinks off also drops the coverage threshold to 0", () => {
+    const e = guardEnv({ requireLinks: false, blockStale: false });
+    expect(e.HANOMAN_REQUIRE_LINKS).toBe("false");
+    expect(e.HANOMAN_COVERAGE_THRESHOLD).toBe("0");
   });
 });
 
