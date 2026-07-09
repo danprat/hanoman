@@ -22,9 +22,12 @@ function PhasePipeline({ phases }: { phases: Phase[] }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 0, flexWrap: "wrap" }}>
       {phases.map((p, i) => {
+        // `skipped` (SPEC-145): fase yang run putuskan untuk tidak dijalankan. Ia HARUS
+        // terbaca berbeda dari `pending` ("belum jalan") — bukan lingkaran kosong.
+        const skipped = p.state === "skipped";
         const c = p.state === "done" ? "var(--leaf-500)" : p.state === "active" ? "var(--brass-500)"
           : p.state === "failed" ? "var(--clay-500)" : "var(--bone-400)";
-        const icon = p.state === "done" ? "check" : p.state === "failed" ? "x" : null;
+        const icon = p.state === "done" ? "check" : p.state === "failed" ? "x" : skipped ? "minus" : null;
         return (
           <React.Fragment key={p.name}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
@@ -38,12 +41,14 @@ function PhasePipeline({ phases }: { phases: Phase[] }) {
                 {icon && <Icon name={icon} size={13} stroke={3} color="#fff" />}
               </span>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 10.5,
-                color: p.state === "pending" ? "var(--text-subtle)" : "var(--text-body)",
+                color: p.state === "pending" || skipped ? "var(--text-subtle)" : "var(--text-body)",
                 fontWeight: p.state === "active" ? 600 : 400 }}>{p.name}</span>
             </div>
             {i < phases.length - 1 && (
+              // Alur memang melewati fase yang `skipped`; hanya saja tak ada pekerjaan di sana.
               <span style={{ flex: 1, minWidth: 18, height: 2, marginTop: -18,
-                background: phases[i]!.state === "done" ? "var(--leaf-500)" : "var(--bone-300)" }} />
+                background: phases[i]!.state === "done" || phases[i]!.state === "skipped"
+                  ? "var(--leaf-500)" : "var(--bone-300)" }} />
             )}
           </React.Fragment>
         );
