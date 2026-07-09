@@ -5,7 +5,7 @@ import type { RunVM } from "../src/screens/types";
 const base = {
   id: "RUN-1", projectId: "p1", specId: null, kind: "feature", status: "running",
   trigger: "commit", triggerDetail: "push → main",
-  phases: [{ name: "Execute", state: "active" }], plan: [], files: [], log: [],
+  phases: [{ name: "Execute", state: "active" }], plan: [], log: [],
   worktree: "w", branchFrom: "main", branchTo: "b", model: "m",
   tokensIn: "0", tokensOut: "0", cost: "$0.00", progress: 0,
   createdAt: "2026-07-08T00:00:00.000Z", finishedAt: null,

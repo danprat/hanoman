@@ -4,7 +4,7 @@
 import React from "react";
 import { Card, StatusPill, Icon, usePaged, Pager, Button, IconButton, StateBlock } from "../ds";
 import type { RunVM } from "./types";
-import { subscribeRun, api } from "../api/client";
+import { subscribeRun, api, type RunChanges, type RunCommit, type FilePreview } from "../api/client";
 import { reduceRunEvent, runDurationMs, fmtDuration } from "./run-reduce";
 import { isRunActive } from "@hanoman/shared";
 
@@ -15,7 +15,6 @@ const R_TRIGGER_ICON: Record<string, string> = {
 
 type Phase = { name: string; state: string };
 type PlanStep = { label: string; state: string };
-type FileRow = { path: string; add: number; del: number; status: string };
 type LogLine = { t: string; s: string };
 
 function PhasePipeline({ phases }: { phases: Phase[] }) {
@@ -93,31 +92,116 @@ function PlanSteps({ steps }: { steps: PlanStep[] }) {
   );
 }
 
-function FileDiff({ files }: { files: FileRow[] }) {
-  const totAdd = files.reduce((n, f) => n + f.add, 0);
-  const totDel = files.reduce((n, f) => n + f.del, 0);
+// Realtime: satu mekanisme, bukan dua. Poll tidak digantung pada event SSE `log` —
+// satu fase memuntahkan puluhan baris log per menit, dan tiap baris akan memicu
+// empat spawn git di server.
+// ponytail: poll 5 dtk; pindah ke event bila panel run aktif jadi mahal.
+function useRunChanges(run: RunVM): { changes: RunChanges | null; error: string | null } {
+  const [changes, setChanges] = React.useState<RunChanges | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    let alive = true;
+    const load = () => api.runChanges(run.id)
+      .then((c) => { if (alive) { setChanges(c); setError(null); } })
+      .catch((e) => { if (alive) { setChanges(null); setError(String(e.message ?? e)); } });
+    load();
+    if (!isRunActive(run.status)) return () => { alive = false; };
+    const t = setInterval(load, 5000);
+    return () => { alive = false; clearInterval(t); };
+  }, [run.id, run.status]);
+  return { changes, error };
+}
+
+const STATUS_ICON: Record<string, string> = { A: "file-plus", M: "file-diff", D: "file-minus" };
+
+function ChangesCard({ changes, onPick }: { changes: RunChanges; onPick: (p: string) => void }) {
+  const totAdd = changes.files.reduce((n, f) => n + f.add, 0);
+  const totDel = changes.files.reduce((n, f) => n + f.del, 0);
   return (
     <Card padding={0}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px", borderBottom: "1px solid var(--border-hair)" }}>
-        <span className="hn-eyebrow">File berubah · {files.length}</span>
+        <span className="hn-eyebrow">File berubah · {changes.files.length}</span>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>
           <span style={{ color: "var(--leaf-600)" }}>+{totAdd}</span>{" "}
           <span style={{ color: "var(--clay-600)" }}>−{totDel}</span>
         </span>
       </div>
       <div style={{ padding: "8px 16px 12px" }}>
-        {files.map((f) => (
-          <div key={f.path} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 0" }}>
-            <Icon name={f.status === "added" ? "file-plus" : "file-diff"} size={14}
-              color={f.status === "added" ? "var(--leaf-600)" : "var(--wind-600)"} />
+        {changes.files.length === 0 && <div style={{ fontSize: 13, color: "var(--text-subtle)" }}>belum ada file berubah</div>}
+        {changes.files.map((f) => (
+          <div key={f.path} onClick={() => onPick(f.path)}
+            style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 0", cursor: "pointer" }}>
+            <Icon name={STATUS_ICON[f.status]!} size={14}
+              color={f.status === "A" ? "var(--leaf-600)" : f.status === "D" ? "var(--clay-600)" : "var(--wind-600)"} />
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-body)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.path}</span>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, flex: "0 0 auto" }}>
-              <span style={{ color: "var(--leaf-600)" }}>+{f.add}</span>{" "}
-              <span style={{ color: "var(--clay-600)" }}>−{f.del}</span>
-            </span>
+            {f.binary
+              ? <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)" }}>biner</span>
+              : <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, flex: "0 0 auto" }}>
+                  <span style={{ color: "var(--leaf-600)" }}>+{f.add}</span>{" "}
+                  <span style={{ color: "var(--clay-600)" }}>−{f.del}</span>
+                </span>}
           </div>
         ))}
       </div>
+    </Card>
+  );
+}
+
+function CommitList({ commits }: { commits: RunCommit[] }) {
+  if (!commits.length) return null;
+  return (
+    <Card padding={0}>
+      <div style={{ padding: "13px 16px", borderBottom: "1px solid var(--border-hair)" }}>
+        <span className="hn-eyebrow">Commit · {commits.length}</span>
+      </div>
+      <div style={{ padding: "8px 16px 12px" }}>
+        {commits.map((c) => (
+          <div key={c.sha} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 0" }}>
+            <Icon name="git-commit-horizontal" size={14} color="var(--brass-600)" />
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--text-muted)" }}>{c.sha.slice(0, 7)}</span>
+            <span style={{ fontSize: 13, color: "var(--text-body)" }}>{c.subject}</span>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+// Preview: Diff | Source. `content` adalah isi file SETELAH perubahan (brief: "preview seluruh source").
+function FilePreviewPane({ runId, path, onClose }: { runId: string; path: string; onClose: () => void }) {
+  const [tab, setTab] = React.useState<"diff" | "source">("diff");
+  const [p, setP] = React.useState<FilePreview | null>(null);
+  React.useEffect(() => {
+    let alive = true;
+    api.runChangeFile(runId, path).then((r) => { if (alive) setP(r); }).catch(() => { if (alive) setP(null); });
+    return () => { alive = false; };
+  }, [runId, path]);
+  const body = tab === "diff" ? p?.diff : p?.content;
+  const lineColor = (l: string) =>
+    l.startsWith("+") ? "var(--leaf-500)" : l.startsWith("-") ? "var(--clay-500)" :
+    l.startsWith("@@") ? "var(--brass-400)" : "var(--term-fg)";
+  return (
+    <Card padding={0}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderBottom: "1px solid var(--border-hair)" }}>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{path}</span>
+        <Button size="sm" variant={tab === "diff" ? "primary" : "ghost"} onClick={() => setTab("diff")}>Diff</Button>
+        <Button size="sm" variant={tab === "source" ? "primary" : "ghost"} onClick={() => setTab("source")}>Source</Button>
+        <IconButton size="sm" variant="ghost" icon="x" label="Tutup preview" onClick={onClose} />
+      </div>
+      {p?.binary
+        ? <StateBlock kind="empty" icon="file" title="Berkas biner" hint="tidak dapat di-review dari dashboard" />
+        : <div style={{ background: "var(--surface-code)", padding: "12px 14px", maxHeight: 420, overflow: "auto",
+            fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1.7 }}>
+            {(body ?? "").split("\n").map((l, i) => (
+              <div key={i} style={{ whiteSpace: "pre-wrap", wordBreak: "break-word",
+                color: tab === "diff" ? lineColor(l) : "var(--term-fg)" }}>{l || " "}</div>
+            ))}
+          </div>}
+      {p?.truncated && (
+        <div style={{ padding: "8px 14px", fontSize: 11.5, color: "var(--clay-600)", borderTop: "1px solid var(--border-hair)" }}>
+          dipotong di 256 KB — file aslinya lebih panjang
+        </div>
+      )}
     </Card>
   );
 }
@@ -237,8 +321,11 @@ function RunControls({ run }: { run: RunVM }) {
 }
 
 function RunDetail({ run }: { run: RunVM }) {
-  const hasWork = (run.plan as PlanStep[]).length > 0 || (run.files as FileRow[]).length > 0;
   const duration = useLiveDuration(run);
+  const { changes, error } = useRunChanges(run);
+  const [picked, setPicked] = React.useState<string | null>(null);
+  React.useEffect(() => { setPicked(null); }, [run.id]);
+  const plan = run.plan as PlanStep[];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <Card padding={20}>
@@ -262,10 +349,15 @@ function RunDetail({ run }: { run: RunVM }) {
         </div>
       </Card>
       <WorktreeInfo run={run} />
-      {hasWork && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, alignItems: "start" }}>
-          <PlanSteps steps={run.plan as PlanStep[]} />
-          <FileDiff files={run.files as FileRow[]} />
+      {plan.length > 0 && <PlanSteps steps={plan} />}
+      {error && <StateBlock kind="error" icon="alert-triangle" title="Changes tidak dapat dibaca" hint={error} />}
+      {changes && (
+        <div style={{ display: "grid", gridTemplateColumns: picked ? "1fr 1fr" : "1fr", gap: 14, alignItems: "start" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <ChangesCard changes={changes} onPick={setPicked} />
+            <CommitList commits={changes.commits} />
+          </div>
+          {picked && <FilePreviewPane runId={run.id} path={picked} onClose={() => setPicked(null)} />}
         </div>
       )}
       <LogView run={run} />

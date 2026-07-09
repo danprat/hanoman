@@ -9,7 +9,6 @@ export function reduceRunEvent(run: RunVM, e: RunLiveEvent): RunVM {
     case "status":return { ...run, status: e.status as RunVM["status"] };
     case "phase": return { ...run, phases: (run.phases as any[]).map((p) => p.name === e.name ? { ...p, state: e.state } : p) };
     case "cost":  return { ...run, tokensIn: String(e.tokensIn), tokensOut: String(e.tokensOut), cost: fmtEstCost(e.costUsd) };
-    case "file":  return { ...run, files: [...(run.files as any[]), { path: e.path, add: e.add, del: e.del, status: e.status }] };
     default:      return run;
   }
 }
