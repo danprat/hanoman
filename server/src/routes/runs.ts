@@ -25,8 +25,9 @@ const KNOWN = new Set(["help","status","plan","files","diff","steer","pause","re
 // verbs (steer/pause/stop/resume/retry) have already run in the route — here we
 // render the truthful outcome. `active` = run is running|paused.
 async function runCommand(
-  run: { id: string; projectId: string; status: string; kind: string; progress: number; phases: unknown; plan: unknown; files: unknown },
-  text: string, active: boolean,
+  run: { id: string; projectId: string; status: string; kind: string; progress: number;
+         phases: unknown; plan: unknown; worktree: string; baseSha: string | null; headSha: string | null },
+  repoDir: string | null, text: string, active: boolean,
 ): Promise<Line[]> {
   const parts = text.trim().split(/\s+/);
   const cmd = (parts[0] ?? "").toLowerCase();
@@ -43,8 +44,16 @@ async function runCommand(
       return plan.length ? plan.map((s) => ({ t: s.state === "done" ? "✓" : s.state === "active" ? "›" : " ", s: s.label })) : [{ t: " ", s: "belum ada plan untuk run ini" }];
     }
     case "files": case "diff": {
-      const files = run.files as { path: string; add: number; del: number; status: string }[];
-      return files.length ? files.map((f) => ({ t: f.status === "added" ? "✓" : "›", s: `${f.path}  +${f.add} −${f.del}` })) : [{ t: " ", s: "belum ada file berubah" }];
+      // Sumber yang sama dengan GET /runs/:id/changes — tak ada salinan kedua yang bisa basi.
+      try {
+        const { files } = await runChanges(run, repoDir);
+        return files.length
+          ? files.map((f) => ({ t: f.status === "A" ? "✓" : f.status === "D" ? "✗" : "›",
+                                s: `${f.path}  +${f.add} −${f.del}` }))
+          : [{ t: " ", s: "belum ada file berubah" }];
+      } catch (e) {
+        return [{ t: "✗", s: (e as Error).message }];
+      }
     }
     case "steer": return arg ? [{ t: "»", s: "steer · " + arg }, { t: "›", s: "diterima — arahan disisipkan ke langkah berikutnya" }] : [{ t: " ", s: "pakai: steer <pesan>" }];
     case "pause": return [{ t: " ", s: "— dijeda oleh manusia —" }];
@@ -234,6 +243,7 @@ export default async function (app: FastifyInstance) {
     } else if (!KNOWN.has(cmd) && active) {
       await publishControl(id, { type: "steer", message: text });   // free text → steer the run
     }
-    return { lines: await runCommand(run, text, active) };
+    const project = await prisma.project.findUnique({ where: { id: run.projectId } });
+    return { lines: await runCommand(run, project?.repoDir ?? null, text, active) };
   });
 }
