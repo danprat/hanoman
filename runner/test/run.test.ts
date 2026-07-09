@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { runOne } from "../src/run";
+import { SteerQueue } from "../src/steer-queue";
 import type { RunDeps, RunInput } from "../src/index";
 const steps = Object.fromEntries(["brainstorm", "spec", "plan", "execute", "audit"].map((k) => [k, { model: "claude-opus-4-8", effort: "x-high" }])) as any;
 const input = (over: Partial<RunInput> = {}): RunInput => ({ runId: "RUN-1", repoDir: "/repo", branchFrom: "main", branchTo: "feat/x", flow: "feature", steps, ...over });
@@ -17,6 +18,24 @@ describe("runOne", () => {
     const done = events.filter((e) => e.kind === "phase" && e.state === "done").map((e) => e.name);
     expect(done).toEqual(["Brainstorm", "Objective", "Spec", "Plan", "Execute"]);
   });
+  // REGRESI: worker.ts SELALU mengoper steer; cli/_run.ts tidak. Fake ini setia pada
+  // semantik claude-cli.ts: pump() dipanggil `void` (tak di-await) sehingga result giliran
+  // pertama terbit selagi pump masih menunggu pesan berikutnya, dan generator berakhir hanya
+  // setelah prompt iterable habis — yang di produksi berarti stdin EOF.
+  it("finishes the Execute phase when a steer queue is wired in", async () => {
+    const faithful = (args: any) => (async function* () {
+      if (typeof args.prompt === "string") { yield okResult; return; }
+      const drained = (async () => { for await (const _ of args.prompt) { /* drain */ } })();
+      yield okResult;
+      await drained;
+    })();
+    const d = fakeDeps({ queryFn: faithful as any });
+    const events: any[] = [];
+    const r = await runOne(input(), d, (e) => events.push(e), { steer: new SteerQueue() });
+    expect(r.status).toBe("done");
+    const done = events.filter((e) => e.kind === "phase" && e.state === "done").map((e) => e.name);
+    expect(done).toEqual(["Brainstorm", "Objective", "Spec", "Plan", "Execute"]);
+  }, 5000);
   it("blocks at execute when docs are stale and does NOT commit", async () => {
     const d = fakeDeps({ verify: () => ({ blocked: true, reason: "docs stale" }) }); const events: any[] = [];
     const r = await runOne(input(), d, (e) => events.push(e));
