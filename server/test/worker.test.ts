@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { resetDb, makeProject, makeRun, makeSetting, makeSpec } from "./factory";
 import { prisma } from "../src/db";
-import { runProcessor } from "../src/worker";
+import { runProcessor, reconcileRuns } from "../src/worker";
 import type { ClaudeSession, RunDeps, CliMessage } from "@hanoman/runner";
 
 const result = (): CliMessage => ({ type: "result", subtype: "success", session_id: "s",
@@ -84,5 +84,35 @@ describe("worker processor", () => {
     await makeRun({ id: "RUN-3", specId: "SPEC-gone", status: "running" });
     const steps = await (await import("../src/services/settings")).stepModels();
     await expect(runProcessor({ data: { runId: "RUN-3", specId: "SPEC-gone", repoDir: "/tmp/x", branchFrom: "main", branchTo: "feat/x", flow: "feature", steps } } as any, fakeDeps)).rejects.toThrow();
+  });
+});
+
+// Worker mati / Redis di-restart di tengah run: tak ada lagi `on("failed")` yang menulis
+// status terminal, dan barisnya tersangkut `running` selamanya. Boot berikutnya yang
+// membereskannya.
+describe("reconcileRuns", () => {
+  beforeAll(async () => {
+    await resetDb();
+    await makeProject({ id: "p1" });
+    await makeRun({ id: "RUN-20", projectId: "p1", status: "running" });  // yatim: job hilang
+    await makeRun({ id: "RUN-21", projectId: "p1", status: "queued" });   // jobnya masih ada
+    await makeRun({ id: "RUN-22", projectId: "p1", status: "done" });     // sudah terminal
+  });
+
+  it("fails only the non-terminal runs whose job is gone", async () => {
+    const queue = { getJob: async (id: string) => (id === "RUN-21" ? { id } : undefined) };
+    expect(await reconcileRuns(queue)).toEqual(["RUN-20"]);
+
+    const rows = Object.fromEntries((await prisma.run.findMany({ select: { id: true, status: true, finishedAt: true } }))
+      .map((r) => [r.id, r]));
+    expect(rows["RUN-20"]!.status).toBe("failed");
+    expect(rows["RUN-20"]!.finishedAt).not.toBeNull();
+    expect(rows["RUN-21"]!.status).toBe("queued");  // worker lain masih memegangnya
+    expect(rows["RUN-22"]!.status).toBe("done");
+  });
+
+  it("is idempotent — a second boot finds nothing left to reconcile", async () => {
+    expect(await reconcileRuns({ getJob: async () => undefined })).toEqual(["RUN-21"]);
+    expect(await reconcileRuns({ getJob: async () => undefined })).toEqual([]);
   });
 });

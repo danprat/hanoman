@@ -20,6 +20,26 @@ export async function markFailed(runId: string): Promise<void> {
   await prisma.run.update({ where: { id: runId }, data: { status: "failed" } }).catch(() => {});
 }
 
+// Status terminal hanya pernah ditulis oleh worker yang hidup — lewat `worker.on("failed")`
+// / `on("stalled")` di bawah. Worker mati (atau Redis di-restart) di tengah run: job-nya
+// lenyap dan barisnya tersangkut `running` selamanya, tak ada lagi yang bisa
+// menggerakkannya. Saat boot, run non-terminal yang tak punya job adalah run yatim.
+// jobId = runId (lihat enqueueRun), jadi satu getJob per baris sudah cukup. Job yang masih
+// dipegang worker lain tetap ditemukan → tidak ikut ditandai.
+export async function reconcileRuns(
+  queue: { getJob(id: string): Promise<unknown> } = runsQueue,
+): Promise<string[]> {
+  const live = await prisma.run.findMany({
+    where: { status: { in: ["queued", "running"] } }, select: { id: true },
+  });
+  const orphans: string[] = [];
+  for (const { id } of live) if (!(await queue.getJob(id))) orphans.push(id);
+  if (orphans.length) {
+    await prisma.run.updateMany({ where: { id: { in: orphans } }, data: { status: "failed", finishedAt: new Date() } });
+  }
+  return orphans;
+}
+
 // Process one run job: subscribe to its control channel, drive runOne, and
 // persist+publish every event. Persists are chained so read-modify-write events
 // (log/phase/file) can't race; awaited before returning so the final status lands.
@@ -92,6 +112,8 @@ if (entry.endsWith("worker.js") || entry.endsWith("worker.ts")) {
   if (cred.hasEnvCred) console.log(`[worker] Claude credential: ${cred.found.join(", ")}`);
   else console.warn(`[worker] ${cred.reason}. Prefer CLAUDE_CODE_OAUTH_TOKEN for headless runs.`);
   (async () => {
+    const orphans = await reconcileRuns();
+    if (orphans.length) console.log(`[worker] ${orphans.length} run yatim ditandai failed: ${orphans.join(", ")}`);
     const worker = new Worker(RUNS_QUEUE, (job) => runProcessor(job), {
       connection: bullConnection, concurrency: await maxConcurrent(), maxStalledCount: 1,
     });
