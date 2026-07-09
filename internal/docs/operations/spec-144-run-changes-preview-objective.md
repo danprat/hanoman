@@ -3,7 +3,7 @@
 **Fase:** Brainstorm → Objective (dikunci) · 2026-07-09
 **Jenis:** fitur — sumber `brief`, prioritas **tinggi**
 **Source of Truth:** `internal/docs/**` — dokumen ini subordinat terhadapnya.
-**Turunan:** brainstorm → [`docs/superpowers/specs/2026-07-09-hanoman-run-changes-preview-spec-144-brainstorm.md`].
+**Turunan:** brainstorm → [`docs/superpowers/specs/2026-07-09-hanoman-run-changes-preview-spec-144-brainstorm.md`], design → [`docs/superpowers/specs/2026-07-09-hanoman-run-changes-preview-spec-144-design.md`].
 
 ## Masalah
 
@@ -221,3 +221,25 @@ dikonfirmasi manusia:
 
 > Chiranjivi — objective bertahan lebih lama dari satu run. Spec dan plan turunannya tunduk
 > pada pernyataan ini.
+
+## Amandemen — 2026-07-09 (fase Spec)
+
+Dua kalimat di atas dicabut. Rincian di
+[`docs/superpowers/specs/2026-07-09-hanoman-run-changes-preview-spec-144-design.md`].
+
+1. **`git add -A` di index sementara menulis object pada setiap `GET`.** Kriteria sukses *"File baru
+   wajib terlihat"* mengunci `GIT_INDEX_FILE=<temp> git add -A` + `git diff --cached --numstat <base>`.
+   Perintah itu benar hasilnya tetapi salah efek sampingnya: `git add` menghash isi file dan menulis
+   satu blob ke `.git/objects` untuk **setiap** file berubah, pada setiap panggilan. Diganti
+   **`git add -A -N`** (*intent-to-add*) + `git diff --numstat <base>` (working tree, bukan `--cached`).
+   Diverifikasi berdampingan: keluaran `--numstat` dan `--name-status` identik, sementara biayanya
+   turun menjadi tepat satu object — blob kosong `e69de29…`, ditulis sekali lalu idempoten.
+   Keharusan `git rev-parse --git-path index` tetap berlaku utuh.
+
+2. **`services/scan.ts` justru presedennya.** Kriteria sukses *"Tidak memblok event loop"* menutup
+   dengan *"`services/scan.ts` dan `services/branches.ts` bukan preseden yang boleh diikuti di sini."*
+   Untuk `scan.ts` itu keliru: `listRepoDocs` (`server/src/services/scan.ts:16`) sudah memakai
+   `execFile` yang di-promisify dengan `maxBuffer: 1 << 24`, justru dengan alasan yang sama. Ia
+   preseden yang **harus** diikuti. Hanya `services/branches.ts` (masih `spawnSync`) yang bukan.
+
+Sisa objective ini tetap berlaku utuh — termasuk larangan `spawnSync` dan kewajiban file baru terlihat.
