@@ -32,6 +32,20 @@ describe("persistEvent finishedAt (SPEC-008)", () => {
     expect(run.finishedAt).not.toBeNull();
   });
 
+  // SPEC-145: `skipped` bertahan di kolom Json dan progress-nya jujur (2 done, 2 skipped → 100%).
+  it("persists a skipped phase and reports 100% when the rest are done", async () => {
+    await prisma.run.update({ where: { id: "RUN-1" }, data: { phases: [
+      { name: "Audit", state: "done" }, { name: "Spec", state: "pending" },
+      { name: "Plan", state: "pending" }, { name: "Execute", state: "done" },
+    ] as any } });
+    await persistEvent("RUN-1", { kind: "phase", name: "Spec", state: "skipped" });
+    await persistEvent("RUN-1", { kind: "phase", name: "Plan", state: "skipped" });
+
+    const run = await prisma.run.findUniqueOrThrow({ where: { id: "RUN-1" } });
+    expect((run.phases as any[]).map((p) => p.state)).toEqual(["done", "skipped", "skipped", "done"]);
+    expect(run.progress).toBe(100);
+  });
+
   it("leaves finishedAt null on a non-terminal status", async () => {
     await persistEvent("RUN-1", { kind: "status", status: "running" });
     const run = await prisma.run.findUniqueOrThrow({ where: { id: "RUN-1" } });
