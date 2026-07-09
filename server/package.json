@@ -6,13 +6,14 @@
     "postinstall": "chmod +x node_modules/node-pty/prebuilds/*/spawn-helper 2>/dev/null || true",
     "dev": "tsx watch src/server.ts",
     "worker": "tsx watch src/worker.ts",
-    "build": "esbuild src/server.ts src/worker.ts --bundle --platform=node --format=esm --outdir=dist --external:fastify --external:@fastify/static --external:@prisma/client --external:bullmq --external:ioredis",
+    "build": "esbuild src/server.ts src/worker.ts --bundle --platform=node --format=esm --outdir=dist --external:fastify --external:@fastify/static --external:@prisma/client --external:bullmq --external:ioredis --external:node-pty --external:@fastify/websocket",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "migrate": "prisma migrate dev"
   },
   "dependencies": {
     "@fastify/static": "^7.0.0",
+    "@fastify/websocket": "^10.0.1",
     "@hanoman/runner": "workspace:*",
     "@hanoman/shared": "workspace:*",
     "@octokit/auth-app": "^7.0.0",
@@ -27,6 +28,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
+    "@types/ws": "^8.18.1",
     "esbuild": "^0.23.0",
     "prisma": "^5.18.0",
     "tsx": "^4.16.0",

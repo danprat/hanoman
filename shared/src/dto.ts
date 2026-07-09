@@ -31,6 +31,8 @@ export const zSteer = z.object({ message: z.string().min(1) });
 export const zWorktreePatch = z.object({ branchFrom: z.string().optional(), branchTo: z.string().optional() });
 export const zCommand = z.object({ text: z.string().min(1) });
 
+export const zTerminalSession = z.object({ project: z.string() });
+
 export const zDocFileContent = z.object({ content: z.string() });
 export const zDocIndexCat = z.object({
   cat: z.string(), files: z.array(z.string()), linked: z.boolean(),

@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import fastifyStatic from "@fastify/static";
+import websocket from "@fastify/websocket";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import health from "./routes/health";
@@ -11,6 +12,8 @@ import docs from "./routes/docs";
 import runs from "./routes/runs";
 import webhooks from "./routes/webhooks";
 import fs from "./routes/fs";
+import terminal from "./routes/terminal";
+import { killAll } from "./services/pty";
 export function buildApp(): FastifyInstance {
   const app = Fastify({ logger: false });
   // Body-less POSTs (scan / toggle) may still carry a JSON
@@ -24,6 +27,10 @@ export function buildApp(): FastifyInstance {
     try { done(null, JSON.parse(body as string)); }
     catch (err) { (err as Error & { statusCode?: number }).statusCode = 400; done(err as Error, undefined); }
   });
+  // fastify-plugin'd, jadi dekoratornya menurun ke scope /api di bawah.
+  app.register(websocket);
+  // Sebuah PTY yatim akan menahan proses tetap hidup setelah server ditutup.
+  app.addHook("onClose", async () => { killAll(); });
   app.register(async (api) => {
     await api.register(health);
     await api.register(projects);
@@ -34,6 +41,7 @@ export function buildApp(): FastifyInstance {
     await api.register(runs);
     await api.register(webhooks);
     await api.register(fs);
+    await api.register(terminal);
   }, { prefix: "/api" });
 
   // Prod: serve the built dashboard from one process; SPA-fallback to

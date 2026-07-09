@@ -35,6 +35,10 @@ Dikoreksi saat eksekusi Task 1:
 6. `pnpm install` melewati `postinstall` proyek workspace bila tree sudah up-to-date, jadi chmod-nya tidak bisa diandalkan sendirian. `createSession` karena itu menerjemahkan `posix_spawnp failed` menjadi pesan yang menyebut perintah obatnya.
 7. **`/bin/cat` bukan pengganti binary claude yang sah.** `createSession` selalu menambahkan `--dangerously-skip-permissions`, dan cat mati seketika dengan "illegal option". Test memakai `server/test/fixtures/fake-claude.sh`, yang mencetak argv-nya lalu `exec cat` — sekaligus membuktikan flag-nya sungguh diteruskan. `/bin/echo` tetap sah untuk test exit.
 
+Dikoreksi saat eksekusi Task 2:
+
+8. `@types/ws` **diperlukan**, berlawanan dengan Step 1 Task 1. `ws` mengarahkan import ESM ke `wrapper.mjs` yang tanpa deklarasi, jadi `tsc` gagal dengan TS7016 meski `ws` membawa `index.d.ts` untuk jalur CJS.
+
 ## Temuan keamanan yang mengubah spec
 
 Spec berasumsi "server bind ke localhost". Itu **salah**. `server/src/server.ts:4` saat ini:
@@ -369,7 +373,7 @@ git commit -m "feat(server): service sesi PTY untuk claude interaktif"
   - `DELETE /api/terminal/sessions/:id` → `204` · `404`
   - `GET /api/terminal/sessions/:id/ws` → WebSocket, tutup `4004` bila sesi tak ada
 
-- [ ] **Step 1: Pasang `@fastify/websocket`**
+- [x] **Step 1: Pasang `@fastify/websocket`**
 
 ```bash
 pnpm --filter ./server add @fastify/websocket@^10
@@ -377,7 +381,7 @@ pnpm --filter ./server add @fastify/websocket@^10
 
 Versi ini wajib. `^11` menarik `fastify-plugin@^5` dan menolak Fastify 4.
 
-- [ ] **Step 2: Tulis test yang gagal**
+- [x] **Step 2: Tulis test yang gagal**
 
 Buat `server/test/terminal.route.test.ts`:
 
@@ -502,12 +506,12 @@ describe("terminal routes", () => {
 });
 ```
 
-- [ ] **Step 3: Jalankan test, pastikan gagal**
+- [x] **Step 3: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./server exec vitest run test/terminal.route.test.ts`
 Expected: FAIL — semua `POST /api/terminal/sessions` mengembalikan 404 karena route-nya belum ada.
 
-- [ ] **Step 4: Tambahkan skema dan path ke `shared`**
+- [x] **Step 4: Tambahkan skema dan path ke `shared`**
 
 Di akhir `shared/src/dto.ts`, setelah `zCommand`:
 
@@ -523,7 +527,7 @@ Di `shared/src/api.ts`, di dalam objek `paths`, setelah baris `fsBrowse`:
   terminalWs: (id: string) => `${API}/terminal/sessions/${id}/ws`,
 ```
 
-- [ ] **Step 5: Tulis route**
+- [x] **Step 5: Tulis route**
 
 Buat `server/src/routes/terminal.ts`:
 
@@ -575,7 +579,7 @@ export default async function (app: FastifyInstance) {
 }
 ```
 
-- [ ] **Step 6: Register plugin, route, dan hook shutdown**
+- [x] **Step 6: Register plugin, route, dan hook shutdown**
 
 Di `server/src/app.ts`, tambahkan import:
 
@@ -600,7 +604,7 @@ Di dalam callback `app.register(async (api) => {…})`, setelah `await api.regis
     await api.register(terminal);
 ```
 
-- [ ] **Step 7: Bind ke localhost**
+- [x] **Step 7: Bind ke localhost**
 
 Ganti `server/src/server.ts` seluruhnya:
 
@@ -615,7 +619,7 @@ const host = process.env.HOST ?? "127.0.0.1";
 app.listen({ port, host }).then(() => console.log(`hanoman api ${host}:${port}`));
 ```
 
-- [ ] **Step 8: Tambahkan esbuild externals**
+- [x] **Step 8: Tambahkan esbuild externals**
 
 Di `server/package.json`, tambahkan dua flag ke akhir script `build`:
 
@@ -625,12 +629,12 @@ Di `server/package.json`, tambahkan dua flag ke akhir script `build`:
 
 `node-pty` membawa binary `.node`; esbuild tidak bisa mem-bundle-nya. Tanpa flag ini `pnpm build` gagal.
 
-- [ ] **Step 9: Jalankan test, pastikan lulus**
+- [x] **Step 9: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./server exec vitest run test/terminal.route.test.ts`
 Expected: PASS, 6 test.
 
-- [ ] **Step 10: Typecheck, build, dan seluruh suite server**
+- [x] **Step 10: Typecheck, build, dan seluruh suite server**
 
 ```bash
 pnpm --filter ./shared typecheck && pnpm --filter ./server typecheck
@@ -642,7 +646,7 @@ Expected: ketiganya lulus. Kalau `build` mengeluh soal `pty.node`, Step 8 terlew
 
 Catatan: `server/test/queue-durability.test.ts` sudah gagal sebelum plan ini — itu bukan regresi dari task ini.
 
-- [ ] **Step 11: Uji API-nya secara nyata di local (wajib per CLAUDE.md)**
+- [x] **Step 11: Uji API-nya secara nyata di local (wajib per CLAUDE.md)**
 
 Boot server dan pukul endpoint-nya sungguhan, bukan cuma lewat vitest:
 
@@ -669,7 +673,7 @@ Harus muncul splash Claude Code. Ketik sesuatu, lihat balasannya, lalu Ctrl-C da
 
 Hentikan server dev sebelum lanjut.
 
-- [ ] **Step 12: Tulis ADR-0014**
+- [x] **Step 12: Tulis ADR-0014**
 
 Buat `internal/docs/adr/0014-pty-terminal-di-proses-api.md`:
 
@@ -710,7 +714,7 @@ manual yang dipicu manusia, yang setara dengan membuka terminal sendiri.
   sesinya tak terlihat oleh API hanoman.
 ```
 
-- [ ] **Step 13: Update api-contract.md**
+- [x] **Step 13: Update api-contract.md**
 
 Tambahkan di akhir `internal/docs/architecture/api-contract.md`:
 
@@ -728,7 +732,7 @@ GET    /terminal/sessions/:id/ws     # WebSocket; close 4004 bila sesi tak ada
 ```
 ```
 
-- [ ] **Step 14: Commit**
+- [x] **Step 14: Commit**
 
 ```bash
 git add shared/src/dto.ts shared/src/api.ts server/src/routes/terminal.ts \

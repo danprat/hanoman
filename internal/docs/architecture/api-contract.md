@@ -55,6 +55,20 @@ DELETE /projects/:id/docs/*path         # hapus file .md asli di disk; 204 sukse
 > dinilai. SoT coverage = % kategori berskor yang seluruh Markdown-nya **transitif reachable** dari
 > `docsDir/README.md` (ADR-0013).
 
+## Terminal
+```
+GET    /terminal/sessions            # [{ id, projectId, cwd, exited }]
+POST   /terminal/sessions  {project} # 201 { id } · 404 project · 400 tanpa repoDir
+DELETE /terminal/sessions/:id        # 204 · 404
+GET    /terminal/sessions/:id/ws     # WebSocket; close 4004 bila sesi tak ada
+#   server->klien: { t:"data", d } · { t:"exit", code }
+#   klien->server: { t:"in", d } · { t:"resize", cols, rows }
+```
+
+> PTY menjalankan `claude --dangerously-skip-permissions` di `Project.repoDir`. Sesi hidup di
+> proses API (in-memory); scrollback 256 KB terakhir di-replay saat klien reconnect. RCE by
+> design — server bind `127.0.0.1` secara default, lihat ADR-0014.
+
 ## Webhook
 ```
 POST /webhooks/github     # commit trigger -> enqueue

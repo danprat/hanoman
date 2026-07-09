@@ -18,4 +18,7 @@ export const paths = {
   docs: (id: string) => `${API}/projects/${id}/docs`,
   docFile: (id: string, path: string) => `${API}/projects/${id}/docs/${path}`,
   fsBrowse: (path?: string) => `${API}/fs/browse${path ? `?path=${encodeURIComponent(path)}` : ""}`,
+  terminalSessions: `${API}/terminal/sessions`,
+  terminalSession: (id: string) => `${API}/terminal/sessions/${id}`,
+  terminalWs: (id: string) => `${API}/terminal/sessions/${id}/ws`,
 } as const;
