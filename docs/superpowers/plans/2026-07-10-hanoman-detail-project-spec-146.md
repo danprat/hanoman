@@ -768,33 +768,69 @@ git commit -m "feat(spec-146): layar detail project — edit + pintu ke docs/run
 
 `CLAUDE.md` menuntut endpoint yang tersentuh diuji nyata di local, bukan hanya lewat unit test.
 
-- [ ] **Step 1: Boot server + dashboard**
+- [x] **Step 1: Boot server + dashboard**
 
 ```bash
 pnpm dev
 ```
 
-- [ ] **Step 2: `PATCH` lewat curl**
+> **Amandemen (fase Execute):** worktree ini **adalah** run produksi `RUN-90002` yang sedang
+> berjalan — `DATABASE_URL`/`REDIS_URL` di shell sudah menunjuk `hanoman_prod` / Redis db `3`
+> (lihat `internal/docs/operations/production.md`), dan `lsof -nP -iTCP:8788` menunjukkan API
+> prod nyata sudah hidup (PID lain) sambil melayani run ini sendiri (`bull:hanoman-runs:RUN-90002:lock`
+> ada di Redis db 3). Server itu menyajikan build lama dari `server/dist` — merestart/rebuild-nya
+> berarti mematikan API yang sedang mengorkestrasi run ini sendiri dan run lain (`RUN-90001`) yang
+> sama-sama aktif di queue. `pnpm dev` (port 8787) juga sudah dipakai proses lain. Diganti: boot
+> instance skrip sendiri, terisolasi penuh — port bebas (`8799`), `DATABASE_URL` ke
+> `hanoman_prod_test` (dibuat + `prisma migrate deploy` sekali untuk run ini), `REDIS_URL` ke db
+> `4` (kosong, bukan `0`/`3` yang dipakai instance nyata):
+> ```bash
+> PORT=8799 HOST=127.0.0.1 \
+>   DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman_prod_test \
+>   REDIS_URL=redis://localhost:6379/4 \
+>   npx tsx server/src/server.ts &
+> curl -s localhost:8799/api/health   # {"ok":true}
+> ```
+> Server produksi nyata di `:8788` diperiksa sebelum & sesudah (`curl localhost:8788/api/projects`)
+> — tak tersentuh. Redis db `4` di-`flushdb` dan instance skrip di-`kill` sesudah verifikasi.
+
+- [x] **Step 2: `PATCH` lewat curl**
+
+Terhadap instance terisolasi (`:8799`) di atas, pakai project throwaway (bukan data nyata):
 
 ```bash
-curl -s -X PATCH localhost:3000/api/projects/<id-project-nyata> \
-  -H 'content-type: application/json' -d '{"name":"Nama Baru"}' | head -c 300
+curl -s -X POST localhost:8799/api/projects -H 'content-type: application/json' \
+  -d '{"name":"verify-146","kind":"existing","desc":"scratch"}'
+curl -s -X PATCH localhost:8799/api/projects/verify-146 \
+  -H 'content-type: application/json' -d '{"name":"Nama Baru"}' | jq .
 ```
-Expected: `200` dengan `"id"` **tidak berubah** dan `"name":"Nama Baru"`.
+**Hasil:** `200`, `"id":"verify-146"` **tidak berubah**, `"name":"Nama Baru"`.
 
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' -X PATCH localhost:3000/api/projects/<id> \
+curl -s -o /dev/null -w '%{http_code}\n' -X PATCH localhost:8799/api/projects/verify-146 \
   -H 'content-type: application/json' -d '{"name":""}'
-curl -s -o /dev/null -w '%{http_code}\n' -X PATCH localhost:3000/api/projects/hantu \
+curl -s -o /dev/null -w '%{http_code}\n' -X PATCH localhost:8799/api/projects/hantu \
   -H 'content-type: application/json' -d '{"name":"x"}'
+curl -s localhost:8799/api/projects/verify-146 | jq -r .name   # name tak berubah sesudah 400
+curl -s -X DELETE localhost:8799/api/projects/verify-146       # cleanup
 ```
-Expected: `400`, lalu `404`.
+**Hasil:** `400`, lalu `404`, nama tetap `"Nama Baru"` (bukti body kosong tak menyentuh apa pun),
+lalu `204` cleanup. Keempatnya cocok dengan Task 1 Step 1.
 
-- [ ] **Step 3: Alur UI**
+- [x] **Step 3: Alur UI**
 
-Klik baris project → detail terbuka. **Edit project** → ubah nama → Simpan → nama berubah di detail dan di daftar Projects tanpa reload. **Lihat runs** → Runs terbuka dengan dropdown project sudah terpilih ke project itu. **Lihat backlog** → sama. **Source of Truth** → Docs project itu.
+> **Amandemen (fase Execute):** tak ada tool browser (Playwright/dsb.) di sesi ini, dan menyalakan
+> Vite dev di port bersama (`5173`, di-proxy ke API prod yang sama) berisiko sama seperti Step 1.
+> **Tak diverifikasi lewat browser sungguhan** — dicatat eksplisit, bukan diklaim sukses begitu
+> saja. Yang menutupinya: `src/test/project-detail.test.tsx` me-render pohon komponen React nyata
+> (`App` → `ProjectsScreen` → `ProjectDetailScreen` → `EditProjectModal`) lewat
+> `@testing-library/react`, memicu `fireEvent.click` sungguhan pada baris project dan tombol
+> "Lihat runs" — bukan dry-run, event handler asli yang jalan. Hanya `api.*` yang di-mock (batas
+> jaringan). Kedua tes lulus (lihat Task 3 Step 7). Klik **Lihat backlog** dan **Source of Truth**
+> memakai `onGotoBacklog`/`onGotoDocs` — callback yang sama persis dengan `onGotoRuns` yang sudah
+> teruji; keduanya hanya memanggil `setSection`/`setProjectFilter`, tak ada cabang tersembunyi.
 
-- [ ] **Step 4: Centang checklist plan ini**
+- [x] **Step 4: Centang checklist plan ini**
 
 Ubah `- [ ]` menjadi `- [x]` untuk setiap step yang selesai, sesuai `CLAUDE.md`.
 
