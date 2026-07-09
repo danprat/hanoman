@@ -56,7 +56,7 @@ Sub-index (`adr/README.md` → 12 ADR) menjadi sah. Denominator CLI sudah `docsD
 - Consumes: `linkedSetFrom(indexRel, docs, read)` dari `@hanoman/shared` — sudah ada, tidak diubah. Ia hanya menelusuri link yang targetnya ada di `docs` (`inCorpus.has(rel)`), sehingga sub-index **wajib** ikut di `docs`.
 - Produces: `INDEX_NAME = "README.md"` diekspor dari `cli/src/docs-model.ts` (bukan dari `verify.ts` — `docs-index.ts` sebuah command, ia tidak boleh mengimpor guardrail hanya untuk sebuah konstanta). `walkDocs(docsRoot): string[]` kini memuat `README.md` dan setiap sub-`README.md`, path relatif terhadap `docsRoot`, posix. `parseIndex(indexPath): Set<string>` tidak berubah tanda tangannya.
 
-- [ ] **Step 1: Tulis test yang gagal — doc lewat sub-index**
+- [x] **Step 1: Tulis test yang gagal — doc lewat sub-index**
 
 Tambahkan ke `cli/test/verify.test.ts`, di dalam `describe("collectViolations", ...)`:
 
@@ -87,14 +87,14 @@ Tambahkan `rmSync` ke import `node:fs` di baris 2 file itu:
 import { writeFileSync, mkdirSync, rmSync } from "node:fs";
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `pnpm --filter ./cli exec vitest run test/verify.test.ts`
 Expected: 2 FAIL, 5 PASS.
 - `"sub-index"` gagal: `parseIndex` hanya memuat `adr/README.md`, sementara `walkDocs` membuang **setiap** file bernama `README.md`, jadi `adr/0001-x.md` terbaca unlinked → violation `unlinked` + coverage 0.
 - `"throws when the index is missing"` gagal: yang terlempar `ENOENT`, bukan pesan berbahasa Indonesia yang diminta.
 
-- [ ] **Step 3: `walkDocs` berhenti mengecualikan README**
+- [x] **Step 3: `walkDocs` berhenti mengecualikan README**
 
 Ganti `walkDocs` di `cli/src/docs-model.ts` (baris 15-27) dengan:
 
@@ -118,7 +118,7 @@ export function walkDocs(docsRoot: string): string[] {
 }
 ```
 
-- [ ] **Step 4: `collectViolations` memakai `linkedSetFrom`**
+- [x] **Step 4: `collectViolations` memakai `linkedSetFrom`**
 
 Ganti seluruh isi `cli/src/verify.ts` baris 1-28 dengan:
 
@@ -164,12 +164,12 @@ export function collectViolations(cwd: string) {
 
 `formatText` dan `formatJson` (baris 29-35) tidak berubah — biarkan apa adanya di bawahnya.
 
-- [ ] **Step 5: Jalankan test verify, pastikan lulus**
+- [x] **Step 5: Jalankan test verify, pastikan lulus**
 
 Run: `pnpm --filter ./cli exec vitest run test/verify.test.ts`
 Expected: PASS, 7 test. Test lama tetap hijau: `architecture/nfr.md` yang tak ter-link tetap menghasilkan violation `unlinked`, dan test coverage-threshold tetap 50% (`architecture` linked, `product` tidak).
 
-- [ ] **Step 6: Perbarui test `walkDocs`**
+- [x] **Step 6: Perbarui test `walkDocs`**
 
 Ganti test `"walks docs excluding README and dotfiles"` di `cli/test/docs-model.test.ts` (baris 14-20) dengan:
 
@@ -182,12 +182,12 @@ Ganti test `"walks docs excluding README and dotfiles"` di `cli/test/docs-model.
   });
 ```
 
-- [ ] **Step 7: Jalankan test docs-model, pastikan lulus**
+- [x] **Step 7: Jalankan test docs-model, pastikan lulus**
 
 Run: `pnpm --filter ./cli exec vitest run test/docs-model.test.ts`
 Expected: PASS, 3 test. `parseIndex` dan `catStatus` tetap diuji apa adanya — keduanya tidak berubah.
 
-- [ ] **Step 8: Tulis test yang gagal — `--fix` tidak boleh melink ulang doc yang reachable**
+- [x] **Step 8: Tulis test yang gagal — `--fix` tidak boleh melink ulang doc yang reachable**
 
 Tambahkan ke `cli/test/index-link.cmd.test.ts`, di dalam `describe("index + link", ...)`:
 
@@ -204,12 +204,12 @@ Tambahkan ke `cli/test/index-link.cmd.test.ts`, di dalam `describe("index + link
   });
 ```
 
-- [ ] **Step 9: Jalankan, pastikan gagal**
+- [x] **Step 9: Jalankan, pastikan gagal**
 
 Run: `pnpm --filter ./cli exec vitest run test/index-link.cmd.test.ts -t "sub-index"`
 Expected: FAIL pada `--check` yang mengembalikan 1, karena `unlinked` masih dihitung flat.
 
-- [ ] **Step 10: `docs-index` memakai `linkedSetFrom` untuk `unlinked`**
+- [x] **Step 10: `docs-index` memakai `linkedSetFrom` untuk `unlinked`**
 
 Ganti seluruh isi `cli/src/commands/docs-index.ts` dengan:
 
@@ -248,12 +248,12 @@ export default async function (args: string[], ctx: Ctx): Promise<number> {
 }
 ```
 
-- [ ] **Step 11: Jalankan seluruh test CLI**
+- [x] **Step 11: Jalankan seluruh test CLI**
 
 Run: `pnpm --filter ./cli test`
 Expected: PASS semua. Perhatikan `docs-scan.cmd.test.ts` dan `docs-verify.cmd.test.ts` — keduanya lewat `collectViolations`, jadi harus tetap hijau tanpa diubah.
 
-- [ ] **Step 12: Tulis ADR-0013**
+- [x] **Step 12: Tulis ADR-0013**
 
 Create `internal/docs/adr/0013-sot-coverage-scoped-to-docsdir.md`:
 
@@ -291,7 +291,7 @@ sementara Stop hook memblokir.
 - Tanpa perubahan skema, tanpa migration, tanpa dependency baru.
 ```
 
-- [ ] **Step 13: Link ADR-0013 di index**
+- [x] **Step 13: Link ADR-0013 di index**
 
 Di `internal/docs/README.md`, tepat di bawah baris `## adr` (baris 24), sisipkan:
 
@@ -299,12 +299,12 @@ Di `internal/docs/README.md`, tepat di bawah baris `## adr` (baris 24), sisipkan
 - [0013 — SoT coverage scoped to docsDir](adr/0013-sot-coverage-scoped-to-docsdir.md)
 ```
 
-- [ ] **Step 14: Verifikasi guardrail atas repo sendiri**
+- [x] **Step 14: Verifikasi guardrail atas repo sendiri**
 
 Run: `pnpm --filter ./cli exec tsx src/hanoman.ts docs scan --json`
 Expected: JSON dengan `"coverage":100` dan setiap kategori `"linked":true`. ADR-0013 yang baru harus ikut linked — kalau tidak, Step 13 terlewat.
 
-- [ ] **Step 15: Commit**
+- [x] **Step 15: Commit**
 
 ```bash
 git add cli/src/docs-model.ts cli/src/verify.ts cli/src/commands/docs-index.ts \
@@ -332,7 +332,7 @@ dan penulis docs index --fix. Didasari ADR-0013."
 - Consumes: `zHanomanConfig` dari `@hanoman/shared` (zod murni, sudah diekspor dari barrel — aman untuk Vite). `linkedSetFrom`, `coverageOf` dari `@hanoman/shared`.
 - Produces: `DocCat = { cat: string; files: string[]; linked: boolean; root: boolean; scored: boolean }`. `scanRepoDocs(repoDir: string | null): { coverage: number; tree: DocCat[] }` — tanda tangan tidak berubah. `resolveIndex(repoDir: string, docsDir: string): string` — **parameter bertambah**.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Ganti test pertama di `server/test/scan.test.ts` (baris 6-19) dan tambahkan tiga test baru, sehingga `describe("scanRepoDocs", ...)` menjadi:
 
@@ -393,12 +393,12 @@ describe("scanRepoDocs", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `pnpm --filter ./server exec vitest run test/scan.test.ts`
 Expected: FAIL. Test pertama melaporkan `coverage` 60 (bukan 50) dan `scored` `undefined`; test config melaporkan 0.
 
-- [ ] **Step 3: Tambahkan `scored` ke DTO**
+- [x] **Step 3: Tambahkan `scored` ke DTO**
 
 Ganti `shared/src/dto.ts` baris 35-36 dengan:
 
@@ -408,7 +408,7 @@ export const zDocIndexCat = z.object({
   scored: z.boolean(), root: z.boolean().optional() });
 ```
 
-- [ ] **Step 4: Persempit denominator di `scan.ts`**
+- [x] **Step 4: Persempit denominator di `scan.ts`**
 
 Ganti `server/src/services/scan.ts` baris 1-47 dengan:
 
@@ -480,19 +480,19 @@ export function scanRepoDocs(repoDir: string | null): { coverage: number; tree: 
 
 Sisa file (`docAbsPath`, `readDocFile`, `writeDocFile`, `deleteDocFile`, baris 49-72) **tidak berubah**.
 
-- [ ] **Step 5: Jalankan test scan, pastikan lulus**
+- [x] **Step 5: Jalankan test scan, pastikan lulus**
 
 Run: `pnpm --filter ./server exec vitest run test/scan.test.ts`
 Expected: PASS, 8 test (5 di `scanRepoDocs`, 3 di `doc fs ops`).
 
-- [ ] **Step 6: Jalankan seluruh test server**
+- [x] **Step 6: Jalankan seluruh test server**
 
 Run: `pnpm --filter ./server test`
 Expected: PASS. Perhatikan `server/test/docs.route.test.ts`, `docs.test.ts`, `coverage.test.ts`, `projects.route.test.ts` — bila salah satunya menegaskan bentuk `tree`, tambahkan `scored` pada ekspektasinya. Jangan mengubah `coverageOf`.
 
 Catatan: memory proyek mencatat `queue-durability` kadang flake pada timeout 5 detik di mesin ini. Itu bukan regresi dari task ini.
 
-- [ ] **Step 7: Cek API nyata (wajib per CLAUDE.md)**
+- [x] **Step 7: Cek API nyata (wajib per CLAUDE.md)**
 
 Server mendengarkan di `PORT ?? 8787` (`server/src/server.ts`), dan **semua route berprefiks `/api`** (`app.ts:37`). `POST /api/projects` menurunkan `id` dari `name`, jadi project bernama `hanoman` beralamat di `/api/projects/hanoman`, dan mengembalikan 409 kalau sudah ada — abaikan, lanjutkan.
 
@@ -509,7 +509,7 @@ Expected: `coverage 100`, dan `unscored` memuat `.`, `.prototype/_ds/…`, `docs
 
 Dua peringatan dari memory proyek: DB sengaja dijaga kosong untuk pemakaian nyata, jadi project `hanoman` di atas memang perlu dibuat sekali; dan meng-enqueue run saat worker dev hidup akan menjalankan run **nyata**. Langkah ini hanya menyentuh `POST /projects` dan `GET /docs`, tidak pernah `/runs` — aman.
 
-- [ ] **Step 8: Perbarui `api-contract.md`**
+- [x] **Step 8: Perbarui `api-contract.md`**
 
 Ganti baris 51-53 dengan:
 
@@ -522,7 +522,7 @@ Ganti baris 51-53 dengan:
 > `docsDir/README.md` (ADR-0013).
 ```
 
-- [ ] **Step 9: Catat amandemen di objective SPEC-011**
+- [x] **Step 9: Catat amandemen di objective SPEC-011**
 
 Tambahkan di akhir `internal/docs/operations/spec-011-realtime-sot-scan-objective.md`, setelah blok kutipan Chiranjivi:
 
@@ -537,7 +537,7 @@ maupun CLI. Alasan dan konsekuensinya di [ADR-0013](../adr/0013-sot-coverage-sco
 Sisa objective ini tetap berlaku utuh.
 ```
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add shared/src/dto.ts server/src/services/scan.ts server/test/scan.test.ts \
@@ -563,7 +563,7 @@ index root. Kategori di luarnya bertanda scored:false. Repo ini naik dari
 - Consumes: `scored: boolean` pada tiap elemen `tree` dari `GET /docs` (Task 2).
 - Produces: `firstDoc(cats: DocCat[]): string` — diekspor dari `DocsWorkspace.tsx`, mengembalikan path repo-relative (`cat + "/" + file`) atau `""`.
 
-- [ ] **Step 1: Tulis test yang gagal untuk `firstDoc`**
+- [x] **Step 1: Tulis test yang gagal untuk `firstDoc`**
 
 Di `src/test/docs-tree.test.ts`, ganti baris 1-4 dengan:
 
@@ -599,12 +599,12 @@ describe("firstDoc", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `pnpm --filter ./src exec vitest run test/docs-tree.test.ts`
 Expected: FAIL — `firstDoc is not a function` (belum diekspor).
 
-- [ ] **Step 3: Tambahkan `scored` ke tipe dan tulis `firstDoc`**
+- [x] **Step 3: Tambahkan `scored` ke tipe dan tulis `firstDoc`**
 
 Di `src/src/screens/DocsWorkspace.tsx`, ganti baris 9:
 
@@ -623,12 +623,12 @@ export function firstDoc(cats: DocCat[]): string {
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan lulus**
+- [x] **Step 4: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./src exec vitest run test/docs-tree.test.ts`
 Expected: PASS, 7 test.
 
-- [ ] **Step 5: `DocTreeCat` diam untuk kategori tak berskor**
+- [x] **Step 5: `DocTreeCat` diam untuk kategori tak berskor**
 
 Ganti baris 58 dan 67-72 di `DocTreeCat`. Baris 58 menjadi:
 
@@ -657,7 +657,7 @@ Warna nama file (baris 89) menjadi:
                   color: on ? "var(--brass-700)" : (!scored || linked ? "var(--text-body)" : "var(--text-muted)"),
 ```
 
-- [ ] **Step 6: Pisahkan tree jadi dua grup**
+- [x] **Step 6: Pisahkan tree jadi dua grup**
 
 Ganti baris 145 (`const nested = ...`) dengan:
 
@@ -702,12 +702,12 @@ Ganti badge header (baris 222-224) dengan:
             : <Badge tone="err" size="sm" icon="unlink">unlinked</Badge>)}
 ```
 
-- [ ] **Step 7: Jalankan seluruh test web + typecheck**
+- [x] **Step 7: Jalankan seluruh test web + typecheck**
 
 Run: `pnpm --filter ./src test && pnpm -r typecheck`
 Expected: PASS. `smoke.test.tsx` dan `app-flows.test.tsx` mungkin memakai fixture `tree` tanpa `scored` — tambahkan `scored: true` pada fixture SoT-nya kalau typecheck mengeluh.
 
-- [ ] **Step 8: Perbarui doc frontend**
+- [x] **Step 8: Perbarui doc frontend**
 
 Di `internal/docs/frontend/frontend-implementation.md` baris 5, ganti frasa dalam kurung untuk bagian Docs menjadi:
 
@@ -715,7 +715,7 @@ Di `internal/docs/frontend/frontend-implementation.md` baris 5, ganti frasa dala
 Docs (tree realtime semua `.md` di repo via `GET /docs`, dikelompokkan per direktori; kategori di luar `docsDir` masuk grup **Lainnya (tidak dinilai)** tanpa status linked — hanya kategori berskor yang masuk coverage, lihat ADR-0013; tombol **Scan** per project menyegarkan coverage, **Hapus** menghapus file asli, path ditampilkan repo-relative tanpa prefix `internal/docs`)
 ```
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/src/screens/DocsWorkspace.tsx src/test/docs-tree.test.ts \
@@ -732,22 +732,24 @@ memilih kategori tak berskor. ADR-0013."
 
 **Files:** tidak ada perubahan kode. Task ini gerbang, bukan deliverable.
 
-- [ ] **Step 1: Seluruh test workspace**
+- [x] **Step 1: Seluruh test workspace**
 
 Run: `pnpm test`
-Expected: PASS. Satu-satunya kegagalan yang boleh diabaikan adalah flake `queue-durability` pada timeout 5 detik (tercatat di memory proyek, bukan regresi). Ulangi sekali untuk memastikan.
+Expected: 191 pass, 1 skip, dan **satu kegagalan yang sudah ada sebelumnya**: `queue-durability > honors concurrency 1`.
 
-- [ ] **Step 2: Typecheck**
+Catatan hasil eksekusi (2026-07-09): kegagalan itu **deterministik**, bukan flake seperti yang tercatat di memory proyek. Worker BullMQ milik test tidak pernah memproses job — naikkan `--testTimeout=20000` dan ia tetap menggantung, jadi bukan sekadar lambat. Di luar blast radius perubahan ini: satu-satunya file jalur queue yang berubah sejak `779e7de` adalah `server/src/queue.ts` lewat commit `61e0450` (bukan commit ini), dan test tersebut memakai `runsQueue.add` langsung, melewati `enqueueRun` yang commit itu ubah. Perlu investigasi terpisah.
+
+- [x] **Step 2: Typecheck**
 
 Run: `pnpm -r typecheck`
 Expected: keluar 0, tanpa error.
 
-- [ ] **Step 3: Guardrail atas repo sendiri**
+- [x] **Step 3: Guardrail atas repo sendiri**
 
 Run: `pnpm --filter ./cli exec tsx src/hanoman.ts docs verify --json`
 Expected: `{"ok":true,"coverage":100,"violations":[]}`
 
-- [ ] **Step 4: Centang checklist plan ini**
+- [x] **Step 4: Centang checklist plan ini**
 
 Ubah setiap `- [ ]` yang sudah selesai menjadi `- [x]` di file ini, lalu commit:
 
