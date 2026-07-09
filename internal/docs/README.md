@@ -22,6 +22,7 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 - [stack](architecture/stack.md) · [data-model](architecture/data-model.md) · [api-contract](architecture/api-contract.md) · [nfr](architecture/nfr.md)
 
 ## adr
+- [0018 — Branch adalah properti backlog item](adr/0018-branch-adalah-properti-backlog-item.md)
 - [0017 — Run terputus melanjutkan sesinya](adr/0017-run-terputus-melanjutkan-sesinya.md)
 - [0016 — Sesi terminal hidup di tmux](adr/0016-sesi-terminal-hidup-di-tmux.md)
 - [0015 — Satu backlog, satu sesi Claude](adr/0015-one-session-per-backlog.md)

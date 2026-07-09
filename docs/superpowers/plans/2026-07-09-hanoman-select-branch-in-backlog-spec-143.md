@@ -860,7 +860,7 @@ git commit -m "feat(spec-143): pilih branch saat membuat spec, ubah dari detail 
 - Create: `internal/docs/adr/0018-branch-adalah-properti-backlog-item.md`
 - Modify: `internal/docs/README.md`, `internal/docs/architecture/data-model.md`, `internal/docs/architecture/api-contract.md`
 
-- [ ] **Step 1: Hitung ulang nomor ADR lintas branch**
+- [x] **Step 1: Hitung ulang nomor ADR lintas branch**
 
 Run:
 ```bash
@@ -870,7 +870,7 @@ done | sed -n 's#.*/\([0-9]\{4\}\).*#\1#p' | sort -u | tail -1
 ```
 Expected: `0017` → pakai `0018`. Bila lebih tinggi, naikkan; worktree bersebelahan bisa sudah memesan.
 
-- [ ] **Step 2: Tulis ADR**
+- [x] **Step 2: Tulis ADR**
 
 `internal/docs/adr/0018-branch-adalah-properti-backlog-item.md` — konteks (empat produsen `branchFrom`
 yang semuanya jatuh ke `main`; `--from` CLI yang dibuang), keputusan (kolom `Spec.branchFrom` nullable;
@@ -879,7 +879,7 @@ menang pada trigger `commit`), konsekuensi (backlog item bisa berjalan di branch
 dipicu commit; repo yang default-nya `master` gagal keras — sama seperti hari ini), alternatif yang
 ditolak (titipan `payload`, sebab `specBlock()` men-`JSON.stringify` payload ke prompt setiap fase).
 
-- [ ] **Step 3: Perbarui docs arsitektur + link di index**
+- [x] **Step 3: Perbarui docs arsitektur + link di index**
 
 - `internal/docs/architecture/data-model.md`: tambahkan `branchFrom String?` pada tabel `Spec`.
 - `internal/docs/architecture/api-contract.md`: `GET /projects/:id/branches`, `PATCH /specs/:id`,
@@ -887,61 +887,63 @@ ditolak (titipan `payload`, sebab `specBlock()` men-`JSON.stringify` payload ke 
 - `internal/docs/README.md`, bagian `## adr`, baris paling atas:
   `- [0018 — branch adalah properti backlog item](adr/0018-branch-adalah-properti-backlog-item.md)`
 
-- [ ] **Step 4: Guardrail Source of Truth**
+- [x] **Step 4: Guardrail Source of Truth**
 
 Run: `pnpm --filter ./cli build && node cli/dist/hanoman.js docs verify`
 Expected: `Source of Truth clean · coverage 100%`. Doc di `internal/docs/**` yang tak ter-link akan
 memblokir Stop hook.
 
-- [ ] **Step 5: Suite penuh**
+- [x] **Step 5: Suite penuh**
 
 Run: `pnpm test && pnpm --filter ./runner test && pnpm --filter ./cli test && pnpm -r typecheck`
 Expected: semua PASS. (`pnpm test` tidak mencakup runner/cli — karena itu keduanya dipanggil terpisah.)
 
-- [ ] **Step 6: Smoke lokal nyata (CLAUDE.md)**
+- [x] **Step 6: Smoke lokal nyata (CLAUDE.md)**
 
-Pastikan Postgres hidup: `docker compose up -d --wait`. Boot API: `pnpm dev:api`.
-
-> **Jangan `POST /runs` di sini.** Bila ada worker dev hidup, itu benar-benar mengeksekusi run
-> background di worktree baru.
+**Jangan boot terhadap `DATABASE_URL`.** DB dev `hanoman` dikelola `db push` dari branch lain dan
+kehilangan `Project.docStatus`/`coverage`, sehingga server branch ini akan 500 di `/projects`.
+Pakai DB scratch:
 
 ```bash
-# project yang menunjuk repo ini
-curl -s localhost:3000/api/projects | python3 -m json.tool | head -20
-
-# 1. daftar branch nyata
-curl -s localhost:3000/api/projects/<id>/branches
-
-# 2. project tak dikenal → 404
-curl -s -o /dev/null -w '%{http_code}\n' localhost:3000/api/projects/hantu/branches
-
-# 3. buat spec dengan branch sah → 201, branchFrom terisi
-curl -s -X POST localhost:3000/api/specs -H 'content-type: application/json' \
-  -d '{"project":"<id>","source":"brief","title":"smoke 143","priority":"rendah","branchFrom":"main",
-       "payload":{"context":"c","outcome":"o","constraints":"","priority":"rendah"}}'
-
-# 4. branch karangan → 400
-curl -s -o /dev/null -w '%{http_code}\n' -X POST localhost:3000/api/specs -H 'content-type: application/json' \
-  -d '{"project":"<id>","source":"brief","title":"x","priority":"rendah","branchFrom":"hantu",
-       "payload":{"context":"c","outcome":"o","constraints":"","priority":"rendah"}}'
-
-# 5. ubah lalu kosongkan
-curl -s -X PATCH localhost:3000/api/specs/<SPEC-id> -H 'content-type: application/json' -d '{"branchFrom":"main"}'
-curl -s -X PATCH localhost:3000/api/specs/<SPEC-id> -H 'content-type: application/json' -d '{"branchFrom":null}'
-
-# 6. konfirmasi di Postgres (bukan unix socket — DB jalan di Docker)
-docker exec hanoman-db-1 psql -U hanoman -d hanoman -c 'select id, "branchFrom" from "Spec" order by id desc limit 5;'
-
-# 7. bersihkan spec smoke
-curl -s -X DELETE localhost:3000/api/specs/<SPEC-id> -o /dev/null -w '%{http_code}\n'
+docker exec hanoman-db-1 psql -U hanoman -d hanoman -c 'CREATE DATABASE hanoman_smoke OWNER hanoman;'
+DATABASE_URL=…/hanoman_smoke pnpm --filter ./server exec prisma migrate deploy
 ```
 
-Expected: (1) memuat `main`; (2) `404`; (3) `201` dengan `"branchFrom":"main"`; (4) `400`;
-(5) `200` lalu `branchFrom: null`; (6) kolom terlihat di Postgres; (7) `204`.
+**Pilih port yang benar-benar bebas** dan buktikan servermu yang memilikinya. Port 8787 (default) dan
+8799 sudah dipakai instance hanoman lain di mesin ini; `curl /api/health` akan menjawab `{"ok":true}`
+dari server **orang lain** dan smoke-mu diam-diam menulis ke DB nyata.
 
-Bila ada yang merah, **perbaiki dulu sampai hijau** sebelum menutup task ini.
+```bash
+lsof -nP -iTCP -sTCP:LISTEN            # cari yang bebas
+DATABASE_URL=…/hanoman_smoke PORT=8850 pnpm --filter ./server exec tsx src/server.ts &
+lsof -nP -iTCP:8850 -sTCP:LISTEN       # pastikan PID-nya milikmu
+```
 
-- [ ] **Step 7: Commit**
+> **Jangan `POST /runs`.** Bila ada worker dev hidup, itu benar-benar mengeksekusi run background.
+
+Verifikasi (semua sudah dijalankan dan hijau):
+
+| # | Panggilan | Hasil |
+|---|---|---|
+| 1 | `POST /projects` menunjuk repo nyata | `201` |
+| 2 | `GET /projects/smoke143/branches` | `{"branches":["fix/feature-run-requires-spec","main"]}` |
+| 3 | `GET /projects/hantu/branches` | `404` |
+| 4 | `POST /specs` brief + branch sah | `201`, `branchFrom` terisi |
+| 5 | `POST /specs` branch karangan | `400 branch "hantu" tidak ada di repo project` |
+| 6 | `POST /specs` project tak dikenal | `404 project "hantu" tidak ada` (bukan FK blow-up) |
+| 7 | `POST /specs` QA tanpa branch | `201`, `branchFrom: null` |
+| 8 | `POST /specs` QA **dengan** branch | `201`, `branchFrom: "main"` |
+| 9 | `PATCH /specs/:id {branchFrom:"main"}` | `200` |
+| 10 | `PATCH` branch karangan | `400` |
+| 11 | `PATCH {branchFrom:null}` | `200`, kosong kembali |
+| 12 | `PATCH` spec tak dikenal | `404` |
+| 13 | `PATCH {}` | `400` — "jangan sentuh" bukan payload sah |
+| 14 | `psql hanoman_smoke` | kolom `branchFrom` terisi sesuai |
+| 15 | `psql hanoman` | 1 project, 4 spec, 3 run — **tak tersentuh** |
+
+Bersihkan: hentikan server, `DROP DATABASE hanoman_smoke, hanoman_shadow`.
+
+- [x] **Step 7: Commit**
 
 ```bash
 git add internal/docs/adr/0018-branch-adalah-properti-backlog-item.md internal/docs/README.md internal/docs/architecture/data-model.md internal/docs/architecture/api-contract.md
