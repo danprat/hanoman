@@ -494,14 +494,14 @@ Catatan: memory proyek mencatat `queue-durability` kadang flake pada timeout 5 d
 
 - [ ] **Step 7: Cek API nyata (wajib per CLAUDE.md)**
 
-Server mendengarkan di `PORT ?? 8787` (`server/src/server.ts`). `POST /projects` menurunkan `id` dari `name`, jadi project bernama `hanoman` beralamat di `/projects/hanoman`. `POST /projects` mengembalikan 409 kalau project itu sudah ada — abaikan, lanjutkan.
+Server mendengarkan di `PORT ?? 8787` (`server/src/server.ts`), dan **semua route berprefiks `/api`** (`app.ts:37`). `POST /api/projects` menurunkan `id` dari `name`, jadi project bernama `hanoman` beralamat di `/api/projects/hanoman`, dan mengembalikan 409 kalau sudah ada — abaikan, lanjutkan.
 
 ```bash
 pnpm --filter ./server exec tsx src/server.ts & SERVER=$!
-sleep 2
-curl -s -XPOST localhost:8787/projects -H 'content-type: application/json' \
+for i in $(seq 1 20); do curl -sf localhost:8787/api/health >/dev/null 2>&1 && break; sleep 0.5; done
+curl -s -XPOST localhost:8787/api/projects -H 'content-type: application/json' \
   -d "{\"name\":\"hanoman\",\"kind\":\"existing\",\"repoDir\":\"$PWD\"}"
-curl -s localhost:8787/projects/hanoman/docs | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);console.log("coverage",j.coverage);console.log("unscored",j.tree.filter(t=>!t.scored).map(t=>t.cat).sort())})'
+curl -s localhost:8787/api/projects/hanoman/docs | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);console.log("coverage",j.coverage);console.log("unscored",j.tree.filter(t=>!t.scored).map(t=>t.cat).sort())})'
 kill $SERVER
 ```
 

@@ -64,3 +64,11 @@ menyentuh metrik guardrail run maupun isolasi worktree.
 
 > Chiranjivi — objective bertahan lebih lama dari satu run. Spec dan plan turunannya tunduk pada
 > pernyataan ini.
+
+## Amandemen — 2026-07-09 (ADR-0013)
+
+Kriteria sukses **SoT Coverage dari link graph nyata** di atas menyebut korpus = setiap `**/*.md` di
+repo. Butir itu digantikan: korpus **browse** tetap seluruh repo, tetapi korpus **skor** menyempit ke
+`docsDir` dikurangi index root, dan `linkedSetFrom` menjadi satu-satunya penentu linked di server
+maupun CLI. Alasan dan konsekuensinya di [ADR-0013](../adr/0013-sot-coverage-scoped-to-docsdir.md).
+Sisa objective ini tetap berlaku utuh.

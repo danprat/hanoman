@@ -33,5 +33,6 @@ export const zCommand = z.object({ text: z.string().min(1) });
 
 export const zDocFileContent = z.object({ content: z.string() });
 export const zDocIndexCat = z.object({
-  cat: z.string(), files: z.array(z.string()), linked: z.boolean(), root: z.boolean().optional() });
+  cat: z.string(), files: z.array(z.string()), linked: z.boolean(),
+  scored: z.boolean(), root: z.boolean().optional() });
 export const zDocIndex = z.object({ coverage: z.number(), tree: z.array(zDocIndexCat) });
