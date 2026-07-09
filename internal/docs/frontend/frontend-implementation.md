@@ -34,3 +34,20 @@ Proxy dev Vite harus memakai `ws: true`, kalau tidak upgrade WebSocket dijawab 4
 murni `reduceRunEvent`. Panel kontrol menggerakkan `POST /runs/:id/command` (teks bebas →
 steer) dan `/control` (pause/resume/stop). Durasi dihitung `(finishedAt ?? now) − createdAt`
 (ADR-0007), tick tiap detik selama run berjalan.
+
+Daftar run **tidak** berlangganan SSE — SSE hanya mengisi overlay panel detail lewat
+`reduceRunEvent`, tak pernah menyentuh array `runs`. Yang menyegarkan daftar adalah poll
+3 dtk di `App` (`listSpecs` + `listRuns`) selama ada run **aktif**, dan "aktif" berarti
+`isRunActive(status)` — satu predikat di `@hanoman/shared` yang mencakup `queued`,
+`running`, dan `paused` (SPEC-142). `queued` wajib ikut: setiap run lahir `queued`, jadi
+gate yang melewatkannya membuat daftar membeku sampai refresh manual. Predikat yang sama
+menentukan kartu backlog menampilkan **Buka run** alih-alih **Mulai**, baris run
+menyembunyikan aksi hapus, dan baris project menampilkan label fase. Predikat "punya
+proses hidup" (`running | paused`, untuk steer/pause/stop) sengaja berbeda dan tetap inline.
+
+Overlay `live` di `RunsScreen` di-seed ulang saat **id atau status** run berubah, bukan id
+saja. Poll membawa status baru dari DB, tapi overlay itu snapshot sekali per run: dengan
+`[picked?.id]` saja, panel detail tertinggal di `queued` sementara baris daftar sudah
+`running`. Redis pub/sub tak punya replay, jadi event `status: running` yang terbit sebelum
+langganan SSE dibuka hilang selamanya — status berikutnya baru tiba saat run selesai. DB
+adalah sumber kebenaran status; SSE hanya mempercepatnya.
