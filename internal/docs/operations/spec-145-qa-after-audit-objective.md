@@ -3,7 +3,7 @@
 **Fase:** Brainstorm → Objective (dikunci) · 2026-07-09
 **Jenis:** fitur — alur QA berhenti menjadi pipeline statis; Audit memilih jalur hilirnya sendiri
 **Source of Truth:** `internal/docs/**` — dokumen ini subordinat terhadapnya.
-**Turunan:** brainstorm → [`docs/superpowers/specs/2026-07-09-hanoman-qa-after-audit-spec-145-brainstorm.md`].
+**Turunan:** brainstorm → [`docs/superpowers/specs/2026-07-09-hanoman-qa-after-audit-spec-145-brainstorm.md`], design → [`docs/superpowers/specs/2026-07-09-hanoman-qa-after-audit-spec-145-design.md`].
 
 ## Masalah
 
@@ -193,3 +193,28 @@ lewat amandemen sebelum fase Execute — bukan diperlakukan seolah sudah dikonfi
 
 > Chiranjivi — objective bertahan lebih lama dari satu run. Spec dan plan turunannya tunduk pada
 > pernyataan ini.
+
+## Amandemen — 2026-07-09 (fase Spec)
+
+Kriteria sukses **Keputusan menyeberang lewat artefak, bukan lewat teks** menulis bahwa `runOne`
+membaca artefaknya sesudah Audit `done` "lalu **menghapusnya**". Terbaca harfiah, unlink duduk di
+sebelah baca. Itu **tidak cukup**, dan premisnya diperiksa ulang di repo sementara:
+
+```
+$ echo '{"path":"execute"}' > .hanoman-decision.json && git add -A
+$ git diff --cached --name-only
+.hanoman-decision.json
+```
+
+`commitAndPush` (`runner/src/git.ts:46`) memanggil `git add -A`, dan berkas ber-titik di root **ikut
+ter-stage**. Ada jalur yang melewati pembacaan: run yang mati **antara** Audit menulis berkas dan
+runner membacanya sudah mem-persist `phase done`, sehingga pada resume Audit tak dijalankan lagi —
+pembacaan dan unlink-nya tak pernah terjadi, dan artefak internal hanoman mendarat di `branchTo`
+milik repo project.
+
+Gantinya: unlink berdiri sendiri, **tanpa syarat, tepat sebelum `commitAndPush`**
+(`rmSync(..., { force: true })`). Satu titik yang meliputi setiap jalur keluar yang commit — resume,
+jalur `spec`, maupun run yang artefaknya tak pernah ada. Pembacaan tetap di tempatnya, sesudah Audit.
+
+Ini memperkuat kriteria tersebut, tidak membatalkannya. Sisa objective ini tetap berlaku utuh.
+Rinciannya di [`docs/superpowers/specs/2026-07-09-hanoman-qa-after-audit-spec-145-design.md`].
