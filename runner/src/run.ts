@@ -1,4 +1,4 @@
-import type { QueryFn, RunEvent, RunInput, RunResult, GitOps } from "./types";
+import type { QueryFn, RunEvent, RunInput, RunResult, GitOps, SdkUserMessage } from "./types";
 import { PIPELINES, phasePrompt, stepFor } from "./phases";
 import { runPhase } from "./phase";
 import { SteerQueue } from "./steer-queue";
@@ -34,7 +34,12 @@ export async function runOne(
       }
     }
     const step = input.steps[stepFor(phase)];
-    const prompt = phase === "Execute" && ctl.steer ? ctl.steer.stream() : phasePrompt(input.flow, phase, input);
+    // Execute streams (so steer messages can be injected mid-turn), but its first
+    // message must still be the phase prompt — it used to be a bare "mulai", which
+    // left the executing turn with no backlog context at all.
+    const text = phasePrompt(input.flow, phase, input);
+    let prompt: string | AsyncIterable<SdkUserMessage> = text;
+    if (phase === "Execute" && ctl.steer) { ctl.steer.push(text); prompt = ctl.steer.stream(); }
     const r = await runPhase({ queryFn: deps.queryFn, cwd: worktree, model: step.model,
       effort: step.effort, prompt, abortController, onEvent });
     costUsd += r.costUsd; tokensIn += r.tokensIn; tokensOut += r.tokensOut;

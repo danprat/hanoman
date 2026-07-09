@@ -10,7 +10,18 @@ const STEP: Record<string, keyof StepModels> = {
   Execute: "execute", Audit: "audit", "Doc index": "spec", Scan: "audit",
 };
 export const stepFor = (phase: string): keyof StepModels => STEP[phase] ?? "execute";
+// The spec block is what ties a run to the backlog item that spawned it: the id
+// alone is not resolvable from inside the worktree (specs live in Postgres, not
+// in the repo), so it has to be spelled out in the prompt.
+function specBlock(input: RunInput): string {
+  const s = input.spec;
+  if (!s) return input.specId ? `\n\nBacklog item: ${input.specId} (detail tidak termuat).` : "";
+  const detail = s.payload ? `\nDetail: ${JSON.stringify(s.payload)}` : "";
+  return `\n\nBacklog item ${s.id} · sumber ${s.source} · prioritas ${s.priority}\nJudul: ${s.title}\nObjective: ${s.objective}${detail}`;
+}
 export function phasePrompt(flow: Flow, phase: string, input: RunInput): string {
-  const ref = input.specId ? ` ${input.specId}` : "";
-  return `hanoman ${flow} — fase ${phase}${ref}. Ikuti internal/docs sebagai Source of Truth. Kerjakan hanya langkah fase ${phase}; perbarui docs yang tersentuh dan link di index.`;
+  const scope = input.specId
+    ? `Kerjakan hanya langkah fase ${phase} untuk backlog item di bawah — jangan kerjakan pekerjaan lain.`
+    : `Kerjakan hanya langkah fase ${phase}.`;
+  return `hanoman ${flow} — fase ${phase}. Ikuti internal/docs sebagai Source of Truth. ${scope} Perbarui docs yang tersentuh dan link di index.${specBlock(input)}`;
 }

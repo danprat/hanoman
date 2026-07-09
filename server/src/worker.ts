@@ -26,6 +26,13 @@ export async function markFailed(runId: string): Promise<void> {
 export async function runProcessor(job: Job<RunInput>, deps: RunDeps = prodDeps): Promise<void> {
   let input = job.data;
   const id = input.runId;
+  // Load the backlog item this run was queued for, fresh from the DB (the job
+  // payload carries only its id). Throws when the spec is gone → the job fails
+  // rather than running an unscoped agent that matches no backlog item.
+  if (input.specId) {
+    const s = await prisma.spec.findUniqueOrThrow({ where: { id: input.specId } });
+    input = { ...input, spec: { id: s.id, title: s.title, source: s.source, priority: s.priority, objective: s.objective, payload: s.payload ?? undefined } };
+  }
   // github-backed run: clone the private repo on demand and push over a remote
   // carrying a freshly-minted installation token (never persisted). Local runs
   // (no installationId) skip this and behave exactly as before.
@@ -35,7 +42,7 @@ export async function runProcessor(job: Job<RunInput>, deps: RunDeps = prodDeps)
     input = { ...input, remoteUrl: `https://x-access-token:${token}@github.com/${input.reportRepo}.git` };
   }
   const abortController = new AbortController();
-  const steer = new SteerQueue("mulai");
+  const steer = new SteerQueue();
   const pub = publisher();
   const sub = subscriber();
   await sub.subscribe(`run:${id}:control`);

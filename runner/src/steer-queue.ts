@@ -3,7 +3,7 @@ export class SteerQueue {
   private buf: string[] = [];
   private wake: (() => void) | null = null;
   private closed = false;
-  constructor(initial: string) { this.buf.push(initial); }
+  constructor(initial?: string) { if (initial) this.buf.push(initial); }
   push(text: string) { this.buf.push(text); this.wake?.(); this.wake = null; }
   close() { this.closed = true; this.wake?.(); this.wake = null; }
   async *stream(): AsyncGenerator<SdkUserMessage> {

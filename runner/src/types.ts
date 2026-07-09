@@ -15,7 +15,11 @@ export type RunEvent =
 export type Flow = "feature" | "qa" | "scaffold" | "reverse";
 export type StepModel = { model: string; effort: string };
 export type StepModels = Record<"brainstorm" | "spec" | "plan" | "execute" | "audit", StepModel>;
-export type RunInput = { runId: string; projectId?: string; repoDir: string; branchFrom: string; branchTo: string; flow: Flow; specId?: string; steps: StepModels; only?: string;
+// Backlog item the run must implement, loaded from the DB by the worker at run
+// time. Without it the phase prompt carried only "SPEC-3" — an id that means
+// nothing inside a fresh worktree — so the run had no way to match the backlog.
+export type SpecBrief = { id: string; title: string; source: string; priority: string; objective: string; payload?: unknown };
+export type RunInput = { runId: string; projectId?: string; repoDir: string; branchFrom: string; branchTo: string; flow: Flow; specId?: string; spec?: SpecBrief; steps: StepModels; only?: string;
   // github-backed runs (SPEC-006): commit to report status on, "owner/repo",
   // installation to auth git ops, and a tokenized push remote (set at run time).
   commitSha?: string; reportRepo?: string; installationId?: number; remoteUrl?: string };
