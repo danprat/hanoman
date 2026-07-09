@@ -12,6 +12,9 @@ export const api = {
   getProject: (id: string) => j<ProjectView>(paths.project(id)),
   createProject: (b: unknown) => j<ProjectView>(paths.projects, { method: "POST", ...body(b) }),
   deleteProject: (id: string) => j<void>(paths.project(id), { method: "DELETE" }),
+  // SPEC-146 · hanya label. `id` tak pernah berubah, jadi respons selalu punya `id` yang sama.
+  updateProject: (id: string, b: { name?: string; desc?: string }) =>
+    j<ProjectView>(paths.project(id), { method: "PATCH", ...body(b) }),
   listSpecs: (q = "") => j<Spec[]>(paths.specs + q),
   createSpec: (b: unknown) => j<Spec>(paths.specs, { method: "POST", ...body(b) }),
   deleteSpec: (id: string) => j<void>(paths.spec(id), { method: "DELETE" }),

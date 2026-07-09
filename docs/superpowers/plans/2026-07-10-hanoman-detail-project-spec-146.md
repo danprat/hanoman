@@ -462,7 +462,7 @@ git commit -m "feat(spec-146): filter project terkontrol di Backlog + Runs"
 - Consumes: `PATCH /api/projects/:id` (Task 1); `projectFilter`/`setProjectFilter` di `App` (Task 2).
 - Produces: `api.updateProject(id: string, b: { name?: string; desc?: string }): Promise<ProjectView>`; komponen `ProjectDetailScreen({ p, onEdit, onGotoDocs, onGotoRuns, onGotoBacklog, onDelete })`; section `"project"`.
 
-- [ ] **Step 1: Tulis tes yang gagal**
+- [x] **Step 1: Tulis tes yang gagal**
 
 Create `src/test/project-detail.test.tsx`:
 
@@ -505,9 +505,10 @@ describe("detail project (SPEC-146)", () => {
     await act(async () => { await Promise.resolve(); });
     fireEvent.click(screen.getAllByText("Projects")[0]!);   // sidebar
     fireEvent.click(screen.getAllByText("arta")[0]!);       // baris project
-    // Layar Docs punya tombol "Hapus project" di header Shell; detail punya "Edit project".
+    // Layar detail punya "Edit project"; layar Docs punya tombol "Muat ulang" (rescan tree,
+    // unik untuk DocsWorkspace — "Source of Truth" sendiri juga jadi label pintu di detail).
     expect(await screen.findByText("Edit project")).toBeInTheDocument();
-    expect(screen.queryByText("Source of Truth")).toBeNull();
+    expect(screen.queryByText("Muat ulang")).toBeNull();
   });
 
   it("tombol Runs di detail membuka Runs tersaring ke project itu", async () => {
@@ -516,17 +517,24 @@ describe("detail project (SPEC-146)", () => {
     fireEvent.click(screen.getAllByText("Projects")[0]!);
     fireEvent.click(screen.getAllByText("arta")[0]!);
     fireEvent.click(await screen.findByText("Lihat runs"));
-    expect(await screen.findByText("RUN-9")).toBeInTheDocument();
+    // RUN-9 dirender dua kali (baris daftar + panel detail) begitu Runs terbuka.
+    expect((await screen.findAllByText("RUN-9")).length).toBeGreaterThan(0);
   });
 });
 ```
 
-- [ ] **Step 2: Jalankan tes, pastikan gagal**
+> **Amandemen (fase Execute):** dua asersi pertama di plan tak bisa bertahan — "Source of Truth"
+> juga jadi label pintu di `ProjectDetailScreen` sendiri (bentrok dengan komponen yang ditulis di
+> Step 4 task ini), dan `findByText("RUN-9")` gagal karena run muncul dua kali (baris + panel
+> detail), pola yang sama seperti `project-filter.test.tsx`. Diganti `"Muat ulang"` (unik
+> `DocsWorkspace.tsx:214`) dan `findAllByText`. Kode di atas sudah kode final.
+
+- [x] **Step 2: Jalankan tes, pastikan gagal**
 
 Run: `pnpm --filter ./src exec vitest run test/project-detail.test.tsx`
 Expected: FAIL — `Unable to find an element with the text: Edit project`. Klik baris project hari ini mendarat di Docs.
 
-- [ ] **Step 3: Tambah `api.updateProject`**
+- [x] **Step 3: Tambah `api.updateProject`**
 
 `src/src/api/client.ts`, sisipkan sesudah `deleteProject` (`:14`):
 
@@ -536,7 +544,7 @@ Expected: FAIL — `Unable to find an element with the text: Edit project`. Klik
     j<ProjectView>(paths.project(id), { method: "PATCH", ...body(b) }),
 ```
 
-- [ ] **Step 4: Buat `ProjectDetailScreen`**
+- [x] **Step 4: Buat `ProjectDetailScreen`**
 
 Create `src/src/screens/ProjectDetailScreen.tsx`:
 
@@ -623,7 +631,7 @@ export function ProjectDetailScreen({ p, onEdit, onGotoDocs, onGotoRuns, onGotoB
 }
 ```
 
-- [ ] **Step 5: Modal edit + `updateProject` di `App`**
+- [x] **Step 5: Modal edit + `updateProject` di `App`**
 
 `src/src/App.tsx` — tambahkan import sesudah `:12`:
 
@@ -648,17 +656,22 @@ function EditProjectModal({ open, project, onClose, onSave }:
       </>}>
       {/* `id` tak ikut: ia kunci asing spec/run/trigger (SPEC-146). */}
       <Field label="Nama project" hint="label tampilan — boleh berbeda dari id">
-        <Input value={f.name} onChange={(e) => setF((s) => ({ ...s, name: e.target.value }))}
+        <Input value={f.name} onChange={(e: React.ChangeEvent<any>) => setF((s) => ({ ...s, name: e.target.value }))}
           style={{ width: "100%" }} />
       </Field>
       <Field label="Deskripsi">
-        <Input value={f.desc} onChange={(e) => setF((s) => ({ ...s, desc: e.target.value }))}
+        <Input value={f.desc} onChange={(e: React.ChangeEvent<any>) => setF((s) => ({ ...s, desc: e.target.value }))}
           style={{ width: "100%" }} />
       </Field>
     </Modal>
   );
 }
 ```
+
+> **Amandemen (fase Execute):** `onChange={(e) => …}` tanpa anotasi gagal `tsc --noEmit` —
+> `InputProps` (`ds/components/forms.tsx:82`) melebar ke `Record<string, any>`, jadi `e` jatuh ke
+> implicit `any` (`noImplicitAny`). `NewProjectModal` (`App.tsx`) sudah punya pola yang sama lewat
+> helper `set(k)`; di sini dianotasi langsung `(e: React.ChangeEvent<any>)`. Kode di atas final.
 
 Ganti `openProject` (`:339`):
 
@@ -694,7 +707,7 @@ menjadi (layar detail tak boleh merender project yang sudah tiada):
       if (section === "docs" || section === "project") setSection("projects");
 ```
 
-- [ ] **Step 6: Cabang section `"project"`**
+- [x] **Step 6: Cabang section `"project"`**
 
 `src/src/App.tsx`, sisipkan cabang tepat sesudah blok `section === "projects"` berakhir (sesudah `:485`), sebelum `} else if (section === "backlog") {`:
 
@@ -722,7 +735,7 @@ Render modal — sisipkan sesudah `<NewProjectModal … />` (`:548`):
       <EditProjectModal open={modal === "project-edit"} project={proj} onClose={() => setModal(null)} onSave={updateProject} />
 ```
 
-- [ ] **Step 7: Jalankan tes, pastikan lulus**
+- [x] **Step 7: Jalankan tes, pastikan lulus**
 
 Run: `pnpm --filter ./src exec vitest run test/project-detail.test.tsx`
 Expected: PASS — dua tes.
@@ -733,7 +746,7 @@ Expected: PASS — seluruh workspace, termasuk `server/test/projects.route.test.
 Run: `pnpm typecheck`
 Expected: PASS.
 
-- [ ] **Step 8: Perbarui doc frontend (wajib di commit ini — guardrail freshness)**
+- [x] **Step 8: Perbarui doc frontend (wajib di commit ini — guardrail freshness)**
 
 `internal/docs/frontend/frontend-implementation.md:5`, pada daftar bagian, ganti frasa `Projects (list + pagination + cari + hapus project per baris; tombol hapus juga di header Docs — konfirmasi dulu, ditolak bila ada run aktif)` menjadi:
 
@@ -741,7 +754,7 @@ Expected: PASS.
 Projects (list + pagination + cari + hapus project per baris) → **detail project** (identitas, coverage, edit `name`/`desc` lewat `PATCH /projects/:id`, dan tiga pintu: docs, runs, backlog). `id` tak pernah dapat diubah — ia kunci asing spec/run/trigger (SPEC-146). Hapus project ada di detail dan di header Docs — konfirmasi dulu, ditolak bila ada run aktif; rename tidak ditolak, karena `id` tak bergerak
 ```
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/src/screens/ProjectDetailScreen.tsx src/src/App.tsx src/src/api/client.ts \
