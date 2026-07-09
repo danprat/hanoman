@@ -61,7 +61,11 @@ export async function runProcessor(job: Job<RunInput>, deps: RunDeps = prodDeps)
   // Run baru belum punya sessionId → runner membuka sesi baru, persis seperti sebelumnya.
   const row = await prisma.run.findUnique({ where: { id }, select: { sessionId: true, phases: true } });
   if (row?.sessionId) {
-    const done = (row.phases as { name: string; state: string }[]).filter((p) => p.state === "done").map((p) => p.name);
+    // "Jangan jalankan lagi" = selesai ATAU dipangkas keputusan audit (SPEC-145). Melewatkan
+    // `skipped` di sini membuat run qa jalur cepat yang di-resume mengingkari keputusannya
+    // sendiri dan menjalankan Spec + Plan yang sudah ditandai dilewati.
+    const done = (row.phases as { name: string; state: string }[])
+      .filter((p) => p.state === "done" || p.state === "skipped").map((p) => p.name);
     input = { ...input, resume: row.sessionId, donePhases: done };
   }
   // github-backed run: clone the private repo on demand and push over a remote

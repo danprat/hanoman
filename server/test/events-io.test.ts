@@ -12,6 +12,14 @@ describe("computeProgress (SPEC-010, pure)", () => {
     expect(computeProgress(P(["done", "done"]))).toBe(100));
   it("does not count a failed phase as done", () =>
     expect(computeProgress(P(["done", "done", "done", "done", "failed"]))).toBe(80));
+  // SPEC-145: fase yang dipangkas keputusan audit keluar dari PENYEBUT. Tanpa ini, run
+  // jalur cepat yang sukses (Audit + Execute done, Spec + Plan skipped) melapor 50%.
+  it("excludes skipped phases from the denominator", () =>
+    expect(computeProgress(P(["done", "skipped", "skipped", "done"]))).toBe(100));
+  it("does not count a skipped phase as done", () =>
+    expect(computeProgress(P(["done", "skipped", "skipped", "active"]))).toBe(50));
+  it("is 0 when every phase is skipped", () =>
+    expect(computeProgress(P(["skipped", "skipped"]))).toBe(0));
 });
 
 describe("persistEvent finishedAt (SPEC-008)", () => {
@@ -22,6 +30,20 @@ describe("persistEvent finishedAt (SPEC-008)", () => {
     const run = await prisma.run.findUniqueOrThrow({ where: { id: "RUN-1" } });
     expect(run.status).toBe("done");
     expect(run.finishedAt).not.toBeNull();
+  });
+
+  // SPEC-145: `skipped` bertahan di kolom Json dan progress-nya jujur (2 done, 2 skipped → 100%).
+  it("persists a skipped phase and reports 100% when the rest are done", async () => {
+    await prisma.run.update({ where: { id: "RUN-1" }, data: { phases: [
+      { name: "Audit", state: "done" }, { name: "Spec", state: "pending" },
+      { name: "Plan", state: "pending" }, { name: "Execute", state: "done" },
+    ] as any } });
+    await persistEvent("RUN-1", { kind: "phase", name: "Spec", state: "skipped" });
+    await persistEvent("RUN-1", { kind: "phase", name: "Plan", state: "skipped" });
+
+    const run = await prisma.run.findUniqueOrThrow({ where: { id: "RUN-1" } });
+    expect((run.phases as any[]).map((p) => p.state)).toEqual(["done", "skipped", "skipped", "done"]);
+    expect(run.progress).toBe(100);
   });
 
   it("leaves finishedAt null on a non-terminal status", async () => {

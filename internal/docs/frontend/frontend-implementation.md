@@ -51,3 +51,10 @@ saja. Poll membawa status baru dari DB, tapi overlay itu snapshot sekali per run
 `running`. Redis pub/sub tak punya replay, jadi event `status: running` yang terbit sebelum
 langganan SSE dibuka hilang selamanya — status berikutnya baru tiba saat run selesai. DB
 adalah sumber kebenaran status; SSE hanya mempercepatnya.
+
+`PhasePipeline` mengenal lima state fase. `skipped` (SPEC-145) adalah fase yang run **putuskan**
+untuk tidak dijalankan — alur `qa` yang audit-nya memilih perbaikan langsung menandai Spec dan
+Plan begitu. Ia dirender terisi `--bone-400` dengan ikon `minus` dan label redup, sengaja berbeda
+dari `pending` (lingkaran kosong, "belum jalan"), dan konektor sesudahnya berwarna `--leaf-500`
+karena alur memang lewat sana. `progress` mengeluarkan fase `skipped` dari penyebutnya, sehingga
+run jalur cepat yang sukses tetap 100%.
