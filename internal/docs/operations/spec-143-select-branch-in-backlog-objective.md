@@ -3,7 +3,7 @@
 **Fase:** Objective (dikunci) · 2026-07-09
 **Jenis:** fitur — branch sumber worktree menjadi properti backlog item, bukan default tersembunyi
 **Source of Truth:** `internal/docs/**` — dokumen ini subordinat terhadapnya.
-**Turunan:** brainstorm → [`docs/superpowers/specs/2026-07-09-hanoman-select-branch-in-backlog-spec-143-brainstorm.md`], spec + plan menyusul.
+**Turunan:** brainstorm → [`docs/superpowers/specs/2026-07-09-hanoman-select-branch-in-backlog-spec-143-brainstorm.md`], design → [`docs/superpowers/specs/2026-07-09-hanoman-select-branch-in-backlog-spec-143-design.md`], plan menyusul.
 
 ## Masalah
 
@@ -134,3 +134,25 @@ dibalik lewat amandemen sebelum fase Execute — bukan diperlakukan seolah sudah
 
 > Chiranjivi — objective bertahan lebih lama dari satu run. Spec dan plan turunannya tunduk pada
 > pernyataan ini.
+
+## Amandemen — 2026-07-09 (fase Spec)
+
+Kriteria sukses **Daftar yang mengisi dropdown adalah daftar yang menjaga gerbang** di atas menutup
+dengan kalimat: "Sebagai sabuk kedua, `--` disisipkan sebelum `branchFrom` di `runner/src/git.ts`."
+Kalimat itu **dicabut**, dan premis di belakangnya ternyata cacat. Dua temuan fase Spec:
+
+1. **Whitelist saja bocor.** `git check-ref-format 'refs/heads/--force'` valid — sebuah branch boleh
+   bernama `--force`. Branch semacam itu **ada di dalam repo**, sehingga lolos whitelist, lalu terbaca
+   git sebagai flag.
+2. **Sabuk `--` tak dapat diverifikasi dari dalam run.** `deniesDangerous` (`runner/src/safety.ts`)
+   memblokir `git worktree add` di Bash — sebagaimana mestinya — jadi tidak ada cara menguji bagaimana
+   `worktree add` mem-parse `--` tanpa membobol guardrail sendiri.
+
+Gantinya: `branchFrom` diresolusikan menjadi **commit SHA** lewat
+`git rev-parse --verify --end-of-options "<rev>^{commit}"` sebelum diserahkan ke `worktree add`.
+String heksadesimal tak pernah bisa terbaca sebagai opsi, sehingga desainnya tidak lagi bergantung
+pada perilaku parsing yang tak teruji. `switchBase` memakai `git checkout --end-of-options`.
+Keduanya diverifikasi terhadap git 2.50.1. Rinciannya di
+[`docs/superpowers/specs/2026-07-09-hanoman-select-branch-in-backlog-spec-143-design.md`].
+
+Sisa objective ini tetap berlaku utuh.
