@@ -109,3 +109,23 @@ describe("persistEvent sessionId (SPEC-013)", () => {
     expect(run.sessionId).toBe("abc-123");
   });
 });
+
+describe("persistEvent commit (SPEC-144)", () => {
+  beforeEach(async () => { await resetDb(); await makeProject(); await makeRun({ id: "RUN-1", projectId: "p1" }); });
+
+  it("menulis baseSha lalu headSha", async () => {
+    await persistEvent("RUN-1", { kind: "commit", base: "aaa" });
+    await persistEvent("RUN-1", { kind: "commit", head: "bbb" });
+    const run = await prisma.run.findUniqueOrThrow({ where: { id: "RUN-1" } });
+    expect(run.baseSha).toBe("aaa");
+    expect(run.headSha).toBe("bbb");
+  });
+
+  // Run yang di-resume tidak boleh kehilangan basis aslinya.
+  it("tidak pernah menimpa baseSha yang sudah terisi", async () => {
+    await persistEvent("RUN-1", { kind: "commit", base: "aaa" });
+    await persistEvent("RUN-1", { kind: "commit", base: "zzz" });
+    const run = await prisma.run.findUniqueOrThrow({ where: { id: "RUN-1" } });
+    expect(run.baseSha).toBe("aaa");
+  });
+});

@@ -103,4 +103,24 @@ describe("git worktree ops", () => {
     expect(g(wt, "rev-parse", "--abbrev-ref", "HEAD").stdout.trim()).toBe("dev");
     realGit.removeWorktree(repo, wt);
   });
+
+  it("addWorktree mengembalikan baseSha, dan undefined saat reuse", () => {
+    const { repo } = seedRepo();
+    const head = g(repo, "rev-parse", "HEAD").stdout.trim();
+    const wt = join(repo, ".worktrees", "run-sha");
+    expect(realGit.addWorktree(repo, wt, "main")).toBe(head);
+    expect(realGit.addWorktree(repo, wt, "main", true)).toBeUndefined();  // reuse: pohon sudah ada
+    realGit.removeWorktree(repo, wt);
+  });
+
+  it("commitAndPush mengembalikan headSha worktree", () => {
+    const { repo } = seedRepo();
+    const wt = join(repo, ".worktrees", "run-head");
+    const base = realGit.addWorktree(repo, wt, "main")!;
+    writeFileSync(join(wt, "baru.txt"), "isi\n");
+    const head = realGit.commitAndPush(wt, "pesan", "hanoman/run-head");
+    expect(head).toMatch(/^[0-9a-f]{40}$/);
+    expect(head).not.toBe(base);
+    realGit.removeWorktree(repo, wt);
+  });
 });

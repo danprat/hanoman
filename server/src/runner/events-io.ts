@@ -60,6 +60,14 @@ export async function persistEvent(runId: string, e: RunEvent): Promise<void> {
   } else if (e.kind === "session") {
     // Satu sesi per run (SPEC-013). Layar Terminal memakainya untuk `claude --resume`.
     await prisma.run.update({ where: { id: runId }, data: { sessionId: e.sessionId } });
+  } else if (e.kind === "commit") {
+    // baseSha ditulis sekali. `resume` memanggil addWorktree lagi, dan branchFrom
+    // bisa sudah bergerak — basis yang benar adalah basis semula.
+    const run = await prisma.run.findUniqueOrThrow({ where: { id: runId } });
+    const data: { baseSha?: string; headSha?: string } = {};
+    if (e.base && !run.baseSha) data.baseSha = e.base;
+    if (e.head) data.headSha = e.head;
+    if (Object.keys(data).length) await prisma.run.update({ where: { id: runId }, data });
   } else if (e.kind === "file") {
     const run = await prisma.run.findUniqueOrThrow({ where: { id: runId } });
     await prisma.run.update({ where: { id: runId }, data: { files: [...(run.files as any[]), e] } });

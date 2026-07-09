@@ -35,6 +35,7 @@ export type RunEvent =
   | { kind: "file"; path: string; add: number; del: number; status: string }
   | { kind: "cost"; tokensIn: number; tokensOut: number; costUsd: number }
   | { kind: "session"; sessionId: string }
+  | { kind: "commit"; base?: string; head?: string }
   | { kind: "status"; status: "running" | "paused" | "stopped" | "failed" | "done" };
 export type Flow = "feature" | "qa" | "scaffold" | "reverse";
 export type StepModel = { model: string; effort: string };
@@ -53,9 +54,10 @@ export type RunInput = { runId: string; projectId?: string; repoDir: string; bra
 export type RunResult = { status: "done" | "failed" | "stopped"; costUsd: number; tokensIn: number; tokensOut: number };
 
 export interface GitOps {
-  /** `reuse`: pakai worktree yang sudah ada apa adanya — artefak fase sebelumnya ada di sana. */
-  addWorktree(repo: string, path: string, branchFrom: string, reuse?: boolean): void;
+  /** `reuse`: pakai worktree yang sudah ada apa adanya. Mengembalikan baseSha, atau undefined saat reuse. */
+  addWorktree(repo: string, path: string, branchFrom: string, reuse?: boolean): string | undefined;
   removeWorktree(repo: string, path: string): void;
-  commitAndPush(worktreePath: string, message: string, branchTo: string, remoteUrl?: string): void;
+  /** Mengembalikan headSha — commit tip milik run ini. */
+  commitAndPush(worktreePath: string, message: string, branchTo: string, remoteUrl?: string): string;
   switchBase(worktreePath: string, branchFrom: string): void;
 }

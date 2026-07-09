@@ -31,7 +31,12 @@ function fakeSession(res: () => CliMessage = okResult): ClaudeSession & { sent: 
 }
 const fakeDeps = (over: Partial<RunDeps> = {}): RunDeps => ({
   openSession: () => fakeSession(),
-  git: { addWorktree: vi.fn(), removeWorktree: vi.fn(), commitAndPush: vi.fn(), switchBase: vi.fn() },
+  git: {
+    addWorktree: vi.fn().mockReturnValue("base00"),
+    removeWorktree: vi.fn(),
+    commitAndPush: vi.fn().mockReturnValue("head99"),
+    switchBase: vi.fn(),
+  },
   verify: () => ({ blocked: false }), ...over });
 
 describe("runOne", () => {
@@ -123,6 +128,22 @@ describe("runOne", () => {
       expect(r.status).toBe("failed");
       expect(d.git.commitAndPush).not.toHaveBeenCalled();
     });
+
+  it("memancarkan base lalu head, dalam urutan itu", async () => {
+    const events: any[] = [];
+    await runOne(input(), fakeDeps(), (e) => events.push(e));
+    const commits = events.filter((e) => e.kind === "commit");
+    expect(commits).toEqual([{ kind: "commit", base: "base00" }, { kind: "commit", head: "head99" }]);
+  });
+
+  it("tidak memancarkan base saat addWorktree memakai ulang worktree", async () => {
+    const d = fakeDeps();
+    (d.git.addWorktree as any).mockReturnValue(undefined);
+    const events: any[] = [];
+    await runOne(input(), d, (e) => events.push(e));
+    expect(events.filter((e) => e.kind === "commit" && e.base)).toEqual([]);
+    expect(events.filter((e) => e.kind === "commit" && e.head)).toHaveLength(1);
+  });
 });
 
 // ADR-0017: run yang terputus melanjutkan percakapannya, bukan mengulang dari brainstorm.

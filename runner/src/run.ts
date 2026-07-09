@@ -32,7 +32,8 @@ export async function runOne(
   const failed = (): RunResult => ({ status: "failed", costUsd, tokensIn, tokensOut });
 
   onEvent({ kind: "status", status: "running" });
-  deps.git.addWorktree(input.repoDir, worktree, input.branchFrom, resuming);
+  const baseSha = deps.git.addWorktree(input.repoDir, worktree, input.branchFrom, resuming);
+  if (baseSha) onEvent({ kind: "commit", base: baseSha });
   if (skipped.length) {
     onEvent({ kind: "log", line: { t: "›", s: `melanjutkan sesi ${input.resume} — fase selesai dilewati: ${skipped.join(", ")}` } });
   }
@@ -108,7 +109,8 @@ export async function runOne(
   }
 
   if (abortController.signal.aborted) { onEvent({ kind: "status", status: "stopped" }); return stopped(); }
-  deps.git.commitAndPush(worktree, `hanoman ${input.flow} ${input.specId ?? ""}`.trim(), input.branchTo, input.remoteUrl);
+  const headSha = deps.git.commitAndPush(worktree, `hanoman ${input.flow} ${input.specId ?? ""}`.trim(), input.branchTo, input.remoteUrl);
+  onEvent({ kind: "commit", head: headSha });
   deps.git.removeWorktree(input.repoDir, worktree);
   onEvent({ kind: "status", status: "done" });
   return { status: "done", costUsd, tokensIn, tokensOut };
