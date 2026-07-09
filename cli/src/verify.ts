@@ -12,10 +12,13 @@ export function collectViolations(cwd: string) {
   // untuk SEMUA akses filesystem, bukan cuma indexPath.
   const { root, docsDir, indexPath } = resolveRepo(cwd);
   const cfg = loadConfig(root);
-  // Index hilang = guardrail tak bisa menilai apa pun. Fail loud, jangan diam-diam
-  // melaporkan semua doc unlinked (ADR-0009).
-  if (!existsSync(indexPath)) throw new Error(`index Source of Truth tidak ada: ${indexPath}`);
   const docsRoot = join(root, docsDir);
+  // Repo target boleh tidak punya docs SoT sama sekali (run hanoman menjalankan repo lain,
+  // mis. kirimchat-multi). Tidak ada docs = tidak ada yang dijaga → clean, bukan crash.
+  if (!existsSync(docsRoot)) return { coverage: 100, cats: [], violations: [] };
+  // Docs ADA tapi index-nya hilang = guardrail tak bisa menilai apa pun. Fail loud, jangan
+  // diam-diam melaporkan semua doc unlinked (ADR-0009).
+  if (!existsSync(indexPath)) throw new Error(`index Source of Truth tidak ada: ${indexPath}`);
   const corpus = walkDocs(docsRoot);
   const read = (rel: string): string | null => {
     try { return readFileSync(join(docsRoot, rel), "utf8"); } catch { return null; }

@@ -45,6 +45,15 @@ describe("collectViolations", () => {
     rmSync(join(root, "internal/docs/README.md"));
     expect(() => collectViolations(root)).toThrow(/index Source of Truth tidak ada/);
   });
+  // RUN-90004: run di repo target tanpa `internal/docs` (kirimchat-multi) → walkDocs ENOENT,
+  // guardrail crash, run failed. Tidak ada docs bukan pelanggaran.
+  it("repo without a docs dir at all -> clean, not a crash", async () => {
+    const { root } = await makeRepo({
+      files: { "hanoman.config.json": JSON.stringify({ coverageThreshold: 80 }) } });
+    rmSync(join(root, "internal/docs"), { recursive: true });
+    mkdirSync(join(root, "src"), { recursive: true }); writeFileSync(join(root, "src/a.ts"), "z");
+    expect(collectViolations(root).violations).toEqual([]);
+  });
   it("coverage below threshold -> coverage violation", async () => {
     const { root } = await makeRepo({
       files: { "hanoman.config.json": JSON.stringify({ requireLinks: false, coverageThreshold: 100 }) },

@@ -30,5 +30,8 @@ run-level auto-retry) stands.
 - The guardrail works regardless of the worker's launch cwd (`server/` under `pnpm dev`, repo
   root under `node dist/worker.js`) and regardless of src-vs-bundled-dist.
 - A guardrail that cannot run never lets Execute proceed (fail-closed, never fail-open).
+- Exception (RUN-90004): a target repo with **no docs dir at all** is not a crash — hanoman runs
+  against other repos (kirimchat-multi), which never had `internal/docs`. `collectViolations`
+  returns clean there. Docs present but index missing stays a loud failure.
 - No schema change. A future run-level retry policy (SPEC-141) can consume the honest `error`
   signal but does not depend on this ADR.
