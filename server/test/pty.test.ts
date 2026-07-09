@@ -59,8 +59,31 @@ describe("pty service", () => {
     await waitFor(() => allData(c).includes("args: --dangerously-skip-permissions"));
     writeTo(s, "halo\n");
     await waitFor(() => allData(c).includes("halo"));
-    expect(listSessions()).toEqual([{ id: s.id, projectId: "p2", cwd: process.cwd(), exited: false }]);
+    expect(listSessions()[0]).toMatchObject({ id: s.id, projectId: "p2", cwd: process.cwd(), exited: false });
     expect(getSession(s.id)).toBe(s);
+  });
+
+  // `--dangerously-skip-permissions` melewati prompt izin, bukan sistem hook. Tanpa
+  // `--settings` sesi PTY berjalan tanpa gerbang sama sekali (ADR-0010).
+  it("always registers the PreToolUse guard hook (ADR-0010)", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+    const s = createSession("p1", process.cwd());
+    const c = fakeClient();
+    attach(s, c);
+    await waitFor(() => lastFrame(c)?.t === "exit");
+    expect(allData(c)).toContain("--settings");
+    expect(allData(c)).toContain("hook pretooluse");
+  });
+
+  it("resumes a run's own claude session in the run worktree", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+    const s = createSession("p1", process.cwd(), { runId: "RUN-7", resume: "sess-abc" });
+    const c = fakeClient();
+    attach(s, c);
+    await waitFor(() => lastFrame(c)?.t === "exit");
+    expect(allData(c)).toContain("--resume sess-abc");
+    expect(allData(c)).toContain("--settings");
+    expect(listSessions()[0]).toMatchObject({ runId: "RUN-7" });
   });
 
   it("killSession stops the process and forgets the session; a second kill is false", async () => {

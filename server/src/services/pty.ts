@@ -1,5 +1,7 @@
 import { spawn, type IPty } from "node-pty";
 import { randomUUID } from "node:crypto";
+import { guardSettings } from "@hanoman/runner";
+import { guardCommand } from "../runner/deps";
 
 // Cukup untuk mengembalikan satu layar penuh plus riwayat, tanpa menahan memori tak
 // terbatas untuk sesi yang menyala berhari-hari.
@@ -11,10 +13,10 @@ export type Frame = { t: "data"; d: string } | { t: "exit"; code: number };
 export type Client = { send(msg: string): void; close(): void };
 
 export type Session = {
-  id: string; projectId: string; cwd: string; pty: IPty;
+  id: string; projectId: string; runId?: string; cwd: string; pty: IPty;
   scrollback: string; exited: boolean; exitCode?: number; clients: Set<Client>;
 };
-export type SessionInfo = { id: string; projectId: string; cwd: string; exited: boolean };
+export type SessionInfo = { id: string; projectId: string; runId?: string; cwd: string; exited: boolean };
 
 const sessions = new Map<string, Session>();
 
@@ -30,9 +32,17 @@ function broadcast(s: Session, f: Frame): void {
 // fork mati dengan "posix_spawnp failed", pesan yang tidak menyebut node-pty sama sekali.
 // `postinstall` di package.json memperbaikinya, tapi pnpm melewati script itu saat tree
 // sudah up-to-date — jadi terjemahkan errornya alih-alih membiarkan orang menebak.
-function spawnPty(cwd: string): IPty {
+function spawnPty(cwd: string, resume?: string): IPty {
+  // `--dangerously-skip-permissions` melewati prompt izin, bukan sistem hook. Tanpa
+  // `--settings` di bawah, sesi ini tidak punya gerbang sama sekali — dan di bawah flag itu
+  // PreToolUse adalah satu-satunya yang tersisa (ADR-0010).
+  const args = [
+    ...(resume ? ["--resume", resume] : []),
+    "--dangerously-skip-permissions",
+    "--settings", JSON.stringify(guardSettings(guardCommand())),
+  ];
   try {
-    return spawn(claudeBin(), ["--dangerously-skip-permissions"], {
+    return spawn(claudeBin(), args, {
       cwd, name: "xterm-256color", cols: 80, rows: 24,
       env: process.env as Record<string, string>,
     });
@@ -46,10 +56,12 @@ function spawnPty(cwd: string): IPty {
   }
 }
 
-export function createSession(projectId: string, cwd: string): Session {
-  const pty = spawnPty(cwd);
+export function createSession(
+  projectId: string, cwd: string, opts: { runId?: string; resume?: string } = {},
+): Session {
+  const pty = spawnPty(cwd, opts.resume);
   const s: Session = {
-    id: randomUUID().slice(0, 8), projectId, cwd, pty,
+    id: randomUUID().slice(0, 8), projectId, runId: opts.runId, cwd, pty,
     scrollback: "", exited: false, clients: new Set(),
   };
   pty.onData((d) => {
@@ -72,7 +84,7 @@ export function createSession(projectId: string, cwd: string): Session {
 export const getSession = (id: string): Session | undefined => sessions.get(id);
 
 export const listSessions = (): SessionInfo[] =>
-  [...sessions.values()].map(({ id, projectId, cwd, exited }) => ({ id, projectId, cwd, exited }));
+  [...sessions.values()].map(({ id, projectId, runId, cwd, exited }) => ({ id, projectId, runId, cwd, exited }));
 
 export function killSession(id: string): boolean {
   const s = sessions.get(id);
