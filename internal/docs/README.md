@@ -46,6 +46,7 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 
 ## operations
 - [roadmap](operations/roadmap.md) · [gtm](operations/gtm.md) · [agent-documentation-workflow](operations/agent-documentation-workflow.md)
+- [production](operations/production.md) — menjalankan instance prod di samping dev (db, Redis db index, port, RUN_ID_FLOOR)
 - [spec-008 — objective (de-mock sweep)](operations/spec-008-de-mock-objective.md)
 - [spec-011 — objective (realtime SoT scan)](operations/spec-011-realtime-sot-scan-objective.md)
 - [spec-141 — objective (overview coverage realtime)](operations/spec-141-overview-coverage-realtime-objective.md)
