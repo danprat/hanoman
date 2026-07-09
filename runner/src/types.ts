@@ -5,12 +5,33 @@ export type SdkMessage =
   | { type: "system"; session_id?: string };
 export type QueryArgs = { prompt: string | AsyncIterable<SdkUserMessage>; options: Record<string, unknown> };
 export type QueryFn = (args: QueryArgs) => AsyncIterable<SdkMessage>;
+
+export type CliOptions = {
+  cwd: string; model: string; effort?: string;
+  abortController?: AbortController; disallowedTools?: string[];
+  settingSources?: string[];
+};
+
+// Satu proses `claude` melayani seluruh backlog: tiap pesan pengguna menghasilkan tepat
+// satu `result`, dan prosesnya hidup selama stdin terbuka (diverifikasi terhadap v2.1.205).
+export interface ClaudeSession {
+  /** Tulis satu pesan pengguna. Tepat satu `result` akan menyusul. */
+  send(text: string): void;
+  /** Pesan berikutnya dari stdout, atau null saat stream berakhir. Satu pembaca saja. */
+  next(): Promise<SdkMessage | null>;
+  /** Tutup stdin — inilah satu-satunya cara `claude` keluar. */
+  close(): void;
+  kill(): void;
+}
+export type OpenSession = (o: CliOptions) => ClaudeSession;
+
 export type PhaseState = "pending" | "active" | "done" | "failed";
 export type RunEvent =
   | { kind: "log"; line: { t: string; s: string } }
   | { kind: "phase"; name: string; state: PhaseState }
   | { kind: "file"; path: string; add: number; del: number; status: string }
   | { kind: "cost"; tokensIn: number; tokensOut: number; costUsd: number }
+  | { kind: "session"; sessionId: string }
   | { kind: "status"; status: "running" | "paused" | "stopped" | "failed" | "done" };
 export type Flow = "feature" | "qa" | "scaffold" | "reverse";
 export type StepModel = { model: string; effort: string };

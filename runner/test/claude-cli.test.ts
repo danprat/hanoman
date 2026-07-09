@@ -1,8 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { buildArgs, guardSettings } from "../src/claude-cli";
+import { fileURLToPath } from "node:url";
+import { buildArgs, guardSettings, makeClaudeCliSession } from "../src/claude-cli";
 import { deniesDangerous } from "../src/safety";
 const GUARD = 'node "/x/hanoman.js" hook pretooluse';
 const at = (a: string[], flag: string) => a[a.indexOf(flag) + 1];
+// Mengabaikan argv dan membalas satu `result` per baris stdin — kontrak yang
+// diverifikasi terhadap binary asli claude v2.1.205.
+const FAKE_CLAUDE = fileURLToPath(new URL("./fixtures/fake-claude.sh", import.meta.url));
 describe("buildArgs", () => {
   it("streams json both ways and registers the guardrail hook", () => {
     const a = buildArgs({ cwd: "/w", model: "claude-opus-4-8" }, GUARD);
@@ -28,6 +32,25 @@ describe("buildArgs", () => {
     expect(a.slice(a.indexOf("--disallowed-tools"))).toEqual(["--disallowed-tools", "Bash(rm -rf *)", "Edit"]);
   });
 });
+describe("makeClaudeCliSession", () => {
+  it("keeps one process alive across many turns and pairs each send with one result", async () => {
+    const s = makeClaudeCliSession({ bin: FAKE_CLAUDE, guardCommand: GUARD })({ cwd: process.cwd(), model: "m" });
+    s.send("turn one");
+    expect(await s.next()).toMatchObject({ type: "result", session_id: "sess-1", usage: { output_tokens: 1 } });
+    // Proses masih hidup: giliran kedua dilayani proses yang sama, sesi yang sama.
+    s.send("turn two");
+    expect(await s.next()).toMatchObject({ type: "result", session_id: "sess-1", usage: { output_tokens: 2 } });
+    // Menutup stdin adalah satu-satunya cara claude keluar.
+    s.close();
+    expect(await s.next()).toBeNull();
+  }, 15000);
+
+  it("fails loud when the binary is missing instead of killing the worker", async () => {
+    const s = makeClaudeCliSession({ bin: "claude-does-not-exist-xyz", guardCommand: GUARD })({ cwd: process.cwd(), model: "m" });
+    await expect(s.next()).rejects.toThrow(/gagal menjalankan/);
+  }, 15000);
+});
+
 describe("deniesDangerous", () => {
   it("denies what the coarse globs would let through, allows the rest", () => {
     expect(deniesDangerous("Bash", { command: "rm  -rf  /tmp/x" })).toBe(true);
