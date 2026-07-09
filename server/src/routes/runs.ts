@@ -75,7 +75,7 @@ async function applyControl(
     return { ok: true };
   }
   const project = await prisma.project.findUnique({ where: { id: run.projectId } });
-  const r = await enqueueRun({ runId: run.id, projectId: run.projectId, repoDir: project?.repoDir ?? process.cwd(),
+  const r = await enqueueRun({ runId: run.id, projectId: run.projectId, repoDir: project?.repoDir ?? "",
     branchFrom: run.branchFrom, branchTo: run.branchTo, flow: run.kind as Flow, specId: run.specId ?? undefined, steps: await stepModels() });
   return r.enqueued ? { ok: true } : { ok: false, reason: r.reason ?? "enqueue ditolak" };
 }
@@ -109,7 +109,7 @@ export default async function (app: FastifyInstance) {
     const project = await prisma.project.findUnique({ where: { id: b.project } });
     if (!project) return reply.code(404).send({ error: "project not found" });
     const runId = await nextRunId();
-    const r = await enqueueRun({ runId, projectId: b.project, repoDir: project.repoDir ?? process.cwd(),
+    const r = await enqueueRun({ runId, projectId: b.project, repoDir: project.repoDir ?? "",
       branchFrom: b.branchFrom, branchTo: b.branchTo ?? `hanoman/${runId.toLowerCase()}`,
       flow: b.flow, specId: b.specId, steps: await stepModels() });
     if (!r.enqueued) return reply.code(409).send({ reason: r.reason });
@@ -171,11 +171,12 @@ export default async function (app: FastifyInstance) {
     if (parsed.data.branchTo) data.branchTo = parsed.data.branchTo;
     const updated = await prisma.run.update({ where: { id }, data });
     // Best-effort rebase of the on-disk worktree if the run is executing; the
-    // worktree may not exist (queued/finished), so swallow errors.
+    // worktree may not exist (queued/finished), so swallow errors. No repoDir means
+    // no worktree was ever created — never fall back to this process's cwd.
     if (parsed.data.branchFrom) {
       const project = await prisma.project.findUnique({ where: { id: run.projectId } });
-      const repoDir = project?.repoDir ?? process.cwd();
-      try { realGit.switchBase(`${repoDir}/${run.worktree}`, parsed.data.branchFrom); } catch { /* worktree may be gone */ }
+      if (project?.repoDir)
+        try { realGit.switchBase(`${project.repoDir}/${run.worktree}`, parsed.data.branchFrom); } catch { /* worktree may be gone */ }
     }
     return updated;
   });

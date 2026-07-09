@@ -2,7 +2,7 @@
    prototype App.jsx: window.HN → api.* on mount; every mutating handler
    calls the client and updates state from the response. */
 import React from "react";
-import { Shell, Modal, Field, HnTextarea, Button, StatusPill, Select, Input, Tabs, Toast, useToast, Icon } from "./ds";
+import { Shell, Modal, Field, HnTextarea, Button, StatusPill, Select, Input, Tabs, Toast, useToast, Icon, StateBlock } from "./ds";
 import { api, ApiError } from "./api/client";
 import type { ProjectView, Spec, Trigger, Run } from "@hanoman/shared";
 import type { ProjectVM, RunVM } from "./screens/types";
@@ -177,12 +177,14 @@ function FolderPicker({ open, onClose, onPick, start }:
         <Button size="sm" variant="secondary" onClick={() => load(cur)}>Buka</Button>
       </div>
       <div style={{ border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", maxHeight: 320, overflow: "auto" }}>
-        {parent && <FolderRow icon="corner-left-up" name=".." onClick={() => load(parent)} />}
-        {entries.map((e) => <FolderRow key={e.path} icon="folder" name={e.name} onClick={() => load(e.path)} />)}
-        {err
-          ? <div style={{ padding: 16, fontSize: 12, color: "var(--status-err)" }}>{err}</div>
-          : !loading && entries.length === 0 &&
-            <div style={{ padding: 16, fontSize: 12, color: "var(--text-subtle)" }}>Tak ada sub-folder</div>}
+        {loading ? <StateBlock kind="loading" compact title="Membuka folder…" />
+          : err ? <StateBlock kind="error" compact title={err} hint={cur} action={() => load(cur)} />
+          : <>
+              {parent && <FolderRow icon="corner-left-up" name=".." onClick={() => load(parent)} />}
+              {entries.map((e) => <FolderRow key={e.path} icon="folder" name={e.name} onClick={() => load(e.path)} />)}
+              {entries.length === 0 && <StateBlock kind="empty" compact icon="folder"
+                title="Tak ada sub-folder" hint="Folder ini bisa langsung dipilih." />}
+            </>}
       </div>
     </Modal>
   );
@@ -259,15 +261,22 @@ export default function App() {
   const [scanning, setScanning] = React.useState(false);
   const [modal, setModal] = React.useState<string | null>(null);
   const [toast, showToast] = useToast();
+  const [status, setStatus] = React.useState<"loading" | "ready" | "error">("loading");
 
-  React.useEffect(() => {
+  const load = React.useCallback(() => {
+    setStatus("loading");
     Promise.all([api.listProjects(), api.listSpecs(), api.listRuns(), api.listTriggers()])
       .then(([p, s, r, t]) => {
         setProjects(p); setBacklog(s); setRuns(r); setTriggers(t);
         setProjectId((cur) => cur || p[0]?.id || "");
+        setStatus("ready");
       })
-      .catch(() => showToast("Gagal memuat data dari server", "err", "x-circle"));
+      .catch(() => {
+        setStatus("error");
+        showToast("Gagal memuat data dari server", "err", "x-circle");
+      });
   }, [showToast]);
+  React.useEffect(() => { load(); }, [load]);
 
   // view models: enrich API entities with the fields the screens expect
   const projectsView: ProjectVM[] = React.useMemo(() => projects.map((p) => ({
@@ -411,13 +420,30 @@ export default function App() {
       prev && prev.enabled ? "warn" : "ok", "zap");
   }
 
+  async function deleteTrigger(t: Trigger) {
+    if (!window.confirm(`Hapus trigger ${t.type} untuk "${t.projectId}"?`)) return;
+    try {
+      await api.deleteTrigger(t.id);
+      setTriggers((list) => list.filter((x) => x.id !== t.id));
+      showToast("Trigger " + t.projectId + " · " + t.type + " dihapus", "warn", "trash-2");
+    } catch { showToast("Gagal hapus trigger", "err", "x-circle"); }
+  }
+
+  // Fetch awal dipakai semua screen kecuali Settings, jadi loading/error-nya
+  // digerbangkan satu kali di sini.
+  const gate = (body: React.ReactNode) =>
+    status === "loading" ? <StateBlock kind="loading" title="Memuat workspace…" />
+      : status === "error" ? <StateBlock kind="error" title="Gagal memuat data dari server"
+          hint="Pastikan server hanoman berjalan, lalu coba lagi." action={load} />
+      : body;
+
   let screen: React.ReactNode = null;
   if (section === "overview") {
     screen = (
       <Shell active="overview" title="Overview" breadcrumb="nafanesia.id · ringkasan workspace" onNavigate={setSection}
         actions={<Button size="sm" leftIcon={scanning ? "loader" : "radar"} onClick={scanAll}>{scanning ? "Memindai…" : "Scan semua"}</Button>}>
-        <OverviewScreen projects={projectsView} runs={runsView} backlog={backlog} triggers={triggers}
-          onOpenProject={openProject} onGoto={setSection} />
+        {gate(<OverviewScreen projects={projectsView} runs={runsView} backlog={backlog} triggers={triggers}
+          onOpenProject={openProject} onGoto={setSection} />)}
       </Shell>
     );
   } else if (section === "projects") {
@@ -428,25 +454,32 @@ export default function App() {
           <Button size="sm" variant="secondary" leftIcon={scanning ? "loader" : "radar"} onClick={scanAll}>{scanning ? "Memindai…" : "Scan semua"}</Button>
           <Button size="sm" leftIcon="plus" onClick={() => setModal("project")}>Project baru</Button>
         </>}>
-        {shownProjects.length === 0
-          ? <div style={{ padding: "60px 0", textAlign: "center", color: "var(--text-muted)", fontFamily: "var(--font-sans)" }}>Tidak ada project cocok dengan “{search}”.</div>
-          : <ProjectsScreen projects={shownProjects} runs={runsView} variant="list" onOpen={openProject} onDelete={deleteProject} pageSize={5} />}
+        {gate(
+          projectsView.length === 0
+            ? <StateBlock kind="empty" icon="box" title="Belum ada project"
+                hint="Mulai dari nol atau tambahkan codebase yang sudah ada — hanoman menyusun Source of Truth-nya."
+                action={() => setModal("project")} actionLabel="Project baru" />
+            : shownProjects.length === 0
+              ? <StateBlock kind="empty" icon="search" title={`Tidak ada project cocok dengan “${search}”`}
+                  hint="Coba kata kunci lain, atau kosongkan pencarian."
+                  action={() => setSearch("")} actionLabel="Hapus pencarian" actionIcon="x" />
+              : <ProjectsScreen projects={shownProjects} runs={runsView} variant="list" onOpen={openProject} onDelete={deleteProject} pageSize={5} />)}
       </Shell>
     );
   } else if (section === "backlog") {
     screen = (
       <Shell active="backlog" title="Backlog" breadcrumb="specs · brainstorm → execute" onNavigate={setSection}
         actions={<Button size="sm" leftIcon="plus" onClick={() => setModal("brief")}>Tambah</Button>}>
-        <BacklogScreen backlog={backlog} projects={projectsView} pageSize={4}
-          onStart={startRun} activeRunSpecs={activeRunSpecs}
-          onDelete={deleteSpec} onOpenRun={() => setSection("runs")} />
+        {gate(<BacklogScreen backlog={backlog} projects={projectsView} pageSize={4}
+          onStart={startRun} activeRunSpecs={activeRunSpecs} onNew={() => setModal("brief")}
+          onDelete={deleteSpec} onOpenRun={() => setSection("runs")} />)}
       </Shell>
     );
   } else if (section === "runs") {
     screen = (
       <Shell active="runs" title="Runs" breadcrumb="Claude Code · live activity" onNavigate={setSection}
         actions={<StatusPill status="running" size="sm">{runsView.filter((r) => r.status === "running").length} aktif</StatusPill>}>
-        <RunsScreen runs={runsView} pageSize={4} onDelete={deleteRun} />
+        {gate(<RunsScreen runs={runsView} pageSize={4} onDelete={deleteRun} onGotoBacklog={() => setSection("backlog")} />)}
       </Shell>
     );
   } else if (section === "docs") {
@@ -458,16 +491,18 @@ export default function App() {
             options={projectsView.map((p) => ({ value: p.id, label: p.name }))} />
           <Button size="sm" variant="ghost" leftIcon="trash-2" onClick={() => deleteProject(proj)}>Hapus project</Button>
         </>}>
-        {proj
+        {gate(proj
           ? <DocsWorkspace projectId={proj.id} projectName={proj.name} docStatus={proj.docStatus} />
-          : <div style={{ padding: "48px 0", textAlign: "center", color: "var(--text-muted)" }}>Memuat…</div>}
+          : <StateBlock kind="empty" icon="book-open" title="Belum ada project"
+              hint="Source of Truth muncul setelah ada project yang dipantau."
+              action={() => setModal("project")} actionLabel="Project baru" />)}
       </Shell>
     );
   } else if (section === "triggers") {
     screen = (
       <Shell active="triggers" title="Triggers" breadcrumb="automation · plan + execute" onNavigate={setSection}
         actions={<Button size="sm" leftIcon="plus" onClick={() => setModal("trigger")}>Trigger baru</Button>}>
-        <TriggersScreen triggers={triggers} onToggle={toggleTrigger} onNew={() => setModal("trigger")} pageSize={5} />
+        {gate(<TriggersScreen triggers={triggers} onToggle={toggleTrigger} onDelete={deleteTrigger} onNew={() => setModal("trigger")} pageSize={5} />)}
       </Shell>
     );
   } else if (section === "settings") {

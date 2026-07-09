@@ -1,7 +1,7 @@
 /* SettingsScreen — workspace settings. Ported; persistence moved from
    localStorage to the API (GET/PUT /settings). Model per pipeline step. */
 import React from "react";
-import { Card, Switch, Select, Input, Button, Icon } from "../ds";
+import { Card, Switch, Select, Button, Icon, StateBlock } from "../ds";
 import { api } from "../api/client";
 import type { Setting } from "@hanoman/shared";
 import type { ShowToast } from "../ds";
@@ -47,9 +47,18 @@ function SettingRow({ title, desc, children, last }: { title: string; desc?: str
 
 export function SettingsScreen({ onToast }: { onToast?: ShowToast }) {
   const [s, setS] = React.useState<Setting | null>(null);
-  React.useEffect(() => { api.getSettings().then(setS).catch(() => setS(S_DEFAULTS)); }, []);
+  const [failed, setFailed] = React.useState(false);
+  // Jangan fallback ke S_DEFAULTS saat GET gagal: toggle berikutnya akan mem-PUT
+  // default itu menimpa pengaturan asli di server.
+  const load = React.useCallback(() => {
+    setFailed(false); setS(null);
+    api.getSettings().then(setS).catch(() => setFailed(true));
+  }, []);
+  React.useEffect(() => { load(); }, [load]);
 
-  if (!s) return <div style={{ padding: "48px 0", textAlign: "center", color: "var(--text-muted)" }}>Memuat pengaturan…</div>;
+  if (failed) return <StateBlock kind="error" title="Gagal memuat pengaturan"
+    hint="Pengaturan tidak ditampilkan agar tidak menimpa nilai di server." action={load} />;
+  if (!s) return <StateBlock kind="loading" title="Memuat pengaturan…" />;
 
   const persist = (next: Setting, msg?: string, tone?: string, icon?: string) => {
     setS(next);

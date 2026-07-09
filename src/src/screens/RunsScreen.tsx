@@ -2,7 +2,7 @@
    subscribes to the SSE log stream for running/paused runs, exposes a terminal
    input + steer/pause/resume/stop, and shows a live duration (finishedAt, ADR-0007). */
 import React from "react";
-import { Card, StatusPill, Icon, usePaged, Pager, Button, IconButton } from "../ds";
+import { Card, StatusPill, Icon, usePaged, Pager, Button, IconButton, StateBlock } from "../ds";
 import type { RunVM } from "./types";
 import { subscribeRun, api } from "../api/client";
 import { reduceRunEvent, runDurationMs, fmtDuration } from "./run-reduce";
@@ -273,8 +273,8 @@ function RunDetail({ run }: { run: RunVM }) {
   );
 }
 
-export function RunsScreen({ runs, selectedId, pageSize = 4, onDelete }:
-  { runs: RunVM[]; selectedId?: string; pageSize?: number; onDelete?: (r: RunVM) => void }) {
+export function RunsScreen({ runs, selectedId, pageSize = 4, onDelete, onGotoBacklog }:
+  { runs: RunVM[]; selectedId?: string; pageSize?: number; onDelete?: (r: RunVM) => void; onGotoBacklog?: () => void }) {
   const [selId, setSelId] = React.useState(selectedId || (runs[0] && runs[0].id));
   const pg = usePaged(runs, pageSize, "runs");
   const picked = runs.find((r) => r.id === selId) || runs[0];
@@ -288,7 +288,9 @@ export function RunsScreen({ runs, selectedId, pageSize = 4, onDelete }:
     return off;
   }, [picked?.id, picked?.status]);
   const active = live ?? picked;
-  if (!active) return <div style={{ padding: "48px 0", textAlign: "center", color: "var(--text-muted)" }}>Belum ada run.</div>;
+  if (!active) return <StateBlock kind="empty" icon="activity" title="Belum ada run"
+    hint="Jalankan spec dari backlog — log Claude Code akan streaming di sini."
+    action={onGotoBacklog} actionLabel="Buka backlog" actionIcon="list-checks" />;
   return (
     <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 20, alignItems: "start" }}>
       <Card padding={0}>

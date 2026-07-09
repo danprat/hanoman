@@ -1,5 +1,5 @@
 /* TriggersScreen — automation. Ported; t.project → t.projectId. */
-import { Card, Badge, Switch, Icon, Button, usePaged, Pager } from "../ds";
+import { Card, Badge, Switch, Icon, Button, IconButton, usePaged, Pager, StateBlock } from "../ds";
 import type { Trigger } from "./types";
 
 const T_META: Record<string, { icon: string; label: string; blurb: string }> = {
@@ -27,7 +27,8 @@ function TypeLegend() {
   );
 }
 
-function TriggerRow({ t, onToggle }: { t: Trigger; onToggle?: (id: string) => void }) {
+function TriggerRow({ t, onToggle, onDelete }:
+  { t: Trigger; onToggle?: (id: string) => void; onDelete?: (t: Trigger) => void }) {
   const m = T_META[t.type]!;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderBottom: "1px solid var(--border-hair)" }}>
@@ -46,12 +47,16 @@ function TriggerRow({ t, onToggle }: { t: Trigger; onToggle?: (id: string) => vo
         <Badge tone="brass" size="sm">{t.target}</Badge>
       </div>
       <Switch checked={t.enabled} onChange={onToggle ? () => onToggle(t.id) : undefined} />
+      {onDelete && (
+        <IconButton size="sm" variant="ghost" icon="trash-2" label={"Hapus trigger " + t.id}
+          onClick={() => onDelete(t)} />
+      )}
     </div>
   );
 }
 
-export function TriggersScreen({ triggers, onToggle, onNew, pageSize = 5 }:
-  { triggers: Trigger[]; onToggle?: (id: string) => void; onNew?: () => void; pageSize?: number }) {
+export function TriggersScreen({ triggers, onToggle, onDelete, onNew, pageSize = 5 }:
+  { triggers: Trigger[]; onToggle?: (id: string) => void; onDelete?: (t: Trigger) => void; onNew?: () => void; pageSize?: number }) {
   const pg = usePaged(triggers, pageSize, "triggers");
   return (
     <div>
@@ -61,9 +66,13 @@ export function TriggersScreen({ triggers, onToggle, onNew, pageSize = 5 }:
           <span className="hn-eyebrow">Automation · {triggers.length} triggers</span>
           <Button size="sm" leftIcon="plus" onClick={onNew}>New trigger</Button>
         </div>
-        <div>
-          {pg.pageItems.map((t) => <TriggerRow key={t.id} t={t} onToggle={onToggle} />)}
-        </div>
+        {triggers.length === 0
+          ? <StateBlock kind="empty" icon="zap" title="Belum ada trigger"
+              hint="Tambahkan pemicu agar hanoman jalan sendiri: saat commit, terjadwal, atau berulang tiap interval."
+              action={onNew} actionLabel="Trigger baru" />
+          : <div>
+              {pg.pageItems.map((t) => <TriggerRow key={t.id} t={t} onToggle={onToggle} onDelete={onDelete} />)}
+            </div>}
         <Pager {...pg} onPage={pg.setPage} unit="trigger" />
       </Card>
     </div>

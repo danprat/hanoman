@@ -20,6 +20,10 @@ describe("triggers + settings", () => {
     const res = await app.inject({ method: "POST", url: "/api/triggers/t2/toggle" });
     expect(res.json().enabled).toBe(true); // t2 seeded false
   });
+  it("deletes a trigger, then 404s", async () => {
+    expect((await app.inject({ method: "DELETE", url: "/api/triggers/t1" })).statusCode).toBe(204);
+    expect((await app.inject({ method: "DELETE", url: "/api/triggers/t1" })).statusCode).toBe(404);
+  });
   it("gets and updates settings", async () => {
     const got = await app.inject({ url: "/api/settings" }); expect(got.json()).toHaveProperty("steps");
     const put = await app.inject({ method: "PUT", url: "/api/settings",

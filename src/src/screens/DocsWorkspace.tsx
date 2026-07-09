@@ -3,7 +3,7 @@
    /docs/*path (server-persisted, replacing the prototype's localStorage). */
 import React from "react";
 import { marked } from "marked";
-import { Card, StatusPill, Badge, Button, ProgressBar, Icon } from "../ds";
+import { Card, StatusPill, Badge, Button, ProgressBar, Icon, StateBlock } from "../ds";
 import { api } from "../api/client";
 
 type DocCat = { cat: string; files: string[]; linked: boolean; root?: boolean };
@@ -106,23 +106,27 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
   const [tree, setTree] = React.useState<DocCat[]>([]);
   const [coverage, setCoverage] = React.useState(0);
   const [selected, setSelected] = React.useState("");
-  const [cache, setCache] = React.useState<Record<string, string>>({});
+  // null = fetch-nya gagal (bukan "isi kosong"), supaya error state bisa dibedakan.
+  const [cache, setCache] = React.useState<Record<string, string | null>>({});
   const [mode, setMode] = React.useState<"preview" | "edit">("preview");
   const [draft, setDraft] = React.useState("");
   const [scanning, setScanning] = React.useState(false);
+  const [ixStatus, setIxStatus] = React.useState<"loading" | "ready" | "error">("loading");
+  const [ixTry, setIxTry] = React.useState(0);
 
   // load index when the project changes
   React.useEffect(() => {
     let alive = true;
+    setIxStatus("loading");
     api.getDocs(projectId).then((ix) => {
       if (!alive) return;
       const t = ix.tree as DocCat[];
-      setTree(t); setCoverage(ix.coverage); setCache({}); setMode("preview");
+      setTree(t); setCoverage(ix.coverage); setCache({}); setMode("preview"); setIxStatus("ready");
       const first = t.find((n) => n.linked) || t[0];
       setSelected(first ? `${first.cat}/${first.files[0]}` : "");
-    }).catch(() => { if (alive) { setTree([]); setSelected(""); } });
+    }).catch(() => { if (alive) { setTree([]); setSelected(""); setIxStatus("error"); } });
     return () => { alive = false; };
-  }, [projectId]);
+  }, [projectId, ixTry]);
 
   // load file content when selection changes (once, cached)
   React.useEffect(() => {
@@ -130,9 +134,13 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
     let alive = true;
     api.getDoc(projectId, selected)
       .then((d) => { if (alive) setCache((c) => ({ ...c, [selected]: d.content })); })
-      .catch(() => { if (alive) setCache((c) => ({ ...c, [selected]: "# " + selected + "\n\n*Belum ada isi.*" })); });
+      .catch(() => { if (alive) setCache((c) => ({ ...c, [selected]: null })); });
     return () => { alive = false; };
-  }, [selected, projectId]);
+  }, [selected, projectId, cache]);
+
+  const docLoading = !!selected && !(selected in cache);
+  const docFailed = selected ? cache[selected] === null : false;
+  const retryDoc = () => setCache((c) => { const n = { ...c }; delete n[selected]; return n; });
 
   const nested = React.useMemo(() => buildTree(tree), [tree]);
   const current = cache[selected] ?? "";
@@ -189,7 +197,13 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
             </div>
           </div>
           <div style={{ padding: "4px 8px" }}>
-            {nested.map((n) => <DocTreeCat key={n.path} node={n} selected={selected} onSelect={selectFile} />)}
+            {ixStatus === "loading" ? <StateBlock kind="loading" compact title="Memuat index…" />
+              : ixStatus === "error" ? <StateBlock kind="error" compact title="Gagal memuat index docs"
+                  hint={projectName} action={() => setIxTry((n) => n + 1)} />
+              : tree.length === 0 ? <StateBlock kind="empty" compact icon="folder-open" title="Belum ada docs"
+                  hint="Scan project untuk menyusun Source of Truth-nya."
+                  action={rescan} actionLabel="Scan sekarang" actionIcon="radar" />
+              : nested.map((n) => <DocTreeCat key={n.path} node={n} selected={selected} onSelect={selectFile} />)}
           </div>
         </Card>
         <Card padding={16}>
@@ -212,7 +226,8 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
           {mode === "preview" ? (
             <div style={{ display: "flex", gap: 8 }}>
               <Button size="sm" variant="ghost" leftIcon="trash-2" onClick={removeDoc} disabled={!selected}>Hapus</Button>
-              <Button size="sm" variant="secondary" leftIcon="pencil" onClick={startEdit} disabled={!selected}>Edit</Button>
+              <Button size="sm" variant="secondary" leftIcon="pencil" onClick={startEdit}
+                disabled={!selected || docLoading || docFailed}>Edit</Button>
             </div>
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -224,7 +239,11 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
 
         {mode === "preview" ? (
           <div style={{ padding: "8px 30px 34px", maxHeight: 620, overflow: "auto" }}>
-            <MarkdownView text={current} name={selected} />
+            {!selected ? <StateBlock kind="empty" icon="file-text" title="Tidak ada dokumen dipilih"
+                hint="Pilih file dari pohon docs di kiri." />
+              : docLoading ? <StateBlock kind="loading" title="Memuat dokumen…" hint={selected} />
+              : docFailed ? <StateBlock kind="error" title="Gagal memuat dokumen" hint={selected} action={retryDoc} />
+              : <MarkdownView text={current} name={selected} />}
           </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", height: 620 }}>

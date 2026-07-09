@@ -9,7 +9,7 @@ const app = buildApp();
 const pub = publisher();
 beforeAll(async () => {
   await resetDb();
-  await makeProject({ id: "p1" });
+  await makeProject({ id: "p1", repoDir: process.cwd() });   // enqueueRun demands an absolute repoDir
   await makeSetting();
   await makeRun({ id: "RUN-1", projectId: "p1", status: "running" });
 });

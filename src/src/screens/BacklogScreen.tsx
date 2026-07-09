@@ -1,7 +1,7 @@
 /* BacklogScreen — specs on the brainstorm → execute lifecycle.
    Ported; spec.project → spec.projectId; window → ds imports. */
 import React from "react";
-import { Card, Badge, Tabs, Select, Button, IconButton, usePaged, Pager, Modal } from "../ds";
+import { Card, Badge, Tabs, Select, Button, IconButton, usePaged, Pager, Modal, StateBlock } from "../ds";
 import type { Spec } from "./types";
 import type { ProjectVM } from "./types";
 
@@ -136,10 +136,10 @@ function SpecCard({ spec, onStart, onDelete, onOpenRun, onOpenDetail, running }:
   );
 }
 
-export function BacklogScreen({ backlog, projects, pageSize = 4, onStart, activeRunSpecs, onDelete, onOpenRun }:
+export function BacklogScreen({ backlog, projects, pageSize = 4, onStart, activeRunSpecs, onDelete, onOpenRun, onNew }:
   { backlog: Spec[]; projects: ProjectVM[]; pageSize?: number;
     onStart?: (s: Spec) => void; activeRunSpecs?: Set<string>;
-    onDelete?: (s: Spec) => void; onOpenRun?: (s: Spec) => void }) {
+    onDelete?: (s: Spec) => void; onOpenRun?: (s: Spec) => void; onNew?: () => void }) {
   const [tab, setTab] = React.useState("all");
   const [proj, setProj] = React.useState("all");
   // keep the id, not the object: backlog re-polls and the stage bar must stay live
@@ -161,9 +161,13 @@ export function BacklogScreen({ backlog, projects, pageSize = 4, onStart, active
         </div>
       </div>
       {filtered.length === 0 ? (
-        <div style={{ padding: "48px 0", textAlign: "center", color: "var(--text-muted)", fontFamily: "var(--font-sans)" }}>
-          Tidak ada spec untuk filter ini.
-        </div>
+        backlog.length === 0
+          ? <StateBlock kind="empty" icon="lightbulb" title="Backlog masih kosong"
+              hint="Filekan feature brief atau QA finding — hanoman menjalankannya dari brainstorm sampai execute."
+              action={onNew} actionLabel="Tambah spec" />
+          : <StateBlock kind="empty" icon="filter" title="Tidak ada spec untuk filter ini"
+              hint={`${backlog.length} spec ada di backlog, tapi tak ada yang cocok dengan filter aktif.`}
+              action={() => { setTab("all"); setProj("all"); }} actionLabel="Reset filter" actionIcon="rotate-ccw" />
       ) : (
         <>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

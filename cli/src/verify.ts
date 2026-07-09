@@ -5,8 +5,11 @@ import { loadConfig } from "./config";
 import { parseIndex, walkDocs, catStatus } from "./docs-model";
 import { changedPaths, freshnessViolation } from "./git";
 export type Violation = { kind: "unlinked" | "freshness" | "coverage"; reason: string };
-export function collectViolations(root: string) {
-  const { docsDir, indexPath } = resolveRepo(root);
+export function collectViolations(cwd: string) {
+  // Caller-nya (hook stop, docs verify/scan) mengoper cwd, bukan repo root — dan cwd
+  // bisa berpindah ke subdir mana pun. Pakai root hasil git rev-parse dari resolveRepo
+  // untuk SEMUA akses filesystem, bukan cuma indexPath.
+  const { root, docsDir, indexPath } = resolveRepo(cwd);
   const cfg = loadConfig(root);
   const files = walkDocs(join(root, docsDir));
   const linked = parseIndex(indexPath);

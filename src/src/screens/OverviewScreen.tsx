@@ -2,7 +2,7 @@
    window globals → ds imports, run/project fields from view models. */
 import React from "react";
 import { fmtEstCost, parseEstCost } from "@hanoman/shared";
-import { Card, StatusPill, Badge, ProgressBar, Icon, Button } from "../ds";
+import { Card, StatusPill, Badge, ProgressBar, Icon, Button, StateBlock } from "../ds";
 import type { ProjectVM, RunVM, Spec, Trigger } from "./types";
 
 const O_TRIGGER_ICON: Record<string, string> = {
@@ -142,20 +142,25 @@ export function OverviewScreen({ projects, runs, backlog, triggers, onOpenProjec
           <Card eyebrow={"needs attention · " + attention.length} title="Perlu perhatian"
             actions={<Button size="sm" variant="ghost" leftIcon="layout-grid" onClick={() => onGoto("projects")}>Semua project</Button>}>
             {attention.length === 0
-              ? <div style={{ padding: "18px 0", color: "var(--text-muted)", fontSize: 13 }}>Semua project on-convention. Source of Truth utuh.</div>
+              ? <StateBlock kind="empty" compact icon="check-circle-2" title="Semua project on-convention"
+                  hint="Source of Truth utuh — tidak ada yang perlu perhatian." />
               : <div style={{ marginTop: 4 }}>{attention.map((p) => <AttnRow key={p.id} p={p} onOpen={onOpenProject} />)}</div>}
           </Card>
           <Card eyebrow={"live · " + activeRuns.length + " berjalan"} title="Claude Code sedang jalan"
             actions={<Button size="sm" variant="ghost" leftIcon="activity" onClick={() => onGoto("runs")}>Buka Runs</Button>}>
             {activeRuns.length === 0
-              ? <div style={{ padding: "18px 0", color: "var(--text-muted)", fontSize: 13 }}>Tidak ada run aktif.</div>
+              ? <StateBlock kind="empty" compact icon="activity" title="Tidak ada run aktif"
+                  hint="Jalankan spec dari backlog untuk melihat log Claude Code streaming di sini." />
               : <div style={{ marginTop: 4 }}>{activeRuns.map((r) => <LiveRunRow key={r.id} r={r} onGoto={onGoto} />)}</div>}
           </Card>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           <Card eyebrow="Source of Truth" title="Docs coverage"
             actions={<Button size="sm" variant="ghost" leftIcon="book-open" onClick={() => onGoto("docs")}>Docs</Button>}>
-            <div style={{ marginTop: 4 }}>{coverageSorted.map((p) => <CoverageRow key={p.id} p={p} onOpen={onOpenProject} />)}</div>
+            {coverageSorted.length === 0
+              ? <StateBlock kind="empty" compact icon="book-open" title="Belum ada project"
+                  hint="Coverage Source of Truth muncul setelah project pertama ditambahkan." />
+              : <div style={{ marginTop: 4 }}>{coverageSorted.map((p) => <CoverageRow key={p.id} p={p} onOpen={onOpenProject} />)}</div>}
           </Card>
           <Card eyebrow="brainstorm → execute" title="Backlog"
             actions={<Button size="sm" variant="ghost" leftIcon="list-checks" onClick={() => onGoto("backlog")}>Buka</Button>}>
@@ -178,7 +183,10 @@ export function OverviewScreen({ projects, runs, backlog, triggers, onOpenProjec
           </div>
         </Card>
         <Card eyebrow="workspace" title="Aktivitas terbaru">
-          <div style={{ marginTop: 4 }}>
+          {activity.length === 0
+            ? <StateBlock kind="empty" compact icon="history" title="Belum ada aktivitas"
+                hint="Commit, scan, dan run terakhir tiap project akan tampil di sini." />
+            : <div style={{ marginTop: 4 }}>
             {activity.map((a, i) => {
               const dot = a.status === "running" ? "var(--brass-500)" : a.status === "failed" ? "var(--clay-500)"
                 : a.status === "done" ? "var(--leaf-500)" : a.status === "queued" ? "var(--wind-600)" : "var(--bone-400)";
@@ -191,7 +199,7 @@ export function OverviewScreen({ projects, runs, backlog, triggers, onOpenProjec
                 </div>
               );
             })}
-          </div>
+          </div>}
         </Card>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { Queue } from "bullmq";
+import { isAbsolute } from "node:path";
 import type { RunInput, Flow } from "@hanoman/runner";
 import { PIPELINES } from "@hanoman/runner";
 import { bullConnection } from "./redis";
@@ -19,10 +20,24 @@ export function phasesForFlow(flow: Flow, only?: string): { name: string; state:
 
 // Upsert a `queued` Run row and add the job (no auto-retry: attempts 1). Cost is an
 // estimate under OAuth auth, so it gates nothing — see ADR-0012.
+//
+// One run = one worktree. `resume`/`retry` re-enqueue the SAME runId, and nothing
+// stopped a second job from being added while the first was still in flight: two
+// runProcessors, two runOne, and addWorktree force-removes + recreates the shared
+// `.worktrees/<id>` path — the second job wipes the first job's tree mid-run.
 export async function enqueueRun(input: RunInput): Promise<{ enqueued: boolean; reason?: string }> {
   const projectId = input.projectId
     ?? (input.specId ? (await prisma.spec.findUniqueOrThrow({ where: { id: input.specId } })).projectId : undefined);
   if (!projectId) return { enqueued: false, reason: "projectId or specId required" };
+  // The worktree is `${repoDir}/.worktrees/<id>`. A missing or relative repoDir resolves
+  // against whichever process enqueued — the api (cwd = repo root) and the worker
+  // (cwd = server/) disagree, so one run could own two worktrees in two places. Refusing
+  // here is why the callers can pass `repoDir ?? ""` instead of a cwd-shaped guess.
+  if (!isAbsolute(input.repoDir))
+    return { enqueued: false, reason: `project ${projectId} butuh repoDir absolut` };
+  const live = await prisma.run.findUnique({ where: { id: input.runId }, select: { status: true } });
+  if (live && (live.status === "queued" || live.status === "running"))
+    return { enqueued: false, reason: `run ${input.runId} masih ${live.status}` };
   await prisma.run.upsert({
     where: { id: input.runId },
     update: { status: "queued" },
@@ -35,6 +50,11 @@ export async function enqueueRun(input: RunInput): Promise<{ enqueued: boolean; 
       model: "", tokensIn: "—", tokensOut: "—", cost: fmtEstCost(0), progress: 0,
     },
   });
-  await runsQueue.add(input.runId, input, { attempts: 1, removeOnComplete: true, removeOnFail: false });
+  // jobId = runId makes a duplicate add a no-op, closing the race between the status
+  // check above and this line. remove() first because removeOnFail keeps a failed job's
+  // id occupied (a retry must be able to re-add it); it throws on an *active* job, which
+  // is precisely when the add should stay a no-op.
+  await runsQueue.remove(input.runId).catch(() => {});
+  await runsQueue.add(input.runId, input, { jobId: input.runId, attempts: 1, removeOnComplete: true, removeOnFail: false });
   return { enqueued: true };
 }

@@ -22,6 +22,13 @@ describe("collectViolations", () => {
     mkdirSync(join(root, "src"), { recursive: true }); writeFileSync(join(root, "src/a.ts"), "z");
     expect(collectViolations(root).violations.some((x) => x.kind === "freshness")).toBe(true);
   });
+  // Stop hook menerima cwd sesi, yang bisa sudah pindah ke subdir (mis. `cd src`).
+  it("runs from a subdirectory, not just the repo root", async () => {
+    const { root } = await makeRepo({
+      index: "- [stack](architecture/stack.md)\n", docs: { "architecture/stack.md": "x" } });
+    mkdirSync(join(root, "src"), { recursive: true });
+    expect(collectViolations(join(root, "src")).violations).toEqual([]);
+  });
   it("coverage below threshold -> coverage violation", async () => {
     const { root } = await makeRepo({
       files: { "hanoman.config.json": JSON.stringify({ requireLinks: false, coverageThreshold: 100 }) },

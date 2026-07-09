@@ -15,6 +15,11 @@ Stop hook memanggil `hanoman hook stop` → `hanoman docs verify`. Blok bila: do
 ter-link di index, `src/` berubah tanpa perubahan doc, atau coverage di bawah ambang.
 Konfigurasi per-repo di `hanoman.config.json`. Lihat ADR-0001.
 
+Guardrail berjangkar ke **repo root**, bukan cwd. `collectViolations` memakai root hasil
+`git rev-parse --show-toplevel` untuk seluruh akses filesystem, jadi `hanoman docs verify`
+dan `hook stop` tetap benar walau dipanggil dari subdir. `hook stop` sendiri membaca
+`CLAUDE_PROJECT_DIR` lebih dulu — `cwd` di payload ikut `cd` di sesi dan bisa keluar dari repo.
+
 ## Runner (SPEC-003)
 Runner memakai `@anthropic-ai/claude-agent-sdk`; fase Execute lewat gate
 `hanoman docs verify` (SPEC-002) — plan diblok bila docs stale. Setiap run di

@@ -20,6 +20,7 @@ export const api = {
   listTriggers: () => j<Trigger[]>(paths.triggers),
   createTrigger: (b: unknown) => j<Trigger>(paths.triggers, { method: "POST", ...body(b) }),
   toggleTrigger: (id: string) => j<Trigger>(paths.toggle(id), { method: "POST" }),
+  deleteTrigger: (id: string) => j<void>(paths.trigger(id), { method: "DELETE" }),
   getSettings: () => j<Setting>(paths.settings),
   putSettings: (b: unknown) => j<Setting>(paths.settings, { method: "PUT", ...body(b) }),
   listRuns: () => j<Run[]>(paths.runs),

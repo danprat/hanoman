@@ -6,6 +6,7 @@ export const paths = {
   specs: `${API}/specs`,
   spec: (id: string) => `${API}/specs/${id}`,
   triggers: `${API}/triggers`,
+  trigger: (id: string) => `${API}/triggers/${id}`,
   toggle: (id: string) => `${API}/triggers/${id}/toggle`,
   settings: `${API}/settings`,
   runs: `${API}/runs`,

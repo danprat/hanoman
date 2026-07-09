@@ -25,10 +25,11 @@ DELETE /specs/:id
 ```
 GET  /runs
 GET  /runs/:id
+POST /runs                { project, flow, branchFrom, branchTo?, specId? }  # 202 { runId }; 409 bila project tak punya repoDir absolut
 DELETE /runs/:id          # 409 bila run masih queued/running/paused
 GET  /runs/:id/log        # SSE stream: replay snapshot lalu relay live log/phase/status/cost/file
 POST /runs/:id/steer      { message }
-POST /runs/:id/control    { action: "pause"|"resume"|"stop"|"retry" }
+POST /runs/:id/control    { action: "pause"|"resume"|"stop"|"retry" }   # resume/retry → 409 bila run masih queued/running (satu run = satu worktree, ADR-0002)
 POST /runs/:id/worktree   { branchFrom?, branchTo? }
 POST /runs/:id/command    { text }   # terminal interaktif: verb baca render Run; resume/retry re-enqueue (jalur /control), free text pada run aktif → steer, docs <path> baca file nyata
 ```
