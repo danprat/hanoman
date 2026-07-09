@@ -1,10 +1,9 @@
 import type { QueryFn, RunEvent, RunInput, RunResult, GitOps } from "./types";
 import { PIPELINES, phasePrompt, stepFor } from "./phases";
-import { runPhase } from "./sdk";
+import { runPhase } from "./phase";
 import { SteerQueue } from "./steer-queue";
 export interface RunDeps {
   queryFn: QueryFn; git: GitOps; verify: (cwd: string) => { blocked: boolean; reason?: string; error?: string };
-  effortToThinking: (effort: string) => number | undefined;
 }
 export async function runOne(
   input: RunInput, deps: RunDeps, onEvent: (e: RunEvent) => void,
@@ -37,11 +36,12 @@ export async function runOne(
     const step = input.steps[stepFor(phase)];
     const prompt = phase === "Execute" && ctl.steer ? ctl.steer.stream() : phasePrompt(input.flow, phase, input);
     const r = await runPhase({ queryFn: deps.queryFn, cwd: worktree, model: step.model,
-      maxThinkingTokens: deps.effortToThinking(step.effort), maxBudgetUsd: input.maxBudgetUsd,
-      prompt, abortController, onEvent });
+      effort: step.effort, prompt, abortController, onEvent });
     costUsd += r.costUsd; tokensIn += r.tokensIn; tokensOut += r.tokensOut;
-    if (r.subtype.startsWith("error_max_budget")) {
-      onEvent({ kind: "log", line: { t: "✗", s: "dihentikan · dailyBudget tercapai" } });
+    // Any error_* subtype (error_during_execution, error_max_turns, …) is a failed phase.
+    // Matching only one of them would silently report the rest as `done`.
+    if (r.subtype.startsWith("error")) {
+      onEvent({ kind: "log", line: { t: "✗", s: `fase ${phase} gagal · ${r.subtype}` } });
       onEvent({ kind: "phase", name: phase, state: "failed" });
       onEvent({ kind: "status", status: "failed" });
       return { status: "failed", costUsd, tokensIn, tokensOut };

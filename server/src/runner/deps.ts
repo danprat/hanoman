@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { realGit, type RunDeps, type SdkMessage } from "@hanoman/runner";
+import { makeClaudeCliQuery, realGit, type RunDeps } from "@hanoman/runner";
 
 // The docs-verify CLI lives in a sibling workspace package, so its path must NOT be
 // derived from process.cwd(): the dev worker runs from `server/` (`pnpm --filter ./server
@@ -20,8 +20,6 @@ function repoRootFrom(startDir: string): string {
 export function resolveCliEntry(startDir: string = process.cwd()): string {
   return join(repoRootFrom(startDir), "cli", "dist", "hanoman.js");
 }
-// Settings store effort as "xhigh"; keep "x-high" as an alias for hand-written config.
-const THINK: Record<string, number | undefined> = { xhigh: 32000, "x-high": 32000, high: 16000, medium: 8000, low: 2000 };
 export type VerifyResult = { blocked: boolean; reason?: string; error?: string };
 
 // docs-verify.ts ALWAYS writes JSON to stdout before returning its exit code, so a
@@ -53,13 +51,9 @@ export function verifyViaCli(cwd: string): VerifyResult {
   );
   return retryOnCrash(run);
 }
+// Quoted: resolveCliEntry can sit under a path with spaces, and hook commands are shell-run.
+export const guardCommand = () => `node "${resolveCliEntry()}" hook pretooluse`;
 export const prodDeps: RunDeps = {
-  // lazy import: the SDK loads only when a real run iterates the query, so unit
-  // tests (which inject fake deps) never touch it and spend no tokens.
-  queryFn: (a) => (async function* () {
-    const { query } = await import("@anthropic-ai/claude-agent-sdk");
-    for await (const m of query(a as any) as AsyncIterable<unknown>) yield m as SdkMessage;
-  })(),
+  queryFn: makeClaudeCliQuery({ guardCommand: guardCommand() }),
   git: realGit, verify: verifyViaCli,
-  effortToThinking: (effort) => THINK[effort],
 };

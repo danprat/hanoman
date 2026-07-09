@@ -16,6 +16,7 @@ const HELP = `hanoman <command>
   docs index --check | --fix                index integrity
   docs link <path> [--category c]           add a doc to the index
   hook stop                                 Claude Code Stop-hook adapter
+  hook pretooluse                           Claude Code PreToolUse-hook adapter (guardrail)
   --version | --help`;
 export async function run(argv: string[], ctx: Ctx): Promise<number> {
   if (argv.includes("--version")) { ctx.stdout(VERSION + "\n"); return 0; }
@@ -32,6 +33,7 @@ export async function run(argv: string[], ctx: Ctx): Promise<number> {
   if (group === "docs" && sub === "index")  return (await import("./commands/docs-index")).default(rest, ctx);
   if (group === "docs" && sub === "link")   return (await import("./commands/docs-link")).default(rest, ctx);
   if (group === "hook" && sub === "stop")   return (await import("./commands/hook-stop")).default(rest, ctx);
+  if (group === "hook" && sub === "pretooluse") return (await import("./commands/hook-pretooluse")).default(rest, ctx);
   ctx.stderr(`unknown command: ${argv.join(" ")}\n\n${HELP}\n`);
   return 1;
 }

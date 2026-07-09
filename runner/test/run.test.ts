@@ -7,7 +7,7 @@ const okResult = { type: "result", subtype: "success", session_id: "s", total_co
 const fakeDeps = (over: Partial<RunDeps> = {}): RunDeps => ({
   queryFn: () => (async function* () { yield okResult; })(),
   git: { addWorktree: vi.fn(), removeWorktree: vi.fn(), commitAndPush: vi.fn(), switchBase: vi.fn() },
-  verify: () => ({ blocked: false }), effortToThinking: () => undefined, ...over });
+  verify: () => ({ blocked: false }), ...over });
 describe("runOne", () => {
   it("runs every feature phase and commits on success", async () => {
     const d = fakeDeps(); const events: any[] = [];
@@ -40,9 +40,12 @@ describe("runOne", () => {
     expect(r.status).toBe("stopped");
     expect(d.git.removeWorktree).not.toHaveBeenCalled();
   });
-  it("fails on budget error", async () => {
-    const d = fakeDeps({ queryFn: () => (async function* () { yield { ...okResult, subtype: "error_max_budget_usd" }; })() });
-    const r = await runOne(input(), d, () => {});
-    expect(r.status).toBe("failed");
-  });
+  // Matching one error_* subtype would silently report every other one as `done`.
+  it.each(["error_during_execution", "error_max_turns", "error_max_budget_usd"])(
+    "fails the run on result subtype %s", async (subtype) => {
+      const d = fakeDeps({ queryFn: () => (async function* () { yield { ...okResult, subtype }; })() });
+      const r = await runOne(input(), d, () => {});
+      expect(r.status).toBe("failed");
+      expect(d.git.commitAndPush).not.toHaveBeenCalled();
+    });
 });

@@ -250,7 +250,7 @@ function RunDetail({ run }: { run: RunVM }) {
           <MetricCell label="Trigger"><Icon name={R_TRIGGER_ICON[run.trigger]!} size={13} color="var(--text-muted)" /> {run.trigger}</MetricCell>
           <MetricCell label="Durasi">{duration}</MetricCell>
           <MetricCell label="Tokens">{run.tokensIn} / {run.tokensOut}</MetricCell>
-          <MetricCell label="Biaya">{run.cost}</MetricCell>
+          <MetricCell label="Estimasi biaya">{run.cost}</MetricCell>
         </div>
       </Card>
       <WorktreeInfo run={run} />

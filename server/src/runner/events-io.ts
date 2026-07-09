@@ -1,6 +1,6 @@
 import type Redis from "ioredis";
 import type { RunEvent } from "@hanoman/runner";
-import type { Stage } from "@hanoman/shared";
+import { fmtEstCost, type Stage } from "@hanoman/shared";
 import { prisma } from "../db";
 import { STAGES } from "../services/stage-machine";
 
@@ -56,7 +56,7 @@ export async function persistEvent(runId: string, e: RunEvent): Promise<void> {
     const phases = (run.phases as any[]).map((p) => (p.name === e.name ? { ...p, state: e.state } : p));
     await prisma.run.update({ where: { id: runId }, data: { phases, progress: computeProgress(phases) } });
   } else if (e.kind === "cost") {
-    await prisma.run.update({ where: { id: runId }, data: { tokensIn: String(e.tokensIn), tokensOut: String(e.tokensOut), cost: `$${e.costUsd.toFixed(2)}` } });
+    await prisma.run.update({ where: { id: runId }, data: { tokensIn: String(e.tokensIn), tokensOut: String(e.tokensOut), cost: fmtEstCost(e.costUsd) } });
   } else if (e.kind === "file") {
     const run = await prisma.run.findUniqueOrThrow({ where: { id: runId } });
     await prisma.run.update({ where: { id: runId }, data: { files: [...(run.files as any[]), e] } });

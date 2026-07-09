@@ -15,7 +15,7 @@ export type RunEvent =
 export type Flow = "feature" | "qa" | "scaffold" | "reverse";
 export type StepModel = { model: string; effort: string };
 export type StepModels = Record<"brainstorm" | "spec" | "plan" | "execute" | "audit", StepModel>;
-export type RunInput = { runId: string; projectId?: string; repoDir: string; branchFrom: string; branchTo: string; flow: Flow; specId?: string; steps: StepModels; maxBudgetUsd?: number; only?: string;
+export type RunInput = { runId: string; projectId?: string; repoDir: string; branchFrom: string; branchTo: string; flow: Flow; specId?: string; steps: StepModels; only?: string;
   // github-backed runs (SPEC-006): commit to report status on, "owner/repo",
   // installation to auth git ops, and a tokenized push remote (set at run time).
   commitSha?: string; reportRepo?: string; installationId?: number; remoteUrl?: string };

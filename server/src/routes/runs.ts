@@ -89,7 +89,7 @@ export default async function (app: FastifyInstance) {
     return run ?? reply.code(404).send({ error: "not found" });
   });
 
-  // Start a run: enqueue it (budget-gated). 409 when today's spend hit dailyBudget.
+  // Start a run: enqueue it. 409 when enqueue is refused (e.g. no resolvable projectId).
   app.post("/runs", async (req, reply) => {
     const parsed = zStartRun.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });

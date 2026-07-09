@@ -1,6 +1,7 @@
 /* OverviewScreen — workspace dashboard. Ported from the prototype;
    window globals → ds imports, run/project fields from view models. */
 import React from "react";
+import { fmtEstCost, parseEstCost } from "@hanoman/shared";
 import { Card, StatusPill, Badge, ProgressBar, Icon, Button } from "../ds";
 import type { ProjectVM, RunVM, Spec, Trigger } from "./types";
 
@@ -112,7 +113,7 @@ export function OverviewScreen({ projects, runs, backlog, triggers, onOpenProjec
     .sort((a, b) => (oAttention(a) === "high" ? 0 : 1) - (oAttention(b) === "high" ? 0 : 1));
   const onConv = projects.filter((p) => p.docStatus === "ok").length;
   const highAtt = projects.filter((p) => oAttention(p) === "high").length;
-  const cost = runs.reduce((n, r) => n + (parseFloat(String(r.cost).replace(/[^0-9.]/g, "")) || 0), 0);
+  const cost = runs.reduce((n, r) => n + parseEstCost(r.cost), 0);
   const coverageAvg = projects.length ? Math.round(projects.reduce((n, p) => n + p.coverage, 0) / projects.length) : 0;
 
   const briefN = backlog.filter((s) => s.source === "brief").length;
@@ -130,7 +131,7 @@ export function OverviewScreen({ projects, runs, backlog, triggers, onOpenProjec
     { label: "Perlu perhatian", value: highAtt, dot: "var(--clay-600)" },
     { label: "Docs on-convention", value: onConv + "/" + projects.length, sub: "rata-rata " + coverageAvg + "%", dot: "var(--leaf-600)" },
     { label: "Spec di backlog", value: backlog.length, sub: briefN + " brief · " + qaN + " QA", dot: "var(--wind-600)" },
-    { label: "Biaya runs", value: "$" + cost.toFixed(2), sub: "hari ini", dot: "var(--ink-500)" },
+    { label: "Estimasi biaya", value: fmtEstCost(cost), sub: "hari ini · bukan tagihan", dot: "var(--ink-500)" },
   ];
 
   return (

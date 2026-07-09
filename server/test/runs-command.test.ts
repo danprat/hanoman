@@ -10,7 +10,7 @@ const cmd = (id: string, text: string) =>
 describe("run terminal command routing (SPEC-008)", () => {
   beforeEach(async () => {
     await resetDb();
-    await makeSetting();                                  // dailyBudget etc. for enqueue
+    await makeSetting();                                  // steps/maxConcurrent for enqueue
     await makeProject({ id: "p1", repoDir: process.cwd() });
   });
 
