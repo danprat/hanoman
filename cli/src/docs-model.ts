@@ -12,6 +12,10 @@ export function parseIndex(indexPath: string): Set<string> {
   }
   return out;
 }
+export const INDEX_NAME = "README.md";
+// README ikut korpus: `linkedSetFrom` hanya menelusuri link yang targetnya ada di
+// korpus, jadi sub-index (`adr/README.md`) harus ada di sini agar bisa ditelusuri.
+// Index root disaring belakangan oleh consumer, bukan di sini.
 export function walkDocs(docsRoot: string): string[] {
   const out: string[] = [];
   const walk = (dir: string) => {
@@ -19,7 +23,7 @@ export function walkDocs(docsRoot: string): string[] {
       if (name.startsWith(".")) continue;
       const abs = join(dir, name);
       if (statSync(abs).isDirectory()) walk(abs);
-      else if (name !== "README.md") out.push(relative(docsRoot, abs).split("\\").join("/"));
+      else out.push(relative(docsRoot, abs).split("\\").join("/"));
     }
   };
   walk(docsRoot);

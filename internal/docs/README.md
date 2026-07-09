@@ -22,6 +22,7 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 - [stack](architecture/stack.md) · [data-model](architecture/data-model.md) · [api-contract](architecture/api-contract.md) · [nfr](architecture/nfr.md)
 
 ## adr
+- [0013 — SoT coverage scoped to docsDir](adr/0013-sot-coverage-scoped-to-docsdir.md)
 - [0012-cost-is-an-estimate-not-a-guardrail](adr/0012-cost-is-an-estimate-not-a-guardrail.md)
 - [0010-runner-spawns-claude-cli](adr/0010-runner-spawns-claude-cli.md)
 - [0001 — docs as source of truth](adr/0001-docs-as-source-of-truth.md)

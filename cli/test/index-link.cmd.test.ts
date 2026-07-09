@@ -13,6 +13,16 @@ describe("index + link", () => {
     expect(readFileSync(join(root, "internal/docs/README.md"), "utf8")).toContain("architecture/nfr.md");
     expect(await run(["docs", "index", "--check"], io(root).ctx)).toBe(0);
   });
+  it("--fix leaves docs already reachable through a sub-index alone", async () => {
+    const { root } = await makeRepo({
+      index: "# index\n\n## adr\n- [adr](adr/README.md)\n",
+      docs: { "adr/README.md": "- [0001](0001-x.md)\n", "adr/0001-x.md": "x" } });
+    expect(await run(["docs", "index", "--check"], io(root).ctx)).toBe(0);
+    expect(await run(["docs", "index", "--fix"], io(root).ctx)).toBe(0);
+    const md = readFileSync(join(root, "internal/docs/README.md"), "utf8");
+    expect(md).not.toContain("(adr/0001-x.md)"); // sudah reachable lewat sub-index
+    expect(md).not.toContain("(README.md)");     // index tak pernah melink dirinya
+  });
   it("docs link adds a single doc under its category", async () => {
     const { root } = await makeRepo({ index: "# index\n", docs: { "security/security-standard.md": "x" } });
     expect(await run(["docs", "link", "security/security-standard.md"], io(root).ctx)).toBe(0);

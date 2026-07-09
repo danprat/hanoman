@@ -1,8 +1,9 @@
 import { join } from "node:path";
-import { coverageOf } from "@hanoman/shared";
+import { existsSync, readFileSync } from "node:fs";
+import { coverageOf, linkedSetFrom } from "@hanoman/shared";
 import { resolveRepo } from "./repo";
 import { loadConfig } from "./config";
-import { parseIndex, walkDocs, catStatus } from "./docs-model";
+import { INDEX_NAME, walkDocs, catStatus } from "./docs-model";
 import { changedPaths, freshnessViolation } from "./git";
 export type Violation = { kind: "unlinked" | "freshness" | "coverage"; reason: string };
 export function collectViolations(cwd: string) {
@@ -11,8 +12,16 @@ export function collectViolations(cwd: string) {
   // untuk SEMUA akses filesystem, bukan cuma indexPath.
   const { root, docsDir, indexPath } = resolveRepo(cwd);
   const cfg = loadConfig(root);
-  const files = walkDocs(join(root, docsDir));
-  const linked = parseIndex(indexPath);
+  // Index hilang = guardrail tak bisa menilai apa pun. Fail loud, jangan diam-diam
+  // melaporkan semua doc unlinked (ADR-0009).
+  if (!existsSync(indexPath)) throw new Error(`index Source of Truth tidak ada: ${indexPath}`);
+  const docsRoot = join(root, docsDir);
+  const corpus = walkDocs(docsRoot);
+  const read = (rel: string): string | null => {
+    try { return readFileSync(join(docsRoot, rel), "utf8"); } catch { return null; }
+  };
+  const linked = linkedSetFrom(INDEX_NAME, corpus, read);
+  const files = corpus.filter((f) => f !== INDEX_NAME); // index bukan doc yang dinilai
   const cats = catStatus(files, linked);
   const coverage = coverageOf(files.map((f) => ({ category: f.split("/")[0]!, linked: linked.has(f) })));
   const violations: Violation[] = [];

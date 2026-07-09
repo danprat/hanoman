@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { collectViolations } from "../src/verify";
 import { makeRepo } from "./_fixture";
@@ -28,6 +28,22 @@ describe("collectViolations", () => {
       index: "- [stack](architecture/stack.md)\n", docs: { "architecture/stack.md": "x" } });
     mkdirSync(join(root, "src"), { recursive: true });
     expect(collectViolations(join(root, "src")).violations).toEqual([]);
+  });
+  // Index root menunjuk sub-index; sub-index menunjuk doc. Reachability transitif.
+  it("counts a doc reachable only through a sub-index", async () => {
+    const { root } = await makeRepo({
+      index: "- [adr](adr/README.md)\n",
+      docs: { "adr/README.md": "- [0001](0001-x.md)\n", "adr/0001-x.md": "x" } });
+    const r = collectViolations(root);
+    expect(r.violations).toEqual([]);
+    expect(r.coverage).toBe(100);
+  });
+  // `linkedSetFrom` menelan error baca, jadi tanpa guard eksplisit index yang hilang
+  // akan diam-diam terbaca "semua doc unlinked" alih-alih crash (ADR-0009).
+  it("throws when the index is missing instead of reporting everything unlinked", async () => {
+    const { root } = await makeRepo({ docs: { "architecture/stack.md": "x" } });
+    rmSync(join(root, "internal/docs/README.md"));
+    expect(() => collectViolations(root)).toThrow(/index Source of Truth tidak ada/);
   });
   it("coverage below threshold -> coverage violation", async () => {
     const { root } = await makeRepo({

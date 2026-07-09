@@ -11,12 +11,11 @@ describe("docs model", () => {
     expect(linked.has("architecture/stack.md")).toBe(true);
     expect([...linked].some((p) => p.startsWith("http"))).toBe(false);
   });
-  it("walks docs excluding README and dotfiles", async () => {
+  it("walks docs including sub-indexes, skipping dotfiles", async () => {
     const { root } = await makeRepo({ index: "# i\n",
-      docs: { "architecture/stack.md": "x", "product/blueprint.md": "y" } });
+      docs: { "architecture/stack.md": "x", "adr/README.md": "y" } });
     const files = walkDocs(join(root, "internal/docs"));
-    expect(files.sort()).toEqual(["architecture/stack.md", "product/blueprint.md"]);
-    expect(files).not.toContain("README.md");
+    expect(files.sort()).toEqual(["README.md", "adr/README.md", "architecture/stack.md"]);
   });
   it("marks a category unlinked when a file is missing from the index", async () => {
     const { root } = await makeRepo({
