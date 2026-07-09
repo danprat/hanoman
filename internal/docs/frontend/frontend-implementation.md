@@ -58,3 +58,15 @@ Plan begitu. Ia dirender terisi `--bone-400` dengan ikon `minus` dan label redup
 dari `pending` (lingkaran kosong, "belum jalan"), dan konektor sesudahnya berwarna `--leaf-500`
 karena alur memang lewat sana. `progress` mengeluarkan fase `skipped` dari penyebutnya, sehingga
 run jalur cepat yang sukses tetap 100%.
+
+Favicon adalah **aset statis**, bukan komponen: `src/public/favicon.svg` (SPEC-147). Vite root
+adalah `src/`, jadi `publicDir` default-nya `src/public/` — dev menyajikannya di `/favicon.svg`,
+`vite build` menyalinnya ke `src/dist/`, dan di produksi `fastifyStatic` (`server/src/app.ts:51-52`)
+menyajikannya dari root. Server tidak tahu-menahu. Bentuknya mengikuti `IconTile` design system —
+mark `buntut` putih di atas tile `--brass-500` ber-radius 24% — tapi hex-nya ditulis **literal**,
+karena dokumen `.svg` yang dimuat sebagai favicon tak mewarisi CSS custom property halaman. Atribut
+`d`-nya di-**bake** sekali dari `taperedSpiralPath()` (`src/src/ds/marks.tsx`), yang menghitung
+spiralnya saat runtime dan tak pernah menyimpannya sebagai string; berkas `.svg` itu tidak diedit
+tangan. Tak ada `favicon.ico`: Safari 26+ sudah mendukung favicon SVG, dan bila suatu saat browser
+lawas perlu didukung, `.ico` cukup dijatuhkan ke `src/public/` **tanpa perubahan markup** — browser
+me-request `/favicon.ico` dari root dengan sendirinya.
