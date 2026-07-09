@@ -435,7 +435,7 @@ git commit -m "fix(spec-143): resolusikan branchFrom ke SHA agar nama berbentuk 
 `findUnique`. Efek samping yang **diinginkan**: project tak dikenal kini 404 jujur, bukan pelanggaran
 foreign-key. Test lama tetap hijau karena memakai `p1` yang ada.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Ubah `beforeAll` di `server/test/specs.route.test.ts` agar `p1` punya repo nyata (salin `seedRepo`
 dari `branches.test.ts`, tambahkan `g(repo,"branch","dev")`), lalu `await makeProject({ id: "p1", repoDir: repo })`.
@@ -486,12 +486,12 @@ it("PATCH /specs/:id pada id tak dikenal → 404", async () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./server test specs.route`
 Expected: FAIL — `branchFrom` undefined pada 201; `PATCH` → 404 (route belum ada).
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 `server/src/routes/specs.ts` — import `zPatchSpec` dan `listRepoBranches`; tambahkan helper dan route:
 
@@ -535,12 +535,12 @@ Route baru, sebelum `DELETE /specs/:id`:
   });
 ```
 
-- [ ] **Step 4: Jalankan suite server penuh**
+- [x] **Step 4: Jalankan suite server penuh**
 
 Run: `pnpm --filter ./server test`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/routes/specs.ts server/test/specs.route.test.ts
