@@ -7,6 +7,7 @@ import { enqueueRun } from "../queue";
 import { stepModels } from "../services/settings";
 import { nextRunId } from "../services/id";
 import { readDoc } from "../services/docs";
+import { runChanges, runChangeFile, ChangesUnavailable } from "../services/run-changes";
 
 type Line = { t: string; s: string };
 
@@ -138,6 +139,37 @@ export default async function (app: FastifyInstance) {
     });
     if (process.env.NODE_ENV === "test") timer = setTimeout(cleanup, 150);
     req.raw.on("close", cleanup);
+  });
+
+  // Changes milik run ini saja: worktree selagi hidup, baseSha..headSha setelah selesai.
+  // Isi diff tak pernah disimpan — diturunkan dari git tiap request (ADR-0019).
+  app.get("/runs/:id/changes", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const run = await prisma.run.findUnique({ where: { id } });
+    if (!run) return reply.code(404).send({ error: "not found" });
+    const project = await prisma.project.findUnique({ where: { id: run.projectId } });
+    try { return await runChanges(run, project?.repoDir ?? null); }
+    catch (e) {
+      if (e instanceof ChangesUnavailable) return reply.code(409).send({ error: e.message });
+      throw e;
+    }
+  });
+
+  // Preview satu file. Gerbangnya adalah daftar changes itu sendiri — path di luar
+  // daftar tak pernah dibaca dari disk, sehingga traversal tertutup tanpa validator terpisah.
+  app.get("/runs/:id/changes/*", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const path = (req.params as Record<string, string>)["*"] ?? "";
+    const run = await prisma.run.findUnique({ where: { id } });
+    if (!run) return reply.code(404).send({ error: "not found" });
+    const project = await prisma.project.findUnique({ where: { id: run.projectId } });
+    try {
+      const preview = await runChangeFile(run, project?.repoDir ?? null, path);
+      return preview ?? reply.code(404).send({ error: "not found" });
+    } catch (e) {
+      if (e instanceof ChangesUnavailable) return reply.code(409).send({ error: e.message });
+      throw e;
+    }
   });
 
   // Inject a steer message as the run's next turn (worker applies it).
