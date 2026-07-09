@@ -1,7 +1,7 @@
 /* ProjectsScreen — multi-project monitor. Ported; window → ds imports.
    p.triggers comes from the App view model. */
 import React from "react";
-import { Card, StatusPill, Badge, ProgressBar, Icon, IconButton, usePaged, Pager } from "../ds";
+import { Card, StatusPill, Badge, ProgressBar, Icon, IconButton, usePaged, Pager, LIST_SCROLL_STYLE } from "../ds";
 import type { ProjectVM, RunVM } from "./types";
 import { isRunActive } from "@hanoman/shared";
 
@@ -123,7 +123,9 @@ export function ProjectsScreen({ projects, runs, onOpen, onDelete, pageSize }:
         <div style={{ display: "grid", gridTemplateColumns: tmpl, gap: 12, padding: "10px 14px 10px 15px", borderBottom: "1px solid var(--border-hair)" }}>
           {cols.map((c) => <span key={c} className="hn-eyebrow">{c}</span>)}
         </div>
-        {rows.map((p) => <ProjectRow key={p.id} p={p} onOpen={onOpen} onDelete={onDelete} />)}
+        <div style={LIST_SCROLL_STYLE}>
+          {rows.map((p) => <ProjectRow key={p.id} p={p} onOpen={onOpen} onDelete={onDelete} />)}
+        </div>
         {pageSize && <Pager {...pg} onPage={pg.setPage} unit="project" />}
       </Card>
     </div>

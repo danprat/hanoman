@@ -1,7 +1,7 @@
 /* BacklogScreen — specs on the brainstorm → execute lifecycle.
    Ported; spec.project → spec.projectId; window → ds imports. */
 import React from "react";
-import { Card, Badge, Tabs, Select, Button, IconButton, usePaged, Pager, Modal, StateBlock } from "../ds";
+import { Card, Badge, Tabs, Select, Button, IconButton, usePaged, Pager, Modal, StateBlock, LIST_SCROLL_STYLE } from "../ds";
 import { api } from "../api/client";
 import { branchOptions } from "./branch";
 import type { Spec } from "./types";
@@ -158,7 +158,7 @@ function SpecCard({ spec, onStart, onDelete, onOpenRun, onOpenDetail, running }:
   );
 }
 
-export function BacklogScreen({ backlog, projects, pageSize = 4, onStart, activeRunSpecs, onDelete, onOpenRun, onNew, onEditBranch, projectFilter, onProjectFilter }:
+export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeRunSpecs, onDelete, onOpenRun, onNew, onEditBranch, projectFilter, onProjectFilter }:
   { backlog: Spec[]; projects: ProjectVM[]; pageSize?: number;
     onStart?: (s: Spec) => void; activeRunSpecs?: Set<string>;
     onDelete?: (s: Spec) => void; onOpenRun?: (s: Spec) => void; onNew?: () => void;
@@ -196,7 +196,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 4, onStart, active
               action={() => { setTab("all"); setProj("all"); }} actionLabel="Reset filter" actionIcon="rotate-ccw" />
       ) : (
         <>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ ...LIST_SCROLL_STYLE, display: "flex", flexDirection: "column", gap: 12 }}>
             {pg.pageItems.map((s) => <SpecCard key={s.id} spec={s} onStart={onStart}
               running={activeRunSpecs?.has(s.id)} onDelete={onDelete} onOpenRun={onOpenRun}
               onOpenDetail={(x) => setDetailId(x.id)} />)}

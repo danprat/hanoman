@@ -43,6 +43,12 @@ Run `failed` merender `RunRetry` alih-alih `RunControls`: satu tombol yang meman
 via `sessionId` tersimpan (ADR-0017), bukan input steer + pause/stop (tidak ada proses hidup
 untuk run yang sudah terminal). SPEC-149.
 
+`StatusPill` (`ds/components/feedback.tsx`) memetakan **setiap** status `Run` di data-model
+(`queued | running | paused | stopped | failed | done`). Status yang tidak ada di peta jatuh
+ke fallback `idle` ("Idle", abu-abu) — jadi `paused` dan `stopped` sempat tampil sebagai
+"Idle" meski `paused` punya tombol Resume dan poll `isRunActive` menganggapnya aktif. Setiap
+status baru di `Run.status` wajib ditambah ke peta ini, kalau tidak pill-nya diam-diam bohong.
+
 Daftar run **tidak** berlangganan SSE — SSE hanya mengisi overlay panel detail lewat
 `reduceRunEvent`, tak pernah menyentuh array `runs`. Yang menyegarkan daftar adalah poll
 3 dtk di `App` (`listSpecs` + `listRuns`) selama ada run **aktif**, dan "aktif" berarti

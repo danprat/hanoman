@@ -428,8 +428,8 @@ export default function App() {
         branchFrom: spec.branchFrom ?? "main",   // SPEC-143 · pilihan backlog, bukan default tersembunyi
       });
       setRuns(await api.listRuns());
+      // stay on backlog — kartu berubah jadi "Buka run" begitu activeRunSpecs ikut
       showToast(spec.id + " · run " + runId + " dimulai", "info", "play");
-      setSection("runs");
     } catch (e) {
       const budget = e instanceof ApiError && e.status === 409;
       showToast(spec.id + " · gagal mulai run" + (budget ? " · budget harian tercapai" : ""), "warn", "x-circle");
@@ -521,7 +521,7 @@ export default function App() {
               ? <StateBlock kind="empty" icon="search" title={`Tidak ada project cocok dengan “${search}”`}
                   hint="Coba kata kunci lain, atau kosongkan pencarian."
                   action={() => setSearch("")} actionLabel="Hapus pencarian" actionIcon="x" />
-              : <ProjectsScreen projects={shownProjects} runs={runsView} variant="list" onOpen={openProject} onDelete={deleteProject} pageSize={5} />)}
+              : <ProjectsScreen projects={shownProjects} runs={runsView} variant="list" onOpen={openProject} onDelete={deleteProject} pageSize={20} />)}
       </Shell>
     );
   } else if (section === "project") {
@@ -543,7 +543,7 @@ export default function App() {
     screen = (
       <Shell active="backlog" title="Backlog" breadcrumb="specs · brainstorm → execute" onNavigate={setSection}
         actions={<Button size="sm" leftIcon="plus" onClick={() => setModal("brief")}>Tambah</Button>}>
-        {gate(<BacklogScreen backlog={backlog} projects={projectsView} pageSize={4}
+        {gate(<BacklogScreen backlog={backlog} projects={projectsView} pageSize={20}
           onStart={startRun} activeRunSpecs={activeRunSpecs} onNew={() => setModal("brief")}
           onDelete={deleteSpec} onOpenRun={() => setSection("runs")} onEditBranch={editBranch}
           projectFilter={projectFilter} onProjectFilter={setProjectFilter} />)}
@@ -553,7 +553,7 @@ export default function App() {
     screen = (
       <Shell active="runs" title="Runs" breadcrumb="Claude Code · live activity" onNavigate={setSection}
         actions={<StatusPill status="running" size="sm">{runsView.filter((r) => r.status === "running").length} aktif</StatusPill>}>
-        {gate(<RunsScreen runs={runsView} pageSize={4} onDelete={deleteRun}
+        {gate(<RunsScreen runs={runsView} pageSize={20} onDelete={deleteRun}
           onGotoBacklog={() => setSection("backlog")}
           projectFilter={projectFilter} onProjectFilter={setProjectFilter} />)}
       </Shell>
@@ -588,7 +588,7 @@ export default function App() {
     screen = (
       <Shell active="triggers" title="Triggers" breadcrumb="automation · plan + execute" onNavigate={setSection}
         actions={<Button size="sm" leftIcon="plus" onClick={() => setModal("trigger")}>Trigger baru</Button>}>
-        {gate(<TriggersScreen triggers={triggers} onToggle={toggleTrigger} onDelete={deleteTrigger} onNew={() => setModal("trigger")} pageSize={5} />)}
+        {gate(<TriggersScreen triggers={triggers} onToggle={toggleTrigger} onDelete={deleteTrigger} onNew={() => setModal("trigger")} pageSize={20} />)}
       </Shell>
     );
   } else if (section === "settings") {

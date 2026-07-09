@@ -1,5 +1,5 @@
 /* TriggersScreen — automation. Ported; t.project → t.projectId. */
-import { Card, Badge, Switch, Icon, Button, IconButton, usePaged, Pager, StateBlock } from "../ds";
+import { Card, Badge, Switch, Icon, Button, IconButton, usePaged, Pager, StateBlock, LIST_SCROLL_STYLE } from "../ds";
 import type { Trigger } from "./types";
 
 const T_META: Record<string, { icon: string; label: string; blurb: string }> = {
@@ -55,7 +55,7 @@ function TriggerRow({ t, onToggle, onDelete }:
   );
 }
 
-export function TriggersScreen({ triggers, onToggle, onDelete, onNew, pageSize = 5 }:
+export function TriggersScreen({ triggers, onToggle, onDelete, onNew, pageSize = 20 }:
   { triggers: Trigger[]; onToggle?: (id: string) => void; onDelete?: (t: Trigger) => void; onNew?: () => void; pageSize?: number }) {
   const pg = usePaged(triggers, pageSize, "triggers");
   return (
@@ -70,7 +70,7 @@ export function TriggersScreen({ triggers, onToggle, onDelete, onNew, pageSize =
           ? <StateBlock kind="empty" icon="zap" title="Belum ada trigger"
               hint="Tambahkan pemicu agar hanoman jalan sendiri: saat commit, terjadwal, atau berulang tiap interval."
               action={onNew} actionLabel="Trigger baru" />
-          : <div>
+          : <div style={LIST_SCROLL_STYLE}>
               {pg.pageItems.map((t) => <TriggerRow key={t.id} t={t} onToggle={onToggle} onDelete={onDelete} />)}
             </div>}
         <Pager {...pg} onPage={pg.setPage} unit="trigger" />

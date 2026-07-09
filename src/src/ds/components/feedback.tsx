@@ -88,6 +88,8 @@ const STATUS: Record<string, { label: string; color: string; bg: string; pulse: 
   queued: { label: "Queued", color: "var(--wind-600)", bg: "var(--wind-100)", pulse: false },
   done: { label: "Done", color: "var(--leaf-600)", bg: "var(--status-ok-tint)", pulse: false },
   failed: { label: "Failed", color: "var(--clay-600)", bg: "var(--status-err-tint)", pulse: false },
+  paused: { label: "Paused", color: "var(--amber-600)", bg: "var(--status-warn-tint)", pulse: false },
+  stopped: { label: "Stopped", color: "var(--ink-500)", bg: "var(--bone-200)", pulse: false },
   scanning: { label: "Scanning", color: "var(--wind-600)", bg: "var(--wind-100)", pulse: true },
   idle: { label: "Idle", color: "var(--ink-500)", bg: "var(--bone-200)", pulse: false },
 };

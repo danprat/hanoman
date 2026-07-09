@@ -2,7 +2,7 @@
    subscribes to the SSE log stream for running/paused runs, exposes a terminal
    input + steer/pause/resume/stop, and shows a live duration (finishedAt, ADR-0007). */
 import React from "react";
-import { Card, StatusPill, Icon, usePaged, Pager, Button, IconButton, StateBlock, Select } from "../ds";
+import { Card, StatusPill, Icon, usePaged, Pager, Button, IconButton, StateBlock, Select, LIST_SCROLL_STYLE } from "../ds";
 import type { RunVM } from "./types";
 import { subscribeRun, api, type RunChanges, type RunCommit, type FilePreview } from "../api/client";
 import { reduceRunEvent, runDurationMs, fmtDuration } from "./run-reduce";
@@ -385,7 +385,7 @@ function RunDetail({ run }: { run: RunVM }) {
   );
 }
 
-export function RunsScreen({ runs, selectedId, pageSize = 4, onDelete, onGotoBacklog, projectFilter = "all", onProjectFilter }:
+export function RunsScreen({ runs, selectedId, pageSize = 20, onDelete, onGotoBacklog, projectFilter = "all", onProjectFilter }:
   { runs: RunVM[]; selectedId?: string; pageSize?: number; onDelete?: (r: RunVM) => void;
     onGotoBacklog?: () => void; projectFilter?: string; onProjectFilter?: (id: string) => void }) {
   const shown = projectFilter === "all" ? runs : runs.filter((r) => r.project === projectFilter);
@@ -424,7 +424,9 @@ export function RunsScreen({ runs, selectedId, pageSize = 4, onDelete, onGotoBac
             options={[{ value: "all", label: "Semua project" }].concat(
               [...new Set(runs.map((r) => r.project))].map((id) => ({ value: id, label: id })))} />
         </div>
-        {pg.pageItems.map((r) => <RunListRow key={r.id} run={r} active={r.id === active.id} onClick={() => setSelId(r.id)} onDelete={onDelete} />)}
+        <div style={LIST_SCROLL_STYLE}>
+          {pg.pageItems.map((r) => <RunListRow key={r.id} run={r} active={r.id === active.id} onClick={() => setSelId(r.id)} onDelete={onDelete} />)}
+        </div>
         <Pager {...pg} onPage={pg.setPage} unit="run" />
       </Card>
       <RunDetail run={active} />

@@ -115,6 +115,10 @@ export function HnTextarea({ value, onChange, rows = 3, placeholder, mono = fals
   );
 }
 
+// Caps a paginated list's row area so it scrolls internally instead of pushing
+// the Pager below the fold — reserves space for topbar + card chrome + pager.
+export const LIST_SCROLL_STYLE: React.CSSProperties = { maxHeight: "calc(100vh - 340px)", overflowY: "auto" };
+
 export function usePaged<T>(items: T[], pageSize: number, resetKey?: unknown) {
   const [page, setPage] = React.useState(1);
   React.useEffect(() => { setPage(1); }, [resetKey, items.length]);
