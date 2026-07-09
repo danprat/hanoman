@@ -80,6 +80,28 @@ describe("worker processor", () => {
     expect((await prisma.run.findUnique({ where: { id: "RUN-4" } }))?.status).toBe("done");
   });
 
+  // SPEC-145: run qa jalur cepat yang terputus di Execute tidak boleh menjalankan ulang
+  // Spec & Plan yang sudah dipangkas keputusan audit. `donePhases` = selesai ATAU skipped.
+  it("resumes a fast-tracked qa run without re-running the pruned phases", async () => {
+    const repoDir = mkdtempSync(join(tmpdir(), "hanoman-w-"));
+    mkdirSync(join(repoDir, ".worktrees", "run-5"), { recursive: true });
+    await makeRun({ id: "RUN-5", projectId: "p1", kind: "qa", status: "queued", sessionId: "sess-qa",
+      phases: [
+        { name: "Audit", state: "done" }, { name: "Spec", state: "skipped" },
+        { name: "Plan", state: "skipped" }, { name: "Execute", state: "active" },
+      ] as any });
+
+    const sent: string[] = [];
+    const deps: RunDeps = { ...fakeDeps, openSession: () => fakeSession(sent) };
+    const steps = await (await import("../src/services/settings")).stepModels();
+    await runProcessor({ data: { runId: "RUN-5", repoDir, branchFrom: "main", branchTo: "feat/x", flow: "qa", steps } } as any, deps);
+
+    const prompts = sent.filter((s) => !s.startsWith("/"));
+    expect(prompts).toHaveLength(1);
+    expect(prompts[0]).toContain("fase Execute");
+    expect((await prisma.run.findUnique({ where: { id: "RUN-5" } }))?.status).toBe("done");
+  });
+
   it("fails the run when its backlog item no longer exists", async () => {
     await makeRun({ id: "RUN-3", specId: "SPEC-gone", status: "running" });
     const steps = await (await import("../src/services/settings")).stepModels();
