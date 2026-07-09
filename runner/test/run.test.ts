@@ -1,9 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
-import { mkdtempSync, mkdirSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runOne } from "../src/run";
 import { SteerQueue } from "../src/steer-queue";
+import { DECISION_FILE } from "../src/phases";
 import type { ClaudeSession, CliOptions, RunDeps, RunInput, CliMessage } from "../src/index";
 
 const steps = Object.fromEntries(["brainstorm", "spec", "plan", "execute", "audit"]
@@ -177,5 +178,71 @@ describe("runOne · melanjutkan run yang terputus", () => {
     expect(openSession).not.toHaveBeenCalled();
     expect(r.status).toBe("done");
     expect(d.git.commitAndPush).toHaveBeenCalled();
+  });
+});
+
+// SPEC-145: alur qa memutuskan jalur hilirnya sendiri sesudah Audit.
+describe("runOne · keputusan pasca-Audit (qa)", () => {
+  const qaTree = (decision?: string) => {
+    const repoDir = mkdtempSync(join(tmpdir(), "hanoman-qa-"));
+    const wt = join(repoDir, ".worktrees", "run-1");
+    mkdirSync(wt, { recursive: true });
+    if (decision !== undefined) writeFileSync(join(wt, DECISION_FILE), decision);
+    return { repoDir, wt };
+  };
+  const phaseStates = (events: any[], state: string) =>
+    events.filter((e) => e.kind === "phase" && e.state === state).map((e) => e.name);
+
+  it("skips Spec and Plan when the audit decides to execute", async () => {
+    const { repoDir } = qaTree('{"path":"execute","reason":"satu predikat"}');
+    const d = fakeDeps(); const events: any[] = [];
+    const r = await runOne(input({ repoDir, flow: "qa" }), d, (e) => events.push(e));
+
+    expect(r.status).toBe("done");
+    expect(phaseStates(events, "done")).toEqual(["Audit", "Execute"]);
+    expect(phaseStates(events, "skipped")).toEqual(["Spec", "Plan"]);
+    expect(events.some((e) => e.kind === "log" && e.line.s.includes("satu predikat"))).toBe(true);
+  });
+
+  it("runs every qa phase when no decision artifact was written", async () => {
+    const { repoDir } = qaTree();
+    const d = fakeDeps(); const events: any[] = [];
+    const r = await runOne(input({ repoDir, flow: "qa" }), d, (e) => events.push(e));
+
+    expect(r.status).toBe("done");
+    expect(phaseStates(events, "done")).toEqual(["Audit", "Spec", "Plan", "Execute"]);
+    expect(phaseStates(events, "skipped")).toEqual([]);
+  });
+
+  // Melewati GILIRAN, bukan melewati GERBANG. Execute tetap lewat docs-verify.
+  it("still gates Execute and still opens exactly one session on the fast path", async () => {
+    const { repoDir } = qaTree('{"path":"execute"}');
+    const verify = vi.fn(() => ({ blocked: false }));
+    const openSession = vi.fn((_o: CliOptions) => fakeSession());
+    await runOne(input({ repoDir, flow: "qa" }), fakeDeps({ verify, openSession }), () => {});
+
+    expect(verify).toHaveBeenCalledTimes(1);
+    expect(openSession).toHaveBeenCalledTimes(1);
+  });
+
+  // `git add -A` men-stage berkas ber-titik di root: artefak yang tertinggal akan ter-commit
+  // ke branchTo milik repo project. Unlink WAJIB sudah terjadi saat commitAndPush dipanggil.
+  it("removes the decision artifact before commitAndPush", async () => {
+    const { repoDir, wt } = qaTree('{"path":"execute"}');
+    let presentAtCommit: boolean | undefined;
+    const d = fakeDeps();
+    d.git.commitAndPush = vi.fn(() => { presentAtCommit = existsSync(join(wt, DECISION_FILE)); });
+    await runOne(input({ repoDir, flow: "qa" }), d, () => {});
+
+    expect(presentAtCommit).toBe(false);
+    expect(existsSync(join(wt, DECISION_FILE))).toBe(false);
+  });
+
+  // Artefak yatim dari percobaan yang mati SESUDAH `phase done` ter-persist tapi SEBELUM
+  // pembacaan: Audit tak dijalankan lagi, jadi tak ada yang membacanya. Unlink tetap wajib.
+  it("removes an orphaned artifact even when the full path runs", async () => {
+    const { repoDir, wt } = qaTree('{"path":"spec"}');
+    await runOne(input({ repoDir, flow: "qa" }), fakeDeps(), () => {});
+    expect(existsSync(join(wt, DECISION_FILE))).toBe(false);
   });
 });

@@ -1,6 +1,6 @@
-import { existsSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import type { OpenSession, RunEvent, RunInput, RunResult, GitOps, CliMessage } from "./types";
-import { PIPELINES, phasePrompt, stepFor } from "./phases";
+import { PIPELINES, phasePrompt, stepFor, readDecision, DECISION_FILE, QA_PLANNING } from "./phases";
 import { DENY, runPhase, type StepState } from "./phase";
 import { takeTurn } from "./turns";
 import { SteerQueue } from "./steer-queue";
@@ -30,6 +30,9 @@ export async function runOne(
   let sessionId: string | undefined = resuming ? input.resume : undefined;
   const stopped = (): RunResult => ({ status: "stopped", costUsd, tokensIn, tokensOut });
   const failed = (): RunResult => ({ status: "failed", costUsd, tokensIn, tokensOut });
+  // Fase yang dipangkas keputusan audit (SPEC-145). Namanya BUKAN `skipped`: `skipped` di
+  // atas sudah dipakai untuk fase yang selesai di percobaan sebelumnya (resume).
+  const pruned = new Set<string>();
 
   onEvent({ kind: "status", status: "running" });
   deps.git.addWorktree(input.repoDir, worktree, input.branchFrom, resuming);
@@ -59,6 +62,7 @@ export async function runOne(
 
     try {
       for (const phase of phases) {
+        if (pruned.has(phase)) { onEvent({ kind: "phase", name: phase, state: "skipped" }); continue; }
         if (abortController.signal.aborted) { onEvent({ kind: "status", status: "stopped" }); return stopped(); }
         onEvent({ kind: "phase", name: phase, state: "active" });
 
@@ -91,6 +95,17 @@ export async function runOne(
         }
         onEvent({ kind: "phase", name: phase, state: "done" });
 
+        // Alur qa memilih jalur hilirnya sendiri. Hanya `path: "execute"` yang memangkas;
+        // apa pun selainnya (berkas absen, rusak, "spec") membiarkan pipeline utuh.
+        if (input.flow === "qa" && phase === "Audit") {
+          const d = readDecision(worktree);
+          if (d.path === "execute") {
+            for (const p of QA_PLANNING) pruned.add(p);
+            const why = d.reason ? ` · ${d.reason}` : "";
+            onEvent({ kind: "log", line: { t: "›", s: `audit: perbaikan kecil — Spec & Plan dilewati${why}` } });
+          }
+        }
+
         // Pesan steer yang tiba selama fase berjalan menjadi giliran tambahan, dikuras sampai
         // habis sebelum fase berikutnya dimulai. Tiap pesan menghasilkan tepat satu `result`,
         // jadi hitungannya tetap cocok.
@@ -108,6 +123,11 @@ export async function runOne(
   }
 
   if (abortController.signal.aborted) { onEvent({ kind: "status", status: "stopped" }); return stopped(); }
+  // `git add -A` men-stage berkas ber-titik di root. Unlink berdiri sendiri di sini, tanpa
+  // syarat, karena ada jalur yang tak pernah membaca artefaknya: run yang mati antara fase
+  // Audit menulis berkas dan runner membacanya sudah mem-persist `phase done`, sehingga
+  // resume melewati Audit sama sekali. `force`: absen bukan error.
+  rmSync(`${worktree}/${DECISION_FILE}`, { force: true });
   deps.git.commitAndPush(worktree, `hanoman ${input.flow} ${input.specId ?? ""}`.trim(), input.branchTo, input.remoteUrl);
   deps.git.removeWorktree(input.repoDir, worktree);
   onEvent({ kind: "status", status: "done" });
