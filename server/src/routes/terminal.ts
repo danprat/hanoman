@@ -44,17 +44,17 @@ export default async function (app: FastifyInstance) {
   });
 
   app.get("/terminal/sessions/:id/ws", { websocket: true }, (socket, req) => {
-    const s = getSession((req.params as { id: string }).id);
-    if (!s) return socket.close(4004, "not found");
+    const { id } = req.params as { id: string };
+    if (!getSession(id)) return socket.close(4004, "not found");
     const client: Client = { send: (m) => socket.send(m), close: () => socket.close() };
-    attach(s, client);
+    attach(id, client);
     socket.on("message", (raw: Buffer) => {
       let m: { t?: string; d?: string; cols?: number; rows?: number };
       // ponytail: frame rusak dibuang diam-diam — pengirimnya UI kita sendiri.
       try { m = JSON.parse(raw.toString()); } catch { return; }
-      if (m.t === "in" && typeof m.d === "string") writeTo(s, m.d);
-      else if (m.t === "resize" && m.cols && m.rows) resize(s, m.cols, m.rows);
+      if (m.t === "in" && typeof m.d === "string") writeTo(id, m.d);
+      else if (m.t === "resize" && m.cols && m.rows) resize(id, m.cols, m.rows);
     });
-    socket.on("close", () => detach(s, client));
+    socket.on("close", () => detach(id, client));
   });
 }

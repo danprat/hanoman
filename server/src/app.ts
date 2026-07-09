@@ -13,7 +13,7 @@ import runs from "./routes/runs";
 import webhooks from "./routes/webhooks";
 import fs from "./routes/fs";
 import terminal from "./routes/terminal";
-import { killAll } from "./services/pty";
+import { detachAll } from "./services/pty";
 export function buildApp(): FastifyInstance {
   const app = Fastify({ logger: false });
   // Body-less POSTs (scan / toggle) may still carry a JSON
@@ -29,8 +29,9 @@ export function buildApp(): FastifyInstance {
   });
   // fastify-plugin'd, jadi dekoratornya menurun ke scope /api di bawah.
   app.register(websocket);
-  // Sebuah PTY yatim akan menahan proses tetap hidup setelah server ditutup.
-  app.addHook("onClose", async () => { killAll(); });
+  // Lepaskan klien tmux (PTY yatim menahan proses tetap hidup), tapi JANGAN bunuh sesinya:
+  // claude yang sedang bekerja harus selamat dari restart server (ADR-0016).
+  app.addHook("onClose", async () => { detachAll(); });
   app.register(async (api) => {
     await api.register(health);
     await api.register(projects);

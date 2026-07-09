@@ -1,6 +1,6 @@
 # ADR-0014 — Sesi Claude Code interaktif lewat PTY di proses API
 
-**Status:** accepted · 2026-07-09
+**Status:** accepted · 2026-07-09 · siklus hidup sesinya diperbarui [ADR-0016](0016-sesi-terminal-hidup-di-tmux.md)
 
 ## Konteks
 Runner menjalankan claude non-interaktif (`-p --output-format stream-json`) untuk run
@@ -10,8 +10,11 @@ tanpa membuka terminal dan `cd` sendiri, padahal hanoman sudah tahu `repoDir` ti
 ## Keputusan
 `node-pty` men-spawn `claude --dangerously-skip-permissions` di TTY sungguhan, di dalam
 **proses server API**, bukan worker. Byte PTY dialirkan apa adanya ke `xterm.js` lewat
-WebSocket di `/api/terminal/sessions/:id/ws`. Sesi disimpan in-memory; scrollback 256 KB
-terakhir di-replay saat klien reconnect. Restart server menghapus semua sesi.
+WebSocket di `/api/terminal/sessions/:id/ws`.
+
+> ADR-0016 memindahkan claude ke dalam tmux: node-pty sekarang memegang klien
+> `tmux attach-session`, sesi tidak lagi disimpan in-memory, dan **restart server tidak lagi
+> menghapus sesi**. Sisa keputusan di bawah tetap berlaku.
 
 Sesi berjalan di `Project.repoDir` — working tree utama. Larangan "jangan jalankan run di
 working tree utama" berlaku untuk run yang di-orchestrate hanoman, bukan untuk pekerjaan

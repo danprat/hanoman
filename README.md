@@ -22,6 +22,8 @@ pnpm install
 pnpm dev        # seluruh service: Postgres+Redis (docker compose) → api + worker + dashboard
 ```
 > `pnpm dev` menjalankan `docker compose up -d --wait` dulu, jadi Docker harus hidup.
+> Layar Terminal menjalankan claude di dalam tmux agar sesinya selamat dari restart API
+> ([ADR-0016](internal/docs/adr/0016-sesi-terminal-hidup-di-tmux.md)) — `brew install tmux`.
 
 ## Handoff ke Claude Code
 1. Baca `internal/docs/README.md` (index Source of Truth).

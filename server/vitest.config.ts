@@ -24,6 +24,10 @@ try {
   process.env.DATABASE_URL = test;
 }
 
+// Sesi terminal hidup di tmux server, dan `killAll()` membunuh server itu seluruhnya.
+// Socket terpisah supaya test tidak pernah menyentuh sesi hanoman (atau tmux) yang nyata.
+process.env.HANOMAN_TMUX_SOCKET = "hanoman-test";
+
 export default defineConfig({
   test: {
     environment: "node",
