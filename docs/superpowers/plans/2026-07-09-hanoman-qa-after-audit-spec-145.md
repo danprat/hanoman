@@ -63,7 +63,7 @@
 | `runner/test/phases.test.ts` | Tes `readDecision` + sufiks prompt **(berkas baru)** | 2 |
 | `runner/src/run.ts` | Himpunan `pruned`, event `skipped`, `rmSync` pra-commit | 3 |
 | `runner/test/run.test.ts` | Tes pemangkasan + unlink | 3 |
-| `internal/docs/adr/0019-*.md` | ADR **(berkas baru — wajib ter-link)** | 3 |
+| `internal/docs/adr/0020-*.md` | ADR **(berkas baru — wajib ter-link)** | 3 |
 | `internal/docs/README.md` | Link ADR baru | 3 |
 | `internal/docs/operations/agent-documentation-workflow.md:7` | "QA: audit → spec → plan → execute" jadi salah | 3 |
 | `server/src/worker.ts:62` | `donePhases` memuat `skipped` | 4 |
@@ -95,7 +95,7 @@ Belum ada yang memancarkan `skipped` sesudah task ini — itu disengaja. Task in
 
 ---
 
-- [ ] **Step 1: Tulis tes yang gagal**
+- [x] **Step 1: Tulis tes yang gagal**
 
 Sisipkan ke dalam `describe("computeProgress (SPEC-010, pure)")` di `server/test/events-io.test.ts`, tepat sesudah tes `does not count a failed phase as done` (`:13-14`):
 
@@ -110,7 +110,7 @@ Sisipkan ke dalam `describe("computeProgress (SPEC-010, pure)")` di `server/test
     expect(computeProgress(P(["skipped", "skipped"]))).toBe(0));
 ```
 
-- [ ] **Step 2: Jalankan tes, pastikan GAGAL**
+- [x] **Step 2: Jalankan tes, pastikan GAGAL**
 
 ```bash
 pnpm --filter ./server exec vitest run test/events-io.test.ts -t computeProgress
@@ -118,7 +118,7 @@ pnpm --filter ./server exec vitest run test/events-io.test.ts -t computeProgress
 
 Diharapkan: `excludes skipped phases from the denominator` GAGAL dengan `expected 50 to be 100`.
 
-- [ ] **Step 3: Perbaiki penyebutnya**
+- [x] **Step 3: Perbaiki penyebutnya**
 
 Ganti `server/src/runner/events-io.ts:19-23` seluruhnya:
 
@@ -136,7 +136,7 @@ export function computeProgress(phases: { state: string }[]): number {
 
 Guard `!counted.length` menggantikan `!phases.length` — array kosong tetap 0.
 
-- [ ] **Step 4: Jalankan tes, pastikan LULUS**
+- [x] **Step 4: Jalankan tes, pastikan LULUS**
 
 ```bash
 pnpm --filter ./server exec vitest run test/events-io.test.ts -t computeProgress
@@ -144,7 +144,7 @@ pnpm --filter ./server exec vitest run test/events-io.test.ts -t computeProgress
 
 Diharapkan: 7 tes lulus.
 
-- [ ] **Step 5: Tambahkan `skipped` ke KEDUA definisi enum**
+- [x] **Step 5: Tambahkan `skipped` ke KEDUA definisi enum**
 
 State fase punya dua definisi independen. Melewatkan salah satu gagal saat **kompilasi**, bukan runtime — `zRun` di-infer jadi tipe dan tak pernah di-`parse`.
 
@@ -162,7 +162,7 @@ export type PhaseState = "pending" | "active" | "done" | "failed" | "skipped";
 const zPhase = z.object({ name: z.string(), state: z.enum(["done","active","failed","pending","skipped"]) });
 ```
 
-- [ ] **Step 6: Typecheck + seluruh suite**
+- [x] **Step 6: Typecheck + seluruh suite**
 
 ```bash
 pnpm typecheck
@@ -172,7 +172,7 @@ pnpm --filter ./runner test
 
 Diharapkan: semua Done/hijau. `pnpm test` → `249 + 3 = 252` tes.
 
-- [ ] **Step 7: Perbarui `internal/docs/architecture/data-model.md`**
+- [x] **Step 7: Perbarui `internal/docs/architecture/data-model.md`**
 
 Baris `:23` — tambahkan kosakata state:
 
@@ -186,7 +186,7 @@ Baris `:27` — ganti kalimat rumus `progress`:
 - `phases[]` di-seed dari pipeline flow saat enqueue (semua `pending`), lalu tiap event membalik state di tempat (`active`/`done`/`failed`/`skipped`); `progress` = persen phase ber-state `done` **di antara phase yang tidak `skipped`** (run yang mati di fase akhir tampil mis. 80%, bukan 0%). `skipped` = fase yang sengaja tidak dijalankan run (alur `qa`, SPEC-145); ia keluar dari penyebut, sehingga run jalur cepat yang sukses tetap 100%. Lihat SPEC-010, SPEC-145.
 ```
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add runner/src/types.ts shared/src/entities.ts server/src/runner/events-io.ts \
@@ -216,7 +216,7 @@ Perhatikan arah default-nya: `readDecision` tidak pernah bertanya "apakah ini ru
 
 ---
 
-- [ ] **Step 1: Tulis tes yang gagal**
+- [x] **Step 1: Tulis tes yang gagal**
 
 Berkas baru `runner/test/phases.test.ts`:
 
@@ -280,7 +280,7 @@ describe("phasePrompt · instruksi keputusan", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan tes, pastikan GAGAL**
+- [x] **Step 2: Jalankan tes, pastikan GAGAL**
 
 ```bash
 pnpm --filter ./runner exec vitest run test/phases.test.ts
@@ -288,7 +288,7 @@ pnpm --filter ./runner exec vitest run test/phases.test.ts
 
 Diharapkan: gagal saat collect — `"readDecision" is not exported by "src/phases.ts"`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 `runner/src/phases.ts` — tambahkan import di baris 1 dan blok berikut sesudah `PIPELINES`:
 
@@ -340,7 +340,7 @@ export function phasePrompt(flow: Flow, phase: string, input: RunInput): string 
 }
 ```
 
-- [ ] **Step 4: Jalankan tes, pastikan LULUS**
+- [x] **Step 4: Jalankan tes, pastikan LULUS**
 
 ```bash
 pnpm --filter ./runner exec vitest run test/phases.test.ts
@@ -348,7 +348,7 @@ pnpm --filter ./runner exec vitest run test/phases.test.ts
 
 Diharapkan: 10 tes lulus.
 
-- [ ] **Step 5: Typecheck + seluruh runner**
+- [x] **Step 5: Typecheck + seluruh runner**
 
 ```bash
 pnpm typecheck
@@ -357,7 +357,7 @@ pnpm --filter ./runner test
 
 Diharapkan: Done; `46 + 10 = 56` tes runner.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add runner/src/phases.ts runner/test/phases.test.ts
@@ -375,7 +375,7 @@ Di sinilah pipeline `qa` berhenti menjadi konstanta — karena itu ADR-nya menda
 **Files:**
 - Modify: `runner/src/run.ts:1-6` (import), `:29` (deklarasi `pruned`), `:61-101` (loop), `:111` (pra-commit)
 - Modify: `runner/test/run.test.ts`
-- Create: `internal/docs/adr/0019-fase-perencanaan-qa-dipangkas-keputusan-audit.md`
+- Create: `internal/docs/adr/0020-fase-perencanaan-qa-dipangkas-keputusan-audit.md`
 - Modify: `internal/docs/README.md` (link ADR — **wajib di edit yang sama**, `coverageThreshold` 100)
 - Modify: `internal/docs/operations/agent-documentation-workflow.md:7`
 
@@ -385,7 +385,7 @@ Di sinilah pipeline `qa` berhenti menjadi konstanta — karena itu ADR-nya menda
 
 ---
 
-- [ ] **Step 1: Klaim nomor ADR — enumerasi ULANG lebih dulu**
+- [x] **Step 1: Klaim nomor ADR — enumerasi ULANG lebih dulu**
 
 Worktree lain mengklaim nomor ADR secara bersamaan; `0018` sudah bertabrakan sendiri karena ini terlewat. Jalankan **sekarang**, bukan mengandalkan nomor di dokumen design:
 
@@ -399,7 +399,7 @@ git worktree list | while read -r p _; do ls "$p/internal/docs/adr/" 2>/dev/null
 
 Nomor bebas berikutnya = tertinggi + 1. Design mengasumsikan **0019**; bila enumerasi menunjukkan lain, **pakai hasil enumerasi** dan sesuaikan nama berkas di seluruh task ini.
 
-- [ ] **Step 2: Tulis tes yang gagal**
+- [x] **Step 2: Tulis tes yang gagal**
 
 Tambahkan `describe` baru di akhir `runner/test/run.test.ts`. `withWorktree()` di `:131-135` sudah ada tapi lokal ke `describe` lain — salin helper kecil ini:
 
@@ -480,7 +480,7 @@ import { join } from "node:path";
 import { DECISION_FILE } from "../src/phases";
 ```
 
-- [ ] **Step 3: Jalankan tes, pastikan GAGAL**
+- [x] **Step 3: Jalankan tes, pastikan GAGAL**
 
 ```bash
 pnpm --filter ./runner exec vitest run test/run.test.ts -t "keputusan pasca-Audit"
@@ -488,7 +488,7 @@ pnpm --filter ./runner exec vitest run test/run.test.ts -t "keputusan pasca-Audi
 
 Diharapkan: `skips Spec and Plan…` GAGAL — `done` berisi `["Audit","Spec","Plan","Execute"]`, `skipped` kosong.
 
-- [ ] **Step 4: Implementasi**
+- [x] **Step 4: Implementasi**
 
 `runner/src/run.ts:1-6` — import:
 
@@ -541,7 +541,7 @@ Terakhir, tepat sebelum `deps.git.commitAndPush(...)` (`:111`):
   deps.git.commitAndPush(worktree, `hanoman ${input.flow} ${input.specId ?? ""}`.trim(), input.branchTo, input.remoteUrl);
 ```
 
-- [ ] **Step 5: Jalankan tes, pastikan LULUS**
+- [x] **Step 5: Jalankan tes, pastikan LULUS**
 
 ```bash
 pnpm --filter ./runner exec vitest run test/run.test.ts
@@ -550,12 +550,12 @@ pnpm --filter ./runner test
 
 Diharapkan: seluruh `run.test.ts` hijau (tes lama + 5 baru); runner total `61` tes.
 
-- [ ] **Step 6: Tulis ADR (nomor dari Step 1)**
+- [x] **Step 6: Tulis ADR (nomor dari Step 1)**
 
-Buat `internal/docs/adr/0019-fase-perencanaan-qa-dipangkas-keputusan-audit.md`:
+Buat `internal/docs/adr/0020-fase-perencanaan-qa-dipangkas-keputusan-audit.md`:
 
 ```markdown
-# ADR-0019 — Fase perencanaan alur QA dipangkas oleh keputusan audit
+# ADR-0020 — Fase perencanaan alur QA dipangkas oleh keputusan audit
 
 **Status:** diterima · 2026-07-09 · SPEC-145
 
@@ -603,23 +603,23 @@ yang tercatat di log run.
   item akan mengaku punya plan yang tak pernah ditulis.
 ```
 
-- [ ] **Step 7: Link ADR di index — pada edit yang sama**
+- [x] **Step 7: Link ADR di index — pada edit yang sama**
 
 `internal/docs/README.md`, tambahkan sebagai baris pertama di bawah `## adr`:
 
 ```markdown
-- [0019 — Fase perencanaan QA dipangkas oleh keputusan audit](adr/0019-fase-perencanaan-qa-dipangkas-keputusan-audit.md)
+- [0020 — Fase perencanaan QA dipangkas oleh keputusan audit](adr/0020-fase-perencanaan-qa-dipangkas-keputusan-audit.md)
 ```
 
-- [ ] **Step 8: Perbaiki alur QA yang kini salah di workflow doc**
+- [x] **Step 8: Perbaiki alur QA yang kini salah di workflow doc**
 
 `internal/docs/operations/agent-documentation-workflow.md:7` berbunyi `**QA:** audit → spec → plan → execute.` Ganti:
 
 ```markdown
-- **Fitur:** spec → plan → execute. **QA:** audit → **keputusan** → (spec → plan)? → execute — temuan kecil langsung execute, Spec & Plan ditandai `skipped` (SPEC-145, ADR-0019).
+- **Fitur:** spec → plan → execute. **QA:** audit → **keputusan** → (spec → plan)? → execute — temuan kecil langsung execute, Spec & Plan ditandai `skipped` (SPEC-145, ADR-0020).
 ```
 
-- [ ] **Step 9: Guardrail + suite**
+- [x] **Step 9: Guardrail + suite**
 
 ```bash
 node cli/dist/hanoman.js docs verify --block-if-stale --json
@@ -628,13 +628,13 @@ pnpm typecheck && pnpm test && pnpm --filter ./runner test
 
 Diharapkan: `{"ok":true,"coverage":100,"violations":[]}` exit 0. Coverage **wajib** tetap 100 — kalau turun, ADR belum ter-link (Step 7).
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add runner/src/run.ts runner/test/run.test.ts \
-        internal/docs/adr/0019-fase-perencanaan-qa-dipangkas-keputusan-audit.md \
+        internal/docs/adr/0020-fase-perencanaan-qa-dipangkas-keputusan-audit.md \
         internal/docs/README.md internal/docs/operations/agent-documentation-workflow.md
-git commit -m "feat(spec-145): runOne memangkas Spec+Plan atas keputusan audit + ADR-0019"
+git commit -m "feat(spec-145): runOne memangkas Spec+Plan atas keputusan audit + ADR-0020"
 ```
 
 ---
@@ -653,7 +653,7 @@ git commit -m "feat(spec-145): runOne memangkas Spec+Plan atas keputusan audit +
 
 ---
 
-- [ ] **Step 1: Tulis tes yang gagal**
+- [x] **Step 1: Tulis tes yang gagal**
 
 Tambahkan ke `describe("worker processor")` di `server/test/worker.test.ts`, sesudah tes `continues an interrupted run…` (`:81`):
 
@@ -681,7 +681,7 @@ Tambahkan ke `describe("worker processor")` di `server/test/worker.test.ts`, ses
   });
 ```
 
-- [ ] **Step 2: Jalankan tes, pastikan GAGAL**
+- [x] **Step 2: Jalankan tes, pastikan GAGAL**
 
 ```bash
 pnpm --filter ./server exec vitest run test/worker.test.ts -t "fast-tracked"
@@ -689,7 +689,7 @@ pnpm --filter ./server exec vitest run test/worker.test.ts -t "fast-tracked"
 
 Diharapkan: GAGAL — `expected length 3 to be 1` (Spec, Plan, Execute dijalankan ulang).
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 `server/src/worker.ts:60-64` — ganti baris `const done = ...`:
 
@@ -705,7 +705,7 @@ Diharapkan: GAGAL — `expected length 3 to be 1` (Spec, Plan, Execute dijalanka
   }
 ```
 
-- [ ] **Step 4: Jalankan tes, pastikan LULUS**
+- [x] **Step 4: Jalankan tes, pastikan LULUS**
 
 ```bash
 pnpm --filter ./server exec vitest run test/worker.test.ts
@@ -713,7 +713,7 @@ pnpm --filter ./server exec vitest run test/worker.test.ts
 
 Diharapkan: seluruh `worker.test.ts` hijau.
 
-- [ ] **Step 5: Suite penuh**
+- [x] **Step 5: Suite penuh**
 
 ```bash
 pnpm typecheck && pnpm test && pnpm --filter ./runner test
@@ -721,7 +721,7 @@ pnpm typecheck && pnpm test && pnpm --filter ./runner test
 
 Catatan: bila `queue-durability` gagal saat dijalankan sendirian tapi lulus di suite server penuh, itu **order-dependent yang sudah dikenal** — bukan regresi dari task ini.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/worker.ts server/test/worker.test.ts
@@ -748,7 +748,7 @@ Tanpa unit test baru: perubahannya murni pemetaan state → gaya, tanpa cabang l
 
 ---
 
-- [ ] **Step 1: Render `skipped`**
+- [x] **Step 1: Render `skipped`**
 
 Ganti badan `PhasePipeline` (`src/src/screens/RunsScreen.tsx:21-53`) — tiga baris yang berubah ditandai:
 
@@ -795,7 +795,7 @@ function PhasePipeline({ phases }: { phases: Phase[] }) {
 
 `Icon` mem-proxy `lucide-react` (`src/src/ds/icon.tsx:8`), jadi `minus` sah tanpa registrasi apa pun.
 
-- [ ] **Step 2: Typecheck + suite frontend**
+- [x] **Step 2: Typecheck + suite frontend**
 
 ```bash
 pnpm --filter ./src typecheck
@@ -804,7 +804,7 @@ pnpm --filter ./src test
 
 Diharapkan: Done; suite hijau, tak ada tes yang berubah.
 
-- [ ] **Step 3: Perbarui doc frontend — WAJIB di commit yang sama**
+- [x] **Step 3: Perbarui doc frontend — WAJIB di commit yang sama**
 
 `internal/docs/frontend/frontend-implementation.md`, tambahkan paragraf di akhir § **Live run view (SPEC-008)**:
 
@@ -817,7 +817,7 @@ karena alur memang lewat sana. `progress` mengeluarkan fase `skipped` dari penye
 run jalur cepat yang sukses tetap 100%.
 ```
 
-- [ ] **Step 4: Guardrail — buktikan freshness terpenuhi**
+- [x] **Step 4: Guardrail — buktikan freshness terpenuhi**
 
 ```bash
 node cli/dist/hanoman.js docs verify --block-if-stale --json
@@ -826,7 +826,7 @@ node cli/dist/hanoman.js docs verify --block-if-stale --json
 Diharapkan: `{"ok":true,"coverage":100,"violations":[]}` exit 0.
 Bila muncul `Ada perubahan di src/ tanpa perubahan dokumentasi`, Step 3 terlewat.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/RunsScreen.tsx internal/docs/frontend/frontend-implementation.md
@@ -846,7 +846,7 @@ git commit -m "feat(spec-145): PhasePipeline membedakan fase skipped dari pendin
 
 ---
 
-- [ ] **Step 1: Bukti round-trip DB → API untuk `skipped`**
+- [x] **Step 1: Bukti round-trip DB → API untuk `skipped`**
 
 Ini yang paling berharga dan paling aman: membuktikan `skipped` bertahan lewat Prisma dan `computeProgress` **tanpa** menyalakan proses `claude`. Tambahkan ke `server/test/events-io.test.ts` di dalam `describe("persistEvent finishedAt (SPEC-008)")`:
 
@@ -872,7 +872,7 @@ pnpm --filter ./server exec vitest run test/events-io.test.ts
 
 Diharapkan: hijau. Ini juga membuktikan `mirrorSpecStage` **tidak** menaikkan stage pada event `skipped` (bukan `phase done`).
 
-- [ ] **Step 2: Boot API dan curl endpoint yang tersentuh**
+- [x] **Step 2: Boot API dan curl endpoint yang tersentuh**
 
 ```bash
 docker compose up -d --wait
@@ -885,7 +885,7 @@ Diharapkan: `200`, JSON array (boleh kosong). Yang dibuktikan: perubahan `zPhase
 
 Hentikan server sesudahnya (`kill %1`).
 
-- [ ] **Step 3: Verifikasi visual `skipped` di dashboard**
+- [x] **Step 3: Verifikasi visual `skipped` di dashboard**
 
 ```bash
 docker exec hanoman-db-1 psql -U hanoman -d hanoman -c \
@@ -903,7 +903,7 @@ docker exec hanoman-db-1 psql -U hanoman -d hanoman -c \
 
 Kalau tak ada baris `Run` sama sekali, lewati step ini dan andalkan Step 1 — **jangan** membuat run baru lewat `POST /runs`: worker dev yang hidup akan mengeksekusi run `claude` nyata.
 
-- [ ] **Step 4: Jalankan run QA nyata (opsional, berbiaya)**
+- [x] **Step 4: Jalankan run QA nyata (opsional, berbiaya)**
 
 Satu-satunya bukti end-to-end bahwa agen benar-benar menulis artefaknya. **Biayanya token dan ia men-spawn proses `claude` sungguhan.** Jalankan terhadap project scratch, bukan repo ini:
 
@@ -913,7 +913,7 @@ node cli/dist/hanoman.js qa --project <scratch> --repo-dir <abs> --only Audit
 
 Diharapkan: `.hanoman-decision.json` ditulis di `.worktrees/<run-id>/`, lalu **hilang** sebelum commit. Bila agen tak menulisnya, run tetap lulus lewat jalur penuh — itulah default fail-safe-nya, bukan kegagalan.
 
-- [ ] **Step 5: Gerbang terakhir**
+- [x] **Step 5: Gerbang terakhir**
 
 ```bash
 pnpm typecheck
@@ -924,7 +924,7 @@ node cli/dist/hanoman.js docs verify --block-if-stale --json
 
 Diharapkan: semuanya hijau, `{"ok":true,"coverage":100,"violations":[]}` exit 0.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/test/events-io.test.ts
@@ -947,4 +947,47 @@ git commit -m "test(spec-145): skipped bertahan lewat Prisma dan progress tetap 
 
 ## Eksekusi
 
-Plan ini **belum dieksekusi** — fase Plan hanya menulisnya. Fase Execute berikutnya menjalankan Task 1–6 berurutan, mencentang tiap `- [ ]` seiring selesainya, dan mengulang enumerasi nomor ADR (Task 3 Step 1) sebelum menulis berkas ADR.
+**Selesai 2026-07-09.** Task 1–6 dieksekusi berurutan, TDD (merah → hijau) di setiap step. Dua
+penyimpangan nyata dari rencana, keduanya faktual dan dicatat, bukan diam-diam disesuaikan:
+
+1. **Nomor ADR bergeser dari 0019 ke 0020.** Enumerasi ulang (Task 3 Step 1) menemukan worktree
+   sibling `.worktrees/run-8804` (SPEC-144, detached HEAD — tak terlihat lewat `refs/*` saja)
+   sudah mengklaim `0019-sha-disimpan-diff-diturunkan.md`. ADR ini karena itu **ADR-0020**, bukan
+   0019 seperti diasumsikan dokumen design. Persis skenario yang mendasari kewajiban enumerasi
+   ulang di Global Constraints.
+
+2. **`hanoman_test` (DB test bersama) drift akibat run-8804.** Migrasi live worktree itu
+   (`run_base_head_sha`, `drop_run_files`) sudah mendarat di `hanoman_test` sebelum Task 1 mulai —
+   `Run.files` hilang dari tabel fisik, tak berkaitan sama sekali dengan SPEC-145. Sejalan dengan
+   memory *"jangan 'perbaiki' dengan menambah kembali kolom itu — itu membatalkan pekerjaan run
+   lain yang sedang berjalan"*, `hanoman_test` **tidak disentuh**. Sebagai gantinya, Task 4 dan
+   Task 6 diverifikasi terhadap database Postgres privat sekali-pakai
+   (`hanoman_test_run8805`, dibuat dari `schema.prisma` worktree ini via `prisma db push`,
+   dijalankan, lalu di-`DROP DATABASE` di akhir — tak pernah menyentuh `hanoman` atau
+   `hanoman_test` yang sebenarnya). Hasil akhir: **40/41 berkas, 201/202 tes server hijau**,
+   nol kegagalan. `hanoman` (DB dev nyata) tidak terpengaruh drift itu sama sekali — dipakai
+   langsung untuk uji API nyata (lihat di bawah).
+
+**Verifikasi nyata (CLAUDE.md — bukan hanya unit test):**
+- API dev sungguhan di-boot (`node server/dist/server.js`) terhadap `hanoman` (DB dev, tak
+  terdampak drift). `curl localhost:8787/api/runs` → `200`, menyerve run **live run ini sendiri**
+  (RUN-8805) tanpa error serialisasi dari penambahan `"skipped"` ke `zPhase`.
+- Satu baris `Run` sekali-pakai (`RUN-SCRATCH145`, `kind: "qa"`, phases
+  `[Audit:done, Spec:skipped, Plan:skipped, Execute:done]`) disisipkan langsung via SQL ke DB
+  dev nyata, diambil lewat `GET /api/runs/:id` sungguhan → `progress: 100`, keempat state
+  ter-serialisasi persis seperti ditulis — bukti bulat-bulat bahwa jalur cepat qa jujur secara
+  end-to-end, bukan cuma benar di test terisolasi. Baris dihapus segera sesudahnya (`DELETE`,
+  dikonfirmasi `404` pada `GET` berikutnya).
+- Task 6 Step 4 (menjalankan run qa nyata via `claude` sungguhan terhadap project scratch)
+  **dilewati** — ditandai eksplisit "opsional, berbiaya" di plan, dan logika pengambilan
+  keputusannya (`readDecision`) serta pemangkasannya sudah dibuktikan lewat 5 test terisolasi di
+  Task 3 plus bukti round-trip API di atas. Menjalankannya akan membakar token tanpa menambah
+  keyakinan pada logika yang sudah diverifikasi dua arah.
+- Task 6 Step 3 (pemeriksaan visual lewat `pnpm dev:web` di browser) **dilewati** — tidak ada
+  tool browser di lingkungan headless ini. Digantikan bukti API round-trip di atas, yang
+  membuktikan data yang sama persis yang akan dirender `PhasePipeline`.
+
+**Hasil akhir:** `pnpm typecheck` hijau; `pnpm --filter ./runner test` 61/63 (2 skip pra-ada);
+`pnpm --filter ./src test` 33/33; server 201/202 (1 skip pra-ada) terhadap DB terisolasi bersih;
+`hanoman docs verify --block-if-stale --json` → `{"ok":true,"coverage":100,"violations":[]}`
+exit 0, diverifikasi berkali-kali di sepanjang eksekusi, bukan sekali di akhir.
