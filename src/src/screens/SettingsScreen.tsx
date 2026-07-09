@@ -30,7 +30,7 @@ const S_DEFAULTS: Setting = {
   steps: { brainstorm: { ...S_DEFAULT_STEP }, spec: { ...S_DEFAULT_STEP }, plan: { ...S_DEFAULT_STEP },
     execute: { ...S_DEFAULT_STEP }, audit: { ...S_DEFAULT_STEP } },
   autoDefault: true, blockStale: true, requireLinks: true, autoScaffold: true,
-  maxConcurrent: 3, dailyBudget: 50, notifyFail: true,
+  maxConcurrent: 3, notifyFail: true,
 };
 
 function SettingRow({ title, desc, children, last }: { title: string; desc?: string; children?: React.ReactNode; last?: boolean }) {
@@ -118,17 +118,11 @@ export function SettingsScreen({ onToast }: { onToast?: ShowToast }) {
         </SettingRow>
       </Card>
 
-      <Card eyebrow="runs" title="Run & anggaran">
+      <Card eyebrow="runs" title="Run">
         <SettingRow title="Run konkuren maksimum" desc="Berapa run Claude Code boleh jalan bersamaan.">
           <Select size="sm" value={String(s.maxConcurrent)}
             onChange={(e) => save({ maxConcurrent: Number(e.target.value) }, "Konkuren maks → " + e.target.value)} style={{ width: 90 }}
             options={["1", "2", "3", "4", "6"].map((v) => ({ value: v, label: v }))} />
-        </SettingRow>
-        <SettingRow title="Anggaran harian" desc="hanoman menjeda run baru bila anggaran harian tercapai.">
-          <Input size="sm" value={String(s.dailyBudget)} leftIcon="dollar-sign"
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setS({ ...s, dailyBudget: Number(e.target.value) || 0 })}
-            onBlur={() => persist(s, "Anggaran harian → $" + s.dailyBudget, "ok", "check-circle-2")}
-            style={{ width: 120 }} />
         </SettingRow>
         <SettingRow title="Notifikasi saat run gagal" last desc="Kirim notifikasi ketika plan diblok atau execute gagal.">
           <Switch checked={s.notifyFail} onChange={sw("notifyFail", "Notifikasi gagal")} />

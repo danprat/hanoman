@@ -50,7 +50,7 @@ export const zSetting = z.object({
   steps: z.object({ brainstorm: zStepModel, spec: zStepModel, plan: zStepModel,
     execute: zStepModel, audit: zStepModel }),
   autoDefault: z.boolean(), blockStale: z.boolean(), requireLinks: z.boolean(),
-  autoScaffold: z.boolean(), maxConcurrent: z.number().int(), dailyBudget: z.number(),
+  autoScaffold: z.boolean(), maxConcurrent: z.number().int(),
   notifyFail: z.boolean() });
 export type Setting = z.infer<typeof zSetting>;
 

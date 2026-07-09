@@ -24,9 +24,9 @@ describe("reduceRunEvent (SPEC-008)", () => {
   it("sets status", () => {
     expect(reduceRunEvent(base, { kind: "status", status: "done" }).status).toBe("done");
   });
-  it("maps cost to display strings", () => {
+  it("maps cost to display strings, marked as an estimate", () => {
     const r = reduceRunEvent(base, { kind: "cost", tokensIn: 10, tokensOut: 20, costUsd: 1.5 });
-    expect(r.tokensIn).toBe("10"); expect(r.tokensOut).toBe("20"); expect(r.cost).toBe("$1.50");
+    expect(r.tokensIn).toBe("10"); expect(r.tokensOut).toBe("20"); expect(r.cost).toBe("~$1.50");
   });
 });
 

@@ -41,11 +41,10 @@ describe("runs SSE via redis", () => {
     expect((await prisma.run.findUnique({ where: { id: r.json().runId } }))?.status).toBe("queued");
   });
 
-  it("start returns 409 when today's spend >= dailyBudget", async () => {
-    const s = await prisma.setting.findUniqueOrThrow({ where: { id: 1 } });
-    await prisma.setting.update({ where: { id: 1 }, data: { data: { ...(s.data as any), dailyBudget: 0 } } });
+  // ADR-0012: no spend guardrail. A large prior estimate must not block a new run.
+  it("start still returns 202 after a large prior spend", async () => {
+    await prisma.run.updateMany({ data: { cost: "~$9999.00" } });
     const r = await app.inject({ method: "POST", url: "/api/runs", payload: { project: "p1", flow: "feature", branchTo: "feat/x" } });
-    expect(r.statusCode).toBe(409);
-    expect(r.json().reason).toMatch(/budget/i);
+    expect(r.statusCode).toBe(202);
   });
 });

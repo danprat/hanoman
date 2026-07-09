@@ -10,7 +10,6 @@ const fakeDeps: RunDeps = {
   })(),
   git: { addWorktree() {}, removeWorktree() {}, commitAndPush() {}, switchBase() {} },
   verify: () => ({ blocked: false }),
-  effortToThinking: () => undefined,
 };
 
 describe("worker processor", () => {
