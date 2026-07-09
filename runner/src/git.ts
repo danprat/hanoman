@@ -30,14 +30,18 @@ export const realGit: GitOps = {
   addWorktree: (repo, path, branchFrom, reuse) => {
     // Melanjutkan run: worktree-nya justru yang dicari — di dalamnya ada spec dan plan
     // yang ditulis fase-fase sebelumnya. Menghapusnya membuat Execute kehilangan plan-nya.
-    if (reuse && existsSync(isAbsolute(path) ? path : resolve(repo, path))) return;
+    // branchFrom mungkin sudah bergerak sejak run pertama lahir — basis yang benar adalah
+    // basis semula, yang sudah tersimpan di baris Run (SPEC-144). undefined = "tak berubah".
+    if (reuse && existsSync(isAbsolute(path) ? path : resolve(repo, path))) return undefined;
     // Reclaim a leftover .worktrees/<id> from a prior failed/killed run so a
     // re-run (ids can be reused — nextRunId is max-based) isn't blocked by
     // "already exists". Registered worktree → remove+prune; bare dir → rm -rf.
     tryGit(repo, ["worktree", "remove", "--force", path]);
     tryGit(repo, ["worktree", "prune"]);
     rmSync(isAbsolute(path) ? path : resolve(repo, path), { recursive: true, force: true });
-    git(repo, ["worktree", "add", "--detach", path, resolveCommit(repo, branchFrom)]);
+    const base = resolveCommit(repo, branchFrom);
+    git(repo, ["worktree", "add", "--detach", path, base]);
+    return base;
   },
   removeWorktree: (repo, path) => { git(repo, ["worktree", "remove", "--force", path]); },
   // remoteUrl (with an installation token) authenticates a push to a private
@@ -48,13 +52,16 @@ export const realGit: GitOps = {
     // dengan status 1. Dulu itu melempar *setelah* fase terakhir ditandai done, jadi run yang
     // sebenarnya mati karena error API dilaporkan sebagai "nothing to commit" — error aslinya hilang.
     if (git(path, ["status", "--porcelain"]).trim()) git(path, ["commit", "-m", message]);
+    // Dibaca sesudah commit bersyarat: kalau agen yang commit, HEAD-nya commit dia (SPEC-144).
+    const head = git(path, ["rev-parse", "HEAD"]).trim();
     // Project lokal boleh tak punya `origin`. Push-nya dulu selalu melempar — dan melempar
     // *setelah* fase terakhir sudah ditandai done, jadi run yang pekerjaannya beres tak
     // pernah sampai `status: done`. Yang opsional di sini remote-nya, bukan branch-nya:
     // tanpa remote, kerjanya tetap didaratkan ke branchTo secara lokal.
-    if (!remoteUrl && !hasRemote(path, "origin")) { git(path, ["branch", "-f", branchTo, "HEAD"]); return; }
+    if (!remoteUrl && !hasRemote(path, "origin")) { git(path, ["branch", "-f", branchTo, "HEAD"]); return head; }
     // full refname: from a detached HEAD git can't infer refs/heads/ for a short dest
     git(path, ["push", remoteUrl ?? "origin", `HEAD:refs/heads/${branchTo}`], remoteUrl);
+    return head;
   },
   switchBase: (path, branchFrom) => { git(path, ["checkout", "--end-of-options", branchFrom]); },
 };

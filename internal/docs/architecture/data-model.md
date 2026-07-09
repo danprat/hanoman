@@ -20,8 +20,13 @@ Entitas inti (Postgres via Prisma).
 - `id` (RUN-n), `projectId`, `specId?`, `kind` ("feature" | "qa" | "scaffold")
 - `status` ("queued" | "running" | "paused" | "stopped" | "failed" | "done")
 - `trigger` ("commit"|"schedule"|"manual"|"interval"), `triggerDetail`
-- `phases[]` ({ name, state }), `plan[]`, `files[]` (diff), `log[]`
+- `phases[]` ({ name, state }), `plan[]`, `log[]`
 - `worktree`, `branchFrom`, `branchTo`, `model` per step, `tokensIn/out`, `cost`, `progress`
+- `commitSha?` — commit **pemicu** dari webhook (untuk melapor status GitHub), bukan commit yang
+  dihasilkan run itu sendiri.
+- `baseSha?`/`headSha?` — commit tempat worktree run di-detach, dan commit tip setelah
+  `commitAndPush` berhasil. Penunjuk, bukan isi: diff/daftar-file/commit run diturunkan dari git
+  saat `GET /runs/:id/changes` dibaca, tidak pernah dipersist. Lihat [ADR-0019](../adr/0019-sha-disimpan-diff-diturunkan.md).
 - `createdAt`, `finishedAt?` (null selama berjalan; di-set saat status terminal — durasi = `(finishedAt ?? now) − createdAt`, lihat ADR 0007)
 - Run dengan `specId` = run untuk satu backlog item. Worker memuat Spec itu dari DB saat run dieksekusi dan menyisipkan `title`/`objective`/`payload` ke prompt **setiap fase** (termasuk Execute) — id saja tidak resolvable dari dalam worktree. Spec-nya hilang → job gagal, bukan jalan tanpa scope.
 - `phases[]` di-seed dari pipeline flow saat enqueue (semua `pending`), lalu tiap event membalik state di tempat (`active`/`done`/`failed`); `progress` = persen phase ber-state `done` (run yang mati di fase akhir tampil mis. 80%, bukan 0%). Lihat SPEC-010.

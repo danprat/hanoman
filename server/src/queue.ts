@@ -45,7 +45,7 @@ export async function enqueueRun(input: RunInput): Promise<{ enqueued: boolean; 
       id: input.runId, projectId, specId: input.specId ?? null,
       kind: input.flow, status: "queued", trigger: "manual", triggerDetail: "",
       commitSha: input.commitSha ?? null, reportRepo: input.reportRepo ?? null,
-      phases: phasesForFlow(input.flow, input.only), plan: [], files: [], log: [],
+      phases: phasesForFlow(input.flow, input.only), plan: [], log: [],
       worktree: `.worktrees/${input.runId.toLowerCase()}`, branchFrom: input.branchFrom, branchTo: input.branchTo,
       model: "", tokensIn: "—", tokensOut: "—", cost: fmtEstCost(0), progress: 0,
     },

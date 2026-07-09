@@ -22,6 +22,7 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 - [stack](architecture/stack.md) · [data-model](architecture/data-model.md) · [api-contract](architecture/api-contract.md) · [nfr](architecture/nfr.md)
 
 ## adr
+- [0019 — SHA disimpan, diff diturunkan](adr/0019-sha-disimpan-diff-diturunkan.md)
 - [0018 — Coverage diturunkan saat dibaca, bukan disimpan](adr/0018-coverage-nilai-turunan.md)
 - [0018 — Branch adalah properti backlog item](adr/0018-branch-adalah-properti-backlog-item.md)
 - [0017 — Run terputus melanjutkan sesinya](adr/0017-run-terputus-melanjutkan-sesinya.md)
@@ -50,6 +51,7 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 - [spec-142 — audit (status run tidak auto-update dari queued)](operations/spec-142-runs-status-auto-update-audit.md)
 - [spec-142 — spec (status run auto-update dari queued)](operations/spec-142-runs-status-auto-update-spec.md)
 - [spec-143 — objective (select branch di backlog)](operations/spec-143-select-branch-in-backlog-objective.md)
+- [spec-144 — objective (Runs menampilkan changes yang dibuat hanoman)](operations/spec-144-run-changes-preview-objective.md)
 
 ## security
 - [security-standard](security/security-standard.md)

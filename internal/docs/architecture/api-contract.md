@@ -32,12 +32,20 @@ GET  /runs
 GET  /runs/:id
 POST /runs                { project, flow, branchFrom, branchTo?, specId? }  # 202 { runId }; 409 bila project tak punya repoDir absolut
 DELETE /runs/:id          # 409 bila run masih queued/running/paused
-GET  /runs/:id/log        # SSE stream: replay snapshot lalu relay live log/phase/status/cost/file
+GET  /runs/:id/log        # SSE stream: replay snapshot lalu relay live log/phase/status/cost
 POST /runs/:id/steer      { message }
 POST /runs/:id/control    { action: "pause"|"resume"|"stop"|"retry" }   # resume/retry → 409 bila run masih queued/running (satu run = satu worktree, ADR-0002)
 POST /runs/:id/worktree   { branchFrom?, branchTo? }
-POST /runs/:id/command    { text }   # terminal interaktif: verb baca render Run; resume/retry re-enqueue (jalur /control), free text pada run aktif → steer, docs <path> baca file nyata
+POST /runs/:id/command    { text }   # terminal interaktif: verb baca render Run; files/diff membaca GET /changes; resume/retry re-enqueue (jalur /control), free text pada run aktif → steer, docs <path> baca file nyata
+GET  /runs/:id/changes          # { base, head, commits[], files[] } — hanya changes milik run ini
+#   200 { base:null, … } bila run belum menyentuh worktree; 409 bila project tanpa repoDir,
+#   worktree hilang tanpa commit, atau headSha tak terjangkau.
+GET  /runs/:id/changes/*path    # { path, status, binary, truncated, diff, content }
+#   404 bila path di luar daftar changes — daftar itu satu-satunya gerbang. content dipotong 256 KB.
 ```
+
+> Changes diturunkan dari git tiap request — worktree selagi run hidup, `baseSha..headSha` setelah
+> selesai — tak ada salinan DB (ADR-0019).
 
 ## Triggers / settings / docs
 ```

@@ -24,6 +24,7 @@ vi.mock("../src/api/client", () => ({
     listTriggers: vi.fn(async () => []),
     getSettings: vi.fn(async () => ({})),
     startRun: vi.fn(), deleteSpec: vi.fn(), createSpec: vi.fn(),
+    runChanges: vi.fn(async () => ({ base: null, head: null, commits: [], files: [] })),
   },
   subscribeRun: vi.fn(() => () => {}),
   ApiError: class extends Error {},

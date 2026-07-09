@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { zProject, zSpec, zStage, zCreateSpec, zPatchSpec, zProjectView } from "../src/index";
+import { zProject, zSpec, zStage, zCreateSpec, zPatchSpec, zProjectView, zRun } from "../src/index";
 
 describe("schemas", () => {
   it("parses a valid project", () => {
@@ -43,5 +43,24 @@ describe("schemas", () => {
       coverage: 94, createdAt: new Date().toISOString(), stack: "Go", backlog: 6, topStage: "execute",
       run: { status: "running", phase: "Execute", kind: "feature" }, activity: "x", commit: "y" });
     expect(v.backlog).toBe(6);
+  });
+});
+
+describe("SPEC-144 Run sha", () => {
+  const base = {
+    id: "RUN-1", projectId: "p1", specId: null, kind: "feature" as const, status: "running" as const,
+    trigger: "manual" as const, triggerDetail: "", phases: [], plan: [], log: [],
+    worktree: ".worktrees/run-1", branchFrom: "main", branchTo: "hanoman/run-1",
+    model: "", tokensIn: "0", tokensOut: "0", cost: "$0.00", progress: 0,
+    createdAt: "2026-07-09T00:00:00.000Z", finishedAt: null,
+  };
+  it("menerima baseSha/headSha null", () => {
+    const r = zRun.parse({ ...base, baseSha: null, headSha: null });
+    expect(r.baseSha).toBeNull();
+    expect(r.headSha).toBeNull();
+  });
+  it("menerima SHA", () => {
+    const r = zRun.parse({ ...base, baseSha: "4e7f6d6", headSha: "db87a19" });
+    expect(r.headSha).toBe("db87a19");
   });
 });

@@ -22,7 +22,7 @@ function fakeSession(sent: string[] = []): ClaudeSession {
 
 const fakeDeps: RunDeps = {
   openSession: () => fakeSession(),
-  git: { addWorktree() {}, removeWorktree() {}, commitAndPush() {}, switchBase() {} },
+  git: { addWorktree: () => "base00", removeWorktree() {}, commitAndPush: () => "head99", switchBase() {} },
   verify: () => ({ blocked: false }),
 };
 

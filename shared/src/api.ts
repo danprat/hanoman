@@ -15,6 +15,8 @@ export const paths = {
   runCommand: (id: string) => `${API}/runs/${id}/command`,
   runControl: (id: string) => `${API}/runs/${id}/control`,
   runSteer: (id: string) => `${API}/runs/${id}/steer`,
+  runChanges: (id: string) => `${API}/runs/${id}/changes`,
+  runChangeFile: (id: string, path: string) => `${API}/runs/${id}/changes/${path}`,
   docs: (id: string) => `${API}/projects/${id}/docs`,
   docFile: (id: string, path: string) => `${API}/projects/${id}/docs/${path}`,
   fsBrowse: (path?: string) => `${API}/fs/browse${path ? `?path=${encodeURIComponent(path)}` : ""}`,

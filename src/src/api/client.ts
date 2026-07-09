@@ -36,6 +36,8 @@ export const api = {
     j<{ accepted: boolean }>(paths.runControl(id), { method: "POST", ...body({ action }) }),
   runSteer: (id: string, message: string) =>
     j<{ accepted: boolean }>(paths.runSteer(id), { method: "POST", ...body({ message }) }),
+  runChanges: (id: string) => j<RunChanges>(paths.runChanges(id)),
+  runChangeFile: (id: string, path: string) => j<FilePreview>(paths.runChangeFile(id, path)),
   getDocs: (id: string) => j<{ coverage: number; tree: any[] }>(paths.docs(id)),
   getDoc: (id: string, path: string) => j<{ path: string; content: string }>(paths.docFile(id, path)),
   putDoc: (id: string, path: string, content: string) =>
@@ -50,12 +52,17 @@ export const api = {
   deleteTerminal: (id: string) => j<void>(paths.terminalSession(id), { method: "DELETE" }),
 };
 
+export type ChangedFile = { path: string; add: number; del: number; status: "A"|"M"|"D"; binary: boolean };
+export type RunCommit   = { sha: string; subject: string };
+export type RunChanges  = { base: string|null; head: string|null; commits: RunCommit[]; files: ChangedFile[] };
+export type FilePreview = { path: string; status: "A"|"M"|"D"; binary: boolean; truncated: boolean;
+                            diff: string|null; content: string|null };
+
 export type RunLiveEvent =
   | { kind: "log"; line: { t: string; s: string } }
   | { kind: "status"; status: string }
   | { kind: "phase"; name: string; state: string }
-  | { kind: "cost"; tokensIn: number; tokensOut: number; costUsd: number }
-  | { kind: "file"; path: string; add: number; del: number; status: string };
+  | { kind: "cost"; tokensIn: number; tokensOut: number; costUsd: number };
 
 // Live run stream over SSE (backend: GET /runs/:id/log). Returns an unsubscribe.
 export function subscribeRun(id: string, onEvent: (e: RunLiveEvent) => void): () => void {
