@@ -12,7 +12,6 @@ export const api = {
   getProject: (id: string) => j<ProjectView>(paths.project(id)),
   createProject: (b: unknown) => j<ProjectView>(paths.projects, { method: "POST", ...body(b) }),
   deleteProject: (id: string) => j<void>(paths.project(id), { method: "DELETE" }),
-  scanProject: (id: string) => j<ProjectView>(paths.scan(id), { method: "POST" }),
   listSpecs: (q = "") => j<Spec[]>(paths.specs + q),
   createSpec: (b: unknown) => j<Spec>(paths.specs, { method: "POST", ...body(b) }),
   deleteSpec: (id: string) => j<void>(paths.spec(id), { method: "DELETE" }),

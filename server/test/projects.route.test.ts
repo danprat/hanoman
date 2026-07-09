@@ -54,11 +54,9 @@ describe("projects routes", () => {
     expect(res.json().docStatus).toBe("broken");
   });
 
-  it("scan recomputes coverage (body-less POST with json content-type)", async () => {
-    // reproduces FST_ERR_CTP_EMPTY_JSON_BODY: json content-type but no body
-    const res = await app.inject({ method: "POST", url: "/api/projects/p1/scan",
-      headers: { "content-type": "application/json" } });
-    expect(res.statusCode).toBe(200); expect(typeof res.json().coverage).toBe("number");
+  it("POST /scan is gone (SPEC-141)", async () => {
+    const res = await app.inject({ method: "POST", url: "/api/projects/p1/scan" });
+    expect(res.statusCode).toBe(404);
   });
   it("rejects invalid create body", async () => {
     const res = await app.inject({ method: "POST", url: "/api/projects", payload: { kind: "x" } });

@@ -2,8 +2,6 @@ import type { FastifyInstance } from "fastify";
 import { zCreateProject } from "@hanoman/shared";
 import { prisma } from "../db";
 import { toProjectView } from "../services/project-view";
-import { docIndex } from "../services/docs";
-import { docStatusFor } from "../services/coverage";
 
 export default async function (app: FastifyInstance) {
   app.get("/projects", async () => {
@@ -35,12 +33,5 @@ export default async function (app: FastifyInstance) {
     // ponytail: worktree di server/.worktrees/ tidak ikut dibersihkan; tambahkan kalau disknya penuh.
     await prisma.project.delete({ where: { id } }); // specs/runs/triggers ikut lewat onDelete: Cascade
     return reply.code(204).send();
-  });
-  app.post("/projects/:id/scan", async (req, reply) => {
-    const { id } = req.params as { id: string };
-    if (!(await prisma.project.findUnique({ where: { id } }))) return reply.code(404).send({ error: "not found" });
-    const { coverage } = await docIndex(id);
-    await prisma.project.update({ where: { id }, data: { coverage, docStatus: docStatusFor(coverage) } });
-    return toProjectView(id);
   });
 }

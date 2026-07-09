@@ -356,7 +356,7 @@ Endpoint dan tombolnya kini tak menyegarkan apa pun. Yang halus: test `POST /sca
 - Consumes: `toProjectView` (Task 2). `reloadIndex(): Promise<void>` — sudah ada di `DocsWorkspace.tsx`, tidak berubah.
 - Produces: tak ada simbol baru. `paths.scan` dan `api.scanProject` **lenyap** — tak boleh dirujuk task mana pun sesudah ini.
 
-- [ ] **Step 1: Pindahkan guard empty-JSON-body ke `toggle` (test dulu)**
+- [x] **Step 1: Pindahkan guard empty-JSON-body ke `toggle` (test dulu)**
 
 Ganti test `"toggles a trigger"` di `server/test/triggers-settings.route.test.ts` (baris 19-22) dengan:
 
@@ -371,12 +371,12 @@ Ganti test `"toggles a trigger"` di `server/test/triggers-settings.route.test.ts
   });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan lulus (guard-nya memang sudah ada)**
+- [x] **Step 2: Jalankan, pastikan lulus (guard-nya memang sudah ada)**
 
 Run: `pnpm --filter ./server exec vitest run test/triggers-settings.route.test.ts`
 Expected: PASS. Test ini hijau **sekarang** karena parser di `app.ts` sudah benar — gunanya adalah menahannya tetap benar setelah test `scan` dibuang. Untuk membuktikannya menangkap regresi, komentari sementara baris `if (!body) return done(null, undefined);` di `app.ts:26` → test harus FAIL dengan `FST_ERR_CTP_EMPTY_JSON_BODY`. Kembalikan barisnya.
 
-- [ ] **Step 3: Ganti kedua test `scan` — yang satu dihapus, yang satu jadi penjaga 404**
+- [x] **Step 3: Ganti kedua test `scan` — yang satu dihapus, yang satu jadi penjaga 404**
 
 Hapus dari `server/test/docs.route.test.ts` baris 41-45 (blok `it("POST /scan recomputes coverage from disk", ...)`) — seluruhnya, termasuk baris `it(` dan `});`.
 
@@ -389,7 +389,7 @@ Di `server/test/projects.route.test.ts`, ganti blok `it("scan recomputes coverag
   });
 ```
 
-- [ ] **Step 4: Hapus handler `scan` dan perbarui komentar `app.ts`**
+- [x] **Step 4: Hapus handler `scan` dan perbarui komentar `app.ts`**
 
 Ganti baris 1-6 `server/src/routes/projects.ts` dengan:
 
@@ -408,12 +408,12 @@ Di `server/src/app.ts` ganti baris 19:
   // Body-less POSTs (toggle) may still carry a JSON
 ```
 
-- [ ] **Step 5: Jalankan test server, pastikan lulus**
+- [x] **Step 5: Jalankan test server, pastikan lulus**
 
 Run: `pnpm --filter ./server test`
 Expected: PASS, `projects.route.test.ts` tetap 11 test — `"scan recomputes coverage"` berganti jadi `"POST /scan is gone"`. Kalau yang terakhir gagal dengan `200`, handler-nya belum benar-benar terhapus di Step 4.
 
-- [ ] **Step 6: Buang `scan` dari kontrak klien**
+- [x] **Step 6: Buang `scan` dari kontrak klien**
 
 Di `shared/src/api.ts`, hapus baris 5 seluruhnya:
 
@@ -427,7 +427,7 @@ Di `src/src/api/client.ts`, hapus baris 15 seluruhnya:
   scanProject: (id: string) => j<ProjectView>(paths.scan(id), { method: "POST" }),
 ```
 
-- [ ] **Step 7: Hapus "Scan semua" dari `App.tsx`**
+- [x] **Step 7: Hapus "Scan semua" dari `App.tsx`**
 
 Hapus baris 262:
 
@@ -449,7 +449,7 @@ Ganti blok `actions` header Projects (baris 453-456) dengan:
         actions={<Button size="sm" leftIcon="plus" onClick={() => setModal("project")}>Project baru</Button>}>
 ```
 
-- [ ] **Step 8: Tombol Docs workspace jadi muat ulang**
+- [x] **Step 8: Tombol Docs workspace jadi muat ulang**
 
 Di `src/src/screens/DocsWorkspace.tsx`, ganti `rescan` (baris 181-185) dengan:
 
@@ -478,12 +478,12 @@ Ganti empty-state (baris 211-213) dengan:
                   action={rescan} actionLabel="Muat ulang" actionIcon="radar" />
 ```
 
-- [ ] **Step 9: Test web + typecheck**
+- [x] **Step 9: Test web + typecheck**
 
 Run: `pnpm --filter ./src test && pnpm -r typecheck`
 Expected: PASS, keluar 0. Kalau typecheck mengeluh `Property 'scan' does not exist on type ...` atau `scanProject`, berarti ada call site tersisa — cari dengan `grep -rn "scanProject\|paths.scan" src shared server`.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add server/src/routes/projects.ts server/src/app.ts shared/src/api.ts \
