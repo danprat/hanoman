@@ -6,6 +6,7 @@ import { Card, StatusPill, Icon, usePaged, Pager, Button, IconButton, StateBlock
 import type { RunVM } from "./types";
 import { subscribeRun, api } from "../api/client";
 import { reduceRunEvent, runDurationMs, fmtDuration } from "./run-reduce";
+import { isRunActive } from "@hanoman/shared";
 
 const R_TRIGGER_ICON: Record<string, string> = {
   commit: "git-commit-horizontal", schedule: "calendar-clock",
@@ -124,7 +125,7 @@ function FileDiff({ files }: { files: FileRow[] }) {
 function RunListRow({ run, active, onClick, onDelete }:
   { run: RunVM; active: boolean; onClick: () => void; onDelete?: (r: RunVM) => void }) {
   const [hover, setHover] = React.useState(false);
-  const busy = run.status === "queued" || run.status === "running" || run.status === "paused";
+  const busy = isRunActive(run.status);
   return (
     <div onClick={onClick} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} style={{
       display: "block", width: "100%", textAlign: "left", cursor: "pointer",
@@ -279,8 +280,13 @@ export function RunsScreen({ runs, selectedId, pageSize = 4, onDelete, onGotoBac
   const pg = usePaged(runs, pageSize, "runs");
   const picked = runs.find((r) => r.id === selId) || runs[0];
   // Live overlay: seed from the picked run, merge SSE events while it's active.
+  // Re-seed saat id ATAU status berubah. Poll 3 dtk membawa status baru dari DB, tapi
+  // overlay ini di-snapshot sekali per run — tanpa `status` di deps, panel detail
+  // tertinggal di `queued` walau baris daftar sudah `running`. Redis pub/sub tak punya
+  // replay, jadi event `running` yang terbit sebelum langganan SSE dibuka hilang untuk
+  // selamanya dan status berikutnya baru datang saat run selesai (SPEC-142).
   const [live, setLive] = React.useState<RunVM | undefined>(picked);
-  React.useEffect(() => { setLive(picked); }, [picked?.id]);
+  React.useEffect(() => { setLive(picked); }, [picked?.id, picked?.status]);
   React.useEffect(() => {
     if (!picked) return;
     if (picked.status !== "running" && picked.status !== "paused") return;

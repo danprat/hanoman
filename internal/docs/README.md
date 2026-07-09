@@ -46,6 +46,8 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 - [spec-008 — objective (de-mock sweep)](operations/spec-008-de-mock-objective.md)
 - [spec-011 — objective (realtime SoT scan)](operations/spec-011-realtime-sot-scan-objective.md)
 - [spec-141 — objective (overview coverage realtime)](operations/spec-141-overview-coverage-realtime-objective.md)
+- [spec-142 — audit (status run tidak auto-update dari queued)](operations/spec-142-runs-status-auto-update-audit.md)
+- [spec-142 — spec (status run auto-update dari queued)](operations/spec-142-runs-status-auto-update-spec.md)
 
 ## security
 - [security-standard](security/security-standard.md)

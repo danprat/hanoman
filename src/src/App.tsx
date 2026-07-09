@@ -4,6 +4,7 @@
 import React from "react";
 import { Shell, Modal, Field, HnTextarea, Button, StatusPill, Select, Input, Tabs, Toast, useToast, Icon, StateBlock } from "./ds";
 import { api, ApiError } from "./api/client";
+import { isRunActive } from "@hanoman/shared";
 import type { ProjectView, Spec, Trigger, Run } from "@hanoman/shared";
 import type { ProjectVM, RunVM } from "./screens/types";
 import { OverviewScreen } from "./screens/OverviewScreen";
@@ -293,13 +294,13 @@ export default function App() {
   }, [runs, backlog]);
 
   const activeRunSpecs = React.useMemo(
-    () => new Set(runs.filter((r) => r.specId && (r.status === "running" || r.status === "paused"))
+    () => new Set(runs.filter((r) => r.specId && isRunActive(r.status))
       .map((r) => r.specId as string)),
     [runs]);
 
   // Stage bar is a live mirror: while any run is active, re-poll specs+runs so the
   // board reflects real phase progress. Stops when nothing is running.
-  const anyRunActive = runs.some((r) => r.status === "running" || r.status === "paused");
+  const anyRunActive = runs.some((r) => isRunActive(r.status));
   React.useEffect(() => {
     if (!anyRunActive) return;
     const t = setInterval(() => {

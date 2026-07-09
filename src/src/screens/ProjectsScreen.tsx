@@ -3,6 +3,7 @@
 import React from "react";
 import { Card, StatusPill, Badge, ProgressBar, Icon, IconButton, usePaged, Pager } from "../ds";
 import type { ProjectVM, RunVM } from "./types";
+import { isRunActive } from "@hanoman/shared";
 
 const HN_TRIGGER_ICON: Record<string, string> = {
   commit: "git-commit-horizontal", schedule: "calendar-clock",
@@ -68,7 +69,7 @@ function StatStrip({ projects, runs }: { projects: ProjectVM[]; runs: RunVM[] })
 function ProjectRow({ p, onOpen, onDelete }:
   { p: ProjectVM; onOpen?: (p: ProjectVM) => void; onDelete?: (p: ProjectVM) => void }) {
   const att = hnAttention(p);
-  const running = p.run.status === "running" || p.run.status === "queued";
+  const running = isRunActive(p.run.status);
   const [hover, setHover] = React.useState(false);
   return (
     <div

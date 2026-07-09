@@ -9,3 +9,12 @@ export const zDocStatus = z.enum(["ok","drift","broken"]);
 export const zPriority = z.enum(["tinggi","sedang","rendah"]);
 export const zProjectKind = z.enum(["from-scratch","existing"]);
 export const zSeverity = z.enum(["critical","major","minor"]);
+
+// Satu-satunya definisi "run sedang berjalan" (SPEC-142). `queued` wajib ikut: setiap
+// run lahir queued, dan gate poll yang melewatkannya membuat daftar run membeku sampai
+// operator refresh manual. Param `string` (bukan z.infer<typeof zRunStatus>) karena
+// zRunSummary.status di dto.ts adalah z.string(); status tak dikenal → false.
+// Beda dari "punya proses hidup" (running|paused, untuk steer/pause/stop) dan dari
+// "boleh di-enqueue" (queued|running, dedupe di server/src/queue.ts).
+export const isRunActive = (status: string): boolean =>
+  status === "queued" || status === "running" || status === "paused";
