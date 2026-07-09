@@ -3,7 +3,7 @@
 **Fase:** Brainstorm → Objective (dikunci) · 2026-07-09
 **Jenis:** fitur — alur QA berhenti menjadi pipeline statis; Audit memilih jalur hilirnya sendiri
 **Source of Truth:** `internal/docs/**` — dokumen ini subordinat terhadapnya.
-**Turunan:** brainstorm → [`docs/superpowers/specs/2026-07-09-hanoman-qa-after-audit-spec-145-brainstorm.md`], design → [`docs/superpowers/specs/2026-07-09-hanoman-qa-after-audit-spec-145-design.md`].
+**Turunan:** brainstorm → [`docs/superpowers/specs/2026-07-09-hanoman-qa-after-audit-spec-145-brainstorm.md`], design → [`docs/superpowers/specs/2026-07-09-hanoman-qa-after-audit-spec-145-design.md`], plan → [`docs/superpowers/plans/2026-07-09-hanoman-qa-after-audit-spec-145.md`].
 
 ## Masalah
 
