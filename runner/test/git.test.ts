@@ -45,4 +45,44 @@ describe("git worktree ops", () => {
     realGit.addWorktree(repo, wt, "main", true); // reuse tapi pohonnya hilang → buat baru
     expect(existsSync(wt)).toBe(true);
   });
+
+  // SPEC-143. `refs/heads/--force` adalah refname yang sah, jadi sebuah branch boleh bernama
+  // `--force`: ia lolos whitelist (memang ada di repo) lalu `git worktree add --detach <path>
+  // --force` membacanya sebagai OPSI. resolveCommit menyerahkan SHA, bukan nama.
+  it("accepts a branch whose name looks like a flag", () => {
+    const { repo } = seedRepo();
+    // Branch bernama flag menunjuk commit PERTAMA, sementara HEAD sudah maju ke commit kedua.
+    // Tanpa resolveCommit, git menelan `--force` sebagai opsi dan diam-diam memakai HEAD —
+    // worktree terbangun di pohon yang salah tanpa satu pun error. Dua commit berbeda inilah
+    // yang membedakan "branch dihormati" dari "branch diabaikan".
+    const first = g(repo, "rev-parse", "HEAD").stdout.trim();
+    g(repo, "update-ref", "refs/heads/--force", first);
+    writeFileSync(join(repo, "kedua.txt"), "2"); g(repo, "add", "-A"); g(repo, "commit", "-qm", "second");
+    const head = g(repo, "rev-parse", "HEAD").stdout.trim();
+    expect(head).not.toBe(first);
+
+    const wt = join(repo, ".worktrees", "run-flag");
+    realGit.addWorktree(repo, wt, "--force");
+    expect(existsSync(wt)).toBe(true);
+    expect(g(wt, "rev-parse", "HEAD").stdout.trim()).toBe(first); // bukan head
+    realGit.removeWorktree(repo, wt);
+  });
+
+  // ADR-0009: branch yang dihapus sebelum run jalan gagal keras dan menyebut namanya,
+  // bukan mundur diam-diam ke main.
+  it("fails loud and names the missing branch", () => {
+    const { repo } = seedRepo();
+    const wt = join(repo, ".worktrees", "run-hantu");
+    expect(() => realGit.addWorktree(repo, wt, "tidak-ada")).toThrow(/tidak-ada/);
+  });
+
+  it("switchBase moves the worktree onto another branch", () => {
+    const { repo } = seedRepo();
+    g(repo, "branch", "dev");
+    const wt = join(repo, ".worktrees", "run-sb");
+    realGit.addWorktree(repo, wt, "main");
+    realGit.switchBase(wt, "dev");
+    expect(g(wt, "rev-parse", "--abbrev-ref", "HEAD").stdout.trim()).toBe("dev");
+    realGit.removeWorktree(repo, wt);
+  });
 });

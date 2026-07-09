@@ -11,6 +11,15 @@ function git(cwd: string, args: string[], redact?: string) {
   return r.stdout;
 }
 const tryGit = (cwd: string, args: string[]) => { spawnSync("git", args, { cwd, encoding: "utf8" }); };
+// Nama branch boleh berbentuk flag — `refs/heads/--force` adalah refname yang sah — dan git membaca
+// opsi di posisi mana pun. `git worktree add --detach <path> --force` tidak menolaknya: ia menelan
+// `--force` sebagai opsi dan diam-diam memakai HEAD, membangun worktree di pohon yang salah tanpa
+// satu pun error. Resolusikan ke commit SHA dulu; heksadesimal tak pernah jadi opsi. Urutan mengikat:
+// `--verify` harus mendahului `--end-of-options` (diverifikasi terhadap git 2.50.1). Melempar dengan
+// stderr git yang menyebut revisinya bila tidak resolve (ADR-0009), dan tetap menjaga DWIM sehingga
+// branch remote-tracking milik run github-backed masih resolve.
+const resolveCommit = (repo: string, rev: string) =>
+  git(repo, ["rev-parse", "--verify", "--end-of-options", `${rev}^{commit}`]).trim();
 export const realGit: GitOps = {
   // --detach: check out branchFrom's commit in a detached HEAD so a run can
   // branch from `main` even while `main` is checked out in the primary tree
@@ -26,7 +35,7 @@ export const realGit: GitOps = {
     tryGit(repo, ["worktree", "remove", "--force", path]);
     tryGit(repo, ["worktree", "prune"]);
     rmSync(isAbsolute(path) ? path : resolve(repo, path), { recursive: true, force: true });
-    git(repo, ["worktree", "add", "--detach", path, branchFrom]);
+    git(repo, ["worktree", "add", "--detach", path, resolveCommit(repo, branchFrom)]);
   },
   removeWorktree: (repo, path) => { git(repo, ["worktree", "remove", "--force", path]); },
   // remoteUrl (with an installation token) authenticates a push to a private
@@ -36,5 +45,5 @@ export const realGit: GitOps = {
     // full refname: from a detached HEAD git can't infer refs/heads/ for a short dest
     git(path, ["push", remoteUrl ?? "origin", `HEAD:refs/heads/${branchTo}`], remoteUrl);
   },
-  switchBase: (path, branchFrom) => { git(path, ["checkout", branchFrom]); },
+  switchBase: (path, branchFrom) => { git(path, ["checkout", "--end-of-options", branchFrom]); },
 };

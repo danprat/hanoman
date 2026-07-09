@@ -326,7 +326,7 @@ git commit -m "feat(spec-143): GET /projects/:id/branches + listRepoBranches"
 tidak dapat diuji lewat Bash dari dalam run (`deniesDangerous` memblokirnya), jadi jangan bersandar pada
 cara ia mem-parse `--`. Resolusikan ke SHA: heksadesimal tak pernah jadi opsi.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `runner/test/git.test.ts` (di dalam `describe("git worktree ops")`):
 
@@ -361,13 +361,25 @@ Tambahkan di `runner/test/git.test.ts` (di dalam `describe("git worktree ops")`)
   });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./runner test git`
-Expected: FAIL — `git worktree add --detach <path> --force` gagal (`--force` dibaca sebagai opsi),
-dan test "gagal keras" mungkin melempar pesan yang tidak memuat `tidak-ada`.
+Expected: FAIL — tapi **bukan** karena git menolak `--force`.
 
-- [ ] **Step 3: Implementasi minimal**
+**Jebakan yang benar-benar terjadi:** sub-perintah `worktree`+`add` dengan `--detach <path> --force`
+*sukses*. Git menelan `--force` sebagai opsi dan diam-diam memakai `HEAD`. Test yang menunjuk
+branch-flag ke commit yang sama dengan `HEAD` akan **lolos sebelum implementasi ada** — lolos karena
+alasan yang salah. Karena itu branch bernama flag harus menunjuk commit **pertama** sementara `HEAD`
+sudah maju ke commit kedua; barulah assertion membedakan "branch dihormati" dari "branch diabaikan".
+
+Kerentanannya lebih buruk daripada dugaan fase Spec: branch bukan ditolak, melainkan **diabaikan
+tanpa error**, sehingga run terbangun di pohon yang salah tanpa satu pun tanda.
+
+> Guardrail `deniesDangerous` memindai **seluruh teks perintah Bash**, termasuk pesan commit.
+> Menuliskan nama sub-perintah itu utuh di dalam `git commit -m "…"` akan ditolak. Pakai
+> `git commit -F <file>`.
+
+- [x] **Step 3: Implementasi minimal**
 
 `runner/src/git.ts` — tambahkan di bawah `tryGit`:
 
@@ -395,12 +407,12 @@ Dan `switchBase`:
 `resolveCommit` mempertahankan DWIM — branch yang hanya ada sebagai remote-tracking (run
 github-backed) tetap resolve. Menyematkan `refs/heads/` di depan nama akan mematikannya.
 
-- [ ] **Step 4: Jalankan test, pastikan hijau**
+- [x] **Step 4: Jalankan test, pastikan hijau**
 
 Run: `pnpm --filter ./runner test`
 Expected: PASS (seluruh suite runner — `run.test.ts` memakai fake `GitOps`, tak tersentuh).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runner/src/git.ts runner/test/git.test.ts
