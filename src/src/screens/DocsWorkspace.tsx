@@ -178,10 +178,12 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
     // tiap kali file kedua sebuah kategori sedang dibuka.
     if (!t.some((n) => n.files.some((f) => `${n.cat}/${f}` === selected))) setSelected(firstDoc(t));
   }
+  // GET /docs sudah realtime; tombolnya cuma memuat ulang, kalau-kalau file berubah
+  // dari luar dashboard. Tak ada lagi POST /scan (SPEC-141).
   async function rescan() {
     if (scanning) return;
     setScanning(true);
-    try { await api.scanProject(projectId); await reloadIndex(); } finally { setScanning(false); }
+    try { await reloadIndex(); } finally { setScanning(false); }
   }
   async function removeDoc() {
     if (!selected || !window.confirm(`Hapus ${selected}? File aslinya di disk akan dihapus.`)) return;
@@ -199,7 +201,7 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <StatusPill status={status} size="sm" />
               <Button size="sm" variant="ghost" leftIcon={scanning ? "loader" : "radar"} onClick={rescan} disabled={scanning}>
-                {scanning ? "…" : "Scan"}
+                {scanning ? "…" : "Muat ulang"}
               </Button>
             </div>
           </div>
@@ -208,8 +210,8 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
               : ixStatus === "error" ? <StateBlock kind="error" compact title="Gagal memuat index docs"
                   hint={projectName} action={() => setIxTry((n) => n + 1)} />
               : tree.length === 0 ? <StateBlock kind="empty" compact icon="folder-open" title="Belum ada docs"
-                  hint="Scan project untuk menyusun Source of Truth-nya."
-                  action={rescan} actionLabel="Scan sekarang" actionIcon="radar" />
+                  hint="Belum ada Markdown di repo ini."
+                  action={rescan} actionLabel="Muat ulang" actionIcon="radar" />
               : (<>
                   {nested.map((n) => <DocTreeCat key={n.path} node={n} selected={selected} onSelect={selectFile} />)}
                   {unscored.length > 0 && (

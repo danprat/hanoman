@@ -7,7 +7,6 @@ REST + SSE. Semua di bawah `/api`.
 GET  /projects
 POST /projects            { name, kind, repoDir?, desc }
 GET  /projects/:id
-POST /projects/:id/scan   # re-scan docs SoT
 DELETE /projects/:id      # 409 bila ada run queued/running/paused; cascade ke spec/run/trigger.
 #   Worktree on-disk di server/.worktrees/ tidak ikut dibersihkan.
 ```
@@ -49,11 +48,11 @@ DELETE /projects/:id/docs/*path         # hapus file .md asli di disk; 204 sukse
 ```
 
 > Docs dibaca/ditulis **live dari `Project.repoDir`** (tanpa salinan DB — ADR-0011). Korpus **browse** =
-> semua `**/*.md` via `git ls-files`. `GET /docs` re-scan tiap panggilan; `POST /projects/:id/scan`
-> menyegarkan cache `Project.coverage`/`docStatus`. Korpus **skor** = hanya file di bawah `docsDir`
-> (default `internal/docs`) dikurangi index root; kategori di luarnya bertanda `scored: false` dan tidak
-> dinilai. SoT coverage = % kategori berskor yang seluruh Markdown-nya **transitif reachable** dari
-> `docsDir/README.md` (ADR-0013).
+> semua `**/*.md` via `git ls-files`. `GET /docs` re-scan tiap panggilan, begitu pula `GET /projects`
+> yang menurunkan `coverage`/`docStatus` per project (ADR-0018 — tak ada cache, tak ada `POST /scan`).
+> Korpus **skor** = hanya file di bawah `docsDir` (default `internal/docs`) dikurangi index root;
+> kategori di luarnya bertanda `scored: false` dan tidak dinilai. SoT coverage = % kategori berskor
+> yang seluruh Markdown-nya **transitif reachable** dari `docsDir/README.md` (ADR-0013).
 
 ## Terminal
 ```

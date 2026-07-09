@@ -16,8 +16,6 @@ model Project {
   repoUrl   String?
   installationId Int?
   stack     String   @default("")
-  docStatus String
-  coverage  Int
   createdAt DateTime @default(now())
   specs     Spec[]
   runs      Run[]

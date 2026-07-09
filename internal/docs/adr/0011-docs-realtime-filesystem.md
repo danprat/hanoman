@@ -20,3 +20,5 @@ computed by the pure `linkedSetFrom` in `@hanoman/shared`.
 - Projects with no `repoDir` show empty docs / 0% coverage.
 - The CLI run-guardrail still scans `internal/docs` only; it can adopt the shared
   metric later (out of scope here).
+- `Project.coverage` / `Project.docStatus` survived as columns — the last DB copy of
+  docs state, so Overview stays stale until a manual scan. Audited in SPEC-141.

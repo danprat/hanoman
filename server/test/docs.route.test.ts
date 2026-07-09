@@ -38,9 +38,4 @@ describe("docs routes (fs-backed)", () => {
     const res = await app.inject({ method: "PUT", url: "/api/projects/p1/docs/product/notes.txt", payload: { content: "x" } });
     expect(res.statusCode).toBe(400);
   });
-  it("POST /scan recomputes coverage from disk", async () => {
-    const res = await app.inject({ method: "POST", url: "/api/projects/p1/scan" });
-    expect(res.statusCode).toBe(200);
-    expect(res.json().coverage).toBe(100);
-  });
 });

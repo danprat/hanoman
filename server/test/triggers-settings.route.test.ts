@@ -16,8 +16,12 @@ describe("triggers + settings", () => {
       project: "p1", type: "commit", detail: "push → main", target: "plan + execute" } });
     expect(res.statusCode).toBe(201); expect(res.json().enabled).toBe(true);
   });
-  it("toggles a trigger", async () => {
-    const res = await app.inject({ method: "POST", url: "/api/triggers/t2/toggle" });
+  // Body-less POST dengan json content-type: mereproduksi FST_ERR_CTP_EMPTY_JSON_BODY.
+  // Dulu dijaga test POST /scan, yang dihapus bersama endpoint-nya (SPEC-141).
+  it("toggles a trigger (body-less POST with json content-type)", async () => {
+    const res = await app.inject({ method: "POST", url: "/api/triggers/t2/toggle",
+      headers: { "content-type": "application/json" } });
+    expect(res.statusCode).toBe(200);
     expect(res.json().enabled).toBe(true); // t2 seeded false
   });
   it("deletes a trigger, then 404s", async () => {

@@ -31,7 +31,7 @@ export async function resetDb(): Promise<void> {
 export function makeProject(over: Partial<Prisma.ProjectCreateManyInput> = {}) {
   return prisma.project.create({ data: {
     id: "p1", name: "p1", desc: "test project", kind: "existing",
-    stack: "", docStatus: "ok", coverage: 100, ...over } });
+    stack: "", ...over } });
 }
 
 export function makeSpec(over: Partial<Prisma.SpecCreateManyInput> = {}) {

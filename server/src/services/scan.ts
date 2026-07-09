@@ -1,17 +1,24 @@
-import { spawnSync } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { readFileSync, writeFileSync, existsSync, rmSync, mkdirSync } from "node:fs";
 import { resolve, dirname, sep } from "node:path";
 import { coverageOf, linkedSetFrom, zHanomanConfig } from "@hanoman/shared";
+
+const exec = promisify(execFile);
 
 export type DocCat = { cat: string; files: string[]; linked: boolean; root: boolean; scored: boolean };
 
 // All markdown in the repo — tracked or new — with .gitignore honored (skips
 // node_modules/.worktrees/dist for free). Posix rel paths.
-export function listRepoDocs(repoDir: string): string[] {
-  const r = spawnSync("git", ["ls-files", "--cached", "--others", "--exclude-standard", "--", "*.md"],
-    { cwd: repoDir, encoding: "utf8" });
-  if (r.status !== 0) return [];
-  return [...new Set(r.stdout.split("\n").map((s) => s.trim()).filter(Boolean))].sort();
+//
+// execFile, not spawnSync: GET /projects scans once per project, and a blocking
+// fork would stall the whole server. Not a git repo -> reject -> [].
+export async function listRepoDocs(repoDir: string): Promise<string[]> {
+  try {
+    const { stdout } = await exec("git", ["ls-files", "--cached", "--others", "--exclude-standard", "--", "*.md"],
+      { cwd: repoDir, maxBuffer: 1 << 24 });   // default 1 MB ~ 10k path
+    return [...new Set(stdout.split("\n").map((s) => s.trim()).filter(Boolean))].sort();
+  } catch { return []; }
 }
 
 // ponytail: 3 baris; angkat ke adapter node bersama kalau muncul consumer ketiga.
@@ -32,14 +39,16 @@ export function resolveIndex(repoDir: string, docsDir: string): string {
 const catOf = (rel: string) => (rel.includes("/") ? rel.slice(0, rel.lastIndexOf("/")) : ".");
 const nameOf = (rel: string) => (rel.includes("/") ? rel.slice(rel.lastIndexOf("/") + 1) : rel);
 
-// ponytail: naive full re-scan (reads every .md) per call. Add an mtime/HEAD cache
-// only if a large repo makes GET /docs slow.
+// ponytail: full re-scan tiap panggilan, tanpa cache. Terukur 19 ms — spawn git 18.8 ms,
+// baca 48 file 0.8 ms — jadi HANYA spawn-nya yang dibuat async. `readFileSync` tetap sync
+// karena `linkedSetFrom` menerima `read` sinkron dan harus tetap pure di @hanoman/shared.
+// Tambah cache HEAD/mtime hanya kalau GET /projects melewati ~200 ms.
 //
 // Dua korpus, sengaja dipisah: `files` untuk dibrowse (semua .md repo), `corpus`
 // untuk dinilai (di bawah docsDir). Kategori di luar docsDir -> scored:false.
-export function scanRepoDocs(repoDir: string | null): { coverage: number; tree: DocCat[] } {
+export async function scanRepoDocs(repoDir: string | null): Promise<{ coverage: number; tree: DocCat[] }> {
   if (!repoDir || !existsSync(repoDir)) return { coverage: 0, tree: [] };
-  const files = listRepoDocs(repoDir);
+  const files = await listRepoDocs(repoDir);
   const docsDir = docsDirOf(repoDir);
   const index = resolveIndex(repoDir, docsDir);
   const read = (rel: string): string | null => {

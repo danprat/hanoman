@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { buildApp } from "../src/app";
 import { prisma } from "../src/db";
-import { resetDb, makeProject, makeSpec, makeRun } from "./factory";
+import { resetDb, makeProject, makeSpec, makeRun, makeTempRepo } from "./factory";
 const app = buildApp();
 beforeAll(async () => { await resetDb(); await makeProject({ id: "p1" }); });
 describe("projects routes", () => {
@@ -20,11 +20,43 @@ describe("projects routes", () => {
       payload: { name: "kirana", kind: "from-scratch", desc: "again" } }); // created above
     expect(res.statusCode).toBe(409);
   });
-  it("scan recomputes coverage (body-less POST with json content-type)", async () => {
-    // reproduces FST_ERR_CTP_EMPTY_JSON_BODY: json content-type but no body
-    const res = await app.inject({ method: "POST", url: "/api/projects/p1/scan",
-      headers: { "content-type": "application/json" } });
-    expect(res.statusCode).toBe(200); expect(typeof res.json().coverage).toBe("number");
+  // SPEC-141: dua-duanya baca yang sama dari disk, tanpa POST /scan sama sekali.
+  it("a newly created project already shows real coverage — no scan (SPEC-141)", async () => {
+    const dir = makeTempRepo({
+      "internal/docs/README.md": "- [prd](product/prd.md)",
+      "internal/docs/product/prd.md": "# prd",
+    });
+    const res = await app.inject({ method: "POST", url: "/api/projects",
+      payload: { name: "auto-scan", kind: "existing", repoDir: dir } });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().coverage).toBe(100);
+    expect(res.json().docStatus).toBe("ok");
+  });
+
+  // Arah sebaliknya: nilai tersimpan yang optimistis tidak boleh menang atas disk.
+  it("disk beats the stored value when docs go unlinked (SPEC-141)", async () => {
+    const dir = makeTempRepo({
+      "internal/docs/README.md": "- [prd](product/prd.md)",
+      "internal/docs/product/prd.md": "# prd",
+      "internal/docs/loose/orphan.md": "# orphan",   // tak ter-link -> nyatanya 50%
+    });
+    await makeProject({ id: "p-cov", repoDir: dir });
+    const res = await app.inject({ url: "/api/projects/p-cov" });
+    expect(res.json().coverage).toBe(50);
+    expect(res.json().docStatus).toBe("broken");
+  });
+
+  // Project from-scratch: tak ada repoDir untuk di-scan. Harus 0/broken, bukan crash.
+  it("a project without repoDir reports 0 / broken, no crash (SPEC-141)", async () => {
+    const res = await app.inject({ url: "/api/projects/p1" });   // p1 di beforeAll, repoDir null
+    expect(res.statusCode).toBe(200);
+    expect(res.json().coverage).toBe(0);
+    expect(res.json().docStatus).toBe("broken");
+  });
+
+  it("POST /scan is gone (SPEC-141)", async () => {
+    const res = await app.inject({ method: "POST", url: "/api/projects/p1/scan" });
+    expect(res.statusCode).toBe(404);
   });
   it("rejects invalid create body", async () => {
     const res = await app.inject({ method: "POST", url: "/api/projects", payload: { kind: "x" } });

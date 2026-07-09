@@ -259,7 +259,6 @@ export default function App() {
   const [triggers, setTriggers] = React.useState<Trigger[]>([]);
   const [projectId, setProjectId] = React.useState("");
   const [search, setSearch] = React.useState("");
-  const [scanning, setScanning] = React.useState(false);
   const [modal, setModal] = React.useState<string | null>(null);
   const [toast, showToast] = useToast();
   const [status, setStatus] = React.useState<"loading" | "ready" | "error">("loading");
@@ -318,16 +317,6 @@ export default function App() {
     : projectsView;
 
   function openProject(p: ProjectVM) { setProjectId(p.id); setSection("docs"); }
-
-  async function scanAll() {
-    if (scanning) return;
-    setScanning(true);
-    showToast("Memindai " + projects.length + " project · menyinkron index…", "info", "radar");
-    try { await Promise.all(projects.map((p) => api.scanProject(p.id))); setProjects(await api.listProjects()); }
-    catch { /* ignore */ }
-    setScanning(false);
-    showToast("Scan selesai · Source of Truth tersinkron", "ok", "check-circle-2");
-  }
 
   async function createProject(f: ProjectForm) {
     const scratch = f.kind === "from-scratch";
@@ -441,8 +430,7 @@ export default function App() {
   let screen: React.ReactNode = null;
   if (section === "overview") {
     screen = (
-      <Shell active="overview" title="Overview" breadcrumb="nafanesia.id · ringkasan workspace" onNavigate={setSection}
-        actions={<Button size="sm" leftIcon={scanning ? "loader" : "radar"} onClick={scanAll}>{scanning ? "Memindai…" : "Scan semua"}</Button>}>
+      <Shell active="overview" title="Overview" breadcrumb="nafanesia.id · ringkasan workspace" onNavigate={setSection}>
         {gate(<OverviewScreen projects={projectsView} runs={runsView} backlog={backlog} triggers={triggers}
           onOpenProject={openProject} onGoto={setSection} />)}
       </Shell>
@@ -451,10 +439,7 @@ export default function App() {
     screen = (
       <Shell active="projects" title="Projects" breadcrumb="nafanesia.id · workspace"
         showSearch searchValue={search} onSearchChange={setSearch} onNavigate={setSection}
-        actions={<>
-          <Button size="sm" variant="secondary" leftIcon={scanning ? "loader" : "radar"} onClick={scanAll}>{scanning ? "Memindai…" : "Scan semua"}</Button>
-          <Button size="sm" leftIcon="plus" onClick={() => setModal("project")}>Project baru</Button>
-        </>}>
+        actions={<Button size="sm" leftIcon="plus" onClick={() => setModal("project")}>Project baru</Button>}>
         {gate(
           projectsView.length === 0
             ? <StateBlock kind="empty" icon="box" title="Belum ada project"
