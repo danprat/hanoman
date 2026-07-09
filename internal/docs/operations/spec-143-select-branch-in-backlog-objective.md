@@ -3,7 +3,7 @@
 **Fase:** Objective (dikunci) · 2026-07-09
 **Jenis:** fitur — branch sumber worktree menjadi properti backlog item, bukan default tersembunyi
 **Source of Truth:** `internal/docs/**` — dokumen ini subordinat terhadapnya.
-**Turunan:** brainstorm → [`docs/superpowers/specs/2026-07-09-hanoman-select-branch-in-backlog-spec-143-brainstorm.md`], design → [`docs/superpowers/specs/2026-07-09-hanoman-select-branch-in-backlog-spec-143-design.md`], plan menyusul.
+**Turunan:** brainstorm → [`docs/superpowers/specs/2026-07-09-hanoman-select-branch-in-backlog-spec-143-brainstorm.md`], design → [`docs/superpowers/specs/2026-07-09-hanoman-select-branch-in-backlog-spec-143-design.md`], plan → [`docs/superpowers/plans/2026-07-09-hanoman-select-branch-in-backlog-spec-143.md`].
 
 ## Masalah
 
