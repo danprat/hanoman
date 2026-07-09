@@ -58,6 +58,8 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 - [spec-145 — objective (QA after audit: keputusan sebelum spec)](operations/spec-145-qa-after-audit-objective.md)
 - [spec-146 — audit (belum ada detail project)](operations/spec-146-detail-project-audit.md)
 - [spec-146 — spec (detail project)](operations/spec-146-detail-project-spec.md)
+- [spec-147 — audit (tidak ada favicon)](operations/spec-147-favicon-audit.md)
+- [spec-147 — spec (favicon)](operations/spec-147-favicon-spec.md)
 
 ## security
 - [security-standard](security/security-standard.md)
