@@ -229,6 +229,11 @@ Enumerasi **wajib diulang** tepat sebelum berkas ADR ditulis. Judul: *Fase peren
 dipangkas oleh keputusan audit*. Berkasnya ditulis pada fase Execute (preseden SPEC-143), ter-link
 di `internal/docs/README.md` dalam commit yang sama.
 
+**Amandemen — 2026-07-09 (fase Execute).** Peringatan di atas terwujud persis seperti ditulis.
+Enumerasi ulang di fase Execute menemukan `run-8804` sudah mengklaim
+`0019-sha-disimpan-diff-diturunkan.md` (SPEC-144). ADR ini karena itu **ADR-0020**, bukan 0019.
+Sisa desain ini — nama file, isi, dan seluruh keputusan lain — tetap berlaku utuh.
+
 ## Ringkasan permukaan
 
 | Berkas | Perubahan |
