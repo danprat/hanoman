@@ -2,9 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { zCreateProject } from "@hanoman/shared";
 import { prisma } from "../db";
 import { toProjectView } from "../services/project-view";
-import { docIndex } from "../services/docs";
 import { listRepoBranches } from "../services/branches";
-import { docStatusFor } from "../services/coverage";
 
 export default async function (app: FastifyInstance) {
   app.get("/projects", async () => {
@@ -47,12 +45,5 @@ export default async function (app: FastifyInstance) {
     const p = await prisma.project.findUnique({ where: { id } });
     if (!p) return reply.code(404).send({ error: "not found" });
     return { branches: listRepoBranches(p.repoDir) };
-  });
-  app.post("/projects/:id/scan", async (req, reply) => {
-    const { id } = req.params as { id: string };
-    if (!(await prisma.project.findUnique({ where: { id } }))) return reply.code(404).send({ error: "not found" });
-    const { coverage } = await docIndex(id);
-    await prisma.project.update({ where: { id }, data: { coverage, docStatus: docStatusFor(coverage) } });
-    return toProjectView(id);
   });
 }
