@@ -2,7 +2,7 @@
 
 - React + TypeScript (Vite). Komponen dari Hanoman Design System.
 - Layout: sidebar 248px + topbar 56px; konten maks 1200px (Docs full-width).
-- Bagian: Overview, Projects (list + pagination + cari + hapus project per baris) → **detail project** (identitas, coverage, edit `name`/`desc` lewat `PATCH /projects/:id`, dan tiga pintu: docs, runs, backlog). `id` tak pernah dapat diubah — ia kunci asing spec/run/trigger (SPEC-146). Hapus project ada di detail dan di header Docs — konfirmasi dulu, ditolak bila ada run aktif; rename tidak ditolak, karena `id` tak bergerak, Backlog (filter project + tab + aksi per spec + detail spec via modal: judul, stage bar, objective, field brief/QA), Runs (filter project + list + detail: pipeline, worktree, kendali, terminal), Terminal (sesi Claude Code interaktif), Docs (tree realtime semua `.md` di repo via `GET /docs`, dikelompokkan per direktori; kategori di luar `docsDir` masuk grup **Lainnya (tidak dinilai)** tanpa status linked — hanya kategori berskor yang masuk coverage, lihat ADR-0013; tombol **Muat ulang** membaca ulang tree, **Hapus** menghapus file asli, path ditampilkan repo-relative tanpa prefix `internal/docs`), Triggers (toggle + hapus per baris, konfirmasi dulu), Settings (model per step).
+- Bagian: Overview, Projects (list + pagination + cari + hapus project per baris) → **detail project** (identitas, coverage, edit `name`/`desc` lewat `PATCH /projects/:id`, dan tiga pintu: docs, runs, backlog). `id` tak pernah dapat diubah — ia kunci asing spec/run/trigger (SPEC-146). Hapus project ada di detail dan di header Docs — konfirmasi dulu, ditolak bila ada run aktif; rename tidak ditolak, karena `id` tak bergerak, Backlog (filter project + tab + tiga mode tampilan grid/list/board + aksi per spec + detail spec via modal: judul, stage bar, objective, field brief/QA), Runs (filter project + list + detail: pipeline, worktree, kendali, terminal), Terminal (sesi Claude Code interaktif), Docs (tree realtime semua `.md` di repo via `GET /docs`, dikelompokkan per direktori; kategori di luar `docsDir` masuk grup **Lainnya (tidak dinilai)** tanpa status linked — hanya kategori berskor yang masuk coverage, lihat ADR-0013; tombol **Muat ulang** membaca ulang tree, **Hapus** menghapus file asli, path ditampilkan repo-relative tanpa prefix `internal/docs`), Triggers (toggle + hapus per baris, konfirmasi dulu), Settings (model per step).
 - Filter project di Backlog dan Runs dibaca dari satu state `projectFilter` milik `App`, bukan
   state lokal tiap layar (SPEC-146) — detail project memakainya untuk membuka kedua layar dalam
   keadaan sudah tersaring.
@@ -19,6 +19,45 @@
   sekali di `App` untuk semua section kecuali Settings, yang memuat datanya sendiri. Error state selalu
   membawa aksi retry; empty state membawa call-to-action ke aksi yang relevan. Settings **tidak** lagi
   jatuh ke nilai default saat GET gagal — toggle berikutnya akan mem-PUT default itu menimpa server.
+
+## Backlog: tiga mode tampilan, dan board yang tidak boleh berbohong
+`BacklogScreen` merender satu daftar spec dalam tiga bentuk — **grid** (default, kartu penuh
+dengan stage bar), **list** (satu baris per spec), dan **board** (kanban). Grid dan list
+dipaginasi lewat `usePaged`; board tidak, karena kolom yang terpotong halaman bukan board.
+
+Kolomnya: `Backlog · Brainstorm · Objective · Spec · Plan · Execute · Success · Failed`.
+Hanya enam kolom tengah yang benar-benar `Spec.stage`. Tiga sisanya **turunan**, bukan field:
+
+- **Backlog** — spec yang belum pernah punya run sama sekali. Spec yang stage-nya sudah maju
+  tapi run-nya dihapus tetap tinggal di kolom stage-nya, tidak diklaim balik ke sini.
+- **Success** — `stage === "done"`.
+- **Failed** — run **terakhir** spec itu `failed`/`stopped`. Ini tidak bisa dibaca dari spec:
+  `mirrorStage` monotonic-forward (ADR-0008), jadi run yang gagal meninggalkan spec diam di
+  stage terakhir yang sempat tercapai. Karena itu `App` menurunkan `lastRunStatus`
+  (`Map<specId, status run terakhir>`) dari array `runs` — `GET /runs` sudah `desc by id`,
+  jadi kecocokan pertama per `specId` adalah yang terbaru.
+
+Konsekuensinya untuk drag: **enam kolom stage tidak bisa menerima maupun melepas kartu**
+(`draggable={false}`). `Spec.stage` milik runner (ADR-0008); UI yang menulisnya akan membuat
+`executing`/`done` bisa dicapai tanpa run yang lewat guardrail Source of Truth — persis yang
+ADR itu tutup. Dua drop yang sah keduanya bermuara ke `POST /runs`, bukan ke `PATCH /specs`:
+
+    Backlog ──drag──► Brainstorm…Execute   = mulai run
+    Failed  ──drag──► Backlog              = jalankan lagi
+
+Aturannya dua fungsi murni terekspor, `specColumn()` dan `canDrop()`, diuji di
+`src/test/backlog-board.test.tsx` — termasuk empat render test jsdom yang men-drag kartu
+sungguhan, karena `from`/`to` yang tertukar lolos dari unit test aturannya sendiri.
+
+Drag pakai HTML5 drag-and-drop native, tanpa dependency. Ia **bukan** satu-satunya jalan:
+tombol Mulai/Jalankan lagi tetap ada di ketiga mode, karena drag tidak bisa dipakai keyboard.
+
+Memulai run **tidak** memindahkan layar ke Runs — dulu `startRun` memanggil `setSection("runs")`,
+yang membuang filter dan mode tampilan operator setiap kali satu spec dijalankan, dan mustahil
+dipakai bersama board (menyeret satu kartu langsung melempar keluar dari board-nya). Yang menandai
+run sudah jalan adalah kartunya sendiri: `setRuns(await api.listRuns())` menyegarkan `activeRunSpecs`,
+tombolnya berubah jadi **Buka run**, dan toast menyebut `runId`-nya. Hanya **Buka run** yang
+menavigasi.
 
 ## Terminal (sesi Claude Code interaktif)
 `TerminalScreen` menampilkan satu tab per sesi PTY; `TerminalPane` me-mount `xterm.js` dan

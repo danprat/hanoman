@@ -347,6 +347,14 @@ export default function App() {
       .map((r) => r.specId as string)),
     [runs]);
 
+  // Status run TERAKHIR per spec — kolom Backlog/Failed di board butuh ini; stage sendiri
+  // tak pernah mundur, jadi run gagal tak terlihat dari spec. `/runs` sudah desc by id.
+  const lastRunStatus = React.useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of runs) if (r.specId && !m.has(r.specId)) m.set(r.specId, r.status);
+    return m;
+  }, [runs]);
+
   // Stage bar is a live mirror: while any run is active, re-poll specs+runs so the
   // board reflects real phase progress. Stops when nothing is running.
   const anyRunActive = runs.some((r) => isRunActive(r.status));
@@ -544,7 +552,7 @@ export default function App() {
       <Shell active="backlog" title="Backlog" breadcrumb="specs · brainstorm → execute" onNavigate={setSection}
         actions={<Button size="sm" leftIcon="plus" onClick={() => setModal("brief")}>Tambah</Button>}>
         {gate(<BacklogScreen backlog={backlog} projects={projectsView} pageSize={20}
-          onStart={startRun} activeRunSpecs={activeRunSpecs} onNew={() => setModal("brief")}
+          onStart={startRun} activeRunSpecs={activeRunSpecs} lastRunStatus={lastRunStatus} onNew={() => setModal("brief")}
           onDelete={deleteSpec} onOpenRun={() => setSection("runs")} onEditBranch={editBranch}
           projectFilter={projectFilter} onProjectFilter={setProjectFilter} />)}
       </Shell>
