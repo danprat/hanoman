@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { zCreateProject } from "@hanoman/shared";
+import { zCreateProject, zUpdateProject } from "@hanoman/shared";
 import { prisma } from "../db";
 import { toProjectView } from "../services/project-view";
 import { listRepoBranches } from "../services/branches";
@@ -28,6 +28,16 @@ export default async function (app: FastifyInstance) {
       }
     });
     return reply.code(201).send(await toProjectView(id));
+  });
+  // Rename tak menyentuh `id`, jadi tak ada gate run aktif seperti DELETE. Cermin
+  // app.patch("/specs/:id") (server/src/routes/specs.ts:42).
+  app.patch("/projects/:id", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const parsed = zUpdateProject.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    if (!(await prisma.project.findUnique({ where: { id } }))) return reply.code(404).send({ error: "not found" });
+    await prisma.project.update({ where: { id }, data: parsed.data });
+    return toProjectView(id);
   });
   app.delete("/projects/:id", async (req, reply) => {
     const { id } = req.params as { id: string };

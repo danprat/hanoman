@@ -3,7 +3,10 @@
 Entitas inti (Postgres via Prisma).
 
 ## Project
-- `id` (slug), `name`, `desc`, `kind` ("from-scratch" | "existing"), `repoDir`/`repoUrl`
+- `id` (slug) — **kekal**. Kunci asing `Spec`/`Run`/`Trigger`; tidak ada endpoint rename.
+- `name`, `desc` — label tampilan; dapat diubah lewat `PATCH /projects/:id` (SPEC-146) dan boleh
+  menyimpang dari `id`. Tak ada jalur git/worktree/filesystem yang membacanya.
+- `kind` ("from-scratch" | "existing"), `repoDir`/`repoUrl`
 - `createdAt`
 - `docStatus` ("ok" | "drift" | "broken") + `coverage` (0–100) **bukan kolom** — diturunkan dari disk tiap `toProjectView` (ADR-0018).
 

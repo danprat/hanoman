@@ -103,4 +103,41 @@ describe("projects routes", () => {
     const res = await app.inject({ url: "/api/projects/hantu/branches" });
     expect(res.statusCode).toBe(404);
   });
+
+  // SPEC-146: yang berubah label, bukan kunci. `p-patch` dibuat sendiri — `p1` sudah
+  // dihapus tes "deletes a project and cascades its specs" di atas.
+  it("PATCH /projects/:id renames without touching id", async () => {
+    await makeProject({ id: "p-patch", name: "p-patch", desc: "lama" });
+    const res = await app.inject({
+      method: "PATCH", url: "/api/projects/p-patch",
+      payload: { name: "Kirana App", desc: "baru" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().id).toBe("p-patch");
+    expect(res.json().name).toBe("Kirana App");
+    expect(res.json().desc).toBe("baru");
+  });
+  it("PATCH rejects an empty name with 400 and changes nothing", async () => {
+    const res = await app.inject({
+      method: "PATCH", url: "/api/projects/p-patch", payload: { name: "" },
+    });
+    expect(res.statusCode).toBe(400);
+    const after = await app.inject({ url: "/api/projects/p-patch" });
+    expect(after.json().name).toBe("Kirana App");
+  });
+  it("PATCH 404s on an unknown project", async () => {
+    const res = await app.inject({
+      method: "PATCH", url: "/api/projects/hantu", payload: { name: "x" },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+  // Kontras DELETE (409, projects.ts:35-36): `id` tak bergerak, jadi run aktif tak terusik.
+  it("PATCH is allowed while a run is active", async () => {
+    await makeRun({ id: "RUN-patch", projectId: "p-patch", status: "running" });
+    const res = await app.inject({
+      method: "PATCH", url: "/api/projects/p-patch", payload: { name: "Kirana" },
+    });
+    expect(res.statusCode).toBe(200);
+    await prisma.run.delete({ where: { id: "RUN-patch" } });
+  });
 });

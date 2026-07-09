@@ -7,6 +7,8 @@ REST + SSE. Semua di bawah `/api`.
 GET  /projects
 POST /projects            { name, kind, repoDir?, desc }
 GET  /projects/:id
+PATCH /projects/:id       { name?, desc? }   # 200 view; 400 name kosong; 404 tak ada.
+#   `id` tak pernah berubah (kunci asing spec/run/trigger) — tak ada gate run aktif seperti DELETE.
 POST /projects/:id/scan   # re-scan docs SoT
 GET  /projects/:id/branches  -> { branches: string[] }   # refs/heads repoDir; [] bila tanpa repo. 404 project tak ada.
 DELETE /projects/:id      # 409 bila ada run queued/running/paused; cascade ke spec/run/trigger.
