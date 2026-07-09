@@ -26,6 +26,24 @@ describe("git worktree ops", () => {
     expect(existsSync(wt)).toBe(false);
   });
 
+  // Project lokal tanpa `origin`: push selalu gagal, dan gagalnya terjadi setelah fase
+  // terakhir sudah `done` — run yang pekerjaannya beres berakhir bukan `done`.
+  it("lands branchTo locally when the repo has no remote", () => {
+    const repo = mkdtempSync(join(tmpdir(), "noremote-"));
+    g(repo, "init", "-q"); g(repo, "config", "user.email", "t@t"); g(repo, "config", "user.name", "t");
+    writeFileSync(join(repo, "README.md"), "x"); g(repo, "add", "-A"); g(repo, "commit", "-qm", "init");
+    g(repo, "branch", "-M", "main");
+
+    const wt = join(repo, ".worktrees", "run-1");
+    realGit.addWorktree(repo, wt, "main");
+    writeFileSync(join(wt, "new.txt"), "hi");
+
+    realGit.commitAndPush(wt, "feat: x", "feat/run-1");
+    expect(g(repo, "branch", "--list", "feat/run-1").stdout).toContain("feat/run-1");
+    expect(g(repo, "show", "feat/run-1:new.txt").stdout).toBe("hi");
+    realGit.removeWorktree(repo, wt);
+  });
+
   // ADR-0017. addWorktree biasanya menghapus paksa pohon sisa run sebelumnya. Run yang
   // dilanjutkan justru butuh isinya — spec dan plan yang ditulis fase-fase terdahulu.
   it("reuse: keeps an existing worktree untouched, but still rebuilds a missing one", () => {

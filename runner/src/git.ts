@@ -11,6 +11,8 @@ function git(cwd: string, args: string[], redact?: string) {
   return r.stdout;
 }
 const tryGit = (cwd: string, args: string[]) => { spawnSync("git", args, { cwd, encoding: "utf8" }); };
+const hasRemote = (cwd: string, name: string) =>
+  spawnSync("git", ["remote", "get-url", name], { cwd, encoding: "utf8" }).status === 0;
 export const realGit: GitOps = {
   // --detach: check out branchFrom's commit in a detached HEAD so a run can
   // branch from `main` even while `main` is checked out in the primary tree
@@ -33,6 +35,11 @@ export const realGit: GitOps = {
   // github remote; absent, push to `origin` (local runs, behaviour unchanged).
   commitAndPush: (path, message, branchTo, remoteUrl) => {
     git(path, ["add", "-A"]); git(path, ["commit", "-m", message]);
+    // Project lokal boleh tak punya `origin`. Push-nya dulu selalu melempar — dan melempar
+    // *setelah* fase terakhir sudah ditandai done, jadi run yang pekerjaannya beres tak
+    // pernah sampai `status: done`. Yang opsional di sini remote-nya, bukan branch-nya:
+    // tanpa remote, kerjanya tetap didaratkan ke branchTo secara lokal.
+    if (!remoteUrl && !hasRemote(path, "origin")) { git(path, ["branch", "-f", branchTo, "HEAD"]); return; }
     // full refname: from a detached HEAD git can't infer refs/heads/ for a short dest
     git(path, ["push", remoteUrl ?? "origin", `HEAD:refs/heads/${branchTo}`], remoteUrl);
   },
