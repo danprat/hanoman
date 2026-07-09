@@ -121,6 +121,35 @@ describe("runOne", () => {
     expect(d.git.removeWorktree).not.toHaveBeenCalled();
   });
 
+  // pause/stop mem-abort di TENGAH giliran, bukan di antara fase: `claude` mati, `next()`
+  // mengembalikan null, `takeTurn` melempar. Lemparan yang lolos keluar membuat job BullMQ
+  // gagal dan markFailed menandai run `failed` — padahal penggunanya yang menekan stop.
+  it("stops, tidak melempar, saat abort mendarat di tengah giliran", async () => {
+    const ac = new AbortController();
+    // Sesi yang dibunuh oleh abort: `send` mengabort dan tak pernah mengantre `result`,
+    // jadi `next()` mengembalikan null persis seperti proses claude yang mati.
+    const killedSession = (): ClaudeSession => ({
+      send() { ac.abort(); }, async next() { return null; }, close() { /* empty */ }, kill() { /* empty */ },
+    });
+    const d = fakeDeps({ openSession: killedSession });
+    const events: any[] = [];
+    const r = await runOne(input(), d, (e) => events.push(e), { abortController: ac });
+    expect(r.status).toBe("stopped");
+    expect(events.at(-1)).toEqual({ kind: "status", status: "stopped" });
+    expect(d.git.commitAndPush).not.toHaveBeenCalled();
+    expect(d.git.removeWorktree).not.toHaveBeenCalled();
+  });
+
+  // Yang bukan abort tetap harus melempar — kalau tidak, sesi claude yang mati sendiri
+  // (crash, auth ditolak) akan diam-diam dilaporkan sebagai "stopped" atas permintaan.
+  it("melempar saat sesi mati tanpa abort", async () => {
+    const deadSession = (): ClaudeSession => ({
+      send() { /* empty */ }, async next() { return null; }, close() { /* empty */ }, kill() { /* empty */ },
+    });
+    await expect(runOne(input(), fakeDeps({ openSession: deadSession }), () => {}))
+      .rejects.toThrow(/sesi claude berakhir sebelum `result` tiba/);
+  });
+
   // Matching one error_* subtype would silently report every other one as `done`.
   it.each(["error_during_execution", "error_max_turns", "error_max_budget_usd"])(
     "fails the run on result subtype %s", async (subtype) => {

@@ -119,6 +119,15 @@ export async function runOne(
           costUsd = t.costUsd; tokensIn += t.tokensIn; tokensOut += t.tokensOut;
         }
       }
+    } catch (e) {
+      // pause/stop mem-abort di tengah giliran: `claude` mati, `next()` mengembalikan null,
+      // dan `takeTurn` melempar. Dulu lemparan itu keluar dari runOne → job BullMQ gagal →
+      // markFailed menulis `failed` + finishedAt, balapan dengan `paused`/`stopped` milik
+      // route. Berhenti atas permintaan bukan kegagalan. Guard di puncak loop hanya menangkap
+      // abort yang mendarat di antara fase, dan fase itu panjang. Error lain tetap dilempar.
+      if (!abortController.signal.aborted) throw e;
+      onEvent({ kind: "status", status: "stopped" });
+      return stopped();
     } finally {
       // Menutup stdin adalah satu-satunya cara `claude` keluar. Tanpa ini prosesnya menggantung
       // sampai worker mati — persis deadlock yang dulu menahan fase Execute selamanya.

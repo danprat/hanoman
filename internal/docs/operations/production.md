@@ -48,6 +48,9 @@ sendiri sama-sama mulai dari floor yang sama, mengalokasikan `RUN-8801`, lalu
 run. Guard dedup di `enqueueRun` buta lintas-DB. Floor terpisah membuat id-nya tak
 pernah bertemu.
 
+Nomor SPEC punya masalah sekeluarga, dijawab berbeda: lantainya diambil dari nama berkas
+docs, bukan dari env. Lihat [ADR-0021](../adr/0021-nomor-spec-diklaim-docs-bukan-hanya-database.md).
+
 ## Kenapa Redis db **wajib** bukan 0
 
 Worker dev mendengarkan `hanoman-runs` di db 0. Nama queue prod sama persis, jadi
