@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { existsSync } from "node:fs";
 import { zCreateSpec, zPatchSpec, type Stage } from "@hanoman/shared";
 import { prisma } from "../db";
-import { specReview, reviewFile, worktreeDir, specCommitRange, specReviewRange, reviewFileRange } from "../services/spec-review";
+import { specReview, reviewFile, worktreeDir, specCommitRange, specReviewRange, reviewFileRange, shaResolvable } from "../services/spec-review";
 import { nextSpecId } from "../services/id";
 import { listRepoBranches } from "../services/branches";
 import { STAGES } from "../services/stage-machine";
@@ -124,21 +124,28 @@ export default async function (app: FastifyInstance) {
 
   // SPEC-171 · review backlog item: all files + file changed, diturunkan dari git.
   // Worktree hidup <repoDir>/.worktrees/<specid> → diff atas working tree. Worktree lenyap
-  // (item selesai) → jatuh ke range commit `oldest(spec-N)^..newest` di history, jadi perubahan
-  // tetap bisa di-review sesudah selesai. Tak ada keduanya → 409. Gerbang path ada di reviewFile*.
+  // (item selesai) → diff `baseSha..headSha` tersimpan (SPEC-176, ADR-0030), atau fallback
+  // range commit `oldest(spec-N)^..newest` di history untuk spec lama tanpa SHA. Tak ada
+  // sumber apa pun → 409. Gerbang path ada di reviewFile*.
   const specWithProject = (id: string) =>
     prisma.spec.findUnique({ where: { id }, include: { project: true } });
-  // wt hidup > commit history. Null = tak ada sumber apa pun (409).
-  const resolveReview = async (repoDir: string, id: string) =>
-    existsSync(worktreeDir(repoDir, id))
-      ? { wt: true as const }
-      : await specCommitRange(repoDir, id).then((r) => (r ? { wt: false as const, ...r } : null));
+  // wt hidup > SHA tersimpan (bila objeknya masih terjangkau) > grep pesan commit. Null = 409.
+  const resolveReview = async (
+    repoDir: string, spec: { id: string; baseSha: string | null; headSha: string | null },
+  ) => {
+    if (existsSync(worktreeDir(repoDir, spec.id))) return { wt: true as const };
+    if (spec.baseSha && spec.headSha
+        && await shaResolvable(repoDir, spec.baseSha) && await shaResolvable(repoDir, spec.headSha))
+      return { wt: false as const, base: spec.baseSha, head: spec.headSha };
+    const r = await specCommitRange(repoDir, spec.id);
+    return r ? { wt: false as const, ...r } : null;
+  };
   app.get("/specs/:id/review", async (req, reply) => {
     const { id } = req.params as { id: string };
     const spec = await specWithProject(id);
     if (!spec) return reply.code(404).send({ error: "not found" });
     if (!spec.project.repoDir) return reply.code(409).send({ error: "project belum punya repoDir" });
-    const r = await resolveReview(spec.project.repoDir, id);
+    const r = await resolveReview(spec.project.repoDir, spec);
     if (!r) return reply.code(409).send({ error: "belum ada worktree atau commit untuk di-review — jalankan/lanjutkan sesi backlog dulu" });
     return r.wt ? specReview(spec.project.repoDir, id, spec.branchFrom)
       : specReviewRange(spec.project.repoDir, r.base, r.head);
@@ -149,7 +156,7 @@ export default async function (app: FastifyInstance) {
     const spec = await specWithProject(id);
     if (!spec) return reply.code(404).send({ error: "not found" });
     if (!spec.project.repoDir) return reply.code(409).send({ error: "project belum punya repoDir" });
-    const r = await resolveReview(spec.project.repoDir, id);
+    const r = await resolveReview(spec.project.repoDir, spec);
     if (!r) return reply.code(409).send({ error: "belum ada worktree atau commit" });
     const rf = r.wt ? await reviewFile(spec.project.repoDir, id, spec.branchFrom, path)
       : await reviewFileRange(spec.project.repoDir, r.base, r.head, path);

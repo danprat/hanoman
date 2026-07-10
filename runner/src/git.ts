@@ -35,4 +35,7 @@ export const realGit: GitOps = {
     return base;
   },
   removeWorktree: (repo, path) => { git(repo, ["worktree", "remove", "--force", path]); },
+  // Dibaca di worktree sesi (bukan repo utama) tepat sebelum removeWorktree: HEAD-nya =
+  // ujung range diff review sesudah item selesai (SPEC-176, ADR-0030).
+  headSha: (worktree) => git(worktree, ["rev-parse", "HEAD"]).trim(),
 };

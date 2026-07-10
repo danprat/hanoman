@@ -46,8 +46,9 @@ PATCH /specs/:id          { branchFrom?: string|null, stage?, confirmDelete? }  
 #   confirmDelete:true → hapus artefak + set stage. Agen tetap forward-only (ADR-0008/0024).
 DELETE /specs/:id
 GET  /specs/:id/review        # { base, files:string[], changed:{path,add,del,status,binary}[] }  (SPEC-171)
-#   review worktree backlog item <repoDir>/.worktrees/<specid>; base = merge-base(branchFrom‖main, HEAD).
-#   files = git ls-files (tracked ∪ untracked-tak-ignored, minus --deleted). 409 bila repoDir/worktree tak ada.
+#   worktree hidup <repoDir>/.worktrees/<specid> → diff working tree, base = merge-base(branchFrom‖main, HEAD).
+#   worktree lenyap (done) → diff baseSha..headSha tersimpan (SPEC-176, ADR-0030), fallback grep (spec-N) utk spec lama.
+#   files = git ls-files (tracked ∪ untracked-tak-ignored, minus --deleted). 409 bila tak ada sumber apa pun.
 GET  /specs/:id/review/*path  # { path, status, binary, truncated, diff, content }  isi 1 file (256 KB)
 #   404 bila path di luar (files ∪ changed) — sekaligus gerbang path traversal.
 ```

@@ -22,6 +22,7 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 - [stack](architecture/stack.md) · [data-model](architecture/data-model.md) · [api-contract](architecture/api-contract.md) · [nfr](architecture/nfr.md)
 
 ## adr
+- [0030 — `Spec` menyimpan baseSha/headSha; review done men-diff darinya](adr/0030-spec-menyimpan-base-head-sha.md)
 - [0029 — `Execute done` hanya sah bila plan terceklist penuh](adr/0029-execute-done-butuh-plan-terceklist.md)
 - [0028 — Auth: sesi opaque revocable di DB, bind 127.0.0.1 + reverse proxy TLS](adr/0028-auth-sesi-opaque-di-db.md)
 - [0027 — Stage boleh mundur atas perintah human eksplisit](adr/0027-revert-stage-backward-only.md)
@@ -76,6 +77,7 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 - [spec-168 — spec (backlog turunkan stage live saat sesi hidup)](operations/spec-168-backlog-realtime-spec.md)
 - [spec-170 — objective (lihat dokumen audit/spec/plan per backlog item)](operations/spec-170-doc-viewer-objective.md)
 - [spec-171 — objective (All File & File Changed: review worktree backlog)](operations/spec-171-all-file-changed-objective.md)
+- [spec-176 — audit (review backlog `done` kosong file changed-nya)](operations/spec-176-review-file-changed-audit.md)
 
 ## security
 - [security-standard](security/security-standard.md)
