@@ -43,7 +43,7 @@
 
 `Ask` sengaja hidup di `types.ts`, bukan `phases.ts`: `RunEvent` (Task 3) memerlukannya, dan `phases.ts` sudah meng-import dari `types.ts` — kebalikannya akan melingkar.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di akhir `runner/test/phases.test.ts`. Perhatikan import baru di baris 5 (`ASK_FILE`, `readAsk`) dan `existsSync`:
 
@@ -118,12 +118,12 @@ describe("readAsk (SPEC-157, fail-safe)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./runner exec vitest run test/phases.test.ts`
 Expected: FAIL — `readAsk is not a function` / `ASK_FILE` tidak ter-export.
 
-- [ ] **Step 3: Tambah tipe di `runner/src/types.ts`**
+- [x] **Step 3: Tambah tipe di `runner/src/types.ts`**
 
 Sisipkan tepat di atas `export type PhaseState` (baris 34):
 
@@ -134,7 +134,7 @@ export type AskOption = { value: string; label: string; detail?: string };
 export type Ask = { question: string; options: AskOption[]; default: string };
 ```
 
-- [ ] **Step 4: Tambah `ASK_FILE` + `readAsk` di `runner/src/phases.ts`**
+- [x] **Step 4: Tambah `ASK_FILE` + `readAsk` di `runner/src/phases.ts`**
 
 Ubah baris 1-2 menjadi:
 
@@ -177,12 +177,12 @@ export function readAsk(worktree: string): Ask | null {
 }
 ```
 
-- [ ] **Step 5: Jalankan test, pastikan lulus**
+- [x] **Step 5: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./runner exec vitest run test/phases.test.ts`
 Expected: PASS — seluruh `readDecision` lama tetap hijau, 10 test `readAsk` baru hijau.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add runner/src/types.ts runner/src/phases.ts runner/test/phases.test.ts
@@ -203,7 +203,7 @@ Jawaban bisa ter-publish di celah antara `readAsk` dan awal `await`. Resolver pr
 - Consumes: —
 - Produces: `SteerQueue.next(): Promise<string>` (di samping `push`/`drain` yang tidak berubah)
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Ganti seluruh isi `runner/test/steer-queue.test.ts`:
 
@@ -250,12 +250,12 @@ describe("SteerQueue", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./runner exec vitest run test/steer-queue.test.ts`
 Expected: FAIL — `q.next is not a function`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Ganti seluruh isi `runner/src/steer-queue.ts`:
 
@@ -283,12 +283,12 @@ export class SteerQueue {
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan lulus**
+- [x] **Step 4: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./runner exec vitest run test/steer-queue.test.ts`
 Expected: PASS (5 test).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runner/src/steer-queue.ts runner/test/steer-queue.test.ts
@@ -313,7 +313,7 @@ Fase belum `done` selama masih ada yang ditanyakan. Task ini menangani jalur man
   - `runOne(input, deps, onEvent, ctl)` — `ctl` bertambah `answers?: SteerQueue` dan `askTimeoutMs?: number`
   - konstanta modul `MAX_ASKS_PER_PHASE = 5`, `DEFAULT_ASK_TIMEOUT_MS = 30 * 60_000`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di akhir `runner/test/run.test.ts`. Helper `askTree` meniru `qaTree` yang sudah ada di baris 256:
 
@@ -426,12 +426,12 @@ describe("runOne · pertanyaan agen (SPEC-157)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./runner exec vitest run test/run.test.ts -t "pertanyaan agen"`
 Expected: FAIL — tak ada event `ask`; status `awaiting` tak pernah muncul.
 
-- [ ] **Step 3: Perluas `RunEvent` di `runner/src/types.ts`**
+- [x] **Step 3: Perluas `RunEvent` di `runner/src/types.ts`**
 
 Ganti baris 37-43 (blok `export type RunEvent`) menjadi:
 
@@ -449,7 +449,7 @@ export type RunEvent =
   | { kind: "status"; status: "running" | "paused" | "awaiting" | "stopped" | "failed" | "done" };
 ```
 
-- [ ] **Step 4: Tulis helper di `runner/src/run.ts`**
+- [x] **Step 4: Tulis helper di `runner/src/run.ts`**
 
 Ubah baris 1-6 (import) menjadi:
 
@@ -508,7 +508,7 @@ function answerText(ask: Ask, a: Answer, timeoutMs: number): string {
 }
 ```
 
-- [ ] **Step 5: Terima `answers` + `askTimeoutMs` di `runOne`**
+- [x] **Step 5: Terima `answers` + `askTimeoutMs` di `runOne`**
 
 Ganti tanda tangan `runOne` (baris 13-16) menjadi:
 
@@ -521,7 +521,7 @@ export async function runOne(
   const askTimeoutMs = ctl.askTimeoutMs ?? DEFAULT_ASK_TIMEOUT_MS;
 ```
 
-- [ ] **Step 6: Sisipkan loop ask**
+- [x] **Step 6: Sisipkan loop ask**
 
 Di `runner/src/run.ts`, tepat **setelah** blok error fase (yang berakhir `return failed();` di baris 99) dan **sebelum** `onEvent({ kind: "phase", name: phase, state: "done" });` (baris 100), sisipkan:
 
@@ -554,7 +554,7 @@ Di `runner/src/run.ts`, tepat **setelah** blok error fase (yang berakhir `return
         }
 ```
 
-- [ ] **Step 7: Bersihkan artefak ask sebelum commit**
+- [x] **Step 7: Bersihkan artefak ask sebelum commit**
 
 Ganti baris `rmSync(\`${worktree}/${DECISION_FILE}\`, { force: true });` (baris 144) menjadi dua baris:
 
@@ -565,12 +565,12 @@ Ganti baris `rmSync(\`${worktree}/${DECISION_FILE}\`, { force: true });` (baris 
 
 Komentar di atasnya sudah menjelaskan alasannya (`git add -A` men-stage berkas ber-titik di root); perluas kalimat pertamanya menjadi `Artefak keputusan DAN pertanyaan.`
 
-- [ ] **Step 8: Jalankan test, pastikan lulus**
+- [x] **Step 8: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./runner exec vitest run`
 Expected: PASS — 7 test `pertanyaan agen` baru hijau, seluruh test `runOne` lama tetap hijau.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add runner/src/types.ts runner/src/run.ts runner/test/run.test.ts
@@ -591,7 +591,7 @@ Tebakan diterima kembali di sini — jadi ia wajib **terlihat**. Baris log berta
 - Consumes: `awaitAnswer`, `answerText`, `labelOf`, `MAX_ASKS_PER_PHASE` (Task 3)
 - Produces: perilaku `askTimeoutMs <= 0` (langsung pakai default, tanpa pernah `awaiting`) dan cap per fase
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di dalam `describe("runOne · pertanyaan agen (SPEC-157)")`:
 
@@ -648,16 +648,16 @@ Tambahkan di dalam `describe("runOne · pertanyaan agen (SPEC-157)")`:
 Tambahkan `MAX_ASKS_PER_PHASE` ke import dari `../src/run` di baris 5:
 `import { runOne, MAX_ASKS_PER_PHASE } from "../src/run";`
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./runner exec vitest run test/run.test.ts -t "pertanyaan agen"`
 Expected: FAIL — `MAX_ASKS_PER_PHASE` tak ter-export; test timeout menggantung 30 menit (batalkan) atau gagal karena tak ada baris `✗`.
 
-- [ ] **Step 3: Export konstanta cap**
+- [x] **Step 3: Export konstanta cap**
 
 Di `runner/src/run.ts`, ubah `const MAX_ASKS_PER_PHASE = 5;` menjadi `export const MAX_ASKS_PER_PHASE = 5;`
 
-- [ ] **Step 4: Ganti loop ask dengan versi ber-timeout dan ber-cap**
+- [x] **Step 4: Ganti loop ask dengan versi ber-timeout dan ber-cap**
 
 Ganti seluruh blok `for (let asked = 0; ; asked++) { … }` dari Task 3 dengan:
 
@@ -709,12 +709,12 @@ Ganti seluruh blok `for (let asked = 0; ; asked++) { … }` dari Task 3 dengan:
 
 Catatan: test Task 3 `"ask yang cacat tidak menghentikan apa pun"` tetap hijau — `readAsk` mengembalikan `null`, loop `break` di iterasi pertama. Test Task 3 `"agen boleh bertanya lagi setelah dijawab"` tetap hijau — `waits` benar karena `answers` ada dan timeout default > 0.
 
-- [ ] **Step 5: Jalankan test, pastikan lulus**
+- [x] **Step 5: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./runner exec vitest run`
 Expected: PASS — 11 test `pertanyaan agen`, seluruh test runner lama hijau.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add runner/src/run.ts runner/test/run.test.ts
@@ -735,7 +735,7 @@ Tanpa ini agen tidak tahu berkasnya ada. Instruksi dipancarkan **tanpa syarat** 
 - Consumes: `ASK_FILE` (Task 1)
 - Produces: `phasePrompt` selalu memuat `ASK_FILE`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan ke `describe("phasePrompt · instruksi keputusan")` di `runner/test/phases.test.ts`:
 
@@ -757,12 +757,12 @@ Tambahkan ke `describe("phasePrompt · instruksi keputusan")` di `runner/test/ph
 
 Tambahkan `ASK_FILE` ke import baris 5.
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./runner exec vitest run test/phases.test.ts -t "phasePrompt"`
 Expected: FAIL — prompt tidak memuat `.hanoman-ask.json`.
 
-- [ ] **Step 3: Tambah konstanta `ASK` dan pasang di `phasePrompt`**
+- [x] **Step 3: Tambah konstanta `ASK` dan pasang di `phasePrompt`**
 
 Di `runner/src/phases.ts`, sisipkan tepat setelah konstanta `DECIDE` (setelah baris 52):
 
@@ -782,16 +782,16 @@ Ganti `return` di `phasePrompt` (baris 59) menjadi:
   return `hanoman ${flow} — fase ${phase}. Ikuti internal/docs sebagai Source of Truth. ${scope} Perbarui docs yang tersentuh dan link di index.${specBlock(input)}${decide}${ASK}`;
 ```
 
-- [ ] **Step 4: Perbaiki salah ketik**
+- [x] **Step 4: Perbaiki salah ketik**
 
 `gilirannmu` → `giliranmu`. Periksa ulang dengan `rtk proxy grep -n "gilirannmu" runner/src/phases.ts` — harus kosong.
 
-- [ ] **Step 5: Jalankan test, pastikan lulus**
+- [x] **Step 5: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./runner exec vitest run`
 Expected: PASS — termasuk test lama `"asks no feature phase for a decision"` (ASK_FILE ≠ DECISION_FILE).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add runner/src/phases.ts runner/test/phases.test.ts
@@ -821,7 +821,7 @@ git commit -m "feat(runner): instruksi ASK di setiap prompt fase (SPEC-157)"
   - `paths.runAnswer(id) === "/api/runs/<id>/answer"`
   - `zSetting.askTimeoutMin: number` (default `30`, min `0`)
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `shared/test/enums.test.ts`:
 
@@ -860,12 +860,12 @@ describe("SPEC-157 · kontrak awaiting", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./shared exec vitest run`
 Expected: FAIL — `zAsk` tidak ter-export.
 
-- [ ] **Step 3: `shared/src/enums.ts`**
+- [x] **Step 3: `shared/src/enums.ts`**
 
 Ganti baris 4 dan baris 19-20:
 
@@ -882,7 +882,7 @@ export const isRunActive = (status: string): boolean =>
 
 Perbarui juga komentar baris 13-18 agar menyebut `awaiting`.
 
-- [ ] **Step 4: `shared/src/entities.ts`**
+- [x] **Step 4: `shared/src/entities.ts`**
 
 Sisipkan tepat di atas `export const zRun` (baris 31):
 
@@ -914,7 +914,7 @@ Tambahkan ke `zSetting` (baris 50-55), setelah `notifyFail`:
   askTimeoutMin: z.number().int().min(0).default(30) });
 ```
 
-- [ ] **Step 5: `shared/src/dto.ts` + `shared/src/api.ts`**
+- [x] **Step 5: `shared/src/dto.ts` + `shared/src/api.ts`**
 
 Di `dto.ts`, setelah `zCommand` (baris 43):
 
@@ -930,7 +930,7 @@ Di `api.ts`, setelah `runSteer` (baris 17):
   runAnswer: (id: string) => `${API}/runs/${id}/answer`,
 ```
 
-- [ ] **Step 6: Jaga `DEFAULT_SETTING` tetap ter-kompilasi**
+- [x] **Step 6: Jaga `DEFAULT_SETTING` tetap ter-kompilasi**
 
 Di `server/src/services/settings.ts`, baris 10-14:
 
@@ -942,12 +942,12 @@ export const DEFAULT_SETTING: Setting = {
 };
 ```
 
-- [ ] **Step 7: Jalankan test, pastikan lulus**
+- [x] **Step 7: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./shared exec vitest run && pnpm --filter ./shared exec tsc --noEmit && pnpm --filter ./server exec tsc --noEmit`
 Expected: PASS + tanpa error tipe di kedua paket.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add shared/src/enums.ts shared/src/entities.ts shared/src/dto.ts shared/src/api.ts shared/test/enums.test.ts server/src/services/settings.ts
@@ -972,7 +972,7 @@ git commit -m "feat(shared): status awaiting, zAsk/zAnswer, askTimeoutMin, paths
 
 Postgres dev dipakai bersama semua worktree. Kolom nullable-aditif aman: branch lain tetap membaca dan menulis baris `Run` tanpa tahu kolomnya ada.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan ke `server/test/events-io.test.ts` (ikuti pola factory yang sudah dipakai berkas itu untuk membuat baris Run):
 
@@ -1008,12 +1008,12 @@ describe("persistEvent · ask (SPEC-157)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./server exec vitest run test/events-io.test.ts`
 Expected: FAIL — `Unknown field pendingAsk`.
 
-- [ ] **Step 3: Ubah skema**
+- [x] **Step 3: Ubah skema**
 
 Di `server/prisma/schema.prisma`, model `Run`, sisipkan setelah `sessionId` (baris 55):
 
@@ -1023,7 +1023,7 @@ Di `server/prisma/schema.prisma`, model `Run`, sisipkan setelah `sessionId` (bar
   pendingAsk    Json?
 ```
 
-- [ ] **Step 4: Jalankan migration**
+- [x] **Step 4: Jalankan migration**
 
 ```bash
 pnpm --filter ./server exec prisma migrate dev --name run_pending_ask
@@ -1037,7 +1037,7 @@ docker exec hanoman-db-1 psql -U hanoman -d hanoman -c '\d "Run"' | rtk proxy gr
 ```
 Expected: satu baris `pendingAsk | jsonb | | |`.
 
-- [ ] **Step 5: Tulis ADR-0022**
+- [x] **Step 5: Tulis ADR-0022**
 
 Buat `internal/docs/adr/0022-pertanyaan-agen-berstatus-awaiting.md`. Ikuti bentuk `0020-fase-perencanaan-qa-dipangkas-keputusan-audit.md` (Status / Konteks / Keputusan / Konsekuensi). Isi yang harus ada:
 
@@ -1046,7 +1046,7 @@ Buat `internal/docs/adr/0022-pertanyaan-agen-berstatus-awaiting.md`. Ikuti bentu
 - **Konsekuensi.** Run `awaiting` menahan satu slot `maxConcurrent` dan satu proses `claude`. Timeout (`askTimeoutMin`, default 30) jatuh ke `default` milik agen dan **wajib** dicatat sebagai baris log `✗` — tanpa itu tebakan kembali tak terlihat, persis masalah yang dipecahkan ADR ini. Worker mati saat `awaiting` → `reconcileRuns` menandainya `failed`, setara run `running` yatim hari ini.
 - **Alternatif ditolak.** Memakai ulang `paused` (menabrak semantik "proses mati" dan membuat `enqueueRun` menulis `status: "queued"` di atas run yang hidup). Tombol override guardrail (bypass Source of Truth — dilarang `CLAUDE.md`).
 
-- [ ] **Step 6: Link ADR di index dan perbarui data-model**
+- [x] **Step 6: Link ADR di index dan perbarui data-model**
 
 Cari tempat ADR-0021 di-link dan sisipkan 0022 sebaris:
 
@@ -1063,7 +1063,7 @@ pnpm build && node cli/dist/hanoman.js docs verify --block-if-stale --json
 ```
 Expected: exit 0. Kalau ada `unlinked`, tambahkan link — **jangan** turunkan ambang.
 
-- [ ] **Step 7: Persist event `ask`**
+- [x] **Step 7: Persist event `ask`**
 
 Di `server/src/runner/events-io.ts`, tambahkan import Prisma di baris 4:
 
@@ -1086,12 +1086,12 @@ Sisipkan cabang baru sebelum penutup rantai `if/else if` (setelah cabang `commit
 
 `mirrorSpecStage` di baris 75 tidak berubah: `ask` bukan `phase` maupun `status`, jadi ia tidak menggerakkan stage spec.
 
-- [ ] **Step 8: Jalankan test, pastikan lulus**
+- [x] **Step 8: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./server exec vitest run test/events-io.test.ts`
 Expected: PASS (3 test baru + seluruh test lama).
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add server/prisma/schema.prisma server/prisma/migrations server/src/runner/events-io.ts server/test/events-io.test.ts internal/docs/adr/0022-pertanyaan-agen-berstatus-awaiting.md internal/docs/architecture/data-model.md internal/docs/README.md
@@ -1117,7 +1117,7 @@ git commit -m "feat(server): Run.pendingAsk + persist event ask + ADR-0022 (SPEC
 
 `server/src/github/status.ts` **tidak diubah**: `STATE` hanya memetakan status yang dikenal, dan `awaiting` — seperti `paused` — tidak ada di sana, jadi `postStatus` sudah diam dengan sendirinya. Jangan tambahkan apa pun ke sana.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan ke `server/test/worker.test.ts`. Ini test jalur nyata: run betulan, worktree betulan berisi `ASK_FILE`, jawaban betulan lewat Redis.
 
@@ -1206,12 +1206,12 @@ Tambahkan ke `server/test/queue.test.ts`:
   });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./server exec vitest run test/worker.test.ts test/queue.test.ts`
 Expected: FAIL — `RUN-ASK` selesai `done` tapi tanpa baris `»` (worker belum meneruskan `answer`); `RUN-AW` ter-enqueue; `RUN-ORPH` tidak ikut orphans.
 
-- [ ] **Step 3: `services/settings.ts`**
+- [x] **Step 3: `services/settings.ts`**
 
 Tambahkan di akhir berkas — pola `?? default` sama seperti `maxConcurrent`, karena baris `Setting` lama di DB tak punya field ini (`DEFAULT_SETTING` sudah diperbarui di Task 6):
 
@@ -1220,7 +1220,7 @@ Tambahkan di akhir berkas — pola `?? default` sama seperti `maxConcurrent`, ka
 export async function askTimeoutMs(): Promise<number> { return ((await getSetting()).askTimeoutMin ?? 30) * 60_000; }
 ```
 
-- [ ] **Step 4: `server/src/worker.ts`**
+- [x] **Step 4: `server/src/worker.ts`**
 
 Baris 35, `reconcileRuns` — run `awaiting` yang kehilangan worker-nya juga yatim:
 
@@ -1263,7 +1263,7 @@ Baris 100:
     await runOne(input, d, onEvent, { abortController, steer, answers, askTimeoutMs: (setting.askTimeoutMin ?? 30) * 60_000 });
 ```
 
-- [ ] **Step 5: `server/src/queue.ts`**
+- [x] **Step 5: `server/src/queue.ts`**
 
 Baris 38-40:
 
@@ -1276,7 +1276,7 @@ Baris 38-40:
     return { enqueued: false, reason: `run ${input.runId} masih ${live.status}` };
 ```
 
-- [ ] **Step 6: `server/src/routes/runs.ts`**
+- [x] **Step 6: `server/src/routes/runs.ts`**
 
 Baris 108 — run hidup tak boleh dihapus:
 
@@ -1292,12 +1292,12 @@ Baris 236 — verb terminal `pause`/`stop`/`status` tetap jalan saat menunggu:
 
 Perbarui komentar baris 26 (`active` = run is running|awaiting|paused).
 
-- [ ] **Step 7: Jalankan test, pastikan lulus**
+- [x] **Step 7: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./server exec vitest run`
 Expected: PASS. Kalau `queue-durability` gagal saat dijalankan sendirian, jalankan seluruh suite server — test itu memang order-dependent dan tidak ada hubungannya dengan perubahan ini.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/src/services/settings.ts server/src/worker.ts server/src/queue.ts server/src/routes/runs.ts server/test
@@ -1319,7 +1319,7 @@ Validasi `value` terhadap `pendingAsk.options` adalah batas kepercayaan: tanpa i
 - Consumes: `zAnswer`, `paths.runAnswer`, `type Ask` (Task 6) · `publishControl` (sudah ada, `runs.ts:17`)
 - Produces: `POST /api/runs/:id/answer` → `202 { accepted: true }` · `404` · `409` · `400`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan ke `server/test/runs-control.test.ts`, yang sudah punya `app`/`resetDb`/`makeRun` di puncaknya. Ikuti gayanya: route test menegakkan **kode status**, bukan isi pesan Redis — bahwa `{type:"answer"}` benar-benar sampai ke runner sudah dibuktikan test worker di Task 8.
 
@@ -1362,12 +1362,12 @@ describe("POST /runs/:id/answer (SPEC-157)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./server exec vitest run test/runs-control.test.ts`
 Expected: FAIL — 404 pada setiap kasus (route belum ada).
 
-- [ ] **Step 3: Implementasi route**
+- [x] **Step 3: Implementasi route**
 
 Tambahkan `zAnswer` ke import baris 3 dan `type Ask` ke import `@hanoman/shared`. Sisipkan tepat setelah route `/runs/:id/steer` (setelah baris 190):
 
@@ -1391,18 +1391,18 @@ Tambahkan `zAnswer` ke import baris 3 dan `type Ask` ke import `@hanoman/shared`
   });
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan lulus**
+- [x] **Step 4: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./server exec vitest run test/runs-control.test.ts`
 Expected: PASS (6 test baru + 4 test control lama).
 
-- [ ] **Step 5: Dokumentasikan kontrak**
+- [x] **Step 5: Dokumentasikan kontrak**
 
 Tambahkan `POST /runs/:id/answer` ke `internal/docs/architecture/api-contract.md` sebaris dengan `/steer` dan `/control`: body `{ value }`, respons `202 { accepted }`, error `400` (body/value tak sah), `404`, `409` (run tidak `awaiting`).
 
 Verifikasi guardrail: `node cli/dist/hanoman.js docs verify --block-if-stale --json` → exit 0.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/routes/runs.ts server/test internal/docs/architecture/api-contract.md
@@ -1425,7 +1425,7 @@ git commit -m "feat(server): POST /runs/:id/answer dengan validasi menu (SPEC-15
 
 **Berkas ini sedang disunting sesi lain.** `git status` menunjukkan `src/src/ds/**` dan `src/src/screens/**` sudah termodifikasi. Jangan `git add -A`; stage hanya berkas yang tertulis di step Commit, dan jangan sentuh perubahan yang bukan milikmu.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/test/run-ask.test.tsx`:
 
@@ -1498,12 +1498,12 @@ describe("tombol keputusan untuk run awaiting (SPEC-157)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./src exec vitest run test/run-ask.test.tsx`
 Expected: FAIL — pertanyaan tidak dirender.
 
-- [ ] **Step 3: `StatusPill` varian `awaiting`**
+- [x] **Step 3: `StatusPill` varian `awaiting`**
 
 Di `src/src/ds/components/feedback.tsx`, sisipkan setelah baris `running:` (baris 87):
 
@@ -1513,7 +1513,7 @@ Di `src/src/ds/components/feedback.tsx`, sisipkan setelah baris `running:` (bari
 
 `pulse: true` — prosesnya hidup dan sedang menunggumu, tidak diam seperti `paused`.
 
-- [ ] **Step 4: `api.runAnswer` + event SSE**
+- [x] **Step 4: `api.runAnswer` + event SSE**
 
 Di `src/src/api/client.ts`, setelah `runSteer` (baris 41):
 
@@ -1535,7 +1535,7 @@ export type RunLiveEvent =
 
 Tambahkan `type Ask` ke import baris 1. Kalau reducer run (`src/src/…/run-reduce.ts`, lihat `src/test/run-reduce.test.ts`) melakukan pencocokan lengkap atas `kind`, tangani `ask` di sana dengan menyetel `pendingAsk`.
 
-- [ ] **Step 5: Komponen `RunAsk`**
+- [x] **Step 5: Komponen `RunAsk`**
 
 Di `src/src/screens/RunsScreen.tsx`, sisipkan tepat sebelum `function RunDetail` (baris 342):
 
@@ -1573,7 +1573,7 @@ function RunAsk({ run }: { run: RunVM }) {
 }
 ```
 
-- [ ] **Step 6: Pasang di `RunDetail` dan sesuaikan `RunControls`**
+- [x] **Step 6: Pasang di `RunDetail` dan sesuaikan `RunControls`**
 
 Ganti baris 383-384 `RunDetail` menjadi:
 
@@ -1611,12 +1611,12 @@ Ganti baris 311-319 (dari `return (` sampai tombol `Kirim`) menjadi:
 
 Sisanya (blok Pause/Resume, Stop, penutup `</div></Card>`) tetap apa adanya.
 
-- [ ] **Step 7: Jalankan test, pastikan lulus**
+- [x] **Step 7: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./src exec vitest run && pnpm --filter ./src exec tsc --noEmit`
 Expected: PASS — 4 test baru + `run-retry`, `run-poll`, `project-detail` tetap hijau.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/src/ds/components/feedback.tsx src/src/api/client.ts src/src/screens/RunsScreen.tsx src/test/run-ask.test.tsx
@@ -1631,27 +1631,27 @@ Unit test tidak membuktikan run benar-benar berhenti dan melanjutkan. CLAUDE.md 
 
 **Files:** tidak ada (verifikasi saja) · Modify: `docs/superpowers/plans/2026-07-10-hanoman-agent-ask-human-decision-spec-157.md` (centang checklist)
 
-- [ ] **Step 1: Seluruh suite hijau**
+- [x] **Step 1: Seluruh suite hijau**
 
 Run: `pnpm test`
 Expected: PASS di `shared`, `server`, `src`, `runner`, `cli`.
 Kalau `queue-durability` gagal, jalankan ulang seluruh suite server — ia order-dependent dan bukan akibat perubahan ini.
 
-- [ ] **Step 2: Guardrail Source of Truth hijau**
+- [x] **Step 2: Guardrail Source of Truth hijau**
 
 ```bash
 pnpm build && node cli/dist/hanoman.js docs verify --block-if-stale --json
 ```
 Expected: exit 0.
 
-- [ ] **Step 3: Boot server + worker**
+- [x] **Step 3: Boot server + worker**
 
 ```bash
 pnpm dev
 ```
 Tunggu `worker up · queue hanoman-runs`.
 
-- [ ] **Step 4: `awaiting` bisa dijawab lewat API**
+- [x] **Step 4: `awaiting` bisa dijawab lewat API**
 
 Tanpa run nyata: sisipkan baris uji langsung ke DB dev, lalu tembak route-nya.
 
