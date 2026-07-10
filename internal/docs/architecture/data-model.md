@@ -50,7 +50,7 @@ Docs bukan entitas DB. Tabel `DocFile` sudah di-drop (ADR-0011). Docs dibaca **l
 
 ## Settings (per workspace)
 - `steps`: { brainstorm|spec|plan|execute|audit: { model, effort } } (default opus/x-high)
-- `autoDefault`, `blockStale`, `requireLinks`, `autoScaffold`, `maxConcurrent`, `dailyBudget`, `notifyFail`
+- `autoDefault`, `autoScaffold`, `maxConcurrent`, `dailyBudget`, `notifyFail`
 
 ## Kunci: docs sebagai gerbang
 Sebelum `Run` boleh masuk fase execute, DocIndex project harus lolos verifikasi (tidak stale, semua doc acuan ter-link). Lihat ADR 0001.
