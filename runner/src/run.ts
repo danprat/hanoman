@@ -78,7 +78,7 @@ export async function runOne(
   const pruned = new Set<string>();
 
   onEvent({ kind: "status", status: "running" });
-  const baseSha = deps.git.addWorktree(input.repoDir, worktree, input.branchFrom, resuming);
+  const baseSha = deps.git.addWorktree(input.repoDir, worktree, input.branchFrom, resuming, input.headSha);
   if (baseSha) onEvent({ kind: "commit", base: baseSha });
   if (skipped.length) {
     onEvent({ kind: "log", line: { t: "›", s: `melanjutkan sesi ${input.resume} — fase selesai dilewati: ${skipped.join(", ")}` } });

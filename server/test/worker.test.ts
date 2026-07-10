@@ -108,6 +108,33 @@ describe("worker processor", () => {
     const steps = await (await import("../src/services/settings")).stepModels();
     await expect(runProcessor({ data: { runId: "RUN-3", specId: "SPEC-gone", repoDir: "/tmp/x", branchFrom: "main", branchTo: "feat/x", flow: "feature", steps } } as any, fakeDeps)).rejects.toThrow();
   });
+
+  // Tip yang pernah di-push run ini hidup di baris Run, bukan di payload job (payload dibuat
+  // saat enqueue, sebelum push terjadi). Runner memakainya sebagai basis saat membangun ulang
+  // worktree yang hilang, supaya push berikutnya fast-forward.
+  it("meneruskan headSha baris Run ke runner", async () => {
+    await makeRun({ id: "RUN-6", projectId: "p1", status: "queued", sessionId: "sess-6", headSha: "head-terpush" });
+    let base: string | undefined = "belum dipanggil";
+    const deps: RunDeps = { ...fakeDeps,
+      git: { ...fakeDeps.git, addWorktree: (_r, _p, _b, _reuse, headSha) => { base = headSha; return "base00"; } } };
+    const steps = await (await import("../src/services/settings")).stepModels();
+    await runProcessor({ data: { runId: "RUN-6", repoDir: "/tmp/x", branchFrom: "main", branchTo: "feat/x", flow: "feature", steps } } as any, deps);
+    expect(base).toBe("head-terpush");
+  });
+
+  // Satu-satunya penangan lemparan runOne dulu `worker.on("failed") → markFailed`, yang menulis
+  // status tanpa alasan. Push yang ditolak, guardrail yang error, worktree yang hilang: semuanya
+  // mendarat sebagai run `failed` berlog kosong, dan di UI tombol Retry terlihat tak berfungsi.
+  it("mencatat lemparan runOne sebagai baris log sebelum melempar ulang", async () => {
+    await makeRun({ id: "RUN-7", projectId: "p1", status: "queued" });
+    const deps: RunDeps = { ...fakeDeps,
+      git: { ...fakeDeps.git, commitAndPush: () => { throw new Error("git push failed: ! [rejected] (non-fast-forward)"); } } };
+    const steps = await (await import("../src/services/settings")).stepModels();
+    await expect(runProcessor({ data: { runId: "RUN-7", repoDir: "/tmp/x", branchFrom: "main", branchTo: "feat/x", flow: "feature", steps } } as any, deps)).rejects.toThrow(/non-fast-forward/);
+
+    const log = (await prisma.run.findUniqueOrThrow({ where: { id: "RUN-7" } })).log as { t: string; s: string }[];
+    expect(log.at(-1)).toEqual({ t: "✗", s: expect.stringContaining("non-fast-forward") });
+  });
 });
 
 // Worker mati / Redis di-restart di tengah run: tak ada lagi `on("failed")` yang menulis

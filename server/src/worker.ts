@@ -67,7 +67,11 @@ export async function runProcessor(job: Job<RunInput>, deps?: RunDeps): Promise<
   // milik run itu plus fase mana yang sudah selesai. Keduanya dibaca di sini, bukan dititipkan
   // ke payload job: payload-nya dibuat saat enqueue, sebelum fase terakhir sempat rampung.
   // Run baru belum punya sessionId → runner membuka sesi baru, persis seperti sebelumnya.
-  const row = await prisma.run.findUnique({ where: { id }, select: { sessionId: true, phases: true, pendingAsk: true } });
+  const row = await prisma.run.findUnique({ where: { id }, select: { sessionId: true, phases: true, pendingAsk: true, headSha: true } });
+  // Tip yang pernah di-push run ini. Runner memakainya sebagai basis kalau worktree-nya harus
+  // dibangun ulang — tanpa itu ia membangun dari `branchFrom`, membuang commit yang sudah
+  // mendarat di branchTo, dan push berikutnya ditolak non-fast-forward untuk selamanya.
+  if (row?.headSha) input = { ...input, headSha: row.headSha };
   // Pertanyaan yang belum terjawab dari percobaan sebelumnya (SPEC-157). Dibawa masuk supaya
   // runner menanyakannya ULANG sebelum giliran fase apa pun. Tanpa ini, sesi yang di-resume
   // membawa pertanyaan agen di konteksnya, prompt fase berikutnya terbaca seperti izin lanjut,
@@ -112,6 +116,13 @@ export async function runProcessor(job: Job<RunInput>, deps?: RunDeps): Promise<
   };
   try {
     await runOne(input, d, onEvent, { abortController, steer, answers, askTimeoutMs: (setting.askTimeoutMin ?? 30) * 60_000 });
+  } catch (e) {
+    // Satu-satunya penangan lemparan runOne adalah `worker.on("failed") → markFailed`, dan ia
+    // hanya menulis status. Push yang ditolak, guardrail yang error, worktree yang lenyap:
+    // semuanya jadi run `failed` berlog kosong, dan di UI tombol Retry terlihat tak berfungsi.
+    // Dilempar ulang — BullMQ tetap harus melihat job ini gagal.
+    onEvent({ kind: "log", line: { t: "✗", s: `run gagal · ${(e as Error).message}` } });
+    throw e;
   } finally {
     await pending;
     await sub.quit();

@@ -61,6 +61,11 @@ export type RunInput = { runId: string; projectId?: string; repoDir: string; bra
   // Melanjutkan run yang terputus (ADR-0017), diisi worker dari baris Run: sesi claude
   // milik run ini, dan fase yang sudah `done` sehingga tidak dikerjakan dua kali.
   resume?: string; donePhases?: string[];
+  // Tip yang pernah di-push run ini (`Run.headSha`), dibaca worker dari baris Run. Basis untuk
+  // MEMBANGUN ULANG worktree yang hilang: `branchFrom` sudah bergerak, dan yang lebih buruk, ia
+  // membuang commit yang sudah mendarat di branchTo — push berikutnya lalu ditolak
+  // non-fast-forward dan run itu mustahil di-retry selamanya.
+  headSha?: string;
   // Pertanyaan yang belum terjawab dari percobaan sebelumnya (SPEC-157), dibaca worker dari
   // `Run.pendingAsk`. Ditanyakan ULANG sebelum giliran fase apa pun: sesi yang di-resume masih
   // memuat pertanyaan agen di konteksnya, dan prompt fase yang datang tanpa jawaban terbaca
@@ -72,8 +77,9 @@ export type RunInput = { runId: string; projectId?: string; repoDir: string; bra
 export type RunResult = { status: "done" | "failed" | "stopped"; costUsd: number; tokensIn: number; tokensOut: number };
 
 export interface GitOps {
-  /** `reuse`: pakai worktree yang sudah ada apa adanya. Mengembalikan baseSha, atau undefined saat reuse. */
-  addWorktree(repo: string, path: string, branchFrom: string, reuse?: boolean): string | undefined;
+  /** `reuse`: pakai worktree yang sudah ada apa adanya. Mengembalikan baseSha, atau undefined saat reuse.
+   *  `headSha`: basis saat membangun ulang — tip run ini sendiri, `branchFrom` hanya cadangannya. */
+  addWorktree(repo: string, path: string, branchFrom: string, reuse?: boolean, headSha?: string): string | undefined;
   removeWorktree(repo: string, path: string): void;
   /** Mengembalikan headSha — commit tip milik run ini. */
   commitAndPush(worktreePath: string, message: string, branchTo: string, remoteUrl?: string): string;

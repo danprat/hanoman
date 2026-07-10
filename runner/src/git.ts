@@ -22,12 +22,19 @@ const hasRemote = (cwd: string, name: string) =>
 // branch remote-tracking milik run github-backed masih resolve.
 const resolveCommit = (repo: string, rev: string) =>
   git(repo, ["rev-parse", "--verify", "--end-of-options", `${rev}^{commit}`]).trim();
+// Basis untuk membangun ulang worktree: tip yang pernah di-push run ini, kalau objeknya masih
+// ada. `git push` tak meninggalkan ref lokal dan removeWorktree memangkas reflog-nya, jadi gc
+// boleh membuangnya kapan saja — objek hilang bukan kegagalan, cuma kembali ke perilaku lama.
+const resolveBase = (repo: string, headSha: string | undefined, branchFrom: string) => {
+  if (headSha) try { return resolveCommit(repo, headSha); } catch { /* objeknya sudah tak ada */ }
+  return resolveCommit(repo, branchFrom);
+};
 export const realGit: GitOps = {
   // --detach: check out branchFrom's commit in a detached HEAD so a run can
   // branch from `main` even while `main` is checked out in the primary tree
   // (git refuses to check out an already-in-use branch). commitAndPush then
   // pushes HEAD:branchTo, creating the target branch from the run's commits.
-  addWorktree: (repo, path, branchFrom, reuse) => {
+  addWorktree: (repo, path, branchFrom, reuse, headSha) => {
     // Melanjutkan run: worktree-nya justru yang dicari — di dalamnya ada spec dan plan
     // yang ditulis fase-fase sebelumnya. Menghapusnya membuat Execute kehilangan plan-nya.
     // branchFrom mungkin sudah bergerak sejak run pertama lahir — basis yang benar adalah
@@ -39,7 +46,7 @@ export const realGit: GitOps = {
     tryGit(repo, ["worktree", "remove", "--force", path]);
     tryGit(repo, ["worktree", "prune"]);
     rmSync(isAbsolute(path) ? path : resolve(repo, path), { recursive: true, force: true });
-    const base = resolveCommit(repo, branchFrom);
+    const base = resolveBase(repo, headSha, branchFrom);
     git(repo, ["worktree", "add", "--detach", path, base]);
     return base;
   },

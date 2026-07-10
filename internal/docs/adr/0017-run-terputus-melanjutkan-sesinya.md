@@ -35,6 +35,13 @@ sebelum fase terakhir sempat rampung. `enqueueRun` meng-upsert hanya `status`, j
   ingat "plan sudah kutulis" di atas worktree kosong akan meng-Execute rencana yang tidak
   ada — jauh lebih buruk daripada mengulang. Karena itu `existsSync(worktree)` adalah
   syarat, bukan optimasi.
+- **Yang diulang adalah fasenya, bukan basisnya.** Worktree yang dibangun ulang berbasis
+  `Run.headSha` (ADR-0019) — tip yang pernah di-push run itu — dan hanya jatuh ke
+  `branchFrom` bila run belum pernah push atau objeknya sudah di-gc. Membangun ulang dari
+  `branchFrom` membuang commit yang sudah mendarat di `branchTo`: `commitAndPush` berikutnya
+  lalu menabrak tip remote yang bukan lagi leluhurnya, ditolak non-fast-forward, dan run itu
+  **mustahil di-retry selamanya**. Karena `push` tak meninggalkan ref lokal dan
+  `removeWorktree` memangkas reflog-nya, `Run.headSha` adalah satu-satunya jejak tip itu.
 - **Run yang semua fasenya `done` tidak membuka sesi claude sama sekali.** Itu run yang mati
   di `commitAndPush` (mis. repo tanpa remote); yang tersisa hanya push. Membuka sesi di sana
   hanya membakar token untuk tidak mengerjakan apa pun.

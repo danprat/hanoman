@@ -74,7 +74,7 @@ describe("runOne", () => {
     const d = fakeDeps({ openSession });
     await runOne(input(), d, () => {});
     expect(openSession.mock.calls[0]![0].resume).toBeUndefined();
-    expect(d.git.addWorktree).toHaveBeenCalledWith("/repo", "/repo/.worktrees/run-1", "main", false);
+    expect(d.git.addWorktree).toHaveBeenCalledWith("/repo", "/repo/.worktrees/run-1", "main", false, undefined);
   });
 
   // REGRESI: worker.ts SELALU mengoper steer; cli/_run.ts tidak. Dulu ini menggantung selamanya
@@ -218,7 +218,7 @@ describe("runOne · melanjutkan run yang terputus", () => {
     expect(r.status).toBe("done");
     expect(openSession.mock.calls[0]![0].resume).toBe("sess-1");
     // reuse=true → addWorktree TIDAK boleh menghapus pohon yang memuat spec + plan.
-    expect(d.git.addWorktree).toHaveBeenCalledWith(repoDir, `${repoDir}/.worktrees/run-1`, "main", true);
+    expect(d.git.addWorktree).toHaveBeenCalledWith(repoDir, `${repoDir}/.worktrees/run-1`, "main", true, undefined);
     expect(doneNames(events)).toEqual(["Execute"]);
   });
 
@@ -233,8 +233,18 @@ describe("runOne · melanjutkan run yang terputus", () => {
     await runOne(input({ repoDir, resume: "sess-1", donePhases: DONE }), d, (e) => events.push(e));
 
     expect(openSession.mock.calls[0]![0].resume).toBeUndefined();
-    expect(d.git.addWorktree).toHaveBeenCalledWith(repoDir, `${repoDir}/.worktrees/run-1`, "main", false);
+    expect(d.git.addWorktree).toHaveBeenCalledWith(repoDir, `${repoDir}/.worktrees/run-1`, "main", false, undefined);
     expect(doneNames(events)).toEqual(["Brainstorm", "Objective", "Spec", "Plan", "Execute"]);
+  });
+
+  // Membangun ulang dari `branchFrom` membuang commit yang sudah di-push run ini, dan push
+  // berikutnya ditolak non-fast-forward — run jadi mustahil di-retry. Tip milik run itu
+  // sendirilah basis yang benar; `branchFrom` hanya dipakai run yang belum pernah push.
+  it("membangun ulang worktree yang hilang di atas headSha run", async () => {
+    const repoDir = mkdtempSync(join(tmpdir(), "hanoman-resume-")); // tanpa .worktrees/run-1
+    const d = fakeDeps();
+    await runOne(input({ repoDir, resume: "sess-1", donePhases: DONE, headSha: "head-lama" }), d, () => {});
+    expect(d.git.addWorktree).toHaveBeenCalledWith(repoDir, `${repoDir}/.worktrees/run-1`, "main", false, "head-lama");
   });
 
   // Run yang semua fasenya selesai tapi mati di commit/push: yang tersisa hanya push.

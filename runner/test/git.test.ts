@@ -131,6 +131,37 @@ describe("git worktree ops", () => {
     realGit.removeWorktree(repo, wt);
   });
 
+  // Worktree run yang hilang dulu selalu dibangun ulang dari `branchFrom`, membuang commit yang
+  // sudah pernah di-push run itu. `commitAndPush` berikutnya lalu menabrak tip remote yang tak
+  // lagi jadi leluhurnya: ditolak non-fast-forward, dan run mati. Basis yang benar untuk
+  // membangun ulang adalah tip milik run itu sendiri.
+  it("membangun ulang worktree di atas headSha run, bukan branchFrom", () => {
+    const { repo } = seedRepo();
+    const wt = join(repo, ".worktrees", "run-ff");
+    realGit.addWorktree(repo, wt, "main");
+    writeFileSync(join(wt, "kerja.txt"), "hasil fase sebelumnya");
+    const head = realGit.commitAndPush(wt, "hanoman feature SPEC-1", "hanoman/run-ff");
+    realGit.removeWorktree(repo, wt);   // worktree lenyap: dipangkas, atau dihapus run yang sukses
+
+    expect(realGit.addWorktree(repo, wt, "main", false, head)).toBe(head);
+    expect(g(wt, "rev-parse", "HEAD").stdout.trim()).toBe(head);
+    expect(existsSync(join(wt, "kerja.txt"))).toBe(true);   // kerja fase lalu ikut kembali
+
+    // dan percobaan berikutnya fast-forward di atasnya, bukan ditolak
+    writeFileSync(join(wt, "lagi.txt"), "percobaan kedua");
+    expect(() => realGit.commitAndPush(wt, "hanoman feature SPEC-1", "hanoman/run-ff")).not.toThrow();
+  });
+
+  // `git push` tak meninggalkan ref lokal, dan removeWorktree memangkas reflog-nya — objek
+  // headSha bisa hilang dari repo (gc) meski run-nya sukses. Itu bukan alasan untuk gagal.
+  it("jatuh kembali ke branchFrom saat objek headSha sudah tidak ada", () => {
+    const { repo } = seedRepo();
+    const wt = join(repo, ".worktrees", "run-gc");
+    const main = g(repo, "rev-parse", "main").stdout.trim();
+    expect(realGit.addWorktree(repo, wt, "main", false, "0".repeat(40))).toBe(main);
+    expect(g(wt, "rev-parse", "HEAD").stdout.trim()).toBe(main);
+  });
+
   it("commitAndPush mengembalikan headSha worktree", () => {
     const { repo } = seedRepo();
     const wt = join(repo, ".worktrees", "run-head");
