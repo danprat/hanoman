@@ -76,6 +76,8 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 - [spec-168 — spec (backlog turunkan stage live saat sesi hidup)](operations/spec-168-backlog-realtime-spec.md)
 - [spec-170 — objective (lihat dokumen audit/spec/plan per backlog item)](operations/spec-170-doc-viewer-objective.md)
 - [spec-171 — objective (All File & File Changed: review worktree backlog)](operations/spec-171-all-file-changed-objective.md)
+- [spec-181 — objective (Indicator Limit: limit Claude realtime di dashboard)](operations/spec-181-indicator-limit-objective.md)
+- [spec-181 — spec (Indicator Limit: GET /api/limits + badge top bar & kartu Overview)](operations/spec-181-indicator-limit-spec.md)
 
 ## security
 - [security-standard](security/security-standard.md)

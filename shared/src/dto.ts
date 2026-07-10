@@ -92,3 +92,20 @@ export type VpsView = {
   createdAt: string; lastSeenAt: string | null; health: VpsHealth | null;
   lastAuditAt: string | null; audit: VpsCheck[] | null; hardened: boolean;
 };
+
+// SPEC-181 · limit langganan Claude realtime (dari GET /api/oauth/usage → limits[])
+export type LimitSeverity = "normal" | "warning" | "critical";
+export type LimitsStatus = "ok" | "stale" | "unavailable";
+export type LimitWindow = {
+  key: string;               // "session" | "weekly_all" | "weekly_scoped:Opus"
+  label: string;             // "Sesi 5 jam" | "Mingguan" | "Mingguan Opus"
+  usedPct: number;           // 0..100 (dibulatkan dari `percent`)
+  resetsAt: string | null;   // ISO 8601 (`resets_at`) atau null
+  severity: LimitSeverity;   // API `severity`; fallback dari usedPct bila hilang
+  isActive: boolean;         // API `is_active` — window yang sedang mengikat
+};
+export type LimitsDTO = {
+  status: LimitsStatus;
+  windows: LimitWindow[];
+  fetchedAt: string | null;  // ISO waktu fetch sukses terakhir; null bila belum pernah
+};
