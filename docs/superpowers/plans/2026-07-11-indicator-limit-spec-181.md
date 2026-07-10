@@ -410,7 +410,7 @@ git commit -m "feat(spec-181): GET /api/limits — Claude subscription limits fr
   - `severityToken(s: LimitSeverity): { fg: string; bg: string }` — DS CSS var names.
   - `useLimits(): LimitsDTO` — React hook; one shared 60s poll across all callers.
 
-- [ ] **Step 1: Add the client method**
+- [x] **Step 1: Add the client method**
 
 In `src/src/api/client.ts`, import `LimitsDTO` in the shared import line and add to the `api` object:
 
@@ -418,7 +418,7 @@ In `src/src/api/client.ts`, import `LimitsDTO` in the shared import line and add
   getLimits: () => j<LimitsDTO>(paths.limits),
 ```
 
-- [ ] **Step 2: Write the failing helper test**
+- [x] **Step 2: Write the failing helper test**
 
 Create `src/test/limits.test.ts`:
 
@@ -454,12 +454,12 @@ describe("severityToken", () => {
 });
 ```
 
-- [ ] **Step 3: Run — verify it fails**
+- [x] **Step 3: Run — verify it fails**
 
 Run: `cd src && pnpm vitest run test/limits.test.ts`
 Expected: FAIL — `Cannot find module '../src/api/limits'`.
 
-- [ ] **Step 4: Implement helpers + hook**
+- [x] **Step 4: Implement helpers + hook**
 
 Create `src/src/api/limits.ts`:
 
@@ -510,12 +510,12 @@ export function useLimits(): LimitsDTO {
 }
 ```
 
-- [ ] **Step 5: Run — verify it passes**
+- [x] **Step 5: Run — verify it passes**
 
 Run: `cd src && pnpm vitest run test/limits.test.ts`
 Expected: PASS (all helper cases).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/src/api/client.ts src/src/api/limits.ts src/test/limits.test.ts

@@ -1,4 +1,4 @@
-import { paths, type ProjectView, type Spec, type Setting, type VpsView, type VpsCheck, type AuthStatus, type UserView } from "@hanoman/shared";
+import { paths, type ProjectView, type Spec, type Setting, type VpsView, type VpsCheck, type AuthStatus, type UserView, type LimitsDTO } from "@hanoman/shared";
 export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 export type Flow = "feature" | "qa" | "scaffold" | "reverse";
 export type Phase = { name: string; state: "done" | "skipped" | "active" | "pending" };
@@ -43,6 +43,7 @@ export const api = {
   specReviewFile: (id: string, path: string) => j<ReviewFile>(paths.specReviewFile(id, path)),
   getSettings: () => j<Setting>(paths.settings),
   putSettings: (b: unknown) => j<Setting>(paths.settings, { method: "PUT", ...body(b) }),
+  getLimits: () => j<LimitsDTO>(paths.limits),
   getDocs: (id: string) => j<{ coverage: number; tree: any[] }>(paths.docs(id)),
   getDoc: (id: string, path: string) => j<{ path: string; content: string }>(paths.docFile(id, path)),
   getSpecDocs: (id: string) => j<{ files: SpecDoc[] }>(paths.specDocs(id)),
