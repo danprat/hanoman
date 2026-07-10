@@ -91,8 +91,12 @@ GET    /terminal/sessions/:id/ws     # WebSocket; close 4004 bila sesi tak ada
 ```
 GET    /vps                          # [{ id, name, host, port, user, keyPath, lastSeenAt,
                                      #    health, lastAuditAt, audit, hardened }]
-POST   /vps  {name,host,user,port?,keyPath?}  # 201 · 400 bila host/user tak lolos regex
+POST   /vps  {name,host,user,port?,keyPath?,password?}  # 201 · 400 host/user cacat
+                                     # password (SPEC-165) = bootstrap key sekali pakai:
+                                     # dipasang ke authorized_keys, diverifikasi key-only,
+                                     # lalu dibuang. Gagal → 502 dan TIDAK ada baris lahir.
 PATCH  /vps/:id                      # parsial · 200 · 400 body cacat · 404
+                                     # `password` = bootstrap ulang → 502 bila gagal
 DELETE /vps/:id                      # 204 · 404 (registrasi saja; server-nya tak disentuh)
 POST   /vps/:id/audit                # 200 { audit, hardened } · 404 · 502 { error, out }
 POST   /vps/:id/harden               # 200 { transcript, audit, hardened } · 404
@@ -106,6 +110,9 @@ POST   /vps/:id/session              # 201 { id } — sesi claude tmux berkontek
 > Harden TIDAK PERNAH terjadwal; healthcheck (5 mnt) dan audit (24 jam) berjalan lewat
 > `setInterval` di `server.ts`. Endpoint ini eksekusi remote — postur keamanannya sama dengan
 > `/terminal`: tanpa auth, bergantung pada bind `127.0.0.1`.
+>
+> Password tak pernah disimpan, di-log, atau dikembalikan; ia diserahkan ke ssh lewat
+> SSH_ASKPASS (bukan argv) dan hidup beberapa detik di env proses anak (ADR-0025, SPEC-165).
 
 ## Webhook
 ```

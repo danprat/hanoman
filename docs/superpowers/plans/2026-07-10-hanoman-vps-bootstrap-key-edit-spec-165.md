@@ -74,7 +74,7 @@ Bootstrap dipisah dari `vps-ssh.ts`: transport tak perlu tahu soal `authorized_k
 - Produces: `zCreateVps` & `zPatchVps` dengan `password?: string`. `VpsView` **tidak**
   berubah — password tak pernah keluar dari server.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di akhir `shared/test/vps-dto.test.ts` (sebelum baris terakhir file):
 
@@ -96,7 +96,7 @@ describe("password bootstrap (SPEC-165)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — harus FAIL**
+- [x] **Step 2: Jalankan — harus FAIL**
 
 ```bash
 cd shared && env -u NODE_ENV -u DATABASE_URL npx vitest run vps-dto
@@ -104,7 +104,7 @@ cd shared && env -u NODE_ENV -u DATABASE_URL npx vitest run vps-dto
 
 Expected: FAIL — `v.password` `undefined` (field belum ada, zod membuangnya).
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 Di `shared/src/dto.ts`, ubah `zCreateVps` dan `zPatchVps` menjadi:
 
@@ -128,7 +128,7 @@ export const zPatchVps = z.object({
 }).partial();
 ```
 
-- [ ] **Step 4: Test hijau**
+- [x] **Step 4: Test hijau**
 
 ```bash
 cd shared && env -u NODE_ENV -u DATABASE_URL npx vitest run vps-dto
@@ -136,7 +136,7 @@ cd shared && env -u NODE_ENV -u DATABASE_URL npx vitest run vps-dto
 
 Expected: PASS (6 test).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git status --short
@@ -159,7 +159,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
   `keyDir(): string`. Direktori dari `HANOMAN_SSH_KEY_DIR` bila ada, jika tidak
   `~/.hanoman`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Create `server/test/vps-key.test.ts`:
 
@@ -193,7 +193,7 @@ describe("ensureHanomanKey (SPEC-165)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — harus FAIL**
+- [x] **Step 2: Jalankan — harus FAIL**
 
 ```bash
 cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run vps-key
@@ -201,7 +201,7 @@ cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run vps-key
 
 Expected: FAIL — modul `../src/services/vps-key` belum ada.
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 Create `server/src/services/vps-key.ts`:
 
@@ -232,7 +232,7 @@ export function ensureHanomanKey(): HanomanKey {
 }
 ```
 
-- [ ] **Step 4: Test hijau**
+- [x] **Step 4: Test hijau**
 
 ```bash
 cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run vps-key
@@ -240,7 +240,7 @@ cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run vps-key
 
 Expected: PASS (2 test).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/vps-key.ts server/test/vps-key.test.ts
@@ -263,7 +263,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 - Produces: `sshExec(t, cmd, opts)` dengan `opts.password?: string`. Tanpa `password`
   perilakunya persis seperti sekarang (`BatchMode=yes`).
 
-- [ ] **Step 1: Fixture merekam argv + env**
+- [x] **Step 1: Fixture merekam argv + env**
 
 Di `server/test/fixtures/fake-ssh.sh`, sisipkan tepat SESUDAH blok
 `case "${FAKE_SSH_MODE:-}" in … esac` (baris 4-6) dan SEBELUM `input="$(cat)"`:
@@ -280,7 +280,7 @@ if [ -n "${FAKE_SSH_LOG:-}" ]; then
 fi
 ```
 
-- [ ] **Step 2: Tulis test yang gagal**
+- [x] **Step 2: Tulis test yang gagal**
 
 Tambahkan di akhir `server/test/vps-ssh.test.ts`:
 
@@ -327,7 +327,7 @@ describe("sshExec mode password (SPEC-165)", () => {
 });
 ```
 
-- [ ] **Step 3: Jalankan — harus FAIL**
+- [x] **Step 3: Jalankan — harus FAIL**
 
 ```bash
 cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run vps-ssh
@@ -335,7 +335,7 @@ cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run vps-ssh
 
 Expected: FAIL — `opts.password` belum ada, `ASKPASS_REQUIRE none`.
 
-- [ ] **Step 4: Implementasi**
+- [x] **Step 4: Implementasi**
 
 Ganti seluruh isi `server/src/services/vps-ssh.ts`:
 
@@ -407,7 +407,7 @@ export function sshExec(t: SshTarget, remoteCmd: string,
 }
 ```
 
-- [ ] **Step 5: Test hijau**
+- [x] **Step 5: Test hijau**
 
 ```bash
 cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run vps-ssh
@@ -415,7 +415,7 @@ cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run vps-ssh
 
 Expected: PASS (7 test — 3 lama + 4 baru).
 
-- [ ] **Step 6: Smoke nyata terhadap sshd sungguhan**
+- [x] **Step 6: Smoke nyata terhadap sshd sungguhan**
 
 Bangun container `sshd` ber-password, lalu buktikan `sshExec` mode password menembusnya
 (bukan fixture). Simpan skrip di scratchpad, jangan di repo.
@@ -438,7 +438,7 @@ cd server && env -u NODE_ENV -u DATABASE_URL npx tsx -e '
 Expected: `BENAR: 0 root` dan `SALAH: 255 … Permission denied …` (gagal cepat, tak menggantung).
 Container dibiarkan hidup — Task 4 memakainya lagi. `docker rm -f hanoman-sshd-165` setelah Task 4.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/services/vps-ssh.ts server/test/vps-ssh.test.ts server/test/fixtures/fake-ssh.sh
@@ -460,7 +460,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 - Consumes: `sshExec` + `SshTarget` (Task 3), `ensureHanomanKey` (Task 2).
 - Produces: `bootstrapKey(t: SshTarget, password: string): Promise<{ ok: true; keyPath: string } | { ok: false; out: string }>`
 
-- [ ] **Step 1: Fixture — dua mode baru**
+- [x] **Step 1: Fixture — dua mode baru**
 
 Di `server/test/fixtures/fake-ssh.sh`, ganti blok `case "${FAKE_SSH_MODE:-}" in … esac`
 (yang menangani `unreachable`) menjadi:
@@ -485,7 +485,7 @@ if [ "${FAKE_SSH_MODE:-}" = "bootstrap-verify-fail" ] && [ -z "${HANOMAN_SSH_PAS
 fi
 ```
 
-- [ ] **Step 2: Tulis test yang gagal**
+- [x] **Step 2: Tulis test yang gagal**
 
 Create `server/test/vps-bootstrap.test.ts`:
 
@@ -532,7 +532,7 @@ describe("bootstrapKey (SPEC-165)", () => {
 });
 ```
 
-- [ ] **Step 3: Jalankan — harus FAIL**
+- [x] **Step 3: Jalankan — harus FAIL**
 
 ```bash
 cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run vps-bootstrap
@@ -540,7 +540,7 @@ cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run vps-bootstrap
 
 Expected: FAIL — modul `../src/services/vps-bootstrap` belum ada.
 
-- [ ] **Step 4: Implementasi**
+- [x] **Step 4: Implementasi**
 
 Create `server/src/services/vps-bootstrap.ts`:
 
@@ -574,7 +574,7 @@ export async function bootstrapKey(t: SshTarget, password: string):
 }
 ```
 
-- [ ] **Step 5: Test hijau**
+- [x] **Step 5: Test hijau**
 
 ```bash
 cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run vps-bootstrap vps-ssh
@@ -582,7 +582,7 @@ cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run vps-bootstrap vps-ss
 
 Expected: PASS (3 + 7).
 
-- [ ] **Step 6: Smoke nyata — bootstrap terhadap sshd sungguhan**
+- [x] **Step 6: Smoke nyata — bootstrap terhadap sshd sungguhan**
 
 Pakai container dari Task 3 Step 6 (`hanoman-sshd-165`, port 22222, `root`/`rahasia123`).
 
@@ -621,7 +621,7 @@ docker rm -f hanoman-sshd-165; rm -rf /tmp/hanoman-key-smoke
 
 Expected: `passwordauthentication no`, lalu `key setelah password mati: 0 KEY-JALAN`.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/services/vps-bootstrap.ts server/test/vps-bootstrap.test.ts server/test/fixtures/fake-ssh.sh
@@ -644,7 +644,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
   response; gagal → 502 dan **tak ada baris**. `PATCH /vps/:id` dengan `password` →
   bootstrap ulang memakai host/user/port hasil merge.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di akhir `server/test/vps.route.test.ts`:
 
@@ -709,7 +709,7 @@ describe("bootstrap lewat password (SPEC-165)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — harus FAIL**
+- [x] **Step 2: Jalankan — harus FAIL**
 
 ```bash
 cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run vps.route
@@ -717,7 +717,7 @@ cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run vps.route
 
 Expected: FAIL — `POST` melempar (Prisma menolak kolom `password`) atau `keyPath` null.
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 Di `server/src/routes/vps.ts`, tambahkan impor:
 
@@ -766,7 +766,7 @@ Catatan tipe: `data` hasil destructuring `zCreateVps` bertipe `{ …; keyPath?: 
 Target ssh dibangun eksplisit (bukan `{ ...current, ...data }`) supaya tak menyeret `name`/`audit`
 ke dalam `SshTarget`, dan supaya "nilai sesudah patch" terbaca hitam-putih.
 
-- [ ] **Step 4: Test hijau**
+- [x] **Step 4: Test hijau**
 
 ```bash
 cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run
@@ -774,7 +774,7 @@ cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run
 
 Expected: PASS semua (suite server, termasuk 18 test vps.route).
 
-- [ ] **Step 5: Smoke API nyata**
+- [x] **Step 5: Smoke API nyata**
 
 ```bash
 lsof -ti tcp:8799 | xargs -r kill -9
@@ -789,7 +789,7 @@ lsof -ti tcp:8799 | xargs -r kill -9
 
 Expected: `502` dengan `{"error":"bootstrap key gagal lewat ssh","out":"ssh: connect …"}` dan daftar `[]`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/routes/vps.ts server/test/vps.route.test.ts
@@ -812,7 +812,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 - Produces: `api.createVps` menerima `password?`; `api.updateVps(id, body)`;
   `VpsScreen` menampilkan modal Edit; helper `vpsFormToBody(f: VpsForm)` diekspor untuk test.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `src/test/vps-screen.test.tsx`. Ganti blok `vi.mock` yang ada menjadi:
 
@@ -861,7 +861,7 @@ describe("modal edit (SPEC-165)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — harus FAIL**
+- [x] **Step 2: Jalankan — harus FAIL**
 
 ```bash
 cd src && env -u NODE_ENV -u DATABASE_URL npx vitest run vps-screen
@@ -869,7 +869,7 @@ cd src && env -u NODE_ENV -u DATABASE_URL npx vitest run vps-screen
 
 Expected: FAIL — `vpsFormToBody` belum diekspor, tak ada tombol `Edit web-1`.
 
-- [ ] **Step 3: api client**
+- [x] **Step 3: api client**
 
 Di `src/src/api/client.ts`, ganti `createVps` dan tambahkan `updateVps` tepat di bawahnya:
 
@@ -882,7 +882,7 @@ Di `src/src/api/client.ts`, ganti `createVps` dan tambahkan `updateVps` tepat di
     j<VpsView>(paths.vpsOne(id), { method: "PATCH", ...body(b) }),
 ```
 
-- [ ] **Step 4: VpsScreen — form bersama, modal Edit**
+- [x] **Step 4: VpsScreen — form bersama, modal Edit**
 
 Di `src/src/screens/VpsScreen.tsx`:
 
@@ -989,7 +989,7 @@ const formOf = (v: VpsView): VpsForm => ({
                 onClick={(e: React.MouseEvent) => { e.stopPropagation(); setModal(v); }} />
 ```
 
-- [ ] **Step 5: Test hijau + typecheck**
+- [x] **Step 5: Test hijau + typecheck**
 
 ```bash
 cd src && env -u NODE_ENV -u DATABASE_URL npx vitest run
@@ -998,7 +998,7 @@ cd .. && env -u NODE_ENV -u DATABASE_URL pnpm -r typecheck
 
 Expected: semua PASS, 0 error typecheck.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/src/api/client.ts src/src/screens/VpsScreen.tsx src/test/vps-screen.test.tsx
@@ -1015,7 +1015,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 - Modify: `internal/docs/architecture/api-contract.md` (bagian VPS)
 - Modify: `docs/superpowers/plans/2026-07-10-hanoman-vps-bootstrap-key-edit-spec-165.md` (checklist)
 
-- [ ] **Step 1: Suite penuh**
+- [x] **Step 1: Suite penuh**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL npx vitest run --no-file-parallelism
@@ -1025,7 +1025,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm -r typecheck
 Expected: hijau semua. Bila ada test lama gagal yang TIDAK menyentuh berkas SPEC-165,
 laporkan — jangan tambal membabi-buta.
 
-- [ ] **Step 2: Smoke UI nyata (CDP)**
+- [x] **Step 2: Smoke UI nyata (CDP)**
 
 Bangun dashboard dan sajikan dari satu proses (jalur produksi), lalu drive lewat
 Chrome headless — port 8787 dipakai sesi lain, jadi JANGAN memakai proxy Vite.
@@ -1051,7 +1051,7 @@ Yang harus terlihat, lewat CDP (pola `smoke.mjs` di SPEC-164):
 
 JANGAN klik Harden atau Sesi Claude. JANGAN mengetik password sungguhan ke VPS nyata.
 
-- [ ] **Step 3: Update kontrak API**
+- [x] **Step 3: Update kontrak API**
 
 Di `internal/docs/architecture/api-contract.md`, pada blok kode bagian `## VPS`, ganti dua
 baris `POST /vps` dan `PATCH /vps/:id` menjadi:
@@ -1072,7 +1072,7 @@ dan tambahkan satu kalimat di paragraf `>` di bawahnya:
 > SSH_ASKPASS (bukan argv) dan hidup beberapa detik di env proses anak (ADR-0025, SPEC-165).
 ```
 
-- [ ] **Step 4: Centang checklist + commit penutup**
+- [x] **Step 4: Centang checklist + commit penutup**
 
 ```bash
 git add internal/docs/architecture/api-contract.md docs/superpowers/plans/2026-07-10-hanoman-vps-bootstrap-key-edit-spec-165.md
@@ -1080,3 +1080,36 @@ git commit --only internal/docs/architecture/api-contract.md --only docs/superpo
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
+
+
+---
+
+## Hasil verifikasi (2026-07-10)
+
+Tujuh task selesai. `vitest run --no-file-parallelism`: **316 test, 53 file, hijau**;
+`pnpm -r typecheck` bersih di lima paket.
+
+### Diverifikasi nyata, bukan lewat fixture saja
+
+- **`sshExec` mode password terhadap `sshd` sungguhan** (container Ubuntu, password auth):
+  password benar → `exit 0`, perintah jalan. Password salah → `Permission denied` seketika,
+  tidak menggantung.
+- **`bootstrapKey` end-to-end:** memasang key lewat password, dijalankan dua kali → tetap
+  1 baris di `authorized_keys` (idempotent). Verifikasi key-only lolos.
+- **Bukti tak ada lockout:** `PasswordAuthentication no` diberlakukan persis seperti
+  `harden.sh`, `sshd -T` mengonfirmasi `passwordauthentication no` — password lalu **ditolak**
+  (`Permission denied (publickey)`) sementara **key hanoman tetap jalan**. Inilah seluruh
+  alasan bootstrap ada.
+- **Endpoint dengan ssh asli:** `POST /vps` dengan password ke host TEST-NET → **502** rapi,
+  daftar tetap `[]` (tak ada baris setengah jadi), dan **password tak muncul di log server**.
+- **UI di browser sungguhan (CDP):** modal daftar punya `input[type=password]`; daftar tanpa
+  password → `keyPath` null; klik pensil → modal terisi nama & host yang benar → ubah nama →
+  Simpan → nama berubah di daftar dan di DB, `port` tak tersentuh (patch parsial).
+
+### Catatan
+
+- Uji anti-lockout sempat **lolos palsu**: `00-test.conf` buatan smoke sorting-nya sebelum
+  `01-hanoman.conf`, jadi `PasswordAuthentication yes` masih menang. `sshd -T` yang
+  menyingkapnya. Jangan pernah menilai konfigurasi sshd dari isi berkas.
+- Tak ada perubahan skema, tak ada migration, tak ada ADR baru. `audit.sh`, `harden.sh`,
+  dan `vps-monitor.ts` tak disentuh.
