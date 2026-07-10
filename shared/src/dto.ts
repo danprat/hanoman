@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { zProject, zBriefPayload, zQaPayload } from "./entities";
-import { zProjectKind, zSpecSource, zPriority } from "./enums";
+import { zProjectKind, zSpecSource, zPriority, zStage } from "./enums";
 
 export const zCreateProject = z.object({
   name: z.string().min(1), kind: zProjectKind, repoDir: z.string().optional(),
@@ -18,7 +18,14 @@ export const zCreateSpec = z.object({
   branchFrom: z.string().min(1).optional() });
 // nullable, bukan optional: `null` berarti "kosongkan, kembali ke default project",
 // dan itu harus terbedakan dari "jangan sentuh".
-export const zPatchSpec = z.object({ branchFrom: z.string().min(1).nullable() });
+// branchFrom: nullable+optional — `null` mengosongkan (kembali ke default project),
+// `undefined` berarti jangan sentuh. stage: revert backward-only (SPEC-167); confirmDelete
+// mengizinkan penghapusan artefak setelah dry-run.
+export const zPatchSpec = z.object({
+  branchFrom: z.string().min(1).nullable().optional(),
+  stage: zStage.optional(),
+  confirmDelete: z.boolean().optional(),
+});
 // SPEC-162 · yang berjalan adalah sesi tmux, bukan baris Run. `flow` menggantikan `kind`.
 export const zSessionSummary = z.object({
   status: z.enum(["running", "idle"]),
