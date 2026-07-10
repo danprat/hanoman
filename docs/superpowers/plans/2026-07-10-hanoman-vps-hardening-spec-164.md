@@ -45,7 +45,7 @@
 **Interfaces:**
 - Produces: model Prisma `Vps` (dipakai semua task server); `makeVps(over?)` di factory (dipakai Task 5–7).
 
-- [ ] **Step 1: Tambah model ke schema**
+- [x] **Step 1: Tambah model ke schema**
 
 Di `server/prisma/schema.prisma`, setelah `model Setting`:
 
@@ -68,7 +68,7 @@ model Vps {
 }
 ```
 
-- [ ] **Step 2: Buat migration (DB dev)**
+- [x] **Step 2: Buat migration (DB dev)**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman
@@ -77,7 +77,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec prisma migrate dev -
 
 Expected: migration `2026…_add_vps` dibuat, `prisma generate` jalan. (Tanpa `env -u`, ini mengenai DB prod — jangan.)
 
-- [ ] **Step 3: Migrate DB test**
+- [x] **Step 3: Migrate DB test**
 
 `server/vitest.config.ts` menurunkan URL test dengan menambah akhiran `_test` pada nama DB di `server/.env`. Jalankan:
 
@@ -88,7 +88,7 @@ env -u NODE_ENV DATABASE_URL="$TEST_URL" pnpm --filter ./server exec prisma migr
 
 Expected: `1 migration applied` (atau lebih). Verifikasi: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test` — suite lama tetap hijau (belum ada test vps).
 
-- [ ] **Step 4: factory — reset + helper**
+- [x] **Step 4: factory — reset + helper**
 
 Di `server/test/factory.ts`, ganti `resetDb` dan tambah `makeVps`:
 
@@ -107,7 +107,7 @@ export function makeVps(over: Partial<Prisma.VpsCreateInput> = {}) {
 }
 ```
 
-- [ ] **Step 5: Tulis ADR-0025**
+- [x] **Step 5: Tulis ADR-0025**
 
 Create `internal/docs/adr/0025-modul-vps-script-deterministik.md`:
 
@@ -146,7 +146,7 @@ tidak ada lagi queue/Redis untuk pekerjaan terjadwal.
   komentar `routes/terminal.ts`).
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git status --short   # pastikan hanya file di bawah yang akan di-stage
@@ -168,7 +168,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 **Interfaces:**
 - Produces: `zCreateVps`, `zPatchVps`, `zVpsCheck`, `type VpsCheck = { check: string; status: "pass"|"fail"|"warn"; detail: string }`, `type VpsHealth = { uptime: string; disk: string; mem: string; load: string }`, `type VpsView`; `paths.vps`, `paths.vpsOne(id)`, `paths.vpsAudit(id)`, `paths.vpsHarden(id)`, `paths.vpsSession(id)`.
 
-- [ ] **Step 1: Test gagal dulu**
+- [x] **Step 1: Test gagal dulu**
 
 Create `shared/test/vps-dto.test.ts`:
 
@@ -193,7 +193,7 @@ describe("vps dto (SPEC-164)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — harus FAIL**
+- [x] **Step 2: Jalankan — harus FAIL**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./shared test
@@ -201,7 +201,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./shared test
 
 Expected: FAIL (`zCreateVps` belum ada).
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 Di `shared/src/dto.ts`, tambahkan di bagian bawah:
 
@@ -244,7 +244,7 @@ Di `shared/src/api.ts`, tambahkan ke `paths` sebelum `} as const;`:
   vpsSession: (id: string) => `${API}/vps/${id}/session`,
 ```
 
-- [ ] **Step 4: Test hijau + commit**
+- [x] **Step 4: Test hijau + commit**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./shared test
@@ -272,7 +272,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
   - `parseAudit(out: string): VpsCheck[]`, `isHardened(checks: VpsCheck[]): boolean`, `parseHealth(out: string): VpsHealth | null`, `HEALTH_CMD: string`, `CRITICAL: readonly string[]`
   - `repoRoot(startDir?: string): string` dari `runner/deps.ts`
 
-- [ ] **Step 1: Test parser — gagal dulu**
+- [x] **Step 1: Test parser — gagal dulu**
 
 Create `server/test/vps-audit.test.ts`:
 
@@ -315,13 +315,13 @@ describe("parser audit (SPEC-164)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — FAIL** (`vps-audit` belum ada)
+- [x] **Step 2: Jalankan — FAIL** (`vps-audit` belum ada)
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test vps-audit
 ```
 
-- [ ] **Step 3: Implementasi parser**
+- [x] **Step 3: Implementasi parser**
 
 Create `server/src/services/vps-audit.ts`:
 
@@ -363,13 +363,13 @@ export function parseHealth(out: string): VpsHealth | null {
 }
 ```
 
-- [ ] **Step 4: Test parser hijau**
+- [x] **Step 4: Test parser hijau**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test vps-audit
 ```
 
-- [ ] **Step 5: Fixture ssh palsu**
+- [x] **Step 5: Fixture ssh palsu**
 
 Create `server/test/fixtures/fake-ssh.sh` lalu `chmod +x server/test/fixtures/fake-ssh.sh`:
 
@@ -412,7 +412,7 @@ fi
 exit 0   # perintah lain (mis. verify `true`)
 ```
 
-- [ ] **Step 6: Test transport — gagal dulu**
+- [x] **Step 6: Test transport — gagal dulu**
 
 Create `server/test/vps-ssh.test.ts`:
 
@@ -447,7 +447,7 @@ describe("sshExec (SPEC-164)", () => {
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test vps-ssh` — Expected: FAIL (modul belum ada).
 
-- [ ] **Step 7: Implementasi transport**
+- [x] **Step 7: Implementasi transport**
 
 Di `server/src/runner/deps.ts`, tambahkan di bawah `resolveCliEntry`:
 
@@ -494,7 +494,7 @@ export function sshExec(t: SshTarget, remoteCmd: string,
 }
 ```
 
-- [ ] **Step 8: Semua test hijau + commit**
+- [x] **Step 8: Semua test hijau + commit**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test
@@ -517,7 +517,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 - Consumes: dijalankan remote via `sudo -n bash -s` (audit) dan `sudo -n env SSH_PORT=<port> SSH_USER=<user> bash -s` (harden).
 - Produces: baris `CHECK <nama> <pass|fail|warn> <detail…>` (audit) dan `STEP <nama> <ok|fail> <detail…>` (harden). String `hanoman-audit` / `hanoman-harden` di header adalah marker yang dipakai `fake-ssh.sh` — jangan dihapus.
 
-- [ ] **Step 1: audit.sh**
+- [x] **Step 1: audit.sh**
 
 Create `server/scripts/vps/audit.sh` lalu `chmod +x`:
 
@@ -605,7 +605,7 @@ if [ "${N:-0}" -gt 0 ] 2>/dev/null; then emit pending_updates warn "$N security 
 else emit pending_updates pass; fi
 ```
 
-- [ ] **Step 2: harden.sh**
+- [x] **Step 2: harden.sh**
 
 Create `server/scripts/vps/harden.sh` lalu `chmod +x`:
 
@@ -705,7 +705,7 @@ fi
 if timedatectl set-ntp true 2>/dev/null; then step ntp ok; else step ntp fail; fi
 ```
 
-- [ ] **Step 3: Validasi sintaks**
+- [x] **Step 3: Validasi sintaks**
 
 ```bash
 bash -n server/scripts/vps/audit.sh && bash -n server/scripts/vps/harden.sh && echo SYNTAX-OK
@@ -714,14 +714,14 @@ command -v shellcheck >/dev/null && shellcheck -S warning server/scripts/vps/*.s
 
 Expected: `SYNTAX-OK`; shellcheck tanpa error level warning+ (style boleh).
 
-- [ ] **Step 4: Update spec (deviasi PermitRootLogin)**
+- [x] **Step 4: Update spec (deviasi PermitRootLogin)**
 
 Di file spec §3, ganti baris tabel `ssh_root_login`:
 `| `ssh_root_login` | ya | `sshd -T`: `permitrootlogin no` |` →
 `| `ssh_root_login` | ya | `sshd -T`: `permitrootlogin` `no`/`prohibit-password` |`
 Di §5 poin 5, ganti `Set `PermitRootLogin no`` → `Set `PermitRootLogin no` (`prohibit-password` bila user terkonfigurasi = root — anti-lockout)`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/scripts/vps/audit.sh server/scripts/vps/harden.sh docs/superpowers/specs/2026-07-10-hanoman-vps-hardening-spec-164-design.md
@@ -749,7 +749,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
   - `scriptPath(f: string): string`
   - Route: `GET /api/vps`, `POST /api/vps` (201), `PATCH/DELETE /api/vps/:id`, `POST /api/vps/:id/audit`
 
-- [ ] **Step 1: Test route — gagal dulu**
+- [x] **Step 1: Test route — gagal dulu**
 
 Create `server/test/vps.route.test.ts`:
 
@@ -816,7 +816,7 @@ describe("vps routes (SPEC-164)", () => {
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test vps.route` — Expected: FAIL (route belum terdaftar → 404).
 
-- [ ] **Step 2: `runAudit`/`runHealth` di service**
+- [x] **Step 2: `runAudit`/`runHealth` di service**
 
 Tambahkan ke `server/src/services/vps-audit.ts` (di bawah `parseHealth`):
 
@@ -860,7 +860,7 @@ export async function runHealth(v: VpsRow): Promise<boolean> {
 }
 ```
 
-- [ ] **Step 3: Route + register**
+- [x] **Step 3: Route + register**
 
 Create `server/src/routes/vps.ts`:
 
@@ -908,7 +908,7 @@ export default async function (app: FastifyInstance) {
 
 Di `server/src/app.ts`: tambah `import vps from "./routes/vps";` (setelah import `terminal`) dan `await api.register(vps);` (setelah `await api.register(terminal);`).
 
-- [ ] **Step 4: Test hijau**
+- [x] **Step 4: Test hijau**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test
@@ -916,7 +916,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test
 
 Expected: PASS semua (termasuk suite lama).
 
-- [ ] **Step 5: Smoke API nyata**
+- [x] **Step 5: Smoke API nyata**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server dev &   # atau server yang sudah jalan
@@ -930,7 +930,7 @@ curl -s -X DELETE localhost:8787/api/vps/<id> -o /dev/null -w '%{http_code}'  # 
 
 Catatan: audit smoke ke host TEST-NET memang 502 — yang diverifikasi: JSON error rapi, bukan 500/crash. (ConnectTimeout 10 dtk — curl audit butuh ±10 dtk.) Kalau kamu punya VPS sungguhan ber-key, boleh uji audit nyata di sini. Matikan server dev setelahnya bila kamu yang menyalakannya.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/services/vps-audit.ts server/src/routes/vps.ts server/src/app.ts server/test/vps.route.test.ts
@@ -951,7 +951,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 - Consumes: `sshExec` (Task 3), `runAudit`/`scriptPath` (Task 5), `harden.sh` (Task 4), fixture mode `verify-fail`.
 - Produces: `POST /api/vps/:id/harden` → 200 `{ transcript, audit, hardened }` | 404 | 502 `{ error, transcript?, verify? }`.
 
-- [ ] **Step 1: Test — gagal dulu** (tambahkan ke `server/test/vps.route.test.ts`)
+- [x] **Step 1: Test — gagal dulu** (tambahkan ke `server/test/vps.route.test.ts`)
 
 ```ts
 describe("harden (SPEC-164)", () => {
@@ -987,7 +987,7 @@ describe("harden (SPEC-164)", () => {
 
 Run: FAIL (endpoint belum ada → 404 di test pertama).
 
-- [ ] **Step 2: Implementasi** — tambahkan ke `server/src/routes/vps.ts`:
+- [x] **Step 2: Implementasi** — tambahkan ke `server/src/routes/vps.ts`:
 
 Import tambahan di header file:
 
@@ -1022,13 +1022,13 @@ Handler (di bawah `POST /vps/:id/audit`):
   });
 ```
 
-- [ ] **Step 3: Test hijau**
+- [x] **Step 3: Test hijau**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test vps.route
 ```
 
-- [ ] **Step 4: Smoke API nyata**
+- [x] **Step 4: Smoke API nyata**
 
 Boot server (bila belum), daftar VPS host TEST-NET seperti Task 5, lalu:
 
@@ -1038,7 +1038,7 @@ curl -s -X POST localhost:8787/api/vps/<id>/harden    # → 502 JSON rapi (unrea
 
 (Harden nyata hanya bila kamu punya VPS uji — opsional, jangan ke mesin produksi orang lain.)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/routes/vps.ts server/test/vps.route.test.ts
@@ -1059,7 +1059,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 - Consumes: `createSession(projectId, cwd, opts)` + `killAll` dari `services/pty` (label owner `vps:<id>` — `nameOf` di TerminalScreen sudah fallback ke pid mentah, tak perlu diubah); `sessionModel()` dari `services/settings`; fixture `fake-claude.sh` yang sudah ada.
 - Produces: `POST /api/vps/:id/session` → 201 `{ id }` | 404.
 
-- [ ] **Step 1: Test — gagal dulu** (tambahkan ke `server/test/vps.route.test.ts`)
+- [x] **Step 1: Test — gagal dulu** (tambahkan ke `server/test/vps.route.test.ts`)
 
 Import tambahan di header test: `import { getSession, killAll } from "../src/services/pty";` dan `const FAKE_CLAUDE = fileURLToPath(new URL("./fixtures/fake-claude.sh", import.meta.url));`
 
@@ -1083,7 +1083,7 @@ describe("sesi claude vps (SPEC-164)", () => {
 
 Run: FAIL (404 di test pertama).
 
-- [ ] **Step 2: Implementasi** — tambahkan ke `server/src/routes/vps.ts`:
+- [x] **Step 2: Implementasi** — tambahkan ke `server/src/routes/vps.ts`:
 
 Import tambahan: `import { homedir } from "node:os";`, `import { createSession } from "../services/pty";`, `import { sessionModel } from "../services/settings";`, dan `import type { VpsCheck } from "@hanoman/shared";` (gabung ke import zod yang ada).
 
@@ -1109,7 +1109,7 @@ Import tambahan: `import { homedir } from "node:os";`, `import { createSession }
   });
 ```
 
-- [ ] **Step 3: Test hijau + commit**
+- [x] **Step 3: Test hijau + commit**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test
@@ -1134,7 +1134,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 - Consumes: `runAudit`, `runHealth` (Task 5).
 - Produces: `healthSweep(): Promise<void>`, `auditSweep(now?: () => number): Promise<void>`, `startVpsMonitor(): void`, `stopVpsMonitor(): void`. Loop HANYA dinyalakan `server.ts` — `buildApp()` tetap bebas timer, test tak tersentuh.
 
-- [ ] **Step 1: Test sweep — gagal dulu**
+- [x] **Step 1: Test sweep — gagal dulu**
 
 Create `server/test/vps-monitor.test.ts`:
 
@@ -1175,7 +1175,7 @@ describe("vps monitor (SPEC-164)", () => {
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test vps-monitor` — FAIL (modul belum ada).
 
-- [ ] **Step 2: Implementasi**
+- [x] **Step 2: Implementasi**
 
 Create `server/src/services/vps-monitor.ts`:
 
@@ -1231,17 +1231,17 @@ app.listen({ port, host }).then(() => {
 });
 ```
 
-- [ ] **Step 3: Test hijau**
+- [x] **Step 3: Test hijau**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test
 ```
 
-- [ ] **Step 4: Smoke nyata**
+- [x] **Step 4: Smoke nyata**
 
 Restart server dev; dalam log tak ada error; `curl -s localhost:8787/api/vps` — VPS TEST-NET yang tersisa tetap `lastSeenAt: null` (unreachable, sweep tak melempar). Server tetap hidup ±1 menit tanpa crash.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/vps-monitor.ts server/src/server.ts server/test/vps-monitor.test.ts
@@ -1265,7 +1265,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 - Consumes: `paths.vps*` + `VpsView`/`VpsCheck` dari `@hanoman/shared` (Task 2); endpoint Task 5–7.
 - Produces: `api.listVps/createVps/deleteVps/auditVps/hardenVps/vpsSession`; komponen `VpsScreen({ onToast, onGotoTerminal })`; helper murni `isReachable(v, now?)`, `hardenedLabel(v)` (diekspor untuk test).
 
-- [ ] **Step 1: Test — gagal dulu**
+- [x] **Step 1: Test — gagal dulu**
 
 Create `src/test/vps-screen.test.tsx`:
 
@@ -1306,7 +1306,7 @@ describe("VpsScreen (SPEC-164)", () => {
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src test vps-screen` — FAIL.
 
-- [ ] **Step 2: api client**
+- [x] **Step 2: api client**
 
 Di `src/src/api/client.ts`: tambah `VpsView`/`VpsCheck` ke import shared (`import { paths, type ProjectView, type Spec, type Setting, type VpsView, type VpsCheck } from "@hanoman/shared";`) lalu di objek `api`:
 
@@ -1322,7 +1322,7 @@ Di `src/src/api/client.ts`: tambah `VpsView`/`VpsCheck` ke import shared (`impor
   vpsSession: (id: string) => j<{ id: string }>(paths.vpsSession(id), { method: "POST" }),
 ```
 
-- [ ] **Step 3: Nav item**
+- [x] **Step 3: Nav item**
 
 Di `src/src/ds/shell.tsx`, dalam `HN_NAV`, sisipkan setelah baris `terminal`:
 
@@ -1330,7 +1330,7 @@ Di `src/src/ds/shell.tsx`, dalam `HN_NAV`, sisipkan setelah baris `terminal`:
   { key: "vps", label: "VPS", icon: "server" },
 ```
 
-- [ ] **Step 4: VpsScreen**
+- [x] **Step 4: VpsScreen**
 
 Create `src/src/screens/VpsScreen.tsx`:
 
@@ -1515,7 +1515,7 @@ export function VpsScreen({ onToast, onGotoTerminal }:
 
 Catatan implementasi: sesuaikan pemakaian komponen dengan API nyata `src/src/ds` (cek `kit.tsx` untuk prop `Button`/`StateBlock`/`Modal` — bila `StatusPill` di kit ternyata cocok untuk Chip, pakai itu dan hapus `Chip`). Var CSS `--ok`/`--danger` — cek `tokens/`; bila tak ada, pakai fallback yang tertulis.
 
-- [ ] **Step 5: Wiring App**
+- [x] **Step 5: Wiring App**
 
 Di `src/src/App.tsx`: `import { VpsScreen } from "./screens/VpsScreen";` lalu tambah cabang setelah blok `terminal`:
 
@@ -1528,14 +1528,14 @@ Di `src/src/App.tsx`: `import { VpsScreen } from "./screens/VpsScreen";` lalu ta
     );
 ```
 
-- [ ] **Step 6: Test hijau + typecheck**
+- [x] **Step 6: Test hijau + typecheck**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src test
 pnpm -r typecheck
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/src/api/client.ts src/src/ds/shell.tsx src/src/screens/VpsScreen.tsx src/src/App.tsx src/test/vps-screen.test.tsx
@@ -1552,7 +1552,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 - Modify: `docs/superpowers/plans/2026-07-10-hanoman-vps-hardening-spec-164.md` (checklist)
 - Modify: `internal/docs/architecture/*` HANYA bila ada indeks modul/route yang menyebut daftar route API (periksa dulu; kalau tidak ada, lewati — jangan membuat dokumen baru).
 
-- [ ] **Step 1: Suite penuh**
+- [x] **Step 1: Suite penuh**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm -r test
@@ -1561,11 +1561,11 @@ pnpm -r typecheck
 
 Expected: hijau. (Ingat memori repo: `queue-durability` dkk. sudah dihapus bersama SPEC-162; kalau ada test lama yang gagal dan TIDAK menyentuh file vps, itu bukan milik task ini — laporkan, jangan "perbaiki" membabi-buta.)
 
-- [ ] **Step 2: Smoke UI nyata (CDP)**
+- [x] **Step 2: Smoke UI nyata (CDP)**
 
 Boot server + `pnpm --filter ./src dev`. Buka lewat Chrome headless/CDP (pola memori `hanoman-browser-smoke-via-cdp`): klik nav VPS → daftarkan VPS TEST-NET → badge `unreachable` + `belum diaudit` muncul → klik Audit → toast gagal (502) tampil rapi. Bila kamu punya VPS uji sungguhan: audit nyata → panel check terisi; TIDAK mengklik Harden/Sesi Claude ke mesin yang bukan milikmu.
 
-- [ ] **Step 3: Centang checklist plan + commit penutup**
+- [x] **Step 3: Centang checklist plan + commit penutup**
 
 ```bash
 git add docs/superpowers/plans/2026-07-10-hanoman-vps-hardening-spec-164.md
@@ -1573,3 +1573,41 @@ git commit --only docs/superpowers/plans/2026-07-10-hanoman-vps-hardening-spec-1
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
+
+
+---
+
+## Hasil verifikasi (2026-07-10)
+
+Seluruh 10 task selesai. `pnpm test` repo = `vitest run --no-file-parallelism` (file
+parallelism sengaja mati: test server berbagi DB + socket tmux). Hasil: **294 test, 53
+file, semua hijau**; `pnpm -r typecheck` bersih di lima paket.
+
+### Diverifikasi nyata, bukan lewat unit test saja
+
+- **Script di container sungguhan.** `audit.sh` dijalankan di `ubuntu:24.04` (10 check),
+  `rockylinux:9` (jalur dnf/firewalld — mendeteksi 149 security update tertunda),
+  `alpine:3` (berhenti benar di `os_supported fail`), dan sebagai user non-root
+  (`sudo_ok fail`). `harden.sh` dijalankan di container ber-`sshd`, diikuti `audit.sh`:
+  `ssh_password_auth` berubah dari **fail → pass**.
+- **Dua bug tertangkap oleh smoke itu, bukan oleh teori** (lihat commit script):
+  drop-in wajib `01-hanoman.conf` (bukan `99-`) karena sshd memakai nilai pertama dan
+  `50-cloud-init.conf` milik image cloud Ubuntu memasang `PasswordAuthentication yes`;
+  dan audit harus menerima `without-password`, bentuk normalisasi `prohibit-password`
+  oleh `sshd -T` — tanpa itu VPS ber-user `root` tak akan pernah mencapai `hardened`.
+- **Endpoint dengan ssh asli.** `POST /vps/:id/audit` dan `/harden` terhadap host
+  TEST-NET (192.0.2.1) membalas **502 JSON rapi** berisi output ssh, bukan 500/crash.
+  CRUD: 201 → PATCH parsial (port tak berubah) → 204 → 404.
+- **Monitor saat boot.** Server di-restart dengan satu VPS tak terjangkau terdaftar:
+  sweep boot jalan, tak ada unhandled rejection, `lastSeenAt` tetap `null`, server hidup.
+- **UI di browser sungguhan (CDP).** Nav VPS → empty state → modal → submit (POST nyata)
+  → baris tampil dengan `deploy@192.0.2.9`, badge `unreachable` + `belum diaudit` →
+  klik Audit → spinner → setelah ssh timeout, toast **"Gagal audit"** muncul dan
+  `hardened`/`lastAuditAt` tetap tak berubah. Tombol Harden dan Sesi Claude sengaja
+  TIDAK diklik (harden menyentuh mesin nyata; sesi men-spawn `claude` sungguhan).
+
+### Deviasi dari rencana awal
+
+1. `StatusPill` dari design system dipakai untuk badge, `Chip` custom di draf plan dibuang.
+2. ADR bernomor **0025** — 0024 keburu diklaim SPEC-162 di branch lain.
+3. Drop-in `01-hanoman.conf` + audit menerima `without-password` (dua temuan di atas).

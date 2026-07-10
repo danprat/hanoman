@@ -87,6 +87,26 @@ GET    /terminal/sessions/:id/ws     # WebSocket; close 4004 bila sesi tak ada
 > proses API (in-memory); scrollback 256 KB terakhir di-replay saat klien reconnect. RCE by
 > design — server bind `127.0.0.1` secara default, lihat ADR-0014.
 
+## VPS (SPEC-164 · ADR-0025)
+```
+GET    /vps                          # [{ id, name, host, port, user, keyPath, lastSeenAt,
+                                     #    health, lastAuditAt, audit, hardened }]
+POST   /vps  {name,host,user,port?,keyPath?}  # 201 · 400 bila host/user tak lolos regex
+PATCH  /vps/:id                      # parsial · 200 · 400 body cacat · 404
+DELETE /vps/:id                      # 204 · 404 (registrasi saja; server-nya tak disentuh)
+POST   /vps/:id/audit                # 200 { audit, hardened } · 404 · 502 { error, out }
+POST   /vps/:id/harden               # 200 { transcript, audit, hardened } · 404
+                                     # 502 { error, transcript[, verify] } bila ssh gagal
+                                     # atau verifikasi koneksi pasca-harden gagal
+POST   /vps/:id/session              # 201 { id } — sesi claude tmux berkonteks VPS · 404
+```
+
+> Audit/healthcheck/harden = script bash deterministik (`server/scripts/vps/*.sh`) dikirim
+> lewat `ssh … 'sudo -n bash -s'`. `hardened` = semua check kritis `pass` pada audit terakhir.
+> Harden TIDAK PERNAH terjadwal; healthcheck (5 mnt) dan audit (24 jam) berjalan lewat
+> `setInterval` di `server.ts`. Endpoint ini eksekusi remote — postur keamanannya sama dengan
+> `/terminal`: tanpa auth, bergantung pada bind `127.0.0.1`.
+
 ## Webhook
 ```
 POST /webhooks/github     # commit trigger -> enqueue
