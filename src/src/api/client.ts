@@ -35,7 +35,12 @@ export const api = {
   createSpec: (b: unknown) => j<Spec>(paths.specs, { method: "POST", ...body(b) }),
   deleteSpec: (id: string) => j<void>(paths.spec(id), { method: "DELETE" }),
   // SPEC-143 · branch sumber worktree milik backlog item. `null` = default project (main).
-  listBranches: (id: string) => j<{ branches: string[] }>(paths.branches(id)),
+  // SPEC-175 · `remotes` = branch origin, target rebase/merge.
+  listBranches: (id: string) => j<{ branches: string[]; remotes: string[] }>(paths.branches(id)),
+  // SPEC-175 · rebase/merge branch hasil done spec.
+  integrateSpec: (id: string, op: "merge" | "rebase", target: string) =>
+    j<{ status: "clean"; detail: string } | { status: "conflict"; sessionId: string }>(
+      paths.specIntegrate(id), { method: "POST", ...body({ op, target }) }),
   patchSpec: (id: string, b: { branchFrom?: string | null; stage?: string; confirmDelete?: boolean }) =>
     j<Spec | RevertPending>(paths.spec(id), { method: "PATCH", ...body(b) }),
   // SPEC-171 · all files + file changed dari worktree backlog item.

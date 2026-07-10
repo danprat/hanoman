@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 
 vi.mock("../src/api/client", () => ({
-  api: { listBranches: vi.fn(async () => ({ branches: [] })) },
+  api: { listBranches: vi.fn(async () => ({ branches: [], remotes: [] })) },
   ApiError: class extends Error {},
 }));
 import { BacklogScreen, specColumn, canDrop } from "../src/screens/BacklogScreen";
