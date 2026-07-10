@@ -62,4 +62,42 @@ describe("TerminalScreen (grid)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sesi baru" }));
     await waitFor(() => expect(screen.getByTestId("pane")).toHaveTextContent("newsesi1"));
   });
+
+  it("menempatkan sesi bebas dari tray ke sel kosong pertama", async () => {
+    listTerminals.mockResolvedValue([{ id: "aaaa1111", projectId: "p1", cwd: "/repo", exited: false }]);
+    render(<TerminalScreen projects={projects} />);
+    const chip = await screen.findByRole("button", { name: /aaaa11/ }); // chip tray
+    fireEvent.click(chip);
+    await waitFor(() => expect(screen.getByTestId("pane")).toHaveTextContent("aaaa1111"));
+  });
+
+  it("picker sel kosong menempatkan sesi bebas", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 2, cells: [null, null] }));
+    listTerminals.mockResolvedValue([{ id: "aaaa1111", projectId: "p1", cwd: "/repo", exited: false }]);
+    render(<TerminalScreen projects={projects} />);
+    const picker = (await screen.findAllByLabelText("Pilih sesi untuk sel"))[0]!;
+    fireEvent.change(picker, { target: { value: "aaaa1111" } });
+    await waitFor(() => expect(screen.getByTestId("pane")).toHaveTextContent("aaaa1111"));
+  });
+
+  it("Lepas mengosongkan sel tanpa mematikan sesi", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["aaaa1111"] }));
+    listTerminals.mockResolvedValue([{ id: "aaaa1111", projectId: "p1", cwd: "/repo", exited: false }]);
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByTestId("pane");
+    fireEvent.click(screen.getByText("lepas"));
+    await waitFor(() => expect(screen.queryByTestId("pane")).toBeNull());
+    expect(deleteTerminal).not.toHaveBeenCalled();
+    // sesi masih ada → muncul kembali sebagai chip tray
+    expect(screen.getByRole("button", { name: /aaaa11/ })).toBeInTheDocument();
+  });
+
+  it("Tutup (×) memanggil deleteTerminal", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["aaaa1111"] }));
+    listTerminals.mockResolvedValue([{ id: "aaaa1111", projectId: "p1", cwd: "/repo", exited: false }]);
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByTestId("pane");
+    fireEvent.click(screen.getByLabelText("Tutup sesi aaaa1111"));
+    await waitFor(() => expect(deleteTerminal).toHaveBeenCalledWith("aaaa1111"));
+  });
 });

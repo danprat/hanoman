@@ -45,6 +45,13 @@ export function TerminalScreen({ projects }: { projects: { id: string; name: str
     setSessions((s) => s.map((x) => (x.id === id ? { ...x, exited: true } : x)));
   }, []);
 
+  const place = (idx: number, id: string) => setLayout((l) => L.setCell(l, idx, id));
+  const placeFirst = (id: string) => setLayout((l) => L.placeFirstEmpty(l, id));
+  const detach = (id: string) => setLayout((l) => L.setCell(l, l.cells.indexOf(id), null));
+
+  const placedIds = new Set(layout.cells.filter((c): c is string => c !== null));
+  const unplaced = sessions.filter((s) => !placedIds.has(s.id));
+
   const showEmpty = layout.rows === 1 && layout.cols === 1 && !layout.cells[0] && sessions.length === 0;
 
   return (
@@ -57,6 +64,26 @@ export function TerminalScreen({ projects }: { projects: { id: string; name: str
           options={projects.map((p) => ({ value: p.id, label: p.name }))} />
         <Button size="sm" leftIcon="plus" onClick={() => void openNew()}>Sesi baru</Button>
       </div>
+
+      {unplaced.length > 0 && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+          <span style={{ fontSize: 11, color: "var(--text-subtle)" }}>Belum di grid:</span>
+          {unplaced.map((s) => (
+            <span key={s.id} style={{
+              display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 8px",
+              borderRadius: "var(--radius-sm)", background: "var(--bone-200)",
+              border: "1px solid var(--border-hair)", fontFamily: "var(--font-mono)", fontSize: 11,
+            }}>
+              <button onClick={() => placeFirst(s.id)} title="Taruh di sel kosong pertama"
+                style={{ all: "unset", cursor: "pointer" }}>
+                {(s.runId ? `${s.runId} · resume` : nameOf(s.projectId))} · {s.id.slice(0, 6)}
+              </button>
+              <span aria-label={`Tutup sesi ${s.id}`} onClick={() => void close(s.id)}
+                style={{ cursor: "pointer", color: "var(--text-subtle)" }}>×</span>
+            </span>
+          ))}
+        </div>
+      )}
 
       {showEmpty ? (
         // Tanpa `action`: toolbar di atas sudah menawarkan "Sesi baru" — tombol kedua
@@ -77,8 +104,9 @@ export function TerminalScreen({ projects }: { projects: { id: string; name: str
                 border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", overflow: "hidden",
               }}>
                 {s
-                  ? <Cell session={s} nameOf={nameOf} onClose={() => void close(s.id)} onExit={() => markExited(s.id)} />
-                  : <EmptyCell />}
+                  ? <Cell session={s} nameOf={nameOf} onClose={() => void close(s.id)}
+                      onDetach={() => detach(s.id)} onExit={() => markExited(s.id)} />
+                  : <EmptyCell unplaced={unplaced} nameOf={nameOf} onPick={(sid) => place(idx, sid)} />}
               </div>
             );
           })}
@@ -88,9 +116,9 @@ export function TerminalScreen({ projects }: { projects: { id: string; name: str
   );
 }
 
-function Cell({ session, nameOf, onClose, onExit }: {
+function Cell({ session, nameOf, onClose, onDetach, onExit }: {
   session: TerminalSession; nameOf: (pid: string) => string;
-  onClose: () => void; onExit: (code: number) => void;
+  onClose: () => void; onDetach: () => void; onExit: (code: number) => void;
 }) {
   const label = session.runId ? `${session.runId} · resume` : nameOf(session.projectId);
   return (
@@ -103,6 +131,8 @@ function Cell({ session, nameOf, onClose, onExit }: {
         <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {label} · {session.id.slice(0, 6)}{session.exited && " · berakhir"}
         </span>
+        <span onClick={onDetach} title="Lepas dari grid (sesi tetap hidup)"
+          style={{ cursor: "pointer", color: "var(--text-subtle)" }}>lepas</span>
         <span aria-label={`Tutup sesi ${session.id}`} onClick={onClose}
           style={{ cursor: "pointer", color: "var(--text-subtle)" }}>×</span>
       </div>
@@ -114,10 +144,18 @@ function Cell({ session, nameOf, onClose, onExit }: {
   );
 }
 
-function EmptyCell() {
+function EmptyCell({ unplaced, nameOf, onPick }: {
+  unplaced: TerminalSession[]; nameOf: (pid: string) => string; onPick: (id: string) => void;
+}) {
   return (
-    <div style={{ flex: 1, display: "grid", placeItems: "center", color: "var(--text-subtle)", fontSize: 12 }}>
-      kosong
+    <div style={{ flex: 1, display: "grid", placeItems: "center", padding: 12 }}>
+      <Select size="sm" value="" aria-label="Pilih sesi untuk sel" disabled={!unplaced.length}
+        onChange={(e) => e.target.value && onPick(e.target.value)}
+        options={[{ value: "", label: unplaced.length ? "Pilih sesi…" : "tidak ada sesi bebas" }]
+          .concat(unplaced.map((s) => ({
+            value: s.id,
+            label: `${s.runId ? `${s.runId} · resume` : nameOf(s.projectId)} · ${s.id.slice(0, 6)}`,
+          })))} />
     </div>
   );
 }
