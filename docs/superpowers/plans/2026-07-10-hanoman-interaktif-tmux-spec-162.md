@@ -1,6 +1,6 @@
 # SPEC-162 — Backlog → Sesi Claude Code Interaktif Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Ganti eksekusi headless (`runOne` + BullMQ + Redis) dengan satu sesi `claude` interaktif per backlog item di dalam tmux, dan hapus seluruh subsistem `Run`.
 
@@ -16,7 +16,7 @@
 - Test dijalankan tanpa env shell yang menunjuk produksi: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run <path>`.
 - DB test terpisah dan butuh migrate sendiri: `env DATABASE_URL=<url hanoman_test> pnpm --filter ./server exec prisma migrate deploy`.
 - Postgres berjalan di Docker: `docker exec hanoman-db-1 psql -U hanoman -d hanoman`.
-- Setelah tiap task: centang checklist di berkas ini (`- [ ]` → `- [x]`), lalu **uji API-nya nyata di local** (`pnpm dev:api` + `curl`), bukan hanya unit test.
+- Setelah tiap task: centang checklist di berkas ini (`- [x]` → `- [x]`), lalu **uji API-nya nyata di local** (`pnpm dev:api` + `curl`), bukan hanya unit test.
 - Guardrail Source of Truth telah dicabut (ADR-0023). Jangan menambahkannya kembali. Guardrail deny perintah berbahaya (`runner/src/safety.ts` + `cli hook pretooluse`) **tetap** dan wajib terpasang di setiap sesi.
 - Sesi tidak pernah berjalan di working tree utama (ADR-0002).
 - `branchTo` sebuah backlog item = `hanoman/<sessionId>`, mis. `hanoman/spec-162`.
@@ -55,7 +55,7 @@
 - Produces: `PIPELINES: Record<Flow, readonly string[]>`, `startPrompt(flow: Flow, spec: SpecBrief, branchTo: string): string`, `type SpecBrief = { id: string; title: string; source: string; priority: string; objective: string; payload?: unknown }`.
 - Consumes: `Flow` dari `runner/src/types.ts` (sudah ada).
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 `runner/test/prompt.test.ts`:
 
@@ -105,7 +105,7 @@ describe("startPrompt", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm vitest run runner/test/prompt.test.ts
@@ -113,7 +113,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm vitest run runner/test/prompt.test.ts
 
 Diharapkan: FAIL — `Cannot find module '../src/prompt'`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 `runner/src/prompt.ts`:
 
@@ -158,7 +158,7 @@ export function startPrompt(flow: Flow, spec: SpecBrief, branchTo: string): stri
 
 Di `runner/src/index.ts`, tambahkan `export * from "./prompt";`.
 
-- [ ] **Step 4: Jalankan, pastikan lulus**
+- [x] **Step 4: Jalankan, pastikan lulus**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm vitest run runner/test/prompt.test.ts
@@ -166,7 +166,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm vitest run runner/test/prompt.test.ts
 
 Diharapkan: PASS, 6 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runner/src/prompt.ts runner/src/index.ts runner/test/prompt.test.ts
@@ -189,7 +189,7 @@ git commit -m "feat(runner): startPrompt + PIPELINES untuk sesi interaktif (SPEC
   - `readPhases(file: string, flow: Flow): Phase[]`
   - `stageFor(phases: Phase[]): Stage | null`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 `server/test/session-phases.test.ts`:
 
@@ -273,7 +273,7 @@ describe("stageFor", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm vitest run server/test/session-phases.test.ts
@@ -281,7 +281,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm vitest run server/test/session-phases.test.
 
 Diharapkan: FAIL — `Cannot find module '../src/services/session-phases'`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 `server/src/services/session-phases.ts`:
 
@@ -347,7 +347,7 @@ export function stageFor(phases: Phase[]): Stage | null {
 }
 ```
 
-- [ ] **Step 4: Jalankan, pastikan lulus**
+- [x] **Step 4: Jalankan, pastikan lulus**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm vitest run server/test/session-phases.test.ts
@@ -355,7 +355,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm vitest run server/test/session-phases.test.
 
 Diharapkan: PASS, 11 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/session-phases.ts server/test/session-phases.test.ts
@@ -378,7 +378,7 @@ git commit -m "feat(server): baca fase yang dilaporkan agen dari berkas append-o
   - `Frame` bertambah `{ t: "phase"; phases: Phase[] }`
   - `sessionPhases(id: string): Phase[] | null`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan ke `server/test/pty.test.ts` (ikuti pola `FAKE_CLAUDE` + `waitFor` yang sudah ada di berkas itu):
 
@@ -429,7 +429,7 @@ const recorder = () => {
 };
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm vitest run server/test/pty.test.ts
@@ -437,7 +437,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm vitest run server/test/pty.test.ts
 
 Diharapkan: FAIL — `createSession` belum menerima `prompt`/`flow`; `sessionPhases` tak ada.
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 Di `server/src/services/pty.ts`:
 
@@ -536,7 +536,7 @@ function pollPhases(id: string, a: Attachment): void {
 
 Panggil `pollPhases(id, a)` di dalam loop `startPoll()` untuk tiap sesi yang masih hidup, dan sekali di `attach()` setelah scrollback dikirim (klien baru harus langsung melihat fase, tanpa menunggu perubahan).
 
-- [ ] **Step 4: Jalankan, pastikan lulus**
+- [x] **Step 4: Jalankan, pastikan lulus**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm vitest run server/test/pty.test.ts
@@ -544,7 +544,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm vitest run server/test/pty.test.ts
 
 Diharapkan: PASS. `runId` sudah tak ada — test lama yang memakainya ikut diperbarui di task ini.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/pty.ts server/test/pty.test.ts
@@ -565,7 +565,7 @@ git commit -m "feat(server): sesi tmux membawa spec/flow/prompt dan menyiarkan f
 - Consumes: `createSession`, `sessionPhases`, `killSession`, `getSession` (Task 3); `phaseFilePath`, `readPhases`, `stageFor` (Task 2); `startPrompt` (Task 1); `realGit.addWorktree`/`removeWorktree`.
 - Produces: `POST /api/terminal/sessions` menerima `{ project }` **atau** `{ spec, flow }`; `GET /api/terminal/sessions/:id/phases` → `{ flow, phases }`; `DELETE` membuang worktree.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Ganti blok test sesi-run di `server/test/terminal.route.test.ts` dengan:
 
@@ -639,7 +639,7 @@ execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm
 
 `makeSpec` sudah ada di `server/test/factory.ts`; kalau belum menerima `stage`, tambahkan.
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm vitest run server/test/terminal.route.test.ts
@@ -647,7 +647,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm vitest run server/test/terminal.route.test.
 
 Diharapkan: FAIL — body `{ spec, flow }` ditolak `zTerminalSession` (400), `/phases` 404.
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 `shared/src/dto.ts` — ganti `zTerminalSession`:
 
@@ -754,7 +754,7 @@ app.delete("/terminal/sessions/:id", async (req, reply) => {
 });
 ```
 
-- [ ] **Step 4: Jalankan, pastikan lulus**
+- [x] **Step 4: Jalankan, pastikan lulus**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm vitest run server/test/terminal.route.test.ts shared
@@ -762,7 +762,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm vitest run server/test/terminal.route.test.
 
 Diharapkan: PASS.
 
-- [ ] **Step 5: Uji API nyata**
+- [x] **Step 5: Uji API nyata**
 
 ```bash
 pnpm dev:api &
@@ -775,7 +775,7 @@ curl -sS -XDELETE localhost:3000/api/terminal/sessions/spec-162 -o /dev/null -w 
 
 Diharapkan: `201 {"id":"spec-162"}`, fase `Brainstorm active`, sesi tmux ada, `204`, worktree hilang.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/routes/terminal.ts server/src/services/settings.ts shared/src/dto.ts shared/src/api.ts shared/src/entities.ts server/test/terminal.route.test.ts server/test/factory.ts
@@ -796,7 +796,7 @@ git commit -m "feat(server): start sesi interaktif dari backlog item + endpoint 
 - Consumes: `POST /api/terminal/sessions {spec,flow}`, `GET .../phases`, frame WS `{ t: "phase", phases }`.
 - Produces: `api.startSession(b: { spec: string; flow: Flow }): Promise<{ id: string }>`, `api.sessionPhases(id): Promise<{ flow: Flow; phases: Phase[] }>`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan ke `src/test/terminal-screen.test.tsx`:
 
@@ -814,7 +814,7 @@ it("merender strip fase dan menandai yang aktif saat frame phase tiba", async ()
 
 (`renderTerminal` mengikuti helper yang sudah ada di berkas itu.)
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm vitest run src/test/terminal-screen.test.tsx
@@ -822,7 +822,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm vitest run src/test/terminal-screen.test.ts
 
 Diharapkan: FAIL — tak ada elemen `Objective`.
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 `src/src/api/client.ts` — buang `startRun`, `listRuns`, `getRun`, `deleteRun`, `runCommand`, `runControl`, `runSteer`, `runAnswer`, `runChanges`, `runChangeFile`, `listTriggers`, `createTrigger`, `toggleTrigger`, `deleteTrigger`. Tambah:
 
@@ -838,7 +838,7 @@ sessionPhases: (id: string) => j<{ flow: Flow; phases: Phase[] }>(paths.terminal
 
 `TerminalScreen.tsx` — simpan `phases` dari frame `{ t: "phase" }` dan render strip di atas terminal, memakai token design system (`--text-muted`, `--brass`, `--radius-lg`). Tiap fase membawa `data-state`. Ambil keadaan awal lewat `api.sessionPhases(id)` saat tab dibuka — WS hanya mengirim frame saat berubah, dan sesi yang sudah lama jalan tak akan mengirim apa pun sampai fase berikutnya tutup. (Sudah tidak perlu: `pollPhases` juga menyiarkan sekali saat attach; ambil lewat API tetap benar untuk tab yang belum pernah attach.)
 
-- [ ] **Step 4: Jalankan, pastikan lulus**
+- [x] **Step 4: Jalankan, pastikan lulus**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm vitest run src/test/terminal-screen.test.tsx
@@ -846,7 +846,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm vitest run src/test/terminal-screen.test.ts
 
 Diharapkan: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/api/client.ts src/src/screens/BacklogScreen.tsx src/src/screens/TerminalScreen.tsx src/test/terminal-screen.test.tsx
@@ -869,7 +869,7 @@ git commit -m "feat(web): Start backlog membuka sesi interaktif; strip fase di t
 **Interfaces:**
 - Produces: `ProjectView.session: { status: "running" | "idle"; phase: string | null; flow: string | null }` menggantikan `ProjectView.run`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Ganti `server/test/project-view.test.ts` agar menuntut bentuk baru:
 
@@ -888,7 +888,7 @@ it("sesi backlog yang hidup muncul sebagai running dengan fase aktifnya", async 
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm vitest run server/test/project-view.test.ts
@@ -896,7 +896,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm vitest run server/test/project-view.test.ts
 
 Diharapkan: FAIL — `v.session` undefined.
 
-- [ ] **Step 3: Hapus dan sambung ulang**
+- [x] **Step 3: Hapus dan sambung ulang**
 
 Hapus berkas di daftar atas dengan `git rm`. Lalu:
 
@@ -941,7 +941,7 @@ export const zProjectView = zProject.extend({
 
 `server/package.json` — buang script `worker`, dan `--external:bullmq --external:ioredis` dari `build`. Root `package.json` — buang `dev:worker`, `worker`, `prod:worker`, dan sempitkan `prod` ke `prod:api`.
 
-- [ ] **Step 4: Jalankan seluruh suite server**
+- [x] **Step 4: Jalankan seluruh suite server**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm vitest run server
@@ -950,7 +950,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm -r typecheck
 
 Diharapkan: PASS. Kalau `typecheck` masih menyebut `prisma.run`/`prisma.trigger`, berarti ada pemanggil yang terlewat — perbaiki sebelum lanjut (skema-nya baru turun di Task 8).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -u server shared
@@ -967,7 +967,7 @@ git commit -m "refactor(server)!: hapus run, queue, worker, redis, trigger, webh
 - Delete tests: `src/test/{run-reduce,run-poll,run-ask,run-order,run-retry}.test.*`
 - Modify: `src/src/App.tsx`, `src/src/screens/{ProjectsScreen,OverviewScreen}.tsx`, `src/test/{app-flows,app-states,project-detail,project-filter}.test.tsx`
 
-- [ ] **Step 1: Jalankan test untuk melihat apa yang pecah**
+- [x] **Step 1: Jalankan test untuk melihat apa yang pecah**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm vitest run src
@@ -975,7 +975,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm vitest run src
 
 Catat setiap kegagalan yang menyebut `run`, `runs`, atau `triggers`. Itulah daftar kerja langkah berikutnya.
 
-- [ ] **Step 2: Hapus dan sambung ulang**
+- [x] **Step 2: Hapus dan sambung ulang**
 
 `App.tsx` — buang state `runs`/`triggers`, `api.listRuns()`/`api.listTriggers()` dari kedua `Promise.all`, rute `runs` dan `triggers` di navigasi, dan importnya. Item sidebar "Runs"/"Triggers" hilang; "Terminal" menggantikan tempatnya sebagai tujuan tombol Start.
 
@@ -983,7 +983,7 @@ Catat setiap kegagalan yang menyebut `run`, `runs`, atau `triggers`. Itulah daft
 
 `OverviewScreen.tsx` — kartu "run aktif" menjadi "sesi aktif"; tombol "Buka Runs" → "Buka Terminal" (`onGoto("terminal")`); `a.status` dari `p.session.status`.
 
-- [ ] **Step 3: Jalankan, pastikan lulus**
+- [x] **Step 3: Jalankan, pastikan lulus**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm vitest run src
@@ -992,7 +992,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm -r typecheck
 
 Diharapkan: PASS, tanpa satu pun referensi `Run` tersisa di `src/`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add -u src
@@ -1007,11 +1007,11 @@ git commit -m "refactor(web)!: hapus RunsScreen + TriggersScreen; project menamp
 - Modify: `server/prisma/schema.prisma`
 - Create: `server/prisma/migrations/<timestamp>_drop_run_trigger_github/migration.sql`
 
-- [ ] **Step 1: Sunting skema**
+- [x] **Step 1: Sunting skema**
 
 Hapus model `Run`, `Trigger`, `GithubInstallation`. Di `Project`, hapus `runs Run[]`, `triggers Trigger[]`, `installationId Int?`, dan `repoUrl String?`. `Spec` dan `Setting` tak berubah (`Setting.data` adalah `Json` — bentuk barunya dijaga `zSetting`, bukan skema).
 
-- [ ] **Step 2: Buat migration**
+- [x] **Step 2: Buat migration**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL DATABASE_URL="postgresql://hanoman:hanoman@localhost:5432/hanoman" \
@@ -1029,7 +1029,7 @@ ALTER TABLE "Project" DROP COLUMN "installationId", DROP COLUMN "repoUrl";
 
 Ini destruktif dan disengaja: riwayat run tak dipertahankan (lihat bagian Konsekuensi di spec).
 
-- [ ] **Step 3: Migrasikan DB test**
+- [x] **Step 3: Migrasikan DB test**
 
 DB test tak tersentuh `migrate dev` dan akan melempar P2022 di setiap test server tanpa langkah ini.
 
@@ -1038,7 +1038,7 @@ env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@localhost:5432/hanoma
   pnpm --filter ./server exec prisma migrate deploy
 ```
 
-- [ ] **Step 4: Verifikasi**
+- [x] **Step 4: Verifikasi**
 
 ```bash
 docker exec hanoman-db-1 psql -U hanoman -d hanoman -c '\dt'
@@ -1047,7 +1047,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm vitest run server
 
 Diharapkan: hanya `Project`, `Spec`, `Setting`, `_prisma_migrations`. Suite server PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/prisma/schema.prisma server/prisma/migrations
@@ -1068,7 +1068,7 @@ git commit -m "feat(server)!: drop tabel Run, Trigger, GithubInstallation (SPEC-
 - Create: `internal/docs/adr/0024-sesi-interaktif-menggantikan-run.md`
 - Modify: `internal/docs/README.md`, `internal/docs/frontend/frontend-implementation.md`, `internal/docs/adr/{0005,0008,0010,0012,0017,0022}-*.md` (tandai superseded)
 
-- [ ] **Step 1: Susutkan runner**
+- [x] **Step 1: Susutkan runner**
 
 `runner/src/types.ts` menyisakan `Flow` dan `GitOps`. `runner/src/git.ts` kehilangan `commitAndPush` dan `switchBase` — agen yang commit dan push sekarang. `runner/src/index.ts` mengekspor `PIPELINES`, `startPrompt`, `SpecBrief`, `Flow`, `GitOps`, `realGit`, `guardSettings`, `deniesDangerous` (`safety.ts`).
 
@@ -1076,13 +1076,13 @@ git commit -m "feat(server)!: drop tabel Run, Trigger, GithubInstallation (SPEC-
 
 `runner/test/git.test.ts` kehilangan blok `commitAndPush`/`switchBase`; sisanya tetap.
 
-- [ ] **Step 2: Susutkan cli**
+- [x] **Step 2: Susutkan cli**
 
 `cli/src/router.ts` kehilangan perintah `feature`, `qa`, `spec`, `plan`, `execute`, `scaffold`, `reverse`. Yang tersisa: `hook pretooluse`, `docs scan`, `docs index`, `docs link`. `cli/package.json` kehilangan dependensi `@hanoman/runner` jika tak ada lagi yang mengimpornya (`hook-pretooluse.ts` memakai `deniesDangerous` — kalau ya, dependensinya tetap).
 
 `shared/src/cost.ts` (`fmtEstCost`) menjadi mati bersama ADR-0012: `git rm` berkasnya, exportnya di `shared/src/index.ts`, dan `shared/test/`-nya jika ada.
 
-- [ ] **Step 3: Buang dependensi**
+- [x] **Step 3: Buang dependensi**
 
 ```bash
 pnpm --filter ./server remove bullmq ioredis @octokit/auth-app @octokit/rest
@@ -1092,7 +1092,7 @@ pnpm --filter ./server remove bullmq ioredis @octokit/auth-app @octokit/rest
 
 `.env.example` dan `.env.production.example` — hapus `REDIS_URL`, `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_WEBHOOK_SECRET`.
 
-- [ ] **Step 4: Tulis ADR-0024**
+- [x] **Step 4: Tulis ADR-0024**
 
 `internal/docs/adr/0024-sesi-interaktif-menggantikan-run.md`, mengikuti bentuk ADR lain (Context / Decision / Consequences, bahasa Indonesia). Isinya:
 
@@ -1103,7 +1103,7 @@ pnpm --filter ./server remove bullmq ioredis @octokit/auth-app @octokit/rest
 
 Tambahkan header `**Status:** superseded oleh ADR-0024` di kelima ADR yang digantikan, dan link ADR-0024 di `internal/docs/README.md`.
 
-- [ ] **Step 5: Verifikasi penuh**
+- [x] **Step 5: Verifikasi penuh**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm -r typecheck
@@ -1113,7 +1113,7 @@ grep -rn "runOne\|bullmq\|ioredis\|prisma.run\b" runner/src server/src src/src c
 
 Diharapkan: typecheck bersih, seluruh suite PASS, `grep` tak menemukan apa pun.
 
-- [ ] **Step 6: Uji API nyata, ujung ke ujung**
+- [x] **Step 6: Uji API nyata, ujung ke ujung**
 
 ```bash
 docker compose up -d --wait          # hanya db sekarang
@@ -1129,7 +1129,7 @@ curl -sS -XDELETE localhost:3000/api/terminal/sessions/<specid> -o /dev/null -w 
 
 Diharapkan: `claude` benar-benar interaktif di dalam tmux dengan prompt backlog item terisi, `/phases` melaporkan `Brainstorm active`, `DELETE` mengembalikan `204` dan worktree-nya hilang.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add -u runner cli server package.json docker-compose.yml .env.example .env.production.example
@@ -1142,6 +1142,7 @@ git commit -m "refactor!: hapus runner headless + cli flow; ADR-0024 (SPEC-162)"
 
 ## Catatan untuk implementer
 
-- **`--effort` di mode interaktif belum diverifikasi terhadap biner `claude` yang terpasang.** `buildArgs` lama memakainya hanya di jalur `-p`. Sebelum Task 4 Step 3, jalankan `claude --help | grep effort`. Kalau flag itu tak diterima tanpa `-p`, jangan kirimkan — buang `effort` dari `sessionModel()` dan catat alasannya di komentar. Ini satu-satunya asumsi di rencana ini yang belum diuji terhadap binernya.
+- ~~`--effort` di mode interaktif belum diverifikasi.~~ **Terverifikasi 2026-07-10:** `claude --help` mendaftarkannya sebagai *"Effort level for the current session"* — bukan flag khusus `-p`. Dikirim apa adanya.
+- **Jalankan test dengan `--no-file-parallelism`** (`pnpm vitest run --no-file-parallelism server`). Tanpa itu berkas test berjalan paralel di atas satu DB dan satu socket tmux, dan ~13 berkas gagal palsu. Script `pnpm test` di root sudah memakainya.
 - Task 6 dan 7 mematahkan `typecheck` di tengah jalan. Itu diharapkan; yang tidak boleh adalah mengakhiri task dengan `typecheck` merah.
 - Jangan menghidupkan kembali `.hanoman-ask.json`, `.hanoman-decision.json`, atau `steer`. Agen bertanya di terminal; manusia menjawab di terminal.
