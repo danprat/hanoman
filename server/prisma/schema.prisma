@@ -13,13 +13,9 @@ model Project {
   desc      String
   kind      String
   repoDir   String?
-  repoUrl   String?
-  installationId Int?
   stack     String   @default("")
   createdAt DateTime @default(now())
   specs     Spec[]
-  runs      Run[]
-  triggers  Trigger[]
 }
 
 model Spec {
@@ -36,59 +32,7 @@ model Spec {
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
-model Run {
-  id            String  @id
-  projectId     String
-  specId        String?
-  kind          String
-  status        String
-  commitSha     String?
-  reportRepo    String?
-  trigger       String
-  triggerDetail String
-  phases        Json
-  plan          Json
-  log           Json
-  worktree      String
-  // Sesi claude milik run ini (SPEC-013). Nullable: run yang masih mengantre belum
-  // punya sesi. Dipakai layar Terminal untuk `claude --resume` di dalam worktree.
-  sessionId     String?
-  // SPEC-157 · pertanyaan agen yang sedang menunggu jawaban manusia (bentuk `Ask`), atau NULL
-  // saat tak ada. Hanya terisi selama status `awaiting`. Lihat ADR-0022.
-  pendingAsk    Json?
-  // SPEC-144 · penunjuk, bukan isi. Diff diturunkan; SHA tak dapat direkonstruksi
-  // setelah worktree dan branch run dihapus. Lihat ADR-0019.
-  baseSha       String?
-  headSha       String?
-  branchFrom    String
-  branchTo      String
-  model         String
-  tokensIn      String
-  tokensOut     String
-  cost          String
-  progress      Int
-  createdAt     DateTime @default(now())
-  finishedAt    DateTime?
-  project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-}
-
-model Trigger {
-  id        String  @id
-  projectId String
-  type      String
-  detail    String
-  target    String
-  enabled   Boolean
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-}
-
 model Setting {
   id   Int  @id @default(1)
   data Json
-}
-
-model GithubInstallation {
-  id      Int      @id
-  account String
-  repos   String[]
 }

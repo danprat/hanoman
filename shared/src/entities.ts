@@ -6,7 +6,7 @@ export type Stage = z.infer<typeof zStage>;
 
 export const zProject = z.object({
   id: z.string(), name: z.string(), desc: z.string(), kind: zProjectKind,
-  repoDir: z.string().nullable().optional(), repoUrl: z.string().nullable().optional(),
+  repoDir: z.string().nullable().optional(),
   stack: z.string().default(""),                       // ADR-0004
   docStatus: zDocStatus, coverage: z.number().int().min(0).max(100),
   createdAt: z.string(),

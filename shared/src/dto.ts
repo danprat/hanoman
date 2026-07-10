@@ -5,8 +5,8 @@ import { zProjectKind, zSpecSource, zPriority, zTriggerType, zTriggerTarget } fr
 export const zCreateProject = z.object({
   name: z.string().min(1), kind: zProjectKind, repoDir: z.string().optional(),
   desc: z.string().default("") });
-// SPEC-146: hanya label tampilan. `id` memikul kunci asing Spec/Run/Trigger; `kind`,
-// `repoDir`, `repoUrl`, dan `stack` menentukan tempat run/scan/terminal hidup. Body
+// SPEC-146: hanya label tampilan. `id` memikul kunci asing Spec; `kind`,
+// `repoDir` dan `stack` menentukan tempat sesi/scan/terminal hidup. Body
 // kosong `{}` sah dan berarti no-op — refinement "minimal satu field" tak menjaga apa pun.
 export const zUpdateProject = z.object({
   name: z.string().min(1).optional(),

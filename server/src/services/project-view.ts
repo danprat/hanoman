@@ -33,7 +33,7 @@ export async function toProjectView(projectId: string): Promise<ProjectView> {
     ? open.map((s) => s.stage).sort((a, b) => STAGES.indexOf(b as any) - STAGES.indexOf(a as any))[0]!
     : "spec";
   return {
-    id: p.id, name: p.name, desc: p.desc, kind: p.kind as any, repoDir: p.repoDir, repoUrl: p.repoUrl,
+    id: p.id, name: p.name, desc: p.desc, kind: p.kind as any, repoDir: p.repoDir,
     stack: p.stack, docStatus: docStatusFor(coverage), coverage, createdAt: p.createdAt.toISOString(),
     backlog: open.length, topStage,
     session,
