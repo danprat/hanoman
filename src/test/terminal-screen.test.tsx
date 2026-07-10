@@ -244,6 +244,68 @@ describe("TerminalScreen (tutup kolom/baris)", () => {
   });
 });
 
+describe("TerminalScreen (layar penuh)", () => {
+  const root = () => screen.getByTestId("terminal-root");
+
+  it("tombol memaksimalkan screen, label & aria-pressed berbalik", async () => {
+    listTerminals.mockResolvedValue([]);
+    render(<TerminalScreen projects={projects} />);
+
+    const masuk = await screen.findByRole("button", { name: "Layar penuh" });
+    expect(masuk).toHaveAttribute("aria-pressed", "false");
+    expect(root()).not.toHaveStyle({ position: "fixed" });
+
+    fireEvent.click(masuk);
+
+    expect(root()).toHaveStyle({ position: "fixed", zIndex: "100" });
+    expect(screen.getByRole("button", { name: "Keluar layar penuh" }))
+      .toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("keluar mengembalikan tinggi normal", async () => {
+    listTerminals.mockResolvedValue([]);
+    render(<TerminalScreen projects={projects} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Layar penuh" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Keluar layar penuh" }));
+
+    expect(root()).not.toHaveStyle({ position: "fixed" });
+    expect(root()).toHaveStyle({ height: "calc(100vh - 180px)" });
+    expect(screen.getByRole("button", { name: "Layar penuh" })).toBeInTheDocument();
+  });
+
+  it("kontrol tetap bekerja di dalam layar penuh", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["aaaa1111"] }));
+    listTerminals.mockResolvedValue([{ id: "aaaa1111", projectId: "p1", cwd: "/repo", exited: false }]);
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByTestId("pane");
+
+    fireEvent.click(screen.getByRole("button", { name: "Layar penuh" }));
+
+    // tabbar, gutter, toolbar: semuanya masih ada setelah chrome dilebur jadi satu baris
+    expect(screen.getByRole("tab", { name: "Utama" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Tutup kolom 1")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sesi baru" })).toBeInTheDocument();
+
+    // dan benar-benar terhubung, bukan sekadar ter-render
+    fireEvent.click(screen.getByRole("button", { name: "+ Kolom" }));
+    expect(await screen.findByLabelText("Tutup kolom 2")).toBeInTheDocument();
+    expect(root()).toHaveStyle({ position: "fixed" });   // tetap maximize
+  });
+
+  it("Escape TIDAK keluar dari layar penuh — Escape milik terminal", async () => {
+    listTerminals.mockResolvedValue([]);
+    render(<TerminalScreen projects={projects} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Layar penuh" }));
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.keyDown(root(), { key: "Escape" });
+
+    expect(root()).toHaveStyle({ position: "fixed" });
+    expect(screen.getByRole("button", { name: "Keluar layar penuh" })).toBeInTheDocument();
+  });
+});
+
 // SPEC-162 · fase dilaporkan agen, server menyiarkannya lewat WS terminal. Strip ini hanya
 // menggambar apa yang dilaporkan — ia tak menyimpulkan apa pun sendiri.
 describe("PhaseStrip", () => {

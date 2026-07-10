@@ -137,6 +137,15 @@ demi byte. Terminal di `RunsScreen` adalah hal yang berbeda: interpreter perinta
 (`status`/`plan`/`steer`) untuk run terjadwal, bukan TTY. Nol perubahan server: route dan `pty.ts`
 dipakai apa adanya (SPEC-158).
 
+Tombol **Layar penuh** (`maximize-2`) di ujung toolbar memaksimalkan screen: root-nya jadi
+`position: fixed; inset: 0; z-index: 100`, menimpa sidebar dan topbar `Shell` — di bawah modal (150)
+dan toast (200), supaya dialog konfirmasi tak terkubur. Chrome menyusut jadi satu baris (tabbar dan
+toolbar melebur, `GroupTabs` kehilangan garis bawahnya lewat prop `compact`) sehingga grid mendapat
+sisa layar. Ini **maximize dalam app**, bukan Fullscreen API: `requestFullscreen()` merebut `Escape`,
+dan `Escape` adalah tombol tersibuk di TUI Claude Code. Karena itu pula **tak ada** handler `Escape`
+untuk keluar — hanya tombol. Pengguna yang mau seluruh layar device menekan `F11` sendiri. State
+`maxed` tidak dipersist (SPEC-163).
+
 Proxy dev Vite harus memakai `ws: true`, kalau tidak upgrade WebSocket dijawab 404.
 
 ## Live run view (SPEC-008)

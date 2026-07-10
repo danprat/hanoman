@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, Select, StateBlock } from "../ds";
+import { Button, IconButton, Select, StateBlock } from "../ds";
 import { api, type TerminalSession, type Phase } from "../api/client";
 import { TerminalPane } from "./TerminalPane";
 import * as L from "./terminal-layout";
@@ -9,6 +9,7 @@ export function TerminalScreen({ projects }: { projects: { id: string; name: str
   const [sessions, setSessions] = React.useState<TerminalSession[]>([]);
   const [ws, setWs] = React.useState<W.Workspace>(() => W.load() ?? W.emptyWorkspace());
   const [project, setProject] = React.useState(projects[0]?.id ?? "");
+  const [maxed, setMaxed] = React.useState(false);
 
   const [loaded, setLoaded] = React.useState(false);
   React.useEffect(() => {
@@ -56,23 +57,46 @@ export function TerminalScreen({ projects }: { projects: { id: string; name: str
   const layout = W.activeGroup(ws).layout;
   const showEmpty = layout.rows === 1 && layout.cols === 1 && !layout.cells[0] && sessions.length === 0;
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12, height: "calc(100vh - 180px)" }}>
-      <GroupTabs
-        ws={ws}
-        onSelect={(id) => setWs((w) => W.selectGroup(w, id))}
-        onAdd={() => setWs((w) => W.addGroup(w, `Grup ${w.groups.length + 1}`))}
-        onRename={(id, name) => setWs((w) => W.renameGroup(w, id, name))}
-        onRemove={(id) => setWs((w) => W.removeGroup(w, id))}
-      />
+  // Overlay menimpa Shell, bukan melepas screen darinya. zIndex 100: di atas konten halaman,
+  // di bawah modal (150) dan toast (200) di ds/kit.tsx — kalau dibalik, dialog konfirmasi
+  // terkubur di belakang terminal.
+  // ponytail: Escape sengaja TIDAK di-bind untuk keluar. Ia tombol tersibuk di TUI Claude Code;
+  // merebutnya demi menutup overlay menukar hal yang dipakai tiap menit dengan hal yang dipakai
+  // sekali. Keluar lewat tombol saja. Ada test yang menjaga ini.
+  const rootStyle: React.CSSProperties = {
+    display: "flex", flexDirection: "column", gap: maxed ? 8 : 12,
+    ...(maxed
+      ? { position: "fixed", inset: 0, zIndex: 100, background: "var(--surface-page)", padding: 12 }
+      : { height: "calc(100vh - 180px)" }),
+  };
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <Button size="sm" variant="ghost" onClick={() => setWs((w) => W.mapActiveLayout(w, L.addColumn))}>+ Kolom</Button>
-        <Button size="sm" variant="ghost" onClick={() => setWs((w) => W.mapActiveLayout(w, L.addRow))}>+ Baris</Button>
-        <div style={{ flex: 1, minWidth: 0 }} />
-        <Select size="sm" value={project} onChange={(e) => setProject(e.target.value)}
-          options={projects.map((p) => ({ value: p.id, label: p.name }))} />
-        <Button size="sm" leftIcon="plus" onClick={() => void openNew()}>Sesi baru</Button>
+  return (
+    <div data-testid="terminal-root" style={rootStyle}>
+      {/* Saat maximize, tabbar & toolbar melebur jadi satu baris supaya ~110px chrome
+          kembali ke grid — itu inti permintaannya. */}
+      <div style={{ display: "flex", gap: 8,
+        flexDirection: maxed ? "row" : "column", alignItems: maxed ? "center" : "stretch" }}>
+        <GroupTabs
+          compact={maxed}
+          ws={ws}
+          onSelect={(id) => setWs((w) => W.selectGroup(w, id))}
+          onAdd={() => setWs((w) => W.addGroup(w, `Grup ${w.groups.length + 1}`))}
+          onRename={(id, name) => setWs((w) => W.renameGroup(w, id, name))}
+          onRemove={(id) => setWs((w) => W.removeGroup(w, id))}
+        />
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+          ...(maxed ? { flex: 1, minWidth: 0 } : {}) }}>
+          <Button size="sm" variant="ghost" onClick={() => setWs((w) => W.mapActiveLayout(w, L.addColumn))}>+ Kolom</Button>
+          <Button size="sm" variant="ghost" onClick={() => setWs((w) => W.mapActiveLayout(w, L.addRow))}>+ Baris</Button>
+          <div style={{ flex: 1, minWidth: 0 }} />
+          <Select size="sm" value={project} onChange={(e) => setProject(e.target.value)}
+            options={projects.map((p) => ({ value: p.id, label: p.name }))} />
+          <Button size="sm" leftIcon="plus" onClick={() => void openNew()}>Sesi baru</Button>
+          <IconButton size="sm" icon={maxed ? "minimize-2" : "maximize-2"}
+            label={maxed ? "Keluar layar penuh" : "Layar penuh"}
+            aria-pressed={maxed} onClick={() => setMaxed((m) => !m)} />
+        </div>
       </div>
 
       {unplaced.length > 0 && (
@@ -142,8 +166,8 @@ export function TerminalScreen({ projects }: { projects: { id: string; name: str
 // Tab = grup, tiap grup punya grid sendiri. Grup non-aktif tak dirender: pane-nya unmount
 // dan WebSocket-nya tertutup. Kembali ke tab itu meng-attach ulang ke sesi tmux yang sama —
 // scrollback dipegang tmux (ADR-0016), bukan buffer xterm di memori.
-function GroupTabs({ ws, onSelect, onAdd, onRename, onRemove }: {
-  ws: W.Workspace; onSelect: (id: string) => void; onAdd: () => void;
+function GroupTabs({ ws, compact = false, onSelect, onAdd, onRename, onRemove }: {
+  ws: W.Workspace; compact?: boolean; onSelect: (id: string) => void; onAdd: () => void;
   onRename: (id: string, name: string) => void; onRemove: (id: string) => void;
 }) {
   const [editing, setEditing] = React.useState<string | null>(null);
@@ -153,7 +177,8 @@ function GroupTabs({ ws, onSelect, onAdd, onRename, onRemove }: {
   return (
     <div role="tablist" aria-label="Grup terminal"
       style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap",
-        borderBottom: "1px solid var(--border-hair)", paddingBottom: 4 }}>
+        // Baris digabung → garis bawah tabbar akan memotong baris chrome di tengah.
+        ...(compact ? {} : { borderBottom: "1px solid var(--border-hair)", paddingBottom: 4 }) }}>
       {ws.groups.map((g) => {
         const isActive = g.id === active.id;
         if (editing === g.id)
