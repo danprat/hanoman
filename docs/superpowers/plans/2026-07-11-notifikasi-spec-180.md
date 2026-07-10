@@ -507,7 +507,7 @@ git commit -m "feat(app): aset & util sound notifikasi (short/medium/long) (SPEC
   - `maxAt(items: Notification[]): string` — `createdAt` terbesar, `""` bila kosong.
   - `<NotificationsProvider showToast={fn}>` + `useNotifications(): { items, unread, markAllRead(), clear() }`.
 
-- [ ] **Step 1: Metode api client**
+- [x] **Step 1: Metode api client**
 
 Di `src/src/api/client.ts`: tambahkan tipe respons + metode. Import `Notification`:
 
@@ -522,7 +522,7 @@ Di dalam objek `api`, setelah `putSettings`:
   clearNotifications: () => j<void>(paths.notifications, { method: "DELETE" }),
 ```
 
-- [ ] **Step 2: Tulis test yang gagal (helper + gating)**
+- [x] **Step 2: Tulis test yang gagal (helper + gating)**
 
 `src/test/notifications-context.test.tsx`:
 
@@ -547,12 +547,12 @@ describe("newSince / maxAt", () => {
 });
 ```
 
-- [ ] **Step 3: Jalankan, pastikan gagal**
+- [x] **Step 3: Jalankan, pastikan gagal**
 
 Run: `env -u NODE_ENV pnpm --filter ./src exec vitest run notifications-context`
 Expected: FAIL — module `NotificationsContext` belum ada.
 
-- [ ] **Step 4: Implementasi provider + helper**
+- [x] **Step 4: Implementasi provider + helper**
 
 `src/src/notifications/NotificationsContext.tsx`:
 
@@ -627,12 +627,12 @@ export function NotificationsProvider({ showToast, children }: { showToast: Show
 }
 ```
 
-- [ ] **Step 5: Jalankan, pastikan lulus**
+- [x] **Step 5: Jalankan, pastikan lulus**
 
 Run: `env -u NODE_ENV pnpm --filter ./src exec vitest run notifications-context`
 Expected: PASS (helper `newSince`/`maxAt`).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/src/api/client.ts src/src/notifications/NotificationsContext.tsx src/test/notifications-context.test.tsx
