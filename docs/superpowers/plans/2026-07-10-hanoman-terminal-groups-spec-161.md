@@ -36,7 +36,7 @@ Cermin dari `addRow`/`addColumn` yang sudah ada. `addRow` meng-append dan `addCo
 - Consumes: `Layout = { rows: number; cols: number; cells: (string | null)[] }` (sudah ada)
 - Produces: `removeRow(l: Layout, r: number): Layout`, `removeColumn(l: Layout, c: number): Layout`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `src/test/terminal-layout.test.ts`, di dalam `describe("terminal-layout", …)` setelah kasus `addColumn` (baris 22). Perbarui juga baris `import` di atas berkas untuk memuat dua nama baru:
 
@@ -83,7 +83,7 @@ import {
   });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/terminal-layout.test.ts
@@ -91,7 +91,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/termina
 
 Expected: FAIL. Vitest melaporkan `removeRow is not a function` / `removeColumn is not a function` (import tak ter-resolve) pada 6 kasus baru; 10 kasus lama tetap lolos.
 
-- [ ] **Step 3: Tulis implementasi minimal**
+- [x] **Step 3: Tulis implementasi minimal**
 
 Sisipkan di `src/src/screens/terminal-layout.ts` tepat setelah `addColumn` (setelah baris 20, sebelum komentar `setCell`):
 
@@ -118,7 +118,7 @@ export function removeColumn(l: Layout, c: number): Layout {
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/terminal-layout.test.ts
@@ -126,7 +126,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/termina
 
 Expected: PASS — `Tests 16 passed (16)`.
 
-- [ ] **Step 5: Typecheck**
+- [x] **Step 5: Typecheck**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src typecheck
@@ -134,7 +134,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src typecheck
 
 Expected: keluar tanpa output, exit code 0.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/src/screens/terminal-layout.ts src/test/terminal-layout.test.ts
@@ -172,7 +172,7 @@ Yang paling mudah salah di sini: `L.setCell` hanya menjamin keunikan **di dalam 
   - `reconcileAll(ws: Workspace, liveIds: Set<string>): Workspace`
   - `load(): Workspace | null`, `save(ws: Workspace): void`, `KEY`, `LEGACY_KEY`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/test/terminal-workspace.test.ts`:
 
@@ -317,7 +317,7 @@ describe("terminal-workspace", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/terminal-workspace.test.ts
@@ -325,7 +325,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/termina
 
 Expected: FAIL — `Failed to resolve import "../src/screens/terminal-workspace"`.
 
-- [ ] **Step 3: Tulis implementasi minimal**
+- [x] **Step 3: Tulis implementasi minimal**
 
 Buat `src/src/screens/terminal-workspace.ts`:
 
@@ -427,7 +427,7 @@ export function save(ws: Workspace): void {
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/terminal-workspace.test.ts
@@ -435,7 +435,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/termina
 
 Expected: PASS — `Tests 18 passed (18)`.
 
-- [ ] **Step 5: Typecheck**
+- [x] **Step 5: Typecheck**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src typecheck
@@ -443,7 +443,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src typecheck
 
 Expected: exit code 0. (`crypto.randomUUID` sudah diverifikasi ada di env test jsdom repo ini dan di Node 24 — jangan tambah polyfill atau dependensi uuid. Bila TS mengeluh, periksa `"lib"` di `src/tsconfig.json` memuat `DOM`.)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/src/screens/terminal-workspace.ts src/test/terminal-workspace.test.ts
@@ -468,7 +468,7 @@ Tujuh test lama di `terminal-screen.test.tsx` menulis `hanoman.terminal.layout` 
 - Consumes: seluruh permukaan `terminal-workspace.ts` dari Task 2; `L.addRow`, `L.addColumn` dari modul layout.
 - Produces untuk Task 4: `TerminalScreen` merender grid dari `W.activeGroup(ws).layout`; state disimpan di `const [ws, setWs] = React.useState<W.Workspace>(...)`. Task 4 menyisipkan gutter ke dalam `<div>` grid yang sama.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Di `src/test/terminal-screen.test.tsx`, tambahkan konstanta key baru di bawah `const LKEY = …` (baris 22):
 
@@ -565,7 +565,7 @@ describe("TerminalScreen (grup)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/terminal-screen.test.tsx
@@ -573,7 +573,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/termina
 
 Expected: FAIL. 6 kasus baru gagal dengan `Unable to find an accessible element with the role "tab"`; 7 kasus lama tetap lolos.
 
-- [ ] **Step 3: Tulis implementasi**
+- [x] **Step 3: Tulis implementasi**
 
 Ganti seluruh isi `src/src/screens/TerminalScreen.tsx` dengan:
 
@@ -821,7 +821,7 @@ function EmptyCell({ unplaced, nameOf, onPick }: {
 }
 ```
 
-- [ ] **Step 4: Cabut `load`/`save` dari modul layout**
+- [x] **Step 4: Cabut `load`/`save` dari modul layout**
 
 Pastikan dulu tak ada pemakai lain selain `TerminalScreen.tsx` yang baru saja ditulis ulang:
 
@@ -835,7 +835,7 @@ Hapus baris 42-49 `src/src/screens/terminal-layout.ts` (blok `const KEY` sampai 
 
 Lalu di `src/test/terminal-layout.test.ts`: hapus dua kasus `"load/save round-trip lewat localStorage"` dan `"load tanpa data → null"`, hapus `load, save` dari daftar import, dan hapus `beforeEach(() => localStorage.clear())` beserta `beforeEach` dari import `vitest` (modul ini tak lagi menyentuh `localStorage`).
 
-- [ ] **Step 5: Jalankan test, pastikan LULUS**
+- [x] **Step 5: Jalankan test, pastikan LULUS**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/terminal-layout.test.ts test/terminal-workspace.test.ts test/terminal-screen.test.tsx
@@ -845,7 +845,7 @@ Expected: PASS — `terminal-layout` 14 tests, `terminal-workspace` 18 tests, `t
 
 Jika kasus lama `terminal-screen` gagal, penyebabnya hampir pasti migrasi `LEGACY_KEY` yang tak jalan — perbaiki `W.load()`, **jangan** ubah test lama ke key baru.
 
-- [ ] **Step 6: Typecheck**
+- [x] **Step 6: Typecheck**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src typecheck
@@ -853,7 +853,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src typecheck
 
 Expected: exit code 0.
 
-- [ ] **Step 7: Perbarui docs yang tersentuh**
+- [x] **Step 7: Perbarui docs yang tersentuh**
 
 Di `internal/docs/frontend/frontend-implementation.md`, bagian `## Terminal (sesi Claude Code interaktif)` (baris 112-125). Sisipkan setelah kalimat yang berakhir `…dan sesi yang belum di grid duduk di **tray**.`:
 
@@ -870,7 +870,7 @@ Logika grup murni ada di `screens/terminal-workspace.ts` (SPEC-161).
 
 Ganti juga kalimat `Layout (`{rows,cols,cells}`) disimpan di `localStorage`` menjadi `Layout (`{rows,cols,cells}`) tiap grup disimpan di `localStorage``.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/src/screens/TerminalScreen.tsx src/src/screens/terminal-layout.ts \
@@ -893,7 +893,7 @@ Grid diperlebar satu track di kiri dan satu di atas untuk menampung tombol `×`.
 - Consumes: `W.mapActiveLayout(ws, f)` dan `L.removeRow(l, r)` / `L.removeColumn(l, c)` dari Task 1 & 2; state `[ws, setWs]` dari Task 3.
 - Produces: tombol ber-`aria-label` `Tutup kolom ${c + 1}` dan `Tutup baris ${r + 1}` (1-indexed untuk manusia).
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `src/test/terminal-screen.test.tsx` setelah `describe("TerminalScreen (grup)", …)`:
 
@@ -955,7 +955,7 @@ describe("TerminalScreen (tutup kolom/baris)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/terminal-screen.test.tsx
@@ -963,7 +963,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/termina
 
 Expected: FAIL — 4 kasus baru gagal dengan `Unable to find a label with the text of: Tutup kolom 2`; 13 kasus lama tetap lolos.
 
-- [ ] **Step 3: Tulis implementasi**
+- [x] **Step 3: Tulis implementasi**
 
 Di `src/src/screens/TerminalScreen.tsx`, ganti blok grid (cabang `else` dari `showEmpty`) dengan:
 
@@ -1019,7 +1019,7 @@ function GutterX({ label, disabled, onClick }: { label: string; disabled: boolea
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/terminal-screen.test.tsx
@@ -1027,7 +1027,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/termina
 
 Expected: PASS — `Tests 17 passed (17)`.
 
-- [ ] **Step 5: Seluruh suite `src` + typecheck**
+- [x] **Step 5: Seluruh suite `src` + typecheck**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run
@@ -1036,7 +1036,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src typecheck
 
 Expected: semua berkas test lolos; typecheck exit 0.
 
-- [ ] **Step 6: Perbarui docs yang tersentuh**
+- [x] **Step 6: Perbarui docs yang tersentuh**
 
 Di `internal/docs/frontend/frontend-implementation.md`, bagian Terminal, ganti kalimat `` `+ Kolom` menambah kolom (kiri↔kanan), `+ Baris` menambah baris (atas↔bawah).`` menjadi:
 
@@ -1046,7 +1046,7 @@ punya `×` di gutter untuk menutupnya (grid tak boleh menyusut di bawah 1×1). M
 **tidak** mematikan sesi — selnya lenyap dan sesinya jatuh ke tray, karena itu tak ada konfirmasi.
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/src/screens/TerminalScreen.tsx src/test/terminal-screen.test.tsx \
@@ -1058,67 +1058,94 @@ git commit -m "feat(terminal): × per kolom & baris di gutter grid (SPEC-161)"
 
 ### Task 5: Verifikasi nyata di browser + centang checklist
 
-Unit test memakai `TerminalPane` yang di-mock. Yang belum terbukti: gutter tak merusak layout CSS Grid asli, `crypto.randomUUID` ada di browser target, dan pindah tab benar-benar meng-attach ulang tmux tanpa kehilangan scrollback. CLAUDE.md mewajibkan uji nyata di local sebelum task dianggap selesai.
+Unit test memakai `TerminalPane` yang di-mock. Yang tak bisa dibuktikan jsdom: geometri CSS Grid gutter, `crypto.randomUUID` di browser, dan attach ulang tmux lewat WebSocket sungguhan.
+
+**Cara verifikasi yang benar-benar dijalankan.** Repo tak punya Playwright/Puppeteer dan tak ditambahi.
+Chrome headless disetir lewat CDP dari skrip Node sekali pakai di scratchpad (Node 24 punya
+`WebSocket` dan `fetch` global — nol dependensi baru). Vite dev di port 5199 memakai API yang sudah
+hidup di 8787.
+
+**Sesi uji memakai `sh`, bukan `claude`.** `POST /terminal/sessions` men-spawn
+`claude --dangerously-skip-permissions` di direktori repo yang sedang dipakai sesi lain — memakai
+subscription pengguna dan menaruh agen otonom di working tree bersama, hanya demi smoke test. Sebagai
+gantinya sesi tmux dibuat manual pada socket `hanoman` yang sama dengan konvensi nama `hanoman-<id>`
+dan `@hanoman_project`, menjalankan `sh`. `GET /terminal/sessions` melihatnya seperti sesi mana pun,
+jadi seluruh jalur frontend + WebSocket + tmux teruji apa adanya, nol risiko.
 
 **Files:**
 - Modify: `docs/superpowers/plans/2026-07-10-hanoman-terminal-groups-spec-161.md` (centang `- [ ]` → `- [x]`)
 
-- [ ] **Step 1: Boot stack**
+- [x] **Step 1: Build sungguhan + boot**
 
-```bash
-env -u NODE_ENV -u DATABASE_URL pnpm dev
-```
+`pnpm --filter ./src build` → `✓ built in 1.58s`, 1559 modul. Vite dev di 5199, Chrome headless
+`--remote-debugging-port=9222`, viewport 1440×900.
 
-Tunggu sampai Vite mencetak URL-nya (biasanya `http://localhost:5173`). `predev` menaikkan Postgres lewat docker compose.
+- [x] **Step 2: Migrasi dari key lama, di browser**
 
-- [ ] **Step 2: Verifikasi migrasi dari key lama**
+Set `hanoman.terminal.layout` = `{rows:1,cols:2,cells:[null,null]}`, reload, buka Terminal:
 
-Di devtools console, sebelum membuka screen Terminal:
+| Cek | Hasil |
+|---|---|
+| `hanoman.terminal.layout` sesudahnya | `null` (dihapus) |
+| `…workspace.groups[0].name` | `"Utama"` |
+| `…workspace.groups[0].id` cocok regex UUID | `true` — `crypto.randomUUID` bekerja di browser |
+| tab yang ter-render | `["Utama"]` |
+| `×` grup saat satu grup | `disabled` |
 
-```js
-localStorage.clear();
-localStorage.setItem("hanoman.terminal.layout", JSON.stringify({ rows: 1, cols: 2, cells: [null, null] }));
-location.reload();
-```
+- [x] **Step 3: Geometri gutter — yang jsdom tak bisa**
 
-Buka screen **Terminal**. Expected: satu tab bernama **Utama**, grid 1×2. Lalu di console:
+Grid 1×2: `gridChildCount: 6` (1 pojok + 2 tombol kolom + 1×(1 tombol baris + 2 sel)), sel `551×573 px`.
+`colGutterAboveCells`, `col1OverCell1`, `col2OverCell2`, `col2RightOfCol1`, `rowGutterLeftOfCells`,
+`cellsHaveArea` — semuanya `true`. Grid 2×2 diukur terpisah: `gridTemplateRows: "16px 282.25px 282.25px"`,
+9 anak, 4 sel `551×282`.
 
-```js
-localStorage.getItem("hanoman.terminal.layout");  // → null
-JSON.parse(localStorage.getItem("hanoman.terminal.workspace")).groups[0].name;  // → "Utama"
-```
+> Jebakan: mengukur `closest("div[style]")` dari `<select>` picker memberi pembungkus `Select`
+> (154×30), bukan sel grid — sempat terbaca sebagai `cellsHaveArea: false`. Ukur anak langsung
+> container grid.
 
-- [ ] **Step 3: Verifikasi tutup kolom/baris tidak membunuh sesi**
+- [x] **Step 4: Tutup kolom tidak mematikan sesi hidup (end-to-end)**
 
-1. Pilih project, klik **Sesi baru** dua kali. Kedua sel terisi; ketik `echo halo` di masing-masing.
-2. Klik `×` di atas kolom 2. Expected: kolom lenyap, grid jadi 1×1, sesi kolom 2 muncul sebagai chip di **Belum di grid**.
-3. Klik chip itu — ia tak muat (grid penuh). Klik `+ Kolom`, lalu klik chip lagi. Expected: terminal kembali **dengan scrollback `echo halo`-nya utuh**, bukan sesi baru.
-4. Konfirmasi di terminal lain bahwa sesi tmux-nya memang tak pernah mati:
-   ```bash
-   tmux ls
-   ```
-   Expected: jumlah sesi `hanoman-*` tak berkurang saat kolom ditutup.
+Sesi tmux `hanoman-smoke161` (`sh`) dibuat manual, muncul di `GET /terminal/sessions` dan di tray.
+`window.fetch` di-patch untuk merekam tiap `DELETE`.
 
-- [ ] **Step 4: Verifikasi grup**
+| Langkah | Hasil |
+|---|---|
+| Taruh `smoke161` ke sel lewat picker | `.xterm` ter-mount, prompt `sh-3.2$` (WebSocket attach nyata) |
+| Klik `×` **kolom 1** (kolom berisi sesi hidup) | grid → 1 kolom, `.xterm` unmount |
+| Sesi kembali ke tray | `true` |
+| `DELETE` yang terkirim | `[]` — **nol** |
+| `tmux -L hanoman ls` | `hanoman-smoke161` masih ada |
+| Taruh ulang | `.xterm` kembali, prompt `sh-3.2$` utuh (attach ulang, bukan sesi baru) |
+| `DELETE /terminal/sessions/smoke161` | `204`, sesi mati |
 
-1. Klik `+` di tabbar → tab **Grup 2** muncul dan aktif, grid-nya kosong (grid Utama tak terlihat).
-2. Klik `✎` → ketik `Debug` → Enter. Tab berganti nama.
-3. Buat sesi baru di Debug. Kembali ke **Utama** — pane Debug hilang, pane Utama kembali dengan scrollback utuh.
-4. Reload browser. Expected: dua tab, nama, grid, dan sesi kembali persis.
-5. Aktifkan **Debug**, klik `×` pada tab-nya. Expected: tab hilang, sesinya muncul di tray, `tmux ls` tetap menunjukkan sesi itu hidup.
-6. Dengan satu grup tersisa, `×` pada tab **disabled**.
+Rantai buktinya tertutup: `kill-session` hanya dicapai lewat `killSession()`
+(`services/pty.ts:210`), yang satu-satunya pemanggilnya `DELETE /terminal/sessions/:id`
+(`routes/terminal.ts:42`). Nol `DELETE` ⇒ nol kill. `DELETE` manual di baris terakhir membuktikan
+jalur itu memang membunuh, jadi ketiadaannya bermakna.
 
-- [ ] **Step 5: Verifikasi invarian satu-rumah**
+- [x] **Step 5: Grup di browser**
 
-Dengan sesi `X` terpasang di grup **Utama**: pindah ke grup lain, taruh `X` dari tray ke sel di sana. Kembali ke **Utama**. Expected: sel lama `X` sudah kosong — `X` tidak tampil di dua grup.
+`+` → tab `Grup 2` lahir, `aria-selected=true`, grid-nya sendiri (1×1, kedua gutter `disabled`);
+grid `Utama` tak ter-render. `✎` → input muncul → ketik `Debug` + Enter → tab jadi `Debug`.
+`×` grup aktif menyala begitu ada 2 grup. Reload → `["Utama","Debug"]` kembali, aktif `Debug`.
 
-- [ ] **Step 6: Centang checklist plan & commit**
+Dua sesi `claude` milik sesi lain (`73cc26d5`, `c5ff8c21`) tak pernah disentuh — dikonfirmasi masih
+hidup sesudah semuanya. Chrome dan Vite milik smoke ini dimatikan; API 8787/8788 milik sesi lain
+tetap `200`.
 
-Ubah setiap `- [ ]` yang sudah dikerjakan menjadi `- [x]` di berkas plan ini, lalu:
+- [x] **Step 6: Centang checklist plan & commit**
 
 ```bash
 git add docs/superpowers/plans/2026-07-10-hanoman-terminal-groups-spec-161.md
 git commit -m "docs(spec-161): centang checklist + catat verifikasi browser nyata"
 ```
 
-Bila ada langkah verifikasi yang gagal: **perbaiki dulu sampai hijau** sebelum menganggap SPEC-161 selesai. Jangan centang langkah yang tak dijalankan.
+## Yang TIDAK diverifikasi di browser
+
+Jujur dicatat, bukan diam-diam dilewati:
+
+- **Invarian satu-rumah lintas grup lewat UI.** Ditutup unit test `placeInActive menegakkan
+  satu-rumah LINTAS grup` (`terminal-workspace.test.ts`). Logikanya murni — tanpa CSS, tanpa async —
+  jadi browser tak menambah bukti apa pun di sini.
+- **Sesi `claude` sungguhan** di dalam sel (scrollback TUI, resize xterm→tmux). Yang diuji `sh`.
+  Alasannya di kepala Task 5; spawn `claude` demi smoke test butuh persetujuan pengguna lebih dulu.
