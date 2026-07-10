@@ -52,7 +52,7 @@ internal/docs/frontend/frontend-implementation.md   modify — bagian Terminal: 
   - `reconcile(l, liveIds: Set<string>): Layout` — kosongkan sel yang id-nya bukan anggota `liveIds`.
   - `load(): Layout | null`, `save(l): void` — lewat `localStorage` key `hanoman.terminal.layout`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 ```ts
 // src/test/terminal-layout.test.ts
@@ -114,12 +114,12 @@ describe("terminal-layout", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./src exec vitest run test/terminal-layout.test.ts`
 Expected: FAIL — cannot resolve `../src/screens/terminal-layout`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 ```ts
 // src/src/screens/terminal-layout.ts
@@ -140,7 +140,8 @@ export function addColumn(l: Layout): Layout {
   const cells: (string | null)[] = [];
   for (let r = 0; r < l.rows; r++)
     for (let c = 0; c < cols; c++)
-      cells.push(c < l.cols ? l.cells[r * l.cols + c] : null);
+      // `?? null`: index literal bertipe `T | undefined` di bawah noUncheckedIndexedAccess.
+      cells.push(c < l.cols ? (l.cells[r * l.cols + c] ?? null) : null);
   return { rows: l.rows, cols, cells };
 }
 
@@ -174,12 +175,12 @@ export function save(l: Layout): void {
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan hijau**
+- [x] **Step 4: Jalankan test, pastikan hijau**
 
 Run: `pnpm --filter ./src exec vitest run test/terminal-layout.test.ts`
 Expected: PASS (10).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/terminal-layout.ts src/test/terminal-layout.test.ts
@@ -200,7 +201,7 @@ git commit -m "feat(spec-158): modul terminal-layout — grid murni (addRow/addC
 
 **Catatan:** ini menggantikan strip tab. Test lama berbasis `role="tab"` **ditulis ulang** — tak ada lagi tab.
 
-- [ ] **Step 1: Tulis test yang gagal (ganti isi file test)**
+- [x] **Step 1: Tulis test yang gagal (ganti isi file test)**
 
 Ganti seluruh `src/test/terminal-screen.test.tsx`:
 
@@ -272,12 +273,37 @@ describe("TerminalScreen (grid)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./src exec vitest run test/terminal-screen.test.tsx`
 Expected: FAIL — masih render tab; `getAllByTestId("pane")` hanya 1 (tab aktif), grid belum ada.
 
-- [ ] **Step 3: Implementasi — tulis ulang `TerminalScreen.tsx`**
+> **Catatan lingkungan.** Shell eksekusi punya `NODE_ENV=production` di environment-nya (bukan
+> milik repo). React resolve ke build produksi dan `@testing-library/react` melempar
+> `act(...) is not supported in production builds`, pada test **apa pun** yang me-render,
+> termasuk test lama yang tak tersentuh SPEC-158 (`app-flows.test.tsx`). Bukan bug SPEC-158.
+> Perbaikan: jalankan test `src` dengan `NODE_ENV=test` di depan (atau `export NODE_ENV=test`
+> sekali per sesi shell) — dipakai konsisten mulai step ini.
+
+- [x] **Step 3: Implementasi — tulis ulang `TerminalScreen.tsx`**
+
+> **Deviasi Execute.** Implementasi mentah di plan ini menyalakan dua bug, keduanya ketahuan
+> lewat test/typecheck di step berikutnya, bukan ditebak di muka:
+> 1. **Efek rekonsiliasi menembak sebelum `listTerminals()` resolve.** Render pertama punya
+>    `sessions=[]`; efek yang bergantung pada `[sessions]` langsung jalan dengan `liveIds` kosong
+>    dan mengosongkan **seluruh** layout yang baru dipulihkan dari `localStorage`, sebelum data
+>    sesi asli sempat datang. Ditahan dengan flag `loaded` — reconcile hanya jalan setelah
+>    `listTerminals()` (atau kegagalannya) selesai.
+> 2. **Tombol "Sesi baru" dobel di empty state.** Toolbar (selalu tampil) dan `StateBlock` action
+>    sama-sama berlabel "Sesi baru" — `getByRole("button", { name: "Sesi baru" })` menabrak dua
+>    elemen. Ini **sudah ada sebelum SPEC-158** (kode lama punya pola identik), hanya belum pernah
+>    ketahuan karena tak ada test yang benar-benar mengklik tombolnya. Aksi `StateBlock` dilepas;
+>    toolbar sudah cukup sebagai satu-satunya jalan membuka sesi baru.
+>
+> Kode di bawah ini **sudah memuat kedua perbaikan** (bukan draft awal) — lihat komentar
+> `// Ditahan sampai loaded` dan `// Tanpa action` di berkas nyata.
+
+Ganti seluruh isi `src/src/screens/TerminalScreen.tsx`:
 
 Ganti seluruh isi `src/src/screens/TerminalScreen.tsx`:
 
@@ -293,15 +319,19 @@ export function TerminalScreen({ projects }: { projects: { id: string; name: str
   const [layout, setLayout] = React.useState<L.Layout>(() => L.load() ?? L.emptyLayout());
   const [project, setProject] = React.useState(projects[0]?.id ?? "");
 
+  const [loaded, setLoaded] = React.useState(false);
   React.useEffect(() => {
-    api.listTerminals().then(setSessions).catch(() => setSessions([]));
+    api.listTerminals().then(setSessions).catch(() => setSessions([])).finally(() => setLoaded(true));
   }, []);
 
   // Sesi hidup di tmux dan selamat dari restart server (ADR-0016): layout ter-load bisa
   // menunjuk sesi yang masih hidup (disambung ulang) atau yang sudah di-kill (dikosongkan).
+  // Ditahan sampai `loaded`: sebelum listTerminals() resolve, `sessions` masih [] dan
+  // rekonsiliasi dini akan mengosongkan layout yang baru saja dipulihkan dari localStorage.
   React.useEffect(() => {
+    if (!loaded) return;
     setLayout((l) => L.reconcile(l, new Set(sessions.map((s) => s.id))));
-  }, [sessions]);
+  }, [loaded, sessions]);
 
   React.useEffect(() => { L.save(layout); }, [layout]);
 
@@ -339,9 +369,10 @@ export function TerminalScreen({ projects }: { projects: { id: string; name: str
       </div>
 
       {showEmpty ? (
+        // Tanpa `action`: toolbar di atas sudah menawarkan "Sesi baru" — tombol kedua
+        // dengan label identik hanya duplikasi, bukan affordance tambahan.
         <StateBlock kind="empty" icon="terminal" title="Belum ada sesi terminal"
-          hint="Pilih project lalu buka sesi — hanoman menjalankan claude --dangerously-skip-permissions di direktori project itu."
-          action={() => void openNew()} actionLabel="Sesi baru" />
+          hint="Pilih project lalu buka sesi — hanoman menjalankan claude --dangerously-skip-permissions di direktori project itu." />
       ) : (
         <div style={{
           flex: 1, minHeight: 0, display: "grid", gap: 8,
@@ -402,20 +433,21 @@ function EmptyCell() {
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan hijau**
+- [x] **Step 4: Jalankan test, pastikan hijau**
 
-Run: `pnpm --filter ./src exec vitest run test/terminal-screen.test.tsx`
+Run: `NODE_ENV=test pnpm --filter ./src exec vitest run test/terminal-screen.test.tsx`
 Expected: PASS (4).
 
-- [ ] **Step 5: Typecheck**
+- [x] **Step 5: Typecheck**
 
 Run: `pnpm --filter ./src typecheck`
-Expected: PASS.
+Expected: PASS. (Butuh perbaikan `?? null` di `addColumn` — lihat Task 1 di atas, disatukan ke
+commit Task 2 karena di sinilah typecheck menangkapnya.)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
-git add src/src/screens/TerminalScreen.tsx src/test/terminal-screen.test.tsx
+git add src/src/screens/TerminalScreen.tsx src/test/terminal-screen.test.tsx src/src/screens/terminal-layout.ts
 git commit -m "feat(spec-158): TerminalScreen grid — beberapa pane sekaligus, + Kolom/+ Baris"
 ```
 
@@ -433,7 +465,7 @@ git commit -m "feat(spec-158): TerminalScreen grid — beberapa pane sekaligus, 
 
 **Kenapa dua aksi:** memindahkan pane dari tampilan (Lepas) berbeda dari mematikan claude (Tutup). Lepas menata split tanpa kehilangan pekerjaan; Tutup = perilaku `close()` hari ini.
 
-- [ ] **Step 1: Tulis test yang gagal (tambahkan ke describe)**
+- [x] **Step 1: Tulis test yang gagal (tambahkan ke describe)**
 
 Tambahkan di `src/test/terminal-screen.test.tsx`, di dalam `describe("TerminalScreen (grid)", …)`:
 
@@ -477,12 +509,12 @@ Tambahkan di `src/test/terminal-screen.test.tsx`, di dalam `describe("TerminalSc
   });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
-Run: `pnpm --filter ./src exec vitest run test/terminal-screen.test.tsx`
-Expected: FAIL — belum ada chip tray/picker/"lepas".
+Run: `NODE_ENV=test pnpm --filter ./src exec vitest run test/terminal-screen.test.tsx`
+Expected: FAIL — belum ada chip tray/picker/"lepas". (3 dari 8 gagal; 5 lama tetap hijau.)
 
-- [ ] **Step 3: Implementasi — tambahkan tray, picker, dan Lepas**
+- [x] **Step 3: Implementasi — tambahkan tray, picker, dan Lepas**
 
 Di `TerminalScreen.tsx`, tambahkan handler di dalam komponen (setelah `close`):
 
@@ -583,17 +615,19 @@ Dan teruskan `onDetach` di pemakaian `Cell`:
                       onDetach={() => detach(s.id)} onExit={() => markExited(s.id)} />
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan hijau**
+- [x] **Step 4: Jalankan test, pastikan hijau**
 
-Run: `pnpm --filter ./src exec vitest run test/terminal-screen.test.tsx`
+Run: `NODE_ENV=test pnpm --filter ./src exec vitest run test/terminal-screen.test.tsx`
 Expected: PASS (8).
 
-- [ ] **Step 5: Typecheck**
+- [x] **Step 5: Typecheck**
 
 Run: `pnpm --filter ./src typecheck`
-Expected: PASS.
+Expected: PASS. (`(await screen.findAllByLabelText(…))[0]` butuh `!` non-null di bawah
+`noUncheckedIndexedAccess` — konvensi yang sudah dipakai test lain di paket ini, mis.
+`project-detail.test.tsx:37`.)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/src/screens/TerminalScreen.tsx src/test/terminal-screen.test.tsx
