@@ -59,12 +59,3 @@ export function placeFirstEmpty(l: Layout, id: string): Layout {
 // (listSessions memuat pane mati), jadi ia tetap terikat dan tampil "berakhir".
 export const reconcile = (l: Layout, liveIds: Set<string>): Layout =>
   ({ ...l, cells: l.cells.map((c) => (c && liveIds.has(c) ? c : null)) });
-
-const KEY = "hanoman.terminal.layout";
-export function load(): Layout | null {
-  try { const s = localStorage.getItem(KEY); return s ? (JSON.parse(s) as Layout) : null; }
-  catch { return null; }
-}
-export function save(l: Layout): void {
-  try { localStorage.setItem(KEY, JSON.stringify(l)); } catch { /* mode privat / kuota penuh */ }
-}

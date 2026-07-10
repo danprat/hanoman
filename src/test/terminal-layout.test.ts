@@ -1,9 +1,7 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
-  emptyLayout, addRow, addColumn, removeRow, removeColumn, setCell, placeFirstEmpty, reconcile, load, save,
+  emptyLayout, addRow, addColumn, removeRow, removeColumn, setCell, placeFirstEmpty, reconcile,
 } from "../src/screens/terminal-layout";
-
-beforeEach(() => localStorage.clear());
 
 describe("terminal-layout", () => {
   it("emptyLayout: 1×1 satu sel kosong", () => {
@@ -76,15 +74,5 @@ describe("terminal-layout", () => {
 
   it("reconcile mengosongkan sesi yang lenyap, mempertahankan yang hidup", () => {
     expect(reconcile({ rows: 1, cols: 2, cells: ["a", "b"] }, new Set(["a"])).cells).toEqual(["a", null]);
-  });
-
-  it("load/save round-trip lewat localStorage", () => {
-    const l = { rows: 2, cols: 2, cells: ["a", null, null, "b"] };
-    save(l);
-    expect(load()).toEqual(l);
-  });
-
-  it("load tanpa data → null", () => {
-    expect(load()).toBeNull();
   });
 });

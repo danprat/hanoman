@@ -20,6 +20,7 @@ vi.mock("../src/api/client", () => ({
 
 const projects = [{ id: "p1", name: "hanoman" }];
 const LKEY = "hanoman.terminal.layout";
+const WKEY = "hanoman.terminal.workspace";
 
 beforeEach(() => {
   localStorage.clear();
@@ -99,5 +100,90 @@ describe("TerminalScreen (grid)", () => {
     await screen.findByTestId("pane");
     fireEvent.click(screen.getByLabelText("Tutup sesi aaaa1111"));
     await waitFor(() => expect(deleteTerminal).toHaveBeenCalledWith("aaaa1111"));
+  });
+});
+
+describe("TerminalScreen (grup)", () => {
+  it("tabbar menampilkan grup 'Utama' hasil migrasi layout lama", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["aaaa1111"] }));
+    listTerminals.mockResolvedValue([{ id: "aaaa1111", projectId: "p1", cwd: "/repo", exited: false }]);
+    render(<TerminalScreen projects={projects} />);
+    expect(await screen.findByRole("tab", { name: "Utama" })).toBeInTheDocument();
+    expect(localStorage.getItem(LKEY)).toBeNull();
+  });
+
+  it("× grup nonaktif saat hanya ada satu grup", async () => {
+    listTerminals.mockResolvedValue([]);
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByRole("tab", { name: "Utama" });
+    expect(screen.getByLabelText("Hapus grup Utama")).toBeDisabled();
+  });
+
+  it("pindah tab mengganti grid: pane grup lain tak dirender", async () => {
+    listTerminals.mockResolvedValue([{ id: "aaaa1111", projectId: "p1", cwd: "/repo", exited: false }]);
+    render(<TerminalScreen projects={projects} />);
+    // taruh sesi di grup "Utama"
+    fireEvent.click(await screen.findByRole("button", { name: /aaaa11/ }));
+    await waitFor(() => expect(screen.getByTestId("pane")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "Grup baru" }));
+    const tab2 = await screen.findByRole("tab", { name: "Grup 2" });
+    expect(tab2).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByTestId("pane")).toBeNull();        // grid grup 2 kosong
+
+    fireEvent.click(screen.getByRole("tab", { name: "Utama" }));
+    await waitFor(() => expect(screen.getByTestId("pane")).toHaveTextContent("aaaa1111"));
+  });
+
+  it("menghapus grup melepas sesinya ke tray tanpa mematikannya", async () => {
+    listTerminals.mockResolvedValue([{ id: "aaaa1111", projectId: "p1", cwd: "/repo", exited: false }]);
+    render(<TerminalScreen projects={projects} />);
+    fireEvent.click(await screen.findByRole("button", { name: /aaaa11/ }));
+    await waitFor(() => expect(screen.getByTestId("pane")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "Grup baru" }));   // grup 2 aktif
+    await screen.findByRole("tab", { name: "Grup 2" });
+    fireEvent.click(screen.getByRole("tab", { name: "Utama" }));          // kembali ke Utama
+    fireEvent.click(screen.getByLabelText("Hapus grup Utama"));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /aaaa11/ })).toBeInTheDocument());
+    expect(screen.queryByTestId("pane")).toBeNull();
+    expect(deleteTerminal).not.toHaveBeenCalled();
+  });
+
+  it("rename grup: Enter menyimpan, Escape membatalkan", async () => {
+    listTerminals.mockResolvedValue([]);
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByRole("tab", { name: "Utama" });
+
+    fireEvent.click(screen.getByLabelText("Ganti nama grup Utama"));
+    const input = screen.getByLabelText("Nama grup");
+    fireEvent.change(input, { target: { value: "Backlog" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(await screen.findByRole("tab", { name: "Backlog" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Ganti nama grup Backlog"));
+    const again = screen.getByLabelText("Nama grup");
+    fireEvent.change(again, { target: { value: "dibuang" } });
+    fireEvent.keyDown(again, { key: "Escape" });
+    expect(await screen.findByRole("tab", { name: "Backlog" })).toBeInTheDocument();
+  });
+
+  it("workspace tersimpan dipulihkan apa adanya (dua grup)", async () => {
+    localStorage.setItem(WKEY, JSON.stringify({
+      active: "g2",
+      groups: [
+        { id: "g1", name: "Backlog", layout: { rows: 1, cols: 1, cells: ["aaaa1111"] } },
+        { id: "g2", name: "Debug", layout: { rows: 1, cols: 1, cells: ["bbbb2222"] } },
+      ],
+    }));
+    listTerminals.mockResolvedValue([
+      { id: "aaaa1111", projectId: "p1", cwd: "/repo", exited: false },
+      { id: "bbbb2222", projectId: "p1", cwd: "/repo", exited: false },
+    ]);
+    render(<TerminalScreen projects={projects} />);
+    await waitFor(() => expect(screen.getByTestId("pane")).toHaveTextContent("bbbb2222"));
+    expect(screen.getByRole("tab", { name: "Debug" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByText("aaaa1111")).toBeNull();   // grup lain tak dirender, juga tak di tray
   });
 });

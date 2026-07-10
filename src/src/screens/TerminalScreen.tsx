@@ -3,10 +3,11 @@ import { Button, Select, StateBlock } from "../ds";
 import { api, type TerminalSession } from "../api/client";
 import { TerminalPane } from "./TerminalPane";
 import * as L from "./terminal-layout";
+import * as W from "./terminal-workspace";
 
 export function TerminalScreen({ projects }: { projects: { id: string; name: string }[] }) {
   const [sessions, setSessions] = React.useState<TerminalSession[]>([]);
-  const [layout, setLayout] = React.useState<L.Layout>(() => L.load() ?? L.emptyLayout());
+  const [ws, setWs] = React.useState<W.Workspace>(() => W.load() ?? W.emptyWorkspace());
   const [project, setProject] = React.useState(projects[0]?.id ?? "");
 
   const [loaded, setLoaded] = React.useState(false);
@@ -14,16 +15,16 @@ export function TerminalScreen({ projects }: { projects: { id: string; name: str
     api.listTerminals().then(setSessions).catch(() => setSessions([])).finally(() => setLoaded(true));
   }, []);
 
-  // Sesi hidup di tmux dan selamat dari restart server (ADR-0016): layout ter-load bisa
+  // Sesi hidup di tmux dan selamat dari restart server (ADR-0016): workspace ter-load bisa
   // menunjuk sesi yang masih hidup (disambung ulang) atau yang sudah di-kill (dikosongkan).
   // Ditahan sampai `loaded`: sebelum listTerminals() resolve, `sessions` masih [] dan
-  // rekonsiliasi dini akan mengosongkan layout yang baru saja dipulihkan dari localStorage.
+  // rekonsiliasi dini akan mengosongkan workspace yang baru saja dipulihkan dari localStorage.
   React.useEffect(() => {
     if (!loaded) return;
-    setLayout((l) => L.reconcile(l, new Set(sessions.map((s) => s.id))));
+    setWs((w) => W.reconcileAll(w, new Set(sessions.map((s) => s.id))));
   }, [loaded, sessions]);
 
-  React.useEffect(() => { L.save(layout); }, [layout]);
+  React.useEffect(() => { W.save(ws); }, [ws]);
 
   const byId = (id: string) => sessions.find((s) => s.id === id) ?? null;
   const nameOf = (pid: string) => projects.find((p) => p.id === pid)?.name ?? pid;
@@ -32,10 +33,10 @@ export function TerminalScreen({ projects }: { projects: { id: string; name: str
     if (!project) return;
     const { id } = await api.createTerminal(project);
     setSessions((s) => [...s, { id, projectId: project, cwd: "", exited: false }]);
-    setLayout((l) => L.placeFirstEmpty(l, id));
+    setWs((w) => W.placeFirstEmptyInActive(w, id));
   }
 
-  // Tutup = perilaku hari ini: kill sesi. Sel-nya dikosongkan oleh efek rekonsiliasi.
+  // Tutup = perilaku hari ini: kill sesi. Selnya dikosongkan oleh efek rekonsiliasi.
   async function close(id: string) {
     await api.deleteTerminal(id).catch(() => {});
     setSessions((s) => s.filter((x) => x.id !== id));
@@ -45,20 +46,29 @@ export function TerminalScreen({ projects }: { projects: { id: string; name: str
     setSessions((s) => s.map((x) => (x.id === id ? { ...x, exited: true } : x)));
   }, []);
 
-  const place = (idx: number, id: string) => setLayout((l) => L.setCell(l, idx, id));
-  const placeFirst = (id: string) => setLayout((l) => L.placeFirstEmpty(l, id));
-  const detach = (id: string) => setLayout((l) => L.setCell(l, l.cells.indexOf(id), null));
+  const place = (idx: number, id: string) => setWs((w) => W.placeInActive(w, idx, id));
+  const placeFirst = (id: string) => setWs((w) => W.placeFirstEmptyInActive(w, id));
+  const detach = (id: string) => setWs((w) => W.detach(w, id));
 
-  const placedIds = new Set(layout.cells.filter((c): c is string => c !== null));
-  const unplaced = sessions.filter((s) => !placedIds.has(s.id));
+  const placed = W.placedIds(ws);
+  const unplaced = sessions.filter((s) => !placed.has(s.id));
 
+  const layout = W.activeGroup(ws).layout;
   const showEmpty = layout.rows === 1 && layout.cols === 1 && !layout.cells[0] && sessions.length === 0;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12, height: "calc(100vh - 180px)" }}>
+      <GroupTabs
+        ws={ws}
+        onSelect={(id) => setWs((w) => W.selectGroup(w, id))}
+        onAdd={() => setWs((w) => W.addGroup(w, `Grup ${w.groups.length + 1}`))}
+        onRename={(id, name) => setWs((w) => W.renameGroup(w, id, name))}
+        onRemove={(id) => setWs((w) => W.removeGroup(w, id))}
+      />
+
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <Button size="sm" variant="ghost" onClick={() => setLayout(L.addColumn)}>+ Kolom</Button>
-        <Button size="sm" variant="ghost" onClick={() => setLayout(L.addRow)}>+ Baris</Button>
+        <Button size="sm" variant="ghost" onClick={() => setWs((w) => W.mapActiveLayout(w, L.addColumn))}>+ Kolom</Button>
+        <Button size="sm" variant="ghost" onClick={() => setWs((w) => W.mapActiveLayout(w, L.addRow))}>+ Baris</Button>
         <div style={{ flex: 1, minWidth: 0 }} />
         <Select size="sm" value={project} onChange={(e) => setProject(e.target.value)}
           options={projects.map((p) => ({ value: p.id, label: p.name }))} />
@@ -74,7 +84,7 @@ export function TerminalScreen({ projects }: { projects: { id: string; name: str
               borderRadius: "var(--radius-sm)", background: "var(--bone-200)",
               border: "1px solid var(--border-hair)", fontFamily: "var(--font-mono)", fontSize: 11,
             }}>
-              <button onClick={() => placeFirst(s.id)} title="Taruh di sel kosong pertama"
+              <button onClick={() => placeFirst(s.id)} title="Taruh di sel kosong pertama grup ini"
                 style={{ all: "unset", cursor: "pointer" }}>
                 {(s.runId ? `${s.runId} · resume` : nameOf(s.projectId))} · {s.id.slice(0, 6)}
               </button>
@@ -113,6 +123,77 @@ export function TerminalScreen({ projects }: { projects: { id: string; name: str
         </div>
       )}
     </div>
+  );
+}
+
+// Tab = grup, tiap grup punya grid sendiri. Grup non-aktif tak dirender: pane-nya unmount
+// dan WebSocket-nya tertutup. Kembali ke tab itu meng-attach ulang ke sesi tmux yang sama —
+// scrollback dipegang tmux (ADR-0016), bukan buffer xterm di memori.
+function GroupTabs({ ws, onSelect, onAdd, onRename, onRemove }: {
+  ws: W.Workspace; onSelect: (id: string) => void; onAdd: () => void;
+  onRename: (id: string, name: string) => void; onRemove: (id: string) => void;
+}) {
+  const [editing, setEditing] = React.useState<string | null>(null);
+  const active = W.activeGroup(ws);
+  const only = ws.groups.length === 1;
+
+  return (
+    <div role="tablist" aria-label="Grup terminal"
+      style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap",
+        borderBottom: "1px solid var(--border-hair)", paddingBottom: 4 }}>
+      {ws.groups.map((g) => {
+        const isActive = g.id === active.id;
+        if (editing === g.id)
+          return <RenameInput key={g.id} initial={g.name}
+            onCommit={(name) => { if (name.trim()) onRename(g.id, name.trim()); setEditing(null); }}
+            onCancel={() => setEditing(null)} />;
+        return (
+          <span key={g.id} style={{
+            display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 6px",
+            borderRadius: "var(--radius-sm)", fontSize: 12,
+            background: isActive ? "var(--bone-200)" : "transparent",
+            border: `1px solid ${isActive ? "var(--border-hair)" : "transparent"}`,
+          }}>
+            <button role="tab" aria-selected={isActive} onClick={() => onSelect(g.id)}
+              style={{ all: "unset", cursor: "pointer", color: isActive ? "var(--text-strong)" : "var(--text-muted)" }}>
+              {g.name}
+            </button>
+            {isActive && (
+              <>
+                <button aria-label={`Ganti nama grup ${g.name}`} title="Ganti nama"
+                  onClick={() => setEditing(g.id)}
+                  style={{ all: "unset", cursor: "pointer", color: "var(--text-subtle)", fontSize: 10 }}>✎</button>
+                <button aria-label={`Hapus grup ${g.name}`}
+                  title={only ? "Grup terakhir tak bisa dihapus" : "Hapus grup (sesi tetap hidup)"}
+                  disabled={only} onClick={() => onRemove(g.id)}
+                  style={{ all: "unset", cursor: only ? "not-allowed" : "pointer",
+                    color: "var(--text-subtle)", opacity: only ? 0.35 : 1 }}>×</button>
+              </>
+            )}
+          </span>
+        );
+      })}
+      <button aria-label="Grup baru" title="Grup baru" onClick={onAdd}
+        style={{ all: "unset", cursor: "pointer", padding: "3px 8px", color: "var(--text-subtle)", fontSize: 12 }}>+</button>
+    </div>
+  );
+}
+
+function RenameInput({ initial, onCommit, onCancel }: {
+  initial: string; onCommit: (name: string) => void; onCancel: () => void;
+}) {
+  const [value, setValue] = React.useState(initial);
+  return (
+    <input autoFocus aria-label="Nama grup" value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={() => onCommit(value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") onCommit(value);
+        else if (e.key === "Escape") onCancel();
+      }}
+      style={{ width: 100, padding: "3px 6px", fontSize: 12, fontFamily: "var(--font-ui)",
+        border: "1px solid var(--border-strong)", borderRadius: "var(--radius-sm)",
+        background: "var(--surface-card)", color: "var(--text-strong)" }} />
   );
 }
 

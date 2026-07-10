@@ -115,7 +115,18 @@ kolom (kiri↔kanan), `+ Baris` menambah baris (atas↔bawah). Tiap sel me-mount
 yang membuka WebSocket ke `/api/terminal/sessions/:id/ws`; sel kosong menampilkan picker sesi yang
 belum tertempat, dan sesi yang belum di grid duduk di **tray**. Satu sesi menempati **paling banyak
 satu sel** (menjaga resize tmux tak berkedip). Dua aksi per sel: **Lepas** (unbind, sesi tetap
-hidup) dan **Tutup/`×`** (kill lewat `DELETE`). Layout (`{rows,cols,cells}`) disimpan di
+hidup) dan **Tutup/`×`** (kill lewat `DELETE`).
+
+Grid-grid itu dikelompokkan ke **grup** bernama yang dipindah lewat tabbar (`+` menambah, `✎`
+mengganti nama, `×` menghapus; grup terakhir tak bisa dihapus). Tiap grup memegang `Layout`-nya
+sendiri, dan satu sesi menempati paling banyak satu sel **di satu grup** — tray karena itu global,
+berisi sesi yang tak punya sel di grup mana pun. Grup non-aktif tidak dirender, jadi pindah tab
+menutup lalu membuka ulang WebSocket sesi di grup tujuan; scrollback dipegang tmux, bukan buffer
+xterm. State `{groups, active}` disimpan di `localStorage` (`hanoman.terminal.workspace`) dan
+memigrasikan key lama `hanoman.terminal.layout` menjadi satu grup "Utama" saat pertama dibaca.
+Logika grup murni ada di `screens/terminal-workspace.ts` (SPEC-161).
+
+Layout (`{rows,cols,cells}`) tiap grup disimpan di
 `localStorage` dan **direkonsiliasi** ke `listSessions()` saat mount — sesi hidup di tmux dan
 selamat dari restart server (ADR-0016), jadi sel yang sesinya masih hidup tersambung ulang dan sel
 yang sesinya sudah di-kill dikosongkan. Logika grid murni ada di `screens/terminal-layout.ts`
