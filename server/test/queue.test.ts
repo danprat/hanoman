@@ -43,12 +43,17 @@ describe("queue", () => {
 
   // A second job for a live run means a second runOne, and addWorktree force-recreates
   // the shared .worktrees/<id> path — one run must never own two worktrees.
-  it("refuses to re-enqueue a run that is still queued/running", async () => {
+  it("refuses to re-enqueue a run that is still queued/running/awaiting", async () => {
     const r = await enqueueRun(input);                               // RUN-9001 is still "queued"
     expect(r.enqueued).toBe(false);
     expect(r.reason).toMatch(/masih queued/);
     await prisma.run.update({ where: { id: "RUN-9001" }, data: { status: "running" } });
     expect((await enqueueRun(input)).reason).toMatch(/masih running/);
+    // `awaiting` (SPEC-157): prosesnya HIDUP dan terblokir menunggu jawaban. Tanpa gate ini,
+    // Resume lolos, `add` no-op karena jobId sama, tapi `upsert` tetap menulis
+    // `status: "queued"` di atas run yang hidup — status berbohong, tombol jawabannya lenyap.
+    await prisma.run.update({ where: { id: "RUN-9001" }, data: { status: "awaiting" } });
+    expect((await enqueueRun(input)).reason).toMatch(/masih awaiting/);
   });
 
   it("keeps exactly one job per runId, and a retry reuses that id", async () => {

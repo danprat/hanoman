@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { mkdtempSync, mkdirSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { resetDb, makeProject, makeRun, makeSetting, makeSpec } from "./factory";
 import { prisma } from "../src/db";
+import { publisher } from "../src/redis";
 import { runProcessor, reconcileRuns } from "../src/worker";
 import type { ClaudeSession, RunDeps, CliMessage } from "@hanoman/runner";
 
@@ -136,5 +137,76 @@ describe("reconcileRuns", () => {
   it("is idempotent — a second boot finds nothing left to reconcile", async () => {
     expect(await reconcileRuns({ getJob: async () => undefined })).toEqual(["RUN-21"]);
     expect(await reconcileRuns({ getJob: async () => undefined })).toEqual([]);
+  });
+
+  // `awaiting` (SPEC-157) = proses claude hidup, terblokir menunggu jawaban. Worker mati saat
+  // itu → tak ada lagi yang bisa menerima jawabannya. Yatim, persis seperti `running`.
+  it("menandai run awaiting yatim sebagai failed", async () => {
+    await makeRun({ id: "RUN-23", projectId: "p1", status: "awaiting" });
+    expect(await reconcileRuns({ getJob: async () => undefined })).toEqual(["RUN-23"]);
+    expect((await prisma.run.findUnique({ where: { id: "RUN-23" } }))?.status).toBe("failed");
+  });
+});
+
+// Jalur nyata: run betulan, worktree betulan berisi ASK_FILE, jawaban betulan lewat Redis.
+describe("worker · jawaban atas pertanyaan agen (SPEC-157)", () => {
+  const ASK = { question: "q", options: [{ value: "pasien", label: "Pasien" }, { value: "pembayar", label: "Pembayar" }], default: "pasien" };
+
+  // Worktree tempat runOne membaca ASK_FILE: `${repoDir}/.worktrees/${runId.toLowerCase()}`.
+  const askRepo = (runId: string) => {
+    const repoDir = mkdtempSync(join(tmpdir(), "hanoman-worker-ask-"));
+    const wt = join(repoDir, ".worktrees", runId.toLowerCase());
+    mkdirSync(wt, { recursive: true });
+    writeFileSync(join(wt, ".hanoman-ask.json"), JSON.stringify(ASK));
+    return repoDir;
+  };
+  const job = (runId: string, repoDir: string, steps: unknown) =>
+    ({ data: { runId, repoDir, branchFrom: "main", branchTo: "x", flow: "feature", only: "Brainstorm", steps } }) as never;
+
+  it("pesan answer melanjutkan run dan tidak menyisakan pendingAsk", async () => {
+    await resetDb(); await makeProject({ id: "p1" }); await makeSetting({ askTimeoutMin: 30 });
+    await makeRun({ id: "RUN-ASK", projectId: "p1", status: "queued" });
+    const repoDir = askRepo("RUN-ASK");
+    const steps = await (await import("../src/services/settings")).stepModels();
+
+    // Diterbitkan berulang: runProcessor baru subscribe setelah beberapa await, dan pub/sub
+    // Redis tidak punya replay. Buffer SteerQueue menyerap yang tiba lebih awal.
+    const pub = publisher();
+    const beat = setInterval(() => void pub.publish("run:RUN-ASK:control", JSON.stringify({ type: "answer", value: "pembayar" })), 20);
+    try { await runProcessor(job("RUN-ASK", repoDir, steps), fakeDeps); }
+    finally { clearInterval(beat); await pub.quit(); }
+
+    const row = await prisma.run.findUniqueOrThrow({ where: { id: "RUN-ASK" } });
+    expect(row.status).toBe("done");
+    expect(row.pendingAsk).toBeNull();
+    expect((row.log as { t: string; s: string }[]).some((l) => l.t === "»" && l.s.includes("Pembayar"))).toBe(true);
+  });
+
+  // Antrian terpisah: steer menjadi giliran EKSTRA setelah fase, bukan jawaban.
+  it("pesan steer tidak menjawab pertanyaan — ia menjadi giliran tersendiri", async () => {
+    await resetDb(); await makeProject({ id: "p1" }); await makeSetting({ askTimeoutMin: 30 });
+    await makeRun({ id: "RUN-ASK2", projectId: "p1", status: "queued" });
+    const repoDir = askRepo("RUN-ASK2");
+    const steps = await (await import("../src/services/settings")).stepModels();
+    const sent: string[] = [];
+    const deps: RunDeps = { ...fakeDeps, openSession: () => fakeSession(sent) };
+
+    // Keduanya di detak yang sama: pub/sub Redis tak punya replay, jadi sekali-terbit sebelum
+    // runProcessor sempat subscribe akan hilang begitu saja. `steer` mendahului `answer` tiap
+    // detak, sehingga saat blokir ask terbuka, steer-nya sudah pasti mengantre.
+    const pub = publisher();
+    const beat = setInterval(() => {
+      void pub.publish("run:RUN-ASK2:control", JSON.stringify({ type: "steer", message: "halo" }));
+      void pub.publish("run:RUN-ASK2:control", JSON.stringify({ type: "answer", value: "pembayar" }));
+    }, 20);
+    try { await runProcessor(job("RUN-ASK2", repoDir, steps), deps); }
+    finally { clearInterval(beat); await pub.quit(); }
+
+    // [0] prompt fase · [1] jawaban — yang membuka blokir · [2..] steer, dikuras setelah fase.
+    // Kalau steer ikut menjawab, ia akan mendarat di [1] dan assertion pertama roboh.
+    expect(sent[1]).toContain("Jawaban manusia atas pertanyaanmu");
+    expect(sent[1]).toContain("Pembayar");
+    expect(sent.indexOf("halo")).toBeGreaterThan(1);
+    expect(sent.slice(2).every((s) => s === "halo")).toBe(true);
   });
 });

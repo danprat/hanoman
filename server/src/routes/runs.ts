@@ -23,7 +23,7 @@ const TERM_HELP = "perintah: help · status · plan · files · steer <pesan> ·
 const KNOWN = new Set(["help","status","plan","files","diff","steer","pause","resume","stop","docs","clear"]);
 // Terminal interpreter. Read/display verbs render persisted Run data; effectful
 // verbs (steer/pause/stop/resume/retry) have already run in the route — here we
-// render the truthful outcome. `active` = run is running|paused.
+// render the truthful outcome. `active` = run is running|awaiting|paused.
 async function runCommand(
   run: { id: string; projectId: string; status: string; kind: string; progress: number;
          phases: unknown; plan: unknown; worktree: string; baseSha: string | null; headSha: string | null },
@@ -105,7 +105,7 @@ export default async function (app: FastifyInstance) {
     const { id } = req.params as { id: string };
     const run = await prisma.run.findUnique({ where: { id } });
     if (!run) return reply.code(404).send({ error: "not found" });
-    if (["queued", "running", "paused"].includes(run.status))
+    if (["queued", "running", "awaiting", "paused"].includes(run.status))
       return reply.code(409).send({ error: `run "${id}" masih ${run.status}` });
     await prisma.run.delete({ where: { id } });
     return reply.code(204).send();
@@ -233,7 +233,7 @@ export default async function (app: FastifyInstance) {
     const parts = text.split(/\s+/);
     const cmd = (parts[0] ?? "").toLowerCase();
     const arg = parts.slice(1).join(" ");
-    const active = run.status === "running" || run.status === "paused";
+    const active = run.status === "running" || run.status === "awaiting" || run.status === "paused";
     // Effectful verbs run before rendering; resume/retry can be budget-rejected.
     if (cmd === "steer" && arg) await publishControl(id, { type: "steer", message: arg });
     else if (cmd === "pause" || cmd === "stop") await applyControl(run, cmd);

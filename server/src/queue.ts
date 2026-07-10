@@ -36,7 +36,10 @@ export async function enqueueRun(input: RunInput): Promise<{ enqueued: boolean; 
   if (!isAbsolute(input.repoDir))
     return { enqueued: false, reason: `project ${projectId} butuh repoDir absolut` };
   const live = await prisma.run.findUnique({ where: { id: input.runId }, select: { status: true } });
-  if (live && (live.status === "queued" || live.status === "running"))
+  // `awaiting` ikut (SPEC-157): prosesnya HIDUP dan terblokir menunggu jawaban. Tanpa baris ini
+  // Resume lolos gate, `add` no-op karena jobId sama, tapi `upsert` di bawah tetap menulis
+  // `status: "queued"` di atas run yang hidup — status berbohong dan tombol jawabannya lenyap.
+  if (live && (live.status === "queued" || live.status === "running" || live.status === "awaiting"))
     return { enqueued: false, reason: `run ${input.runId} masih ${live.status}` };
   await prisma.run.upsert({
     where: { id: input.runId },

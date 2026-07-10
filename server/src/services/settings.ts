@@ -17,3 +17,5 @@ export async function getSetting(): Promise<Setting> {
 }
 export async function stepModels(): Promise<StepModels> { return (await getSetting()).steps; }
 export async function maxConcurrent(): Promise<number> { return (await getSetting()).maxConcurrent ?? 3; }
+/** Menit → milidetik (SPEC-157). `0` berarti jangan pernah menunggu jawaban manusia. */
+export async function askTimeoutMs(): Promise<number> { return ((await getSetting()).askTimeoutMin ?? 30) * 60_000; }

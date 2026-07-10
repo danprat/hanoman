@@ -31,8 +31,12 @@ export async function markFailed(runId: string): Promise<void> {
 export async function reconcileRuns(
   queue: { getJob(id: string): Promise<unknown> } = runsQueue,
 ): Promise<string[]> {
+  // `awaiting` ikut (SPEC-157): prosesnya hidup dan terblokir menunggu jawaban, jadi worker
+  // yang mati meninggalkannya yatim persis seperti `running`. `paused` TIDAK: prosesnya memang
+  // sudah mati dan job-nya memang sudah tak ada — memasukkannya menandai `failed` setiap run
+  // yang di-pause dengan sengaja.
   const live = await prisma.run.findMany({
-    where: { status: { in: ["queued", "running"] } }, select: { id: true },
+    where: { status: { in: ["queued", "running", "awaiting"] } }, select: { id: true },
   });
   const orphans: string[] = [];
   for (const { id } of live) if (!(await queue.getJob(id))) orphans.push(id);
@@ -48,7 +52,8 @@ export async function reconcileRuns(
 export async function runProcessor(job: Job<RunInput>, deps?: RunDeps): Promise<void> {
   // Guardrail Source of Truth dijalankan sebagai subprocess di worktree run, jadi switch-nya
   // harus dibaca di sini — satu-satunya titik yang punya DB — lalu dititipkan ke deps.verify.
-  const d = deps ?? depsWithGuard(await getSetting());
+  const setting = await getSetting();
+  const d = deps ?? depsWithGuard(setting);
   let input = job.data;
   const id = input.runId;
   // Load the backlog item this run was queued for, fresh from the DB (the job
@@ -81,13 +86,17 @@ export async function runProcessor(job: Job<RunInput>, deps?: RunDeps): Promise<
   }
   const abortController = new AbortController();
   const steer = new SteerQueue();
+  // Antrian terpisah (SPEC-157): sebuah pesan `steer` tidak boleh tak sengaja menjawab
+  // pertanyaan desain. Steer menjadi giliran ekstra setelah fase; jawaban membuka blokir fase.
+  const answers = new SteerQueue();
   const pub = publisher();
   const sub = subscriber();
   await sub.subscribe(`run:${id}:control`);
   sub.on("message", (_ch, raw) => {
     try {
-      const msg = JSON.parse(raw) as { type: string; message?: string };
+      const msg = JSON.parse(raw) as { type: string; message?: string; value?: string };
       if (msg.type === "steer" && msg.message) steer.push(msg.message);
+      else if (msg.type === "answer" && msg.value) answers.push(msg.value);
       else if (msg.type === "pause" || msg.type === "stop") abortController.abort();
     } catch { /* ignore malformed control */ }
   });
@@ -97,7 +106,7 @@ export async function runProcessor(job: Job<RunInput>, deps?: RunDeps): Promise<
     publishEvent(pub, id, e);
   };
   try {
-    await runOne(input, d, onEvent, { abortController, steer });
+    await runOne(input, d, onEvent, { abortController, steer, answers, askTimeoutMs: (setting.askTimeoutMin ?? 30) * 60_000 });
   } finally {
     await pending;
     await sub.quit();
