@@ -63,6 +63,17 @@ function board(specs: Spec[], activeSpecs?: Set<string>) {
   return onStart;
 }
 
+describe("tombol Review (SPEC-171)", () => {
+  it("klik Review memanggil onOpenReview dengan spec-nya", () => {
+    const onOpenReview = vi.fn();
+    render(<BacklogScreen backlog={[spec({ title: "x" })]} projects={[{ id: "p", name: "p" }] as never}
+      onOpenReview={onOpenReview} projectFilter="all" onProjectFilter={() => {}} />);
+    fireEvent.click(screen.getByText("Review"));
+    expect(onOpenReview).toHaveBeenCalledOnce();
+    expect(onOpenReview.mock.calls[0]![0].id).toBe("SPEC-1");
+  });
+});
+
 describe("board drag (jsdom)", () => {
   it("Backlog → Brainstorm memanggil onStart dengan spec yang diseret", () => {
     const onStart = board([spec({ title: "bikin login" })]);
