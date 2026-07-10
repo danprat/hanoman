@@ -85,7 +85,7 @@ CHECK firewall pass ufw active
 |---|---|---|
 | `sudo_ok` | ya | `sudo -n true` berhasil |
 | `os_supported` | ya | distro deb/rhel dikenali |
-| `ssh_root_login` | ya | `sshd -T`: `permitrootlogin no` |
+| `ssh_root_login` | ya | `sshd -T`: `permitrootlogin` `no` / `prohibit-password` / `without-password` (alias yang dipakai sshd -T) |
 | `ssh_password_auth` | ya | `sshd -T`: `passwordauthentication no` |
 | `firewall` | ya | ufw `Status: active` / firewalld `running` |
 | `fail2ban` | ya | service fail2ban aktif |
@@ -119,8 +119,13 @@ aman dijalankan ulang. Urutan di dalam script:
 3. Pasang & aktifkan fail2ban (jail sshd: maxretry 3, bantime 1h).
 4. Aktifkan auto security update (unattended-upgrades / dnf-automatic.timer).
 5. Set `PermitRootLogin no` + `PasswordAuthentication no` di drop-in
-   `/etc/ssh/sshd_config.d/99-hanoman.conf`; **`sshd -t` wajib pass sebelum reload**
+   `/etc/ssh/sshd_config.d/01-hanoman.conf`; **`sshd -t` wajib pass sebelum reload**
    — bila gagal, drop-in dihapus dan step dilaporkan fail.
+   - Berawalan `01-`, bukan `99-`: sshd memakai nilai **pertama** yang ditemukan dan
+     memuat drop-in berurutan nama; image cloud Ubuntu memasang `50-cloud-init.conf`
+     berisi `PasswordAuthentication yes` yang akan mengalahkan drop-in `99-`.
+   - Bila user terkonfigurasi = `root`, yang ditulis `prohibit-password` (key-only),
+     bukan `no` — `no` memutus akses hanoman sendiri.
 6. Aktifkan NTP (`timedatectl set-ntp true`).
 
 Perlindungan lockout: koneksi hanoman sendiri sudah key-based (BatchMode), sehingga

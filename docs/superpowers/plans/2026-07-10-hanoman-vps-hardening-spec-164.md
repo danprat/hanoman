@@ -26,7 +26,12 @@
 ## Deviasi yang disengaja dari spec (sudah final, jangan didebat ulang saat implementasi)
 
 1. **`PermitRootLogin`:** bila user SSH yang dikonfigurasi = `root`, harden menulis `prohibit-password` (root key-only), bukan `no` — `no` akan mengunci akses hanoman sendiri. Audit menerima `no` ATAU `prohibit-password` sebagai pass. Task 4 juga meng-update paragraf terkait di spec (commit yang sama).
-2. **Injeksi deps ssh:** bukan modul DI, tapi env `HANOMAN_SSH_BIN` (pola yang sama dengan `HANOMAN_CLAUDE_BIN` di `services/pty.ts`). Test menunjuk ke fixture `fake-ssh.sh`.
+2. **Drop-in sshd bernama `01-hanoman.conf`, bukan `99-`** (ditemukan saat smoke di container
+   ber-`sshd`): sshd memakai nilai PERTAMA dan memuat drop-in berurutan nama, sehingga
+   `50-cloud-init.conf` milik image cloud Ubuntu (`PasswordAuthentication yes`) mengalahkan
+   drop-in `99-`. Audit juga menerima `without-password` — begitulah `sshd -T` menormalkan
+   `prohibit-password`.
+3. **Injeksi deps ssh:** bukan modul DI, tapi env `HANOMAN_SSH_BIN` (pola yang sama dengan `HANOMAN_CLAUDE_BIN` di `services/pty.ts`). Test menunjuk ke fixture `fake-ssh.sh`.
 
 ---
 
@@ -544,12 +549,12 @@ SSHD_T=$( (sshd -T 2>/dev/null || /usr/sbin/sshd -T 2>/dev/null) || true )
 sshd_opt() { echo "$SSHD_T" | awk -v k="$1" '$1==k{print $2; exit}'; }
 SSH_PORT=22
 if [ -z "$SSHD_T" ]; then
-  emit ssh_root_login fail "sshd -T gagal (butuh root)"
-  emit ssh_password_auth fail "sshd -T gagal (butuh root)"
+  emit ssh_root_login fail "sshd -T tak terbaca (sshd tak terpasang / bukan root)"
+  emit ssh_password_auth fail "sshd -T tak terbaca (sshd tak terpasang / bukan root)"
 else
   v=$(sshd_opt permitrootlogin)
   case "$v" in
-    no|prohibit-password) emit ssh_root_login pass "$v" ;;                # ADR-0025 §5
+    no|prohibit-password|without-password) emit ssh_root_login pass "$v" ;;   # ADR-0025 §5
     *) emit ssh_root_login fail "PermitRootLogin ${v:-default}" ;;
   esac
   v=$(sshd_opt passwordauthentication)
@@ -679,10 +684,11 @@ fi
 # `no` memutus akses hanoman sendiri (ADR-0025 §5).
 ROOT_LOGIN=no
 [ "${SSH_USER:-}" = root ] && ROOT_LOGIN=prohibit-password
+DROPIN=/etc/ssh/sshd_config.d/01-hanoman.conf   # `01-`: sshd pakai nilai PERTAMA; 50-cloud-init.conf harus kalah
 mkdir -p /etc/ssh/sshd_config.d
 grep -qE '^Include /etc/ssh/sshd_config.d' /etc/ssh/sshd_config 2>/dev/null \
   || sed -i '1i Include /etc/ssh/sshd_config.d/*.conf' /etc/ssh/sshd_config
-cat > /etc/ssh/sshd_config.d/99-hanoman.conf <<EOF
+cat > "$DROPIN" <<EOF
 PermitRootLogin $ROOT_LOGIN
 PasswordAuthentication no
 MaxAuthTries 3
@@ -691,7 +697,7 @@ if sshd -t 2>/dev/null || /usr/sbin/sshd -t 2>/dev/null; then
   systemctl reload sshd 2>/dev/null || systemctl reload ssh 2>/dev/null
   step ssh ok "PermitRootLogin $ROOT_LOGIN · PasswordAuthentication no"
 else
-  rm -f /etc/ssh/sshd_config.d/99-hanoman.conf
+  rm -f "$DROPIN"
   step ssh fail "sshd -t menolak konfigurasi — drop-in dibatalkan"
 fi
 
