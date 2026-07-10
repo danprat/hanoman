@@ -30,7 +30,7 @@ const S_DEFAULTS: Setting = {
   steps: { brainstorm: { ...S_DEFAULT_STEP }, spec: { ...S_DEFAULT_STEP }, plan: { ...S_DEFAULT_STEP },
     execute: { ...S_DEFAULT_STEP }, audit: { ...S_DEFAULT_STEP } },
   autoDefault: true, blockStale: true, requireLinks: true, autoScaffold: true,
-  maxConcurrent: 3, notifyFail: true,
+  maxConcurrent: 3, notifyFail: true, askTimeoutMin: 30,
 };
 
 function SettingRow({ title, desc, children, last }: { title: string; desc?: string; children?: React.ReactNode; last?: boolean }) {

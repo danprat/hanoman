@@ -1,4 +1,5 @@
 import type Redis from "ioredis";
+import { Prisma } from "@prisma/client";
 import type { RunEvent } from "@hanoman/runner";
 import { fmtEstCost, type Stage } from "@hanoman/shared";
 import { prisma } from "../db";
@@ -71,6 +72,13 @@ export async function persistEvent(runId: string, e: RunEvent): Promise<void> {
     if (e.base && !run.baseSha) data.baseSha = e.base;
     if (e.head) data.headSha = e.head;
     if (Object.keys(data).length) await prisma.run.update({ where: { id: runId }, data });
+  } else if (e.kind === "ask") {
+    // `Json?` membedakan "tak ada nilai" (DbNull) dari JSON literal `null` (JsonNull).
+    // Yang benar di sini DbNull: kolomnya kosong, bukan berisi null.
+    // Cast: `Ask` tipe struktural, Prisma menuntut `InputJsonValue`. Satu-satunya cast
+    // di jalur ini, tepat di batas Prisma.
+    const pendingAsk = e.ask ? (e.ask as unknown as Prisma.InputJsonValue) : Prisma.DbNull;
+    await prisma.run.update({ where: { id: runId }, data: { pendingAsk } });
   }
   if (e.kind === "phase" || e.kind === "status") await mirrorSpecStage(runId, e);
 }

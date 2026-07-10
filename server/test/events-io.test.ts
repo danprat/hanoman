@@ -151,3 +151,29 @@ describe("persistEvent commit (SPEC-144)", () => {
     expect(run.baseSha).toBe("aaa");
   });
 });
+
+describe("persistEvent · ask (SPEC-157)", () => {
+  beforeEach(async () => { await resetDb(); await makeProject(); await makeRun({ id: "RUN-1", projectId: "p1" }); });
+  const ASK = { question: "q", options: [{ value: "a", label: "A" }, { value: "b", label: "B" }], default: "a" };
+
+  it("menyimpan pertanyaan yang sedang menunggu", async () => {
+    await persistEvent("RUN-1", { kind: "ask", ask: ASK });
+    const run = await prisma.run.findUniqueOrThrow({ where: { id: "RUN-1" } });
+    expect(run.pendingAsk).toEqual(ASK);
+  });
+
+  it("mengosongkan pertanyaan saat ask null", async () => {
+    await persistEvent("RUN-1", { kind: "ask", ask: ASK });
+    await persistEvent("RUN-1", { kind: "ask", ask: null });
+    const run = await prisma.run.findUniqueOrThrow({ where: { id: "RUN-1" } });
+    expect(run.pendingAsk).toBeNull();
+  });
+
+  // `awaiting` bukan status terminal: jangan pernah menulis finishedAt.
+  it("status awaiting tidak menulis finishedAt", async () => {
+    await persistEvent("RUN-1", { kind: "status", status: "awaiting" });
+    const run = await prisma.run.findUniqueOrThrow({ where: { id: "RUN-1" } });
+    expect(run.status).toBe("awaiting");
+    expect(run.finishedAt).toBeNull();
+  });
+});

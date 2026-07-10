@@ -21,7 +21,9 @@ Entitas inti (Postgres via Prisma).
 
 ## Run
 - `id` (RUN-n), `projectId`, `specId?`, `kind` ("feature" | "qa" | "scaffold")
-- `status` ("queued" | "running" | "paused" | "stopped" | "failed" | "done")
+- `status` ("queued" | "running" | "awaiting" | "paused" | "stopped" | "failed" | "done").
+  `awaiting` ≠ `paused`: `paused` berarti proses claude sudah mati dan sesi dilanjutkan dari
+  `sessionId`; `awaiting` berarti prosesnya hidup dan terblokir menunggu keputusan manusia (SPEC-157).
 - `trigger` ("commit"|"schedule"|"manual"|"interval"), `triggerDetail`
 - `phases[]` ({ name, state: "pending"|"active"|"done"|"failed"|"skipped" }), `plan[]`, `log[]`
 - `worktree`, `branchFrom`, `branchTo`, `model` per step, `tokensIn/out`, `cost`, `progress`
@@ -30,6 +32,8 @@ Entitas inti (Postgres via Prisma).
 - `baseSha?`/`headSha?` — commit tempat worktree run di-detach, dan commit tip setelah
   `commitAndPush` berhasil. Penunjuk, bukan isi: diff/daftar-file/commit run diturunkan dari git
   saat `GET /runs/:id/changes` dibaca, tidak pernah dipersist. Lihat [ADR-0019](../adr/0019-sha-disimpan-diff-diturunkan.md).
+- `pendingAsk?` — pertanyaan agen yang sedang menunggu jawaban manusia (`{ question, options[], default }`),
+  atau NULL. Hanya terisi selama status `awaiting`. Lihat [ADR-0022](../adr/0022-pertanyaan-agen-berstatus-awaiting.md).
 - `createdAt`, `finishedAt?` (null selama berjalan; di-set saat status terminal — durasi = `(finishedAt ?? now) − createdAt`, lihat ADR 0007)
 - Run dengan `specId` = run untuk satu backlog item. Worker memuat Spec itu dari DB saat run dieksekusi dan menyisipkan `title`/`objective`/`payload` ke prompt **setiap fase** (termasuk Execute) — id saja tidak resolvable dari dalam worktree. Spec-nya hilang → job gagal, bukan jalan tanpa scope.
 - `phases[]` di-seed dari pipeline flow saat enqueue (semua `pending`), lalu tiap event membalik state di tempat (`active`/`done`/`failed`/`skipped`); `progress` = persen phase ber-state `done` **di antara phase yang tidak `skipped`** (run yang mati di fase akhir tampil mis. 80%, bukan 0%). `skipped` = fase yang sengaja tidak dijalankan run (alur `qa`, SPEC-145); ia keluar dari penyebut, sehingga run jalur cepat yang sukses tetap 100%. Lihat SPEC-010, SPEC-145.

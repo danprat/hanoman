@@ -53,6 +53,9 @@ model Run {
   // Sesi claude milik run ini (SPEC-013). Nullable: run yang masih mengantre belum
   // punya sesi. Dipakai layar Terminal untuk `claude --resume` di dalam worktree.
   sessionId     String?
+  // SPEC-157 · pertanyaan agen yang sedang menunggu jawaban manusia (bentuk `Ask`), atau NULL
+  // saat tak ada. Hanya terisi selama status `awaiting`. Lihat ADR-0022.
+  pendingAsk    Json?
   // SPEC-144 · penunjuk, bukan isi. Diff diturunkan; SHA tak dapat direkonstruksi
   // setelah worktree dan branch run dihapus. Lihat ADR-0019.
   baseSha       String?
