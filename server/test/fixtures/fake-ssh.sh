@@ -3,6 +3,11 @@
 # FAKE_SSH_MODE: unreachable | verify-fail | audit-fail | (kosong = sukses)
 case "${FAKE_SSH_MODE:-}" in
   unreachable) echo "ssh: connect to host x port 22: Connection refused" >&2; exit 255 ;;
+  # SPEC-165 · login password ditolak (password salah / PasswordAuthentication off)
+  bad-password)
+    if [ -n "${HANOMAN_SSH_PASSWORD:-}" ]; then
+      echo "root@x: Permission denied (publickey,password)." >&2; exit 255
+    fi ;;
 esac
 
 # SPEC-165 · rekam bagaimana ssh dipanggil supaya test bisa memeriksa argumen & env.
@@ -17,6 +22,11 @@ fi
 
 input="$(cat)"          # stdin = isi script (kosong untuk healthcheck/verify)
 last="${*: -1}"         # arg terakhir = perintah remote
+
+# SPEC-165 · verifikasi key-only pasca-bootstrap gagal (key tak benar-benar terpasang).
+if [ "${FAKE_SSH_MODE:-}" = "bootstrap-verify-fail" ] && [ -z "${HANOMAN_SSH_PASSWORD:-}" ]; then
+  echo "root@x: Permission denied (publickey)." >&2; exit 255
+fi
 
 # verify-fail: harden sukses, tapi koneksi verifikasi berikutnya gagal
 if [ "${FAKE_SSH_MODE:-}" = "verify-fail" ] && [[ "$input" != *"hanoman-harden"* ]]; then
