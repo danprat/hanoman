@@ -6,23 +6,17 @@ import { dirname, resolve } from "node:path";
 import health from "./routes/health";
 import projects from "./routes/projects";
 import specs from "./routes/specs";
-import triggers from "./routes/triggers";
 import settings from "./routes/settings";
 import docs from "./routes/docs";
-import runs from "./routes/runs";
-import webhooks from "./routes/webhooks";
 import fs from "./routes/fs";
 import terminal from "./routes/terminal";
 import { detachAll } from "./services/pty";
 export function buildApp(): FastifyInstance {
   const app = Fastify({ logger: false });
-  // Body-less POSTs (toggle) may still carry a JSON
-  // content-type; Fastify's default parser 400s on an empty body. Treat
-  // empty as undefined so those routes work, while real bodies still parse.
-  // Also stash the raw string on `req.rawBody` so the GitHub webhook route can
-  // verify the HMAC signature against the exact bytes GitHub signed.
-  app.addContentTypeParser("application/json", { parseAs: "string" }, (req, body, done) => {
-    (req as { rawBody?: string }).rawBody = body as string;
+  // POST tanpa body masih boleh membawa content-type JSON; parser bawaan Fastify menjawab
+  // 400 untuk body kosong. Perlakukan kosong sebagai undefined, sementara body sungguhan
+  // tetap diparse.
+  app.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body, done) => {
     if (!body) return done(null, undefined);
     try { done(null, JSON.parse(body as string)); }
     catch (err) { (err as Error & { statusCode?: number }).statusCode = 400; done(err as Error, undefined); }
@@ -36,11 +30,8 @@ export function buildApp(): FastifyInstance {
     await api.register(health);
     await api.register(projects);
     await api.register(specs);
-    await api.register(triggers);
     await api.register(settings);
     await api.register(docs);
-    await api.register(runs);
-    await api.register(webhooks);
     await api.register(fs);
     await api.register(terminal);
   }, { prefix: "/api" });

@@ -22,10 +22,14 @@ export const zPatchSpec = z.object({ branchFrom: z.string().min(1).nullable() })
 export const zCreateTrigger = z.object({
   project: z.string(), type: zTriggerType, detail: z.string(), target: zTriggerTarget });
 
-export const zRunSummary = z.object({
-  status: z.string(), phase: z.string().nullable(), kind: z.string().nullable() });
+// SPEC-162 · yang berjalan adalah sesi tmux, bukan baris Run. `flow` menggantikan `kind`.
+export const zSessionSummary = z.object({
+  status: z.enum(["running", "idle"]),
+  phase: z.string().nullable(),
+  flow: z.string().nullable(),
+});
 export const zProjectView = zProject.extend({
-  backlog: z.number().int(), topStage: z.string(), run: zRunSummary,
+  backlog: z.number().int(), topStage: z.string(), session: zSessionSummary,
   activity: z.string(), commit: z.string() });
 export type ProjectView = z.infer<typeof zProjectView>;
 

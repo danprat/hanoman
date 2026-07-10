@@ -1,17 +1,13 @@
-/* OverviewScreen — workspace dashboard. Ported from the prototype;
-   window globals → ds imports, run/project fields from view models. */
+/* OverviewScreen — workspace dashboard. Pekerjaan yang berjalan adalah sesi claude di
+   tmux, bukan baris Run (SPEC-162): tak ada progress %, tak ada estimasi biaya. */
 import React from "react";
-import { fmtEstCost, parseEstCost } from "@hanoman/shared";
 import { Card, StatusPill, Badge, ProgressBar, Icon, Button, StateBlock } from "../ds";
-import type { ProjectVM, RunVM, Spec, Trigger } from "./types";
+import type { ProjectVM, Spec } from "./types";
 
-const O_TRIGGER_ICON: Record<string, string> = {
-  commit: "git-commit-horizontal", schedule: "calendar-clock",
-  manual: "mouse-pointer-click", interval: "timer",
-};
 function oCovTone(s: string) { return s === "broken" ? "err" : s === "drift" ? "warn" : "ok"; }
+// Sesi tak punya status "failed" yang terbaca dari luar — yang gagal terlihat di terminalnya.
 function oAttention(p: ProjectVM): "high" | "low" | "none" {
-  if (p.docStatus === "broken" || p.run.status === "failed") return "high";
+  if (p.docStatus === "broken") return "high";
   if (p.docStatus === "drift") return "low";
   return "none";
 }
@@ -44,8 +40,7 @@ function KpiStrip({ items }: { items: { label: string; value: React.ReactNode; s
 function AttnRow({ p, onOpen }: { p: ProjectVM; onOpen: (p: ProjectVM) => void }) {
   const att = oAttention(p);
   const meta = O_ATT[att]!;
-  const reason = p.run.status === "failed" ? "Plan gagal · docs stale"
-    : p.docStatus === "broken" ? "Docs off-convention"
+  const reason = p.docStatus === "broken" ? "Docs off-convention"
     : "Docs drift — sebagian kategori belum ter-index";
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 4px", borderBottom: "1px solid var(--border-hair)", borderLeft: `3px solid ${meta.bar}`, paddingLeft: 12 }}>
@@ -62,21 +57,12 @@ function AttnRow({ p, onOpen }: { p: ProjectVM; onOpen: (p: ProjectVM) => void }
   );
 }
 
-function LiveRunRow({ r, onGoto }: { r: RunVM; onGoto: (s: string) => void }) {
-  const phase = (r.phases.find((x) => x.state === "active") || {} as any).name || r.phase;
+function LiveSessionRow({ p, onGoto }: { p: ProjectVM; onGoto: (s: string) => void }) {
   return (
-    <div onClick={() => onGoto("runs")} style={{ display: "flex", flexDirection: "column", gap: 8, padding: "12px 4px", borderBottom: "1px solid var(--border-hair)", cursor: "pointer" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <StatusPill status={r.status} size="sm">{phase}</StatusPill>
-        <span style={{ fontSize: 13.5, fontWeight: 500, color: "var(--text-strong)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.title}</span>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)" }}>{r.id}</span>
-      </div>
-      <ProgressBar value={r.progress} tone="ok" size="sm" />
-      <div style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-muted)" }}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><Icon name="box" size={12} /> {r.project}</span>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><Icon name={O_TRIGGER_ICON[r.trigger]!} size={12} /> {r.trigger}</span>
-        <span>{r.cost}</span>
-      </div>
+    <div onClick={() => onGoto("terminal")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 4px", borderBottom: "1px solid var(--border-hair)", cursor: "pointer" }}>
+      <StatusPill status="running" size="sm">{p.session.phase ?? "—"}</StatusPill>
+      <span style={{ fontSize: 13.5, fontWeight: 500, color: "var(--text-strong)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
+      <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)" }}>{p.session.flow ?? ""}</span>
     </div>
   );
 }
@@ -105,33 +91,28 @@ function MiniStat({ icon, label, value, tone }: { icon: string; label: string; v
   );
 }
 
-export function OverviewScreen({ projects, runs, backlog, triggers, onOpenProject, onGoto }:
-  { projects: ProjectVM[]; runs: RunVM[]; backlog: Spec[]; triggers: Trigger[];
+export function OverviewScreen({ projects, backlog, onOpenProject, onGoto }:
+  { projects: ProjectVM[]; backlog: Spec[];
     onOpenProject: (p: ProjectVM) => void; onGoto: (s: string) => void }) {
-  const activeRuns = runs.filter((r) => r.status === "running");
+  const live = projects.filter((p) => p.session.status === "running");
   const attention = projects.filter((p) => oAttention(p) !== "none")
     .sort((a, b) => (oAttention(a) === "high" ? 0 : 1) - (oAttention(b) === "high" ? 0 : 1));
   const onConv = projects.filter((p) => p.docStatus === "ok").length;
   const highAtt = projects.filter((p) => oAttention(p) === "high").length;
-  const cost = runs.reduce((n, r) => n + parseEstCost(r.cost), 0);
   const coverageAvg = projects.length ? Math.round(projects.reduce((n, p) => n + p.coverage, 0) / projects.length) : 0;
 
   const briefN = backlog.filter((s) => s.source === "brief").length;
   const qaN = backlog.filter((s) => s.source === "qa").length;
   const hiPrio = backlog.filter((s) => s.priority === "tinggi").length;
 
-  const trigOn = triggers.filter((t) => t.enabled).length;
-  const trigByType = ["commit", "schedule", "manual", "interval"].map((k) => ({ k, n: triggers.filter((t) => t.type === k && t.enabled).length }));
-
   const coverageSorted = [...projects].sort((a, b) => a.coverage - b.coverage);
-  const activity = projects.map((p) => ({ project: p.name, status: p.run.status, text: p.activity, commit: p.commit }));
+  const activity = projects.map((p) => ({ project: p.name, status: p.session.status, text: p.activity, commit: p.commit }));
 
   const kpis = [
-    { label: "Run aktif", value: activeRuns.length, dot: "var(--brass-500)" },
+    { label: "Sesi aktif", value: live.length, dot: "var(--brass-500)" },
     { label: "Perlu perhatian", value: highAtt, dot: "var(--clay-600)" },
     { label: "Docs on-convention", value: onConv + "/" + projects.length, sub: "rata-rata " + coverageAvg + "%", dot: "var(--leaf-600)" },
     { label: "Spec di backlog", value: backlog.length, sub: briefN + " brief · " + qaN + " QA", dot: "var(--wind-600)" },
-    { label: "Estimasi biaya", value: fmtEstCost(cost), sub: "hari ini · bukan tagihan", dot: "var(--ink-500)" },
   ];
 
   return (
@@ -146,12 +127,12 @@ export function OverviewScreen({ projects, runs, backlog, triggers, onOpenProjec
                   hint="Source of Truth utuh — tidak ada yang perlu perhatian." />
               : <div style={{ marginTop: 4 }}>{attention.map((p) => <AttnRow key={p.id} p={p} onOpen={onOpenProject} />)}</div>}
           </Card>
-          <Card eyebrow={"live · " + activeRuns.length + " berjalan"} title="Claude Code sedang jalan"
-            actions={<Button size="sm" variant="ghost" leftIcon="activity" onClick={() => onGoto("runs")}>Buka Runs</Button>}>
-            {activeRuns.length === 0
-              ? <StateBlock kind="empty" compact icon="activity" title="Tidak ada run aktif"
-                  hint="Jalankan spec dari backlog untuk melihat log Claude Code streaming di sini." />
-              : <div style={{ marginTop: 4 }}>{activeRuns.map((r) => <LiveRunRow key={r.id} r={r} onGoto={onGoto} />)}</div>}
+          <Card eyebrow={"live · " + live.length + " berjalan"} title="Claude Code sedang jalan"
+            actions={<Button size="sm" variant="ghost" leftIcon="terminal" onClick={() => onGoto("terminal")}>Buka Terminal</Button>}>
+            {live.length === 0
+              ? <StateBlock kind="empty" compact icon="terminal" title="Tidak ada sesi aktif"
+                  hint="Mulai sebuah backlog item untuk membuka sesi Claude Code interaktif." />
+              : <div style={{ marginTop: 4 }}>{live.map((p) => <LiveSessionRow key={p.id} p={p} onGoto={onGoto} />)}</div>}
           </Card>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -173,23 +154,14 @@ export function OverviewScreen({ projects, runs, backlog, triggers, onOpenProjec
           </Card>
         </div>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.35fr", gap: 20, alignItems: "start", marginTop: 20 }}>
-        <Card eyebrow={trigOn + " aktif · " + triggers.length + " total"} title="Triggers"
-          actions={<Button size="sm" variant="ghost" leftIcon="zap" onClick={() => onGoto("triggers")}>Kelola</Button>}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 6 }}>
-            {trigByType.map((t) => (
-              <MiniStat key={t.k} icon={O_TRIGGER_ICON[t.k]!} label={t.k} value={t.n} tone="var(--brass-600)" />
-            ))}
-          </div>
-        </Card>
+      <div style={{ marginTop: 20 }}>
         <Card eyebrow="workspace" title="Aktivitas terbaru">
           {activity.length === 0
             ? <StateBlock kind="empty" compact icon="history" title="Belum ada aktivitas"
-                hint="Commit, scan, dan run terakhir tiap project akan tampil di sini." />
+                hint="Sesi dan branch terakhir tiap project akan tampil di sini." />
             : <div style={{ marginTop: 4 }}>
             {activity.map((a, i) => {
-              const dot = a.status === "running" ? "var(--brass-500)" : a.status === "failed" ? "var(--clay-500)"
-                : a.status === "done" ? "var(--leaf-500)" : a.status === "queued" ? "var(--wind-600)" : "var(--bone-400)";
+              const dot = a.status === "running" ? "var(--brass-500)" : "var(--bone-400)";
               return (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 4px", borderBottom: "1px solid var(--border-hair)" }}>
                   <span style={{ width: 8, height: 8, borderRadius: "50%", background: dot, flex: "0 0 auto" }} />

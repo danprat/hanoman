@@ -9,7 +9,7 @@ const projects = vi.fn(async () => {
 vi.mock("../src/api/client", () => ({
   api: {
     listProjects: (...a: unknown[]) => projects(...(a as [])),
-    listSpecs: vi.fn(async () => []), listTriggers: vi.fn(async () => []), listRuns: vi.fn(async () => []),
+    listSpecs: vi.fn(async () => []), listTerminals: vi.fn(async () => []),
     getSettings: vi.fn(async () => ({})),
   },
   ApiError: class extends Error {},

@@ -4,9 +4,9 @@ vi.mock("../src/api/client", () => ({
   api: {
     listProjects: vi.fn(async () => [{ id: "arta", name: "arta", desc: "", kind: "existing", stack: "Go",
       docStatus: "ok", coverage: 94, createdAt: "", backlog: 2, topStage: "execute",
-      run: { status: "running", phase: "Execute", kind: "feature" }, activity: "x", commit: "y" }]),
-    listSpecs: vi.fn(async () => []), listTriggers: vi.fn(async () => []), listRuns: vi.fn(async () => []),
-    getSettings: vi.fn(async () => ({})), startRun: vi.fn(), deleteSpec: vi.fn(), createSpec: vi.fn(),
+      session: { status: "running", phase: "Execute", flow: "feature" }, activity: "x", commit: "y" }]),
+    listSpecs: vi.fn(async () => []), listTerminals: vi.fn(async () => []),
+    getSettings: vi.fn(async () => ({})), startSession: vi.fn(), deleteSpec: vi.fn(), createSpec: vi.fn(),
   },
   ApiError: class extends Error {},
 }));

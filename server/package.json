@@ -5,8 +5,7 @@
   "scripts": {
     "postinstall": "chmod +x node_modules/node-pty/prebuilds/*/spawn-helper 2>/dev/null || true",
     "dev": "tsx watch src/server.ts",
-    "worker": "tsx watch src/worker.ts",
-    "build": "esbuild src/server.ts src/worker.ts --bundle --platform=node --format=esm --outdir=dist --external:fastify --external:@fastify/static --external:@prisma/client --external:bullmq --external:ioredis --external:node-pty --external:@fastify/websocket",
+      "build": "esbuild src/server.ts --bundle --platform=node --format=esm --outdir=dist --external:fastify --external:@fastify/static --external:@prisma/client --external:node-pty --external:@fastify/websocket",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "migrate": "prisma migrate dev"

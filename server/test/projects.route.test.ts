@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { buildApp } from "../src/app";
 import { prisma } from "../src/db";
-import { resetDb, makeProject, makeSpec, makeRun, makeTempRepo, makeRepoWithBranches } from "./factory";
+import { resetDb, makeProject, makeSpec, makeTempRepo, makeRepoWithBranches } from "./factory";
+import { createSession, killAll } from "../src/services/pty";
+import { fileURLToPath } from "node:url";
+
+// /bin/cat mati seketika: --dangerously-skip-permissions ilegal baginya. Lihat pty.test.ts.
+const FAKE_CLAUDE = fileURLToPath(new URL("./fixtures/fake-claude.sh", import.meta.url));
 const app = buildApp();
 beforeAll(async () => { await resetDb(); await makeProject({ id: "p1" }); });
 describe("projects routes", () => {
@@ -73,11 +78,12 @@ describe("projects routes", () => {
     const res = await app.inject({ method: "DELETE", url: "/api/projects/nope" });
     expect(res.statusCode).toBe(404);
   });
-  it("409s deleting a project with an active run", async () => {
-    await makeRun({ id: "RUN-active", projectId: "p1", status: "running" });
+  it("409s deleting a project with an active session", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    createSession("p1", process.cwd());
     const res = await app.inject({ method: "DELETE", url: "/api/projects/p1" });
     expect(res.statusCode).toBe(409);
-    await prisma.run.delete({ where: { id: "RUN-active" } });
+    killAll();
   });
   it("deletes a project and cascades its specs", async () => {
     await makeSpec({ id: "SPEC-del", projectId: "p1" });
@@ -131,13 +137,14 @@ describe("projects routes", () => {
     });
     expect(res.statusCode).toBe(404);
   });
-  // Kontras DELETE (409, projects.ts:35-36): `id` tak bergerak, jadi run aktif tak terusik.
-  it("PATCH is allowed while a run is active", async () => {
-    await makeRun({ id: "RUN-patch", projectId: "p-patch", status: "running" });
+  // Kontras DELETE (409): `id` tak bergerak, jadi sesi yang sedang jalan tak terusik.
+  it("PATCH is allowed while a session is active", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    createSession("p-patch", process.cwd());
     const res = await app.inject({
       method: "PATCH", url: "/api/projects/p-patch", payload: { name: "Kirana" },
     });
     expect(res.statusCode).toBe(200);
-    await prisma.run.delete({ where: { id: "RUN-patch" } });
+    killAll();
   });
 });

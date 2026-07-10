@@ -1,39 +1,21 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { paths } from "@hanoman/shared";
-import { subscribeRun, api } from "../src/api/client";
+import { api } from "../src/api/client";
 
-class FakeES {
-  static last: FakeES;
-  url: string; onmessage: ((e: { data: string }) => void) | null = null; closed = false;
-  constructor(url: string) { this.url = url; FakeES.last = this; }
-  close() { this.closed = true; }
-}
-
-beforeEach(() => { (globalThis as any).EventSource = FakeES as any; });
-
-describe("api client live + control (SPEC-008)", () => {
-  it("subscribeRun opens the SSE URL and forwards parsed events", () => {
-    const seen: any[] = [];
-    const off = subscribeRun("RUN-1", (e) => seen.push(e));
-    expect(FakeES.last.url).toBe(paths.runLog("RUN-1"));
-    FakeES.last.onmessage!({ data: JSON.stringify({ kind: "status", status: "done" }) });
-    expect(seen).toEqual([{ kind: "status", status: "done" }]);
-    off();
-    expect(FakeES.last.closed).toBe(true);
+// SPEC-162 · SSE run dan control run sudah tak ada; yang tersisa satu POST yang membuka sesi.
+describe("api client · sesi backlog", () => {
+  it("startSession mem-POST spec + flow ke path sesi terminal", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ id: "spec-1" }), { status: 201, headers: { "content-type": "application/json" } }));
+    const res = await api.startSession({ spec: "SPEC-1", flow: "feature" });
+    expect(res.id).toBe("spec-1");
+    expect(fetchMock).toHaveBeenCalledWith(paths.terminalSessions, expect.objectContaining({
+      method: "POST", body: JSON.stringify({ spec: "SPEC-1", flow: "feature" }),
+    }));
   });
 
-  it("runControl posts the action to the control path", async () => {
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ accepted: true }), { status: 202, headers: { "content-type": "application/json" } }));
-    await api.runControl("RUN-1", "pause");
-    expect(fetchMock).toHaveBeenCalledWith(paths.runControl("RUN-1"), expect.objectContaining({ method: "POST" }));
-  });
-
-  it("startRun posts flow + specId to the runs path", async () => {
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ runId: "RUN-9" }), { status: 202, headers: { "content-type": "application/json" } }));
-    const res = await api.startRun({ project: "p1", flow: "feature", specId: "SPEC-1" });
-    expect(res.runId).toBe("RUN-9");
-    expect(fetchMock).toHaveBeenCalledWith(paths.runs, expect.objectContaining({ method: "POST" }));
+  it("DELETE sesi mengembalikan undefined pada 204, bukan melempar", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 204 }));
+    await expect(api.deleteTerminal("spec-1")).resolves.toBeUndefined();
   });
 });

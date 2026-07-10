@@ -3,19 +3,16 @@
    calls the client and updates state from the response. */
 import React from "react";
 import { Shell, Modal, Field, HnTextarea, Button, StatusPill, Select, Input, Tabs, Toast, useToast, Icon, StateBlock } from "./ds";
-import { api, ApiError } from "./api/client";
-import { isRunActive } from "@hanoman/shared";
-import type { ProjectView, Spec, Trigger, Run } from "@hanoman/shared";
-import type { ProjectVM, RunVM } from "./screens/types";
+import { api, ApiError, type TerminalSession } from "./api/client";
+import type { ProjectView, Spec } from "@hanoman/shared";
+import type { ProjectVM } from "./screens/types";
 import { branchOptions } from "./screens/branch";
 import { OverviewScreen } from "./screens/OverviewScreen";
 import { ProjectsScreen } from "./screens/ProjectsScreen";
 import { ProjectDetailScreen } from "./screens/ProjectDetailScreen";
 import { BacklogScreen } from "./screens/BacklogScreen";
-import { RunsScreen } from "./screens/RunsScreen";
 import { TerminalScreen } from "./screens/TerminalScreen";
 import { DocsWorkspace } from "./screens/DocsWorkspace";
-import { TriggersScreen } from "./screens/TriggersScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 
 const OWNER = "Rangga";
@@ -114,42 +111,6 @@ function NewSpecModal({ open, onClose, projects, defaultProject, onCreate }:
           </div>
         </>
       )}
-    </Modal>
-  );
-}
-
-const TRG_TYPES = [{ value: "commit", label: "On commit" }, { value: "schedule", label: "Scheduled" },
-  { value: "manual", label: "Manual" }, { value: "interval", label: "Interval" }];
-const TRG_TARGETS = ["plan + execute", "audit", "qa audit", "scaffold docs"];
-const TRG_DETAIL_HINT: Record<string, string> = { commit: "push → main", schedule: "nightly 02:00", manual: "on demand", interval: "setiap 6 jam" };
-type TriggerForm = { project: string; type: string; detail: string; target: string };
-
-function NewTriggerModal({ open, onClose, projects, defaultProject, onCreate }:
-  { open: boolean; onClose: () => void; projects: ProjectVM[]; defaultProject: string; onCreate: (f: TriggerForm) => void }) {
-  const [f, setF] = React.useState<TriggerForm>({ project: defaultProject, type: "commit", detail: "", target: "plan + execute" });
-  React.useEffect(() => { if (open) setF({ project: defaultProject, type: "commit", detail: "", target: "plan + execute" }); }, [open, defaultProject]);
-  const set = (k: keyof TriggerForm) => (e: React.ChangeEvent<any>) => setF((s) => ({ ...s, [k]: e.target.value }));
-  const submit = () => onCreate({ ...f, detail: f.detail.trim() || TRG_DETAIL_HINT[f.type]! });
-  return (
-    <Modal open={open} onClose={onClose} icon="zap" eyebrow="automation" title="Trigger baru"
-      footer={<>
-        <Button variant="ghost" size="sm" onClick={onClose}>Batal</Button>
-        <Button size="sm" leftIcon="plus" onClick={submit}>Tambah trigger</Button>
-      </>}>
-      <Field label="Project">
-        <Select value={f.project} onChange={set("project")} style={{ width: "100%" }}
-          options={projects.map((p) => ({ value: p.id, label: p.name }))} />
-      </Field>
-      <Field label="Tipe pemicu">
-        <Select value={f.type} onChange={set("type")} style={{ width: "100%" }} options={TRG_TYPES} />
-      </Field>
-      <Field label="Detail" hint={"mis. " + TRG_DETAIL_HINT[f.type]}>
-        <Input value={f.detail} onChange={set("detail")} placeholder={TRG_DETAIL_HINT[f.type]} style={{ width: "100%" }} />
-      </Field>
-      <Field label="Jalankan">
-        <Select value={f.target} onChange={set("target")} style={{ width: "100%" }}
-          options={TRG_TARGETS.map((t) => ({ value: t, label: t }))} />
-      </Field>
     </Modal>
   );
 }
@@ -301,8 +262,8 @@ export default function App() {
   const [section, setSection] = React.useState("overview");
   const [projects, setProjects] = React.useState<ProjectView[]>([]);
   const [backlog, setBacklog] = React.useState<Spec[]>([]);
-  const [runs, setRuns] = React.useState<Run[]>([]);
-  const [triggers, setTriggers] = React.useState<Trigger[]>([]);
+  // Pekerjaan yang berjalan adalah sesi tmux, bukan baris Run (SPEC-162).
+  const [sessions, setSessions] = React.useState<TerminalSession[]>([]);
   const [projectId, setProjectId] = React.useState("");
   // Pemilik tunggal "daftar disaring ke project mana?" (SPEC-146). Sengaja terpisah dari
   // `projectId` ("project yang sedang dibuka Docs/detail"): menyatukannya membuat klik
@@ -315,9 +276,9 @@ export default function App() {
 
   const load = React.useCallback(() => {
     setStatus("loading");
-    Promise.all([api.listProjects(), api.listSpecs(), api.listRuns(), api.listTriggers()])
-      .then(([p, s, r, t]) => {
-        setProjects(p); setBacklog(s); setRuns(r); setTriggers(t);
+    Promise.all([api.listProjects(), api.listSpecs(), api.listTerminals()])
+      .then(([p, s, t]) => {
+        setProjects(p); setBacklog(s); setSessions(t);
         setProjectId((cur) => cur || p[0]?.id || "");
         setStatus("ready");
       })
@@ -328,45 +289,26 @@ export default function App() {
   }, [showToast]);
   React.useEffect(() => { load(); }, [load]);
 
-  // view models: enrich API entities with the fields the screens expect
-  const projectsView: ProjectVM[] = React.useMemo(() => projects.map((p) => ({
-    ...p, triggers: [...new Set(triggers.filter((t) => t.projectId === p.id).map((t) => t.type))],
-  })), [projects, triggers]);
-  const runsView: RunVM[] = React.useMemo(() => {
-    const byId = new Map(backlog.map((s) => [s.id, s]));
-    return runs.map((r) => {
-      const activePhase = (r.phases as { name: string; state: string }[]).find((f) => f.state === "active")?.name ?? null;
-      const spec = r.specId ? byId.get(r.specId) : null;
-      const title = spec?.title ?? (r.kind === "scaffold" ? "Scaffold docs dari MVP objective" : r.id);
-      return { ...r, project: r.projectId, spec: r.specId, title, phase: activePhase };
-    });
-  }, [runs, backlog]);
+  // ProjectVM dulu membawa daftar tipe trigger per project; trigger sudah tak ada (SPEC-162).
+  const projectsView: ProjectVM[] = projects;
 
-  const activeRunSpecs = React.useMemo(
-    () => new Set(runs.filter((r) => r.specId && isRunActive(r.status))
-      .map((r) => r.specId as string)),
-    [runs]);
+  // Spec yang punya sesi claude hidup. Kartunya menawarkan "Buka sesi", bukan "Mulai".
+  const activeSpecs = React.useMemo(
+    () => new Set(sessions.filter((s) => s.specId && !s.exited).map((s) => s.specId as string)),
+    [sessions]);
 
-  // Status run TERAKHIR per spec — kolom Backlog/Failed di board butuh ini; stage sendiri
-  // tak pernah mundur, jadi run gagal tak terlihat dari spec. `/runs` sudah desc by id.
-  const lastRunStatus = React.useMemo(() => {
-    const m = new Map<string, string>();
-    for (const r of runs) if (r.specId && !m.has(r.specId)) m.set(r.specId, r.status);
-    return m;
-  }, [runs]);
-
-  // Stage bar is a live mirror: while any run is active, re-poll specs+runs so the
-  // board reflects real phase progress. Stops when nothing is running.
-  const anyRunActive = runs.some((r) => isRunActive(r.status));
+  // Stage bergerak saat sesi ditutup — server membaca berkas fase sekali terakhir — dan sesi
+  // bisa mati dari luar hanoman. Selama ada sesi hidup, poll ringan menjaga board jujur.
+  const anySessionActive = activeSpecs.size > 0;
   React.useEffect(() => {
-    if (!anyRunActive) return;
+    if (!anySessionActive) return;
     const t = setInterval(() => {
-      Promise.all([api.listSpecs(), api.listRuns()])
-        .then(([s, r]) => { setBacklog(s); setRuns(r); })
+      Promise.all([api.listSpecs(), api.listTerminals()])
+        .then(([s, t]) => { setBacklog(s); setSessions(t); })
         .catch(() => {});
     }, 3000);
     return () => clearInterval(t);
-  }, [anyRunActive]);
+  }, [anySessionActive]);
 
   const proj = projectsView.find((p) => p.id === projectId) || projectsView[0];
   const q = search.trim().toLowerCase();
@@ -397,33 +339,21 @@ export default function App() {
     } catch { showToast("Gagal membuat project", "err", "x-circle"); }
   }
 
-  // Cascade di DB ikut menghapus spec/run/trigger project ini — cermin state lokalnya.
+  // Cascade di DB ikut menghapus spec project ini — cermin state lokalnya.
   async function deleteProject(p: ProjectVM) {
-    if (!window.confirm(`Hapus project "${p.name}"? Semua spec, run, dan trigger-nya ikut terhapus.`)) return;
+    if (!window.confirm(`Hapus project "${p.name}"? Semua spec-nya ikut terhapus.`)) return;
     try {
       await api.deleteProject(p.id);
       setProjects((list) => list.filter((x) => x.id !== p.id));
       setBacklog((b) => b.filter((s) => s.projectId !== p.id));
-      setRuns((r) => r.filter((x) => x.projectId !== p.id));
-      setTriggers((t) => t.filter((x) => x.projectId !== p.id));
+      setSessions((t) => t.filter((x) => x.projectId !== p.id));
       setProjectId((cur) => (cur === p.id ? "" : cur));
       setProjectFilter((cur) => (cur === p.id ? "all" : cur));
       if (section === "docs" || section === "project") setSection("projects");
       showToast("Project " + p.id + " dihapus", "warn", "trash-2");
     } catch (e) {
       const busy = e instanceof ApiError && e.status === 409;
-      showToast("Gagal hapus " + p.id + (busy ? " · masih ada run aktif" : ""), "err", "x-circle");
-    }
-  }
-
-  async function deleteRun(run: RunVM) {
-    try {
-      await api.deleteRun(run.id);
-      setRuns((list) => list.filter((r) => r.id !== run.id));
-      showToast("Run " + run.id + " dihapus", "warn", "trash-2");
-    } catch (e) {
-      const busy = e instanceof ApiError && e.status === 409;
-      showToast("Gagal hapus " + run.id + (busy ? " · run masih aktif" : ""), "err", "x-circle");
+      showToast("Gagal hapus " + p.id + (busy ? " · masih ada sesi aktif" : ""), "err", "x-circle");
     }
   }
 
@@ -470,32 +400,6 @@ export default function App() {
     } catch { showToast("Gagal membuat spec", "err", "x-circle"); }
   }
 
-  async function createTrigger(f: TriggerForm) {
-    try {
-      const created = await api.createTrigger({ project: f.project, type: f.type, detail: f.detail, target: f.target });
-      setTriggers((t) => [created, ...t]);
-      setModal(null); setSection("triggers");
-      showToast("Trigger ditambahkan · " + f.project + " · " + f.type, "ok", "zap");
-    } catch { showToast("Gagal menambah trigger", "err", "x-circle"); }
-  }
-
-  async function toggleTrigger(id: string) {
-    const prev = triggers.find((t) => t.id === id);
-    const updated = await api.toggleTrigger(id);
-    setTriggers((list) => list.map((t) => t.id === id ? updated : t));
-    showToast("Trigger " + updated.projectId + " · " + updated.type + (updated.enabled ? " diaktifkan" : " dinonaktifkan"),
-      prev && prev.enabled ? "warn" : "ok", "zap");
-  }
-
-  async function deleteTrigger(t: Trigger) {
-    if (!window.confirm(`Hapus trigger ${t.type} untuk "${t.projectId}"?`)) return;
-    try {
-      await api.deleteTrigger(t.id);
-      setTriggers((list) => list.filter((x) => x.id !== t.id));
-      showToast("Trigger " + t.projectId + " · " + t.type + " dihapus", "warn", "trash-2");
-    } catch { showToast("Gagal hapus trigger", "err", "x-circle"); }
-  }
-
   // Fetch awal dipakai semua screen kecuali Settings, jadi loading/error-nya
   // digerbangkan satu kali di sini.
   const gate = (body: React.ReactNode) =>
@@ -508,7 +412,7 @@ export default function App() {
   if (section === "overview") {
     screen = (
       <Shell active="overview" title="Overview" breadcrumb="nafanesia.id · ringkasan workspace" onNavigate={setSection}>
-        {gate(<OverviewScreen projects={projectsView} runs={runsView} backlog={backlog} triggers={triggers}
+        {gate(<OverviewScreen projects={projectsView} backlog={backlog}
           onOpenProject={openProject} onGoto={setSection} />)}
       </Shell>
     );
@@ -526,7 +430,7 @@ export default function App() {
               ? <StateBlock kind="empty" icon="search" title={`Tidak ada project cocok dengan “${search}”`}
                   hint="Coba kata kunci lain, atau kosongkan pencarian."
                   action={() => setSearch("")} actionLabel="Hapus pencarian" actionIcon="x" />
-              : <ProjectsScreen projects={shownProjects} runs={runsView} variant="list" onOpen={openProject} onDelete={deleteProject} pageSize={20} />)}
+              : <ProjectsScreen projects={shownProjects} variant="list" onOpen={openProject} onDelete={deleteProject} pageSize={20} />)}
       </Shell>
     );
   } else if (section === "project") {
@@ -536,7 +440,7 @@ export default function App() {
         {gate(proj
           ? <ProjectDetailScreen p={proj} onEdit={() => setModal("project-edit")}
               onGotoDocs={() => setSection("docs")}
-              onGotoRuns={() => { setProjectFilter(proj.id); setSection("runs"); }}
+              onGotoTerminal={() => { setProjectFilter(proj.id); setSection("terminal"); }}
               onGotoBacklog={() => { setProjectFilter(proj.id); setSection("backlog"); }}
               onDelete={() => deleteProject(proj)} />
           : <StateBlock kind="empty" icon="box" title="Belum ada project"
@@ -549,17 +453,8 @@ export default function App() {
       <Shell active="backlog" title="Backlog" breadcrumb="specs · brainstorm → execute" onNavigate={setSection}
         actions={<Button size="sm" leftIcon="plus" onClick={() => setModal("brief")}>Tambah</Button>}>
         {gate(<BacklogScreen backlog={backlog} projects={projectsView} pageSize={20}
-          onStart={startSession} activeRunSpecs={activeRunSpecs} lastRunStatus={lastRunStatus} onNew={() => setModal("brief")}
+          onStart={startSession} activeSpecs={activeSpecs} onNew={() => setModal("brief")}
           onDelete={deleteSpec} onOpenRun={() => setSection("terminal")} onEditBranch={editBranch}
-          projectFilter={projectFilter} onProjectFilter={setProjectFilter} />)}
-      </Shell>
-    );
-  } else if (section === "runs") {
-    screen = (
-      <Shell active="runs" title="Runs" breadcrumb="Claude Code · live activity" onNavigate={setSection}
-        actions={<StatusPill status="running" size="sm">{runsView.filter((r) => r.status === "running").length} aktif</StatusPill>}>
-        {gate(<RunsScreen runs={runsView} pageSize={20} onDelete={deleteRun}
-          onGotoBacklog={() => setSection("backlog")}
           projectFilter={projectFilter} onProjectFilter={setProjectFilter} />)}
       </Shell>
     );
@@ -589,13 +484,6 @@ export default function App() {
               action={() => setModal("project")} actionLabel="Project baru" />)}
       </Shell>
     );
-  } else if (section === "triggers") {
-    screen = (
-      <Shell active="triggers" title="Triggers" breadcrumb="automation · plan + execute" onNavigate={setSection}
-        actions={<Button size="sm" leftIcon="plus" onClick={() => setModal("trigger")}>Trigger baru</Button>}>
-        {gate(<TriggersScreen triggers={triggers} onToggle={toggleTrigger} onDelete={deleteTrigger} onNew={() => setModal("trigger")} pageSize={20} />)}
-      </Shell>
-    );
   } else if (section === "settings") {
     screen = (
       <Shell active="settings" title="Settings" breadcrumb="nafanesia.id · workspace" onNavigate={setSection}>
@@ -608,7 +496,6 @@ export default function App() {
     <>
       {screen}
       <NewSpecModal open={modal === "brief"} onClose={() => setModal(null)} projects={projectsView} defaultProject={proj ? proj.id : ""} onCreate={createSpec} />
-      <NewTriggerModal open={modal === "trigger"} onClose={() => setModal(null)} projects={projectsView} defaultProject={proj ? proj.id : ""} onCreate={createTrigger} />
       <NewProjectModal open={modal === "project"} onClose={() => setModal(null)} onCreate={createProject} />
       <EditProjectModal open={modal === "project-edit"} project={proj} onClose={() => setModal(null)} onSave={updateProject} />
       <Toast toast={toast} />

@@ -1,7 +1,6 @@
-import type { ProjectView, Run, Spec, Trigger } from "@hanoman/shared";
+import type { ProjectView, Spec } from "@hanoman/shared";
 
-// View models: API entities enriched in App with the derived fields the
-// prototype screens expect (per-project trigger types; run title/project/phase).
-export type ProjectVM = ProjectView & { triggers: string[] };
-export type RunVM = Run & { project: string; spec: string | null; title: string; phase: string | null };
-export type { Spec, Trigger };
+// ProjectVM dulu memperkaya ProjectView dengan tipe trigger per project. Trigger sudah
+// tak ada (SPEC-162), dan `ProjectView.session` membawa semua yang layar butuhkan.
+export type ProjectVM = ProjectView;
+export type { Spec };

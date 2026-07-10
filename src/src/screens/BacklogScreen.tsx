@@ -109,20 +109,20 @@ function SpecDetail({ spec, onClose, onEditBranch }:
 }
 
 /* Aksi per-spec. Dipakai grid, list, dan board — satu-satunya jalan keyboard ke
-   "mulai run", jadi board tetap bisa dipakai tanpa drag. */
+   "mulai sesi", jadi board tetap bisa dipakai tanpa drag. */
 function SpecActions({ spec, onStart, onDelete, onOpenRun, running }:
   { spec: Spec; onStart?: (s: Spec) => void; onDelete?: (s: Spec) => void;
     onOpenRun?: (s: Spec) => void; running?: boolean }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
       {spec.stage !== "done" && running && (
-        <Button size="sm" variant="secondary" leftIcon="activity" onClick={() => onOpenRun && onOpenRun(spec)}>
-          Buka run
+        <Button size="sm" variant="secondary" leftIcon="terminal" onClick={() => onOpenRun && onOpenRun(spec)}>
+          Buka sesi
         </Button>
       )}
       {spec.stage !== "done" && !running && (
         <Button size="sm" variant="primary" leftIcon="play" onClick={() => onStart && onStart(spec)}>
-          {spec.stage === "brainstorming" ? "Mulai" : "Jalankan lagi"}
+          {spec.stage === "brainstorming" ? "Mulai" : "Lanjutkan"}
         </Button>
       )}
       {spec.stage === "done" && <Badge tone="ok" size="sm" icon="check-circle-2">selesai</Badge>}
@@ -206,34 +206,34 @@ function SpecRow({ spec, onStart, onDelete, onOpenRun, onOpenDetail, running }:
    tengah dimiliki runner: `spec.stage` cuma cermin fase run (SPEC-009), jadi
    kartu di sana tak bisa diangkat. Yang bisa didrag hanya dua kolom ujung,
    dan drop-nya memanggil aksi yang memang ada tombolnya: mulai / jalankan lagi. */
-const BACKLOG_COL = "backlog", SUCCESS_COL = "success", FAILED_COL = "failed";
+const BACKLOG_COL = "backlog", SUCCESS_COL = "success";
 const FIRST_STAGE = B_STAGES[0]!.key;   // brainstorming
 const COLUMNS: { key: string; label: string; icon?: string }[] = [
   { key: BACKLOG_COL, label: "Backlog", icon: "inbox" },
   ...B_STAGES.slice(0, 5).map((s) => ({ key: s.key, label: s.label })),
   { key: SUCCESS_COL, label: "Success", icon: "check-circle-2" },
-  { key: FAILED_COL, label: "Failed", icon: "x-circle" },
 ];
-const RUN_DEAD = new Set(["failed", "stopped"]);
 
-/* Kolom sebuah spec. `lastRun` = status run TERAKHIR spec itu (undefined = belum pernah
-   jalan). Spec yang belum pernah jalan tapi stage-nya sudah maju (run-nya dihapus) tetap
-   tampil di kolom stage-nya — bukan diklaim balik ke Backlog. */
-export function specColumn(spec: Spec, lastRun?: string): string {
+/* Kolom sebuah spec. `hasSession` = ada sesi claude yang hidup untuknya (SPEC-162). Spec
+   yang belum pernah dikerjakan tapi stage-nya sudah maju tetap tampil di kolom stage-nya —
+   bukan diklaim balik ke Backlog.
+
+   Kolom "Failed" hilang bersama tabel Run: sebuah sesi tak punya status terminal yang bisa
+   dibaca dari luar. Yang gagal terlihat di terminalnya sendiri, dan itu satu-satunya tempat
+   yang jujur. */
+export function specColumn(spec: Spec, hasSession?: boolean): string {
   if (spec.stage === "done") return SUCCESS_COL;
-  if (lastRun && RUN_DEAD.has(lastRun)) return FAILED_COL;
-  if (!lastRun && spec.stage === "brainstorming") return BACKLOG_COL;
+  if (!hasSession && spec.stage === "brainstorming") return BACKLOG_COL;
   return spec.stage;
 }
 
 /* Satu-satunya aturan drop, dan ia menuruti kontrak kanban: kartu mendarat di kolom
-   tempat ia dijatuhkan. Run selalu mulai dari awal pipeline, jadi spec yang baru
+   tempat ia dijatuhkan. Sesi selalu mulai dari awal pipeline, jadi spec yang baru
    dijalankan berakhir di stage `brainstorming` — maka Brainstorm satu-satunya tujuan
    yang jujur. Kolom kerja lain sengaja menolak: dulu drop di Execute diterima lalu
-   kartunya melompat empat kolom ke kiri. Retry spec gagal lewat tombol di kartu,
-   bukan drag — kartunya akan kembali ke kolom stage-nya, bukan ke Backlog.
+   kartunya melompat empat kolom ke kiri.
 
-   Drop berujung pada POST /runs, tak pernah menulis field spec. */
+   Drop berujung pada POST /terminal/sessions, tak pernah menulis field spec. */
 export const canDrop = (from: string, to: string): boolean =>
   from === BACKLOG_COL && to === FIRST_STAGE;
 
@@ -248,9 +248,8 @@ function BoardCard({ spec, col, onOpenDetail, onStart, onOpenRun, running, onDra
     <div draggable={draggable}
       onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", spec.id); onDragStart(); }}
       onDragEnd={onDragEnd}
-      title={draggable ? "Seret ke Brainstorm untuk memulai run"
-        : col === FAILED_COL ? "Run terakhir gagal — pakai tombol Jalankan lagi"
-        : "Stage dikelola runner — kartu tak bisa dipindah"}
+      title={draggable ? "Seret ke Brainstorm untuk memulai sesi"
+        : "Stage mengikuti fase yang dilaporkan agen — kartu tak bisa dipindah"}
       style={{
         // `0 0 auto`: tanpa ini kartu menyusut mengisi kolom, bukan kolomnya yang menggulir.
         flex: "0 0 auto",
@@ -277,13 +276,13 @@ function BoardCard({ spec, col, onOpenDetail, onStart, onOpenRun, running, onDra
   );
 }
 
-function Board({ specs, lastRunStatus, activeRunSpecs, onStart, onOpenRun, onOpenDetail }:
-  { specs: Spec[]; lastRunStatus?: Map<string, string>; activeRunSpecs?: Set<string>;
+function Board({ specs, activeSpecs, onStart, onOpenRun, onOpenDetail }:
+  { specs: Spec[]; activeSpecs?: Set<string>;
     onStart?: (s: Spec) => void; onOpenRun?: (s: Spec) => void; onOpenDetail?: (s: Spec) => void }) {
   const [drag, setDrag] = React.useState<{ spec: Spec; from: string } | null>(null);
   const [over, setOver] = React.useState<string | null>(null);
   const byCol = new Map<string, Spec[]>(COLUMNS.map((c) => [c.key, []]));
-  for (const s of specs) byCol.get(specColumn(s, lastRunStatus?.get(s.id)))?.push(s);
+  for (const s of specs) byCol.get(specColumn(s, activeSpecs?.has(s.id)))?.push(s);
 
   const drop = (to: string) => {
     if (drag && canDrop(drag.from, to) && onStart) onStart(drag.spec);
@@ -320,7 +319,7 @@ function Board({ specs, lastRunStatus, activeRunSpecs, onStart, onOpenRun, onOpe
             <div style={{ ...LIST_SCROLL_STYLE, display: "flex", flexDirection: "column", gap: 8 }}>
               {items.map((s) => (
                 <BoardCard key={s.id} spec={s} col={c.key} onOpenDetail={onOpenDetail}
-                  onStart={onStart} onOpenRun={onOpenRun} running={activeRunSpecs?.has(s.id)}
+                  onStart={onStart} onOpenRun={onOpenRun} running={activeSpecs?.has(s.id)}
                   dragging={drag?.spec.id === s.id}
                   onDragStart={() => setDrag({ spec: s, from: c.key })}
                   onDragEnd={() => { setDrag(null); setOver(null); }} />
@@ -339,9 +338,9 @@ const VIEWS = [
   { value: "board", label: "Board", icon: "kanban" },
 ];
 
-export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeRunSpecs, lastRunStatus, onDelete, onOpenRun, onNew, onEditBranch, projectFilter, onProjectFilter }:
+export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onNew, onEditBranch, projectFilter, onProjectFilter }:
   { backlog: Spec[]; projects: ProjectVM[]; pageSize?: number;
-    onStart?: (s: Spec) => void; activeRunSpecs?: Set<string>; lastRunStatus?: Map<string, string>;
+    onStart?: (s: Spec) => void; activeSpecs?: Set<string>;
     onDelete?: (s: Spec) => void; onOpenRun?: (s: Spec) => void; onNew?: () => void;
     onEditBranch?: (s: Spec, b: string | null) => void;
     projectFilter: string; onProjectFilter: (id: string) => void }) {
@@ -379,7 +378,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
               action={() => { setTab("all"); setProj("all"); }} actionLabel="Reset filter" actionIcon="rotate-ccw" />
       ) : view === "board" ? (
         // Board tak dipaginasi: kolom yang terpotong halaman bukan board.
-        <Board specs={filtered} lastRunStatus={lastRunStatus} activeRunSpecs={activeRunSpecs}
+        <Board specs={filtered} activeSpecs={activeSpecs}
           onStart={onStart} onOpenRun={onOpenRun} onOpenDetail={(x) => setDetailId(x.id)} />
       ) : (
         <>
@@ -388,14 +387,14 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
             <div style={{ ...LIST_SCROLL_STYLE, border: "1px solid var(--border-hair)",
               borderRadius: "var(--radius-lg)", overflowX: "hidden" }}>
               {pg.pageItems.map((s) => <SpecRow key={s.id} spec={s} onStart={onStart}
-                running={activeRunSpecs?.has(s.id)} onDelete={onDelete} onOpenRun={onOpenRun}
+                running={activeSpecs?.has(s.id)} onDelete={onDelete} onOpenRun={onOpenRun}
                 onOpenDetail={(x) => setDetailId(x.id)} />)}
             </div>
           ) : (
             <div style={{ ...LIST_SCROLL_STYLE, display: "grid", gap: 12,
               gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))" }}>
               {pg.pageItems.map((s) => <SpecCard key={s.id} spec={s} onStart={onStart}
-                running={activeRunSpecs?.has(s.id)} onDelete={onDelete} onOpenRun={onOpenRun}
+                running={activeSpecs?.has(s.id)} onDelete={onDelete} onOpenRun={onOpenRun}
                 onOpenDetail={(x) => setDetailId(x.id)} />)}
             </div>
           )}

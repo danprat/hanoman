@@ -13,21 +13,19 @@ const spec = (over: Partial<Spec> = {}) =>
      priority: "sedang", author: "a", objective: "o", payload: {}, branchFrom: null, ...over }) as Spec;
 
 describe("specColumn", () => {
-  it("spec tanpa run duduk di Backlog", () => {
+  it("spec tanpa sesi duduk di Backlog", () => {
     expect(specColumn(spec())).toBe("backlog");
   });
-  it("stage done selalu Success, walau run terakhirnya gagal", () => {
-    expect(specColumn(spec({ stage: "done" }), "failed")).toBe("success");
+  it("stage done selalu Success", () => {
+    expect(specColumn(spec({ stage: "done" }), true)).toBe("success");
   });
-  it("run terakhir failed/stopped menarik spec ke Failed, bukan ke stage-nya", () => {
-    expect(specColumn(spec({ stage: "planned" }), "failed")).toBe("failed");
-    expect(specColumn(spec({ stage: "planned" }), "stopped")).toBe("failed");
+  it("sesi hidup di stage awal memindahkan kartu keluar dari Backlog", () => {
+    expect(specColumn(spec({ stage: "brainstorming" }), true)).toBe("brainstorming");
   });
-  it("run hidup meninggalkan spec di kolom stage-nya", () => {
-    expect(specColumn(spec({ stage: "executing" }), "running")).toBe("executing");
-    expect(specColumn(spec({ stage: "brainstorming" }), "queued")).toBe("brainstorming");
+  it("sesi hidup meninggalkan spec di kolom stage-nya", () => {
+    expect(specColumn(spec({ stage: "executing" }), true)).toBe("executing");
   });
-  it("stage maju tanpa run (run dihapus) tidak diklaim balik ke Backlog", () => {
+  it("stage maju tanpa sesi tidak diklaim balik ke Backlog", () => {
     expect(specColumn(spec({ stage: "spec-ready" }))).toBe("spec-ready");
   });
 });
@@ -42,30 +40,24 @@ describe("canDrop", () => {
     expect(canDrop("backlog", "objective")).toBe(false);
     expect(canDrop("backlog", "executing")).toBe(false);
   });
-  it("Failed tidak bisa diseret — retry lewat tombol", () => {
-    expect(canDrop("failed", "backlog")).toBe(false);
-    expect(canDrop("failed", "brainstorming")).toBe(false);
-  });
-  it("kolom milik runner tidak menerima apa pun", () => {
+  it("kolom yang mengikuti fase agen tidak menerima apa pun", () => {
     expect(canDrop("spec-ready", "executing")).toBe(false);
     expect(canDrop("executing", "done")).toBe(false);
     expect(canDrop("backlog", "success")).toBe(false);
-    expect(canDrop("backlog", "failed")).toBe(false);
   });
 });
 
 /* Wiring: aturan di atas benar, tapi from/to bisa tertukar saat dipasang. Ini men-drag
    kartu sungguhan di jsdom, bukan memanggil canDrop lagi. */
-const DRAGGABLE = "Seret ke Brainstorm untuk memulai run";
-const RUNNER_OWNED = "Stage dikelola runner — kartu tak bisa dipindah";
-const FAILED_HINT = "Run terakhir gagal — pakai tombol Jalankan lagi";
+const DRAGGABLE = "Seret ke Brainstorm untuk memulai sesi";
+const AGENT_OWNED = "Stage mengikuti fase yang dilaporkan agen — kartu tak bisa dipindah";
 const dt = () => ({ dataTransfer: { setData: () => {}, effectAllowed: "", dropEffect: "" } });
 const column = (label: string) => screen.getByText(label).closest("div")!.parentElement!;
 
-function board(specs: Spec[], lastRunStatus?: Map<string, string>) {
+function board(specs: Spec[], activeSpecs?: Set<string>) {
   const onStart = vi.fn();
   render(<BacklogScreen backlog={specs} projects={[{ id: "p", name: "p" }] as never}
-    lastRunStatus={lastRunStatus} onStart={onStart}
+    activeSpecs={activeSpecs} onStart={onStart}
     projectFilter="all" onProjectFilter={() => {}} />);
   fireEvent.click(screen.getByText("Board"));
   return onStart;
@@ -87,7 +79,7 @@ describe("board drag (jsdom)", () => {
     expect(onStart).not.toHaveBeenCalled();
   });
 
-  it("Backlog → Success ditolak, tak ada run yang dimulai", () => {
+  it("Backlog → Success ditolak, tak ada sesi yang dimulai", () => {
     const onStart = board([spec({ title: "bikin login" })]);
     fireEvent.dragStart(screen.getByTitle(DRAGGABLE), dt());
     fireEvent.drop(column("Success"), dt());
@@ -95,11 +87,11 @@ describe("board drag (jsdom)", () => {
   });
 
   /* Drag mati di keyboard dan layar sentuh, jadi tiap kartu board wajib punya tombolnya. */
-  it("spec gagal tak bisa diseret, tapi tombol Jalankan lagi ada di kartunya", () => {
-    const onStart = board([spec({ stage: "planned" })], new Map([["SPEC-1", "failed"]]));
+  it("spec yang stage-nya maju tanpa sesi tak bisa diseret, tapi punya tombol Lanjutkan", () => {
+    const onStart = board([spec({ stage: "planned" })]);
     expect(screen.queryByTitle(DRAGGABLE)).toBeNull();
-    expect(screen.getByTitle(FAILED_HINT).getAttribute("draggable")).toBe("false");
-    fireEvent.click(screen.getByText("Jalankan lagi"));
+    expect(screen.getByTitle(AGENT_OWNED).getAttribute("draggable")).toBe("false");
+    fireEvent.click(screen.getByText("Lanjutkan"));
     expect(onStart).toHaveBeenCalledOnce();
   });
 
@@ -109,9 +101,9 @@ describe("board drag (jsdom)", () => {
     expect(onStart).toHaveBeenCalledOnce();
   });
 
-  it("kartu di kolom milik runner tak bisa diangkat", () => {
-    board([spec({ stage: "planned" })], new Map([["SPEC-1", "running"]]));
-    expect(screen.getByTitle(RUNNER_OWNED).getAttribute("draggable")).toBe("false");
+  it("kartu spec dengan sesi hidup tak bisa diangkat", () => {
+    board([spec({ stage: "planned" })], new Set(["SPEC-1"]));
+    expect(screen.getByTitle(AGENT_OWNED).getAttribute("draggable")).toBe("false");
     expect(screen.queryByTitle(DRAGGABLE)).toBeNull();
   });
 });

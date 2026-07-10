@@ -41,7 +41,7 @@ describe("schemas", () => {
   it("project view adds derived fields", () => {
     const v = zProjectView.parse({ id: "a", name: "a", desc: "", kind: "existing", docStatus: "ok",
       coverage: 94, createdAt: new Date().toISOString(), stack: "Go", backlog: 6, topStage: "execute",
-      run: { status: "running", phase: "Execute", kind: "feature" }, activity: "x", commit: "y" });
+      session: { status: "running", phase: "Execute", flow: "feature" }, activity: "x", commit: "y" });
     expect(v.backlog).toBe(6);
   });
 });

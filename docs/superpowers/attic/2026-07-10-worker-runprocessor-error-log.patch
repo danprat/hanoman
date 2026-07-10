@@ -1,0 +1,18 @@
+diff --git a/server/src/worker.ts b/server/src/worker.ts
+index 7612e47..8cabd83 100644
+--- a/server/src/worker.ts
++++ b/server/src/worker.ts
+@@ -113,6 +113,13 @@ export async function runProcessor(job: Job<RunInput>, deps: RunDeps = prodDeps)
+   };
+   try {
+     await runOne(input, d, onEvent, { abortController, steer, answers, askTimeoutMs: await askTimeoutMs() });
++  } catch (e) {
++    // Satu-satunya penangan lemparan runOne adalah `worker.on("failed") → markFailed`, dan ia
++    // hanya menulis status. Push yang ditolak, worktree yang lenyap: semuanya jadi run `failed`
++    // berlog kosong, dan di UI tombol Retry terlihat tak berfungsi. Dilempar ulang — BullMQ
++    // tetap harus melihat job ini gagal.
++    onEvent({ kind: "log", line: { t: "✗", s: `run gagal · ${(e as Error).message}` } });
++    throw e;
+   } finally {
+     await pending;
+     await sub.quit();

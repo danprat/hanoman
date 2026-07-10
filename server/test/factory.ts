@@ -35,7 +35,6 @@ export function makeRepoWithBranches(...branches: string[]): string {
 // Truncate every table in FK-safe order (mirrors the deleted seed()).
 export async function resetDb(): Promise<void> {
   await prisma.$transaction([
-    prisma.trigger.deleteMany(), prisma.run.deleteMany(),
     prisma.spec.deleteMany(), prisma.setting.deleteMany(), prisma.project.deleteMany(),
   ]);
 }
@@ -50,28 +49,6 @@ export function makeSpec(over: Partial<Prisma.SpecCreateManyInput> = {}) {
   return prisma.spec.create({ data: {
     id: "SPEC-1", projectId: "p1", title: "test spec", source: "brief",
     stage: "planned", author: "Rangga", priority: "sedang", objective: "", ...over } });
-}
-
-export function makeRun(over: Partial<Prisma.RunCreateManyInput> = {}) {
-  return prisma.run.create({ data: {
-    id: "RUN-1", projectId: "p1", specId: null, kind: "feature", status: "running",
-    trigger: "commit", triggerDetail: "push → main",
-    phases: [
-      { name: "Brainstorm", state: "done" }, { name: "Objective", state: "done" },
-      { name: "Spec", state: "done" }, { name: "Plan", state: "done" },
-      { name: "Execute", state: "active" },
-    ] as unknown as Prisma.InputJsonValue,
-    plan: [] as unknown as Prisma.InputJsonValue,
-    log: [] as unknown as Prisma.InputJsonValue,
-    worktree: ".worktrees/run-1", branchFrom: "main", branchTo: "hanoman/run-1",
-    model: "claude-opus-4-8", tokensIn: "0", tokensOut: "0", cost: "$0.00", progress: 0,
-    ...over } });
-}
-
-export function makeTrigger(over: Partial<Prisma.TriggerCreateManyInput> = {}) {
-  return prisma.trigger.create({ data: {
-    id: "t1", projectId: "p1", type: "commit", detail: "push → main",
-    target: "plan + execute", enabled: true, ...over } });
 }
 
 export function makeSetting(over: Partial<Setting> = {}) {

@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { resetDb, makeProject, makeSpec } from "./factory";
-import { nextSpecId, nextRunId, specFloorFrom } from "../src/services/id";
+import { nextSpecId, specFloorFrom } from "../src/services/id";
 
 // listRepoDocs memakai `git ls-files`, jadi lantai docs hanya nyata di dalam repo git.
 function repoWithDocs(names: string[]): string {
@@ -50,15 +50,4 @@ describe("id", () => {
 
   it("project tanpa repoDir berperilaku seperti semula", async () =>
     expect(await nextSpecId(null)).toBe("SPEC-143"));
-  it("next run id defaults to the 8800 floor", async () => expect(await nextRunId()).toBe("RUN-8801"));
-  // Instance prod berbagi repoDir dengan dev tapi punya DB sendiri. Tanpa floor terpisah
-  // keduanya mengalokasikan RUN-8801 dan addWorktree yang satu menghapus worktree yang lain.
-  it("RUN_ID_FLOOR memberi prod namespace run id sendiri", async () => {
-    process.env.RUN_ID_FLOOR = "90000";
-    expect(await nextRunId()).toBe("RUN-90001");
-  });
-  it("RUN_ID_FLOOR yang tak masuk akal jatuh ke default, bukan NaN", async () => {
-    process.env.RUN_ID_FLOOR = "abc";
-    expect(await nextRunId()).toBe("RUN-8801");
-  });
 });

@@ -3,6 +3,7 @@ import { zCreateProject, zUpdateProject } from "@hanoman/shared";
 import { prisma } from "../db";
 import { toProjectView } from "../services/project-view";
 import { listRepoBranches } from "../services/branches";
+import { listSessions } from "../services/pty";
 
 export default async function (app: FastifyInstance) {
   app.get("/projects", async () => {
@@ -42,10 +43,12 @@ export default async function (app: FastifyInstance) {
   app.delete("/projects/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
     if (!(await prisma.project.findUnique({ where: { id } }))) return reply.code(404).send({ error: "not found" });
-    const active = await prisma.run.count({ where: { projectId: id, status: { in: ["queued", "running", "paused"] } } });
-    if (active) return reply.code(409).send({ error: `project "${id}" masih punya ${active} run aktif` });
-    // ponytail: worktree di server/.worktrees/ tidak ikut dibersihkan; tambahkan kalau disknya penuh.
-    await prisma.project.delete({ where: { id } }); // specs/runs/triggers ikut lewat onDelete: Cascade
+    // Pekerjaan yang berjalan adalah sesi tmux, bukan baris DB (SPEC-162). Sesi terminal biasa
+    // ikut menahan: menghapus project-nya akan meninggalkan sesi yang menunjuk repoDir yatim.
+    const active = listSessions().filter((s) => s.projectId === id && !s.exited).length;
+    if (active) return reply.code(409).send({ error: `project "${id}" masih punya ${active} sesi aktif` });
+    // ponytail: worktree di .worktrees/ tidak ikut dibersihkan; tambahkan kalau disknya penuh.
+    await prisma.project.delete({ where: { id } }); // specs ikut lewat onDelete: Cascade
     return reply.code(204).send();
   });
   // SPEC-143: memasok dropdown branch di backlog. Server duduk di mesin yang sama dengan

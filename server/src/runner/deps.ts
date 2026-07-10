@@ -1,6 +1,5 @@
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { makeClaudeCliSession, realGit, type RunDeps } from "@hanoman/runner";
 
 // resolveCliEntry MASIH dipakai — menyusun perintah hook PreToolUse (deny perintah berbahaya,
 // ADR-0010), BUKAN guardrail Source of Truth (dicabut, SPEC-160). Path CLI tak boleh diturunkan
@@ -20,7 +19,3 @@ export function resolveCliEntry(startDir: string = process.cwd()): string {
 }
 // Quoted: resolveCliEntry can sit under a path with spaces, and hook commands are shell-run.
 export const guardCommand = () => `node "${resolveCliEntry()}" hook pretooluse`;
-export const prodDeps: RunDeps = {
-  openSession: makeClaudeCliSession({ guardCommand: guardCommand() }),
-  git: realGit,
-};

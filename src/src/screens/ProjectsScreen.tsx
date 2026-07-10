@@ -1,18 +1,13 @@
-/* ProjectsScreen — multi-project monitor. Ported; window → ds imports.
-   p.triggers comes from the App view model. */
+/* ProjectsScreen — multi-project monitor. Kolom "trigger" hilang bersama subsistem
+   trigger; yang berjalan adalah sesi claude di tmux (SPEC-162). */
 import React from "react";
 import { Card, StatusPill, Badge, ProgressBar, Icon, IconButton, usePaged, Pager,
   LIST_SCROLL_STYLE, LIST_SCREEN_STYLE, FIXED_ROW_STYLE } from "../ds";
-import type { ProjectVM, RunVM } from "./types";
-import { isRunActive } from "@hanoman/shared";
+import type { ProjectVM } from "./types";
 
-const HN_TRIGGER_ICON: Record<string, string> = {
-  commit: "git-commit-horizontal", schedule: "calendar-clock",
-  manual: "mouse-pointer-click", interval: "timer",
-};
 function hnCovTone(s: string) { return s === "broken" ? "err" : s === "drift" ? "warn" : "ok"; }
 function hnAttention(p: ProjectVM): "high" | "low" | "none" {
-  if (p.docStatus === "broken" || p.run.status === "failed") return "high";
+  if (p.docStatus === "broken") return "high";
   if (p.docStatus === "drift") return "low";
   return "none";
 }
@@ -21,24 +16,8 @@ const HN_ATT: Record<string, { bar: string; tint: string; text: string }> = {
   low: { bar: "var(--amber-500)", tint: "var(--amber-100)", text: "var(--amber-600)" },
 };
 
-function TriggerGlyphs({ list }: { list: string[] }) {
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-      {(list || []).map((t) => (
-        <span key={t} title={t} style={{
-          display: "inline-flex", alignItems: "center", justifyContent: "center",
-          width: 18, height: 18, borderRadius: "var(--radius-xs)",
-          background: "var(--bone-200)", color: "var(--text-muted)",
-        }}>
-          <Icon name={HN_TRIGGER_ICON[t]!} size={11} />
-        </span>
-      ))}
-    </span>
-  );
-}
-
-function StatStrip({ projects, runs }: { projects: ProjectVM[]; runs: RunVM[] }) {
-  const activeRuns = runs.filter((r) => r.status === "running").length;
+function StatStrip({ projects }: { projects: ProjectVM[] }) {
+  const activeRuns = projects.filter((p) => p.session.status === "running").length;
   const backlog = projects.reduce((n, p) => n + p.backlog, 0);
   const onConv = projects.filter((p) => p.docStatus === "ok").length;
   const attention = projects.filter((p) => hnAttention(p) === "high").length;
@@ -70,14 +49,14 @@ function StatStrip({ projects, runs }: { projects: ProjectVM[]; runs: RunVM[] })
 function ProjectRow({ p, onOpen, onDelete }:
   { p: ProjectVM; onOpen?: (p: ProjectVM) => void; onDelete?: (p: ProjectVM) => void }) {
   const att = hnAttention(p);
-  const running = isRunActive(p.run.status);
+  const running = p.session.status === "running";
   const [hover, setHover] = React.useState(false);
   return (
     <div
       onClick={onOpen ? () => onOpen(p) : undefined}
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
       style={{
-        display: "grid", gridTemplateColumns: "1.7fr 1.2fr 1.5fr 1.1fr 0.9fr 1.4fr",
+        display: "grid", gridTemplateColumns: "1.7fr 1.2fr 1.5fr 1.1fr 1.4fr",
         alignItems: "center", gap: 12, padding: "11px 14px 11px 12px",
         borderBottom: "1px solid var(--border-hair)",
         borderLeft: `3px solid ${att === "none" ? "transparent" : HN_ATT[att]!.bar}`,
@@ -93,10 +72,9 @@ function ProjectRow({ p, onOpen, onDelete }:
         </div>
         <div style={{ fontSize: 11.5, color: "var(--text-subtle)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.desc}</div>
       </div>
-      <div><StatusPill status={p.run.status} size="sm">{running && p.run.phase ? p.run.phase : undefined}</StatusPill></div>
+      <div><StatusPill status={p.session.status} size="sm">{running && p.session.phase ? p.session.phase : undefined}</StatusPill></div>
       <div style={{ paddingRight: 8 }}><ProgressBar value={p.coverage} showLabel tone={hnCovTone(p.docStatus)} size="sm" /></div>
       <div style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--text-muted)" }}>{p.backlog} · {p.topStage}</div>
-      <div><TriggerGlyphs list={p.triggers} /></div>
       <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between" }}>
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.activity}</span>
         {onDelete && (
@@ -110,16 +88,16 @@ function ProjectRow({ p, onOpen, onDelete }:
   );
 }
 
-export function ProjectsScreen({ projects, runs, onOpen, onDelete, pageSize }:
-  { projects: ProjectVM[]; runs: RunVM[]; variant?: string; onOpen?: (p: ProjectVM) => void;
+export function ProjectsScreen({ projects, onOpen, onDelete, pageSize }:
+  { projects: ProjectVM[]; variant?: string; onOpen?: (p: ProjectVM) => void;
     onDelete?: (p: ProjectVM) => void; pageSize?: number }) {
-  const cols = ["Project", "Status", "Docs · SoT", "Backlog", "Triggers", "Aktivitas"];
-  const tmpl = "1.7fr 1.2fr 1.5fr 1.1fr 0.9fr 1.4fr";
+  const cols = ["Project", "Status", "Docs · SoT", "Backlog", "Aktivitas"];
+  const tmpl = "1.7fr 1.2fr 1.5fr 1.1fr 1.4fr";
   const pg = usePaged(projects, pageSize || projects.length, "proj");
   const rows = pageSize ? pg.pageItems : projects;
   return (
     <div style={LIST_SCREEN_STYLE}>
-      <div style={FIXED_ROW_STYLE}><StatStrip projects={projects} runs={runs} /></div>
+      <div style={FIXED_ROW_STYLE}><StatStrip projects={projects} /></div>
       <Card padding={0} fill>
         <div style={{ ...FIXED_ROW_STYLE, display: "grid", gridTemplateColumns: tmpl, gap: 12, padding: "10px 14px 10px 15px", borderBottom: "1px solid var(--border-hair)" }}>
           {cols.map((c) => <span key={c} className="hn-eyebrow">{c}</span>)}

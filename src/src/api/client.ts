@@ -1,4 +1,4 @@
-import { paths, type ProjectView, type Spec, type Trigger, type Setting, type Run, type Ask } from "@hanoman/shared";
+import { paths, type ProjectView, type Spec, type Setting } from "@hanoman/shared";
 export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 export type Flow = "feature" | "qa" | "scaffold" | "reverse";
 export type Phase = { name: string; state: "done" | "skipped" | "active" | "pending" };
@@ -26,28 +26,8 @@ export const api = {
   listBranches: (id: string) => j<{ branches: string[] }>(paths.branches(id)),
   patchSpec: (id: string, b: { branchFrom: string | null }) =>
     j<Spec>(paths.spec(id), { method: "PATCH", ...body(b) }),
-  startRun: (b: { project: string; flow: "feature" | "qa"; specId: string; branchFrom?: string }) =>
-    j<{ runId: string }>(paths.runs, { method: "POST", ...body(b) }),
-  listTriggers: () => j<Trigger[]>(paths.triggers),
-  createTrigger: (b: unknown) => j<Trigger>(paths.triggers, { method: "POST", ...body(b) }),
-  toggleTrigger: (id: string) => j<Trigger>(paths.toggle(id), { method: "POST" }),
-  deleteTrigger: (id: string) => j<void>(paths.trigger(id), { method: "DELETE" }),
   getSettings: () => j<Setting>(paths.settings),
   putSettings: (b: unknown) => j<Setting>(paths.settings, { method: "PUT", ...body(b) }),
-  listRuns: () => j<Run[]>(paths.runs),
-  getRun: (id: string) => j<Run>(paths.run(id)),
-  deleteRun: (id: string) => j<void>(paths.run(id), { method: "DELETE" }),
-  runCommand: (id: string, text: string) =>
-    j<{ lines: { t: string; s: string }[] }>(paths.runCommand(id), { method: "POST", ...body({ text }) }),
-  runControl: (id: string, action: "pause" | "resume" | "stop" | "retry") =>
-    j<{ accepted: boolean }>(paths.runControl(id), { method: "POST", ...body({ action }) }),
-  runSteer: (id: string, message: string) =>
-    j<{ accepted: boolean }>(paths.runSteer(id), { method: "POST", ...body({ message }) }),
-  // SPEC-157 · menjawab Run.pendingAsk. `value` harus salah satu option — server memvalidasinya.
-  runAnswer: (id: string, value: string) =>
-    j<{ accepted: boolean }>(paths.runAnswer(id), { method: "POST", ...body({ value }) }),
-  runChanges: (id: string) => j<RunChanges>(paths.runChanges(id)),
-  runChangeFile: (id: string, path: string) => j<FilePreview>(paths.runChangeFile(id, path)),
   getDocs: (id: string) => j<{ coverage: number; tree: any[] }>(paths.docs(id)),
   getDoc: (id: string, path: string) => j<{ path: string; content: string }>(paths.docFile(id, path)),
   putDoc: (id: string, path: string, content: string) =>
@@ -63,23 +43,3 @@ export const api = {
   deleteTerminal: (id: string) => j<void>(paths.terminalSession(id), { method: "DELETE" }),
 };
 
-export type ChangedFile = { path: string; add: number; del: number; status: "A"|"M"|"D"; binary: boolean };
-export type RunCommit   = { sha: string; subject: string };
-export type RunChanges  = { base: string|null; head: string|null; commits: RunCommit[]; files: ChangedFile[] };
-export type FilePreview = { path: string; status: "A"|"M"|"D"; binary: boolean; truncated: boolean;
-                            diff: string|null; content: string|null };
-
-export type RunLiveEvent =
-  | { kind: "log"; line: { t: string; s: string } }
-  | { kind: "status"; status: string }
-  | { kind: "phase"; name: string; state: string }
-  // SPEC-157 · `ask: null` menutup pertanyaan. Lewat SSE, jadi tombolnya muncul tanpa polling.
-  | { kind: "ask"; ask: Ask | null }
-  | { kind: "cost"; tokensIn: number; tokensOut: number; costUsd: number };
-
-// Live run stream over SSE (backend: GET /runs/:id/log). Returns an unsubscribe.
-export function subscribeRun(id: string, onEvent: (e: RunLiveEvent) => void): () => void {
-  const es = new EventSource(paths.runLog(id));
-  es.onmessage = (ev) => { try { onEvent(JSON.parse(ev.data)); } catch { /* skip malformed frame */ } };
-  return () => es.close();
-}

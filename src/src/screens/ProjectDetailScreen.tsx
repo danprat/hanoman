@@ -34,8 +34,8 @@ function Door({ icon, title, hint, onClick }:
   );
 }
 
-export function ProjectDetailScreen({ p, onEdit, onGotoDocs, onGotoRuns, onGotoBacklog, onDelete }:
-  { p: ProjectVM; onEdit: () => void; onGotoDocs: () => void; onGotoRuns: () => void;
+export function ProjectDetailScreen({ p, onEdit, onGotoDocs, onGotoTerminal, onGotoBacklog, onDelete }:
+  { p: ProjectVM; onEdit: () => void; onGotoDocs: () => void; onGotoTerminal: () => void;
     onGotoBacklog: () => void; onDelete: () => void }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -47,7 +47,7 @@ export function ProjectDetailScreen({ p, onEdit, onGotoDocs, onGotoRuns, onGotoB
               <span style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 600,
                 color: "var(--text-strong)" }}>{p.name}</span>
               <Badge tone={p.kind === "from-scratch" ? "brass" : "neutral"} size="sm">{p.kind}</Badge>
-              <StatusPill status={p.run.status} size="sm">{p.run.phase ?? undefined}</StatusPill>
+              <StatusPill status={p.session.status} size="sm">{p.session.phase ?? undefined}</StatusPill>
             </div>
             <div style={{ fontSize: 12.5, color: "var(--text-subtle)", marginTop: 6 }}>{p.desc}</div>
           </div>
@@ -72,7 +72,7 @@ export function ProjectDetailScreen({ p, onEdit, onGotoDocs, onGotoRuns, onGotoB
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
         <Door icon="book-open" title="Source of Truth" hint="baca & sunting docs" onClick={onGotoDocs} />
-        <Door icon="activity" title="Lihat runs" hint="run project ini" onClick={onGotoRuns} />
+        <Door icon="terminal" title="Buka terminal" hint="sesi claude project ini" onClick={onGotoTerminal} />
         <Door icon="list-checks" title="Lihat backlog" hint={`${p.backlog} spec terbuka`} onClick={onGotoBacklog} />
       </div>
     </div>
