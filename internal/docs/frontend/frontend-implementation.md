@@ -110,13 +110,19 @@ tombolnya berubah jadi **Buka run**, dan toast menyebut `runId`-nya. Hanya **Buk
 menavigasi.
 
 ## Terminal (sesi Claude Code interaktif)
-`TerminalScreen` menampilkan satu tab per sesi PTY; `TerminalPane` me-mount `xterm.js` dan
-membuka WebSocket ke `/api/terminal/sessions/:id/ws`. Sesi hidup di **server**, bukan di
-browser: hanya tab aktif yang memegang WebSocket, dan berpindah tab me-remount pane sehingga
-server memutar ulang scrollback-nya. Tidak ada state terminal yang disimpan di frontend, jadi
-reload halaman memulihkan semua sesi apa adanya. Ini bukan chat buatan sendiri — yang dirender
-adalah TUI Claude Code asli, byte demi byte. Terminal di `RunsScreen` adalah hal yang berbeda:
-interpreter perintah (`status`/`plan`/`steer`) untuk run terjadwal, bukan TTY.
+`TerminalScreen` menampilkan sesi dalam **grid `rows × cols`** (CSS Grid): `+ Kolom` menambah
+kolom (kiri↔kanan), `+ Baris` menambah baris (atas↔bawah). Tiap sel me-mount satu `TerminalPane`
+yang membuka WebSocket ke `/api/terminal/sessions/:id/ws`; sel kosong menampilkan picker sesi yang
+belum tertempat, dan sesi yang belum di grid duduk di **tray**. Satu sesi menempati **paling banyak
+satu sel** (menjaga resize tmux tak berkedip). Dua aksi per sel: **Lepas** (unbind, sesi tetap
+hidup) dan **Tutup/`×`** (kill lewat `DELETE`). Layout (`{rows,cols,cells}`) disimpan di
+`localStorage` dan **direkonsiliasi** ke `listSessions()` saat mount — sesi hidup di tmux dan
+selamat dari restart server (ADR-0016), jadi sel yang sesinya masih hidup tersambung ulang dan sel
+yang sesinya sudah di-kill dikosongkan. Logika grid murni ada di `screens/terminal-layout.ts`
+(teruji tanpa DOM). Ini bukan chat buatan sendiri — yang dirender adalah TUI Claude Code asli, byte
+demi byte. Terminal di `RunsScreen` adalah hal yang berbeda: interpreter perintah
+(`status`/`plan`/`steer`) untuk run terjadwal, bukan TTY. Nol perubahan server: route dan `pty.ts`
+dipakai apa adanya (SPEC-158).
 
 Proxy dev Vite harus memakai `ws: true`, kalau tidak upgrade WebSocket dijawab 404.
 
