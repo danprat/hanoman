@@ -12,11 +12,20 @@ export const PIPELINES: Record<Flow, readonly string[]> = {
 // Append, bukan tulis-timpa — keadaan penuh selalu ada di berkasnya, jadi tak ada transisi
 // yang bisa terlewat kalau server sedang tidak menonton. Berkasnya di luar worktree, jadi
 // `git add -A` milik agen tak mungkin men-stage-nya.
-const phaseInstruction = (phases: readonly string[]) =>
-  `Kerjakan fase berurutan: ${phases.join(" → ")}.\n`
-  + `Setiap kali sebuah fase selesai (atau kamu putuskan dilewati), append satu baris ke berkas `
-  + `di $HANOMAN_PHASE_FILE — persis: \`echo "<Nama Fase> done" >> "$HANOMAN_PHASE_FILE"\`, `
-  + `atau \`skipped\` sebagai ganti \`done\`. Nama fase ditulis apa adanya seperti di atas.`;
+const phaseInstruction = (phases: readonly string[]) => {
+  const base =
+    `Kerjakan fase berurutan: ${phases.join(" → ")}.\n`
+    + `Setiap kali sebuah fase selesai (atau kamu putuskan dilewati), append satu baris ke berkas `
+    + `di $HANOMAN_PHASE_FILE — persis: \`echo "<Nama Fase> done" >> "$HANOMAN_PHASE_FILE"\`, `
+    + `atau \`skipped\` sebagai ganti \`done\`. Nama fase ditulis apa adanya seperti di atas.`;
+  // Flow ber-fase Plan+Execute saja (feature, qa): Execute belum selesai selama plan masih
+  // punya kotak `- [ ]`. Cermin server-side gate (SPEC-173, ADR-0029) di prompt-nya.
+  if (!phases.includes("Plan") || !phases.includes("Execute")) return base;
+  return base
+    + `\nExecute BELUM selesai selama plan (\`docs/superpowers/plans/**\`) masih punya task `
+    + `\`- [ ]\`: kerjakan SEMUA PR/task sampai tiap kotak jadi \`- [x]\` sebelum menulis `
+    + `\`Execute done\`. hanoman menahan backlog di \`executing\`, bukan \`done\`, selama masih ada \`- [ ]\`.`;
+};
 
 // Peta fase → skill superpowers (SPEC-166). Objective dan Spec adalah keluaran skill
 // brainstorming yang di-invoke di fase Brainstorm — sengaja tak punya entri sendiri.

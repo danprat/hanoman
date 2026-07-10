@@ -54,6 +54,15 @@ describe("startPrompt", () => {
     expect(startPrompt("qa", { ...spec, payload: { severity: "major" } }, "b")).toContain("severity");
     expect(startPrompt("qa", spec, "b")).not.toContain("undefined");
   });
+
+  // SPEC-173: Execute belum selesai selama plan masih punya kotak `- [ ]`.
+  it("feature/qa: melarang Execute done sebelum semua kotak plan - [x]", () => {
+    for (const flow of ["feature", "qa"] as const) {
+      const p = startPrompt(flow, spec, "b");
+      expect(p).toContain("Execute BELUM selesai");
+      expect(p).toContain("- [x]");
+    }
+  });
 });
 
 // SPEC-166 · sesi reverse project-level: prompt-nya membawa standar docs lengkap.
@@ -93,5 +102,10 @@ describe("startProjectPrompt", () => {
     expect(p).toContain("termilo");
     expect(p).toContain("booking SaaS");
     expect(p).not.toContain("undefined");
+  });
+
+  // SPEC-173: klausa plan hanya untuk flow ber-fase Plan+Execute; reverse tak punya.
+  it("reverse: tanpa klausa penyelesaian plan (tak ada fase Plan+Execute)", () => {
+    expect(startProjectPrompt("reverse", project, "reverse-docs")).not.toContain("Execute BELUM selesai");
   });
 });
