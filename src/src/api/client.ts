@@ -7,6 +7,9 @@ export type TerminalSession = {
 };
 // SPEC-167 · respons dry-run PATCH /specs/:id saat revert akan menghapus artefak.
 export type RevertPending = { pending: true; stage: string; wouldDelete: string[] };
+// SPEC-170 · dokumen backlog item
+export type DocKind = "audit" | "spec" | "plan" | "objective" | "brainstorm" | "other";
+export type SpecDoc = { kind: DocKind; path: string; name: string };
 async function j<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { headers: { "content-type": "application/json" }, ...init });
   if (!res.ok) throw new ApiError(res.status, `${init?.method ?? "GET"} ${url} → ${res.status}`);
@@ -32,6 +35,8 @@ export const api = {
   putSettings: (b: unknown) => j<Setting>(paths.settings, { method: "PUT", ...body(b) }),
   getDocs: (id: string) => j<{ coverage: number; tree: any[] }>(paths.docs(id)),
   getDoc: (id: string, path: string) => j<{ path: string; content: string }>(paths.docFile(id, path)),
+  getSpecDocs: (id: string) => j<{ files: SpecDoc[] }>(paths.specDocs(id)),
+  getSpecDocFile: (id: string, path: string) => j<{ path: string; content: string }>(paths.specDocFile(id, path)),
   putDoc: (id: string, path: string, content: string) =>
     j<{ path: string; content: string }>(paths.docFile(id, path), { method: "PUT", ...body({ content }) }),
   deleteDoc: (id: string, path: string) => j<void>(paths.docFile(id, path), { method: "DELETE" }),

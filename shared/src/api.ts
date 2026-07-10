@@ -5,6 +5,8 @@ export const paths = {
   branches: (id: string) => `${API}/projects/${id}/branches`,
   specs: `${API}/specs`,
   spec: (id: string) => `${API}/specs/${id}`,
+  specDocs: (id: string) => `${API}/specs/${id}/docs`,
+  specDocFile: (id: string, path: string) => `${API}/specs/${id}/docs/${path}`,
   settings: `${API}/settings`,
   docs: (id: string) => `${API}/projects/${id}/docs`,
   docFile: (id: string, path: string) => `${API}/projects/${id}/docs/${path}`,

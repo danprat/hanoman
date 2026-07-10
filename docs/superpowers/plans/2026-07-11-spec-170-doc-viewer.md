@@ -300,7 +300,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
   - `api.getSpecDocs(id): Promise<{ files: SpecDoc[] }>`
   - `api.getSpecDocFile(id, path): Promise<{ path: string; content: string }>`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Tambahkan di `src/test/api-client.test.ts` (file sudah meng-import `paths`, `api`, `vi`):
 
@@ -315,12 +315,12 @@ it("getSpecDocs & getSpecDocFile menuju path dokumen spec", async () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter ./src test api-client`
 Expected: FAIL — `api.getSpecDocs is not a function` / `paths.specDocs is not a function`.
 
-- [ ] **Step 3: Add shared paths**
+- [x] **Step 3: Add shared paths**
 
 Di `shared/src/api.ts`, di dalam objek `paths`, setelah baris `spec: (id) => ...` (baris 7):
 
@@ -329,7 +329,7 @@ Di `shared/src/api.ts`, di dalam objek `paths`, setelah baris `spec: (id) => ...
   specDocFile: (id: string, path: string) => `${API}/specs/${id}/docs/${path}`,
 ```
 
-- [ ] **Step 4: Add client types + methods**
+- [x] **Step 4: Add client types + methods**
 
 Di `src/src/api/client.ts`, dekat definisi tipe lain (mis. setelah `TerminalSession`):
 
@@ -345,12 +345,12 @@ Di dalam objek `api`, tambah dua method (mis. setelah `getDoc`):
   getSpecDocFile: (id: string, path: string) => j<{ path: string; content: string }>(paths.specDocFile(id, path)),
 ```
 
-- [ ] **Step 5: Run test + typecheck**
+- [x] **Step 5: Run test + typecheck**
 
 Run: `pnpm --filter ./src test api-client && pnpm -r typecheck`
 Expected: PASS + typecheck hijau.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add shared/src/api.ts src/src/api/client.ts src/test/api-client.test.ts

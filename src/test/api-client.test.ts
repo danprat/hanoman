@@ -18,4 +18,15 @@ describe("api client · sesi backlog", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 204 }));
     await expect(api.deleteTerminal("spec-1")).resolves.toBeUndefined();
   });
+
+  // SPEC-170 · dokumen backlog item
+  it("getSpecDocs & getSpecDocFile menuju path dokumen spec", async () => {
+    // Response baru tiap panggilan: body hanya bisa dibaca sekali.
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+      new Response(JSON.stringify({ files: [] }), { status: 200, headers: { "content-type": "application/json" } }));
+    await api.getSpecDocs("SPEC-170");
+    expect(fetchMock).toHaveBeenCalledWith(paths.specDocs("SPEC-170"), expect.anything());
+    await api.getSpecDocFile("SPEC-170", "docs/superpowers/plans/x.md");
+    expect(fetchMock).toHaveBeenCalledWith(paths.specDocFile("SPEC-170", "docs/superpowers/plans/x.md"), expect.anything());
+  });
 });
