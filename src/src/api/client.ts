@@ -1,4 +1,4 @@
-import { paths, type ProjectView, type Spec, type Setting, type VpsView, type VpsCheck } from "@hanoman/shared";
+import { paths, type ProjectView, type Spec, type Setting, type VpsView, type VpsCheck, type AuthStatus, type UserView } from "@hanoman/shared";
 export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 export type Flow = "feature" | "qa" | "scaffold" | "reverse";
 export type Phase = { name: string; state: "done" | "skipped" | "active" | "pending" };
@@ -59,5 +59,15 @@ export const api = {
   hardenVps: (id: string) => j<{ transcript: string; audit: VpsCheck[] | null; hardened: boolean }>(
     paths.vpsHarden(id), { method: "POST" }),
   vpsSession: (id: string) => j<{ id: string }>(paths.vpsSession(id), { method: "POST" }),
+  // SPEC-169 · auth. Cookie sesi ikut otomatis (same-origin). 401 dari mana pun → App balik ke Login.
+  authStatus: () => j<AuthStatus>(paths.authStatus),
+  setup: (b: { email: string; password: string }) => j<{ user: UserView }>(paths.authSetup, { method: "POST", ...body(b) }),
+  login: (b: { email: string; password: string }) => j<{ user: UserView }>(paths.authLogin, { method: "POST", ...body(b) }),
+  logout: () => j<void>(paths.authLogout, { method: "POST" }),
+  listUsers: () => j<UserView[]>(paths.authUsers),
+  inviteUser: (b: { email: string; password: string }) => j<UserView>(paths.authUsers, { method: "POST", ...body(b) }),
+  deleteUser: (id: string) => j<void>(paths.authUser(id), { method: "DELETE" }),
+  changePassword: (b: { currentPassword: string; newPassword: string }) =>
+    j<{ user: UserView }>(paths.authChangePassword, { method: "POST", ...body(b) }),
 };
 

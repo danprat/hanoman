@@ -4,7 +4,8 @@
 import React from "react";
 import { Shell, Modal, Field, HnTextarea, Button, StatusPill, Select, Input, Tabs, Toast, useToast, Icon, StateBlock } from "./ds";
 import { api, ApiError, type TerminalSession } from "./api/client";
-import type { ProjectView, Spec } from "@hanoman/shared";
+import type { ProjectView, Spec, AuthStatus, UserView } from "@hanoman/shared";
+import { AuthScreen } from "./screens/AuthScreen";
 import type { ProjectVM } from "./screens/types";
 import { branchOptions } from "./screens/branch";
 import { OverviewScreen } from "./screens/OverviewScreen";
@@ -274,6 +275,10 @@ export default function App() {
   const [modal, setModal] = React.useState<string | null>(null);
   const [toast, showToast] = useToast();
   const [status, setStatus] = React.useState<"loading" | "ready" | "error">("loading");
+  // SPEC-169 · gate auth. null = belum tahu (splash). Sesi kedaluwarsa (401) → balik ke Login.
+  const [auth, setAuth] = React.useState<AuthStatus | null>(null);
+  const onLoggedOut = React.useCallback(() => setAuth({ needsSetup: false, user: null }), []);
+  React.useEffect(() => { api.authStatus().then(setAuth).catch(() => setAuth({ needsSetup: false, user: null })); }, []);
 
   const load = React.useCallback(() => {
     setStatus("loading");
@@ -283,12 +288,14 @@ export default function App() {
         setProjectId((cur) => cur || p[0]?.id || "");
         setStatus("ready");
       })
-      .catch(() => {
+      .catch((e) => {
+        if (e instanceof ApiError && e.status === 401) { onLoggedOut(); return; }
         setStatus("error");
         showToast("Gagal memuat data dari server", "err", "x-circle");
       });
-  }, [showToast]);
-  React.useEffect(() => { load(); }, [load]);
+  }, [showToast, onLoggedOut]);
+  // Muat data hanya setelah login; run baru pada perubahan status login.
+  React.useEffect(() => { if (auth?.user) load(); }, [load, auth?.user]);
 
   // ProjectVM dulu membawa daftar tipe trigger per project; trigger sudah tak ada (SPEC-162).
   const projectsView: ProjectVM[] = projects;
@@ -435,6 +442,11 @@ export default function App() {
           hint="Pastikan server hanoman berjalan, lalu coba lagi." action={load} />
       : body;
 
+  // SPEC-169 · gerbang auth: splash → Setup/Login → app.
+  if (!auth) return <StateBlock kind="loading" title="Memuat hanoman…" />;
+  if (!auth.user) return <AuthScreen needsSetup={auth.needsSetup} onDone={(u) => setAuth({ needsSetup: false, user: u })} />;
+  const me: UserView = auth.user;
+
   let screen: React.ReactNode = null;
   if (section === "overview") {
     screen = (
@@ -523,7 +535,7 @@ export default function App() {
   } else if (section === "settings") {
     screen = (
       <Shell active="settings" title="Settings" breadcrumb="nafanesia.id · workspace" onNavigate={setSection}>
-        <SettingsScreen onToast={showToast} />
+        <SettingsScreen onToast={showToast} me={me} onLoggedOut={onLoggedOut} />
       </Shell>
     );
   }

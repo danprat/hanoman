@@ -1,9 +1,9 @@
 /* SettingsScreen — workspace settings. Ported; persistence moved from
    localStorage to the API (GET/PUT /settings). Model per pipeline step. */
 import React from "react";
-import { Card, Switch, Select, Button, StateBlock } from "../ds";
-import { api } from "../api/client";
-import type { Setting } from "@hanoman/shared";
+import { Card, Switch, Select, Button, Input, Field, StateBlock } from "../ds";
+import { api, ApiError } from "../api/client";
+import type { Setting, UserView } from "@hanoman/shared";
 import type { ShowToast } from "../ds";
 
 // Valid Claude model ids, diteruskan apa adanya ke `claude --model`. Keep in
@@ -35,7 +35,96 @@ function SettingRow({ title, desc, children, last }: { title: string; desc?: str
   );
 }
 
-export function SettingsScreen({ onToast }: { onToast?: ShowToast }) {
+// SPEC-169 · Akun: email, logout, ganti password sendiri.
+function AccountPanel({ me, onLoggedOut, onToast }: { me: UserView; onLoggedOut: () => void; onToast?: ShowToast }) {
+  const [cur, setCur] = React.useState("");
+  const [next, setNext] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const canChange = cur.length >= 1 && next.length >= 8 && !busy;
+  async function changePw() {
+    if (!canChange) return;
+    setBusy(true);
+    try {
+      await api.changePassword({ currentPassword: cur, newPassword: next });
+      setCur(""); setNext("");
+      onToast?.("Password diganti · perangkat lain ter-logout", "ok", "key-round");
+    } catch (e) {
+      onToast?.(e instanceof ApiError && e.status === 400 ? "Password lama salah" : "Gagal ganti password", "err", "x-circle");
+    } finally { setBusy(false); }
+  }
+  async function logout() { try { await api.logout(); } finally { onLoggedOut(); } }
+  return (
+    <Card eyebrow="akun" title="Akun"
+      actions={<Button size="sm" variant="ghost" leftIcon="log-out" onClick={logout}>Logout</Button>}>
+      <SettingRow title="Masuk sebagai" desc={me.email}>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-subtle)" }}>{me.id}</span>
+      </SettingRow>
+      <div style={{ paddingTop: 14 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-strong)", marginBottom: 10 }}>Ganti password</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 10, alignItems: "end" }}>
+          <Field label="Password lama"><Input type="password" autoComplete="current-password" value={cur}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCur(e.target.value)} style={{ width: "100%" }} /></Field>
+          <Field label="Password baru" hint="min 8"><Input type="password" autoComplete="new-password" value={next}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNext(e.target.value)} style={{ width: "100%" }} /></Field>
+          <Button size="sm" leftIcon="key-round" disabled={!canChange} onClick={changePw}>Ganti</Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// SPEC-169 · Users: daftar, invite (set password langsung), hapus. Tanpa RBAC — semua setara.
+function UsersPanel({ me, onToast }: { me: UserView; onToast?: ShowToast }) {
+  const [users, setUsers] = React.useState<UserView[] | null>(null);
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const load = React.useCallback(() => { api.listUsers().then(setUsers).catch(() => setUsers([])); }, []);
+  React.useEffect(() => { load(); }, [load]);
+  const canInvite = /\S+@\S+\.\S+/.test(email) && password.length >= 8 && !busy;
+  async function invite() {
+    if (!canInvite) return;
+    setBusy(true);
+    try {
+      await api.inviteUser({ email, password });
+      setEmail(""); setPassword(""); load();
+      onToast?.("User " + email + " diundang", "ok", "user-plus");
+    } catch (e) {
+      onToast?.(e instanceof ApiError && e.status === 409 ? "Email sudah dipakai" : "Gagal mengundang user", "err", "x-circle");
+    } finally { setBusy(false); }
+  }
+  async function remove(u: UserView) {
+    if (!window.confirm(`Hapus user "${u.email}"? Semua sesinya ikut dicabut.`)) return;
+    try { await api.deleteUser(u.id); load(); onToast?.("User " + u.email + " dihapus", "warn", "trash-2"); }
+    catch (e) { onToast?.(e instanceof ApiError && e.status === 400 ? "Tak bisa hapus user terakhir" : "Gagal hapus user", "err", "x-circle"); }
+  }
+  return (
+    <Card eyebrow="users" title="Users">
+      <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.5 }}>
+        Undang user lain dengan menetapkan password-nya langsung — tanpa email undangan.
+      </div>
+      {users === null ? <StateBlock kind="loading" compact title="Memuat users…" /> : users.map((u, i) => (
+        <SettingRow key={u.id} title={u.email} last={i === users.length - 1}
+          desc={"dibuat " + new Date(u.createdAt).toLocaleDateString("id-ID") + (u.id === me.id ? " · kamu" : "")}>
+          <Button size="sm" variant="ghost" leftIcon="trash-2" disabled={users.length <= 1} onClick={() => remove(u)}>Hapus</Button>
+        </SettingRow>
+      ))}
+      <div style={{ paddingTop: 14 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-strong)", marginBottom: 10 }}>Invite user</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 10, alignItems: "end" }}>
+          <Field label="Email"><Input type="email" value={email} placeholder="user@nafanesia.id"
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)} style={{ width: "100%" }} /></Field>
+          <Field label="Password" hint="min 8"><Input type="password" autoComplete="new-password" value={password}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)} style={{ width: "100%" }} /></Field>
+          <Button size="sm" leftIcon="user-plus" disabled={!canInvite} onClick={invite}>Invite</Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+export function SettingsScreen({ onToast, me, onLoggedOut }:
+  { onToast?: ShowToast; me: UserView; onLoggedOut: () => void }) {
   const [s, setS] = React.useState<Setting | null>(null);
   const [failed, setFailed] = React.useState(false);
   // Jangan fallback ke S_DEFAULTS saat GET gagal: toggle berikutnya akan mem-PUT
@@ -46,20 +135,23 @@ export function SettingsScreen({ onToast }: { onToast?: ShowToast }) {
   }, []);
   React.useEffect(() => { load(); }, [load]);
 
-  if (failed) return <StateBlock kind="error" title="Gagal memuat pengaturan"
-    hint="Pengaturan tidak ditampilkan agar tidak menimpa nilai di server." action={load} />;
-  if (!s) return <StateBlock kind="loading" title="Memuat pengaturan…" />;
-
-  const persist = (next: Setting, msg?: string, tone?: string, icon?: string) => {
-    setS(next);
-    api.putSettings(next).catch(() => {});
-    if (msg && onToast) onToast(msg, tone || "ok", icon || "check-circle-2");
-  };
-  const save = (patch: Partial<Setting>, msg: string) => persist({ ...s, ...patch }, msg);
-  const sw = (k: keyof Setting, msg: string) => (v: boolean) => save({ [k]: v } as Partial<Setting>, msg + (v ? " · aktif" : " · nonaktif"));
-
-  return (
-    <div style={{ maxWidth: 760, display: "flex", flexDirection: "column", gap: 20 }}>
+  // Panel Akun & Users (SPEC-169) tak bergantung pada settings — render terpisah supaya
+  // kegagalan GET /settings tidak menyembunyikannya.
+  const settingsSection = failed ? (
+    <StateBlock kind="error" title="Gagal memuat pengaturan"
+      hint="Pengaturan tidak ditampilkan agar tidak menimpa nilai di server." action={load} />
+  ) : !s ? (
+    <StateBlock kind="loading" title="Memuat pengaturan…" />
+  ) : (() => {
+    const persist = (next: Setting, msg?: string, tone?: string, icon?: string) => {
+      setS(next);
+      api.putSettings(next).catch(() => {});
+      if (msg && onToast) onToast(msg, tone || "ok", icon || "check-circle-2");
+    };
+    const save = (patch: Partial<Setting>, msg: string) => persist({ ...s, ...patch }, msg);
+    const sw = (k: keyof Setting, msg: string) => (v: boolean) => save({ [k]: v } as Partial<Setting>, msg + (v ? " · aktif" : " · nonaktif"));
+    return (
+    <>
       <Card eyebrow="general" title="Umum">
         <SettingRow title="Full-auto sebagai default"
           desc="Run baru jalan sendiri sampai selesai. Manusia tetap bisa steer / interupsi kapan pun.">
@@ -100,6 +192,15 @@ export function SettingsScreen({ onToast }: { onToast?: ShowToast }) {
           Reset ke default
         </Button>
       </div>
+    </>
+    );
+  })();
+
+  return (
+    <div style={{ maxWidth: 760, display: "flex", flexDirection: "column", gap: 20 }}>
+      <AccountPanel me={me} onLoggedOut={onLoggedOut} onToast={onToast} />
+      <UsersPanel me={me} onToast={onToast} />
+      {settingsSection}
     </div>
   );
 }
