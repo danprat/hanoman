@@ -1,14 +1,14 @@
 # hanoman — blueprint
 
-> **Source of Truth.** Tidak ada plan yang boleh execute melewati doc yang stale.
+> **Source of Truth.** `internal/docs/**` adalah kebenaran secara konvensi — diperbarui tiap commit yang menyentuhnya. Tidak lagi ditegakkan mesin (guardrail dicabut, SPEC-160/ADR-0023).
 
 **hanoman** adalah orchestrator workflow docs-driven untuk nafanesia.id. Ia menyuruh **Claude Code** membangun project terhadap dokumentasi sebagai kebenaran, dan memantau semua run dalam satu dashboard.
 
 ## Ringkasan satu paragraf
-Manusia menuang ide / menulis brief / memfilekan QA finding. hanoman brainstorm sampai **MVP objective** terkunci, lalu **scaffold** seluruh doc index (from-scratch) atau **reverse-engineer** docs dari codebase (existing). Brief & finding menjadi **spec** di backlog; spec di-**plan** lalu di-**execute** oleh Claude Code di **git worktree terisolasi**, dipicu oleh trigger (schedule / commit / manual / interval). Setiap langkah menjaga docs tetap sinkron; Stop hook memblokir plan bila docs stale.
+Manusia menuang ide / menulis brief / memfilekan QA finding. hanoman brainstorm sampai **MVP objective** terkunci, lalu **scaffold** seluruh doc index (from-scratch) atau **reverse-engineer** docs dari codebase (existing). Brief & finding menjadi **spec** di backlog; spec di-**plan** lalu di-**execute** oleh Claude Code di **git worktree terisolasi**, dipicu oleh trigger (schedule / commit / manual / interval). Setiap langkah menjaga docs tetap sinkron secara konvensi, bukan lewat gerbang mekanis.
 
 ## Objektif MVP
-Satu operator bisa menjalankan & memantau Claude Code di banyak project sekaligus, dengan docs sebagai Source of Truth yang ditegakkan, tanpa kehilangan kendali atas run yang berjalan.
+Satu operator bisa menjalankan & memantau Claude Code di banyak project sekaligus, dengan docs sebagai Source of Truth, tanpa kehilangan kendali atas run yang berjalan.
 
 ## Doc inti
 | Doc | Isi |

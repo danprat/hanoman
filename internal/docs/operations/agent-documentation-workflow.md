@@ -7,38 +7,21 @@ Kontrak operasional untuk hanoman + Claude Code.
 - **Fitur:** spec → plan → execute. **QA:** audit → **keputusan** → (spec → plan)? → execute — temuan kecil langsung execute, Spec & Plan ditandai `skipped` (SPEC-145, ADR-0020).
 - **From-scratch:** brainstorm → kunci objective → `hanoman scaffold` seluruh doc index.
 - **Existing:** `hanoman reverse --dir <path>` untuk menyusun docs dari codebase.
-- Stop hook **memblokir** plan bila doc acuan stale.
+- Guardrail Source of Truth dicabut (SPEC-160, ADR-0023) — lihat bagian di bawah.
 - Setiap run di worktree terpisah; commit + push ke `branchTo`, perbarui docs yang tersentuh.
 
-## Guardrail (SPEC-002)
-Stop hook memanggil `hanoman hook stop` → `hanoman docs verify`. Blok bila: doc belum
-ter-link di index, `src/` berubah tanpa perubahan doc, atau coverage di bawah ambang.
-Konfigurasi per-repo di `hanoman.config.json`. Lihat ADR-0001.
-
-Switch **Source of Truth** di Settings dashboard menang atas `hanoman.config.json`. Gate Execute
-milik run berjalan sebagai subprocess `hanoman docs verify` di dalam worktree run — subprocess itu
-tak punya akses DB, jadi worker menurunkan switch-nya lewat env (`HANOMAN_REQUIRE_LINKS`,
-`HANOMAN_BLOCK_STALE`, `HANOMAN_COVERAGE_THRESHOLD`), dibaca per-run sehingga tak perlu restart
-worker. Env yang tak diset = konfigurasi repo yang berlaku, jadi CLI dan hook manusia tak berubah.
-Mematikan "Wajib link setiap doc" ikut menurunkan ambang coverage ke 0: coverage di bawah 100%
-**adalah** doc tak ter-link, jadi tanpa itu blokirnya cuma berganti nama, tidak tercabut.
-
-Guardrail berjangkar ke **repo root**, bukan cwd. `collectViolations` memakai root hasil
-`git rev-parse --show-toplevel` untuk seluruh akses filesystem, jadi `hanoman docs verify`
-dan `hook stop` tetap benar walau dipanggil dari subdir. `hook stop` sendiri membaca
-`CLAUDE_PROJECT_DIR` lebih dulu — `cwd` di payload ikut `cd` di sesi dan bisa keluar dari repo.
+## Guardrail (SPEC-002, dicabut SPEC-160/ADR-0023)
+`internal/docs/**` tetap Source of Truth secara **konvensi**: diperbarui dalam commit yang sama,
+ter-link di index. Tapi tak ada lagi yang **menegakkannya** secara mekanis — Stop hook (`hanoman
+hook stop`), gate Execute (`hanoman docs verify`), dan switch dashboard "Source of Truth" semuanya
+dicabut. `hanoman docs scan` tetap ada sebagai laporan coverage read-only (tak memblokir apa pun).
 
 ## Runner (SPEC-003)
 Runner men-spawn binary `claude` langsung — Agent SDK sudah dicabut (ADR-0010). Satu backlog
 dijalankan **satu proses** di `.worktrees/<run-id>`, dengan fase sebagai giliran di dalam sesi itu
-(ADR-0015). Fase Execute lewat gate `hanoman docs verify` (SPEC-002) — plan diblok bila docs stale.
+(ADR-0015). Fase Execute tidak lagi lewat gate docs — dicabut SPEC-160/ADR-0023.
 Run di-steer/pause/stop lewat dashboard, lalu commit + push ke `branchTo`. Pesan steer menjadi
 giliran tambahan yang dikuras di antara fase. Lihat ADR-0002 (isolasi) dan ADR-0003 (model per step).
-
-Bila proses `docs verify` **crash** (bukan lapor stale) — mis. path CLI salah karena cwd,
-atau baca doc gagal — hasilnya di-retry sekali; kalau tetap crash, run gagal **fail-closed**
-dengan `guardrail tool error · <stderr>` (bukan disamarkan "docs stale"). Path CLI di-resolve
-dari root workspace (`pnpm-workspace.yaml`), bukan dari `process.cwd()`. Lihat SPEC-010 / ADR-0009.
 
 ## Worker credentials (SPEC-007)
 Worker boot memverifikasi kredensial Claude yang dipakai binary `claude`. Ada env credential

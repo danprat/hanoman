@@ -31,4 +31,4 @@ Turunan terukur dari `entrypoints/prd.md`.
 
 ## 7. Settings
 - **Model per step** (brainstorm/spec/plan/execute/audit), default opus · effort x-high.
-- Full-auto default; guardrail SoT (blok plan stale, wajib link, auto-scaffold); konkuren maks; anggaran harian; notifikasi gagal.
+- Full-auto default; auto-scaffold doc index; konkuren maks; anggaran harian; notifikasi gagal.

@@ -1,6 +1,6 @@
 # ADR 0001 — Docs sebagai Source of Truth
 
-**Status:** accepted
+**Status:** superseded oleh [ADR-0023](0023-guardrail-sot-dicabut.md) (SPEC-160) · guardrail SoT dicabut; docs kini konvensi, bukan gate
 
 ## Konteks
 Agent yang membangun di atas asumsi menghasilkan drift. Kita butuh satu kebenaran yang ditegakkan secara mekanis.

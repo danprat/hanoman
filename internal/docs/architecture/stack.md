@@ -26,7 +26,7 @@ Dashboard (React) ──SSE/WS──► Server (Fastify)
 ```
 
 ## Runner
-Untuk tiap run: buat worktree `git worktree add .worktrees/<run> <branchFrom>`, jalankan Claude Code headless dengan model per-step dari Settings, stream log via SSE, jalankan Stop hook (`hanoman docs verify`), commit & push ke `branchTo`, lalu `git worktree remove`.
+Untuk tiap run: buat worktree `git worktree add .worktrees/<run> <branchFrom>`, jalankan Claude Code headless dengan model per-step dari Settings, stream log via SSE, commit & push ke `branchTo`, lalu `git worktree remove`. (Stop hook Source of Truth dicabut, SPEC-160/ADR-0023.)
 
 **Satu backlog = satu proses `claude`** di worktree-nya sendiri (ADR-0015). Fase bukan proses
 melainkan **giliran** di dalam sesi itu: `runner/src/turns.ts` memasangkan N pesan pengguna dengan
