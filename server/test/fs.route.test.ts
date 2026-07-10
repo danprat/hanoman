@@ -4,7 +4,7 @@ import { tmpdir, homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { buildApp } from "../src/app";
 
-const app = buildApp();
+const app = buildApp({ requireAuth: false });
 let base = "";
 beforeAll(async () => {
   base = await mkdtemp(join(tmpdir(), "hanoman-fs-"));

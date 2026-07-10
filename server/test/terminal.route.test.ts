@@ -15,7 +15,7 @@ import { resetDb, makeProject, makeSpec } from "./factory";
 // Lihat pty.test.ts: /bin/cat mati karena --dangerously-skip-permissions ilegal baginya.
 const FAKE_CLAUDE = fileURLToPath(new URL("./fixtures/fake-claude.sh", import.meta.url));
 
-const app = buildApp();
+const app = buildApp({ requireAuth: false });
 let origin = "";
 let repoDir = "";
 

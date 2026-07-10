@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import fastifyStatic from "@fastify/static";
 import websocket from "@fastify/websocket";
+import cookie from "@fastify/cookie";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import health from "./routes/health";
@@ -11,8 +12,21 @@ import docs from "./routes/docs";
 import fs from "./routes/fs";
 import terminal from "./routes/terminal";
 import vps from "./routes/vps";
+import authRoutes from "./routes/auth";
+import { COOKIE_NAME, lookupSession } from "./services/auth";
 import { detachAll } from "./services/pty";
-export function buildApp(): FastifyInstance {
+
+// Endpoint yang boleh diakses tanpa sesi (path lengkap termasuk prefix /api).
+const PUBLIC = new Set([
+  "GET /api/health",
+  "GET /api/auth/status",
+  "POST /api/auth/login",
+  "POST /api/auth/setup",
+]);
+
+// requireAuth default true: prod (server.ts) selalu tergerbang. Test route yang tak
+// menguji auth mem-build dgn { requireAuth: false } untuk melewati gate.
+export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {}): FastifyInstance {
   const app = Fastify({ logger: false });
   // POST tanpa body masih boleh membawa content-type JSON; parser bawaan Fastify menjawab
   // 400 untuk body kosong. Perlakukan kosong sebagai undefined, sementara body sungguhan
@@ -28,6 +42,21 @@ export function buildApp(): FastifyInstance {
   // claude yang sedang bekerja harus selamat dari restart server (ADR-0016).
   app.addHook("onClose", async () => { detachAll(); });
   app.register(async (api) => {
+    // Cookie parser lebih dulu supaya req.cookies terisi sebelum gate berjalan.
+    await api.register(cookie);
+    if (requireAuth) {
+      api.addHook("onRequest", async (req, reply) => {
+        // Isi req.user best-effort dulu (juga untuk endpoint publik spt /auth/status
+        // yang ingin tahu siapa pemanggilnya), baru gerbang route non-publik.
+        const token = req.cookies?.[COOKIE_NAME];
+        const user = token ? await lookupSession(token) : null;
+        if (user) req.user = user;
+        const path = req.url.split("?")[0];
+        if (PUBLIC.has(`${req.method} ${path}`)) return;
+        if (!user) return reply.code(401).send({ error: "unauthorized" });
+      });
+    }
+    await api.register(authRoutes);
     await api.register(health);
     await api.register(projects);
     await api.register(specs);

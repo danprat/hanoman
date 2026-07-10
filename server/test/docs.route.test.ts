@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { buildApp } from "../src/app";
 import { resetDb, makeProject, makeTempRepo } from "./factory";
 
-const app = buildApp();
+const app = buildApp({ requireAuth: false });
 const P = "internal/docs/product/prd.md";
 let dir: string;
 beforeEach(async () => {

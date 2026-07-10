@@ -1,6 +1,12 @@
 import { randomBytes, scrypt as scryptCb, timingSafeEqual, createHash } from "node:crypto";
 import { promisify } from "node:util";
+import type { UserView } from "@hanoman/shared";
 import { prisma } from "../db";
+
+// Sesi tervalidasi ditempel di request oleh gate onRequest (app.ts).
+declare module "fastify" {
+  interface FastifyRequest { user?: UserView }
+}
 
 const scrypt = promisify(scryptCb) as (pw: string, salt: Buffer, len: number) => Promise<Buffer>;
 
