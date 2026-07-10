@@ -389,9 +389,22 @@ export default function App() {
   async function editBranch(spec: Spec, branchFrom: string | null) {
     try {
       const updated = await api.patchSpec(spec.id, { branchFrom });
+      if ("pending" in updated) return; // dry-run hanya untuk revert stage — tak mungkin di sini
       setBacklog((b) => b.map((s) => (s.id === updated.id ? updated : s)));
       showToast(spec.id + " · branch " + (branchFrom ?? "main (default project)"), "ok", "git-branch");
     } catch { showToast("Gagal mengubah branch " + spec.id, "err", "x-circle"); }
+  }
+
+  // SPEC-167 · revert backward-only. Respons `pending` = dry-run: kembalikan ke pemanggil
+  // supaya dialog konfirmasi muncul; hanya panggilan confirmDelete yang mengubah state.
+  async function revertStage(spec: Spec, target: string, confirmDelete?: boolean) {
+    try {
+      const res = await api.patchSpec(spec.id, { stage: target, confirmDelete });
+      if ("pending" in res) return res;
+      setBacklog((b) => b.map((s) => (s.id === res.id ? res : s)));
+      showToast(spec.id + " dikembalikan ke " + target, "warn", "rotate-ccw");
+      return res;
+    } catch { showToast("Gagal mengembalikan stage " + spec.id, "err", "x-circle"); return undefined; }
   }
 
   async function deleteSpec(spec: Spec) {
@@ -470,6 +483,7 @@ export default function App() {
         {gate(<BacklogScreen backlog={backlog} projects={projectsView} pageSize={20}
           onStart={startSession} activeSpecs={activeSpecs} onNew={() => setModal("brief")}
           onDelete={deleteSpec} onOpenRun={() => setSection("terminal")} onEditBranch={editBranch}
+          onRevertStage={revertStage}
           projectFilter={projectFilter} onProjectFilter={setProjectFilter} />)}
       </Shell>
     );
