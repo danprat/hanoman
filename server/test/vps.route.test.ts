@@ -56,3 +56,33 @@ describe("vps routes (SPEC-164)", () => {
     expect((await app.inject({ method: "POST", url: "/api/vps/hantu/audit" })).statusCode).toBe(404);
   });
 });
+
+describe("harden (SPEC-164)", () => {
+  it("harden: transcript + verifikasi + audit ulang → hardened true", async () => {
+    const v = await makeVps({ name: "h1", host: "198.51.100.11" });
+    const res = await app.inject({ method: "POST", url: `/api/vps/${v.id}/harden` });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().transcript).toContain("STEP ssh ok");
+    expect(res.json().hardened).toBe(true);
+    const row = await prisma.vps.findUnique({ where: { id: v.id } });
+    expect(row!.hardened).toBe(true); // audit ulang otomatis tersimpan
+  });
+  it("ssh putus saat harden → 502, DB tak berubah", async () => {
+    process.env.FAKE_SSH_MODE = "unreachable";
+    const v = await makeVps({ name: "h2", host: "198.51.100.12" });
+    const res = await app.inject({ method: "POST", url: `/api/vps/${v.id}/harden` });
+    expect(res.statusCode).toBe(502);
+    expect((await prisma.vps.findUnique({ where: { id: v.id } }))!.hardened).toBe(false);
+  });
+  it("verifikasi koneksi pasca-harden gagal → 502 dengan transcript", async () => {
+    process.env.FAKE_SSH_MODE = "verify-fail";
+    const v = await makeVps({ name: "h3", host: "198.51.100.13" });
+    const res = await app.inject({ method: "POST", url: `/api/vps/${v.id}/harden` });
+    expect(res.statusCode).toBe(502);
+    expect(res.json().error).toContain("verifikasi");
+    expect(res.json().transcript).toContain("STEP ssh ok"); // apply sempat jalan — transcript tetap dilaporkan
+  });
+  it("harden vps tak dikenal → 404", async () => {
+    expect((await app.inject({ method: "POST", url: "/api/vps/hantu/harden" })).statusCode).toBe(404);
+  });
+});
