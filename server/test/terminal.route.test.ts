@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import type { AddressInfo } from "node:net";
 import { buildApp } from "../src/app";
 import { prisma } from "../src/db";
-import { killAll, listSessions } from "../src/services/pty";
+import { killAll, killSession, listSessions } from "../src/services/pty";
 import { phaseFilePath } from "../src/services/session-phases";
 import { resetDb, makeProject, makeSpec } from "./factory";
 
@@ -262,20 +262,30 @@ describe("GET /specs · stage live dari sesi", () => {
     return (res.json() as { id: string; stage: string }[]).find((s) => s.id === id)?.stage;
   };
 
-  it("melaporkan stage turunan dari berkas fase selama sesi hidup, tanpa mempersist", async () => {
+  it("menurunkan stage dari berkas fase selama sesi hidup, lalu mempersistnya (write-through)", async () => {
     process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
     await makeSpec({ id: "SPEC-906", projectId: "p1", stage: "brainstorming" });
     await start("SPEC-906");
     appendFileSync(phaseFilePath(repoDir, "spec-906"), "Brainstorm done\nObjective done\n");
 
     expect(await stageOf("SPEC-906")).toBe("objective");
-    // DB belum ditulis: turunan hidup di read, bukan di kolom.
+    // Durabilitas: read yang melihat kemajuan menuliskannya ke DB, jadi stage selamat
+    // meski berkas fase / pane hilang sebelum DELETE (SPEC-168).
     const row = await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-906" } });
-    expect(row.stage).toBe("brainstorming");
-
-    // DELETE memfinalkan ke DB, dan read tetap konsisten sesudahnya.
+    expect(row.stage).toBe("objective");
     await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-906" });
-    expect(await stageOf("SPEC-906")).toBe("objective");
+  });
+
+  it("stage selamat saat sesi lenyap tanpa DELETE — sudah dipersist saat dibaca", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    await makeSpec({ id: "SPEC-909", projectId: "p1", stage: "brainstorming" });
+    await start("SPEC-909");
+    appendFileSync(phaseFilePath(repoDir, "spec-909"), "Brainstorm done\nObjective done\n");
+    expect(await stageOf("SPEC-909")).toBe("objective"); // derive + persist
+
+    killSession("spec-909"); // pane hilang tanpa advanceStage (reboot/tmux mati)
+    expect(listSessions().some((s) => s.id === "spec-909")).toBe(false);
+    expect(await stageOf("SPEC-909")).toBe("objective"); // dari DB, bukan derive
   });
 
   it("tak menyeret stage mundur: fase lebih awal dari nilai persist diabaikan", async () => {

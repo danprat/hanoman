@@ -1,10 +1,12 @@
 # SPEC-168 — spec: backlog menurunkan stage live selama sesi hidup
 
-**Status:** terimplementasi (`sessionPhasesBySpec` di `pty.ts` + derivasi forward-only di
-`GET /specs`). Diverifikasi nyata di server yang di-boot: sesi hidup + `echo "Audit done" >>
-$HANOMAN_PHASE_FILE` → `GET /api/specs` melaporkan `objective` **tanpa DELETE**, sementara
-baris DB tetap `brainstorming`; DELETE memfinalkan ke `objective`. Test: 3 kasus di
-`server/test/terminal.route.test.ts` ("GET /specs · stage live dari sesi").
+**Status:** terimplementasi — hybrid **turunkan + write-through**: `sessionPhasesBySpec` di
+`pty.ts`, derivasi forward-only di `GET /specs`, plus tulis balik ke DB saat stage turunan
+lebih maju (durabilitas). Diverifikasi nyata di server yang di-boot: sesi hidup + `echo
+"Audit done" >> $HANOMAN_PHASE_FILE` → `GET /api/specs` melaporkan `objective` **tanpa
+DELETE**, dan baris DB ikut `objective` (persist). Test: 4 kasus di
+`server/test/terminal.route.test.ts` ("GET /specs · stage live dari sesi"), termasuk "stage
+selamat saat sesi lenyap tanpa DELETE".
 
 Fase **Spec** dari alur QA. Hulu: [audit SPEC-168](spec-168-backlog-realtime-audit.md).
 Hilir: plan di `docs/superpowers/plans/`.
@@ -16,10 +18,12 @@ menambah kanal realtime baru dan tanpa mengubah frontend.
 
 ## Keputusan
 
-`GET /specs` **menurunkan** `stage` dari berkas fase sesi yang hidup, forward-only, sebelum
-mengembalikannya — mengikuti pola "simpan seminimalnya, turunkan saat dibaca" (ADR-0018/0019).
-`Spec.stage` di DB tetap ditulis hanya oleh seed `create` dan `advanceStage` di DELETE; tidak
-ada penulisan baru di jalur panas.
+**Hybrid: turunkan untuk liveness + write-through untuk durabilitas.** `GET /specs`
+**menurunkan** `stage` dari berkas fase sesi yang hidup (forward-only) sebelum mengembalikannya —
+pola "turunkan saat dibaca" (ADR-0018/0019) supaya update terlihat ≤3 detik. **Dan** saat
+turunan lebih maju dari nilai DB, ia menulis balik `Spec.stage` — supaya stage tetap selamat
+kalau sesi mati tanpa DELETE (reboot, tmux tewas, berkas fase terhapus). Karena forward-only,
+tulis hanya terjadi **pada transisi**, bukan tiap read.
 
 ### 1. Helper batch di `pty.ts`
 
@@ -42,25 +46,30 @@ export function sessionPhasesBySpec(): Map<string, Phase[]> {
 
 `listPanes`, `readPhases`, dan `Phase` sudah ada di modul itu — nol import baru.
 
-### 2. Turunkan stage di `GET /specs`
+### 2. Turunkan + write-through di `GET /specs`
 
 ```ts
 // specs.ts
 app.get("/specs", async (req) => {
   const { project, source } = req.query as { project?: string; source?: string };
   const specs = await prisma.spec.findMany({ where: { projectId: project, source }, orderBy: { id: "desc" } });
-  // Stage live: selama sesi hidup, stage diturunkan dari berkas fase (ADR-0018/0019), tidak
-  // dipersist tiap transisi. DELETE tetap memajukan Spec.stage ke keadaan finalnya. Hanya maju
-  // (ADR-0008). (SPEC-168)
   const live = sessionPhasesBySpec();
   if (live.size === 0) return specs;
-  return specs.map((s) => {
+  const advanced: { id: string; stage: Stage }[] = [];
+  const out = specs.map((s) => {
     const phases = live.get(s.id);
     if (!phases) return s;
     const next = stageFor(phases);
     if (!next || STAGES.indexOf(next) <= STAGES.indexOf(s.stage as Stage)) return s;
+    advanced.push({ id: s.id, stage: next });
     return { ...s, stage: next };
   });
+  // Write-through pada kemajuan → durabel meski sesi mati tanpa DELETE. Forward-only dijamin
+  // guard di atas; nilai persist eventually-consistent (poll berikutnya menyembuhkan balapan).
+  if (advanced.length)
+    await Promise.all(advanced.map((a) =>
+      prisma.spec.update({ where: { id: a.id }, data: { stage: a.stage } }).catch(() => {})));
+  return out;
 });
 ```
 
@@ -70,13 +79,14 @@ Import baru di `specs.ts`: `sessionPhasesBySpec` dari `../services/pty`, `stageF
 
 ### Kontrak
 
-- `GET /specs` bentuk respons **tidak berubah** (tetap `Spec[]`); hanya nilai `stage` yang
-  bisa lebih maju daripada baris DB saat spec-nya punya sesi hidup.
-- Forward-only: stage turunan tak pernah lebih mundur dari `spec.stage` persist.
-- Tanpa sesi apa pun: jalur cepat `if (live.size === 0) return specs` — nol perubahan perilaku
-  dan nol `tmux` call di luar `list-panes` yang murah (kembali `[]` kalau server tmux mati).
-- `advanceStage` di DELETE (`terminal.ts:121`) **tetap** — finalisasi durabel sesudah worktree
-  dibuang.
+- `GET /specs` bentuk respons **tidak berubah** (tetap `Spec[]`); nilai `stage` bisa lebih maju
+  dari baris DB saat pertama dibaca, lalu ikut permanen (write-through).
+- Forward-only: stage turunan/persist tak pernah lebih mundur dari `spec.stage`.
+- Write terjadi **hanya pada transisi** (guard `<=`), bukan tiap read. Read tanpa kemajuan =
+  nol write. Tanpa sesi apa pun: jalur cepat `if (live.size === 0) return specs` — nol write,
+  nol `tmux` call di luar `list-panes` yang murah (kembali `[]` kalau server tmux mati).
+- `advanceStage` di DELETE (`terminal.ts:121`) **tetap** — finalisasi saat worktree dibuang; kini
+  umumnya sudah sinkron dengan yang di-write-through, jadi jaring pengaman, bukan satu-satunya penulis.
 
 ## Test (fase Execute, TDD dulu)
 

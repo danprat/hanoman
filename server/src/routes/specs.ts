@@ -16,18 +16,27 @@ export default async function (app: FastifyInstance) {
   app.get("/specs", async (req) => {
     const { project, source } = req.query as { project?: string; source?: string };
     const specs = await prisma.spec.findMany({ where: { projectId: project, source }, orderBy: { id: "desc" } });
-    // Stage live: selama sesi hidup, stage diturunkan dari berkas fase (ADR-0018/0019), tidak
-    // dipersist tiap transisi. DELETE tetap memajukan Spec.stage ke keadaan finalnya. Hanya
-    // maju (ADR-0008). (SPEC-168)
+    // Stage live: selama sesi hidup, stage diturunkan dari berkas fase sesi (SPEC-168). Hanya
+    // maju (ADR-0008).
     const live = sessionPhasesBySpec();
     if (live.size === 0) return specs;
-    return specs.map((s) => {
+    const advanced: { id: string; stage: Stage }[] = [];
+    const out = specs.map((s) => {
       const phases = live.get(s.id);
       if (!phases) return s;
       const next = stageFor(phases);
       if (!next || STAGES.indexOf(next) <= STAGES.indexOf(s.stage as Stage)) return s;
+      advanced.push({ id: s.id, stage: next });
       return { ...s, stage: next };
     });
+    // Write-through pada kemajuan: tulis balik supaya stage selamat kalau sesi mati tanpa DELETE
+    // (reboot, tmux tewas, berkas fase terhapus). Forward-only sudah dijamin guard di atas.
+    // ponytail: read bisa balapan dengan read lain yang lebih maju; nilai persist eventually-
+    // consistent (poll berikutnya menyembuhkannya ≤3s) — respons ke klien selalu dari turunan.
+    if (advanced.length)
+      await Promise.all(advanced.map((a) =>
+        prisma.spec.update({ where: { id: a.id }, data: { stage: a.stage } }).catch(() => {})));
+    return out;
   });
   app.post("/specs", async (req, reply) => {
     const parsed = zCreateSpec.safeParse(req.body);

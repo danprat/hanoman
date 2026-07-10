@@ -85,12 +85,17 @@ jadi stage durabel setelah sesi hilang. Turunan-saat-baca melengkapinya selama s
    sesi → stage persist apa adanya; berkas fase yang lebih mundur dari persist → tak menyeret
    stage mundur.
 
-## Catatan laten (di luar cakupan SPEC-168)
+## Catatan durabilitas (ditangani di fase Spec)
 
-- Sesi yang mati di luar hanoman (pane `dead`, belum di-DELETE) tak pernah men-trigger
-  `advanceStage`; stage persist-nya membeku sampai ada yang menutupnya. Turunan-saat-baca
-  ikut menutup ini selama pane-nya masih ada di tmux (berkas fasenya masih terbaca), tapi
-  finalisasi durabel tetap milik DELETE. Dicatat, bukan diperbaiki khusus di sini.
+- Sesi yang mati tanpa DELETE (reboot, tmux tewas, `.worktrees/.phases` terhapus) tak pernah
+  men-trigger `advanceStage`, dan berkas fasenya bisa lenyap — stage kemajuannya hilang dari
+  board. Ini **celah lama** (sebelum tiket ini pun stage cuma persist di DELETE). Fase Spec
+  menutupnya dengan **write-through**: `GET /specs` yang melihat stage turunan lebih maju dari
+  DB menuliskannya balik (forward-only, hanya pada transisi). Karena frontend poll `GET /specs`
+  tiap 3 detik selama sesi hidup, DB ikut permanen ≤3 detik setelah tiap fase — jadi kehilangan
+  berkas fase/pane sesudahnya tak lagi menyeret stage mundur.
+
+## Catatan laten (di luar cakupan SPEC-168)
 - `createSession`/`POST /terminal/sessions` mengembalikan sesi `existing` tanpa mengecek
   `exited` (`pty.ts:112-113`, `terminal.ts:48-49`): pane mati bisa menghalangi start ulang.
   Terpisah dari tiket ini.
