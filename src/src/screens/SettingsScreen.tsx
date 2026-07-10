@@ -133,6 +133,13 @@ export function SettingsScreen({ onToast }: { onToast?: ShowToast }) {
             onChange={(e) => save({ maxConcurrent: Number(e.target.value) }, "Konkuren maks → " + e.target.value)} style={{ width: 90 }}
             options={["1", "2", "3", "4", "6"].map((v) => ({ value: v, label: v }))} />
         </SettingRow>
+        {/* SPEC-157 · `0` = jangan pernah menunggu, untuk batch tak berpenunggu. Run yang
+            menunggu menahan satu slot konkuren dan satu proses claude selama itu. */}
+        <SettingRow title="Tunggu keputusan manusia" desc="Berapa lama run berhenti menunggu jawabanmu sebelum memakai pilihan agen sendiri (dicatat sebagai ✗ di log). 0 = jangan pernah menunggu.">
+          <Select size="sm" value={String(s.askTimeoutMin ?? 30)}
+            onChange={(e) => save({ askTimeoutMin: Number(e.target.value) }, e.target.value === "0" ? "Tanpa menunggu keputusan" : "Tunggu keputusan → " + e.target.value + "m")} style={{ width: 110 }}
+            options={[{ value: "0", label: "tidak" }, ...["5", "15", "30", "60", "120"].map((v) => ({ value: v, label: v + " menit" }))]} />
+        </SettingRow>
         <SettingRow title="Notifikasi saat run gagal" last desc="Kirim notifikasi ketika plan diblok atau execute gagal.">
           <Switch checked={s.notifyFail} onChange={sw("notifyFail", "Notifikasi gagal")} />
         </SettingRow>

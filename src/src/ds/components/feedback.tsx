@@ -85,6 +85,8 @@ const STATUS: Record<string, { label: string; color: string; bg: string; pulse: 
   drift: { label: "Drifting", color: "var(--amber-600)", bg: "var(--status-warn-tint)", pulse: false },
   broken: { label: "Off convention", color: "var(--clay-600)", bg: "var(--status-err-tint)", pulse: false },
   running: { label: "Running", color: "var(--brass-600)", bg: "var(--brass-100)", pulse: true },
+  // Berdenyut: prosesnya hidup dan sedang menunggumu — tidak diam seperti `paused`.
+  awaiting: { label: "Menunggu keputusan", color: "var(--amber-600)", bg: "var(--status-warn-tint)", pulse: true },
   queued: { label: "Queued", color: "var(--wind-600)", bg: "var(--wind-100)", pulse: false },
   done: { label: "Done", color: "var(--leaf-600)", bg: "var(--status-ok-tint)", pulse: false },
   failed: { label: "Failed", color: "var(--clay-600)", bg: "var(--status-err-tint)", pulse: false },

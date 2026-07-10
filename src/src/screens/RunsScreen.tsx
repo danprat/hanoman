@@ -264,7 +264,8 @@ function WorktreeInfo({ run }: { run: RunVM }) {
 
 function LogView({ run }: { run: RunVM }) {
   const bodyRef = React.useRef<HTMLDivElement>(null);
-  const live = run.status === "running" || run.status === "paused";
+  // `awaiting` ikut: prosesnya hidup, hanya terblokir menunggu keputusan (SPEC-157).
+  const live = run.status === "running" || run.status === "awaiting" || run.status === "paused";
   const log = run.log as LogLine[];
   React.useEffect(() => { if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight; }, [log.length]);
   const lineColor = (t: string) => t === "✓" ? "var(--leaf-500)" : t === "✗" ? "var(--clay-500)" : t === "$" ? "var(--term-dim)" : "var(--brass-400)";
@@ -293,7 +294,8 @@ function LogView({ run }: { run: RunVM }) {
 
 // Ticks once a second while the run is active so the elapsed time stays live.
 function useLiveDuration(run: RunVM): string {
-  const running = run.status === "running" || run.status === "paused";
+  // `awaiting` ikut berdetak: run yang menunggu keputusan tetap membakar wall-clock (SPEC-157).
+  const running = run.status === "running" || run.status === "awaiting" || run.status === "paused";
   const [now, setNow] = React.useState(() => Date.now());
   React.useEffect(() => {
     if (!running) return;
@@ -308,15 +310,27 @@ function RunControls({ run }: { run: RunVM }) {
   const [text, setText] = React.useState("");
   const send = async () => { const t = text.trim(); if (!t) return; setText(""); await api.runCommand(run.id, t); };
   const ctl = (action: "pause" | "resume" | "stop") => () => { void api.runControl(run.id, action); };
+  // Saat awaiting, teks bebas TIDAK menjawab: pesan steer baru dikuras setelah fase selesai,
+  // sedangkan fase itu justru sedang diblokir menunggu jawaban. Kotak yang tampak bekerja tapi
+  // diam adalah jebakan — sembunyikan, sisakan tombol keputusan di kartu RunAsk.
+  const awaiting = run.status === "awaiting";
   return (
     <Card padding={14}>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <input value={text} onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") void send(); }}
-          placeholder="ketik perintah / arahan untuk run… (steer, pause, resume, stop, docs <path>)"
-          style={{ flex: 1, fontFamily: "var(--font-mono)", fontSize: 12, padding: "8px 10px",
-            border: "1px solid var(--border-hair)", borderRadius: "var(--radius-md)", background: "var(--surface-code)", color: "var(--term-fg)" }} />
-        <Button size="sm" leftIcon="send" onClick={() => void send()}>Kirim</Button>
+        {awaiting ? (
+          <div style={{ flex: 1, fontSize: 12, color: "var(--text-muted)" }}>Pilih salah satu di atas untuk melanjutkan run.</div>
+        ) : (
+          <>
+            <input value={text} onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") void send(); }}
+              placeholder="ketik perintah / arahan untuk run… (steer, pause, resume, stop, docs <path>)"
+              style={{ flex: 1, fontFamily: "var(--font-mono)", fontSize: 12, padding: "8px 10px",
+                border: "1px solid var(--border-hair)", borderRadius: "var(--radius-md)", background: "var(--surface-code)", color: "var(--term-fg)" }} />
+            <Button size="sm" leftIcon="send" onClick={() => void send()}>Kirim</Button>
+          </>
+        )}
+        {/* Tak ada yang perlu di-resume saat awaiting: prosesnya hidup. `awaiting !== "paused"`,
+            jadi cabang di bawah sudah benar apa adanya — Resume sembunyi, Pause muncul. */}
         {run.status === "paused"
           ? <Button size="sm" variant="secondary" leftIcon="play" onClick={ctl("resume")}>Resume</Button>
           : <Button size="sm" variant="secondary" leftIcon="pause" onClick={ctl("pause")}>Pause</Button>}
@@ -334,6 +348,38 @@ function RunRetry({ run }: { run: RunVM }) {
     <Card padding={14}>
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
         <Button size="sm" variant="secondary" leftIcon="rotate-ccw" onClick={() => void api.runControl(run.id, "retry")}>Retry</Button>
+      </div>
+    </Card>
+  );
+}
+
+// Run `awaiting`: proses claude hidup dan terblokir menunggu satu keputusan. Satu tombol per
+// opsi; `value` yang dikirim, bukan label. Tak ada opsi yang cocok → Stop, perbaiki brief, Retry.
+function RunAsk({ run }: { run: RunVM }) {
+  // `useState` mendahului early-return: hook tidak boleh dipanggil bersyarat.
+  const [sending, setSending] = React.useState(false);
+  const ask = run.pendingAsk;
+  if (!ask) return null;
+  const answer = (value: string) => async () => {
+    if (sending) return;
+    setSending(true);
+    try { await api.runAnswer(run.id, value); } finally { setSending(false); }
+  };
+  return (
+    <Card padding={20}>
+      <div className="hn-eyebrow" style={{ marginBottom: 6 }}>Menunggu keputusanmu</div>
+      <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600, letterSpacing: "-0.01em", color: "var(--text-strong)", marginBottom: 16 }}>
+        {ask.question}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {ask.options.map((o) => (
+          <div key={o.value} style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <Button size="sm" variant={o.value === ask.default ? "primary" : "secondary"} disabled={sending} onClick={answer(o.value)}>
+              {o.label}
+            </Button>
+            {o.detail && <div style={{ fontSize: 12, color: "var(--text-muted)", paddingTop: 6 }}>{o.detail}</div>}
+          </div>
+        ))}
       </div>
     </Card>
   );
@@ -380,7 +426,8 @@ function RunDetail({ run }: { run: RunVM }) {
         </div>
       )}
       <LogView run={run} />
-      {(run.status === "running" || run.status === "paused") && <RunControls run={run} />}
+      {run.status === "awaiting" && <RunAsk run={run} />}
+      {(run.status === "running" || run.status === "awaiting" || run.status === "paused") && <RunControls run={run} />}
       {run.status === "failed" && <RunRetry run={run} />}
     </div>
   );

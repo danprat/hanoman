@@ -1,4 +1,4 @@
-import { paths, type ProjectView, type Spec, type Trigger, type Setting, type Run } from "@hanoman/shared";
+import { paths, type ProjectView, type Spec, type Trigger, type Setting, type Run, type Ask } from "@hanoman/shared";
 export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 export type TerminalSession = { id: string; projectId: string; runId?: string; cwd: string; exited: boolean };
 async function j<T>(url: string, init?: RequestInit): Promise<T> {
@@ -39,6 +39,9 @@ export const api = {
     j<{ accepted: boolean }>(paths.runControl(id), { method: "POST", ...body({ action }) }),
   runSteer: (id: string, message: string) =>
     j<{ accepted: boolean }>(paths.runSteer(id), { method: "POST", ...body({ message }) }),
+  // SPEC-157 · menjawab Run.pendingAsk. `value` harus salah satu option — server memvalidasinya.
+  runAnswer: (id: string, value: string) =>
+    j<{ accepted: boolean }>(paths.runAnswer(id), { method: "POST", ...body({ value }) }),
   runChanges: (id: string) => j<RunChanges>(paths.runChanges(id)),
   runChangeFile: (id: string, path: string) => j<FilePreview>(paths.runChangeFile(id, path)),
   getDocs: (id: string) => j<{ coverage: number; tree: any[] }>(paths.docs(id)),
@@ -65,6 +68,8 @@ export type RunLiveEvent =
   | { kind: "log"; line: { t: string; s: string } }
   | { kind: "status"; status: string }
   | { kind: "phase"; name: string; state: string }
+  // SPEC-157 · `ask: null` menutup pertanyaan. Lewat SSE, jadi tombolnya muncul tanpa polling.
+  | { kind: "ask"; ask: Ask | null }
   | { kind: "cost"; tokensIn: number; tokensOut: number; costUsd: number };
 
 // Live run stream over SSE (backend: GET /runs/:id/log). Returns an unsubscribe.

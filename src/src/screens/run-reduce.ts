@@ -9,6 +9,9 @@ export function reduceRunEvent(run: RunVM, e: RunLiveEvent): RunVM {
     case "status":return { ...run, status: e.status as RunVM["status"] };
     case "phase": return { ...run, phases: (run.phases as any[]).map((p) => p.name === e.name ? { ...p, state: e.state } : p) };
     case "cost":  return { ...run, tokensIn: String(e.tokensIn), tokensOut: String(e.tokensOut), cost: fmtEstCost(e.costUsd) };
+    // SPEC-157 · tanpa cabang ini `default` menelannya, dan tombol keputusan baru muncul di
+    // poll berikutnya — bukan saat agen bertanya.
+    case "ask":   return { ...run, pendingAsk: e.ask };
     default:      return run;
   }
 }

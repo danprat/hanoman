@@ -40,3 +40,16 @@ describe("duration (SPEC-008)", () => {
     expect(fmtDuration(ms)).toBe("5d");
   });
 });
+
+describe("reduceRunEvent · ask (SPEC-157)", () => {
+  const ASK = { question: "q", options: [{ value: "a", label: "A" }, { value: "b", label: "B" }], default: "a" };
+  const run = { id: "RUN-1", status: "running", log: [], phases: [], pendingAsk: null } as never;
+
+  it("menyimpan pertanyaan yang tiba lewat SSE", () =>
+    expect(reduceRunEvent(run, { kind: "ask", ask: ASK }).pendingAsk).toEqual(ASK));
+
+  it("mengosongkannya saat ask null", () => {
+    const asked = reduceRunEvent(run, { kind: "ask", ask: ASK });
+    expect(reduceRunEvent(asked, { kind: "ask", ask: null }).pendingAsk).toBeNull();
+  });
+});
