@@ -38,7 +38,7 @@
   - `paths.notifications = "/api/notifications"`.
   - `resetDb()` juga `deleteMany` tabel notification.
 
-- [ ] **Step 1: Tambah model ke schema**
+- [x] **Step 1: Tambah model ke schema**
 
 Di `server/prisma/schema.prisma`, setelah model `Setting`:
 
@@ -55,20 +55,22 @@ model Notification {
 }
 ```
 
-- [ ] **Step 2: Buat + terapkan migration (dev) lalu ke DB test**
+- [x] **Step 2: Buat + terapkan migration (deploy, BUKAN dev) lalu ke DB test**
 
-Run:
+⚠️ **Deviasi dari rencana awal (`migrate dev`):** DB `hanoman`/`hanoman_test` dibagi antar-worktree dan sudah memuat migration sibling `20260711120000_add_spec_base_head_sha` yang TIDAK ada di folder worktree ini. `migrate dev` akan mendeteksi drift dan menawarkan **reset** (hapus data + kolom sibling). Juga env sesi menunjuk `DATABASE_URL=hanoman_prod` + `NODE_ENV=production`, jadi tiap perintah prisma WAJIB override env.
+
+Prosedur aman yang dipakai:
 ```bash
+# migration.sql ditulis manual (CREATE TABLE + UNIQUE INDEX), timestamp non-tabrakan:
+#   server/prisma/migrations/20260711140000_add_notification/migration.sql
 cd server
-npx prisma migrate dev --name add_notification    # buat migration.sql + apply ke hanoman + prisma generate
-DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman_test npx prisma migrate deploy
-cd ..
+env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman      npx prisma migrate deploy
+env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman_test npx prisma migrate deploy
+env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman      npx prisma generate
 ```
-Expected: migration baru muncul di `server/prisma/migrations/`, `@prisma/client` ter-generate (kini punya `prisma.notification`), DB `hanoman` **dan** `hanoman_test` punya tabel `Notification`.
+Expected: tabel `Notification` ada di `hanoman` **dan** `hanoman_test`; `@prisma/client` punya `prisma.notification`. `migrate deploy` hanya menerapkan migration lokal yang pending (aditif) — tak menyentuh tabel lain, tak reset. (Catatan: satu deploy tanpa override sempat masuk ke `hanoman_prod` — aditif, tak merusak; dibiarkan karena tabel ini memang akan ikut rilis ke prod.)
 
-Catatan: Postgres jalan di Docker; DATABASE_URL menunjuk `localhost:5432` (prisma lewat TCP, bukan unix socket).
-
-- [ ] **Step 3: Tipe shared**
+- [x] **Step 3: Tipe shared**
 
 Di `shared/src/entities.ts`, setelah `zSetting`/`type Setting`:
 
@@ -88,7 +90,7 @@ Di `shared/src/api.ts`, dalam `paths`, setelah `settings`:
   notifications: `${API}/notifications`,
 ```
 
-- [ ] **Step 4: resetDb bersihkan notification**
+- [x] **Step 4: resetDb bersihkan notification**
 
 Di `server/test/factory.ts`, `resetDb()` — tambahkan ke transaksi `deleteMany` (Notification tak punya FK ke tabel lain, urutan bebas):
 
@@ -102,7 +104,7 @@ export async function resetDb(): Promise<void> {
 }
 ```
 
-- [ ] **Step 5: Tulis test yang gagal**
+- [x] **Step 5: Tulis test yang gagal**
 
 `server/test/notifications.test.ts`:
 
@@ -131,12 +133,12 @@ describe("Notification model", () => {
 });
 ```
 
-- [ ] **Step 6: Jalankan, pastikan lulus**
+- [x] **Step 6: Jalankan, pastikan lulus**
 
 Run: `env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman pnpm --filter ./server exec vitest run notifications.test`
 Expected: 2 PASS. (vitest menurunkan `hanoman_test` dari DATABASE_URL.)
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/prisma/schema.prisma server/prisma/migrations shared/src/entities.ts shared/src/api.ts server/test/factory.ts server/test/notifications.test.ts

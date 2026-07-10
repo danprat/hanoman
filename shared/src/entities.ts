@@ -38,6 +38,14 @@ export const zSetting = z.object({
 });
 export type Setting = z.infer<typeof zSetting>;
 
+// SPEC-180 · notifikasi backlog selesai. Tanggal = string ISO (JSON). readAt null = unread.
+export const zNotification = z.object({
+  id: z.string(), specId: z.string(), title: z.string(),
+  projectId: z.string().nullable(),
+  createdAt: z.string(), readAt: z.string().nullable(),
+});
+export type Notification = z.infer<typeof zNotification>;
+
 export const zDocFile = z.object({
   projectId: z.string(), path: z.string(), category: z.string(),
   content: z.string(), linked: z.boolean(), root: z.boolean() });

@@ -10,6 +10,7 @@ export const paths = {
   specReview: (id: string) => `${API}/specs/${id}/review`,
   specReviewFile: (id: string, path: string) => `${API}/specs/${id}/review/${path}`,
   settings: `${API}/settings`,
+  notifications: `${API}/notifications`,
   docs: (id: string) => `${API}/projects/${id}/docs`,
   docFile: (id: string, path: string) => `${API}/projects/${id}/docs/${path}`,
   fsBrowse: (path?: string) => `${API}/fs/browse${path ? `?path=${encodeURIComponent(path)}` : ""}`,
