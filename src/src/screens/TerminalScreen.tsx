@@ -103,23 +103,36 @@ export function TerminalScreen({ projects }: { projects: { id: string; name: str
       ) : (
         <div style={{
           flex: 1, minHeight: 0, display: "grid", gap: 8,
-          gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))`,
-          gridTemplateRows: `repeat(${layout.rows}, minmax(0, 1fr))`,
+          gridTemplateColumns: `18px repeat(${layout.cols}, minmax(0, 1fr))`,
+          gridTemplateRows: `16px repeat(${layout.rows}, minmax(0, 1fr))`,
         }}>
-          {layout.cells.map((id, idx) => {
-            const s = id ? byId(id) : null;
-            return (
-              <div key={id ?? `empty-${idx}`} style={{
-                minHeight: 0, minWidth: 0, display: "flex", flexDirection: "column",
-                border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", overflow: "hidden",
-              }}>
-                {s
-                  ? <Cell session={s} nameOf={nameOf} onClose={() => void close(s.id)}
-                      onDetach={() => detach(s.id)} onExit={() => markExited(s.id)} />
-                  : <EmptyCell unplaced={unplaced} nameOf={nameOf} onPick={(sid) => place(idx, sid)} />}
-              </div>
-            );
-          })}
+          <div />{/* pojok kiri-atas: perpotongan kedua gutter */}
+          {Array.from({ length: layout.cols }, (_, c) => (
+            <GutterX key={`col-${c}`} label={`Tutup kolom ${c + 1}`} disabled={layout.cols === 1}
+              onClick={() => setWs((w) => W.mapActiveLayout(w, (l) => L.removeColumn(l, c)))} />
+          ))}
+          {Array.from({ length: layout.rows }, (_, r) => (
+            <React.Fragment key={`row-${r}`}>
+              <GutterX label={`Tutup baris ${r + 1}`} disabled={layout.rows === 1}
+                onClick={() => setWs((w) => W.mapActiveLayout(w, (l) => L.removeRow(l, r)))} />
+              {Array.from({ length: layout.cols }, (_, c) => {
+                const idx = r * layout.cols + c;
+                const id = layout.cells[idx] ?? null;
+                const s = id ? byId(id) : null;
+                return (
+                  <div key={id ?? `empty-${idx}`} style={{
+                    minHeight: 0, minWidth: 0, display: "flex", flexDirection: "column",
+                    border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", overflow: "hidden",
+                  }}>
+                    {s
+                      ? <Cell session={s} nameOf={nameOf} onClose={() => void close(s.id)}
+                          onDetach={() => detach(s.id)} onExit={() => markExited(s.id)} />
+                      : <EmptyCell unplaced={unplaced} nameOf={nameOf} onPick={(sid) => place(idx, sid)} />}
+                  </div>
+                );
+              })}
+            </React.Fragment>
+          ))}
         </div>
       )}
     </div>
@@ -176,6 +189,18 @@ function GroupTabs({ ws, onSelect, onAdd, onRename, onRemove }: {
       <button aria-label="Grup baru" title="Grup baru" onClick={onAdd}
         style={{ all: "unset", cursor: "pointer", padding: "3px 8px", color: "var(--text-subtle)", fontSize: 12 }}>+</button>
     </div>
+  );
+}
+
+// Menutup kolom/baris TIDAK mematikan sesi — selnya lenyap, sesinya jatuh ke tray lewat
+// placedIds. Karena itu tak ada konfirmasi, sama seperti "lepas".
+function GutterX({ label, disabled, onClick }: { label: string; disabled: boolean; onClick: () => void }) {
+  return (
+    <button type="button" aria-label={label} title={disabled ? "Grid tak boleh menyusut ke nol" : label}
+      disabled={disabled} onClick={onClick}
+      style={{ all: "unset", display: "grid", placeItems: "center", fontSize: 11, lineHeight: 1,
+        color: "var(--text-subtle)", opacity: disabled ? 0.3 : 1,
+        cursor: disabled ? "not-allowed" : "pointer" }}>×</button>
   );
 }
 

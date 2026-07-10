@@ -187,3 +187,59 @@ describe("TerminalScreen (grup)", () => {
     expect(screen.queryByText("aaaa1111")).toBeNull();   // grup lain tak dirender, juga tak di tray
   });
 });
+
+describe("TerminalScreen (tutup kolom/baris)", () => {
+  it("menutup kolom melepas sesinya ke tray tanpa mematikannya", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 2, cells: [null, "aaaa1111"] }));
+    listTerminals.mockResolvedValue([{ id: "aaaa1111", projectId: "p1", cwd: "/repo", exited: false }]);
+    render(<TerminalScreen projects={projects} />);
+    await waitFor(() => expect(screen.getByTestId("pane")).toHaveTextContent("aaaa1111"));
+
+    fireEvent.click(screen.getByLabelText("Tutup kolom 2"));
+
+    await waitFor(() => expect(screen.queryByTestId("pane")).toBeNull());
+    expect(screen.getByRole("button", { name: /aaaa11/ })).toBeInTheDocument();  // ada di tray
+    expect(deleteTerminal).not.toHaveBeenCalled();                               // sesi tetap hidup
+  });
+
+  it("menutup baris melepas sesinya ke tray tanpa mematikannya", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 2, cols: 1, cells: [null, "aaaa1111"] }));
+    listTerminals.mockResolvedValue([{ id: "aaaa1111", projectId: "p1", cwd: "/repo", exited: false }]);
+    render(<TerminalScreen projects={projects} />);
+    await waitFor(() => expect(screen.getByTestId("pane")).toHaveTextContent("aaaa1111"));
+
+    fireEvent.click(screen.getByLabelText("Tutup baris 2"));
+
+    await waitFor(() => expect(screen.queryByTestId("pane")).toBeNull());
+    expect(screen.getByRole("button", { name: /aaaa11/ })).toBeInTheDocument();
+    expect(deleteTerminal).not.toHaveBeenCalled();
+  });
+
+  it("× kolom & baris nonaktif pada grid 1×1 (tak boleh menyusut ke nol)", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["aaaa1111"] }));
+    listTerminals.mockResolvedValue([{ id: "aaaa1111", projectId: "p1", cwd: "/repo", exited: false }]);
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByTestId("pane");
+    expect(screen.getByLabelText("Tutup kolom 1")).toBeDisabled();
+    expect(screen.getByLabelText("Tutup baris 1")).toBeDisabled();
+  });
+
+  it("menutup kolom hanya mengubah grid grup aktif", async () => {
+    localStorage.setItem(WKEY, JSON.stringify({
+      active: "g2",
+      groups: [
+        { id: "g1", name: "Backlog", layout: { rows: 1, cols: 2, cells: [null, null] } },
+        { id: "g2", name: "Debug", layout: { rows: 1, cols: 2, cells: [null, null] } },
+      ],
+    }));
+    listTerminals.mockResolvedValue([]);
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByRole("tab", { name: "Debug" });
+
+    fireEvent.click(screen.getByLabelText("Tutup kolom 2"));
+    await waitFor(() => expect(screen.queryByLabelText("Tutup kolom 2")).toBeNull());
+
+    fireEvent.click(screen.getByRole("tab", { name: "Backlog" }));
+    expect(await screen.findByLabelText("Tutup kolom 2")).toBeInTheDocument();  // grup lain utuh
+  });
+});

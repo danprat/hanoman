@@ -111,7 +111,9 @@ menavigasi.
 
 ## Terminal (sesi Claude Code interaktif)
 `TerminalScreen` menampilkan sesi dalam **grid `rows × cols`** (CSS Grid): `+ Kolom` menambah
-kolom (kiri↔kanan), `+ Baris` menambah baris (atas↔bawah). Tiap sel me-mount satu `TerminalPane`
+kolom (kiri↔kanan), `+ Baris` menambah baris (atas↔bawah); tiap kolom dan baris punya `×` di gutter
+untuk menutupnya (grid tak boleh menyusut di bawah 1×1). Menutup kolom/baris **tidak** mematikan
+sesi — selnya lenyap dan sesinya jatuh ke tray, karena itu tak ada konfirmasi. Tiap sel me-mount satu `TerminalPane`
 yang membuka WebSocket ke `/api/terminal/sessions/:id/ws`; sel kosong menampilkan picker sesi yang
 belum tertempat, dan sesi yang belum di grid duduk di **tray**. Satu sesi menempati **paling banyak
 satu sel** (menjaga resize tmux tak berkedip). Dua aksi per sel: **Lepas** (unbind, sesi tetap
