@@ -9,7 +9,7 @@ Kontrak operasional untuk hanoman + Claude Code.
   Audit→systematic-debugging, Plan→writing-plans, Execute→executing-plans + TDD +
   verification-before-completion. Objective/Spec adalah keluaran brainstorming.
 - **From-scratch:** brainstorm → kunci objective → `hanoman scaffold` seluruh doc index.
-- **Existing:** `hanoman reverse --dir <path>` untuk menyusun docs dari codebase.
+- **Existing:** tombol **Reverse docs** di layar project — sesi interaktif menyusun docs dari codebase (SPEC-166, ADR-0026): Scan → Docs teknis → Wawancara → Konvensi & index → Serah terima, hasil di branch `reverse-docs`.
 - Guardrail Source of Truth dicabut (SPEC-160, ADR-0023) — lihat bagian di bawah.
 - Setiap run di worktree terpisah; commit + push ke `branchTo`, perbarui docs yang tersentuh.
 

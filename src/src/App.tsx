@@ -372,6 +372,19 @@ export default function App() {
     }
   }
 
+  // SPEC-166 · Reverse docs: sesi interaktif menyusun Source of Truth dari kode. Fase
+  // Wawancara hidup di layar Terminal — di sanalah manusia menjawab agen.
+  async function reverseDocs(p: ProjectVM) {
+    try {
+      const { id } = await api.reverseDocs(p.id);
+      setSection("terminal");
+      showToast(p.id + " · reverse docs · sesi " + id + " dimulai", "info", "radar");
+    } catch (e) {
+      const noRepo = e instanceof ApiError && (e.status === 422 || e.status === 400);
+      showToast(p.id + " · gagal mulai reverse" + (noRepo ? " · project belum punya repoDir" : ""), "warn", "x-circle");
+    }
+  }
+
   // SPEC-143. Hanya menentukan basis run BERIKUTNYA; run yang sudah jalan diubah dari layar Runs.
   async function editBranch(spec: Spec, branchFrom: string | null) {
     try {
@@ -443,6 +456,7 @@ export default function App() {
               onGotoDocs={() => setSection("docs")}
               onGotoTerminal={() => { setProjectFilter(proj.id); setSection("terminal"); }}
               onGotoBacklog={() => { setProjectFilter(proj.id); setSection("backlog"); }}
+              onReverse={proj.kind === "existing" && proj.repoDir ? () => reverseDocs(proj) : undefined}
               onDelete={() => deleteProject(proj)} />
           : <StateBlock kind="empty" icon="box" title="Belum ada project"
               hint="Mulai dari nol atau tambahkan codebase yang sudah ada."

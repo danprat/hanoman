@@ -34,9 +34,9 @@ function Door({ icon, title, hint, onClick }:
   );
 }
 
-export function ProjectDetailScreen({ p, onEdit, onGotoDocs, onGotoTerminal, onGotoBacklog, onDelete }:
+export function ProjectDetailScreen({ p, onEdit, onGotoDocs, onGotoTerminal, onGotoBacklog, onDelete, onReverse }:
   { p: ProjectVM; onEdit: () => void; onGotoDocs: () => void; onGotoTerminal: () => void;
-    onGotoBacklog: () => void; onDelete: () => void }) {
+    onGotoBacklog: () => void; onDelete: () => void; onReverse?: () => void }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <Card>
@@ -70,10 +70,11 @@ export function ProjectDetailScreen({ p, onEdit, onGotoDocs, onGotoTerminal, onG
         </div>
       </Card>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${onReverse ? 4 : 3}, 1fr)`, gap: 12 }}>
         <Door icon="book-open" title="Source of Truth" hint="baca & sunting docs" onClick={onGotoDocs} />
         <Door icon="terminal" title="Buka terminal" hint="sesi claude project ini" onClick={onGotoTerminal} />
         <Door icon="list-checks" title="Lihat backlog" hint={`${p.backlog} spec terbuka`} onClick={onGotoBacklog} />
+        {onReverse && <Door icon="radar" title="Reverse docs" hint="susun Source of Truth dari kode" onClick={onReverse} />}
       </div>
     </div>
   );

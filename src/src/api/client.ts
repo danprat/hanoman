@@ -40,6 +40,9 @@ export const api = {
   // SPEC-162 · sesi claude interaktif untuk sebuah backlog item, di worktree-nya sendiri.
   startSession: (b: { spec: string; flow: Flow }) =>
     j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body(b) }),
+  // SPEC-166 · reverse: sesi project-level menyusun Source of Truth dari kode, di worktree-nya.
+  reverseDocs: (project: string) =>
+    j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, flow: "reverse" }) }),
   deleteTerminal: (id: string) => j<void>(paths.terminalSession(id), { method: "DELETE" }),
   // SPEC-164 · modul VPS
   listVps: () => j<VpsView[]>(paths.vps),
