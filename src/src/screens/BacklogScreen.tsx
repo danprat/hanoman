@@ -67,10 +67,12 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SpecDetail({ spec, onClose, onEditBranch }:
-  { spec: Spec | null; onClose: () => void; onEditBranch?: (s: Spec, b: string | null) => void }) {
+function SpecDetail({ spec, onClose, onEditBranch, onRevertStage }:
+  { spec: Spec | null; onClose: () => void; onEditBranch?: (s: Spec, b: string | null) => void;
+    onRevertStage?: (s: Spec, target: string, confirmDelete?: boolean) => Promise<any> }) {
   // Hook HARUS mendahului early-return `if (!spec)` — rules-of-hooks.
   const [branches, setBranches] = React.useState<string[]>([]);
+  const [confirm, setConfirm] = React.useState<{ target: string; files: string[] } | null>(null);
   const projectId = spec?.projectId;
   React.useEffect(() => {
     if (!projectId) { setBranches([]); return; }
@@ -80,7 +82,19 @@ function SpecDetail({ spec, onClose, onEditBranch }:
       .catch(() => { if (alive) setBranches([]); });
     return () => { alive = false; };
   }, [projectId]);
+  // SPEC-167 · revert backward-only. Dry-run mengembalikan { pending } → tampilkan dialog.
+  async function pickStage(target: string) {
+    if (!spec || !onRevertStage) return;
+    const res = await onRevertStage(spec, target);
+    if (res && res.pending) setConfirm({ target, files: res.wouldDelete });
+  }
+  async function confirmRevert() {
+    if (!spec || !onRevertStage || !confirm) return;
+    await onRevertStage(spec, confirm.target, true);
+    setConfirm(null); onClose();
+  }
   if (!spec) return null;
+  const earlier = B_STAGES.slice(0, bStageIndex(spec.stage));
   const qa = spec.source === "qa";
   const p = (spec.payload || {}) as Record<string, string>;
   const fields = qa ? QA_FIELDS : BRIEF_FIELDS;
@@ -94,7 +108,18 @@ function SpecDetail({ spec, onClose, onEditBranch }:
         </Badge>
         <Badge tone="neutral" size="sm">{spec.author}</Badge>
       </div>
-      <div style={{ marginBottom: 18 }}><StageBar stage={spec.stage} /></div>
+      <div style={{ marginBottom: 18 }}>
+        <StageBar stage={spec.stage} />
+        {onRevertStage && earlier.length > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <div className="hn-eyebrow" style={{ marginBottom: 4 }}>Kembalikan stage</div>
+            <Select size="sm" aria-label="Kembalikan stage" value=""
+              onChange={(e) => e.target.value && pickStage(e.target.value)}
+              options={[{ value: "", label: "Pilih stage lebih awal…" }]
+                .concat(earlier.map((s) => ({ value: s.key, label: "← " + s.label })))} />
+          </div>
+        )}
+      </div>
       <DetailRow label="Objective" value={spec.objective} />
       {/* SPEC-143 · dapat diubah selama item masih di backlog; hanya menentukan basis run berikutnya. */}
       <div style={{ marginBottom: 14 }}>
@@ -104,6 +129,22 @@ function SpecDetail({ spec, onClose, onEditBranch }:
           options={branchOptions(branches)} />
       </div>
       {fields.map(([k, label]) => <DetailRow key={k} label={label} value={p[k] ?? ""} />)}
+      {confirm && (
+        <Modal open title="Kembalikan stage & hapus artefak" icon="rotate-ccw"
+          eyebrow={spec.id + " → " + confirm.target} onClose={() => setConfirm(null)}>
+          <div style={{ fontSize: 13.5, color: "var(--text-strong)", marginBottom: 12 }}>
+            {confirm.files.length} berkas docs akan dihapus dari disk (kode & commit tak disentuh):
+          </div>
+          <ul style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-muted)",
+            marginBottom: 16, paddingLeft: 18 }}>
+            {confirm.files.map((f) => <li key={f}>{f}</li>)}
+          </ul>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <Button size="sm" variant="secondary" onClick={() => setConfirm(null)}>Batal</Button>
+            <Button size="sm" variant="primary" leftIcon="trash-2" onClick={confirmRevert}>Hapus & kembalikan</Button>
+          </div>
+        </Modal>
+      )}
     </Modal>
   );
 }
@@ -338,11 +379,12 @@ const VIEWS = [
   { value: "board", label: "Board", icon: "kanban" },
 ];
 
-export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onNew, onEditBranch, projectFilter, onProjectFilter }:
+export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onNew, onEditBranch, onRevertStage, projectFilter, onProjectFilter }:
   { backlog: Spec[]; projects: ProjectVM[]; pageSize?: number;
     onStart?: (s: Spec) => void; activeSpecs?: Set<string>;
     onDelete?: (s: Spec) => void; onOpenRun?: (s: Spec) => void; onNew?: () => void;
     onEditBranch?: (s: Spec, b: string | null) => void;
+    onRevertStage?: (s: Spec, target: string, confirmDelete?: boolean) => Promise<any>;
     projectFilter: string; onProjectFilter: (id: string) => void }) {
   const [tab, setTab] = React.useState("all");
   const [view, setView] = React.useState("grid");
@@ -404,7 +446,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
         </>
       )}
       <SpecDetail spec={backlog.find((s) => s.id === detailId) || null} onClose={() => setDetailId(null)}
-        onEditBranch={onEditBranch} />
+        onEditBranch={onEditBranch} onRevertStage={onRevertStage} />
     </div>
   );
 }

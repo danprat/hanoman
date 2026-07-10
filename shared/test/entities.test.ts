@@ -32,11 +32,18 @@ describe("schemas", () => {
     expect(zCreateSpec.parse(b).branchFrom).toBeUndefined();
     expect(zCreateSpec.parse({ ...b, branchFrom: "dev" }).branchFrom).toBe("dev");
   });
-  // nullable, bukan optional: null = "kosongkan", dan itu harus terbedakan dari "jangan sentuh".
-  it("patch-spec: null clears the branch, an absent key is not a valid patch", () => {
+  // branchFrom: null = "kosongkan", undefined = "jangan sentuh". Sejak SPEC-167 branchFrom
+  // opsional (patch bisa hanya menyentuh stage), jadi `{}` sah sebagai no-op.
+  it("patch-spec: null clears the branch, empty string invalid, absent key is a no-op patch", () => {
     expect(zPatchSpec.parse({ branchFrom: null }).branchFrom).toBeNull();
     expect(zPatchSpec.safeParse({ branchFrom: "" }).success).toBe(false);
-    expect(zPatchSpec.safeParse({}).success).toBe(false);
+    expect(zPatchSpec.safeParse({}).success).toBe(true);
+  });
+  // SPEC-167 · stage revert: hanya nilai zStage yang valid; confirmDelete opsional.
+  it("patch-spec: stage terbatas ke enum zStage; confirmDelete opsional", () => {
+    expect(zPatchSpec.parse({ stage: "objective" }).stage).toBe("objective");
+    expect(zPatchSpec.parse({ stage: "planned", confirmDelete: true }).confirmDelete).toBe(true);
+    expect(zPatchSpec.safeParse({ stage: "hantu" }).success).toBe(false);
   });
   it("project view adds derived fields", () => {
     const v = zProjectView.parse({ id: "a", name: "a", desc: "", kind: "existing", docStatus: "ok",

@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { buildApp } from "../src/app";
-import { resetDb, makeProject, makeSpec, makeRepoWithBranches } from "./factory";
+import { resetDb, makeProject, makeSpec, makeRepoWithBranches, makeTempRepo } from "./factory";
 const app = buildApp();
 const brief = { context: "c", outcome: "o", constraints: "", priority: "sedang" as const };
+let artifactRepo: string;
 beforeAll(async () => {
   await resetDb();
   // repo nyata: branch `main` + `dev`. Daftar branch-nya adalah whitelist validasi (SPEC-143).
@@ -10,6 +11,13 @@ beforeAll(async () => {
   await makeSpec({ id: "SPEC-140", projectId: "p1", stage: "brainstorming" });
   await makeSpec({ id: "SPEC-137", projectId: "p1", stage: "done" });
   await makeSpec({ id: "SPEC-142", projectId: "p1", stage: "planned" });
+  // SPEC-167 · project + spec `done` khusus uji revert-dengan-artefak.
+  artifactRepo = makeTempRepo({
+    "docs/superpowers/specs/2026-07-11-x-spec-200-design.md": "s",
+    "docs/superpowers/plans/2026-07-11-x-spec-200.md": "p",
+  });
+  await makeProject({ id: "p2", repoDir: artifactRepo });
+  await makeSpec({ id: "SPEC-200", projectId: "p2", stage: "done" });
 });
 describe("specs routes", () => {
   it("filters by project", async () => {
@@ -65,6 +73,47 @@ describe("specs routes", () => {
   it("PATCH 404s on an unknown spec", async () => {
     const res = await app.inject({ method: "PATCH", url: "/api/specs/SPEC-999", payload: { branchFrom: null } });
     expect(res.statusCode).toBe(404);
+  });
+
+  // SPEC-167 — revert stage backward-only
+  it("reverts stage backward (no artefak) → 200 + stage baru", async () => {
+    const res = await app.inject({ method: "PATCH", url: "/api/specs/SPEC-142", payload: { stage: "objective" } });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().stage).toBe("objective");
+  });
+  it("rejects a forward/same stage with 422", async () => {
+    const up = await app.inject({ method: "PATCH", url: "/api/specs/SPEC-140", payload: { stage: "planned" } });
+    expect(up.statusCode).toBe(422);
+    const same = await app.inject({ method: "PATCH", url: "/api/specs/SPEC-137", payload: { stage: "done" } });
+    expect(same.statusCode).toBe(422);
+  });
+  it("400s on an unknown stage value", async () => {
+    const res = await app.inject({ method: "PATCH", url: "/api/specs/SPEC-137", payload: { stage: "hantu" } });
+    expect(res.statusCode).toBe(400);
+  });
+  it("dry-run: artefak ada tanpa confirmDelete → pending + wouldDelete, tak mengubah apa pun", async () => {
+    const res = await app.inject({ method: "PATCH", url: "/api/specs/SPEC-200", payload: { stage: "objective" } });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().pending).toBe(true);
+    expect(res.json().wouldDelete.sort()).toEqual([
+      "docs/superpowers/plans/2026-07-11-x-spec-200.md",
+      "docs/superpowers/specs/2026-07-11-x-spec-200-design.md",
+    ]);
+    const after = await app.inject({ url: "/api/specs?project=p2" });
+    expect(after.json().find((s: any) => s.id === "SPEC-200").stage).toBe("done");
+    const { existsSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    expect(existsSync(join(artifactRepo, "docs/superpowers/plans/2026-07-11-x-spec-200.md"))).toBe(true);
+  });
+  it("execute: confirmDelete true → stage berubah + berkas terhapus dari disk", async () => {
+    const res = await app.inject({ method: "PATCH", url: "/api/specs/SPEC-200",
+      payload: { stage: "objective", confirmDelete: true } });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().stage).toBe("objective");
+    const { existsSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    expect(existsSync(join(artifactRepo, "docs/superpowers/plans/2026-07-11-x-spec-200.md"))).toBe(false);
+    expect(existsSync(join(artifactRepo, "docs/superpowers/specs/2026-07-11-x-spec-200-design.md"))).toBe(false);
   });
 
   it("deletes a spec", async () => {
