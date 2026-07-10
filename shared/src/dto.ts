@@ -53,6 +53,9 @@ export const zCreateVps = z.object({
   user: z.string().min(1).regex(USER_RE),
   port: z.number().int().min(1).max(65535).default(22),
   keyPath: z.string().min(1).optional(),
+  // SPEC-165 · transien: dipakai sekali untuk memasang key hanoman, lalu dibuang.
+  // TIDAK PERNAH disimpan, di-log, atau dikembalikan. Bila diisi, `keyPath` diabaikan.
+  password: z.string().min(1).optional(),
 });
 // Tanpa default: PATCH {name} tak boleh diam-diam mengembalikan port ke 22.
 export const zPatchVps = z.object({
@@ -60,6 +63,7 @@ export const zPatchVps = z.object({
   user: z.string().min(1).regex(USER_RE),
   port: z.number().int().min(1).max(65535),
   keyPath: z.string().min(1).nullable(), // null = kembali ke key default server
+  password: z.string().min(1),           // SPEC-165 · diisi = bootstrap ulang
 }).partial();
 export const zVpsCheck = z.object({
   check: z.string(), status: z.enum(["pass", "fail", "warn"]), detail: z.string() });
