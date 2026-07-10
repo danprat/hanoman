@@ -641,7 +641,7 @@ git commit -m "feat(spec-158): tempatkan sesi hidup (picker + tray) & aksi Lepas
 **Files:**
 - Modify: `internal/docs/frontend/frontend-implementation.md` (bagian Terminal)
 
-- [ ] **Step 1: Perbarui bagian Terminal di frontend-implementation.md**
+- [x] **Step 1: Perbarui bagian Terminal di frontend-implementation.md**
 
 Ganti paragraf di bawah `## Terminal (sesi Claude Code interaktif)` (baris ~113-119) menjadi:
 
@@ -661,13 +661,13 @@ demi byte. Terminal di `RunsScreen` adalah hal yang berbeda: interpreter perinta
 dipakai apa adanya (SPEC-158).
 ```
 
-- [ ] **Step 2: Guardrail Source of Truth**
+- [x] **Step 2: Guardrail Source of Truth**
 
 Run: `pnpm --filter ./cli build && node cli/dist/hanoman.js docs verify`
 Expected: `Source of Truth clean · coverage 100%`. (Bila merah karena `src/` berubah tanpa doc —
 pastikan Step 1 tersimpan.)
 
-- [ ] **Step 3: Suite penuh + typecheck + build web**
+- [x] **Step 3: Suite penuh + typecheck + build web**
 
 ```bash
 pnpm test                       # shared + server + src + runner + cli (vitest.workspace.ts)
@@ -676,7 +676,15 @@ pnpm --filter ./src build       # tsc && vite build — pastikan grid mem-build 
 ```
 Expected: semua PASS.
 
-- [ ] **Step 4: Smoke lokal nyata (CLAUDE.md) — grid hidup di browser**
+> **Catatan Execute.** Worktree ini butuh `prisma generate` sekali (Prisma Client belum
+> tergenerate) sebelum suite server bisa jalan sama sekali — tak terkait SPEC-158. Dua run
+> pertama `pnpm test` gagal acak di `triggers-settings.route.test.ts` lalu `terminal.route.test.ts`
+> dengan kegagalan **berbeda** tiap kali; terverifikasi kontensi eksternal, bukan regresi:
+> sesi tmux live lain (`hanoman-c5ff8c21`, socket default `hanoman`) sedang berjalan di mesin yang
+> sama saat suite jalan. Run ketiga: **507 passed | 3 skipped**, bersih. Nol file `server/**`
+> tersentuh sepanjang SPEC-158 — kegagalan itu tak mungkin berasal dari perubahan ini.
+
+- [x] **Step 4: Smoke lokal nyata (CLAUDE.md) — grid hidup di browser**
 
 RTL me-mock `TerminalPane`, jadi yang **belum** terbukti adalah beberapa xterm hidup berdampingan.
 Fitur ini tak menambah endpoint — verifikasinya di UI, bukan `curl`. Boot dengan DB scratch (feature
@@ -710,7 +718,41 @@ Bersihkan: hentikan server & Vite, `tmux -L smoke158 kill-server`, `DROP DATABAS
 
 > **Jangan `POST /runs`** saat smoke bila ada worker dev hidup — itu mengeksekusi run background.
 
-- [ ] **Step 5: Commit**
+> **Deviasi Execute — dijalankan lewat headless Chromium (Playwright), bukan browser manusia.**
+> Tak ada `chromium-cli`/browser interaktif di sesi ini; `playwright` (v1.59.1, sudah terpasang
+> global di `/opt/homebrew/lib/node_modules/playwright`, Chromium sudah ter-download) dipakai
+> lewat skrip driver sekali-pakai — bukan sekadar `curl`, karena yang diverifikasi adalah dua
+> `xterm` hidup berdampingan, sesuatu yang cuma kelihatan lewat rendering nyata.
+>
+> **Perbaikan mekanis yang dibutuhkan, di luar SPEC-158:**
+> - Background job (`&` + `nohup`) mati begitu tool call berikutnya berjalan, sekalipun `nohup` —
+>   server/Vite harus di-boot lewat `run_in_background` tool, bukan `&` shell biasa.
+> - `HANOMAN_CLAUDE_BIN=/bin/bash` salah pilihan: bash membaca `--dangerously-skip-permissions`
+>   sebagai opsi tak dikenal dan keluar (exit 2) seketika, semua pane langsung "berakhir". Dipakai
+>   `server/test/fixtures/fake-claude.sh` (fixture repo yang sudah ada, dipakai `terminal.route.test.ts`)
+>   — mencetak argv lalu `exec cat`, sehingga pane tetap hidup dan meng-echo ketikan.
+> - `vite.config.ts` men-hardcode proxy `/api` ke `:8787` — port itu sudah dipakai instance hanoman
+>   lain yang hidup (dikonfirmasi `lsof` + memori sesi). Diedit sementara ke `:8850` (port server
+>   smoke), diuji, **lalu dikembalikan persis semula (`git checkout --`) sebelum Step 5** — tak
+>   pernah masuk commit.
+> - Reload penuh membawa app kembali ke screen **Overview** (tak ada URL routing per-screen) — ini
+>   bukan bug SPEC-158; skenario "reload lalu grid kembali" diuji dengan klik "Terminal" lagi
+>   setelah reload, persis seperti pengguna asli akan lakukan.
+> - Socket tmux default (`hanoman`) sedang dipegang sesi live lain di mesin ini
+>   (`hanoman-c5ff8c21`) — smoke **wajib** `HANOMAN_TMUX_SOCKET=smoke158` supaya tak pernah
+>   menyentuhnya. Dikonfirmasi utuh (`tmux -L hanoman list-sessions`) sebelum dan sesudah.
+>
+> **Hasil, seluruh 8 baris tabel di atas diverifikasi lewat screenshot nyata:**
+> baris 1 (`201`), baris 2 (grid 1×2), baris 3 (dua pane `fake-claude.sh` berdampingan — mengetik
+> `echo FIRST_PANE` di pane kiri dan `echo SECOND_PANE` di pane kanan, tiap teks **hanya** muncul di
+> pane yang dituju), baris 4 (reload + klik "Terminal" → kedua pane tersambung ulang **dengan**
+> scrollback lengkapnya, dari `localStorage` + sesi tmux yang selamat), baris 5 (`Lepas` mengosongkan
+> sel, sesi pindah ke tray, tetap hidup), baris 6 (klik chip tray menempati sel kosong lagi), baris 7
+> (`×` mematikan sesi, hilang dari tray **dan** grid), baris 8 (`+ Baris` menambah baris kedua kosong,
+> sesi sisa ditempatkan). **Nol console/page error** di seluruh alur. Screenshot & skrip driver hidup
+> di `/tmp` (di luar repo), bukan bagian dari commit.
+
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/docs/frontend/frontend-implementation.md
