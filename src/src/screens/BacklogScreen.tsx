@@ -67,9 +67,10 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SpecDetail({ spec, onClose, onEditBranch, onRevertStage }:
+function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview }:
   { spec: Spec | null; onClose: () => void; onEditBranch?: (s: Spec, b: string | null) => void;
-    onRevertStage?: (s: Spec, target: string, confirmDelete?: boolean) => Promise<any> }) {
+    onRevertStage?: (s: Spec, target: string, confirmDelete?: boolean) => Promise<any>;
+    onOpenReview?: (s: Spec) => void }) {
   // Hook HARUS mendahului early-return `if (!spec)` — rules-of-hooks.
   const [branches, setBranches] = React.useState<string[]>([]);
   const [confirm, setConfirm] = React.useState<{ target: string; files: string[] } | null>(null);
@@ -101,12 +102,18 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage }:
   return (
     <Modal open title={spec.title} eyebrow={spec.id + " · " + spec.projectId}
       icon={qa ? "bug" : "lightbulb"} onClose={onClose}>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
         <Badge tone={qa ? "err" : "brass"} size="sm">{qa ? "QA finding" : "feature brief"}</Badge>
         <Badge tone={(B_PRIO[spec.priority] || B_PRIO.sedang!).tone} size="sm" variant="outline">
           {(B_PRIO[spec.priority] || B_PRIO.sedang!).label}
         </Badge>
         <Badge tone="neutral" size="sm">{spec.author}</Badge>
+        <span style={{ flex: 1 }} />
+        {/* SPEC-171 · buka layar review all files + file changed dari worktree. */}
+        {onOpenReview && (
+          <Button size="sm" variant="secondary" leftIcon="git-compare"
+            onClick={() => { onOpenReview(spec); onClose(); }}>Review perubahan</Button>
+        )}
       </div>
       <div style={{ marginBottom: 18 }}>
         <StageBar stage={spec.stage} />
@@ -151,11 +158,16 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage }:
 
 /* Aksi per-spec. Dipakai grid, list, dan board — satu-satunya jalan keyboard ke
    "mulai sesi", jadi board tetap bisa dipakai tanpa drag. */
-function SpecActions({ spec, onStart, onDelete, onOpenRun, running }:
+function SpecActions({ spec, onStart, onDelete, onOpenRun, onOpenReview, running }:
   { spec: Spec; onStart?: (s: Spec) => void; onDelete?: (s: Spec) => void;
-    onOpenRun?: (s: Spec) => void; running?: boolean }) {
+    onOpenRun?: (s: Spec) => void; onOpenReview?: (s: Spec) => void; running?: boolean }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      {/* SPEC-171 · review all files + file changed dari worktree. Berguna kapan pun
+          worktree ada, jadi tampil di semua stage. */}
+      {onOpenReview && (
+        <Button size="sm" variant="ghost" leftIcon="git-compare" onClick={() => onOpenReview(spec)}>Review</Button>
+      )}
       {spec.stage !== "done" && running && (
         <Button size="sm" variant="secondary" leftIcon="terminal" onClick={() => onOpenRun && onOpenRun(spec)}>
           Buka sesi
@@ -184,9 +196,9 @@ function TitleButton({ spec, onOpenDetail, size = 15 }:
   );
 }
 
-function SpecCard({ spec, onStart, onDelete, onOpenRun, onOpenDetail, running }:
+function SpecCard({ spec, onStart, onDelete, onOpenRun, onOpenReview, onOpenDetail, running }:
   { spec: Spec; onStart?: (s: Spec) => void; onDelete?: (s: Spec) => void;
-    onOpenRun?: (s: Spec) => void; onOpenDetail?: (s: Spec) => void; running?: boolean }) {
+    onOpenRun?: (s: Spec) => void; onOpenReview?: (s: Spec) => void; onOpenDetail?: (s: Spec) => void; running?: boolean }) {
   const qa = spec.source === "qa";
   const prio = B_PRIO[spec.priority] || B_PRIO.sedang!;
   return (
@@ -210,7 +222,7 @@ function SpecCard({ spec, onStart, onDelete, onOpenRun, onOpenDetail, running }:
         <StageBar stage={spec.stage} />
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 12 }}>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)" }}>{spec.author}</span>
-          <SpecActions spec={spec} onStart={onStart} onDelete={onDelete} onOpenRun={onOpenRun} running={running} />
+          <SpecActions spec={spec} onStart={onStart} onDelete={onDelete} onOpenRun={onOpenRun} onOpenReview={onOpenReview} running={running} />
         </div>
       </div>
     </Card>
@@ -219,9 +231,9 @@ function SpecCard({ spec, onStart, onDelete, onOpenRun, onOpenDetail, running }:
 
 /* ── List view ─────────────────────────────────────────────────────────────
    Baris padat: satu spec per baris, stage bar inline, aksi di kanan. */
-function SpecRow({ spec, onStart, onDelete, onOpenRun, onOpenDetail, running }:
+function SpecRow({ spec, onStart, onDelete, onOpenRun, onOpenReview, onOpenDetail, running }:
   { spec: Spec; onStart?: (s: Spec) => void; onDelete?: (s: Spec) => void;
-    onOpenRun?: (s: Spec) => void; onOpenDetail?: (s: Spec) => void; running?: boolean }) {
+    onOpenRun?: (s: Spec) => void; onOpenReview?: (s: Spec) => void; onOpenDetail?: (s: Spec) => void; running?: boolean }) {
   const qa = spec.source === "qa";
   const prio = B_PRIO[spec.priority] || B_PRIO.sedang!;
   return (
@@ -237,7 +249,7 @@ function SpecRow({ spec, onStart, onDelete, onOpenRun, onOpenDetail, running }:
       {spec.branchFrom && <Badge tone="neutral" size="sm" icon="git-branch">{spec.branchFrom}</Badge>}
       <Badge tone={prio.tone} size="sm" variant={spec.priority === "tinggi" ? "soft" : "outline"}>{prio.label}</Badge>
       <div style={{ flex: "0 0 auto" }}><StageBar stage={spec.stage} /></div>
-      <SpecActions spec={spec} onStart={onStart} onDelete={onDelete} onOpenRun={onOpenRun} running={running} />
+      <SpecActions spec={spec} onStart={onStart} onDelete={onDelete} onOpenRun={onOpenRun} onOpenReview={onOpenReview} running={running} />
     </div>
   );
 }
@@ -278,9 +290,9 @@ export function specColumn(spec: Spec, hasSession?: boolean): string {
 export const canDrop = (from: string, to: string): boolean =>
   from === BACKLOG_COL && to === FIRST_STAGE;
 
-function BoardCard({ spec, col, onOpenDetail, onStart, onOpenRun, running, onDragStart, onDragEnd, dragging }:
+function BoardCard({ spec, col, onOpenDetail, onStart, onOpenRun, onOpenReview, running, onDragStart, onDragEnd, dragging }:
   { spec: Spec; col: string; onOpenDetail?: (s: Spec) => void; onStart?: (s: Spec) => void;
-    onOpenRun?: (s: Spec) => void; running?: boolean;
+    onOpenRun?: (s: Spec) => void; onOpenReview?: (s: Spec) => void; running?: boolean;
     onDragStart: () => void; onDragEnd: () => void; dragging: boolean }) {
   const qa = spec.source === "qa";
   const prio = B_PRIO[spec.priority] || B_PRIO.sedang!;
@@ -311,15 +323,15 @@ function BoardCard({ spec, col, onOpenDetail, onStart, onOpenRun, running, onDra
       {/* HTML5 drag-and-drop mati di keyboard dan di layar sentuh. Tombol ini jalur
           satu-satunya di sana — termasuk retry spec di kolom Failed. */}
       <div style={{ marginTop: 8 }}>
-        <SpecActions spec={spec} onStart={onStart} onOpenRun={onOpenRun} running={running} />
+        <SpecActions spec={spec} onStart={onStart} onOpenRun={onOpenRun} onOpenReview={onOpenReview} running={running} />
       </div>
     </div>
   );
 }
 
-function Board({ specs, activeSpecs, onStart, onOpenRun, onOpenDetail }:
+function Board({ specs, activeSpecs, onStart, onOpenRun, onOpenReview, onOpenDetail }:
   { specs: Spec[]; activeSpecs?: Set<string>;
-    onStart?: (s: Spec) => void; onOpenRun?: (s: Spec) => void; onOpenDetail?: (s: Spec) => void }) {
+    onStart?: (s: Spec) => void; onOpenRun?: (s: Spec) => void; onOpenReview?: (s: Spec) => void; onOpenDetail?: (s: Spec) => void }) {
   const [drag, setDrag] = React.useState<{ spec: Spec; from: string } | null>(null);
   const [over, setOver] = React.useState<string | null>(null);
   const byCol = new Map<string, Spec[]>(COLUMNS.map((c) => [c.key, []]));
@@ -360,7 +372,7 @@ function Board({ specs, activeSpecs, onStart, onOpenRun, onOpenDetail }:
             <div style={{ ...LIST_SCROLL_STYLE, display: "flex", flexDirection: "column", gap: 8 }}>
               {items.map((s) => (
                 <BoardCard key={s.id} spec={s} col={c.key} onOpenDetail={onOpenDetail}
-                  onStart={onStart} onOpenRun={onOpenRun} running={activeSpecs?.has(s.id)}
+                  onStart={onStart} onOpenRun={onOpenRun} onOpenReview={onOpenReview} running={activeSpecs?.has(s.id)}
                   dragging={drag?.spec.id === s.id}
                   onDragStart={() => setDrag({ spec: s, from: c.key })}
                   onDragEnd={() => { setDrag(null); setOver(null); }} />
@@ -379,10 +391,10 @@ const VIEWS = [
   { value: "board", label: "Board", icon: "kanban" },
 ];
 
-export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onNew, onEditBranch, onRevertStage, projectFilter, onProjectFilter }:
+export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onOpenReview, onNew, onEditBranch, onRevertStage, projectFilter, onProjectFilter }:
   { backlog: Spec[]; projects: ProjectVM[]; pageSize?: number;
     onStart?: (s: Spec) => void; activeSpecs?: Set<string>;
-    onDelete?: (s: Spec) => void; onOpenRun?: (s: Spec) => void; onNew?: () => void;
+    onDelete?: (s: Spec) => void; onOpenRun?: (s: Spec) => void; onOpenReview?: (s: Spec) => void; onNew?: () => void;
     onEditBranch?: (s: Spec, b: string | null) => void;
     onRevertStage?: (s: Spec, target: string, confirmDelete?: boolean) => Promise<any>;
     projectFilter: string; onProjectFilter: (id: string) => void }) {
@@ -421,7 +433,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
       ) : view === "board" ? (
         // Board tak dipaginasi: kolom yang terpotong halaman bukan board.
         <Board specs={filtered} activeSpecs={activeSpecs}
-          onStart={onStart} onOpenRun={onOpenRun} onOpenDetail={(x) => setDetailId(x.id)} />
+          onStart={onStart} onOpenRun={onOpenRun} onOpenReview={onOpenReview} onOpenDetail={(x) => setDetailId(x.id)} />
       ) : (
         <>
           {view === "list" ? (
@@ -430,14 +442,14 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
               borderRadius: "var(--radius-lg)", overflowX: "hidden" }}>
               {pg.pageItems.map((s) => <SpecRow key={s.id} spec={s} onStart={onStart}
                 running={activeSpecs?.has(s.id)} onDelete={onDelete} onOpenRun={onOpenRun}
-                onOpenDetail={(x) => setDetailId(x.id)} />)}
+                onOpenReview={onOpenReview} onOpenDetail={(x) => setDetailId(x.id)} />)}
             </div>
           ) : (
             <div style={{ ...LIST_SCROLL_STYLE, display: "grid", gap: 12,
               gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))" }}>
               {pg.pageItems.map((s) => <SpecCard key={s.id} spec={s} onStart={onStart}
                 running={activeSpecs?.has(s.id)} onDelete={onDelete} onOpenRun={onOpenRun}
-                onOpenDetail={(x) => setDetailId(x.id)} />)}
+                onOpenReview={onOpenReview} onOpenDetail={(x) => setDetailId(x.id)} />)}
             </div>
           )}
           <div style={{ ...FIXED_ROW_STYLE, marginTop: 14, border: "1px solid var(--border-hair)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
@@ -446,7 +458,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
         </>
       )}
       <SpecDetail spec={backlog.find((s) => s.id === detailId) || null} onClose={() => setDetailId(null)}
-        onEditBranch={onEditBranch} onRevertStage={onRevertStage} />
+        onEditBranch={onEditBranch} onRevertStage={onRevertStage} onOpenReview={onOpenReview} />
     </div>
   );
 }

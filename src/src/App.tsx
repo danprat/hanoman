@@ -14,6 +14,7 @@ import { BacklogScreen } from "./screens/BacklogScreen";
 import { TerminalScreen } from "./screens/TerminalScreen";
 import { VpsScreen } from "./screens/VpsScreen";
 import { DocsWorkspace } from "./screens/DocsWorkspace";
+import { ReviewScreen } from "./screens/ReviewScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 
 const OWNER = "Rangga";
@@ -266,6 +267,7 @@ export default function App() {
   // Pekerjaan yang berjalan adalah sesi tmux, bukan baris Run (SPEC-162).
   const [sessions, setSessions] = React.useState<TerminalSession[]>([]);
   const [projectId, setProjectId] = React.useState("");
+  const [reviewSpecId, setReviewSpecId] = React.useState("");
   // Pemilik tunggal "daftar disaring ke project mana?" (SPEC-146). Sengaja terpisah dari
   // `projectId` ("project yang sedang dibuka Docs/detail"): menyatukannya membuat klik
   // sidebar Runs diam-diam menyaring ke project terakhir yang dibuka Docs.
@@ -318,6 +320,8 @@ export default function App() {
     : projectsView;
 
   function openProject(p: ProjectVM) { setProjectId(p.id); setSection("project"); }
+  // SPEC-171 · buka layar review file worktree sebuah backlog item.
+  function openReview(s: Spec) { setReviewSpecId(s.id); setSection("review"); }
 
   async function updateProject(f: { name: string; desc: string }) {
     if (!proj) return;
@@ -482,8 +486,8 @@ export default function App() {
         actions={<Button size="sm" leftIcon="plus" onClick={() => setModal("brief")}>Tambah</Button>}>
         {gate(<BacklogScreen backlog={backlog} projects={projectsView} pageSize={20}
           onStart={startSession} activeSpecs={activeSpecs} onNew={() => setModal("brief")}
-          onDelete={deleteSpec} onOpenRun={() => setSection("terminal")} onEditBranch={editBranch}
-          onRevertStage={revertStage}
+          onDelete={deleteSpec} onOpenRun={() => setSection("terminal")} onOpenReview={openReview}
+          onEditBranch={editBranch} onRevertStage={revertStage}
           projectFilter={projectFilter} onProjectFilter={setProjectFilter} />)}
       </Shell>
     );
@@ -518,6 +522,19 @@ export default function App() {
           : <StateBlock kind="empty" icon="book-open" title="Belum ada project"
               hint="Source of Truth muncul setelah ada project yang dipantau."
               action={() => setModal("project")} actionLabel="Project baru" />)}
+      </Shell>
+    );
+  } else if (section === "review") {
+    // SPEC-171 · layar review file worktree backlog item (all files + file changed).
+    const rspec = backlog.find((s) => s.id === reviewSpecId);
+    screen = (
+      <Shell active="backlog" title="Review" wide onNavigate={setSection}
+        breadcrumb={rspec ? "backlog · " + rspec.id : "backlog"}
+        actions={<Button size="sm" variant="ghost" leftIcon="arrow-left" onClick={() => setSection("backlog")}>Kembali</Button>}>
+        {gate(reviewSpecId
+          ? <ReviewScreen specId={reviewSpecId} title={rspec?.title ?? reviewSpecId} onBack={() => setSection("backlog")} />
+          : <StateBlock kind="empty" icon="git-compare" title="Pilih backlog item"
+              hint="Buka Review dari sebuah item di Backlog." action={() => setSection("backlog")} actionLabel="Ke Backlog" />)}
       </Shell>
     );
   } else if (section === "settings") {
