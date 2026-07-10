@@ -374,7 +374,7 @@ Refactor tanpa perubahan perilaku: hilangkan duplikasi supaya `SpecDocsModal` (T
 - Produces: `MarkdownView({ text, name })`, `hnDocHtml(text, name): string` (diekspor dari `../ds`).
 - Consumes: `marked` (`^12`, terpasang), kelas CSS `.hn-md` (`src/src/app.css:13`).
 
-- [ ] **Step 1: Create `src/src/ds/markdown.tsx`**
+- [x] **Step 1: Create `src/src/ds/markdown.tsx`**
 
 ```tsx
 import React from "react";
@@ -397,7 +397,7 @@ export function MarkdownView({ text, name }: { text: string; name: string }) {
 }
 ```
 
-- [ ] **Step 2: Export from the barrel**
+- [x] **Step 2: Export from the barrel**
 
 Di `src/src/ds/index.ts`, tambah baris:
 
@@ -405,7 +405,7 @@ Di `src/src/ds/index.ts`, tambah baris:
 export { MarkdownView, hnDocHtml } from "./markdown";
 ```
 
-- [ ] **Step 3: Point `DocsWorkspace` at the shared renderer**
+- [x] **Step 3: Point `DocsWorkspace` at the shared renderer**
 
 Di `src/src/screens/DocsWorkspace.tsx`:
 - Hapus fungsi lokal `hnRender` (baris 11-14), `hnLang` (15-18), `hnDocHtml` (19-22), dan komponen `MarkdownView` (108-110).
@@ -415,12 +415,12 @@ Di `src/src/screens/DocsWorkspace.tsx`:
 
 Pemakaian `<MarkdownView text=... name=... />` di baris 263 & 282 tetap tak berubah.
 
-- [ ] **Step 4: Typecheck + existing docs test still green**
+- [x] **Step 4: Typecheck + existing docs test still green**
 
 Run: `pnpm -r typecheck && pnpm --filter ./src test docs-tree`
 Expected: typecheck hijau; `docs-tree` (uji `buildTree`/`firstDoc` di DocsWorkspace) tetap PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/ds/markdown.tsx src/src/ds/index.ts src/src/screens/DocsWorkspace.tsx

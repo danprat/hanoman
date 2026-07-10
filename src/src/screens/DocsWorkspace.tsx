@@ -2,24 +2,10 @@
    to the API: tree+coverage from GET /docs, file bodies from GET/PUT
    /docs/*path (server-persisted, replacing the prototype's localStorage). */
 import React from "react";
-import { marked } from "marked";
-import { Card, StatusPill, Badge, Button, ProgressBar, Icon, StateBlock } from "../ds";
+import { Card, StatusPill, Badge, Button, ProgressBar, Icon, StateBlock, MarkdownView } from "../ds";
 import { api } from "../api/client";
 
 type DocCat = { cat: string; files: string[]; linked: boolean; scored: boolean; root?: boolean };
-
-function hnRender(md: string) {
-  try { return marked.parse(md || "", { gfm: true, breaks: false }) as string; }
-  catch { return "<pre>" + String(md || "").replace(/[&<>]/g, (c) => (({ "&": "&amp;", "<": "&lt;", ">": "&gt;" } as any)[c])) + "</pre>"; }
-}
-function hnLang(name: string) {
-  return /\.json$/.test(name) ? "json" : /\.toml$/.test(name) ? "toml"
-    : /\.ya?ml$/.test(name) ? "yaml" : /\.(ts|tsx|js)$/.test(name) ? "ts" : "";
-}
-function hnDocHtml(text: string, name: string) {
-  const md = /\.md$/.test(name) ? (text || "") : ("```" + hnLang(name) + "\n" + (text || "") + "\n```");
-  return hnRender(md);
-}
 
 type TreeNode = { path: string; label: string; cat?: DocCat; kids: TreeNode[] };
 
@@ -103,10 +89,6 @@ function DocTreeCat({ node, selected, onSelect, depth = 0 }:
       )}
     </div>
   );
-}
-
-function MarkdownView({ text, name }: { text: string; name: string }) {
-  return <div className="hn-md" dangerouslySetInnerHTML={{ __html: hnDocHtml(text, name) }} />;
 }
 
 export function DocsWorkspace({ projectId, projectName, docStatus }:
