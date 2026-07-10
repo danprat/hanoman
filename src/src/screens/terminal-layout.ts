@@ -19,6 +19,27 @@ export function addColumn(l: Layout): Layout {
   return { rows: l.rows, cols, cells };
 }
 
+// − Baris: buang baris r. rows===1 → no-op (grid tak boleh nol baris).
+// Index baris-mayor tak bergeser saat rows berubah, jadi cukup potong satu slice sepanjang cols.
+export function removeRow(l: Layout, r: number): Layout {
+  if (l.rows === 1 || r < 0 || r >= l.rows) return l;
+  const cells = [...l.cells];
+  cells.splice(r * l.cols, l.cols);
+  return { ...l, rows: l.rows - 1, cells };
+}
+
+// − Kolom: idx = r*cols + c BERGESER saat cols berubah — cells di-rebuild, alasan yang sama
+// dengan addColumn. cols===1 → no-op.
+export function removeColumn(l: Layout, c: number): Layout {
+  if (l.cols === 1 || c < 0 || c >= l.cols) return l;
+  const cols = l.cols - 1;
+  const cells: (string | null)[] = [];
+  for (let r = 0; r < l.rows; r++)
+    for (let cc = 0; cc < l.cols; cc++)
+      if (cc !== c) cells.push(l.cells[r * l.cols + cc] ?? null);
+  return { rows: l.rows, cols, cells };
+}
+
 // Taruh sesi di sel idx; kosongkan sel lain yang memegang id sama (satu sesi ≤ satu sel).
 // id null = kosongkan idx saja. idx di luar rentang → layout apa adanya (mis. detach id tak tertempat).
 export function setCell(l: Layout, idx: number, id: string | null): Layout {

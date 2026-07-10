@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
-  emptyLayout, addRow, addColumn, setCell, placeFirstEmpty, reconcile, load, save,
+  emptyLayout, addRow, addColumn, removeRow, removeColumn, setCell, placeFirstEmpty, reconcile, load, save,
 } from "../src/screens/terminal-layout";
 
 beforeEach(() => localStorage.clear());
@@ -19,6 +19,40 @@ describe("terminal-layout", () => {
     // baris0=[a,b], baris1=[c,d] → baris0=[a,b,null], baris1=[c,d,null]
     expect(addColumn({ rows: 2, cols: 2, cells: ["a", "b", "c", "d"] }))
       .toEqual({ rows: 2, cols: 3, cells: ["a", "b", null, "c", "d", null] });
+  });
+
+  it("removeRow memotong baris yang ditunjuk & tak menggeser sel lain", () => {
+    // baris0=[a,b], baris1=[c,d] → buang baris 0
+    expect(removeRow({ rows: 2, cols: 2, cells: ["a", "b", "c", "d"] }, 0))
+      .toEqual({ rows: 1, cols: 2, cells: ["c", "d"] });
+  });
+
+  it("removeRow pada rows===1 → layout apa adanya (grid tak boleh nol baris)", () => {
+    const l = { rows: 1, cols: 2, cells: ["a", "b"] };
+    expect(removeRow(l, 0)).toBe(l);
+  });
+
+  it("removeRow index di luar rentang → layout apa adanya", () => {
+    const l = { rows: 2, cols: 1, cells: ["a", "b"] };
+    expect(removeRow(l, 2)).toBe(l);
+    expect(removeRow(l, -1)).toBe(l);
+  });
+
+  it("removeColumn me-rebuild pemetaan baris-mayor (2×3 → 2×2, buang kolom tengah)", () => {
+    // baris0=[a,b,c], baris1=[d,e,f] → buang kolom 1 → baris0=[a,c], baris1=[d,f]
+    expect(removeColumn({ rows: 2, cols: 3, cells: ["a", "b", "c", "d", "e", "f"] }, 1))
+      .toEqual({ rows: 2, cols: 2, cells: ["a", "c", "d", "f"] });
+  });
+
+  it("removeColumn pada cols===1 → layout apa adanya", () => {
+    const l = { rows: 2, cols: 1, cells: ["a", "b"] };
+    expect(removeColumn(l, 0)).toBe(l);
+  });
+
+  it("removeColumn index di luar rentang → layout apa adanya", () => {
+    const l = { rows: 1, cols: 2, cells: ["a", "b"] };
+    expect(removeColumn(l, 2)).toBe(l);
+    expect(removeColumn(l, -1)).toBe(l);
   });
 
   it("setCell menegakkan satu sesi ≤ satu sel (pindah, bukan duplikat)", () => {
