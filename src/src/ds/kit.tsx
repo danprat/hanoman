@@ -115,9 +115,21 @@ export function HnTextarea({ value, onChange, rows = 3, placeholder, mono = fals
   );
 }
 
-// Caps a paginated list's row area so it scrolls internally instead of pushing
-// the Pager below the fold — reserves space for topbar + card chrome + pager.
-export const LIST_SCROLL_STYLE: React.CSSProperties = { maxHeight: "calc(100vh - 340px)", overflowY: "auto" };
+/* Area baris sebuah daftar: menyerap SEMUA sisa tinggi dan menggulir di dalamnya,
+   sehingga Pager tetap di bawah tanpa jatuh ke luar layar.
+
+   Dulu ini `maxHeight: calc(100vh - 340px)`. 340 itu tebakan tinggi topbar + chrome
+   card + pager, dan tebakan itu salah di tiap layar dengan takaran berbeda — layar
+   yang filter bar-nya lebih tinggi menyisakan lubang di bawah, yang lebih pendek
+   memotong daftarnya. Rantai flex sudah tahu tinggi sebenarnya sejak `#root` (100vh):
+   `min-height: 0` melepas batas min-content flex item, `flex: 1` menyuruhnya isi sisa.
+   Tak ada angka yang perlu dijaga tetap sinkron dengan CSS di tempat lain.
+
+   Pemakaiannya berpasangan: root layar memakai LIST_SCREEN_STYLE, saudara yang
+   tingginya tetap (header, legend, pager) memakai FIXED_ROW_STYLE. */
+export const LIST_SCROLL_STYLE: React.CSSProperties = { flex: "1 1 auto", minHeight: 0, overflowY: "auto" };
+export const LIST_SCREEN_STYLE: React.CSSProperties = { display: "flex", flexDirection: "column", flex: "1 1 auto", minHeight: 0 };
+export const FIXED_ROW_STYLE: React.CSSProperties = { flex: "0 0 auto" };
 
 export function usePaged<T>(items: T[], pageSize: number, resetKey?: unknown) {
   const [page, setPage] = React.useState(1);
@@ -167,6 +179,7 @@ export function Pager({ page, pageCount, total, from, to, onPage, unit = "item" 
   if (total === 0) return null;
   return (
     <div style={{
+      ...FIXED_ROW_STYLE,
       display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
       padding: "11px 14px", borderTop: "1px solid var(--border-hair)", background: "var(--bone-100)", flexWrap: "wrap",
     }}>

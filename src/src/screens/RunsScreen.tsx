@@ -2,7 +2,8 @@
    subscribes to the SSE log stream for running/paused runs, exposes a terminal
    input + steer/pause/resume/stop, and shows a live duration (finishedAt, ADR-0007). */
 import React from "react";
-import { Card, StatusPill, Icon, usePaged, Pager, Button, IconButton, StateBlock, Select, LIST_SCROLL_STYLE } from "../ds";
+import { Card, StatusPill, Icon, usePaged, Pager, Button, IconButton, StateBlock, Select,
+  LIST_SCROLL_STYLE, FIXED_ROW_STYLE } from "../ds";
 import type { RunVM } from "./types";
 import { subscribeRun, api, type RunChanges, type RunCommit, type FilePreview } from "../api/client";
 import { reduceRunEvent, runDurationMs, fmtDuration } from "./run-reduce";
@@ -415,9 +416,12 @@ export function RunsScreen({ runs, selectedId, pageSize = 20, onDelete, onGotoBa
     hint="Jalankan spec dari backlog — log Claude Code akan streaming di sini."
     action={onGotoBacklog} actionLabel="Buka backlog" actionIcon="list-checks" />;
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 20, alignItems: "start" }}>
-      <Card padding={0}>
-        <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--border-hair)",
+    // `stretch`, bukan `start`: kedua kolom setinggi viewport dan masing-masing menggulir
+    // sendiri, jadi daftar run panjang tak lagi mendorong panel detail ke bawah lipatan.
+    <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 20,
+      alignItems: "stretch", flex: "1 1 auto", minHeight: 0 }}>
+      <Card padding={0} fill>
+        <div style={{ ...FIXED_ROW_STYLE, padding: "12px 14px", borderBottom: "1px solid var(--border-hair)",
           display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
           <span className="hn-eyebrow">Activity · {shown.length} runs</span>
           <Select size="sm" value={projectFilter} onChange={(e) => onProjectFilter?.(e.target.value)}
@@ -429,7 +433,7 @@ export function RunsScreen({ runs, selectedId, pageSize = 20, onDelete, onGotoBa
         </div>
         <Pager {...pg} onPage={pg.setPage} unit="run" />
       </Card>
-      <RunDetail run={active} />
+      <div style={{ minHeight: 0, overflowY: "auto" }}><RunDetail run={active} /></div>
     </div>
   );
 }

@@ -117,9 +117,16 @@ export function Shell({ active, title, breadcrumb, actions, showSearch = false, 
           {actions}
         </header>
 
-        {/* Content */}
+        {/* Content. `minHeight: 100%` (bukan `height`), supaya layar yang isinya lebih
+            tinggi dari viewport tetap tumbuh dan digulir <main> — kalau `height`, anak-anaknya
+            jadi flex item bertinggi tetap dan ikut menyusut. Layar berdaftar memilih ikut
+            rantai ini dengan LIST_SCREEN_STYLE di root-nya; sisanya berperilaku seperti dulu.
+            `border-box` wajib: tanpa itu padding menambah tinggi di atas 100% dan menciptakan
+            scrollbar kedua. */}
         <main style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
-          <div style={{ maxWidth: wide ? "none" : "var(--content-max)", margin: "0 auto", padding: "24px 28px 32px" }}>
+          <div style={{ maxWidth: wide ? "none" : "var(--content-max)", margin: "0 auto",
+            padding: "24px 28px 32px", boxSizing: "border-box", minHeight: "100%",
+            display: "flex", flexDirection: "column" }}>
             {children}
           </div>
         </main>

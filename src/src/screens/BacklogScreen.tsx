@@ -1,7 +1,8 @@
 /* BacklogScreen — specs on the brainstorm → execute lifecycle.
    Ported; spec.project → spec.projectId; window → ds imports. */
 import React from "react";
-import { Card, Badge, Tabs, Select, Button, IconButton, Icon, usePaged, Pager, Modal, StateBlock, LIST_SCROLL_STYLE } from "../ds";
+import { Card, Badge, Tabs, Select, Button, IconButton, Icon, usePaged, Pager, Modal, StateBlock,
+  LIST_SCROLL_STYLE, LIST_SCREEN_STYLE, FIXED_ROW_STYLE } from "../ds";
 import { api } from "../api/client";
 import { branchOptions } from "./branch";
 import type { Spec } from "./types";
@@ -242,6 +243,8 @@ function BoardCard({ spec, col, onOpenDetail, onDragStart, onDragEnd, dragging }
       onDragEnd={onDragEnd}
       title={draggable ? "Seret ke kolom lain untuk menjalankan run" : "Stage dikelola runner — kartu tak bisa dipindah"}
       style={{
+        // `0 0 auto`: tanpa ini kartu menyusut mengisi kolom, bukan kolomnya yang menggulir.
+        flex: "0 0 auto",
         background: "var(--surface-card)", border: "1px solid var(--border-hair)",
         borderRadius: "var(--radius-md)", padding: 10, boxShadow: "var(--shadow-xs)",
         cursor: draggable ? "grab" : "default", opacity: dragging ? 0.4 : 1,
@@ -273,7 +276,10 @@ function Board({ specs, lastRunStatus, onStart, onOpenDetail }:
     setDrag(null); setOver(null);
   };
   return (
-    <div style={{ ...LIST_SCROLL_STYLE, display: "flex", gap: 10, overflowX: "auto", paddingBottom: 8, alignItems: "flex-start" }}>
+    /* Baris kolom menggulir mendatar; tiap KOLOM menggulir tegak sendiri, jadi judul
+       kolom tak pernah tergulir keluar dan kolom terpanjang tak menyeret yang lain. */
+    <div style={{ flex: "1 1 auto", minHeight: 0, display: "flex", gap: 10,
+      overflowX: "auto", overflowY: "hidden", alignItems: "stretch", paddingBottom: 4 }}>
       {COLUMNS.map((c) => {
         const items = byCol.get(c.key)!;
         const active = !!drag && canDrop(drag.from, c.key);
@@ -284,24 +290,27 @@ function Board({ specs, lastRunStatus, onStart, onOpenDetail }:
             onDragLeave={() => setOver((o) => (o === c.key ? null : o))}
             onDrop={(e) => { e.preventDefault(); drop(c.key); }}
             style={{
-              flex: "0 0 244px", display: "flex", flexDirection: "column", gap: 8, padding: 10,
-              borderRadius: "var(--radius-lg)", minHeight: 160,
+              flex: "0 0 244px", display: "flex", flexDirection: "column", minHeight: 0, padding: 10,
+              borderRadius: "var(--radius-lg)",
               background: hot ? "var(--brass-100)" : "var(--bone-100)",
               border: `1px ${active ? "dashed" : "solid"} ${hot ? "var(--brass-500)" : "var(--border-hair)"}`,
               opacity: drag && !active ? 0.5 : 1, transition: "var(--transition-fast)",
             }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ ...FIXED_ROW_STYLE, display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
               {c.icon && <Icon name={c.icon} size={13} color="var(--text-muted)" />}
               <span className="hn-eyebrow">{c.label}</span>
               <span style={{ flex: 1 }} />
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)" }}>{items.length}</span>
             </div>
-            {items.map((s) => (
-              <BoardCard key={s.id} spec={s} col={c.key} onOpenDetail={onOpenDetail}
-                dragging={drag?.spec.id === s.id}
-                onDragStart={() => setDrag({ spec: s, from: c.key })}
-                onDragEnd={() => { setDrag(null); setOver(null); }} />
-            ))}
+            {/* Zona drop mencakup ruang kosong di bawah kartu: event menggelembung ke kolom. */}
+            <div style={{ ...LIST_SCROLL_STYLE, display: "flex", flexDirection: "column", gap: 8 }}>
+              {items.map((s) => (
+                <BoardCard key={s.id} spec={s} col={c.key} onOpenDetail={onOpenDetail}
+                  dragging={drag?.spec.id === s.id}
+                  onDragStart={() => setDrag({ spec: s, from: c.key })}
+                  onDragEnd={() => { setDrag(null); setOver(null); }} />
+              ))}
+            </div>
           </div>
         );
       })}
@@ -333,8 +342,8 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
     (tab === "all" || s.source === tab) && (proj === "all" || s.projectId === proj));
   const pg = usePaged(filtered, pageSize, tab + "|" + proj);
   return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18, flexWrap: "wrap" }}>
+    <div style={LIST_SCREEN_STYLE}>
+      <div style={{ ...FIXED_ROW_STYLE, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18, flexWrap: "wrap" }}>
         <Tabs variant="pill" value={tab} onChange={setTab} tabs={[
           { value: "all", label: "Semua spec" }, { value: "brief", label: "Dari brief" }, { value: "qa", label: "Dari QA" },
         ]} />
@@ -360,8 +369,9 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
       ) : (
         <>
           {view === "list" ? (
+            // overflowX, bukan `overflow` — `overflow: hidden` akan menimpa overflowY dari spread.
             <div style={{ ...LIST_SCROLL_STYLE, border: "1px solid var(--border-hair)",
-              borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+              borderRadius: "var(--radius-lg)", overflowX: "hidden" }}>
               {pg.pageItems.map((s) => <SpecRow key={s.id} spec={s} onStart={onStart}
                 running={activeRunSpecs?.has(s.id)} onDelete={onDelete} onOpenRun={onOpenRun}
                 onOpenDetail={(x) => setDetailId(x.id)} />)}
@@ -374,7 +384,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
                 onOpenDetail={(x) => setDetailId(x.id)} />)}
             </div>
           )}
-          <div style={{ marginTop: 14, border: "1px solid var(--border-hair)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+          <div style={{ ...FIXED_ROW_STYLE, marginTop: 14, border: "1px solid var(--border-hair)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
             <Pager {...pg} onPage={pg.setPage} unit="spec" />
           </div>
         </>

@@ -1,7 +1,8 @@
 /* ProjectsScreen — multi-project monitor. Ported; window → ds imports.
    p.triggers comes from the App view model. */
 import React from "react";
-import { Card, StatusPill, Badge, ProgressBar, Icon, IconButton, usePaged, Pager, LIST_SCROLL_STYLE } from "../ds";
+import { Card, StatusPill, Badge, ProgressBar, Icon, IconButton, usePaged, Pager,
+  LIST_SCROLL_STYLE, LIST_SCREEN_STYLE, FIXED_ROW_STYLE } from "../ds";
 import type { ProjectVM, RunVM } from "./types";
 import { isRunActive } from "@hanoman/shared";
 
@@ -117,10 +118,10 @@ export function ProjectsScreen({ projects, runs, onOpen, onDelete, pageSize }:
   const pg = usePaged(projects, pageSize || projects.length, "proj");
   const rows = pageSize ? pg.pageItems : projects;
   return (
-    <div>
-      <StatStrip projects={projects} runs={runs} />
-      <Card padding={0}>
-        <div style={{ display: "grid", gridTemplateColumns: tmpl, gap: 12, padding: "10px 14px 10px 15px", borderBottom: "1px solid var(--border-hair)" }}>
+    <div style={LIST_SCREEN_STYLE}>
+      <div style={FIXED_ROW_STYLE}><StatStrip projects={projects} runs={runs} /></div>
+      <Card padding={0} fill>
+        <div style={{ ...FIXED_ROW_STYLE, display: "grid", gridTemplateColumns: tmpl, gap: 12, padding: "10px 14px 10px 15px", borderBottom: "1px solid var(--border-hair)" }}>
           {cols.map((c) => <span key={c} className="hn-eyebrow">{c}</span>)}
         </div>
         <div style={LIST_SCROLL_STYLE}>

@@ -20,10 +20,49 @@
   membawa aksi retry; empty state membawa call-to-action ke aksi yang relevan. Settings **tidak** lagi
   jatuh ke nilai default saat GET gagal — toggle berikutnya akan mem-PUT default itu menimpa server.
 
+## Tinggi & scrolling: rantai flex, bukan angka ajaib
+`#root` dikunci `100vh; overflow: hidden`, jadi tinggi yang tersedia sudah pasti sejak akar.
+Layar berdaftar tidak boleh menggulir seluruh halaman — filter bar dan Pager harus tetap
+terlihat — jadi yang menggulir hanyalah area barisnya.
+
+`LIST_SCROLL_STYLE` dulu `maxHeight: calc(100vh - 340px)`. `340` adalah tebakan tinggi
+topbar + chrome card + pager, dan tebakan itu salah di tiap layar dengan takaran berbeda:
+layar dengan filter bar lebih tinggi menyisakan lubang kosong di bawah, yang lebih pendek
+memotong daftarnya. Angka itu juga tak punya cara untuk tetap sinkron saat chrome berubah.
+
+Sekarang tingginya diturunkan rantai flex, tanpa angka:
+
+| style | dipakai di | arti |
+|---|---|---|
+| `LIST_SCREEN_STYLE` | root layar | kolom flex, `flex:1 1 auto`, `min-height:0` |
+| `FIXED_ROW_STYLE` | filter bar, header, legend, `Pager` | `flex:0 0 auto` — tak ikut menyusut |
+| `LIST_SCROLL_STYLE` | area baris | `flex:1 1 auto`, `min-height:0`, `overflow-y:auto` |
+
+`min-height: 0` itu kuncinya: tanpa ia, flex item menolak lebih pendek dari min-content-nya,
+jadi daftar panjang mendorong Pager keluar layar alih-alih menggulir. `FIXED_ROW_STYLE` juga
+bukan hiasan — default flex item adalah `flex-shrink: 1`, jadi header dan kartu **ikut
+gepeng** kalau tidak dikunci.
+
+Shell menyediakan ujung atas rantainya: pembungkus konten di `<main>` kini `min-height: 100%`
++ `box-sizing: border-box` + kolom flex. `min-height` (bukan `height`) supaya layar non-daftar
+— Overview, Docs, Settings — tetap tumbuh melewati viewport dan digulir `<main>` seperti dulu;
+dengan `height`, anak-anaknya jadi flex item bertinggi tetap dan ikut menyusut. `border-box`
+wajib, kalau tidak padding menambah tinggi di atas 100% dan melahirkan scrollbar kedua.
+
+`Card` punya prop `fill` untuk kartu yang membungkus header + daftar + Pager
+(Projects, Runs, Triggers): ia meneruskan rantai flex ke pembungkus anaknya. Tanpa `fill`,
+`Card` berperilaku persis seperti sebelumnya. `RunsScreen` ikut berubah dari
+`align-items: start` ke `stretch` — kedua kolomnya kini menggulir sendiri-sendiri.
+
 ## Backlog: tiga mode tampilan, dan board yang tidak boleh berbohong
 `BacklogScreen` merender satu daftar spec dalam tiga bentuk — **grid** (default, kartu penuh
 dengan stage bar), **list** (satu baris per spec), dan **board** (kanban). Grid dan list
 dipaginasi lewat `usePaged`; board tidak, karena kolom yang terpotong halaman bukan board.
+
+Ketiganya memakai rantai flex di atas. Board sedikit berbeda: barisnya menggulir **mendatar**
+(`overflow-x:auto`, `overflow-y:hidden`) dan tiap **kolom** menggulir tegak sendiri, jadi judul
+kolom tak pernah tergulir keluar dan kolom terpanjang tak menyeret yang lain. Kartu board
+`flex: 0 0 auto` — tanpa itu kartu menyusut mengisi kolom alih-alih kolomnya menggulir.
 
 Kolomnya: `Backlog · Brainstorm · Objective · Spec · Plan · Execute · Success · Failed`.
 Hanya enam kolom tengah yang benar-benar `Spec.stage`. Tiga sisanya **turunan**, bukan field:

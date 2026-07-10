@@ -1,5 +1,6 @@
 /* TriggersScreen — automation. Ported; t.project → t.projectId. */
-import { Card, Badge, Switch, Icon, Button, IconButton, usePaged, Pager, StateBlock, LIST_SCROLL_STYLE } from "../ds";
+import { Card, Badge, Switch, Icon, Button, IconButton, usePaged, Pager, StateBlock,
+  LIST_SCROLL_STYLE, LIST_SCREEN_STYLE, FIXED_ROW_STYLE } from "../ds";
 import type { Trigger } from "./types";
 
 const T_META: Record<string, { icon: string; label: string; blurb: string }> = {
@@ -59,10 +60,10 @@ export function TriggersScreen({ triggers, onToggle, onDelete, onNew, pageSize =
   { triggers: Trigger[]; onToggle?: (id: string) => void; onDelete?: (t: Trigger) => void; onNew?: () => void; pageSize?: number }) {
   const pg = usePaged(triggers, pageSize, "triggers");
   return (
-    <div>
-      <TypeLegend />
-      <Card padding={0}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--border-hair)" }}>
+    <div style={LIST_SCREEN_STYLE}>
+      <div style={FIXED_ROW_STYLE}><TypeLegend /></div>
+      <Card padding={0} fill>
+        <div style={{ ...FIXED_ROW_STYLE, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--border-hair)" }}>
           <span className="hn-eyebrow">Automation · {triggers.length} triggers</span>
           <Button size="sm" leftIcon="plus" onClick={onNew}>New trigger</Button>
         </div>
