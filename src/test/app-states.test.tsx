@@ -12,6 +12,7 @@ vi.mock("../src/api/client", () => ({
     listProjects: (...a: unknown[]) => projects(...(a as [])),
     listSpecs: vi.fn(async () => []), listTerminals: vi.fn(async () => []),
     getSettings: vi.fn(async () => ({})),
+    listNotifications: vi.fn(async () => ({ items: [], unread: 0 })), // SPEC-180 · provider poll
   },
   ApiError: class extends Error {},
 }));

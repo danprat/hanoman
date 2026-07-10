@@ -35,6 +35,8 @@ export const zSetting = z.object({
   autoDefault: z.boolean(),
   autoScaffold: z.boolean(),
   notifyFail: z.boolean(),
+  notifyDone: z.boolean().default(true),                                   // SPEC-180
+  notifySound: z.enum(["off", "short", "medium", "long"]).default("short"), // SPEC-180
 });
 export type Setting = z.infer<typeof zSetting>;
 

@@ -2,6 +2,7 @@
    prototype App.jsx: window.HN → api.* on mount; every mutating handler
    calls the client and updates state from the response. */
 import React from "react";
+import { NotificationsProvider } from "./notifications/NotificationsContext";
 import { Shell, Modal, Field, HnTextarea, Button, StatusPill, Select, Input, Tabs, Toast, useToast, Icon, StateBlock } from "./ds";
 import { api, ApiError, type TerminalSession } from "./api/client";
 import type { ProjectView, Spec, AuthStatus, UserView } from "@hanoman/shared";
@@ -559,12 +560,12 @@ export default function App() {
   }
 
   return (
-    <>
+    <NotificationsProvider showToast={showToast}>
       {screen}
       <NewSpecModal open={modal === "brief"} onClose={() => setModal(null)} projects={projectsView} defaultProject={proj ? proj.id : ""} onCreate={createSpec} />
       <NewProjectModal open={modal === "project"} onClose={() => setModal(null)} onCreate={createProject} />
       <EditProjectModal open={modal === "project-edit"} project={proj} onClose={() => setModal(null)} onSave={updateProject} />
       <Toast toast={toast} />
-    </>
+    </NotificationsProvider>
   );
 }

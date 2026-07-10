@@ -4,6 +4,7 @@ import React from "react";
 import { Icon } from "./icon";
 import { Input } from "./components/forms";
 import { Mark } from "./marks";
+import { NotificationBell } from "../notifications/NotificationBell";
 
 // Setiap key WAJIB punya cabang `section === …` di App.tsx. Bila tidak, `screen` tetap
 // null dan App merender kosong — sidebar ikut hilang, pengguna terjebak sampai reload.
@@ -117,6 +118,7 @@ export function Shell({ active, title, breadcrumb, actions, showSearch = false, 
               onChange={onSearchChange ? (e: React.ChangeEvent<HTMLInputElement>) => onSearchChange(e.target.value) : undefined}
               readOnly={!onSearchChange} />
           )}
+          <NotificationBell />
           {actions}
         </header>
 

@@ -653,7 +653,7 @@ git commit -m "feat(app): NotificationsProvider (poll 10s, toast+sound saat baru
 - Consumes: `useNotifications()` (Task 5), `Icon` (dari `../ds/icon` — hindari barrel `../ds` agar tak ada siklus dengan shell).
 - Produces: `<NotificationBell />` — tombol lonceng + badge unread; klik → dropdown daftar + "Tandai semua dibaca" + "Bersihkan". Membuka dropdown memanggil `markAllRead()`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 `src/test/notification-bell.test.tsx`:
 
@@ -689,12 +689,12 @@ describe("NotificationBell", () => {
 
 Catatan: `NotificationsContext` sudah di-export dari `NotificationsContext.tsx` (Task 5 Step 4).
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `env -u NODE_ENV pnpm --filter ./src exec vitest run notification-bell`
 Expected: FAIL — `NotificationBell` belum ada.
 
-- [ ] **Step 3: Implementasi bell**
+- [x] **Step 3: Implementasi bell**
 
 `src/src/notifications/NotificationBell.tsx`:
 
@@ -788,7 +788,7 @@ export function NotificationBell() {
 }
 ```
 
-- [ ] **Step 4: Render bell di topbar Shell**
+- [x] **Step 4: Render bell di topbar Shell**
 
 Di `src/src/ds/shell.tsx`: import bell dan sisipkan di topbar sebelum `{actions}`. Import di atas:
 
@@ -806,7 +806,7 @@ Di topbar, ubah baris `{actions}` (setelah blok `showSearch`):
 
 **Catatan test App-level:** `src/test/app-flows.test.tsx` & `app-states.test.tsx` me-mock `../src/api/client` via factory dan kini me-mount provider. `tick()` sudah di-`try/catch` sehingga `api.listNotifications` yang undefined tak crash, tapi untuk bersih (tanpa warning act()) tambahkan ke objek `api` mock mereka: `listNotifications: vi.fn(async () => ({ items: [], unread: 0 }))`. `smoke.test.tsx` tak terpengaruh (auth gagal → AuthScreen, provider tak mount). Jalankan ketiganya di Step 6.
 
-- [ ] **Step 5: Bungkus App dengan provider**
+- [x] **Step 5: Bungkus App dengan provider**
 
 Di `src/src/App.tsx`: import provider dan bungkus `return`:
 
@@ -827,12 +827,12 @@ Ubah `return ( <> ... </> )` (sekitar baris 561) menjadi:
   );
 ```
 
-- [ ] **Step 6: Jalankan, pastikan lulus**
+- [x] **Step 6: Jalankan, pastikan lulus**
 
 Run: `env -u NODE_ENV pnpm --filter ./src exec vitest run notification-bell notifications-context app-flows app-states smoke`
 Expected: semua PASS (App-level test hijau dengan mock `listNotifications` bila ditambahkan).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/src/notifications/NotificationBell.tsx src/src/notifications/NotificationsContext.tsx src/src/ds/shell.tsx src/src/App.tsx src/test/notification-bell.test.tsx

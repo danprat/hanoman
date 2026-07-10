@@ -21,6 +21,7 @@ const S_EFFORT = [
 const S_DEFAULTS: Setting = {
   model: "claude-opus-4-8", effort: "xhigh",
   autoDefault: true, autoScaffold: true, notifyFail: true,
+  notifyDone: true, notifySound: "short",
 };
 
 function SettingRow({ title, desc, children, last }: { title: string; desc?: string; children?: React.ReactNode; last?: boolean }) {

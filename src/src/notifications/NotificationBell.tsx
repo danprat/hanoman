@@ -1,0 +1,87 @@
+import React from "react";
+import { Icon } from "../ds/icon";
+import { useNotifications } from "./NotificationsContext";
+
+function timeAgo(iso: string): string {
+  const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if (s < 60) return "baru saja";
+  const m = Math.round(s / 60); if (m < 60) return `${m}m lalu`;
+  const h = Math.round(m / 60); if (h < 24) return `${h}j lalu`;
+  return `${Math.round(h / 24)}h lalu`;
+}
+
+export function NotificationBell() {
+  const { items, unread, markAllRead, clear } = useNotifications();
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  function toggle() {
+    const next = !open;
+    setOpen(next);
+    if (next && unread > 0) markAllRead(); // membuka = melihat
+  }
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button aria-label="Notifikasi" onClick={toggle} style={{
+        position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center",
+        width: 34, height: 34, border: "none", background: open ? "var(--bone-200)" : "transparent",
+        borderRadius: "var(--radius-sm)", cursor: "pointer", color: "var(--text-muted)",
+      }}>
+        <Icon name="bell" size={18} />
+        {unread > 0 && (
+          <span style={{
+            position: "absolute", top: 4, right: 4, minWidth: 16, height: 16, padding: "0 4px",
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            background: "var(--clay-500)", color: "#fff", fontSize: 10, fontWeight: 700,
+            borderRadius: "var(--radius-pill)", fontFamily: "var(--font-mono)", lineHeight: 1,
+          }}>{unread > 99 ? "99+" : unread}</span>
+        )}
+      </button>
+      {open && (
+        <div role="menu" style={{
+          position: "absolute", top: 40, right: 0, width: 320, maxHeight: 420, overflowY: "auto",
+          background: "var(--surface-card)", border: "1px solid var(--border-hair)",
+          borderRadius: "var(--radius-md)", boxShadow: "var(--shadow-xl)", zIndex: 200, padding: 6,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px 6px" }}>
+            <span style={{ fontFamily: "var(--font-display)", fontSize: 14, fontWeight: 600, color: "var(--text-strong)" }}>Notifikasi</span>
+            {items.length > 0 && (
+              <button onClick={clear} style={{ border: "none", background: "transparent", cursor: "pointer",
+                color: "var(--text-subtle)", fontSize: 12, fontFamily: "var(--font-ui)" }}>Bersihkan</button>
+            )}
+          </div>
+          {items.length === 0 ? (
+            <div style={{ padding: "18px 10px", textAlign: "center", color: "var(--text-subtle)", fontSize: 13 }}>
+              Belum ada notifikasi
+            </div>
+          ) : items.map((n) => (
+            <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px",
+              borderRadius: "var(--radius-sm)" }}>
+              <Icon name="check-circle-2" size={16} color="var(--leaf-500)" />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, color: "var(--text-strong)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {n.specId} · {n.title}
+                </div>
+                <div style={{ fontSize: 11.5, color: "var(--text-subtle)" }}>selesai · {timeAgo(n.createdAt)}</div>
+              </div>
+              {!n.readAt && <span style={{ flex: "0 0 auto", width: 7, height: 7, borderRadius: "50%", background: "var(--accent)" }} />}
+            </div>
+          ))}
+          {items.length > 0 && (
+            <button onClick={markAllRead} style={{ width: "100%", marginTop: 4, padding: "8px", border: "none",
+              borderTop: "1px solid var(--border-hair)", background: "transparent", cursor: "pointer",
+              color: "var(--text-muted)", fontSize: 12.5, fontFamily: "var(--font-ui)" }}>Tandai semua dibaca</button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

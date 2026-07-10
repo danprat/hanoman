@@ -39,8 +39,8 @@ export function NotificationsProvider({ showToast, children }: { showToast: Show
     const fresh = newSince(data.items, baseline.current);
     const top = maxAt(data.items);
     if (top > baseline.current) baseline.current = top;
-    if (fresh.length && enabledRef.current) {
-      const latest = fresh[0]; // items terbaru dulu (server orderBy desc)
+    const latest = fresh[0]; // items terbaru dulu (server orderBy desc)
+    if (latest && enabledRef.current) {
       showToast(`${latest.specId} · "${latest.title}" selesai`, "ok", "check-circle-2");
       playNotifySound(soundRef.current);
     }
