@@ -10,6 +10,7 @@ import settings from "./routes/settings";
 import docs from "./routes/docs";
 import fs from "./routes/fs";
 import terminal from "./routes/terminal";
+import vps from "./routes/vps";
 import { detachAll } from "./services/pty";
 export function buildApp(): FastifyInstance {
   const app = Fastify({ logger: false });
@@ -34,6 +35,7 @@ export function buildApp(): FastifyInstance {
     await api.register(docs);
     await api.register(fs);
     await api.register(terminal);
+    await api.register(vps);
   }, { prefix: "/api" });
 
   // Prod: serve the built dashboard from one process; SPA-fallback to

@@ -1,4 +1,10 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import type { Prisma } from "@prisma/client";
 import type { VpsCheck, VpsHealth } from "@hanoman/shared";
+import { prisma } from "../db";
+import { repoRoot } from "../runner/deps";
+import { sshExec, type SshTarget } from "./vps-ssh";
 
 // Check kritis (SPEC-164 §3): semuanya pass → hardened. warn tak menghalangi.
 export const CRITICAL = [
@@ -32,4 +38,31 @@ export function parseHealth(out: string): VpsHealth | null {
   }
   if (!h.uptime && !h.disk) return null;
   return { uptime: h.uptime ?? "", disk: h.disk ?? "", mem: h.mem ?? "", load: h.load ?? "" };
+}
+
+export type VpsRow = { id: string; host: string; port: number; user: string; keyPath: string | null };
+const target = (v: VpsRow): SshTarget => ({ host: v.host, port: v.port, user: v.user, keyPath: v.keyPath });
+// Dijangkar ke root workspace (pola deps.ts) — benar dari tsx (cwd server/) maupun dist.
+export const scriptPath = (f: string): string => join(repoRoot(), "server", "scripts", "vps", f);
+
+export async function runAudit(v: VpsRow):
+  Promise<{ ok: true; audit: VpsCheck[]; hardened: boolean } | { ok: false; out: string }> {
+  const r = await sshExec(target(v), "sudo -n bash -s",
+    { stdin: readFileSync(scriptPath("audit.sh"), "utf8"), timeoutMs: 60_000 });
+  const audit = parseAudit(r.out);
+  // ssh gagal ATAU output tanpa satu pun CHECK (sudo minta password, shell asing) = audit gagal.
+  if (r.code !== 0 || audit.length === 0) return { ok: false, out: r.out };
+  const hardened = isHardened(audit);
+  await prisma.vps.update({ where: { id: v.id }, data: {
+    audit: audit as unknown as Prisma.InputJsonValue, lastAuditAt: new Date(), hardened } });
+  return { ok: true, audit, hardened };
+}
+
+export async function runHealth(v: VpsRow): Promise<boolean> {
+  const r = await sshExec(target(v), HEALTH_CMD, { timeoutMs: 60_000 });
+  const health = parseHealth(r.out);
+  if (r.code !== 0 || !health) return false;
+  await prisma.vps.update({ where: { id: v.id }, data: {
+    health: health as unknown as Prisma.InputJsonValue, lastSeenAt: new Date() } });
+  return true;
 }
