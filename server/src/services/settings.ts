@@ -10,7 +10,7 @@ const STEP = { model: "claude-opus-4-8", effort: "xhigh" };
 export const DEFAULT_SETTING: Setting = {
   steps: { brainstorm: STEP, spec: STEP, plan: STEP, execute: STEP, audit: STEP },
   autoDefault: true, blockStale: true, requireLinks: true, autoScaffold: true,
-  maxConcurrent: 3, notifyFail: true,
+  maxConcurrent: 3, notifyFail: true, askTimeoutMin: 30,
 };
 export async function getSetting(): Promise<Setting> {
   return ((await prisma.setting.findUnique({ where: { id: 1 } }))?.data as Setting | undefined) ?? DEFAULT_SETTING;

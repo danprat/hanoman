@@ -28,6 +28,16 @@ export const zSpec = z.object({
 export type Spec = z.infer<typeof zSpec>;
 
 const zPhase = z.object({ name: z.string(), state: z.enum(["done","active","failed","pending","skipped"]) });
+// SPEC-157 · pertanyaan agen yang sedang menunggu jawaban manusia. Bentuknya identik dengan
+// `Ask` di @hanoman/runner — runner menulisnya, server menyimpannya, UI merendernya.
+export const zAskOption = z.object({ value: z.string().min(1), label: z.string().min(1), detail: z.string().optional() });
+export const zAsk = z.object({
+  question: z.string().min(1),
+  options: z.array(zAskOption).min(2),
+  default: z.string().min(1),
+});
+export type Ask = z.infer<typeof zAsk>;
+
 export const zRun = z.object({
   id: z.string(), projectId: z.string(), specId: z.string().nullable(),
   kind: zRunKind, status: zRunStatus, trigger: zTriggerType, triggerDetail: z.string(),
@@ -38,6 +48,7 @@ export const zRun = z.object({
   model: z.string(), tokensIn: z.string(), tokensOut: z.string(),
   cost: z.string(), progress: z.number(),
   createdAt: z.string(), finishedAt: z.string().nullable(),
+  pendingAsk: zAsk.nullable(),
 });
 export type Run = z.infer<typeof zRun>;
 
@@ -52,7 +63,10 @@ export const zSetting = z.object({
     execute: zStepModel, audit: zStepModel }),
   autoDefault: z.boolean(), blockStale: z.boolean(), requireLinks: z.boolean(),
   autoScaffold: z.boolean(), maxConcurrent: z.number().int(),
-  notifyFail: z.boolean() });
+  notifyFail: z.boolean(),
+  // Menit menunggu jawaban manusia sebelum `default` milik agen dipakai (SPEC-157). `0` =
+  // jangan pernah menunggu (batch tak berpenunggu). `.default(30)` menjaga body PUT lama tetap sah.
+  askTimeoutMin: z.number().int().min(0).default(30) });
 export type Setting = z.infer<typeof zSetting>;
 
 export const zDocFile = z.object({

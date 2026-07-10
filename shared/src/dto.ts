@@ -41,6 +41,9 @@ export const zControl = z.object({ action: zControlAction });
 export const zSteer = z.object({ message: z.string().min(1) });
 export const zWorktreePatch = z.object({ branchFrom: z.string().optional(), branchTo: z.string().optional() });
 export const zCommand = z.object({ text: z.string().min(1) });
+// Jawaban atas `Run.pendingAsk` (SPEC-157). `value` divalidasi terhadap `options` di route —
+// batas kepercayaan: klien tak boleh menyuntik teks sembarang ke stdin agen lewat sini.
+export const zAnswer = z.object({ value: z.string().min(1) });
 
 // Sesi terminal dibuka untuk sebuah project (repoDir-nya) atau untuk sebuah run —
 // yang terakhir me-resume sesi claude milik run itu di dalam worktree-nya (SPEC-013).

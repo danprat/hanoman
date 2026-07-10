@@ -52,7 +52,7 @@ describe("SPEC-144 Run sha", () => {
     trigger: "manual" as const, triggerDetail: "", phases: [], plan: [], log: [],
     worktree: ".worktrees/run-1", branchFrom: "main", branchTo: "hanoman/run-1",
     model: "", tokensIn: "0", tokensOut: "0", cost: "$0.00", progress: 0,
-    createdAt: "2026-07-09T00:00:00.000Z", finishedAt: null,
+    createdAt: "2026-07-09T00:00:00.000Z", finishedAt: null, pendingAsk: null,
   };
   it("menerima baseSha/headSha null", () => {
     const r = zRun.parse({ ...base, baseSha: null, headSha: null });
