@@ -56,6 +56,28 @@ export function startPrompt(flow: Flow, spec: SpecBrief, branchTo: string): stri
   ].filter(Boolean).join("\n\n");
 }
 
+// SPEC-172 · reopen sesi backlog item yang keburu ditandai `done` padahal kerjanya belum
+// tuntas (mis. spec ber-banyak-PR, baru sebagian beres). Beda dari startPrompt: TIDAK
+// menggiring pipeline dari awal — spec & plan sudah ada, jadi sesi lanjut langsung di
+// Execute. Kontinuitas: plan di docs/superpowers/plans/** menandai task `[x]`/`[ ]`, dan
+// kerja yang selesai umumnya sudah ter-merge ke branchFrom (worktree lahir dari sana).
+export function continuePrompt(flow: Flow, spec: SpecBrief, branchTo: string): string {
+  const detail = spec.payload ? `\nDetail: ${JSON.stringify(spec.payload)}` : "";
+  return [
+    `hanoman ${flow} — MELANJUTKAN backlog item yang sebelumnya ditandai selesai padahal `
+      + `pekerjaannya belum tuntas. Ikuti internal/docs sebagai Source of Truth; perbarui `
+      + `docs yang tersentuh dan link-nya di index, dalam commit yang sama.`,
+    `JANGAN mengulang fase awal — spec & plan sudah ada. Lanjut di fase Execute: baca plan `
+      + `di docs/superpowers/plans/** untuk backlog item ini, periksa task yang sudah \`[x]\` `
+      + `dan selesaikan yang masih \`[ ]\`. Verifikasi nyata sebelum klaim selesai.`,
+    skillInstruction(["Execute"]),
+    `Setelah selesai: commit, lalu \`git push origin HEAD:refs/heads/${branchTo}\`. Worktree `
+      + `ini detached HEAD — itu memang disengaja.`,
+    `Backlog item ${spec.id} · sumber ${spec.source} · prioritas ${spec.priority}\n`
+      + `Judul: ${spec.title}\nObjective: ${spec.objective}${detail}`,
+  ].filter(Boolean).join("\n\n");
+}
+
 // Panduan per fase reverse (SPEC-166). Wawancara adalah fase interaktif: manusia menonton
 // sesi ini lewat terminal dashboard dan menjawab di sana — karena itu SATU pertanyaan per
 // giliran, bukan borongan.

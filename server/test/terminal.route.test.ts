@@ -196,6 +196,34 @@ describe("terminal routes · sesi backlog", () => {
     const spec = await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-905" } });
     expect(spec.stage).toBe("planned");
   });
+
+  // SPEC-172 · reopen: spec `done` memakai continuePrompt (lanjut Execute), bukan startPrompt.
+  it("spec done → sesi baru memakai continuePrompt (marker MELANJUTKAN)", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE; // fake-claude cetak `args: $*`
+    await makeSpec({ id: "SPEC-920", projectId: "p1", stage: "done", objective: "selesaikan 3 PR sisa" });
+    const res = await start("SPEC-920");
+    expect(res.statusCode).toBe(201);
+    expect(existsSync(join(repoDir, ".worktrees", "spec-920"))).toBe(true);
+    const c = connect("spec-920");
+    await c.opened;
+    await waitFor(() => c.data().includes("MELANJUTKAN"));
+    expect(c.data()).not.toContain("Kerjakan fase berurutan"); // pipeline penuh tak dipakai
+    c.ws.close();
+    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-920" });
+  });
+
+  it("spec non-done → tetap startPrompt (tanpa marker MELANJUTKAN)", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    await makeSpec({ id: "SPEC-921", projectId: "p1", stage: "planned", objective: "kerja biasa" });
+    const res = await start("SPEC-921");
+    expect(res.statusCode).toBe(201);
+    const c = connect("spec-921");
+    await c.opened;
+    await waitFor(() => c.data().includes("Kerjakan fase berurutan"));
+    expect(c.data()).not.toContain("MELANJUTKAN");
+    c.ws.close();
+    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-921" });
+  });
 });
 
 // SPEC-166: reverse menyusun Source of Truth dari kode — sesi project-level di worktree-nya.

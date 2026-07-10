@@ -72,11 +72,12 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview }:
+function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, onStart }:
   {
     spec: Spec | null; onClose: () => void; onEditBranch?: (s: Spec, b: string | null) => void;
     onRevertStage?: (s: Spec, target: string, confirmDelete?: boolean) => Promise<any>;
-    onOpenReview?: (s: Spec) => void
+    onOpenReview?: (s: Spec) => void;
+    onStart?: (s: Spec) => void
   }) {
   // Hook HARUS mendahului early-return `if (!spec)` — rules-of-hooks.
   const [branches, setBranches] = React.useState<string[]>([]);
@@ -124,6 +125,15 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview }
       </div>
       <div style={{ marginBottom: 18 }}>
         <StageBar stage={spec.stage} />
+        {/* SPEC-172 · reopen sesi hanya di detail (bukan list/grid/board): spec yang keburu
+            `done` bisa dibuka lagi untuk melanjutkan sisa kerja (lanjut di fase Execute). */}
+        {spec.stage === "done" && onStart && (
+          <div style={{ marginTop: 12 }}>
+            <Button size="sm" variant="primary" leftIcon="play" onClick={() => onStart(spec)}>
+              Buka sesi lagi
+            </Button>
+          </div>
+        )}
         {onRevertStage && earlier.length > 0 && (
           <div style={{ marginTop: 12 }}>
             <div className="hn-eyebrow" style={{ marginBottom: 4 }}>Kembalikan stage</div>
@@ -492,7 +502,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
         </>
       )}
       <SpecDetail spec={backlog.find((s) => s.id === detailId) || null} onClose={() => setDetailId(null)}
-        onEditBranch={onEditBranch} onRevertStage={onRevertStage} onOpenReview={onOpenReview} />
+        onEditBranch={onEditBranch} onRevertStage={onRevertStage} onOpenReview={onOpenReview} onStart={onStart} />
     </div>
   );
 }

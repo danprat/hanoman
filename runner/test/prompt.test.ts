@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { PIPELINES, startPrompt, startProjectPrompt } from "../src/prompt";
+import { PIPELINES, startPrompt, startProjectPrompt, continuePrompt } from "../src/prompt";
 
 const spec = { id: "SPEC-162", title: "Sesi interaktif", source: "brief",
   priority: "high", objective: "Ganti runOne dengan tmux" };
@@ -53,6 +53,49 @@ describe("startPrompt", () => {
   it("payload ikut saat ada, dan tak menghasilkan 'undefined' saat tak ada", () => {
     expect(startPrompt("qa", { ...spec, payload: { severity: "major" } }, "b")).toContain("severity");
     expect(startPrompt("qa", spec, "b")).not.toContain("undefined");
+  });
+});
+
+// SPEC-172 · reopen: lanjut di Execute untuk spec yang keburu `done`, tanpa mengulang pipeline.
+describe("continuePrompt", () => {
+  const branch = "hanoman/spec-162";
+
+  it("identitas & objective backlog item ikut", () => {
+    const p = continuePrompt("feature", spec, branch);
+    expect(p).toContain("SPEC-162");
+    expect(p).toContain("Ganti runOne dengan tmux");
+  });
+
+  it("lanjut di Execute, tak mengulang pipeline dari awal", () => {
+    const p = continuePrompt("feature", spec, branch);
+    expect(p).toContain("Execute");
+    expect(p).toContain("docs/superpowers/plans");
+    expect(p).not.toContain("Brainstorm");
+    expect(p).not.toContain("Kerjakan fase berurutan"); // phaseInstruction absen
+    expect(p).not.toContain("$HANOMAN_PHASE_FILE");
+  });
+
+  it("hanya skill fase Execute yang di-invoke", () => {
+    const p = continuePrompt("feature", spec, branch);
+    for (const s of ["superpowers:executing-plans", "superpowers:test-driven-development",
+      "superpowers:verification-before-completion"]) expect(p).toContain(s);
+    expect(p).not.toContain("superpowers:brainstorming");
+    expect(p).not.toContain("superpowers:writing-plans");
+  });
+
+  it("tetap menyuruh commit + push ke branch-nya", () => {
+    const p = continuePrompt("feature", spec, branch);
+    expect(p).toContain("git push");
+    expect(p).toContain("hanoman/spec-162");
+  });
+
+  it("memuat marker MELANJUTKAN di awal (dipakai server untuk verifikasi pilihan prompt)", () => {
+    expect(continuePrompt("feature", spec, branch)).toContain("MELANJUTKAN");
+  });
+
+  it("payload ikut saat ada, tanpa 'undefined' saat tidak", () => {
+    expect(continuePrompt("qa", { ...spec, payload: { severity: "major" } }, "b")).toContain("severity");
+    expect(continuePrompt("feature", spec, "b")).not.toContain("undefined");
   });
 });
 

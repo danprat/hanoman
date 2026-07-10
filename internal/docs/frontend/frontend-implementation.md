@@ -98,6 +98,14 @@ Aturannya dua fungsi murni terekspor, `specColumn()` dan `canDrop()`, diuji di
 `src/test/backlog-board.test.tsx` — termasuk render test jsdom yang men-drag kartu sungguhan,
 karena `from`/`to` yang tertukar lolos dari unit test aturannya sendiri.
 
+**Reopen sesi untuk spec `done` (SPEC-172).** Kadang hanoman menandai `done` terlalu dini
+(mis. spec ber-banyak-PR, baru sebagian beres). `SpecDetail` (modal detail) menampilkan tombol
+**"Buka sesi lagi"** saat `spec.stage === "done"`, memanggil `onStart(spec)` — flow start yang
+sama (`POST /terminal/sessions`), tapi server memilih prompt **lanjutan** (fase Execute saja)
+karena stage-nya `done`. Sengaja **hanya** di detail: `SpecActions` (dipakai grid/list/board)
+tak diubah, jadi aksi ini tak muncul di tiga mode tampilan itu. Stage tetap `done`; diuji di
+`src/test/reopen-session.test.tsx`.
+
 Drag pakai HTML5 drag-and-drop native, tanpa dependency — dan ia mati total di keyboard maupun
 layar sentuh. Karena itu **setiap kartu di ketiga mode, termasuk `BoardCard`, membawa
 `SpecActions`** (Mulai / Buka run / Jalankan lagi). Drag adalah jalan pintas, bukan jalan satu-satunya.

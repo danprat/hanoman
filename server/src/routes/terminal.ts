@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../db";
 import { zTerminalSession, type Stage } from "@hanoman/shared";
-import { realGit, startPrompt, startProjectPrompt, type Flow } from "@hanoman/runner";
+import { realGit, startPrompt, continuePrompt, startProjectPrompt, type Flow } from "@hanoman/runner";
 import { phaseFilePath, readPhases, stageFor } from "../services/session-phases";
 import { sessionModel } from "../services/settings";
 import { STAGES } from "../services/stage-machine";
@@ -52,10 +52,14 @@ export default async function (app: FastifyInstance) {
       // Worktree lahir `--detach` di commit branchFrom: sesi tak pernah berjalan di working
       // tree utama, dan `main` boleh tetap ter-checkout di sana (ADR-0002).
       realGit.addWorktree(repoDir, `${repoDir}/.worktrees/${id}`, spec.branchFrom ?? "main");
+      // SPEC-172 · spec yang keburu `done` di-reopen untuk melanjutkan (lanjut di Execute,
+      // tak mengulang pipeline). Deteksi dari stage — satu-satunya jalur yang men-start spec
+      // `done` adalah tombol "Buka sesi lagi" di detail; list/grid/board menyembunyikan start.
+      const mkPrompt = spec.stage === "done" ? continuePrompt : startPrompt;
       const s = createSession(spec.projectId, `${repoDir}/.worktrees/${id}`, {
         specId: spec.id, flow: parsed.data.flow, model, effort,
         phaseFile: phaseFilePath(repoDir, id),
-        prompt: startPrompt(parsed.data.flow, {
+        prompt: mkPrompt(parsed.data.flow, {
           id: spec.id, title: spec.title, source: spec.source,
           priority: spec.priority, objective: spec.objective, payload: spec.payload ?? undefined,
         }, `hanoman/${id}`),
