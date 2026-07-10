@@ -28,6 +28,11 @@ PATCH /specs/:id          { branchFrom?: string|null, stage?, confirmDelete? }  
 #   200 { pending:true, stage, wouldDelete:string[] } (dry-run, tak mengubah apa pun);
 #   confirmDelete:true → hapus artefak + set stage. Agen tetap forward-only (ADR-0008/0024).
 DELETE /specs/:id
+GET  /specs/:id/review        # { base, files:string[], changed:{path,add,del,status,binary}[] }  (SPEC-171)
+#   review worktree backlog item <repoDir>/.worktrees/<specid>; base = merge-base(branchFrom‖main, HEAD).
+#   files = git ls-files (tracked ∪ untracked-tak-ignored, minus --deleted). 409 bila repoDir/worktree tak ada.
+GET  /specs/:id/review/*path  # { path, status, binary, truncated, diff, content }  isi 1 file (256 KB)
+#   404 bila path di luar (files ∪ changed) — sekaligus gerbang path traversal.
 ```
 
 ## Runs
