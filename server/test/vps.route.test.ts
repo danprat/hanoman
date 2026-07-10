@@ -3,8 +3,10 @@ import { fileURLToPath } from "node:url";
 import { buildApp } from "../src/app";
 import { prisma } from "../src/db";
 import { resetDb, makeVps } from "./factory";
+import { getSession, killAll } from "../src/services/pty";
 
 const FAKE_SSH = fileURLToPath(new URL("./fixtures/fake-ssh.sh", import.meta.url));
+const FAKE_CLAUDE = fileURLToPath(new URL("./fixtures/fake-claude.sh", import.meta.url));
 const app = buildApp();
 beforeAll(async () => { await resetDb(); });
 beforeEach(() => { process.env.HANOMAN_SSH_BIN = FAKE_SSH; delete process.env.FAKE_SSH_MODE; });
@@ -84,5 +86,21 @@ describe("harden (SPEC-164)", () => {
   });
   it("harden vps tak dikenal → 404", async () => {
     expect((await app.inject({ method: "POST", url: "/api/vps/hantu/harden" })).statusCode).toBe(404);
+  });
+});
+
+describe("sesi claude vps (SPEC-164)", () => {
+  it("membuka sesi tmux dengan label owner vps:<id>", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const v = await makeVps({ name: "s1", host: "198.51.100.21",
+      audit: [{ check: "firewall", status: "fail", detail: "ufw tidak aktif" }], lastAuditAt: new Date() });
+    const res = await app.inject({ method: "POST", url: `/api/vps/${v.id}/session` });
+    expect(res.statusCode).toBe(201);
+    const s = getSession(res.json().id);
+    expect(s?.projectId).toBe(`vps:${v.id}`);
+    killAll();
+  });
+  it("sesi vps tak dikenal → 404", async () => {
+    expect((await app.inject({ method: "POST", url: "/api/vps/hantu/session" })).statusCode).toBe(404);
   });
 });

@@ -1,9 +1,12 @@
 import type { FastifyInstance } from "fastify";
 import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { prisma } from "../db";
-import { zCreateVps, zPatchVps } from "@hanoman/shared";
+import { zCreateVps, zPatchVps, type VpsCheck } from "@hanoman/shared";
 import { sshExec } from "../services/vps-ssh";
 import { runAudit, scriptPath } from "../services/vps-audit";
+import { createSession } from "../services/pty";
+import { sessionModel } from "../services/settings";
 
 // Audit (dan nanti harden/session) = eksekusi remote via SSH dengan key milik mesin ini.
 // Tanpa auth — pagarnya bind 127.0.0.1 di server.ts, sama seperti /api/terminal
@@ -58,5 +61,25 @@ export default async function (app: FastifyInstance) {
     }
     const audit = await runAudit(v);
     return { transcript: r.out, audit: audit.ok ? audit.audit : null, hardened: audit.ok && audit.hardened };
+  });
+
+  // Escape hatch (SPEC-164 §6): kasus yang script tak tangani dikerjakan Claude interaktif.
+  // cwd = home server (bukan repo siapa pun); konteks + perintah ssh dibawa prompt awal.
+  app.post("/vps/:id/session", async (req, reply) => {
+    const v = await prisma.vps.findUnique({ where: { id: (req.params as { id: string }).id } });
+    if (!v) return reply.code(404).send({ error: "not found" });
+    const checks = (v.audit as VpsCheck[] | null) ?? [];
+    const { model, effort } = await sessionModel();
+    const s = createSession(`vps:${v.id}`, homedir(), {
+      model, effort,
+      prompt: [
+        `Kamu membantu hardening lanjutan VPS "${v.name}" (${v.user}@${v.host} port ${v.port}).`,
+        `Akses: ssh -p ${v.port}${v.keyPath ? ` -i ${v.keyPath}` : ""} ${v.user}@${v.host}`,
+        checks.length ? "Hasil audit terakhir:" : "Belum pernah diaudit.",
+        ...checks.map((c) => `- ${c.check}: ${c.status}${c.detail ? ` (${c.detail})` : ""}`),
+        "Kerjakan hanya yang diminta lewat terminal ini; konfirmasi dulu sebelum perubahan berisiko.",
+      ].join("\n"),
+    });
+    return reply.code(201).send({ id: s.id });
   });
 }
