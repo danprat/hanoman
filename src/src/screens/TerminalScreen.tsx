@@ -1,19 +1,23 @@
 import React from "react";
-import { Button, IconButton, Icon, Select, StateBlock } from "../ds";
-import { api, type TerminalSession, type Phase } from "../api/client";
+import { Button, IconButton, Icon, Select, StateBlock, Modal, Input, Badge } from "../ds";
+import { api, ApiError, type TerminalSession, type Phase, type Flow } from "../api/client";
+import type { Spec } from "@hanoman/shared";
 import { TerminalPane } from "./TerminalPane";
 import { SpecDocsModal } from "./SpecDocsModal";
 import * as L from "./terminal-layout";
 import * as W from "./terminal-workspace";
 
-export function TerminalScreen({ projects, onOpenReview, titleOf }: {
-  projects: { id: string; name: string }[]; onOpenReview?: (specId: string) => void;
+export function TerminalScreen({ projects, backlog = [], onOpenReview, titleOf }: {
+  projects: { id: string; name: string }[]; backlog?: Spec[];
+  onOpenReview?: (specId: string) => void;
   titleOf?: (specId: string) => string | undefined;
 }) {
   const [sessions, setSessions] = React.useState<TerminalSession[]>([]);
   const [ws, setWs] = React.useState<W.Workspace>(() => W.load() ?? W.emptyWorkspace());
   const [project, setProject] = React.useState(projects[0]?.id ?? "");
   const [maxed, setMaxed] = React.useState(false);
+  const [picking, setPicking] = React.useState(false);
+  const [pickError, setPickError] = React.useState<string | null>(null);
 
   const [loaded, setLoaded] = React.useState(false);
   React.useEffect(() => {
@@ -40,6 +44,30 @@ export function TerminalScreen({ projects, onOpenReview, titleOf }: {
     setSessions((s) => [...s, { id, projectId: project, cwd: "", exited: false }]);
     setWs((w) => W.placeFirstEmptyInActive(w, id));
   }
+
+  // SPEC-179 · ambil backlog item tanpa pindah page. Reuse start API idempoten +
+  // placeFirstEmptyInActive — sesi baru langsung masuk grid aktif.
+  async function pickBacklog(spec: Spec) {
+    const flow: Flow = spec.source === "qa" ? "qa" : "feature";
+    try {
+      const { id } = await api.startSession({ spec: spec.id, flow });
+      setSessions((s) => s.some((x) => x.id === id)
+        ? s
+        : [...s, { id, projectId: spec.projectId, specId: spec.id, flow, cwd: "", exited: false }]);
+      setWs((w) => W.placeFirstEmptyInActive(w, id));
+      setPicking(false);
+      setPickError(null);
+    } catch (e) {
+      const noRepo = e instanceof ApiError && (e.status === 400 || e.status === 422);
+      setPickError(`${spec.id} · gagal mulai${noRepo ? " · project belum punya repoDir" : ""}`);
+    }
+  }
+
+  // Startable = belum selesai & belum punya sesi hidup di terminal ini (cermin Backlog
+  // "Mulai/Lanjutkan": stage !== "done" && !running).
+  const activeSpecIds = new Set(
+    sessions.filter((s) => s.specId && !s.exited).map((s) => s.specId as string));
+  const startable = backlog.filter((s) => s.stage !== "done" && !activeSpecIds.has(s.id));
 
   // Tutup = perilaku hari ini: kill sesi. Selnya dikosongkan oleh efek rekonsiliasi.
   async function close(id: string) {
@@ -96,6 +124,8 @@ export function TerminalScreen({ projects, onOpenReview, titleOf }: {
           <div style={{ flex: 1, minWidth: 0 }} />
           <Select size="sm" value={project} onChange={(e) => setProject(e.target.value)}
             options={projects.map((p) => ({ value: p.id, label: p.name }))} />
+          <Button size="sm" variant="secondary" leftIcon="inbox"
+            onClick={() => { setPickError(null); setPicking(true); }}>Ambil backlog</Button>
           <Button size="sm" leftIcon="plus" onClick={() => void openNew()}>Sesi baru</Button>
           <IconButton size="sm" icon={maxed ? "minimize-2" : "maximize-2"}
             label={maxed ? "Keluar layar penuh" : "Layar penuh"}
@@ -163,7 +193,57 @@ export function TerminalScreen({ projects, onOpenReview, titleOf }: {
           ))}
         </div>
       )}
+
+      {picking && (
+        <BacklogPicker specs={startable} error={pickError}
+          onPick={(s) => void pickBacklog(s)} onClose={() => setPicking(false)} />
+      )}
     </div>
+  );
+}
+
+// SPEC-179 · picker backlog dari Terminal. Daftar padat + cari; klik baris = ambil.
+function BacklogPicker({ specs, error, onPick, onClose }: {
+  specs: Spec[]; error: string | null; onPick: (s: Spec) => void; onClose: () => void;
+}) {
+  const [q, setQ] = React.useState("");
+  const needle = q.trim().toLowerCase();
+  const shown = needle
+    ? specs.filter((s) => `${s.id} ${s.title} ${s.objective}`.toLowerCase().includes(needle))
+    : specs;
+  return (
+    <Modal open title="Ambil backlog" icon="inbox" onClose={onClose} width={520}>
+      {error && (
+        <div style={{ marginBottom: 10, padding: "8px 10px", borderRadius: "var(--radius-sm)",
+          background: "var(--clay-100)", color: "var(--clay-600)", fontSize: 12 }}>{error}</div>
+      )}
+      <Input size="sm" leftIcon="search" placeholder="Cari backlog…" aria-label="Cari backlog"
+        value={q} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value)}
+        style={{ marginBottom: 10 }} />
+      {shown.length === 0 ? (
+        <StateBlock kind="empty" icon="inbox" title="Tak ada backlog untuk diambil"
+          hint="Semua item sudah selesai atau sedang aktif — buat brief baru di halaman Backlog." />
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", maxHeight: "48vh", overflowY: "auto" }}>
+          {shown.map((s) => (
+            <button key={s.id} onClick={() => onPick(s)} style={{
+              all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
+              padding: "9px 8px", borderBottom: "1px solid var(--border-hair)",
+            }}>
+              <Icon name={s.source === "qa" ? "bug" : "lightbulb"} size={14}
+                color={s.source === "qa" ? "var(--clay-500)" : "var(--brass-500)"} />
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-subtle)",
+                flex: "0 0 78px" }}>{s.id}</span>
+              <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: "var(--text-strong)",
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</span>
+              <Badge tone={s.priority === "tinggi" ? "err" : "neutral"} size="sm">{s.priority}</Badge>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11,
+                color: "var(--text-muted)" }}>{s.projectId}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </Modal>
   );
 }
 

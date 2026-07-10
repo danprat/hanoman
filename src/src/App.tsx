@@ -509,7 +509,7 @@ export default function App() {
           ? <StateBlock kind="empty" icon="box" title="Belum ada project"
               hint="Terminal butuh project dengan repoDir untuk dijalankan."
               action={() => setModal("project")} actionLabel="Project baru" />
-          : <TerminalScreen projects={projectsView}
+          : <TerminalScreen projects={projectsView} backlog={backlog}
               onOpenReview={(specId) => { setReviewSpecId(specId); setSection("review"); }}
               titleOf={(id) => backlog.find((s) => s.id === id)?.title} />)}
       </Shell>
