@@ -852,7 +852,7 @@ git commit -m "feat(app): lonceng notifikasi di topbar + provider di root (SPEC-
 **Interfaces:**
 - Produces: `Setting.notifyDone: boolean` (default `true`), `Setting.notifySound: "off"|"short"|"medium"|"long"` (default `"short"`). UI di section "Sesi": toggle + select + tombol Preview.
 
-- [ ] **Step 1: Tulis test server yang gagal**
+- [x] **Step 1: Tulis test server yang gagal**
 
 Di `server/test/settings.test.ts`, tambahkan test bahwa default memuat field baru:
 
@@ -863,12 +863,12 @@ Di `server/test/settings.test.ts`, tambahkan test bahwa default memuat field bar
   });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman pnpm --filter ./server exec vitest run settings.test`
 Expected: FAIL — field belum ada.
 
-- [ ] **Step 3: Tambah field di shared + server default**
+- [x] **Step 3: Tambah field di shared + server default**
 
 Di `shared/src/entities.ts`, `zSetting` — tambah dua field:
 
@@ -896,12 +896,12 @@ export const DEFAULT_SETTING: Setting = {
 };
 ```
 
-- [ ] **Step 4: Jalankan test server, pastikan lulus**
+- [x] **Step 4: Jalankan test server, pastikan lulus**
 
 Run: `env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman pnpm --filter ./server exec vitest run settings.test`
 Expected: PASS.
 
-- [ ] **Step 5: Frontend — S_DEFAULTS + kartu Sesi + Preview**
+- [x] **Step 5: Frontend — S_DEFAULTS + kartu Sesi + Preview**
 
 Di `src/src/screens/SettingsScreen.tsx`:
 
@@ -950,7 +950,7 @@ Ganti kartu Sesi (blok `return ( // sesi ... )`) menjadi:
     );
 ```
 
-- [ ] **Step 6: Test frontend — round-trip setting baru**
+- [x] **Step 6: Test frontend — round-trip setting baru**
 
 Di `src/test/settings-nav.test.tsx`: perbarui mock `getSettings` agar memuat field baru, dan tambah test bahwa toggle Sesi mem-PUT `notifyDone`. Ubah `beforeEach` mock:
 
@@ -973,12 +973,12 @@ Tambah test:
 
 (`Switch` ds sudah mengekspos `role="switch"` via `React.createElement`, jadi `getAllByRole("switch")[0]` valid — toggle pertama di kartu Sesi = `notifyDone`.)
 
-- [ ] **Step 7: Jalankan, pastikan lulus**
+- [x] **Step 7: Jalankan, pastikan lulus**
 
 Run: `env -u NODE_ENV pnpm --filter ./src exec vitest run settings-nav`
 Expected: PASS (termasuk test lama yang kini ber-mock field baru).
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add shared/src/entities.ts server/src/services/settings.ts src/src/screens/SettingsScreen.tsx server/test/settings.test.ts src/test/settings-nav.test.tsx
