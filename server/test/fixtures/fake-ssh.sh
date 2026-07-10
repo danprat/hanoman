@@ -4,6 +4,17 @@
 case "${FAKE_SSH_MODE:-}" in
   unreachable) echo "ssh: connect to host x port 22: Connection refused" >&2; exit 255 ;;
 esac
+
+# SPEC-165 · rekam bagaimana ssh dipanggil supaya test bisa memeriksa argumen & env.
+if [ -n "${FAKE_SSH_LOG:-}" ]; then
+  { echo "ARGV $*"
+    echo "ASKPASS ${SSH_ASKPASS:-none}"
+    echo "ASKPASS_REQUIRE ${SSH_ASKPASS_REQUIRE:-none}"
+    # Nilai passwordnya sendiri TIDAK dicatat — hanya ada/tidaknya.
+    echo "HAS_PASSWORD $([ -n "${HANOMAN_SSH_PASSWORD:-}" ] && echo yes || echo no)"
+  } >> "$FAKE_SSH_LOG"
+fi
+
 input="$(cat)"          # stdin = isi script (kosong untuk healthcheck/verify)
 last="${*: -1}"         # arg terakhir = perintah remote
 
