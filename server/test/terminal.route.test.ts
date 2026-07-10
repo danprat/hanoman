@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import type { AddressInfo } from "node:net";
 import { buildApp } from "../src/app";
 import { prisma } from "../src/db";
-import { killAll, listSessions } from "../src/services/pty";
+import { killAll, killSession, listSessions } from "../src/services/pty";
 import { phaseFilePath } from "../src/services/session-phases";
 import { resetDb, makeProject, makeSpec } from "./factory";
 
@@ -250,5 +250,55 @@ describe("terminal routes · sesi reverse", () => {
     expect(c.data()).toContain("STANDAR DOCS");
     c.ws.close();
     await app.inject({ method: "DELETE", url: "/api/terminal/sessions/reverse-p1" });
+  });
+});
+
+// SPEC-168: backlog menurunkan stage sesi yang hidup — real time, tanpa menunggu DELETE.
+describe("GET /specs · stage live dari sesi", () => {
+  const start = (spec: string, flow = "feature") =>
+    app.inject({ method: "POST", url: "/api/terminal/sessions", payload: { spec, flow } });
+  const stageOf = async (id: string) => {
+    const res = await app.inject({ url: "/api/specs" });
+    return (res.json() as { id: string; stage: string }[]).find((s) => s.id === id)?.stage;
+  };
+
+  it("menurunkan stage dari berkas fase selama sesi hidup, lalu mempersistnya (write-through)", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    await makeSpec({ id: "SPEC-906", projectId: "p1", stage: "brainstorming" });
+    await start("SPEC-906");
+    appendFileSync(phaseFilePath(repoDir, "spec-906"), "Brainstorm done\nObjective done\n");
+
+    expect(await stageOf("SPEC-906")).toBe("objective");
+    // Durabilitas: read yang melihat kemajuan menuliskannya ke DB, jadi stage selamat
+    // meski berkas fase / pane hilang sebelum DELETE (SPEC-168).
+    const row = await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-906" } });
+    expect(row.stage).toBe("objective");
+    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-906" });
+  });
+
+  it("stage selamat saat sesi lenyap tanpa DELETE — sudah dipersist saat dibaca", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    await makeSpec({ id: "SPEC-909", projectId: "p1", stage: "brainstorming" });
+    await start("SPEC-909");
+    appendFileSync(phaseFilePath(repoDir, "spec-909"), "Brainstorm done\nObjective done\n");
+    expect(await stageOf("SPEC-909")).toBe("objective"); // derive + persist
+
+    killSession("spec-909"); // pane hilang tanpa advanceStage (reboot/tmux mati)
+    expect(listSessions().some((s) => s.id === "spec-909")).toBe(false);
+    expect(await stageOf("SPEC-909")).toBe("objective"); // dari DB, bukan derive
+  });
+
+  it("tak menyeret stage mundur: fase lebih awal dari nilai persist diabaikan", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    await makeSpec({ id: "SPEC-907", projectId: "p1", stage: "planned" });
+    await start("SPEC-907");
+    appendFileSync(phaseFilePath(repoDir, "spec-907"), "Objective done\n"); // → "objective" < "planned"
+    expect(await stageOf("SPEC-907")).toBe("planned");
+    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-907" });
+  });
+
+  it("spec tanpa sesi: stage = nilai DB apa adanya", async () => {
+    await makeSpec({ id: "SPEC-908", projectId: "p1", stage: "objective" });
+    expect(await stageOf("SPEC-908")).toBe("objective");
   });
 });

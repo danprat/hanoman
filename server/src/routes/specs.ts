@@ -6,6 +6,8 @@ import { listRepoBranches } from "../services/branches";
 import { STAGES } from "../services/stage-machine";
 import { artifactsToRemove } from "../services/stage-artifacts";
 import { deleteDoc } from "../services/docs";
+import { sessionPhasesBySpec } from "../services/pty";
+import { stageFor } from "../services/session-phases";
 
 // SPEC-143: daftar yang mengisi dropdown adalah daftar yang menjaga gerbang — tak ada validator
 // terpisah yang bisa ikut basi. Branch karangan ditolak di sini, bukan beberapa menit kemudian
@@ -15,7 +17,28 @@ const branchUnknown = (repoDir: string | null, branch: string) => !listRepoBranc
 export default async function (app: FastifyInstance) {
   app.get("/specs", async (req) => {
     const { project, source } = req.query as { project?: string; source?: string };
-    return prisma.spec.findMany({ where: { projectId: project, source }, orderBy: { id: "desc" } });
+    const specs = await prisma.spec.findMany({ where: { projectId: project, source }, orderBy: { id: "desc" } });
+    // Stage live: selama sesi hidup, stage diturunkan dari berkas fase sesi (SPEC-168). Hanya
+    // maju (ADR-0008).
+    const live = sessionPhasesBySpec();
+    if (live.size === 0) return specs;
+    const advanced: { id: string; stage: Stage }[] = [];
+    const out = specs.map((s) => {
+      const phases = live.get(s.id);
+      if (!phases) return s;
+      const next = stageFor(phases);
+      if (!next || STAGES.indexOf(next) <= STAGES.indexOf(s.stage as Stage)) return s;
+      advanced.push({ id: s.id, stage: next });
+      return { ...s, stage: next };
+    });
+    // Write-through pada kemajuan: tulis balik supaya stage selamat kalau sesi mati tanpa DELETE
+    // (reboot, tmux tewas, berkas fase terhapus). Forward-only sudah dijamin guard di atas.
+    // ponytail: read bisa balapan dengan read lain yang lebih maju; nilai persist eventually-
+    // consistent (poll berikutnya menyembuhkannya ≤3s) — respons ke klien selalu dari turunan.
+    if (advanced.length)
+      await Promise.all(advanced.map((a) =>
+        prisma.spec.update({ where: { id: a.id }, data: { stage: a.stage } }).catch(() => { })));
+    return out;
   });
   app.post("/specs", async (req, reply) => {
     const parsed = zCreateSpec.safeParse(req.body);
@@ -34,10 +57,13 @@ export default async function (app: FastifyInstance) {
     const objective = isQa && "actual" in b.payload
       ? (b.payload.actual || b.payload.steps || "— audit untuk menelusuri akar masalah.")
       : ("outcome" in b.payload ? (b.payload.outcome || b.payload.context || "— brainstorm untuk memperjelas objective.") : "");
-    const spec = await prisma.spec.create({ data: {
-      id, projectId: b.project, title: b.title, source: b.source, stage: "brainstorming",
-      priority, author: isQa ? "QA · Rangga" : "Rangga", objective, payload: b.payload,
-      branchFrom: b.branchFrom ?? null } });
+    const spec = await prisma.spec.create({
+      data: {
+        id, projectId: b.project, title: b.title, source: b.source, stage: "brainstorming",
+        priority, author: isQa ? "QA · Rangga" : "Rangga", objective, payload: b.payload,
+        branchFrom: b.branchFrom ?? null
+      }
+    });
     return reply.code(201).send(spec);
   });
   // branchFrom (SPEC-143): basis run BERIKUTNYA; `null` = kembali ke default project.
@@ -62,7 +88,7 @@ export default async function (app: FastifyInstance) {
       const wouldDelete = await artifactsToRemove(spec.projectId, spec.id, stage, spec.stage as Stage);
       if (wouldDelete.length && confirmDelete !== true)
         return reply.send({ pending: true, stage, wouldDelete });
-      for (const rel of wouldDelete) await deleteDoc(spec.projectId, rel).catch(() => {});
+      for (const rel of wouldDelete) await deleteDoc(spec.projectId, rel).catch(() => { });
     }
     const data: { branchFrom?: string | null; stage?: string } = {};
     if (branchFrom !== undefined) data.branchFrom = branchFrom;
@@ -71,7 +97,7 @@ export default async function (app: FastifyInstance) {
   });
   app.delete("/specs/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
-    await prisma.spec.delete({ where: { id } }).catch(() => {});
+    await prisma.spec.delete({ where: { id } }).catch(() => { });
     return reply.code(204).send();
   });
 }

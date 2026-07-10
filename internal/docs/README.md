@@ -70,6 +70,8 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 - [spec-159 — audit (urutan panel run detail menutupi terminal)](operations/spec-159-runs-orders-audit.md)
 - [spec-160 — audit (hilangkan guardrail)](operations/spec-160-hilangkan-guardrail-audit.md)
 - [spec-160 — spec (hilangkan guardrail Source of Truth)](operations/spec-160-hilangkan-guardrail-spec.md)
+- [spec-168 — audit (backlog tidak update saat terminal berganti state)](operations/spec-168-backlog-realtime-audit.md)
+- [spec-168 — spec (backlog turunkan stage live saat sesi hidup)](operations/spec-168-backlog-realtime-spec.md)
 
 ## security
 - [security-standard](security/security-standard.md)
