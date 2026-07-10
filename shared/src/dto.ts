@@ -74,6 +74,15 @@ export const zPatchVps = z.object({
   keyPath: z.string().min(1).nullable(), // null = kembali ke key default server
   password: z.string().min(1),           // SPEC-165 · diisi = bootstrap ulang
 }).partial();
+// SPEC-169 · auth. Tanpa RBAC — semua user setara. Password min 8 saat dibuat/diubah;
+// login menerima min 1 (validasi asli lewat verify hash, error selalu generic).
+export const zLogin = z.object({ email: z.string().email(), password: z.string().min(1) });
+export const zSignup = z.object({ email: z.string().email(), password: z.string().min(8) });
+export const zChangePassword = z.object({
+  currentPassword: z.string().min(1), newPassword: z.string().min(8) });
+export type UserView = { id: string; email: string; createdAt: string };
+export type AuthStatus = { needsSetup: boolean; user: UserView | null };
+
 export const zVpsCheck = z.object({
   check: z.string(), status: z.enum(["pass", "fail", "warn"]), detail: z.string() });
 export type VpsCheck = z.infer<typeof zVpsCheck>;

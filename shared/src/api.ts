@@ -18,4 +18,12 @@ export const paths = {
   vpsAudit: (id: string) => `${API}/vps/${id}/audit`,
   vpsHarden: (id: string) => `${API}/vps/${id}/harden`,
   vpsSession: (id: string) => `${API}/vps/${id}/session`,
+  // SPEC-169 · auth
+  authStatus: `${API}/auth/status`,
+  authSetup: `${API}/auth/setup`,
+  authLogin: `${API}/auth/login`,
+  authLogout: `${API}/auth/logout`,
+  authUsers: `${API}/auth/users`,
+  authUser: (id: string) => `${API}/auth/users/${id}`,
+  authChangePassword: `${API}/auth/change-password`,
 } as const;
