@@ -10,7 +10,7 @@ import { getSession, killAll } from "../src/services/pty";
 
 const FAKE_SSH = fileURLToPath(new URL("./fixtures/fake-ssh.sh", import.meta.url));
 const FAKE_CLAUDE = fileURLToPath(new URL("./fixtures/fake-claude.sh", import.meta.url));
-const app = buildApp();
+const app = buildApp({ requireAuth: false });
 beforeAll(async () => { await resetDb(); });
 beforeEach(() => { process.env.HANOMAN_SSH_BIN = FAKE_SSH; delete process.env.FAKE_SSH_MODE; });
 

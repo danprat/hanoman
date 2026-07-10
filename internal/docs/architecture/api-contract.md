@@ -2,6 +2,23 @@
 
 REST + SSE. Semua di bawah `/api`.
 
+> **Auth (SPEC-169, ADR-0028):** semua endpoint butuh sesi valid (cookie `hn_session`) — gate
+> `onRequest` membalas **401** tanpa sesi. Publik tanpa sesi hanya: `GET /health`,
+> `GET /auth/status`, `POST /auth/login`, `POST /auth/setup`.
+
+## Auth
+```
+GET  /auth/status         -> { needsSetup: bool, user: {id,email,createdAt}|null }   # publik
+POST /auth/setup          { email, password }   # HANYA saat 0 user; set cookie; 409 bila sudah ada; 400 body cacat
+POST /auth/login          { email, password }   # set cookie; 401 generic; 429 throttled; 400 body cacat
+POST /auth/logout         # 204; hapus sesi + clear cookie
+GET  /auth/users          -> UserView[]                          # sesi
+POST /auth/users          { email, password }   -> UserView      # invite (set password langsung); 409 email dipakai
+DELETE /auth/users/:id    # 204; 400 bila user terakhir
+POST /auth/change-password { currentPassword, newPassword }  # 200 + cookie baru (cabut sesi lain); 400 password lama salah
+#   UserView = { id, email, createdAt } — tak pernah membawa passwordHash. password min 8 saat setup/invite/ganti.
+```
+
 ## Projects
 ```
 GET  /projects
@@ -112,8 +129,8 @@ POST   /vps/:id/session              # 201 { id } — sesi claude tmux berkontek
 > Audit/healthcheck/harden = script bash deterministik (`server/scripts/vps/*.sh`) dikirim
 > lewat `ssh … 'sudo -n bash -s'`. `hardened` = semua check kritis `pass` pada audit terakhir.
 > Harden TIDAK PERNAH terjadwal; healthcheck (5 mnt) dan audit (24 jam) berjalan lewat
-> `setInterval` di `server.ts`. Endpoint ini eksekusi remote — postur keamanannya sama dengan
-> `/terminal`: tanpa auth, bergantung pada bind `127.0.0.1`.
+> `setInterval` di `server.ts`. Endpoint ini eksekusi remote — sejak SPEC-169 tergerbang sesi auth
+> (seperti seluruh `/api`), dan tetap direkomendasikan bind `127.0.0.1` di belakang reverse proxy TLS.
 >
 > Password tak pernah disimpan, di-log, atau dikembalikan; ia diserahkan ke ssh lewat
 > SSH_ASKPASS (bukan argv) dan hidup beberapa detik di env proses anak (ADR-0025, SPEC-165).

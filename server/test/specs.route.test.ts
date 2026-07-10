@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { buildApp } from "../src/app";
 import { resetDb, makeProject, makeSpec, makeRepoWithBranches, makeTempRepo } from "./factory";
-const app = buildApp();
+const app = buildApp({ requireAuth: false });
 const brief = { context: "c", outcome: "o", constraints: "", priority: "sedang" as const };
 let artifactRepo: string;
 beforeAll(async () => {

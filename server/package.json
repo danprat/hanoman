@@ -5,12 +5,13 @@
   "scripts": {
     "postinstall": "chmod +x node_modules/node-pty/prebuilds/*/spawn-helper 2>/dev/null || true",
     "dev": "tsx watch src/server.ts",
-    "build": "esbuild src/server.ts --bundle --platform=node --format=esm --outdir=dist --external:fastify --external:@fastify/static --external:@prisma/client --external:node-pty --external:@fastify/websocket",
+    "build": "esbuild src/server.ts --bundle --platform=node --format=esm --outdir=dist --external:fastify --external:@fastify/static --external:@prisma/client --external:node-pty --external:@fastify/websocket --external:@fastify/cookie",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "migrate": "prisma migrate dev"
   },
   "dependencies": {
+    "@fastify/cookie": "^9.4.0",
     "@fastify/static": "^7.0.0",
     "@fastify/websocket": "^10.0.1",
     "@hanoman/runner": "workspace:*",

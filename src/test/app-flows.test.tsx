@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 vi.mock("../src/api/client", () => ({
   api: {
+    authStatus: vi.fn(async () => ({ needsSetup: false, user: { id: "u1", email: "a@b.co", createdAt: "" } })),
     listProjects: vi.fn(async () => [{ id: "arta", name: "arta", desc: "", kind: "existing", stack: "Go",
       docStatus: "ok", coverage: 94, createdAt: "", backlog: 2, topStage: "execute",
       session: { status: "running", phase: "Execute", flow: "feature" }, activity: "x", commit: "y" }]),

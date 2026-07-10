@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 // /bin/cat mati seketika: --dangerously-skip-permissions ilegal baginya. Lihat pty.test.ts.
 const FAKE_CLAUDE = fileURLToPath(new URL("./fixtures/fake-claude.sh", import.meta.url));
-const app = buildApp();
+const app = buildApp({ requireAuth: false });
 beforeAll(async () => { await resetDb(); await makeProject({ id: "p1" }); });
 describe("projects routes", () => {
 
