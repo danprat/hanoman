@@ -79,6 +79,10 @@ DELETE /projects/:id/docs/*path         # hapus file .md asli di disk; 204 sukse
 ```
 GET    /terminal/sessions            # [{ id, projectId, cwd, exited }]
 POST   /terminal/sessions  {project, flow?} # 201 { id } · 404 project · 400 tanpa repoDir
+#   {spec, flow} (SPEC-162): sesi backlog item di worktree .worktrees/<spec>, prompt pipeline penuh
+#   SPEC-172: bila Spec.stage === "done", sesi baru dibuka dengan prompt LANJUTAN (fase Execute
+#     saja, continuePrompt) alih-alih pipeline penuh — reopen backlog yang keburu selesai.
+#     Tak ada field baru di request; dipilih otomatis dari stage.
 #   flow "reverse" (SPEC-166, ADR-0026): sesi project-level di worktree .worktrees/reverse-<project>
 #   dengan prompt standar docs; 422 bila repoDir kosong atau worktree gagal dibuat
 DELETE /terminal/sessions/:id        # 204 · 404
