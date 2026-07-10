@@ -5,16 +5,18 @@ import { Icon } from "./icon";
 import { Input } from "./components/forms";
 import { Mark } from "./marks";
 
+// Setiap key WAJIB punya cabang `section === …` di App.tsx. Bila tidak, `screen` tetap
+// null dan App merender kosong — sidebar ikut hilang, pengguna terjebak sampai reload.
+// `runs` dan `triggers` pernah begitu: screen-nya lenyap bersama subsistem run (SPEC-162),
+// entri navnya tertinggal.
 type NavItem = { key: string; label: string; icon: string };
 const HN_NAV: NavItem[] = [
   { key: "overview", label: "Overview", icon: "layout-dashboard" },
   { key: "projects", label: "Projects", icon: "layout-grid" },
   { key: "backlog", label: "Backlog", icon: "list-checks" },
-  { key: "runs", label: "Runs", icon: "activity" },
   { key: "terminal", label: "Terminal", icon: "terminal" },
   { key: "vps", label: "VPS", icon: "server" },
   { key: "docs", label: "Docs · SoT", icon: "book-open" },
-  { key: "triggers", label: "Triggers", icon: "zap" },
   { key: "settings", label: "Settings", icon: "settings" },
 ];
 
