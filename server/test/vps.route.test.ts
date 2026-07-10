@@ -1,5 +1,8 @@
-import { describe, it, expect, beforeAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
 import { fileURLToPath } from "node:url";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { buildApp } from "../src/app";
 import { prisma } from "../src/db";
 import { resetDb, makeVps } from "./factory";
@@ -102,5 +105,60 @@ describe("sesi claude vps (SPEC-164)", () => {
   });
   it("sesi vps tak dikenal → 404", async () => {
     expect((await app.inject({ method: "POST", url: "/api/vps/hantu/session" })).statusCode).toBe(404);
+  });
+});
+
+describe("bootstrap lewat password (SPEC-165)", () => {
+  let dir: string;
+  beforeEach(() => { dir = mkdtempSync(join(tmpdir(), "hanoman-route-key-")); process.env.HANOMAN_SSH_KEY_DIR = dir; });
+  afterEach(() => { delete process.env.HANOMAN_SSH_KEY_DIR; rmSync(dir, { recursive: true, force: true }); });
+
+  it("POST dengan password → 201, keyPath terisi, password tak dikembalikan", async () => {
+    const res = await app.inject({ method: "POST", url: "/api/vps",
+      payload: { name: "bs1", host: "198.51.100.60", user: "root", password: "s3cret" } });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().keyPath).toBe(join(dir, "id_ed25519"));
+    expect(JSON.stringify(res.json())).not.toContain("s3cret");
+    expect((await prisma.vps.findUnique({ where: { id: res.json().id } }))!.keyPath).toBe(join(dir, "id_ed25519"));
+  });
+
+  it("bootstrap gagal → 502 dan TIDAK ada baris yang lahir", async () => {
+    process.env.FAKE_SSH_MODE = "bad-password";
+    const before = await prisma.vps.count();
+    const res = await app.inject({ method: "POST", url: "/api/vps",
+      payload: { name: "bs2", host: "198.51.100.61", user: "root", password: "salah" } });
+    expect(res.statusCode).toBe(502);
+    expect(res.json().out).toContain("Permission denied");
+    expect(await prisma.vps.count()).toBe(before);
+  });
+
+  it("POST tanpa password tetap seperti SPEC-164 (tak ada ssh sama sekali)", async () => {
+    const res = await app.inject({ method: "POST", url: "/api/vps",
+      payload: { name: "bs3", host: "198.51.100.62", user: "deploy" } });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().keyPath).toBeNull();
+  });
+
+  it("PATCH dengan password → bootstrap ulang, keyPath diperbarui", async () => {
+    const v = await makeVps({ name: "bs4", host: "198.51.100.63", user: "root", keyPath: null });
+    const res = await app.inject({ method: "PATCH", url: `/api/vps/${v.id}`, payload: { password: "s3cret" } });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().keyPath).toBe(join(dir, "id_ed25519"));
+    expect(JSON.stringify(res.json())).not.toContain("s3cret");
+  });
+
+  it("PATCH dengan password yang ditolak → 502, baris tak berubah", async () => {
+    process.env.FAKE_SSH_MODE = "bad-password";
+    const v = await makeVps({ name: "bs5", host: "198.51.100.64", user: "root", keyPath: null });
+    const res = await app.inject({ method: "PATCH", url: `/api/vps/${v.id}`, payload: { password: "salah" } });
+    expect(res.statusCode).toBe(502);
+    expect((await prisma.vps.findUnique({ where: { id: v.id } }))!.keyPath).toBeNull();
+  });
+
+  it("PATCH tanpa password tak menyentuh ssh dan tetap parsial", async () => {
+    const v = await makeVps({ name: "bs6", host: "198.51.100.65", user: "deploy", port: 2200 });
+    const res = await app.inject({ method: "PATCH", url: `/api/vps/${v.id}`, payload: { name: "bs6b" } });
+    expect(res.json().name).toBe("bs6b");
+    expect(res.json().port).toBe(2200);
   });
 });

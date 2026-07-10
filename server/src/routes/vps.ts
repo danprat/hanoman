@@ -5,6 +5,7 @@ import { prisma } from "../db";
 import { zCreateVps, zPatchVps, type VpsCheck } from "@hanoman/shared";
 import { sshExec } from "../services/vps-ssh";
 import { runAudit, scriptPath } from "../services/vps-audit";
+import { bootstrapKey } from "../services/vps-bootstrap";
 import { createSession } from "../services/pty";
 import { sessionModel } from "../services/settings";
 
@@ -14,17 +15,36 @@ import { sessionModel } from "../services/settings";
 export default async function (app: FastifyInstance) {
   app.get("/vps", async () => prisma.vps.findMany({ orderBy: { createdAt: "asc" } }));
 
+  // `password` transien (SPEC-165): dipakai memasang key hanoman, lalu hilang bersama
+  // request ini. Bootstrap dijalankan SEBELUM baris lahir — gagal berarti tak ada sampah.
   app.post("/vps", async (req, reply) => {
     const p = zCreateVps.safeParse(req.body);
     if (!p.success) return reply.code(400).send({ error: "invalid body" });
-    return reply.code(201).send(await prisma.vps.create({ data: p.data }));
+    const { password, ...data } = p.data;
+    if (password) {
+      const bs = await bootstrapKey({ host: data.host, port: data.port, user: data.user }, password);
+      if (!bs.ok) return reply.code(502).send({ error: "bootstrap key gagal lewat ssh", out: bs.out });
+      data.keyPath = bs.keyPath;
+    }
+    return reply.code(201).send(await prisma.vps.create({ data }));
   });
 
   app.patch("/vps/:id", async (req, reply) => {
     const p = zPatchVps.safeParse(req.body);
     if (!p.success) return reply.code(400).send({ error: "invalid body" });
-    try { return await prisma.vps.update({ where: { id: (req.params as { id: string }).id }, data: p.data }); }
-    catch { return reply.code(404).send({ error: "not found" }); }
+    const { id } = req.params as { id: string };
+    const { password, ...data } = p.data;
+    const current = await prisma.vps.findUnique({ where: { id } });
+    if (!current) return reply.code(404).send({ error: "not found" });
+    if (password) {
+      // Bootstrap ulang memakai nilai SESUDAH patch: mengganti host & password sekaligus harus bekerja.
+      const bs = await bootstrapKey({
+        host: data.host ?? current.host, port: data.port ?? current.port, user: data.user ?? current.user,
+      }, password);
+      if (!bs.ok) return reply.code(502).send({ error: "bootstrap key gagal lewat ssh", out: bs.out });
+      data.keyPath = bs.keyPath;
+    }
+    return prisma.vps.update({ where: { id }, data });
   });
 
   app.delete("/vps/:id", async (req, reply) => {
