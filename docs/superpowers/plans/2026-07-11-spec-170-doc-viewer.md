@@ -612,7 +612,7 @@ Satu edit di `SpecActions` muncul di ketiga view Backlog (card/row/board). Satu 
 **Interfaces:**
 - Consumes: `SpecDocsModal` (Task 5), `IconButton`/`Icon` (ds).
 
-- [ ] **Step 1: Backlog — import + tombol di `SpecActions`**
+- [x] **Step 1: Backlog — import + tombol di `SpecActions`**
 
 Di `src/src/screens/BacklogScreen.tsx`:
 - Pastikan `import React from "react";` ada di puncak (untuk `React.useState`). Kalau belum, tambahkan.
@@ -645,7 +645,7 @@ function SpecActions({ spec, onStart, onDelete, onOpenRun, running }:
 }
 ```
 
-- [ ] **Step 2: Terminal — import + tombol di header `Cell`**
+- [x] **Step 2: Terminal — import + tombol di header `Cell`**
 
 Di `src/src/screens/TerminalScreen.tsx`:
 - Pastikan `Icon` ada di import `../ds`. Kalau belum, tambahkan ke daftar import ds.
@@ -669,14 +669,14 @@ Di `src/src/screens/TerminalScreen.tsx`:
       {docs && session.specId && <SpecDocsModal specId={session.specId} onClose={() => setDocs(false)} />}
 ```
 
-- [ ] **Step 3: Typecheck + existing screen tests still green**
+- [x] **Step 3: Typecheck + existing screen tests still green**
 
 Run: `pnpm -r typecheck && pnpm --filter ./src test terminal-screen backlog-board`
 Expected: typecheck hijau; `terminal-screen` & `backlog-board` tetap PASS (tombol baru tak memecah komposisi grid/board — modal hanya mount saat diklik).
 
 > Catatan: `terminal-screen.test.tsx` me-mock `../src/api/client`. Bila render sebuah `Cell` menyentuh `SpecDocsModal` (hanya saat diklik — tidak di test itu), mock tak perlu diubah. Kalau ada test yang gagal karena import `SpecDocsModal` menarik `api`, tambahkan `getSpecDocs`/`getSpecDocFile` ke objek mock-nya.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/src/screens/BacklogScreen.tsx src/src/screens/TerminalScreen.tsx

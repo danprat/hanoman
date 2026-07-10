@@ -1,7 +1,8 @@
 import React from "react";
-import { Button, IconButton, Select, StateBlock } from "../ds";
+import { Button, IconButton, Icon, Select, StateBlock } from "../ds";
 import { api, type TerminalSession, type Phase } from "../api/client";
 import { TerminalPane } from "./TerminalPane";
+import { SpecDocsModal } from "./SpecDocsModal";
 import * as L from "./terminal-layout";
 import * as W from "./terminal-workspace";
 
@@ -282,6 +283,7 @@ function Cell({ session, nameOf, onClose, onDetach, onExit }: {
   onClose: () => void; onDetach: () => void; onExit: (code: number) => void;
 }) {
   const [phases, setPhases] = React.useState<Phase[] | null>(null);
+  const [docs, setDocs] = React.useState(false);
   const label = session.specId ?? nameOf(session.projectId);
   return (
     <>
@@ -293,6 +295,12 @@ function Cell({ session, nameOf, onClose, onDetach, onExit }: {
         <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {label} · {session.id.slice(0, 6)}{session.exited && " · berakhir"}
         </span>
+        {session.specId && (
+          <span onClick={() => setDocs(true)} title="Lihat dokumen (audit/spec/plan)"
+            style={{ cursor: "pointer", color: "var(--text-subtle)", display: "inline-flex", alignItems: "center" }}>
+            <Icon name="file-text" size={12} />
+          </span>
+        )}
         <span onClick={onDetach} title="Lepas dari grid (sesi tetap hidup)"
           style={{ cursor: "pointer", color: "var(--text-subtle)" }}>lepas</span>
         <span aria-label={`Tutup sesi ${session.id}`} onClick={onClose}
@@ -303,6 +311,7 @@ function Cell({ session, nameOf, onClose, onDetach, onExit }: {
       <div style={{ flex: 1, minHeight: 0 }}>
         <TerminalPane key={session.id} sessionId={session.id} onExit={onExit} onPhases={setPhases} />
       </div>
+      {docs && session.specId && <SpecDocsModal specId={session.specId} onClose={() => setDocs(false)} />}
     </>
   );
 }

@@ -4,6 +4,7 @@ import React from "react";
 import { Card, Badge, Tabs, Select, Button, IconButton, Icon, usePaged, Pager, Modal, StateBlock,
   LIST_SCROLL_STYLE, LIST_SCREEN_STYLE, FIXED_ROW_STYLE } from "../ds";
 import { api } from "../api/client";
+import { SpecDocsModal } from "./SpecDocsModal";
 import { branchOptions } from "./branch";
 import type { Spec } from "./types";
 import type { ProjectVM } from "./types";
@@ -154,6 +155,7 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage }:
 function SpecActions({ spec, onStart, onDelete, onOpenRun, running }:
   { spec: Spec; onStart?: (s: Spec) => void; onDelete?: (s: Spec) => void;
     onOpenRun?: (s: Spec) => void; running?: boolean }) {
+  const [docs, setDocs] = React.useState(false);
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
       {spec.stage !== "done" && running && (
@@ -167,7 +169,9 @@ function SpecActions({ spec, onStart, onDelete, onOpenRun, running }:
         </Button>
       )}
       {spec.stage === "done" && <Badge tone="ok" size="sm" icon="check-circle-2">selesai</Badge>}
+      <IconButton size="sm" variant="ghost" icon="file-text" label="Lihat dokumen" onClick={() => setDocs(true)} />
       {onDelete && <IconButton size="sm" variant="ghost" icon="trash-2" label="Hapus spec" onClick={() => onDelete(spec)} />}
+      {docs && <SpecDocsModal specId={spec.id} onClose={() => setDocs(false)} />}
     </div>
   );
 }
