@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeAll } from "vitest";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { buildApp } from "../src/app";
-import { resetDb, makeProject, makeSpec, makeRepoWithBranches, makeTempRepo, makeRepoWithWorktree, makeRepoWithSpecCommits } from "./factory";
+import { killAll, getSession } from "../src/services/pty";
+import { resetDb, makeProject, makeSpec, makeRepoWithBranches, makeTempRepo, makeRepoWithWorktree, makeRepoWithSpecCommits, makeRepoWithSpecBranch } from "./factory";
+
+const FAKE_CLAUDE = fileURLToPath(new URL("./fixtures/fake-claude.sh", import.meta.url));
 const app = buildApp({ requireAuth: false });
 const brief = { context: "c", outcome: "o", constraints: "", priority: "sedang" as const };
 let artifactRepo: string;
@@ -188,5 +193,32 @@ describe("GET /specs/:id/review", () => {
   it("path di luar daftar → 404", async () => {
     const res = await app.inject({ url: "/api/specs/SPEC-171/review/does/not/exist.ts" });
     expect(res.statusCode).toBe(404);
+  });
+});
+
+// SPEC-175 · rebase/merge branch hasil sebuah done spec.
+describe("POST /specs/:id/integrate", () => {
+  it("spec non-done → 409", async () => {
+    const { repoDir } = makeRepoWithSpecBranch("SPEC-I1");
+    await makeProject({ id: "pi1", repoDir });
+    await makeSpec({ id: "SPEC-I1", projectId: "pi1", stage: "planned" });
+    const res = await app.inject({ method: "POST", url: "/api/specs/SPEC-I1/integrate", payload: { op: "merge", target: "origin:main" } });
+    expect(res.statusCode).toBe(409);
+  });
+  it("target invalid (bukan local:/origin:) → 400", async () => {
+    const { repoDir } = makeRepoWithSpecBranch("SPEC-I2");
+    await makeProject({ id: "pi2", repoDir });
+    await makeSpec({ id: "SPEC-I2", projectId: "pi2", stage: "done" });
+    const res = await app.inject({ method: "POST", url: "/api/specs/SPEC-I2/integrate", payload: { op: "merge", target: "garbage" } });
+    expect(res.statusCode).toBe(400);
+  });
+  it("merge bersih → 200 {status:clean}, kerja mendarat di origin/main", async () => {
+    const { repoDir, origin } = makeRepoWithSpecBranch("SPEC-I3");
+    await makeProject({ id: "pi3", repoDir });
+    await makeSpec({ id: "SPEC-I3", projectId: "pi3", stage: "done" });
+    const res = await app.inject({ method: "POST", url: "/api/specs/SPEC-I3/integrate", payload: { op: "merge", target: "origin:main" } });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().status).toBe("clean");
+    expect(execFileSync("git", ["--git-dir", origin, "show", "main:work.txt"], { encoding: "utf8" })).toBe("work\n");
   });
 });

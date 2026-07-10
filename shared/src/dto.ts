@@ -26,6 +26,11 @@ export const zPatchSpec = z.object({
   stage: zStage.optional(),
   confirmDelete: z.boolean().optional(),
 });
+// SPEC-175 · rebase/merge branch hasil done spec. target = "local:<b>" | "origin:<b>".
+export const zIntegrate = z.object({
+  op: z.enum(["merge", "rebase"]),
+  target: z.string().regex(/^(local|origin):.+/),
+});
 // SPEC-162 · yang berjalan adalah sesi tmux, bukan baris Run. `flow` menggantikan `kind`.
 export const zSessionSummary = z.object({
   status: z.enum(["running", "idle"]),
