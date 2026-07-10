@@ -63,6 +63,7 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 - [spec-147 — spec (favicon)](operations/spec-147-favicon-spec.md)
 - [spec-149 — audit (run failed tidak bisa di-retry)](operations/spec-149-retry-runs-audit.md)
 - [spec-158 — objective (split terminal)](operations/spec-158-split-terminal-objective.md)
+- [spec-159 — audit (urutan panel run detail menutupi terminal)](operations/spec-159-runs-orders-audit.md)
 
 ## security
 - [security-standard](security/security-standard.md)

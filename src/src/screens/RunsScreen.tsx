@@ -120,55 +120,67 @@ function useRunChanges(run: RunVM): { changes: RunChanges | null; error: string 
 
 const STATUS_ICON: Record<string, string> = { A: "file-plus", M: "file-diff", D: "file-minus" };
 
+// Default collapsed (SPEC-159): berkas/commit yang panjang tak lagi mendorong
+// terminal ke bawah lipatan. Pola toggle sama dengan `DocTreeCat` (DocsWorkspace.tsx).
 function ChangesCard({ changes, onPick }: { changes: RunChanges; onPick: (p: string) => void }) {
+  const [open, setOpen] = React.useState(false);
   const totAdd = changes.files.reduce((n, f) => n + f.add, 0);
   const totDel = changes.files.reduce((n, f) => n + f.del, 0);
   return (
     <Card padding={0}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px", borderBottom: "1px solid var(--border-hair)" }}>
-        <span className="hn-eyebrow">File berubah · {changes.files.length}</span>
+      <div onClick={() => setOpen((o) => !o)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px", borderBottom: "1px solid var(--border-hair)", cursor: "pointer" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <Icon name={open ? "chevron-down" : "chevron-right"} size={14} color="var(--text-subtle)" />
+          <span className="hn-eyebrow">File berubah · {changes.files.length}</span>
+        </span>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>
           <span style={{ color: "var(--leaf-600)" }}>+{totAdd}</span>{" "}
           <span style={{ color: "var(--clay-600)" }}>−{totDel}</span>
         </span>
       </div>
-      <div style={{ padding: "8px 16px 12px" }}>
-        {changes.files.length === 0 && <div style={{ fontSize: 13, color: "var(--text-subtle)" }}>belum ada file berubah</div>}
-        {changes.files.map((f) => (
-          <div key={f.path} onClick={() => onPick(f.path)}
-            style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 0", cursor: "pointer" }}>
-            <Icon name={STATUS_ICON[f.status]!} size={14}
-              color={f.status === "A" ? "var(--leaf-600)" : f.status === "D" ? "var(--clay-600)" : "var(--wind-600)"} />
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-body)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.path}</span>
-            {f.binary
-              ? <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)" }}>biner</span>
-              : <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, flex: "0 0 auto" }}>
-                  <span style={{ color: "var(--leaf-600)" }}>+{f.add}</span>{" "}
-                  <span style={{ color: "var(--clay-600)" }}>−{f.del}</span>
-                </span>}
-          </div>
-        ))}
-      </div>
+      {open && (
+        <div style={{ padding: "8px 16px 12px" }}>
+          {changes.files.length === 0 && <div style={{ fontSize: 13, color: "var(--text-subtle)" }}>belum ada file berubah</div>}
+          {changes.files.map((f) => (
+            <div key={f.path} onClick={() => onPick(f.path)}
+              style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 0", cursor: "pointer" }}>
+              <Icon name={STATUS_ICON[f.status]!} size={14}
+                color={f.status === "A" ? "var(--leaf-600)" : f.status === "D" ? "var(--clay-600)" : "var(--wind-600)"} />
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-body)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.path}</span>
+              {f.binary
+                ? <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)" }}>biner</span>
+                : <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, flex: "0 0 auto" }}>
+                    <span style={{ color: "var(--leaf-600)" }}>+{f.add}</span>{" "}
+                    <span style={{ color: "var(--clay-600)" }}>−{f.del}</span>
+                  </span>}
+            </div>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }
 
 function CommitList({ commits }: { commits: RunCommit[] }) {
+  const [open, setOpen] = React.useState(false);
   if (!commits.length) return null;
   return (
     <Card padding={0}>
-      <div style={{ padding: "13px 16px", borderBottom: "1px solid var(--border-hair)" }}>
+      <div onClick={() => setOpen((o) => !o)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "13px 16px", borderBottom: "1px solid var(--border-hair)", cursor: "pointer" }}>
+        <Icon name={open ? "chevron-down" : "chevron-right"} size={14} color="var(--text-subtle)" />
         <span className="hn-eyebrow">Commit · {commits.length}</span>
       </div>
-      <div style={{ padding: "8px 16px 12px" }}>
-        {commits.map((c) => (
-          <div key={c.sha} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 0" }}>
-            <Icon name="git-commit-horizontal" size={14} color="var(--brass-600)" />
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--text-muted)" }}>{c.sha.slice(0, 7)}</span>
-            <span style={{ fontSize: 13, color: "var(--text-body)" }}>{c.subject}</span>
-          </div>
-        ))}
-      </div>
+      {open && (
+        <div style={{ padding: "8px 16px 12px" }}>
+          {commits.map((c) => (
+            <div key={c.sha} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 0" }}>
+              <Icon name="git-commit-horizontal" size={14} color="var(--brass-600)" />
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--text-muted)" }}>{c.sha.slice(0, 7)}</span>
+              <span style={{ fontSize: 13, color: "var(--text-body)" }}>{c.subject}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }
@@ -429,16 +441,18 @@ function RunDetail({ run }: { run: RunVM }) {
       <WorktreeInfo run={run} />
       {plan.length > 0 && <PlanSteps steps={plan} />}
       {error && <StateBlock kind="error" icon="alert-triangle" title="Changes tidak dapat dibaca" hint={error} />}
+      {/* SPEC-159: terminal logs dulu, baru commit lalu file changed — keduanya default
+          collapse, jadi urutan render ini yang menentukan apa yang terlihat tanpa scroll. */}
+      <LogView run={run} />
       {changes && (
         <div style={{ display: "grid", gridTemplateColumns: picked ? "1fr 1fr" : "1fr", gap: 14, alignItems: "start" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <ChangesCard changes={changes} onPick={setPicked} />
             <CommitList commits={changes.commits} />
+            <ChangesCard changes={changes} onPick={setPicked} />
           </div>
           {picked && <FilePreviewPane runId={run.id} path={picked} onClose={() => setPicked(null)} />}
         </div>
       )}
-      <LogView run={run} />
       {/* Bukan hanya saat `awaiting`: run yang di-stop/gagal saat menunggu tetap menyimpan
           pertanyaannya, dan itu satu-satunya petunjuk kenapa ia berhenti. */}
       {run.pendingAsk && <RunAsk run={run} />}
