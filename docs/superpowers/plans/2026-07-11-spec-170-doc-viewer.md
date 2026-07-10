@@ -441,7 +441,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Consumes: `Modal`, `StateBlock`, `Icon`, `MarkdownView` (dari `../ds`); `api.getSpecDocs`, `api.getSpecDocFile`, tipe `SpecDoc` (Task 3).
 - Produces: `SpecDocsModal({ specId, onClose })`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```tsx
 // src/test/spec-docs-modal.test.tsx
@@ -482,12 +482,12 @@ describe("SpecDocsModal", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter ./src test spec-docs-modal`
 Expected: FAIL — `Cannot find module '../src/screens/SpecDocsModal'`.
 
-- [ ] **Step 3: Write the component**
+- [x] **Step 3: Write the component**
 
 ```tsx
 // src/src/screens/SpecDocsModal.tsx
@@ -585,12 +585,12 @@ export function SpecDocsModal({ specId, onClose }: { specId: string; onClose: ()
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm --filter ./src test spec-docs-modal`
 Expected: PASS (kedua `it`).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/SpecDocsModal.tsx src/test/spec-docs-modal.test.tsx
