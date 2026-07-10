@@ -1,8 +1,13 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, beforeEach } from "vitest";
 import { fileURLToPath } from "node:url";
+import { appendFileSync, mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   createSession, getSession, listSessions, killSession, killAll, detachAll, attach, writeTo,
+  sessionPhases,
 } from "../src/services/pty";
+import { phaseFilePath, type Phase } from "../src/services/session-phases";
 
 // createSession SELALU menambahkan --dangerously-skip-permissions, jadi binary pengganti
 // harus menoleransi flag itu. /bin/cat tidak: ia mati seketika dengan "illegal option".
@@ -10,7 +15,7 @@ const FAKE_CLAUDE = fileURLToPath(new URL("./fixtures/fake-claude.sh", import.me
 
 // Klien palsu yang merekam frame — cukup untuk menguji kontrak broadcast.
 function fakeClient() {
-  const frames: { t: string; d?: string; code?: number }[] = [];
+  const frames: { t: string; d?: string; code?: number; phases?: Phase[] }[] = [];
   let closed = false;
   return {
     frames, wasClosed: () => closed,
@@ -29,7 +34,10 @@ const lastFrame = (c: ReturnType<typeof fakeClient>) => c.frames[c.frames.length
 const allData = (c: ReturnType<typeof fakeClient>) =>
   c.frames.filter((f) => f.t === "data").map((f) => f.d ?? "").join("");
 const exited = (id: string) => getSession(id)?.exited === true;
+const phaseFrames = (c: ReturnType<typeof fakeClient>) => c.frames.filter((f) => f.t === "phase");
 
+let repoDir = "";
+beforeEach(() => { repoDir = mkdtempSync(join(tmpdir(), "hanoman-pty-")); });
 afterEach(() => { killAll(); });
 
 describe("pty service", () => {
@@ -96,12 +104,12 @@ describe("pty service", () => {
     expect(lastFrame(second)?.t).not.toBe("exit");
   });
 
-  // Sesi sebuah run itu tunggal: membuka tabnya lagi harus menyambung, bukan menyalakan
-  // `claude --resume` kedua di atas file sesi yang sama (ADR-0015).
-  it("reuses a run's existing session instead of spawning a second --resume", async () => {
+  // Sesi sebuah backlog item itu tunggal: menekan Start lagi harus menyambung, bukan
+  // menyalakan `claude` kedua di atas worktree yang sama (ADR-0015).
+  it("reuses a backlog item's existing session instead of spawning a second claude", async () => {
     process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
-    const a = createSession("p1", process.cwd(), { runId: "RUN-7", resume: "sess-abc" });
-    const b = createSession("p1", process.cwd(), { runId: "RUN-7", resume: "sess-abc" });
+    const a = createSession("p1", process.cwd(), { specId: "SPEC-7", flow: "feature", prompt: "x" });
+    const b = createSession("p1", process.cwd(), { specId: "SPEC-7", flow: "feature", prompt: "x" });
     expect(b.id).toBe(a.id);
     expect(listSessions()).toHaveLength(1);
   });
@@ -118,15 +126,50 @@ describe("pty service", () => {
     expect(allData(c)).toContain("hook pretooluse");
   });
 
-  it("resumes a run's own claude session in the run worktree", async () => {
+  it("sesi backlog membawa specId + flow, dan id-nya diturunkan dari spec", () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const s = createSession("p1", repoDir, { specId: "SPEC-162", flow: "feature", prompt: "halo" });
+    expect(s.id).toBe("spec-162");
+    expect(listSessions().find((x) => x.id === "spec-162")).toMatchObject({
+      specId: "SPEC-162", flow: "feature",
+    });
+  });
+
+  it("prompt awal + model + effort sampai ke argv claude", async () => {
     process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
-    const s = createSession("p1", process.cwd(), { runId: "RUN-7", resume: "sess-abc" });
+    const s = createSession("p1", repoDir, {
+      specId: "SPEC-A", flow: "feature", prompt: "kerjakan ini", model: "claude-opus-4-8", effort: "xhigh",
+    });
     await waitFor(() => exited(s.id));
     const c = fakeClient();
     attach(s.id, c);
-    expect(allData(c)).toContain("--resume sess-abc");
-    expect(allData(c)).toContain("--settings");
-    expect(listSessions()[0]).toMatchObject({ runId: "RUN-7" });
+    expect(allData(c)).toContain("kerjakan ini");
+    expect(allData(c)).toContain("--model claude-opus-4-8");
+    expect(allData(c)).toContain("--effort xhigh");
+  });
+
+  it("menyiarkan frame phase saat berkas fase berubah, sekali per perubahan", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const phaseFile = phaseFilePath(repoDir, "spec-b");
+    const s = createSession("p1", repoDir, { specId: "SPEC-B", flow: "feature", prompt: "x", phaseFile });
+    const c = fakeClient();
+    attach(s.id, c);
+    // Klien yang baru menempel langsung melihat fase, tanpa menunggu perubahan.
+    await waitFor(() => phaseFrames(c).length > 0);
+    expect(phaseFrames(c)[0]!.phases![0]).toEqual({ name: "Brainstorm", state: "active" });
+
+    appendFileSync(phaseFile, "Brainstorm done\n");
+    await waitFor(() => phaseFrames(c).some((f) => f.phases![0]!.state === "done"));
+
+    const count = phaseFrames(c).length;
+    await new Promise((r) => setTimeout(r, 1200)); // dua tick poll tanpa perubahan berkas
+    expect(phaseFrames(c).length).toBe(count);
+  });
+
+  it("sesi project (tanpa spec) tak punya fase", () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const s = createSession("p1", repoDir);
+    expect(sessionPhases(s.id)).toBe(null);
   });
 
   it("killSession stops the process and forgets the session; a second kill is false", async () => {

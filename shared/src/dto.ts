@@ -45,11 +45,12 @@ export const zCommand = z.object({ text: z.string().min(1) });
 // batas kepercayaan: klien tak boleh menyuntik teks sembarang ke stdin agen lewat sini.
 export const zAnswer = z.object({ value: z.string().min(1) });
 
-// Sesi terminal dibuka untuk sebuah project (repoDir-nya) atau untuk sebuah run —
-// yang terakhir me-resume sesi claude milik run itu di dalam worktree-nya (SPEC-013).
+export const zFlow = z.enum(["feature", "qa", "scaffold", "reverse"]);
+// Sesi terminal dibuka untuk sebuah project (repoDir-nya, terminal biasa) atau untuk sebuah
+// backlog item — yang terakhir lahir di worktree-nya sendiri, dengan prompt awal (SPEC-162).
 export const zTerminalSession = z.union([
   z.object({ project: z.string() }),
-  z.object({ run: z.string() }),
+  z.object({ spec: z.string(), flow: zFlow }),
 ]);
 
 export const zDocFileContent = z.object({ content: z.string() });

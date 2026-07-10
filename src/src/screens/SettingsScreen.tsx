@@ -29,6 +29,7 @@ const S_DEFAULT_STEP = { model: "claude-opus-4-8", effort: "xhigh" };
 const S_DEFAULTS: Setting = {
   steps: { brainstorm: { ...S_DEFAULT_STEP }, spec: { ...S_DEFAULT_STEP }, plan: { ...S_DEFAULT_STEP },
     execute: { ...S_DEFAULT_STEP }, audit: { ...S_DEFAULT_STEP } },
+  ...S_DEFAULT_STEP,
   autoDefault: true, autoScaffold: true,
   maxConcurrent: 3, notifyFail: true, askTimeoutMin: 30,
 };

@@ -61,6 +61,10 @@ export const zStepModel = z.object({ model: z.string(), effort: z.string() });
 export const zSetting = z.object({
   steps: z.object({ brainstorm: zStepModel, spec: zStepModel, plan: zStepModel,
     execute: zStepModel, audit: zStepModel }),
+  // SPEC-162 · satu model per sesi interaktif, dipakai sebagai argv saat sesi lahir. Manusia
+  // tetap bebas mengetik `/model` di dalam terminal. `.default()` menjaga body PUT lama tetap sah.
+  model: z.string().default("claude-opus-4-8"),
+  effort: z.string().default("xhigh"),
   autoDefault: z.boolean(),
   autoScaffold: z.boolean(), maxConcurrent: z.number().int(),
   notifyFail: z.boolean(),

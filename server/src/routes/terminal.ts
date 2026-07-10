@@ -1,9 +1,12 @@
 import type { FastifyInstance } from "fastify";
-import { existsSync } from "node:fs";
 import { prisma } from "../db";
-import { zTerminalSession } from "@hanoman/shared";
+import { zTerminalSession, type Stage } from "@hanoman/shared";
+import { realGit, startPrompt, type Flow } from "@hanoman/runner";
+import { phaseFilePath, readPhases, stageFor } from "../services/session-phases";
+import { sessionModel } from "../services/settings";
+import { STAGES } from "../services/stage-machine";
 import {
-  createSession, getSession, listSessions, killSession,
+  createSession, getSession, listSessions, killSession, sessionPhases,
   attach, detach, writeTo, resize, type Client,
 } from "../services/pty";
 
@@ -11,6 +14,17 @@ import {
 // dengan menyerahkan shell. hanoman tidak punya autentikasi; satu-satunya yang berdiri
 // di antara endpoint ini dan jaringan adalah server.ts yang bind ke 127.0.0.1.
 // Bila HOST pernah diubah ke 0.0.0.0, endpoint inilah yang pertama harus digembok.
+
+// Stage hanya maju (ADR-0008). Agen bisa saja tak pernah menulis berkas fasenya; itu tak
+// boleh menyeret backlog item mundur ke `brainstorming`.
+async function advanceStage(specId: string, repoDir: string, sessionId: string, flow: Flow): Promise<void> {
+  const next = stageFor(readPhases(phaseFilePath(repoDir, sessionId), flow));
+  if (!next) return;
+  const spec = await prisma.spec.findUnique({ where: { id: specId }, select: { stage: true } });
+  if (!spec || STAGES.indexOf(next) <= STAGES.indexOf(spec.stage as Stage)) return;
+  await prisma.spec.update({ where: { id: specId }, data: { stage: next } });
+}
+
 export default async function (app: FastifyInstance) {
   app.get("/terminal/sessions", async () => listSessions());
 
@@ -18,16 +32,34 @@ export default async function (app: FastifyInstance) {
     const parsed = zTerminalSession.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: "invalid body" });
 
-    // Sesi run: `claude --resume` di dalam worktree run — sesi run itu sendiri, dengan
-    // seluruh riwayat fasenya, bukan sesi baru yang menyerupainya (SPEC-013).
-    if ("run" in parsed.data) {
-      const run = await prisma.run.findUnique({ where: { id: parsed.data.run } });
-      if (!run) return reply.code(404).send({ error: "run not found" });
-      if (run.status === "done") return reply.code(400).send({ error: `run "${run.id}" sudah selesai — worktree-nya dihapus` });
-      if (!run.sessionId) return reply.code(400).send({ error: `run "${run.id}" belum punya sesi claude` });
-      // Jangan diam-diam jatuh ke repoDir: itu membuka sesi di working tree utama (ADR-0002).
-      if (!existsSync(run.worktree)) return reply.code(400).send({ error: `worktree hilang: ${run.worktree}` });
-      const s = createSession(run.projectId, run.worktree, { runId: run.id, resume: run.sessionId });
+    // Sesi backlog item: `claude` interaktif di worktree-nya sendiri, dengan prompt awal yang
+    // memuat objective dan pipeline fase-nya (SPEC-162).
+    if ("spec" in parsed.data) {
+      const spec = await prisma.spec.findUnique({
+        where: { id: parsed.data.spec }, include: { project: true },
+      });
+      if (!spec) return reply.code(404).send({ error: "spec not found" });
+      const { repoDir } = spec.project;
+      if (!repoDir) return reply.code(400).send({ error: `project "${spec.projectId}" belum punya repoDir` });
+
+      const id = spec.id.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+      // Sesi yang sudah hidup: JANGAN bangun ulang worktree-nya — di dalamnya ada pekerjaan
+      // yang belum di-commit (ADR-0015).
+      const live = getSession(id);
+      if (live) return reply.code(201).send({ id: live.id });
+
+      const { model, effort } = await sessionModel();
+      // Worktree lahir `--detach` di commit branchFrom: sesi tak pernah berjalan di working
+      // tree utama, dan `main` boleh tetap ter-checkout di sana (ADR-0002).
+      realGit.addWorktree(repoDir, `${repoDir}/.worktrees/${id}`, spec.branchFrom ?? "main");
+      const s = createSession(spec.projectId, `${repoDir}/.worktrees/${id}`, {
+        specId: spec.id, flow: parsed.data.flow, model, effort,
+        phaseFile: phaseFilePath(repoDir, id),
+        prompt: startPrompt(parsed.data.flow, {
+          id: spec.id, title: spec.title, source: spec.source,
+          priority: spec.priority, objective: spec.objective, payload: spec.payload ?? undefined,
+        }, `hanoman/${id}`),
+      });
       return reply.code(201).send({ id: s.id });
     }
 
@@ -38,9 +70,31 @@ export default async function (app: FastifyInstance) {
     return reply.code(201).send({ id: s.id });
   });
 
+  app.get("/terminal/sessions/:id/phases", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const s = getSession(id);
+    const phases = sessionPhases(id);
+    if (!s?.flow || !phases) return reply.code(404).send({ error: "not found" });
+    return { flow: s.flow, phases };
+  });
+
   app.delete("/terminal/sessions/:id", async (req, reply) => {
-    const ok = killSession((req.params as { id: string }).id);
-    return ok ? reply.code(204).send() : reply.code(404).send({ error: "not found" });
+    const { id } = req.params as { id: string };
+    const s = getSession(id);
+    if (!s) return reply.code(404).send({ error: "not found" });
+
+    if (s.specId && s.flow) {
+      const project = await prisma.project.findUnique({ where: { id: s.projectId } });
+      if (project?.repoDir) {
+        // Bacaan terakhir sebelum worktree-nya lenyap: sesudah ini berkas fasenya tak berarti lagi.
+        await advanceStage(s.specId, project.repoDir, id, s.flow);
+        killSession(id);
+        realGit.removeWorktree(project.repoDir, s.cwd);
+        return reply.code(204).send();
+      }
+    }
+    killSession(id);
+    return reply.code(204).send();
   });
 
   app.get("/terminal/sessions/:id/ws", { websocket: true }, (socket, req) => {

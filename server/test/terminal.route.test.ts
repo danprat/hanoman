@@ -1,12 +1,16 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import WebSocket from "ws";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, appendFileSync, existsSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AddressInfo } from "node:net";
 import { buildApp } from "../src/app";
-import { resetDb, makeProject, makeRun } from "./factory";
+import { prisma } from "../src/db";
+import { listSessions } from "../src/services/pty";
+import { phaseFilePath } from "../src/services/session-phases";
+import { resetDb, makeProject, makeSpec } from "./factory";
 
 // Lihat pty.test.ts: /bin/cat mati karena --dangerously-skip-permissions ilegal baginya.
 const FAKE_CLAUDE = fileURLToPath(new URL("./fixtures/fake-claude.sh", import.meta.url));
@@ -40,6 +44,11 @@ const createSession = async () => {
 
 beforeAll(async () => {
   repoDir = mkdtempSync(join(tmpdir(), "hanoman-term-"));
+  // `git worktree add --detach <path> <base>` butuh basis yang bisa di-resolve: repo yang
+  // baru di-init belum punya satu commit pun.
+  execFileSync("git", ["init", "-q", "-b", "main"], { cwd: repoDir });
+  execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t",
+    "commit", "-qm", "init", "--allow-empty"], { cwd: repoDir });
   await resetDb();
   await makeProject({ id: "p1", repoDir });
   await makeProject({ id: "p2", name: "p2", repoDir: null });
@@ -117,52 +126,70 @@ describe("terminal routes", () => {
   });
 });
 
-// SPEC-013: terminal membuka sesi claude milik sebuah run — sesi yang sama, bukan tiruannya.
-describe("terminal routes · sesi run", () => {
-  const openRun = (run: string) =>
-    app.inject({ method: "POST", url: "/api/terminal/sessions", payload: { run } });
+// SPEC-162: terminal membuka sesi claude interaktif untuk sebuah backlog item, di worktree-nya.
+describe("terminal routes · sesi backlog", () => {
+  const start = (spec: string, flow = "feature") =>
+    app.inject({ method: "POST", url: "/api/terminal/sessions", payload: { spec, flow } });
 
-  it("404s an unknown run", async () => {
-    expect((await openRun("RUN-NOPE")).statusCode).toBe(404);
-  });
-
-  it("400s a run that has no claude session yet", async () => {
-    await makeRun({ id: "RUN-Q", projectId: "p1", status: "queued", sessionId: null });
-    const r = await openRun("RUN-Q");
-    expect(r.statusCode).toBe(400);
-    expect(r.json().error).toMatch(/belum punya sesi/);
-  });
-
-  // Run sukses menghapus worktree-nya dengan sengaja; kerjanya sudah di-commit + push.
-  it("400s a done run", async () => {
-    await makeRun({ id: "RUN-D", projectId: "p1", status: "done", sessionId: "sd", worktree: "/nope" });
-    const r = await openRun("RUN-D");
-    expect(r.statusCode).toBe(400);
-    expect(r.json().error).toMatch(/sudah selesai/);
-  });
-
-  // Jangan diam-diam jatuh ke repoDir: itu membuka sesi di working tree utama (ADR-0002).
-  it("400s when the worktree is gone, naming the path it looked for", async () => {
-    await makeRun({ id: "RUN-G", projectId: "p1", status: "failed", sessionId: "sg", worktree: "/tmp/hilang-xyz-013" });
-    const r = await openRun("RUN-G");
-    expect(r.statusCode).toBe(400);
-    expect(r.json().error).toContain("/tmp/hilang-xyz-013");
-  });
-
-  it("resumes the run's own session inside its worktree", async () => {
-    process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
-    const wt = mkdtempSync(join(tmpdir(), "hanoman-wt-"));
-    await makeRun({ id: "RUN-S", projectId: "p1", status: "stopped", sessionId: "sess-xyz", worktree: wt });
-    const res = await openRun("RUN-S");
+  it("POST { spec, flow } membuat worktree + sesi bernama spec-nya", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    await makeSpec({ id: "SPEC-900", projectId: "p1", objective: "kerjakan sesuatu" });
+    const res = await start("SPEC-900");
     expect(res.statusCode).toBe(201);
+    expect(res.json().id).toBe("spec-900");
+    expect(existsSync(join(repoDir, ".worktrees", "spec-900"))).toBe(true);
+  });
 
-    const c = connect(res.json().id as string);
-    await c.opened;
-    await waitFor(() => c.frames.some((f) => f.t === "exit"));
-    expect(c.data()).toContain("--resume sess-xyz");
-    c.ws.close();
+  it("POST kedua untuk spec yang sama mengembalikan sesi yang sama, bukan yang kedua", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    await makeSpec({ id: "SPEC-901", projectId: "p1" });
+    const a = await start("SPEC-901", "qa");
+    const b = await start("SPEC-901", "qa");
+    expect(a.json().id).toBe(b.json().id);
+    expect(listSessions().filter((s) => s.id === "spec-901")).toHaveLength(1);
+  });
 
-    const list = await app.inject({ url: "/api/terminal/sessions" });
-    expect(list.json().find((s: { runId?: string }) => s.runId === "RUN-S")).toMatchObject({ cwd: wt });
+  it("spec tak dikenal → 404; project tanpa repoDir → 400", async () => {
+    expect((await start("SPEC-XXX")).statusCode).toBe(404);
+    await makeSpec({ id: "SPEC-902", projectId: "p2" }); // p2.repoDir = null
+    expect((await start("SPEC-902")).statusCode).toBe(400);
+  });
+
+  it("GET /:id/phases menurunkan fase dari berkas yang ditulis agen", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    await makeSpec({ id: "SPEC-903", projectId: "p1" });
+    await start("SPEC-903");
+    appendFileSync(phaseFilePath(repoDir, "spec-903"), "Brainstorm done\n");
+    const res = await app.inject({ url: "/api/terminal/sessions/spec-903/phases" });
+    expect(res.json()).toMatchObject({ flow: "feature" });
+    expect(res.json().phases[0]).toEqual({ name: "Brainstorm", state: "done" });
+    expect(res.json().phases[1].state).toBe("active");
+  });
+
+  it("GET /:id/phases untuk sesi project → 404", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const id = await createSession();
+    expect((await app.inject({ url: `/api/terminal/sessions/${id}/phases` })).statusCode).toBe(404);
+  });
+
+  it("DELETE membuang worktree dan memajukan Spec.stage ke keadaan finalnya", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    await makeSpec({ id: "SPEC-904", projectId: "p1", stage: "brainstorming" });
+    await start("SPEC-904");
+    appendFileSync(phaseFilePath(repoDir, "spec-904"), "Brainstorm done\nObjective done\nSpec done\n");
+    expect((await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-904" })).statusCode).toBe(204);
+    expect(existsSync(join(repoDir, ".worktrees", "spec-904"))).toBe(false);
+    const spec = await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-904" } });
+    expect(spec.stage).toBe("spec-ready");
+  });
+
+  it("Spec.stage tak pernah mundur", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    await makeSpec({ id: "SPEC-905", projectId: "p1", stage: "planned" });
+    await start("SPEC-905");
+    appendFileSync(phaseFilePath(repoDir, "spec-905"), "Brainstorm done\n");
+    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-905" });
+    const spec = await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-905" } });
+    expect(spec.stage).toBe("planned");
   });
 });

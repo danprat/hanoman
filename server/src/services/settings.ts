@@ -9,6 +9,7 @@ const STEP = { model: "claude-opus-4-8", effort: "xhigh" };
 // P2025. Mirrors the original prototype seed (commit ca20bf8).
 export const DEFAULT_SETTING: Setting = {
   steps: { brainstorm: STEP, spec: STEP, plan: STEP, execute: STEP, audit: STEP },
+  ...STEP,
   autoDefault: true, autoScaffold: true,
   maxConcurrent: 3, notifyFail: true, askTimeoutMin: 30,
 };
@@ -16,6 +17,11 @@ export async function getSetting(): Promise<Setting> {
   return ((await prisma.setting.findUnique({ where: { id: 1 } }))?.data as Setting | undefined) ?? DEFAULT_SETTING;
 }
 export async function stepModels(): Promise<StepModels> { return (await getSetting()).steps; }
+/** SPEC-162 · model+effort untuk sesi claude interaktif, dipakai sebagai argv saat sesi lahir. */
+export async function sessionModel(): Promise<{ model: string; effort: string }> {
+  const s = await getSetting();
+  return { model: s.model ?? STEP.model, effort: s.effort ?? STEP.effort };
+}
 export async function maxConcurrent(): Promise<number> { return (await getSetting()).maxConcurrent ?? 3; }
 /** Menit → milidetik (SPEC-157). `0` berarti jangan pernah menunggu jawaban manusia. */
 export async function askTimeoutMs(): Promise<number> { return ((await getSetting()).askTimeoutMin ?? 30) * 60_000; }
