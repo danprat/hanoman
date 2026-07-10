@@ -2,46 +2,23 @@ import { join } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import { coverageOf, linkedSetFrom } from "@hanoman/shared";
 import { resolveRepo } from "./repo";
-import { loadConfig } from "./config";
 import { INDEX_NAME, walkDocs, catStatus } from "./docs-model";
-import { changedPaths, freshnessViolation } from "./git";
-export type Violation = { kind: "unlinked" | "freshness" | "coverage"; reason: string };
-export function collectViolations(cwd: string) {
-  // Caller-nya (hook stop, docs verify/scan) mengoper cwd, bukan repo root — dan cwd
-  // bisa berpindah ke subdir mana pun. Pakai root hasil git rev-parse dari resolveRepo
-  // untuk SEMUA akses filesystem, bukan cuma indexPath.
+// Coverage read-only untuk `docs scan` dan tampilan. BUKAN guardrail: tak memblokir apa pun.
+// Gate Source of Truth (array `violations`) dicabut, SPEC-160.
+export function scanCoverage(cwd: string) {
   const { root, docsDir, indexPath } = resolveRepo(cwd);
-  const cfg = loadConfig(root);
   const docsRoot = join(root, docsDir);
-  // Repo target boleh tidak punya docs SoT sama sekali (run hanoman menjalankan repo lain,
-  // mis. kirimchat-multi). Tidak ada docs = tidak ada yang dijaga → clean, bukan crash.
-  if (!existsSync(docsRoot)) return { coverage: 100, cats: [], violations: [] };
-  // Docs ADA tapi index-nya hilang = guardrail tak bisa menilai apa pun. Fail loud, jangan
-  // diam-diam melaporkan semua doc unlinked (ADR-0009).
+  // Repo target boleh tak punya docs SoT sama sekali (mis. kirimchat-multi) → coverage 100.
+  if (!existsSync(docsRoot)) return { coverage: 100, cats: [] };
+  // Docs ADA tapi index hilang = setup docs rusak. Fail loud, bukan diam-diam "semua unlinked".
   if (!existsSync(indexPath)) throw new Error(`index Source of Truth tidak ada: ${indexPath}`);
   const corpus = walkDocs(docsRoot);
   const read = (rel: string): string | null => {
     try { return readFileSync(join(docsRoot, rel), "utf8"); } catch { return null; }
   };
   const linked = linkedSetFrom(INDEX_NAME, corpus, read);
-  const files = corpus.filter((f) => f !== INDEX_NAME); // index bukan doc yang dinilai
+  const files = corpus.filter((f) => f !== INDEX_NAME);
   const cats = catStatus(files, linked);
   const coverage = coverageOf(files.map((f) => ({ category: f.split("/")[0]!, linked: linked.has(f) })));
-  const violations: Violation[] = [];
-  if (cfg.requireLinks) {
-    const unlinked = cats.flatMap((c) => c.unlinkedFiles);
-    if (unlinked.length) violations.push({ kind: "unlinked", reason: `Doc belum ter-link di index: ${unlinked.join(", ")}` });
-  }
-  if (cfg.blockStale && freshnessViolation(changedPaths(root)))
-    violations.push({ kind: "freshness", reason: "Ada perubahan di src/ tanpa perubahan dokumentasi. Update doc terkait di internal/docs/**." });
-  if (cfg.coverageThreshold > 0 && coverage < cfg.coverageThreshold)
-    violations.push({ kind: "coverage", reason: `Coverage ${coverage}% di bawah ambang ${cfg.coverageThreshold}%.` });
-  return { coverage, cats, violations };
-}
-export function formatText(r: ReturnType<typeof collectViolations>): string {
-  if (!r.violations.length) return `Source of Truth clean · coverage ${r.coverage}%`;
-  return `Plan blocked — Source of Truth:\n` + r.violations.map((v) => `  ✗ ${v.reason}`).join("\n");
-}
-export function formatJson(r: ReturnType<typeof collectViolations>): string {
-  return JSON.stringify({ ok: r.violations.length === 0, coverage: r.coverage, violations: r.violations });
+  return { coverage, cats };
 }

@@ -11,11 +11,9 @@ const HELP = `hanoman <command>
   qa <spec>                                 audit → spec → plan → execute
   scaffold --from objective                 scaffold internal/docs
   reverse --dir <path>                      reverse-engineer docs from code
-  docs verify [--block-if-stale] [--json]   run the SoT guardrail
   docs scan [--json]                        coverage + per-category report
   docs index --check | --fix                index integrity
   docs link <path> [--category c]           add a doc to the index
-  hook stop                                 Claude Code Stop-hook adapter
   hook pretooluse                           Claude Code PreToolUse-hook adapter (guardrail)
   --version | --help`;
 export async function run(argv: string[], ctx: Ctx): Promise<number> {
@@ -28,11 +26,9 @@ export async function run(argv: string[], ctx: Ctx): Promise<number> {
   if (group === "qa")       return (await import("./commands/qa")).default(argv.slice(1), ctx);
   if (group === "scaffold") return (await import("./commands/scaffold")).default(argv.slice(1), ctx);
   if (group === "reverse")  return (await import("./commands/reverse")).default(argv.slice(1), ctx);
-  if (group === "docs" && sub === "verify") return (await import("./commands/docs-verify")).default(rest, ctx);
   if (group === "docs" && sub === "scan")   return (await import("./commands/docs-scan")).default(rest, ctx);
   if (group === "docs" && sub === "index")  return (await import("./commands/docs-index")).default(rest, ctx);
   if (group === "docs" && sub === "link")   return (await import("./commands/docs-link")).default(rest, ctx);
-  if (group === "hook" && sub === "stop")   return (await import("./commands/hook-stop")).default(rest, ctx);
   if (group === "hook" && sub === "pretooluse") return (await import("./commands/hook-pretooluse")).default(rest, ctx);
   ctx.stderr(`unknown command: ${argv.join(" ")}\n\n${HELP}\n`);
   return 1;
