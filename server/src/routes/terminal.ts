@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../db";
 import { zTerminalSession, type Stage } from "@hanoman/shared";
-import { realGit, startPrompt, type Flow } from "@hanoman/runner";
+import { realGit, startPrompt, startProjectPrompt, type Flow } from "@hanoman/runner";
 import { phaseFilePath, readPhases, stageFor } from "../services/session-phases";
 import { sessionModel } from "../services/settings";
 import { STAGES } from "../services/stage-machine";
@@ -65,7 +65,36 @@ export default async function (app: FastifyInstance) {
 
     const project = await prisma.project.findUnique({ where: { id: parsed.data.project } });
     if (!project) return reply.code(404).send({ error: "project not found" });
-    if (!project.repoDir) return reply.code(400).send({ error: `project "${project.id}" belum punya repoDir` });
+    if (!project.repoDir) {
+      // 422 saat ber-flow (SPEC-166): body-nya sah, keadaan project-nya yang belum siap.
+      return reply.code(parsed.data.flow ? 422 : 400)
+        .send({ error: `project "${project.id}" belum punya repoDir` });
+    }
+
+    // SPEC-166 · sesi reverse: worktree + prompt standar docs, tanpa Spec. Id deterministik
+    // dari project-nya supaya Start kedua menyambung ke sesi yang sama (ADR-0015).
+    if (parsed.data.flow === "reverse") {
+      const id = `reverse-${project.id.toLowerCase().replace(/[^a-z0-9_-]/g, "_")}`;
+      const live = getSession(id);
+      if (live) return reply.code(201).send({ id: live.id });
+
+      const { model, effort } = await sessionModel();
+      try {
+        // HEAD, bukan "main": repo target bukan milik hanoman — default branch-nya bebas.
+        realGit.addWorktree(project.repoDir, `${project.repoDir}/.worktrees/${id}`, "HEAD");
+      } catch (e) {
+        return reply.code(422).send({ error: `gagal membuat worktree: ${(e as Error).message}` });
+      }
+      const s = createSession(project.id, `${project.repoDir}/.worktrees/${id}`, {
+        id, flow: "reverse", model, effort,
+        phaseFile: phaseFilePath(project.repoDir, id),
+        prompt: startProjectPrompt("reverse", {
+          id: project.id, name: project.name, desc: project.desc, stack: project.stack,
+        }, "reverse-docs"),
+      });
+      return reply.code(201).send({ id: s.id });
+    }
+
     const s = createSession(project.id, project.repoDir);
     return reply.code(201).send({ id: s.id });
   });
@@ -83,11 +112,13 @@ export default async function (app: FastifyInstance) {
     const s = getSession(id);
     if (!s) return reply.code(404).send({ error: "not found" });
 
-    if (s.specId && s.flow) {
+    // Sesi ber-flow apa pun hidup di worktree-nya sendiri — spec-bound maupun project-level
+    // (reverse, SPEC-166). Hanya yang ber-spec menggerakkan stage.
+    if (s.flow) {
       const project = await prisma.project.findUnique({ where: { id: s.projectId } });
       if (project?.repoDir) {
         // Bacaan terakhir sebelum worktree-nya lenyap: sesudah ini berkas fasenya tak berarti lagi.
-        await advanceStage(s.specId, project.repoDir, id, s.flow);
+        if (s.specId) await advanceStage(s.specId, project.repoDir, id, s.flow);
         killSession(id);
         realGit.removeWorktree(project.repoDir, s.cwd);
         return reply.code(204).send();

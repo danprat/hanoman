@@ -34,7 +34,9 @@ export const zFlow = z.enum(["feature", "qa", "scaffold", "reverse"]);
 // Sesi terminal dibuka untuk sebuah project (repoDir-nya, terminal biasa) atau untuk sebuah
 // backlog item — yang terakhir lahir di worktree-nya sendiri, dengan prompt awal (SPEC-162).
 export const zTerminalSession = z.union([
-  z.object({ project: z.string() }),
+  // flow opsional (SPEC-166): "reverse" = sesi project-level di worktree-nya sendiri,
+  // menyusun Source of Truth dari kode. Tanpa flow = terminal biasa di repoDir.
+  z.object({ project: z.string(), flow: z.literal("reverse").optional() }),
   z.object({ spec: z.string(), flow: zFlow }),
 ]);
 

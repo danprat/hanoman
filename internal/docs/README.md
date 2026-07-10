@@ -22,6 +22,7 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 - [stack](architecture/stack.md) · [data-model](architecture/data-model.md) · [api-contract](architecture/api-contract.md) · [nfr](architecture/nfr.md)
 
 ## adr
+- [0026 — Reverse docs sebagai sesi interaktif project-level](adr/0026-reverse-docs-sesi-interaktif-project-level.md)
 - [0024 — Sesi Claude Code interaktif menggantikan run](adr/0024-sesi-interaktif-menggantikan-run.md)
 - [0023 — Guardrail Source of Truth dicabut](adr/0023-guardrail-sot-dicabut.md)
 - [0021 — Nomor SPEC diklaim docs, bukan hanya database](adr/0021-nomor-spec-diklaim-docs-bukan-hanya-database.md)

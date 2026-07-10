@@ -99,12 +99,14 @@ export const listSessions = (): SessionInfo[] =>
 export const getSession = (id: string): Pane | undefined => listPanes().find((p) => p.id === id);
 
 export type CreateOpts = {
-  specId?: string; flow?: Flow; prompt?: string; phaseFile?: string;
+  id?: string; specId?: string; flow?: Flow; prompt?: string; phaseFile?: string;
   model?: string; effort?: string;
 };
 
 export function createSession(projectId: string, cwd: string, opts: CreateOpts = {}): SessionInfo {
-  const id = idFor(opts.specId);
+  // Sesi project-level (reverse) tak punya spec: id-nya dipasok route agar tetap
+  // deterministik — Start kedua harus menyambung, bukan melahirkan sesi baru (SPEC-166).
+  const id = opts.id ?? idFor(opts.specId);
   // Sesi sebuah backlog item itu tunggal: menekan Start lagi harus menyambung ke `claude`
   // yang sudah jalan, bukan menyalakan yang kedua di atas worktree yang sama (ADR-0015).
   const existing = getSession(id);

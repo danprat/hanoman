@@ -76,7 +76,9 @@ DELETE /projects/:id/docs/*path         # hapus file .md asli di disk; 204 sukse
 ## Terminal
 ```
 GET    /terminal/sessions            # [{ id, projectId, cwd, exited }]
-POST   /terminal/sessions  {project} # 201 { id } · 404 project · 400 tanpa repoDir
+POST   /terminal/sessions  {project, flow?} # 201 { id } · 404 project · 400 tanpa repoDir
+#   flow "reverse" (SPEC-166, ADR-0026): sesi project-level di worktree .worktrees/reverse-<project>
+#   dengan prompt standar docs; 422 bila repoDir kosong atau worktree gagal dibuat
 DELETE /terminal/sessions/:id        # 204 · 404
 GET    /terminal/sessions/:id/ws     # WebSocket; close 4004 bila sesi tak ada
 #   server->klien: { t:"data", d } · { t:"exit", code }

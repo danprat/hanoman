@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import type { AddressInfo } from "node:net";
 import { buildApp } from "../src/app";
 import { prisma } from "../src/db";
-import { listSessions } from "../src/services/pty";
+import { killAll, listSessions } from "../src/services/pty";
 import { phaseFilePath } from "../src/services/session-phases";
 import { resetDb, makeProject, makeSpec } from "./factory";
 
@@ -43,6 +43,10 @@ const createSession = async () => {
 };
 
 beforeAll(async () => {
+  // Sesi tmux test selamat antar-run (ADR-0016) sementara repoDir lahir baru: sesi basi
+  // ber-id sama (spec-900, reverse-p1) membuat jalur idempoten ADR-0015 melewatkan
+  // pembuatan worktree. File ini harus mandiri, bukan berharap pty.test.ts jalan duluan.
+  killAll();
   repoDir = mkdtempSync(join(tmpdir(), "hanoman-term-"));
   // `git worktree add --detach <path> <base>` butuh basis yang bisa di-resolve: repo yang
   // baru di-init belum punya satu commit pun.
@@ -191,5 +195,60 @@ describe("terminal routes · sesi backlog", () => {
     await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-905" });
     const spec = await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-905" } });
     expect(spec.stage).toBe("planned");
+  });
+});
+
+// SPEC-166: reverse menyusun Source of Truth dari kode — sesi project-level di worktree-nya.
+describe("terminal routes · sesi reverse", () => {
+  const start = (project: string) =>
+    app.inject({ method: "POST", url: "/api/terminal/sessions", payload: { project, flow: "reverse" } });
+
+  it("POST { project, flow: reverse } membuat worktree + sesi ber-id deterministik", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const res = await start("p1");
+    expect(res.statusCode).toBe(201);
+    expect(res.json().id).toBe("reverse-p1");
+    expect(existsSync(join(repoDir, ".worktrees", "reverse-p1"))).toBe(true);
+  });
+
+  it("POST kedua menyambung ke sesi yang sama (ADR-0015)", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const a = await start("p1");
+    const b = await start("p1");
+    expect(a.json().id).toBe(b.json().id);
+    expect(listSessions().filter((s) => s.id === "reverse-p1")).toHaveLength(1);
+  });
+
+  it("project tanpa repoDir + flow → 422 (bukan 400)", async () => {
+    expect((await start("p2")).statusCode).toBe(422);
+  });
+
+  it("GET phases memakai pipeline reverse baru", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    await start("p1");
+    appendFileSync(phaseFilePath(repoDir, "reverse-p1"), "Scan done\n");
+    const res = await app.inject({ url: "/api/terminal/sessions/reverse-p1/phases" });
+    expect(res.json().flow).toBe("reverse");
+    expect(res.json().phases[0]).toEqual({ name: "Scan", state: "done" });
+    expect(res.json().phases[1]).toEqual({ name: "Docs teknis", state: "active" });
+  });
+
+  it("DELETE membuang worktree sesi reverse — meski tanpa spec", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    await start("p1");
+    expect((await app.inject({ method: "DELETE", url: "/api/terminal/sessions/reverse-p1" })).statusCode).toBe(204);
+    expect(existsSync(join(repoDir, ".worktrees", "reverse-p1"))).toBe(false);
+  });
+
+  it("prompt sesi reverse memuat standar docs", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+    const res = await start("p1"); // sesi lama sudah di-DELETE oleh test sebelumnya
+    expect(res.statusCode).toBe(201);
+    const c = connect("reverse-p1");
+    await c.opened;
+    await waitFor(() => c.frames.some((f) => f.t === "exit"));
+    expect(c.data()).toContain("STANDAR DOCS");
+    c.ws.close();
+    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/reverse-p1" });
   });
 });
