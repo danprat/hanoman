@@ -2,7 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "../src/db";
 import { DEFAULT_SETTING } from "../src/services/settings";
 import type { Setting } from "@hanoman/shared";
-import { mkdtempSync, writeFileSync, mkdirSync } from "node:fs";
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -29,6 +29,28 @@ export function makeRepoWithBranches(...branches: string[]): string {
   writeFileSync(join(dir, "README.md"), "x"); g("add", "-A"); g("commit", "-qm", "init");
   g("branch", "-M", "main");
   for (const b of branches) g("branch", b);
+  return dir;
+}
+
+// Repo dengan satu commit `main` (base) + worktree `.worktrees/<id>` detached di main,
+// lalu `changes` diterapkan di worktree TANPA commit (persis keadaan sesi yang bekerja).
+// value null = hapus file yang ada di base. Mengembalikan repoDir. (SPEC-171)
+export function makeRepoWithWorktree(specId: string, base: Record<string, string>, changes: Record<string, string | null>): string {
+  const dir = mkdtempSync(join(tmpdir(), "hanoman-wt-"));
+  const g = (cwd: string, ...a: string[]) => spawnSync("git", a, { cwd, encoding: "utf8" });
+  g(dir, "init", "-q"); g(dir, "config", "user.email", "t@t"); g(dir, "config", "user.name", "t");
+  for (const [rel, content] of Object.entries(base)) {
+    const abs = join(dir, rel); mkdirSync(dirname(abs), { recursive: true }); writeFileSync(abs, content);
+  }
+  g(dir, "add", "-A"); g(dir, "commit", "-qm", "base"); g(dir, "branch", "-M", "main");
+  const id = specId.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+  const wt = join(dir, ".worktrees", id);
+  g(dir, "worktree", "add", "--detach", "-q", wt, "main");
+  for (const [rel, content] of Object.entries(changes)) {
+    const abs = join(wt, rel);
+    if (content === null) { rmSync(abs, { force: true }); continue; }
+    mkdirSync(dirname(abs), { recursive: true }); writeFileSync(abs, content);
+  }
   return dir;
 }
 
