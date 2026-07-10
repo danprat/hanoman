@@ -118,4 +118,21 @@ describe("phasePrompt · instruksi keputusan", () => {
     for (const phase of ["Brainstorm", "Objective", "Spec", "Plan", "Execute"])
       expect(phasePrompt("feature", phase, { ...input(), flow: "feature" })).not.toContain(DECISION_FILE);
   });
+
+  it("meminta setiap fase menulis ask saat ragu, di semua flow", () => {
+    for (const [flow, phases] of [
+      ["feature", ["Brainstorm", "Objective", "Spec", "Plan", "Execute"]],
+      ["qa", ["Audit", "Spec", "Plan", "Execute"]],
+    ] as const)
+      for (const phase of phases) {
+        const p = phasePrompt(flow, phase, { ...input(), flow });
+        expect(p).toContain(ASK_FILE);
+        expect(p).toContain("JANGAN menebak");
+      }
+  });
+
+  // Dua artefak, dua nama. Test di atas memastikan hanya qa/Audit yang diminta menulis DECISION_FILE.
+  it("instruksi ask tidak mencemari instruksi decision", () => {
+    expect(phasePrompt("feature", "Execute", input())).not.toContain(DECISION_FILE);
+  });
 });

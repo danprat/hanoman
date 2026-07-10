@@ -82,10 +82,18 @@ const DECIDE = `\n\nSebelum menutup fase ini, tulis keputusan jalur ke \`${DECIS
   + `tidak menuntut keputusan desain, tidak menyentuh skema database maupun kontrak API, dan kamu `
   + `yakin dapat menyelesaikannya tanpa spec dan plan. Saat ragu, pilih "spec".`;
 
+// Dipancarkan di SETIAP fase dan setiap flow: percabangan desain bisa muncul di mana saja,
+// termasuk di tengah Execute. `default` wajib — ia yang dipakai kalau tak ada manusia menjawab.
+const ASK = `\n\nKalau sebuah keputusan menentukan bentuk data model, kontrak API, atau ruang lingkup, `
+  + `dan kamu tidak yakin: JANGAN menebak. Tulis \`${ASK_FILE}\` di root worktree lalu akhiri giliranmu. `
+  + `Bentuknya: {"question":"<satu pertanyaan>","options":[{"value":"<slug>","label":"<singkat>","detail":"<satu kalimat>"}, …],`
+  + `"default":"<value yang kamu condongi>"}. Minimal dua opsi; \`default\` wajib salah satu \`value\`. `
+  + `Run akan berhenti dan menunggu manusia menjawab; kalau tak ada yang menjawab, \`default\` yang dipakai.`;
+
 export function phasePrompt(flow: Flow, phase: string, input: RunInput): string {
   const scope = input.specId
     ? `Kerjakan hanya langkah fase ${phase} untuk backlog item di bawah — jangan kerjakan pekerjaan lain.`
     : `Kerjakan hanya langkah fase ${phase}.`;
   const decide = flow === "qa" && phase === "Audit" ? DECIDE : "";
-  return `hanoman ${flow} — fase ${phase}. Ikuti internal/docs sebagai Source of Truth. ${scope} Perbarui docs yang tersentuh dan link di index.${specBlock(input)}${decide}`;
+  return `hanoman ${flow} — fase ${phase}. Ikuti internal/docs sebagai Source of Truth. ${scope} Perbarui docs yang tersentuh dan link di index.${specBlock(input)}${decide}${ASK}`;
 }
