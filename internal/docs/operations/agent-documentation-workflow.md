@@ -5,6 +5,9 @@ Kontrak operasional untuk hanoman + Claude Code.
 - Docs di `internal/docs/**` adalah **Source of Truth**.
 - Sebelum plan execute: **Update the index. Link every doc.**
 - **Fitur:** spec → plan → execute. **QA:** audit → **keputusan** → (spec → plan)? → execute — temuan kecil langsung execute, Spec & Plan ditandai `skipped` (SPEC-145, ADR-0020).
+- Prompt run memetakan fase → skill superpowers (SPEC-166): Brainstorm→brainstorming,
+  Audit→systematic-debugging, Plan→writing-plans, Execute→executing-plans + TDD +
+  verification-before-completion. Objective/Spec adalah keluaran brainstorming.
 - **From-scratch:** brainstorm → kunci objective → `hanoman scaffold` seluruh doc index.
 - **Existing:** `hanoman reverse --dir <path>` untuk menyusun docs dari codebase.
 - Guardrail Source of Truth dicabut (SPEC-160, ADR-0023) — lihat bagian di bawah.

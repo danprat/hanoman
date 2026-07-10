@@ -36,6 +36,20 @@ describe("startPrompt", () => {
     expect(p).toContain("git push");
   });
 
+  it("feature: menyuruh invoke skill superpowers per fase lewat Skill tool", () => {
+    const p = startPrompt("feature", spec, "b");
+    for (const s of ["superpowers:brainstorming", "superpowers:writing-plans",
+      "superpowers:executing-plans", "superpowers:test-driven-development",
+      "superpowers:verification-before-completion"]) expect(p).toContain(s);
+    expect(p).toContain("Skill tool");
+  });
+
+  it("qa: Audit memakai systematic-debugging, tanpa brainstorming", () => {
+    const p = startPrompt("qa", spec, "b");
+    expect(p).toContain("superpowers:systematic-debugging");
+    expect(p).not.toContain("superpowers:brainstorming");
+  });
+
   it("payload ikut saat ada, dan tak menghasilkan 'undefined' saat tak ada", () => {
     expect(startPrompt("qa", { ...spec, payload: { severity: "major" } }, "b")).toContain("severity");
     expect(startPrompt("qa", spec, "b")).not.toContain("undefined");
