@@ -21,7 +21,7 @@ tangani. OS yang didukung: **Ubuntu/Debian (apt/ufw) dan RHEL-family
 
 ## Keputusan
 
-Modul VPS terpisah penuh: tabel `Vps` di Postgres (migration + **ADR-0024**), route
+Modul VPS terpisah penuh: tabel `Vps` di Postgres (migration + **ADR-0025**), route
 `/vps`, service SSH berbasis `spawn("ssh")` (nol dependensi baru), dua script bash
 (`audit.sh`, `harden.sh`) dengan deteksi distro, screen VPS di frontend, healthcheck
 berkala via `setInterval` di proses server.

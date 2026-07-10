@@ -15,7 +15,7 @@
 - **Shell sesi menunjuk prod:** jalankan SEMUA perintah pnpm/prisma dengan `env -u NODE_ENV -u DATABASE_URL` — env sesi berisi `NODE_ENV=production` + `DATABASE_URL=hanoman_prod` dan membuat ±41 test gagal palsu.
 - **DB test terpisah:** vitest menurunkan `hanoman_test` dari DATABASE_URL (`server/vitest.config.ts`). Setelah migration baru: jalankan juga `prisma migrate deploy` ke `_test` (lihat Task 1 Step 3) — kalau tidak, semua server test lempar P2022.
 - **Worktree ini dipakai sesi Claude lain secara bersamaan:** JANGAN PERNAH `git add -A`, `git add .`, atau `git stash`. Commit hanya dengan `git add <path eksplisit>` file yang kamu buat/ubah sendiri. Sebelum commit, `git status --short` dan pastikan hanya file-mu yang ter-stage (`git commit --only <paths>` lebih aman).
-- **Jangan ubah skema tanpa migration + ADR** — ADR-0024 dibuat di Task 1.
+- **Jangan ubah skema tanpa migration + ADR** — ADR-0025 dibuat di Task 1.
 - Private key SSH TIDAK PERNAH disimpan di DB/log — hanya `keyPath`.
 - Harden TIDAK PERNAH terjadwal — hanya endpoint yang dipanggil tombol.
 - Komentar kode bahasa Indonesia, gaya padat seperti file tetangga. UI ikuti design system (`internal/docs/design-system/**`); komponen dari `src/src/ds`.
@@ -30,11 +30,11 @@
 
 ---
 
-### Task 1: Skema — model `Vps`, migration, ADR-0024
+### Task 1: Skema — model `Vps`, migration, ADR-0025
 
 **Files:**
 - Modify: `server/prisma/schema.prisma` (tambah model di bawah `Setting`)
-- Create: `internal/docs/adr/0024-modul-vps-script-deterministik.md`
+- Create: `internal/docs/adr/0025-modul-vps-script-deterministik.md`
 - Modify: `server/test/factory.ts` (resetDb + makeVps)
 
 **Interfaces:**
@@ -102,12 +102,12 @@ export function makeVps(over: Partial<Prisma.VpsCreateInput> = {}) {
 }
 ```
 
-- [ ] **Step 5: Tulis ADR-0024**
+- [ ] **Step 5: Tulis ADR-0025**
 
-Create `internal/docs/adr/0024-modul-vps-script-deterministik.md`:
+Create `internal/docs/adr/0025-modul-vps-script-deterministik.md`:
 
 ```markdown
-# ADR-0024 — Modul VPS: tabel sendiri, script deterministik, tanpa queue
+# ADR-0025 — Modul VPS: tabel sendiri, script deterministik, tanpa queue
 
 **Status:** diterima · 2026-07-10 · SPEC-164
 
@@ -145,8 +145,8 @@ tidak ada lagi queue/Redis untuk pekerjaan terjadwal.
 
 ```bash
 git status --short   # pastikan hanya file di bawah yang akan di-stage
-git add server/prisma/schema.prisma server/prisma/migrations server/test/factory.ts internal/docs/adr/0024-modul-vps-script-deterministik.md
-git commit --only server/prisma/schema.prisma --only server/prisma/migrations --only server/test/factory.ts --only internal/docs/adr/0024-modul-vps-script-deterministik.md -m "feat(server): model Vps + migration + ADR-0024 (SPEC-164)
+git add server/prisma/schema.prisma server/prisma/migrations server/test/factory.ts internal/docs/adr/0025-modul-vps-script-deterministik.md
+git commit --only server/prisma/schema.prisma --only server/prisma/migrations --only server/test/factory.ts --only internal/docs/adr/0025-modul-vps-script-deterministik.md -m "feat(server): model Vps + migration + ADR-0025 (SPEC-164)
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
@@ -549,7 +549,7 @@ if [ -z "$SSHD_T" ]; then
 else
   v=$(sshd_opt permitrootlogin)
   case "$v" in
-    no|prohibit-password) emit ssh_root_login pass "$v" ;;                # ADR-0024 §5
+    no|prohibit-password) emit ssh_root_login pass "$v" ;;                # ADR-0025 §5
     *) emit ssh_root_login fail "PermitRootLogin ${v:-default}" ;;
   esac
   v=$(sshd_opt passwordauthentication)
@@ -676,7 +676,7 @@ fi
 
 # 4 · sshd — drop-in + sshd -t WAJIB pass sebelum reload (anti-lockout).
 # User terkonfigurasi = root → prohibit-password (key-only), bukan `no`:
-# `no` memutus akses hanoman sendiri (ADR-0024 §5).
+# `no` memutus akses hanoman sendiri (ADR-0025 §5).
 ROOT_LOGIN=no
 [ "${SSH_USER:-}" = root ] && ROOT_LOGIN=prohibit-password
 mkdir -p /etc/ssh/sshd_config.d
