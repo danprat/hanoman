@@ -76,6 +76,7 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 - [spec-168 — spec (backlog turunkan stage live saat sesi hidup)](operations/spec-168-backlog-realtime-spec.md)
 - [spec-170 — objective (lihat dokumen audit/spec/plan per backlog item)](operations/spec-170-doc-viewer-objective.md)
 - [spec-171 — objective (All File & File Changed: review worktree backlog)](operations/spec-171-all-file-changed-objective.md)
+- [spec-177 — objective (Review collapse default + File Changed tree toggle)](operations/spec-177-review-collapse-tree-objective.md)
 
 ## security
 - [security-standard](security/security-standard.md)

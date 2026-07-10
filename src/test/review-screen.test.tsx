@@ -29,3 +29,27 @@ describe("ReviewScreen (SPEC-171)", () => {
     expect(await screen.findByText("new content")).toBeInTheDocument();
   });
 });
+
+describe("ReviewScreen collapse & tree (SPEC-177)", () => {
+  it("Files tree collapsed saat pertama dibuka (folder src/ tertutup)", async () => {
+    render(<ReviewScreen specId="SPEC-177" title="X" onBack={() => {}} />);
+    // Header folder "src/" muncul di section Files…
+    await waitFor(() => expect(screen.getByText("src/")).toBeInTheDocument());
+    // …tapi isi folder (b.ts) TIDAK tampil karena collapsed.
+    expect(screen.queryByText("b.ts")).toBeNull();
+  });
+
+  it("toggle Changed → Tree menampilkan folder induk file changed", async () => {
+    (api.specReview as any).mockResolvedValue({
+      base: "abc", files: ["src/a.ts"],
+      changed: [{ path: "src/deep/a.ts", add: 3, del: 1, status: "M", binary: false }],
+    });
+    render(<ReviewScreen specId="SPEC-177" title="X" onBack={() => {}} />);
+    fireEvent.click(await screen.findByLabelText("Tree changed"));
+    // Rantai folder induk tampil + file changed di bawahnya (auto-expand).
+    await waitFor(() => expect(screen.getByText("deep/")).toBeInTheDocument());
+    expect(screen.getByText("a.ts")).toBeInTheDocument();
+    // Leaf tree membawa counts, sama seperti flat list.
+    expect(screen.getByText("+3")).toBeInTheDocument();
+  });
+});
