@@ -30,7 +30,7 @@
 - Consumes: `BacklogScreen` props yang sudah ada (`backlog: Spec[]`, `projects`, `projectFilter`, `onProjectFilter`). Konstanta modul yang sudah ada: `B_STAGES` (`{key,label}[]`).
 - Produces: tidak ada ekspor baru. Test hook DOM: `Input` dengan `placeholder="Cari backlog…"`, `Select` dengan `aria-label="Filter stage"` dan `aria-label="Filter prioritas"`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/test/search-filter.test.tsx`:
 
@@ -121,13 +121,13 @@ describe("search + filter backlog (SPEC-178)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test → pastikan GAGAL**
+- [x] **Step 2: Jalankan test → pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/web test -- search-filter`
 (atau dari `src/`: `pnpm test -- search-filter`)
 Expected: FAIL — `getByPlaceholderText("Cari backlog…")` melempar karena input belum ada.
 
-- [ ] **Step 3: Tambah import `Input`**
+- [x] **Step 3: Tambah import `Input`**
 
 Di `src/src/screens/BacklogScreen.tsx`, ubah baris import DS (baris ~4-7) untuk menyertakan `Input`:
 
@@ -138,7 +138,7 @@ import {
 } from "../ds";
 ```
 
-- [ ] **Step 4: Tambah state + perpanjang `filtered` + `usePaged` key**
+- [x] **Step 4: Tambah state + perpanjang `filtered` + `usePaged` key**
 
 Ganti blok state & `filtered` (baris ~441-451). Dari:
 
@@ -181,7 +181,7 @@ Menjadi:
   const pg = usePaged(filtered, pageSize, [tab, proj, stageFilter, prioFilter, needle].join("|"));
 ```
 
-- [ ] **Step 5: Toolbar 2 baris**
+- [x] **Step 5: Toolbar 2 baris**
 
 Ganti blok header toolbar (baris ~454-464). Dari:
 
@@ -229,7 +229,7 @@ Menjadi:
       </div>
 ```
 
-- [ ] **Step 6: Reset empty-state ikut membersihkan filter baru**
+- [x] **Step 6: Reset empty-state ikut membersihkan filter baru**
 
 Di blok `StateBlock kind="empty"` untuk "Tidak ada spec untuk filter ini" (baris ~470-472), ganti `action`:
 
@@ -242,13 +242,13 @@ Menjadi:
             action={() => { setTab("all"); setProj("all"); setQ(""); setStageFilter("all"); setPrioFilter("all"); }} actionLabel="Reset filter" actionIcon="rotate-ccw" />
 ```
 
-- [ ] **Step 7: Jalankan test → pastikan LULUS + typecheck**
+- [x] **Step 7: Jalankan test → pastikan LULUS + typecheck**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/web test -- search-filter`
 Expected: PASS (6 test).
 Lalu typecheck build: dari `src/`, `pnpm exec tsc --noEmit` (atau `pnpm build`) → tanpa error.
 
-- [ ] **Step 8: Update internal/docs (commit yang sama)**
+- [x] **Step 8: Update internal/docs (commit yang sama)**
 
 Di `internal/docs/frontend/frontend-implementation.md`:
 
@@ -265,11 +265,11 @@ dan berlaku di ketiga view; kuncinya masuk `usePaged` agar halaman reset saat fi
 Search/stage/prioritas view-local; project tetap `App.projectFilter` (SPEC-146).
 ```
 
-- [ ] **Step 9: Verifikasi nyata (boot UI)**
+- [x] **Step 9: Verifikasi nyata (boot UI)**
 
 Frontend-only, tak ada endpoint tersentuh — verifikasi = test hijau (Step 7) + build sukses. Opsional smoke visual: dari `src/`, `pnpm dev` dan buka backlog, ketik di kotak cari, pilih stage/prioritas, pastikan list menyaring live dan tombol "Reset filter" mengosongkan semuanya.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add src/src/screens/BacklogScreen.tsx src/test/search-filter.test.tsx internal/docs/frontend/frontend-implementation.md

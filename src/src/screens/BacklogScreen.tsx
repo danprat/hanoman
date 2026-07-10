@@ -2,7 +2,7 @@
    Ported; spec.project → spec.projectId; window → ds imports. */
 import React from "react";
 import {
-  Card, Badge, Tabs, Select, Button, IconButton, Icon, usePaged, Pager, Modal, StateBlock,
+  Card, Badge, Tabs, Select, Button, IconButton, Icon, usePaged, Pager, Modal, StateBlock, Input,
   LIST_SCROLL_STYLE, LIST_SCREEN_STYLE, FIXED_ROW_STYLE
 } from "../ds";
 import { api } from "../api/client";
@@ -440,26 +440,49 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
   }) {
   const [tab, setTab] = React.useState("all");
   const [view, setView] = React.useState("grid");
+  // SPEC-178 · search + filter stage/prioritas, semua view-local (tak diangkat ke App).
+  const [q, setQ] = React.useState("");
+  const [stageFilter, setStageFilter] = React.useState("all");
+  const [prioFilter, setPrioFilter] = React.useState("all");
   // Filter project dimiliki App (SPEC-146): detail project membuka layar ini sudah tersaring.
   const proj = projectFilter;
   const setProj = onProjectFilter;
   // keep the id, not the object: backlog re-polls and the stage bar must stay live
   const [detailId, setDetailId] = React.useState<string | null>(null);
   const projOptions = projects || [...new Set(backlog.map((s) => s.projectId))].map((id) => ({ id, name: id }));
+  const needle = q.trim().toLowerCase();
   const filtered = backlog.filter((s) =>
-    (tab === "all" || s.source === tab) && (proj === "all" || s.projectId === proj));
-  const pg = usePaged(filtered, pageSize, tab + "|" + proj);
+    (tab === "all" || s.source === tab) &&
+    (proj === "all" || s.projectId === proj) &&
+    (stageFilter === "all" || s.stage === stageFilter) &&
+    (prioFilter === "all" || s.priority === prioFilter) &&
+    (needle === "" || (s.id + " " + s.title + " " + s.objective).toLowerCase().includes(needle)));
+  const pg = usePaged(filtered, pageSize, [tab, proj, stageFilter, prioFilter, needle].join("|"));
   return (
     <div style={LIST_SCREEN_STYLE}>
-      <div style={{ ...FIXED_ROW_STYLE, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18, flexWrap: "wrap" }}>
-        <Tabs variant="pill" value={tab} onChange={setTab} tabs={[
-          { value: "all", label: "Semua spec" }, { value: "brief", label: "Dari brief" }, { value: "qa", label: "Dari QA" },
-        ]} />
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{ ...FIXED_ROW_STYLE, marginBottom: 18 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+          <Tabs variant="pill" value={tab} onChange={setTab} tabs={[
+            { value: "all", label: "Semua spec" }, { value: "brief", label: "Dari brief" }, { value: "qa", label: "Dari QA" },
+          ]} />
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Tabs variant="pill" value={view} onChange={setView} tabs={VIEWS} aria-label="Mode tampilan" />
+            <span className="hn-eyebrow">{filtered.length} spec</span>
+          </div>
+        </div>
+        {/* SPEC-178 · baris penyaring: search + project + stage + prioritas. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <Input size="sm" leftIcon="search" placeholder="Cari backlog…" aria-label="Cari backlog"
+            value={q} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value)} style={{ flex: "1 1 220px" }} />
           <Select size="sm" value={proj} onChange={(e) => setProj(e.target.value)}
             options={[{ value: "all", label: "Semua project" }].concat(projOptions.map((p) => ({ value: p.id, label: p.name })))} />
-          <Tabs variant="pill" value={view} onChange={setView} tabs={VIEWS} aria-label="Mode tampilan" />
-          <span className="hn-eyebrow">{filtered.length} spec</span>
+          <Select size="sm" aria-label="Filter stage" value={stageFilter} onChange={(e) => setStageFilter(e.target.value)}
+            options={[{ value: "all", label: "Semua stage" }].concat(B_STAGES.map((s) => ({ value: s.key, label: s.label })))} />
+          <Select size="sm" aria-label="Filter prioritas" value={prioFilter} onChange={(e) => setPrioFilter(e.target.value)}
+            options={[
+              { value: "all", label: "Semua prioritas" }, { value: "tinggi", label: "Tinggi" },
+              { value: "sedang", label: "Sedang" }, { value: "rendah", label: "Rendah" },
+            ]} />
         </div>
       </div>
       {filtered.length === 0 ? (
@@ -469,7 +492,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
             action={onNew} actionLabel="Tambah spec" />
           : <StateBlock kind="empty" icon="filter" title="Tidak ada spec untuk filter ini"
             hint={`${backlog.length} spec ada di backlog, tapi tak ada yang cocok dengan filter aktif.`}
-            action={() => { setTab("all"); setProj("all"); }} actionLabel="Reset filter" actionIcon="rotate-ccw" />
+            action={() => { setTab("all"); setProj("all"); setQ(""); setStageFilter("all"); setPrioFilter("all"); }} actionLabel="Reset filter" actionIcon="rotate-ccw" />
       ) : view === "board" ? (
         // Board tak dipaginasi: kolom yang terpotong halaman bukan board.
         <Board specs={filtered} activeSpecs={activeSpecs}

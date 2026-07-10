@@ -2,7 +2,7 @@
 
 - React + TypeScript (Vite). Komponen dari Hanoman Design System.
 - Layout: sidebar 248px + topbar 56px; konten maks 1200px (Docs full-width).
-- Bagian: Overview, Projects (list + pagination + cari + hapus project per baris) → **detail project** (identitas, coverage, edit `name`/`desc` lewat `PATCH /projects/:id`, dan tiga pintu: docs, runs, backlog). `id` tak pernah dapat diubah — ia kunci asing spec/run/trigger (SPEC-146). Hapus project ada di detail dan di header Docs — konfirmasi dulu, ditolak bila ada run aktif; rename tidak ditolak, karena `id` tak bergerak, Backlog (filter project + tab + tiga mode tampilan grid/list/board + aksi per spec + detail spec via modal: judul, stage bar, objective, field brief/QA), Runs (filter project + list + detail: pipeline, worktree, kendali, terminal), Terminal (sesi Claude Code interaktif), Docs (tree realtime semua `.md` di repo via `GET /docs`, dikelompokkan per direktori; kategori di luar `docsDir` masuk grup **Lainnya (tidak dinilai)** tanpa status linked — hanya kategori berskor yang masuk coverage, lihat ADR-0013; tombol **Muat ulang** membaca ulang tree, **Hapus** menghapus file asli, path ditampilkan repo-relative tanpa prefix `internal/docs`), Triggers (toggle + hapus per baris, konfirmasi dulu), Settings (model per step).
+- Bagian: Overview, Projects (list + pagination + cari + hapus project per baris) → **detail project** (identitas, coverage, edit `name`/`desc` lewat `PATCH /projects/:id`, dan tiga pintu: docs, runs, backlog). `id` tak pernah dapat diubah — ia kunci asing spec/run/trigger (SPEC-146). Hapus project ada di detail dan di header Docs — konfirmasi dulu, ditolak bila ada run aktif; rename tidak ditolak, karena `id` tak bergerak, Backlog (cari teks + filter project/stage/prioritas + tab sumber + tiga mode tampilan grid/list/board + aksi per spec + detail spec via modal: judul, stage bar, objective, field brief/QA), Runs (filter project + list + detail: pipeline, worktree, kendali, terminal), Terminal (sesi Claude Code interaktif), Docs (tree realtime semua `.md` di repo via `GET /docs`, dikelompokkan per direktori; kategori di luar `docsDir` masuk grup **Lainnya (tidak dinilai)** tanpa status linked — hanya kategori berskor yang masuk coverage, lihat ADR-0013; tombol **Muat ulang** membaca ulang tree, **Hapus** menghapus file asli, path ditampilkan repo-relative tanpa prefix `internal/docs`), Triggers (toggle + hapus per baris, konfirmasi dulu), Settings (model per step).
 - Filter project di Backlog dan Runs dibaca dari satu state `projectFilter` milik `App`, bukan
   state lokal tiap layar (SPEC-146) — detail project memakainya untuk membuka kedua layar dalam
   keadaan sudah tersaring.
@@ -58,6 +58,12 @@ wajib, kalau tidak padding menambah tinggi di atas 100% dan melahirkan scrollbar
 `BacklogScreen` merender satu daftar spec dalam tiga bentuk — **grid** (default, kartu penuh
 dengan stage bar), **list** (satu baris per spec), dan **board** (kanban). Grid dan list
 dipaginasi lewat `usePaged`; board tidak, karena kolom yang terpotong halaman bukan board.
+
+Toolbar dua baris (SPEC-178): baris atas tab sumber + toggle view + hitungan; baris bawah
+kotak **Cari backlog** (substring case-insensitive pada `id + title + objective`) diikuti
+`Select` project, stage, dan prioritas. Semua penyaring digabung serentak ke satu `filtered`
+dan berlaku di ketiga view; kuncinya masuk `usePaged` agar halaman reset saat filter berubah.
+Search/stage/prioritas view-local; project tetap `App.projectFilter` (SPEC-146).
 
 Ketiganya memakai rantai flex di atas. Board sedikit berbeda: barisnya menggulir **mendatar**
 (`overflow-x:auto`, `overflow-y:hidden`) dan tiap **kolom** menggulir tegak sendiri, jadi judul
