@@ -8,4 +8,5 @@ export { Tabs } from "./components/ui";
 export { useToast, Toast, Modal, Field, HnTextarea, usePaged, Pager, LIST_SCROLL_STYLE, LIST_SCREEN_STYLE, FIXED_ROW_STYLE } from "./kit";
 export type { ToastData, ShowToast } from "./kit";
 export { Shell } from "./shell";
+export { MarkdownView, hnDocHtml } from "./markdown";
 export { Mark, Wordmark, HN_MARKS } from "./marks";

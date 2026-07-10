@@ -6,6 +6,8 @@ import { listRepoBranches } from "../services/branches";
 import { STAGES } from "../services/stage-machine";
 import { artifactsToRemove } from "../services/stage-artifacts";
 import { deleteDoc } from "../services/docs";
+import { listSpecDocs, resolveDir } from "../services/spec-docs";
+import { readDocFile } from "../services/scan";
 import { sessionPhasesBySpec } from "../services/pty";
 import { stageFor } from "../services/session-phases";
 
@@ -95,6 +97,19 @@ export default async function (app: FastifyInstance) {
     if (stage !== undefined) data.stage = stage;
     return prisma.spec.update({ where: { id }, data });
   });
+  // SPEC-170 · dokumen sebuah backlog item (audit/objective/spec/plan/brainstorm).
+  // Sumber freshest-wins ada di resolveDir: worktree sesi hidup > repoDir.
+  app.get("/specs/:id/docs", async (req) =>
+    ({ files: await listSpecDocs((req.params as { id: string }).id) }));
+
+  app.get("/specs/:id/docs/*", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const path = (req.params as Record<string, string>)["*"] ?? "";
+    const dir = await resolveDir(id);
+    const content = dir ? readDocFile(dir, path) : null; // readDocFile menolak non-.md -> null
+    return content === null ? reply.code(404).send({ error: "not found" }) : { path, content };
+  });
+
   app.delete("/specs/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
     await prisma.spec.delete({ where: { id } }).catch(() => { });

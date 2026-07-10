@@ -148,6 +148,25 @@ untuk keluar — hanya tombol. Pengguna yang mau seluruh layar device menekan `F
 
 Proxy dev Vite harus memakai `ws: true`, kalau tidak upgrade WebSocket dijawab 404.
 
+## Melihat dokumen audit/spec/plan (SPEC-170)
+Setiap backlog item mengumpulkan dokumen yang ditulis agent sepanjang alur —
+audit, objective, spec/design, plan, brainstorm. `SpecDocsModal`
+(`screens/SpecDocsModal.tsx`) adalah satu dialog (reuse `Modal`) yang menampilkannya:
+kiri daftar berkas dikelompokkan per **jenis**, kanan preview Markdown. Datanya dari
+`GET /specs/:id/docs` (daftar `{kind,path,name}`, sudah terurut per jenis oleh server) dan
+`GET /specs/:id/docs/*` (isi). Server memilih sumber **freshest-wins** di `resolveDir`:
+worktree sesi tmux yang masih hidup untuk spec itu, kalau tidak `repoDir` project — jadi
+dokumen bisa di-review **sebelum** branch run di-merge.
+
+Pemicunya dua, keduanya membuka modal ber-`specId` yang sama:
+- **Backlog** — ikon `file-text` "Lihat dokumen" di `SpecActions` (`BacklogScreen.tsx`), jadi
+  muncul di ketiga mode (grid/list/board) sekaligus.
+- **Terminal** — ikon `file-text` di header `Cell` (`TerminalScreen.tsx`), hanya bila sesi punya
+  `specId`; karena keyed spec-id, ia otomatis membaca worktree sesi yang sedang berjalan.
+
+Renderer Markdown dipakai bersama: `MarkdownView`/`hnDocHtml` (`ds/markdown.tsx`, marked +
+kelas `.hn-md`) — sumber yang sama untuk `SpecDocsModal` dan `DocsWorkspace`.
+
 ## Live run view (SPEC-008)
 `RunsScreen` berlangganan `GET /runs/:id/log` (SSE) untuk run running/paused via
 `subscribeRun`; event live (`log`/`phase`/`status`/`cost`/`file`) digabung lewat reducer
