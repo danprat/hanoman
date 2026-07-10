@@ -33,7 +33,7 @@
 - Consumes: `PIPELINES`, `startPrompt` yang sudah ada di `runner/src/prompt.ts`.
 - Produces: `startPrompt` yang menyisipkan blok "Skills superpowers WAJIB" — dipakai apa adanya oleh `server/src/routes/terminal.ts` (tak ada perubahan signature).
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambah di `runner/test/prompt.test.ts` (di dalam `describe("startPrompt")`):
 
@@ -53,12 +53,12 @@ Tambah di `runner/test/prompt.test.ts` (di dalam `describe("startPrompt")`):
   });
 ```
 
-- [ ] **Step 2: Jalankan — pastikan gagal**
+- [x] **Step 2: Jalankan — pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./runner test`
 Expected: 2 test baru FAIL (`expected ... to contain 'superpowers:brainstorming'`), sisanya pass.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Di `runner/src/prompt.ts`, sisipkan setelah `phaseInstruction`:
 
@@ -106,12 +106,12 @@ export function startPrompt(flow: Flow, spec: SpecBrief, branchTo: string): stri
 }
 ```
 
-- [ ] **Step 4: Jalankan — pastikan hijau**
+- [x] **Step 4: Jalankan — pastikan hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./runner test`
 Expected: semua PASS (test lama `payload ... tak menghasilkan 'undefined'` dkk tetap hijau).
 
-- [ ] **Step 5: Update doc + commit**
+- [x] **Step 5: Update doc + commit**
 
 Di `internal/docs/operations/agent-documentation-workflow.md`, tambah satu bullet setelah baris "- **Fitur:** spec → plan → execute...":
 
@@ -138,7 +138,7 @@ git commit -m "feat(runner): prompt run menyuruh invoke skill superpowers per fa
 **Interfaces:**
 - Produces: `export const REVERSE_STANDARD: string` — markdown standar docs, di-inline ke prompt oleh Task 3. Diekspor dari `@hanoman/runner`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Create `runner/test/reverse-standard.test.ts`:
 
@@ -168,12 +168,12 @@ describe("REVERSE_STANDARD", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — pastikan gagal**
+- [x] **Step 2: Jalankan — pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./runner test`
 Expected: FAIL — `Cannot find module '../src/reverse-standard'`.
 
-- [ ] **Step 3: Tulis `runner/src/reverse-standard.ts`**
+- [x] **Step 3: Tulis `runner/src/reverse-standard.ts`**
 
 Isi lengkap (perhatikan: **tanpa backtick di isi**, escape `\\"` untuk JSON hook):
 
@@ -296,12 +296,12 @@ Tambahkan di `runner/src/index.ts`:
 export * from "./reverse-standard";
 ```
 
-- [ ] **Step 4: Jalankan — pastikan hijau**
+- [x] **Step 4: Jalankan — pastikan hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./runner test && env -u NODE_ENV -u DATABASE_URL pnpm --filter ./runner typecheck`
 Expected: PASS semua.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runner/src/reverse-standard.ts runner/src/index.ts runner/test/reverse-standard.test.ts
@@ -327,7 +327,7 @@ git commit -m "feat(runner): kodifikasi standar docs-driven termilo untuk sesi r
   - `export type ProjectBrief = { id: string; name: string; desc: string; stack: string }` di `runner/src/types.ts`
   - `export function startProjectPrompt(flow: Flow, project: ProjectBrief, branchTo: string): string` — dipakai Task 4.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambah di `runner/test/prompt.test.ts`:
 
@@ -377,12 +377,12 @@ describe("startProjectPrompt", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — pastikan gagal**
+- [x] **Step 2: Jalankan — pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./runner test`
 Expected: FAIL — `startProjectPrompt` belum diekspor.
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 `runner/src/types.ts` — tambah setelah `SpecBrief`:
 
@@ -441,7 +441,7 @@ import type { Flow, SpecBrief, ProjectBrief } from "./types";
 import { REVERSE_STANDARD } from "./reverse-standard";
 ```
 
-- [ ] **Step 4: Perbaiki test server yang memakai fase reverse lama**
+- [x] **Step 4: Perbaiki test server yang memakai fase reverse lama**
 
 `server/test/session-phases.test.ts:39-43` — test "nama fase berspasi" masih memakai
 "Doc index" milik pipeline lama. Ganti bloknya menjadi (perhatikan: fase yang selesai
@@ -456,12 +456,12 @@ tak berurutan justru menguatkan test parsing token terakhir):
   });
 ```
 
-- [ ] **Step 5: Jalankan — pastikan hijau**
+- [x] **Step 5: Jalankan — pastikan hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./runner test && docker compose up -d --wait && env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test`
 Expected: PASS semua (runner + server; server butuh Postgres+tmux).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add runner/src/prompt.ts runner/src/types.ts runner/test/prompt.test.ts server/test/session-phases.test.ts
@@ -488,7 +488,7 @@ git commit -m "feat(runner): pipeline reverse 5 fase + startProjectPrompt (SPEC-
   - `CreateOpts.id?: string` — id sesi eksplisit (dipakai route reverse).
   - `DELETE /terminal/sessions/:id` membuang worktree untuk SEMUA sesi ber-flow, bukan hanya yang ber-spec.
 
-- [ ] **Step 1: Tulis test route yang gagal**
+- [x] **Step 1: Tulis test route yang gagal**
 
 Tambah di akhir `server/test/terminal.route.test.ts`:
 
@@ -549,12 +549,12 @@ describe("terminal routes · sesi reverse", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — pastikan gagal**
+- [x] **Step 2: Jalankan — pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run test/terminal.route.test.ts`
 Expected: describe baru FAIL (400 dari zod union — `flow` belum dikenal varian project).
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 `shared/src/dto.ts` — ganti `zTerminalSession`:
 
@@ -645,12 +645,12 @@ menggerakkan stage:
     }
 ```
 
-- [ ] **Step 4: Jalankan — pastikan hijau**
+- [x] **Step 4: Jalankan — pastikan hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test && env -u NODE_ENV -u DATABASE_URL pnpm -r typecheck`
 Expected: PASS semua (termasuk test lama: `{project}` tanpa flow tetap 400/404, sesi spec tak berubah).
 
-- [ ] **Step 5: Update docs (commit yang sama)**
+- [x] **Step 5: Update docs (commit yang sama)**
 
 `internal/docs/architecture/api-contract.md:79` — ganti baris POST menjadi:
 
@@ -702,7 +702,7 @@ me-review dan merge. Prompt semua flow kini juga memetakan fase → skill superp
 
 (Sesuaikan bentuk barisnya dengan pola baris ADR lain di index — lihat baris 0025 tepat di atasnya.)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add shared/src/dto.ts server/src/services/pty.ts server/src/routes/terminal.ts \
@@ -726,7 +726,7 @@ git commit -m "feat(server): sesi reverse project-level — worktree, prompt sta
 - Consumes: endpoint Task 4 (`POST /terminal/sessions { project, flow: "reverse" }`).
 - Produces: `api.reverseDocs(project: string): Promise<{ id: string }>`; prop opsional `onReverse?: () => void` pada `ProjectDetailScreen`.
 
-- [ ] **Step 1: `api/client.ts` — metode reverseDocs**
+- [x] **Step 1: `api/client.ts` — metode reverseDocs**
 
 Tambah setelah `startSession` (baris 41-42):
 
@@ -736,7 +736,7 @@ Tambah setelah `startSession` (baris 41-42):
     j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, flow: "reverse" }) }),
 ```
 
-- [ ] **Step 2: `ProjectDetailScreen.tsx` — pintu keempat (kondisional)**
+- [x] **Step 2: `ProjectDetailScreen.tsx` — pintu keempat (kondisional)**
 
 Ganti signature komponen (baris 37-39):
 
@@ -757,7 +757,7 @@ Ganti grid pintu (baris 73-77):
       </div>
 ```
 
-- [ ] **Step 3: `App.tsx` — handler + prop**
+- [x] **Step 3: `App.tsx` — handler + prop**
 
 Tambah setelah `startSession` (sekitar baris 373):
 
@@ -788,12 +788,12 @@ muncul untuk project existing yang punya repoDir:
               onDelete={() => deleteProject(proj)} />
 ```
 
-- [ ] **Step 4: Typecheck web**
+- [x] **Step 4: Typecheck web**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src typecheck`
 Expected: bersih, 0 error. (Tak ada suite unit UI di repo ini — verifikasi visual di Task 6.)
 
-- [ ] **Step 5: Update docs (commit yang sama)**
+- [x] **Step 5: Update docs (commit yang sama)**
 
 `internal/docs/operations/agent-documentation-workflow.md:9` — ganti:
 
@@ -807,7 +807,7 @@ Expected: bersih, 0 error. (Tak ada suite unit UI di repo ini — verifikasi vis
 2. Tambah project: **from-scratch** (brainstorm → objective → scaffold docs) atau **existing** (pilih direktori → tombol **Reverse docs** menyusun Source of Truth lewat sesi interaktif; fase Wawancara dijawab di Terminal).
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/src/api/client.ts src/src/screens/ProjectDetailScreen.tsx src/src/App.tsx \
@@ -827,12 +827,12 @@ git commit -m "feat(web): tombol Reverse docs di layar project existing (SPEC-16
 - Consumes: seluruh hasil Task 1-5.
 - Produces: bukti verifikasi nyata (output curl + tmux) di pesan akhir; status spec berubah.
 
-- [ ] **Step 1: Suite penuh repo**
+- [x] **Step 1: Suite penuh repo**
 
 Run: `docker compose up -d --wait && env -u NODE_ENV -u DATABASE_URL pnpm test`
 Expected: PASS semua (root vitest `--no-file-parallelism`; ingat: `queue-durability` flaky HANYA bila dijalankan sendirian — di suite penuh harus hijau).
 
-- [ ] **Step 2: Boot server dengan claude palsu**
+- [x] **Step 2: Boot server dengan claude palsu**
 
 `POST /terminal/sessions` men-spawn claude sungguhan — untuk smoke, ganti binarinya:
 
@@ -842,7 +842,7 @@ env -u NODE_ENV -u DATABASE_URL HANOMAN_CLAUDE_BIN=/bin/echo PORT=8787 pnpm dev:
 # tunggu "listening" di log
 ```
 
-- [ ] **Step 3: Smoke nyata — project temp + sesi reverse**
+- [x] **Step 3: Smoke nyata — project temp + sesi reverse**
 
 ```bash
 rm -rf /tmp/rev-demo && mkdir -p /tmp/rev-demo && cd /tmp/rev-demo \
@@ -865,7 +865,7 @@ tmux -L hanoman capture-pane -p -J -S -200 -t hanoman-reverse-rev-demo | grep -c
 curl -s localhost:8787/api/terminal/sessions/reverse-rev-demo/phases   # flow "reverse", Scan active
 ```
 
-- [ ] **Step 4: Bersih-bersih smoke**
+- [x] **Step 4: Bersih-bersih smoke**
 
 ```bash
 curl -s -X DELETE localhost:8787/api/terminal/sessions/reverse-rev-demo   # 204
@@ -876,7 +876,7 @@ rm -rf /tmp/rev-demo
 
 Expected: worktree `/tmp/rev-demo/.worktrees/reverse-rev-demo` ikut lenyap sebelum `rm`.
 
-- [ ] **Step 5: Tandai selesai + commit**
+- [x] **Step 5: Tandai selesai + commit**
 
 Ubah baris 3 spec design menjadi:
 

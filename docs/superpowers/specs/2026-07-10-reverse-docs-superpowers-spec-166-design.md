@@ -1,6 +1,6 @@
 # SPEC-166 — Run pakai skills superpowers + flow reverse docs untuk project existing
 
-**Tanggal:** 2026-07-10 · **Status:** disetujui, belum diimplementasi
+**Tanggal:** 2026-07-10 · **Status:** diimplementasi (lihat plan + verifikasi nyata)
 **Membangun di atas:** ADR-0016 (sesi tmux interaktif), ADR-0024, SPEC-162
 
 ## Konteks
