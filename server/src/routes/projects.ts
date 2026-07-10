@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { zCreateProject, zUpdateProject } from "@hanoman/shared";
 import { prisma } from "../db";
 import { toProjectView } from "../services/project-view";
-import { listRepoBranches } from "../services/branches";
+import { listRepoBranches, listRepoRemoteBranches } from "../services/branches";
 import { listSessions } from "../services/pty";
 
 export default async function (app: FastifyInstance) {
@@ -57,6 +57,6 @@ export default async function (app: FastifyInstance) {
     const { id } = req.params as { id: string };
     const p = await prisma.project.findUnique({ where: { id } });
     if (!p) return reply.code(404).send({ error: "not found" });
-    return { branches: listRepoBranches(p.repoDir) };
+    return { branches: listRepoBranches(p.repoDir), remotes: listRepoRemoteBranches(p.repoDir) };
   });
 }
