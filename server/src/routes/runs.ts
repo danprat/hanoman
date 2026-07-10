@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../db";
-import { zSteer, zControl, zWorktreePatch, zCommand, zStartRun } from "@hanoman/shared";
+import { zSteer, zControl, zWorktreePatch, zCommand, zStartRun, zAnswer, type Ask } from "@hanoman/shared";
 import { realGit, type Flow } from "@hanoman/runner";
 import { subscriber, publisher } from "../redis";
 import { enqueueRun } from "../queue";
@@ -186,6 +186,24 @@ export default async function (app: FastifyInstance) {
     const parsed = zSteer.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: "invalid message" });
     await publishControl((req.params as { id: string }).id, { type: "steer", message: parsed.data.message });
+    return reply.code(202).send({ accepted: true });
+  });
+
+  // Jawab pertanyaan agen (SPEC-157). Run `awaiting` = proses claude hidup, terblokir menunggu
+  // ini. `safeParse` + validasi terhadap menu, persis seperti steer/control: body cacat → 400.
+  app.post("/runs/:id/answer", async (req, reply) => {
+    const parsed = zAnswer.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: "invalid value" });
+    const { id } = req.params as { id: string };
+    const run = await prisma.run.findUnique({ where: { id } });
+    if (!run) return reply.code(404).send({ error: "not found" });
+    if (run.status !== "awaiting" || !run.pendingAsk)
+      return reply.code(409).send({ error: `run "${id}" tidak sedang menunggu jawaban` });
+    // Batas kepercayaan: hanya `value` yang ditawarkan agen boleh mendarat di stdin-nya.
+    const ask = run.pendingAsk as unknown as Ask;
+    if (!ask.options.some((o) => o.value === parsed.data.value))
+      return reply.code(400).send({ error: `pilihan "${parsed.data.value}" tidak ada di pertanyaan run ini` });
+    await publishControl(id, { type: "answer", value: parsed.data.value });
     return reply.code(202).send({ accepted: true });
   });
 

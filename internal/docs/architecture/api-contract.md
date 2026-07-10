@@ -33,10 +33,13 @@ DELETE /specs/:id
 GET  /runs
 GET  /runs/:id
 POST /runs                { project, flow, branchFrom, branchTo?, specId? }  # 202 { runId }; 409 bila project tak punya repoDir absolut
-DELETE /runs/:id          # 409 bila run masih queued/running/paused
-GET  /runs/:id/log        # SSE stream: replay snapshot lalu relay live log/phase/status/cost
+DELETE /runs/:id          # 409 bila run masih queued/running/awaiting/paused
+GET  /runs/:id/log        # SSE stream: replay snapshot lalu relay live log/phase/status/cost/ask
 POST /runs/:id/steer      { message }
-POST /runs/:id/control    { action: "pause"|"resume"|"stop"|"retry" }   # resume/retry → 409 bila run masih queued/running (satu run = satu worktree, ADR-0002)
+POST /runs/:id/answer     { value }   # 202; jawab Run.pendingAsk (SPEC-157). 409 bila run bukan `awaiting`
+#   atau pendingAsk kosong; 400 bila body cacat atau `value` bukan salah satu pendingAsk.options[].value
+#   (batas kepercayaan: hanya pilihan yang ditawarkan agen boleh mendarat di stdin-nya).
+POST /runs/:id/control    { action: "pause"|"resume"|"stop"|"retry" }   # resume/retry → 409 bila run masih queued/running/awaiting (satu run = satu worktree, ADR-0002)
 POST /runs/:id/worktree   { branchFrom?, branchTo? }
 POST /runs/:id/command    { text }   # terminal interaktif: verb baca render Run; files/diff membaca GET /changes; resume/retry re-enqueue (jalur /control), free text pada run aktif → steer, docs <path> baca file nyata
 GET  /runs/:id/changes          # { base, head, commits[], files[] } — hanya changes milik run ini
