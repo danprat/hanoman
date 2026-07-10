@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runOne } from "../src/run";
 import { SteerQueue } from "../src/steer-queue";
-import { DECISION_FILE } from "../src/phases";
+import { DECISION_FILE, ASK_FILE } from "../src/phases";
 import type { ClaudeSession, CliOptions, RunDeps, RunInput, CliMessage } from "../src/index";
 
 const steps = Object.fromEntries(["brainstorm", "spec", "plan", "execute", "audit"]
@@ -314,5 +314,107 @@ describe("runOne · keputusan pasca-Audit (qa)", () => {
     const { repoDir, wt } = qaTree('{"path":"spec"}');
     await runOne(input({ repoDir, flow: "qa" }), fakeDeps(), () => {});
     expect(existsSync(join(wt, DECISION_FILE))).toBe(false);
+  });
+});
+
+describe("runOne · pertanyaan agen (SPEC-157)", () => {
+  const ASK = {
+    question: '"Orang" di sini siapa?',
+    options: [{ value: "pasien", label: "Pasien" }, { value: "pembayar", label: "Pembayar" }],
+    default: "pasien",
+  };
+  // Worktree nyata + berkas ask yang sudah menunggu sebelum fase pertama selesai.
+  const askTree = (ask: unknown = ASK) => {
+    const repoDir = mkdtempSync(join(tmpdir(), "hanoman-ask-run-"));
+    const wt = join(repoDir, ".worktrees", "run-1");
+    mkdirSync(wt, { recursive: true });
+    writeFileSync(join(wt, ASK_FILE), JSON.stringify(ask));
+    return { repoDir, wt };
+  };
+
+  it("memancarkan ask + awaiting, lalu running lagi setelah dijawab", async () => {
+    const { repoDir } = askTree();
+    const answers = new SteerQueue();
+    answers.push("pembayar"); // jawaban sudah di buffer: run tak pernah benar-benar menunggu
+    const events: any[] = [];
+    const r = await runOne(input({ repoDir, only: "Brainstorm" }), fakeDeps(), (e) => events.push(e), { answers });
+
+    expect(r.status).toBe("done");
+    const kinds = events.filter((e) => e.kind === "ask" || e.kind === "status").map((e) =>
+      e.kind === "ask" ? (e.ask ? "ask" : "ask:null") : `status:${e.status}`);
+    expect(kinds).toEqual(["status:running", "ask", "status:awaiting", "ask:null", "status:running", "status:done"]);
+  });
+
+  it("menyuntikkan jawaban manusia ke sesi sebagai satu giliran", async () => {
+    const { repoDir } = askTree();
+    const s = fakeSession();
+    const answers = new SteerQueue(); answers.push("pembayar");
+    await runOne(input({ repoDir, only: "Brainstorm" }), fakeDeps({ openSession: () => s }), () => {}, { answers });
+
+    expect(s.sent).toHaveLength(2); // prompt fase + jawaban
+    expect(s.sent[1]).toContain("Jawaban manusia atas pertanyaanmu");
+    expect(s.sent[1]).toContain("Pembayar (pembayar)");
+  });
+
+  it("menandai fase done hanya setelah pertanyaan habis", async () => {
+    const { repoDir } = askTree();
+    const answers = new SteerQueue(); answers.push("pasien");
+    const events: any[] = [];
+    await runOne(input({ repoDir, only: "Brainstorm" }), fakeDeps(), (e) => events.push(e), { answers });
+
+    const seq = events.filter((e) => e.kind === "ask" || (e.kind === "phase" && e.state === "done"));
+    expect(seq[0].kind).toBe("ask");
+    expect(seq[seq.length - 1]).toEqual({ kind: "phase", name: "Brainstorm", state: "done" });
+  });
+
+  it("agen boleh bertanya lagi setelah dijawab", async () => {
+    const { repoDir, wt } = askTree();
+    const answers = new SteerQueue(); answers.push("pasien"); answers.push("pembayar");
+    const s = fakeSession();
+    // Giliran jawaban pertama menuliskan ask kedua.
+    const openSession = () => ({
+      ...s,
+      send(t: string) { s.send(t); if (s.sent.length === 2) writeFileSync(join(wt, ASK_FILE), JSON.stringify(ASK)); },
+    });
+    const events: any[] = [];
+    await runOne(input({ repoDir, only: "Brainstorm" }), fakeDeps({ openSession: openSession as never }), (e) => events.push(e), { answers });
+
+    expect(events.filter((e) => e.kind === "ask" && e.ask).length).toBe(2);
+  });
+
+  // Abort saat menunggu adalah permintaan berhenti, BUKAN kegagalan.
+  it("abort saat menunggu → stopped, bukan failed", async () => {
+    const { repoDir } = askTree();
+    const abortController = new AbortController();
+    const answers = new SteerQueue();
+    const events: any[] = [];
+    const r = await runOne(input({ repoDir, only: "Brainstorm" }), fakeDeps(), (e) => {
+      events.push(e);
+      if (e.kind === "status" && e.status === "awaiting") abortController.abort();
+    }, { answers, abortController });
+
+    expect(r.status).toBe("stopped");
+    expect(events.some((e) => e.kind === "status" && e.status === "failed")).toBe(false);
+    expect(events.filter((e) => e.kind === "ask").at(-1)).toEqual({ kind: "ask", ask: null });
+  });
+
+  it("ask yang cacat tidak menghentikan apa pun", async () => {
+    const { repoDir } = askTree({ question: "q", options: [{ value: "a", label: "A" }], default: "a" });
+    const events: any[] = [];
+    const r = await runOne(input({ repoDir, only: "Brainstorm" }), fakeDeps(), (e) => events.push(e), { answers: new SteerQueue() });
+    expect(r.status).toBe("done");
+    expect(events.some((e) => e.kind === "ask")).toBe(false);
+  });
+
+  it("menghapus artefak ask sebelum commitAndPush", async () => {
+    const { repoDir, wt } = askTree();
+    const answers = new SteerQueue(); answers.push("pasien");
+    let presentAtCommit: boolean | undefined;
+    const d = fakeDeps();
+    d.git.commitAndPush = vi.fn(() => { presentAtCommit = existsSync(join(wt, ASK_FILE)); return "head99"; });
+    await runOne(input({ repoDir, only: "Brainstorm" }), d, () => {}, { answers });
+
+    expect(presentAtCommit).toBe(false);
+    expect(existsSync(join(wt, ASK_FILE))).toBe(false);
   });
 });

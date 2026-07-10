@@ -45,7 +45,11 @@ export type RunEvent =
   | { kind: "cost"; tokensIn: number; tokensOut: number; costUsd: number }
   | { kind: "session"; sessionId: string }
   | { kind: "commit"; base?: string; head?: string }
-  | { kind: "status"; status: "running" | "paused" | "stopped" | "failed" | "done" };
+  // `ask: null` menutup pertanyaan (dijawab, timeout, atau abort) — UI membersihkan tombolnya.
+  | { kind: "ask"; ask: Ask | null }
+  // `awaiting` BUKAN `paused`. `paused` = proses claude sudah mati, sesi dilanjutkan dari
+  // sessionId. `awaiting` = proses hidup, stdin terbuka, runOne terblokir di sebuah promise.
+  | { kind: "status"; status: "running" | "paused" | "awaiting" | "stopped" | "failed" | "done" };
 export type Flow = "feature" | "qa" | "scaffold" | "reverse";
 export type StepModel = { model: string; effort: string };
 export type StepModels = Record<"brainstorm" | "spec" | "plan" | "execute" | "audit", StepModel>;

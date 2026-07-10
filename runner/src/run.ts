@@ -1,6 +1,6 @@
 import { existsSync, rmSync } from "node:fs";
-import type { OpenSession, RunEvent, RunInput, RunResult, GitOps, CliMessage } from "./types";
-import { PIPELINES, phasePrompt, stepFor, readDecision, DECISION_FILE, QA_PLANNING } from "./phases";
+import type { Ask, OpenSession, RunEvent, RunInput, RunResult, GitOps, CliMessage } from "./types";
+import { PIPELINES, phasePrompt, stepFor, readDecision, readAsk, DECISION_FILE, ASK_FILE, QA_PLANNING } from "./phases";
 import { DENY, runPhase, type StepState } from "./phase";
 import { takeTurn } from "./turns";
 import { SteerQueue } from "./steer-queue";
@@ -10,11 +10,54 @@ export interface RunDeps {
   verify: (cwd: string) => { blocked: boolean; reason?: string; error?: string };
 }
 
+// ponytail: 5 pertanyaan per fase. Agen bingung bisa bertanya tanpa henti, dan tiap pertanyaan
+// membakar satu giliran. Ini satu-satunya loop tak berhingga di jalur ini. Naikkan kalau ada
+// alur sah yang melewatinya.
+export const MAX_ASKS_PER_PHASE = 5;
+const DEFAULT_ASK_TIMEOUT_MS = 30 * 60_000;
+
+type Answer = { value: string; byHuman: boolean };
+const optionOf = (ask: Ask, value: string) => ask.options.find((o) => o.value === value);
+const labelOf = (ask: Ask, value: string) => optionOf(ask, value)?.label ?? value;
+
+// `null` = run di-abort saat menunggu. Berhenti atas permintaan bukan kegagalan.
+// Buffer `SteerQueue` menutup balapan "jawaban ter-publish sebelum next() dipanggil".
+function awaitAnswer(ask: Ask, answers: SteerQueue, timeoutMs: number, signal: AbortSignal): Promise<Answer | null> {
+  if (signal.aborted) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (v: Answer | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      signal.removeEventListener("abort", onAbort);
+      resolve(v);
+    };
+    const onAbort = () => finish(null);
+    const timer = setTimeout(() => finish({ value: ask.default, byHuman: false }), timeoutMs);
+    signal.addEventListener("abort", onAbort);
+    // ponytail: `next()` yang kalah balapan tetap menggantung sampai proses keluar. Satu run =
+    // satu proses, dan run yang di-abort sedang menuju penutupan sesi — tak ada yang bocor.
+    void answers.next().then((value) => finish({ value, byHuman: true }));
+  });
+}
+
+// Agen tidak boleh mengira tebakannya sendiri sudah dikonfirmasi manusia.
+function answerText(ask: Ask, a: Answer, timeoutMs: number): string {
+  const o = optionOf(ask, a.value);
+  const tail = `${o?.label ?? a.value} (${a.value})${o?.detail ? ` — ${o.detail}` : ""}`;
+  if (a.byHuman) return `Jawaban manusia atas pertanyaanmu: ${tail}`;
+  return timeoutMs > 0
+    ? `Tidak ada jawaban dalam ${Math.round(timeoutMs / 60_000)}m — memakai pilihanmu sendiri: ${tail}`
+    : `Run berjalan tanpa penunggu — memakai pilihanmu sendiri: ${tail}`;
+}
+
 export async function runOne(
   input: RunInput, deps: RunDeps, onEvent: (e: RunEvent) => void,
-  ctl: { abortController?: AbortController; steer?: SteerQueue } = {},
+  ctl: { abortController?: AbortController; steer?: SteerQueue; answers?: SteerQueue; askTimeoutMs?: number } = {},
 ): Promise<RunResult> {
   const abortController = ctl.abortController ?? new AbortController();
+  const askTimeoutMs = ctl.askTimeoutMs ?? DEFAULT_ASK_TIMEOUT_MS;
   const worktree = `${input.repoDir}/.worktrees/${input.runId.toLowerCase()}`;
   // spec/plan run a single phase; otherwise the whole pipeline is walked.
   const all = PIPELINES[input.flow].filter((p) => !input.only || p === input.only);
@@ -97,6 +140,33 @@ export async function runOne(
           onEvent({ kind: "status", status: "failed" });
           return failed();
         }
+
+        // Agen boleh berhenti dan bertanya (SPEC-157). Fase belum `done` selama masih ada yang
+        // ditanyakan: jawabannya menjadi giliran lanjutan dari pekerjaan fase ini, bukan fase baru.
+        // `readAsk` mengonsumsi berkasnya, jadi loop ini berhenti sendiri saat agen tak bertanya lagi.
+        for (;;) {
+          const ask = readAsk(worktree);
+          if (!ask) break;
+          if (!ctl.answers) break; // tak ada kanal jawaban (mis. `hanoman run` lokal) → jalan terus
+
+          onEvent({ kind: "ask", ask });
+          onEvent({ kind: "status", status: "awaiting" });
+          const a = await awaitAnswer(ask, ctl.answers, askTimeoutMs, abortController.signal);
+          onEvent({ kind: "ask", ask: null });
+          if (a === null) { onEvent({ kind: "status", status: "stopped" }); return stopped(); }
+          onEvent({ kind: "status", status: "running" });
+          onEvent({ kind: "log", line: { t: "»", s: `jawaban: ${labelOf(ask, a.value)}` } });
+
+          const t = await takeTurn(session, answerText(ask, a, askTimeoutMs), onLog);
+          costUsd = t.costUsd; tokensIn += t.tokensIn; tokensOut += t.tokensOut;
+          if (t.subtype.startsWith("error") || t.isError) {
+            const why = t.apiErrorStatus ? `API ${t.apiErrorStatus}` : t.subtype;
+            onEvent({ kind: "log", line: { t: "✗", s: `fase ${phase} gagal saat menjawab · ${why}` } });
+            onEvent({ kind: "phase", name: phase, state: "failed" });
+            onEvent({ kind: "status", status: "failed" });
+            return failed();
+          }
+        }
         onEvent({ kind: "phase", name: phase, state: "done" });
 
         // Alur qa memilih jalur hilirnya sendiri. Hanya `path: "execute"` yang memangkas;
@@ -136,12 +206,13 @@ export async function runOne(
   }
 
   if (abortController.signal.aborted) { onEvent({ kind: "status", status: "stopped" }); return stopped(); }
-  // `git add -A` men-stage berkas ber-titik di root. Unlink berdiri sendiri di sini, tanpa
-  // syarat, karena ada jalur yang tak pernah membaca artefaknya: run yang mati antara fase
-  // Audit menulis berkas dan runner membacanya sudah mem-persist `phase done`, sehingga
-  // resume melewati Audit sama sekali. `force`: absen bukan error. Mendahului commit —
-  // kalau tidak, `add -A` justru men-stage berkas yang mau dibuang ini.
+  // Artefak keputusan DAN pertanyaan. `git add -A` men-stage berkas ber-titik di root. Unlink
+  // berdiri sendiri di sini, tanpa syarat, karena ada jalur yang tak pernah membaca artefaknya:
+  // run yang mati antara fase Audit menulis berkas dan runner membacanya sudah mem-persist
+  // `phase done`, sehingga resume melewati Audit sama sekali. `force`: absen bukan error.
+  // Mendahului commit — kalau tidak, `add -A` justru men-stage berkas yang mau dibuang ini.
   rmSync(`${worktree}/${DECISION_FILE}`, { force: true });
+  rmSync(`${worktree}/${ASK_FILE}`, { force: true });
   const headSha = deps.git.commitAndPush(worktree, `hanoman ${input.flow} ${input.specId ?? ""}`.trim(), input.branchTo, input.remoteUrl);
   onEvent({ kind: "commit", head: headSha });
   deps.git.removeWorktree(input.repoDir, worktree);
