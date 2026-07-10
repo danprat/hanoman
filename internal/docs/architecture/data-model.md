@@ -12,7 +12,11 @@ Entitas inti (Postgres via Prisma).
 
 ## Spec (backlog item)
 - `id` (SPEC-n), `projectId`, `title`, `source` ("brief" | "qa")
-- `stage` ("brainstorming" | "objective" | "spec-ready" | "planned" | "executing" | "done")
+- `stage` ("brainstorming" | "objective" | "spec-ready" | "planned" | "executing" | "done").
+  Bergerak **maju** hanya lewat fase yang dilaporkan agen (ADR-0008/0024), **mundur** hanya
+  lewat aksi human eksplisit `PATCH /specs/:id { stage }` (backward-only, SPEC-167/ADR-0027).
+  Mundur juga membersihkan artefak docs superpowers ber-spec-id fase di atas target
+  (`docs/superpowers/specs/*` & `plans/*`); kode/commit Execute tak pernah dihapus.
 - `priority` ("tinggi" | "sedang" | "rendah"), `author`, `objective`
 - payload brief (context/outcome/constraints) atau qa (severity/steps/expected/actual/env)
 - `branchFrom?` — branch sumber worktree bagi run yang lahir dari item ini. `null` = default project

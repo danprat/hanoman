@@ -20,11 +20,13 @@ DELETE /projects/:id      # 409 bila ada run queued/running/paused; cascade ke s
 GET  /specs?project=&source=
 POST /specs               { project, source, ...payload, branchFrom? }  -> SPEC-n
 #   404 bila project tak dikenal; 400 bila branchFrom tak ada di refs/heads repo project.
-PATCH /specs/:id          { branchFrom: string | null }   -> Spec
-#   null = kembali ke default project (main). Menentukan basis run BERIKUTNYA; run yang
-#   sudah jalan diubah lewat PATCH /runs/:id/worktree. Lihat ADR-0018.
-# (dihapus) stage tak lagi dinaikkan manual — POST /runs { specId } memulai run,
-# dan Spec.stage dicerminkan dari fase run nyata (lihat ADR-0008).
+PATCH /specs/:id          { branchFrom?: string|null, stage?, confirmDelete? }   -> Spec
+#   branchFrom null = kembali ke default project (main); menentukan basis run BERIKUTNYA;
+#   run yang sudah jalan diubah lewat PATCH /runs/:id/worktree. Lihat ADR-0018.
+#   stage = revert backward-only atas perintah human (SPEC-167/ADR-0027): 422 bila maju/sama,
+#   400 bila stage tak dikenal. Bila mundur menghapus artefak docs & confirmDelete≠true →
+#   200 { pending:true, stage, wouldDelete:string[] } (dry-run, tak mengubah apa pun);
+#   confirmDelete:true → hapus artefak + set stage. Agen tetap forward-only (ADR-0008/0024).
 DELETE /specs/:id
 ```
 
