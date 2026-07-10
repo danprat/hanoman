@@ -2,7 +2,8 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { buildApp } from "../src/app";
 import { resetDb, makeProject, makeSpec, makeTempRepo } from "./factory";
 
-const app = buildApp();
+// Route ini tak menguji auth — lewati gate seperti semua route test lain (SPEC-169).
+const app = buildApp({ requireAuth: false });
 const repo = makeTempRepo({
   "internal/docs/operations/spec-170-x-audit.md": "# audit\n\nbody",
   "docs/superpowers/specs/2026-07-11-x-spec-170-design.md": "# design",
