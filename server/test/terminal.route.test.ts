@@ -331,4 +331,34 @@ describe("GET /specs · stage live dari sesi", () => {
     await makeSpec({ id: "SPEC-908", projectId: "p1", stage: "objective" });
     expect(await stageOf("SPEC-908")).toBe("objective");
   });
+
+  // SPEC-173 · ADR-0029: write-through pun digerbang — `Execute done` live tak boleh
+  // mempersist `done` selama plan spec-nya masih punya `- [ ]`.
+  const writeLivePlan = (sessionId: string, body: string) => {
+    const dir = join(repoDir, ".worktrees", sessionId, "docs/superpowers/plans");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, `2026-07-11-x-${sessionId}.md`), body);
+  };
+
+  it("write-through tertahan di executing selama plan spec masih - [ ]", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    await makeSpec({ id: "SPEC-912", projectId: "p1", stage: "planned" });
+    await start("SPEC-912");
+    writeLivePlan("spec-912", "- [x] a\n- [ ] b\n");
+    appendFileSync(phaseFilePath(repoDir, "spec-912"), "Execute done\n");
+    expect(await stageOf("SPEC-912")).toBe("executing");
+    const row = await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-912" } });
+    expect(row.stage).toBe("executing"); // persist ikut tertahan, bukan done
+    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-912" });
+  });
+
+  it("write-through mencapai done saat semua kotak plan - [x]", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    await makeSpec({ id: "SPEC-913", projectId: "p1", stage: "planned" });
+    await start("SPEC-913");
+    writeLivePlan("spec-913", "- [x] a\n- [x] b\n");
+    appendFileSync(phaseFilePath(repoDir, "spec-913"), "Execute done\n");
+    expect(await stageOf("SPEC-913")).toBe("done");
+    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-913" });
+  });
 });

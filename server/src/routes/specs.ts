@@ -7,7 +7,7 @@ import { STAGES } from "../services/stage-machine";
 import { artifactsToRemove } from "../services/stage-artifacts";
 import { deleteDoc } from "../services/docs";
 import { sessionPhasesBySpec } from "../services/pty";
-import { stageFor } from "../services/session-phases";
+import { stageForRun } from "../services/session-phases";
 
 // SPEC-143: daftar yang mengisi dropdown adalah daftar yang menjaga gerbang — tak ada validator
 // terpisah yang bisa ikut basi. Branch karangan ditolak di sini, bukan beberapa menit kemudian
@@ -24,9 +24,10 @@ export default async function (app: FastifyInstance) {
     if (live.size === 0) return specs;
     const advanced: { id: string; stage: Stage }[] = [];
     const out = specs.map((s) => {
-      const phases = live.get(s.id);
-      if (!phases) return s;
-      const next = stageFor(phases);
+      const entry = live.get(s.id);
+      if (!entry) return s;
+      // stageForRun menahan `done` bila plan di worktree (entry.cwd) masih `- [ ]` (SPEC-173).
+      const next = stageForRun(entry.phases, entry.cwd, s.id);
       if (!next || STAGES.indexOf(next) <= STAGES.indexOf(s.stage as Stage)) return s;
       advanced.push({ id: s.id, stage: next });
       return { ...s, stage: next };

@@ -164,11 +164,12 @@ export function sessionPhases(id: string): Phase[] | null {
 // menurunkan stage live tanpa satu tmux call per spec (SPEC-168). Tak difilter `exited`:
 // berkas fase pane mati (belum di-DELETE) tetap kebenaran terakhirnya; forward-only di
 // pemanggil (stageFor + guard STAGES.indexOf) menjaga tak ada stage yang mundur.
-export function sessionPhasesBySpec(): Map<string, Phase[]> {
-  const out = new Map<string, Phase[]>();
+export function sessionPhasesBySpec(): Map<string, { phases: Phase[]; cwd: string }> {
+  const out = new Map<string, { phases: Phase[]; cwd: string }>();
   for (const p of listPanes()) {
     if (!p.specId || !p.flow || !p.phaseFile) continue;
-    out.set(p.specId, readPhases(p.phaseFile, p.flow));
+    // cwd = worktree run-nya: GET /specs menggerbang `done` dengan plan di dalamnya (SPEC-173).
+    out.set(p.specId, { phases: readPhases(p.phaseFile, p.flow), cwd: p.cwd });
   }
   return out;
 }
