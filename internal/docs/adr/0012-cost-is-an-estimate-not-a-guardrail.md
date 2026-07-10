@@ -1,6 +1,6 @@
 # ADR 0012 — Biaya adalah estimasi, bukan guardrail
 
-**Status:** accepted
+**Status:** superseded oleh [ADR-0024](0024-sesi-interaktif-menggantikan-run.md) (SPEC-162) — sesi interaktif tak melacak biaya
 **Menggantikan sebagian:** rem anggaran yang diperkenalkan bersama `dailyBudget`.
 
 ## Konteks

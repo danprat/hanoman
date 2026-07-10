@@ -1,6 +1,6 @@
 # ADR-0017 — Run yang terputus melanjutkan sesinya, bukan mengulang dari awal
 
-**Status:** accepted · 2026-07-09 · melengkapi [ADR-0015](0015-one-session-per-backlog.md)
+**Status:** superseded oleh [ADR-0024](0024-sesi-interaktif-menggantikan-run.md) (SPEC-162) — sebuah sesi tmux tak pernah "terputus": ia hidup melewati restart API
 
 ## Konteks
 `Run.sessionId` sudah dicatat sejak ADR-0015, tapi di seluruh `runner/` tidak ada satu pun

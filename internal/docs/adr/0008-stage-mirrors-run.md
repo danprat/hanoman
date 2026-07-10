@@ -1,6 +1,6 @@
 # ADR-0008 — Spec stage mirrors a real run
 
-**Status:** accepted · 2026-07-08 · SPEC-009
+**Status:** accepted, DILEMAHKAN oleh [ADR-0024](0024-sesi-interaktif-menggantikan-run.md) (SPEC-162) — `Spec.stage` tetap cermin fase, tapi fase kini dilaporkan agen, bukan dijalankan runner
 
 ## Context
 `Spec.stage` was advanced by `POST /specs/:id/advance` → `advance()`, a linear

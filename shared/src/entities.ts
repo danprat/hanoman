@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { zStage, zSpecSource, zRunStatus, zRunKind, zTriggerType, zTriggerTarget,
-  zDocStatus, zPriority, zProjectKind } from "./enums";
+import { zStage, zSpecSource, zDocStatus, zPriority, zProjectKind } from "./enums";
 
 export type Stage = z.infer<typeof zStage>;
 
@@ -27,50 +26,16 @@ export const zSpec = z.object({
 });
 export type Spec = z.infer<typeof zSpec>;
 
-const zPhase = z.object({ name: z.string(), state: z.enum(["done","active","failed","pending","skipped"]) });
-// SPEC-157 · pertanyaan agen yang sedang menunggu jawaban manusia. Bentuknya identik dengan
-// `Ask` di @hanoman/runner — runner menulisnya, server menyimpannya, UI merendernya.
-export const zAskOption = z.object({ value: z.string().min(1), label: z.string().min(1), detail: z.string().optional() });
-export const zAsk = z.object({
-  question: z.string().min(1),
-  options: z.array(zAskOption).min(2),
-  default: z.string().min(1),
-});
-export type Ask = z.infer<typeof zAsk>;
-
-export const zRun = z.object({
-  id: z.string(), projectId: z.string(), specId: z.string().nullable(),
-  kind: zRunKind, status: zRunStatus, trigger: zTriggerType, triggerDetail: z.string(),
-  phases: z.array(zPhase), plan: z.array(z.object({ label: z.string(), state: z.string() })),
-  log: z.array(z.object({ t: z.string(), s: z.string() })),
-  worktree: z.string(), branchFrom: z.string(), branchTo: z.string(),
-  baseSha: z.string().nullable(), headSha: z.string().nullable(),
-  model: z.string(), tokensIn: z.string(), tokensOut: z.string(),
-  cost: z.string(), progress: z.number(),
-  createdAt: z.string(), finishedAt: z.string().nullable(),
-  pendingAsk: zAsk.nullable(),
-});
-export type Run = z.infer<typeof zRun>;
-
-export const zTrigger = z.object({
-  id: z.string(), projectId: z.string(), type: zTriggerType, detail: z.string(),
-  target: zTriggerTarget, enabled: z.boolean() });
-export type Trigger = z.infer<typeof zTrigger>;
-
-export const zStepModel = z.object({ model: z.string(), effort: z.string() });
+// SPEC-162 · satu model per sesi interaktif, dipakai sebagai argv saat sesi lahir. Manusia
+// tetap bebas mengetik `/model` di dalam terminal. `steps` (model per fase), `maxConcurrent`,
+// dan `askTimeoutMin` hilang bersama runner headless.
 export const zSetting = z.object({
-  steps: z.object({ brainstorm: zStepModel, spec: zStepModel, plan: zStepModel,
-    execute: zStepModel, audit: zStepModel }),
-  // SPEC-162 · satu model per sesi interaktif, dipakai sebagai argv saat sesi lahir. Manusia
-  // tetap bebas mengetik `/model` di dalam terminal. `.default()` menjaga body PUT lama tetap sah.
   model: z.string().default("claude-opus-4-8"),
   effort: z.string().default("xhigh"),
   autoDefault: z.boolean(),
-  autoScaffold: z.boolean(), maxConcurrent: z.number().int(),
+  autoScaffold: z.boolean(),
   notifyFail: z.boolean(),
-  // Menit menunggu jawaban manusia sebelum `default` milik agen dipakai (SPEC-157). `0` =
-  // jangan pernah menunggu (batch tak berpenunggu). `.default(30)` menjaga body PUT lama tetap sah.
-  askTimeoutMin: z.number().int().min(0).default(30) });
+});
 export type Setting = z.infer<typeof zSetting>;
 
 export const zDocFile = z.object({

@@ -1,6 +1,6 @@
 # ADR-0022 — Agen bertanya, run berstatus `awaiting`
 
-**Status:** diterima · 2026-07-10 · SPEC-157
+**Status:** superseded oleh [ADR-0024](0024-sesi-interaktif-menggantikan-run.md) (SPEC-162) — agen bertanya di terminalnya, manusia menjawab di sana
 
 ## Konteks
 

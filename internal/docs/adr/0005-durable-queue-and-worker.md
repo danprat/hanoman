@@ -1,6 +1,6 @@
 # ADR 0005 — Antrian durable (BullMQ/Redis) + proses worker terpisah
 
-**Status:** accepted
+**Status:** superseded oleh [ADR-0024](0024-sesi-interaktif-menggantikan-run.md) (SPEC-162) — antrean dan worker dicabut bersama runner headless
 
 ## Konteks
 SPEC-003 men-dispatch run lewat semaphore in-process + `EventEmitter` di `RunManager`.

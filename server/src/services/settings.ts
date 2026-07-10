@@ -1,27 +1,28 @@
 import { prisma } from "../db";
-import type { Setting } from "@hanoman/shared";
-import type { StepModels } from "@hanoman/runner";
+import { zSetting, type Setting } from "@hanoman/shared";
 
-// Valid Claude model id + effort the runner passes straight to `claude --effort`.
+// Model id + effort yang diteruskan apa adanya ke `claude --model` / `--effort`.
 const STEP = { model: "claude-opus-4-8", effort: "xhigh" };
-// A fresh DB has no Setting row (it's created on the first PUT /settings). Fall
-// back to these defaults so the worker/triggers/runs boot instead of throwing
-// P2025. Mirrors the original prototype seed (commit ca20bf8).
+// DB yang masih segar belum punya baris Setting (ia lahir di PUT /settings pertama). Default
+// ini menjaga API tetap boot alih-alih melempar P2025.
 export const DEFAULT_SETTING: Setting = {
-  steps: { brainstorm: STEP, spec: STEP, plan: STEP, execute: STEP, audit: STEP },
   ...STEP,
-  autoDefault: true, autoScaffold: true,
-  maxConcurrent: 3, notifyFail: true, askTimeoutMin: 30,
+  autoDefault: true, autoScaffold: true, notifyFail: true,
 };
+
+// Baris Setting adalah `Json` bebas bentuk, dan baris yang ditulis SEBELUM SPEC-162 masih
+// menyimpan `steps`/`maxConcurrent`/`askTimeoutMin` tanpa `model` maupun `effort`. Dikembalikan
+// mentah, `s.model` di UI menjadi undefined dan sesi lahir dengan `claude --model undefined`.
+// `.parse` mengisi default untuk kunci yang hilang; bentuk yang benar-benar rusak jatuh ke
+// DEFAULT_SETTING, bukan melempar dan membuat layar Settings kosong.
 export async function getSetting(): Promise<Setting> {
-  return ((await prisma.setting.findUnique({ where: { id: 1 } }))?.data as Setting | undefined) ?? DEFAULT_SETTING;
+  const raw = (await prisma.setting.findUnique({ where: { id: 1 } }))?.data;
+  if (raw === undefined || raw === null) return DEFAULT_SETTING;
+  const parsed = zSetting.safeParse(raw);
+  return parsed.success ? parsed.data : DEFAULT_SETTING;
 }
-export async function stepModels(): Promise<StepModels> { return (await getSetting()).steps; }
 /** SPEC-162 · model+effort untuk sesi claude interaktif, dipakai sebagai argv saat sesi lahir. */
 export async function sessionModel(): Promise<{ model: string; effort: string }> {
-  const s = await getSetting();
-  return { model: s.model ?? STEP.model, effort: s.effort ?? STEP.effort };
+  const { model, effort } = await getSetting();
+  return { model, effort };
 }
-export async function maxConcurrent(): Promise<number> { return (await getSetting()).maxConcurrent ?? 3; }
-/** Menit → milidetik (SPEC-157). `0` berarti jangan pernah menunggu jawaban manusia. */
-export async function askTimeoutMs(): Promise<number> { return ((await getSetting()).askTimeoutMin ?? 30) * 60_000; }

@@ -1,37 +1,26 @@
 /* SettingsScreen — workspace settings. Ported; persistence moved from
    localStorage to the API (GET/PUT /settings). Model per pipeline step. */
 import React from "react";
-import { Card, Switch, Select, Button, Icon, StateBlock } from "../ds";
+import { Card, Switch, Select, Button, StateBlock } from "../ds";
 import { api } from "../api/client";
 import type { Setting } from "@hanoman/shared";
 import type { ShowToast } from "../ds";
 
-const S_STEPS = [
-  { key: "brainstorm", label: "Brainstorm", icon: "messages-square" },
-  { key: "spec", label: "Spec", icon: "file-text" },
-  { key: "plan", label: "Plan", icon: "git-branch" },
-  { key: "execute", label: "Execute", icon: "play" },
-  { key: "audit", label: "Audit (QA)", icon: "radar" },
-] as const;
-// Valid Claude model ids (Agent SDK passes these straight through). Keep in
+// Valid Claude model ids, diteruskan apa adanya ke `claude --model`. Keep in
 // sync with the server default in services/settings.ts.
 const S_MODELS = [
   { value: "claude-opus-4-8", label: "Opus 4.8" },
   { value: "claude-sonnet-5", label: "Sonnet 5" },
   { value: "claude-haiku-4-5", label: "Haiku 4.5" },
 ];
-// Effort keys the runner maps to thinking tokens (server deps.ts THINK).
+// Effort keys diteruskan apa adanya ke `claude --effort`.
 const S_EFFORT = [
   { value: "xhigh", label: "x-high" }, { value: "high", label: "high" },
   { value: "medium", label: "medium" }, { value: "low", label: "low" },
 ];
-const S_DEFAULT_STEP = { model: "claude-opus-4-8", effort: "xhigh" };
 const S_DEFAULTS: Setting = {
-  steps: { brainstorm: { ...S_DEFAULT_STEP }, spec: { ...S_DEFAULT_STEP }, plan: { ...S_DEFAULT_STEP },
-    execute: { ...S_DEFAULT_STEP }, audit: { ...S_DEFAULT_STEP } },
-  ...S_DEFAULT_STEP,
-  autoDefault: true, autoScaffold: true,
-  maxConcurrent: 3, notifyFail: true, askTimeoutMin: 30,
+  model: "claude-opus-4-8", effort: "xhigh",
+  autoDefault: true, autoScaffold: true, notifyFail: true,
 };
 
 function SettingRow({ title, desc, children, last }: { title: string; desc?: string; children?: React.ReactNode; last?: boolean }) {
@@ -68,14 +57,6 @@ export function SettingsScreen({ onToast }: { onToast?: ShowToast }) {
   };
   const save = (patch: Partial<Setting>, msg: string) => persist({ ...s, ...patch }, msg);
   const sw = (k: keyof Setting, msg: string) => (v: boolean) => save({ [k]: v } as Partial<Setting>, msg + (v ? " · aktif" : " · nonaktif"));
-  const setStep = (key: string, field: "model" | "effort") => (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const step = S_STEPS.find((x) => x.key === key)!;
-    persist({ ...s, steps: { ...s.steps, [key]: { ...(s.steps as any)[key], [field]: e.target.value } } },
-      step.label + " · " + field + " → " + e.target.value);
-  };
-  const applyAll = (field: "model" | "effort", value: string, label: string) => persist(
-    { ...s, steps: S_STEPS.reduce((o, x) => { (o as any)[x.key] = { ...(s.steps as any)[x.key], [field]: value }; return o; }, {} as any) },
-    "Semua step → " + label);
 
   return (
     <div style={{ maxWidth: 760, display: "flex", flexDirection: "column", gap: 20 }}>
@@ -90,47 +71,24 @@ export function SettingsScreen({ onToast }: { onToast?: ShowToast }) {
         </SettingRow>
       </Card>
 
-      <Card eyebrow="model" title="Model per step"
-        actions={<div style={{ display: "flex", gap: 8 }}>
-          <Button size="sm" variant="ghost" onClick={() => applyAll("model", "claude-opus-4-8", "Opus 4.8")}>Semua Opus 4.8</Button>
-          <Button size="sm" variant="ghost" onClick={() => applyAll("effort", "xhigh", "x-high")}>Semua x-high</Button>
-        </div>}>
+      {/* SPEC-162 · satu model per sesi, dipakai sebagai argv saat sesi lahir. Manusia tetap
+          bebas mengetik `/model` di dalam terminal — itu justru gunanya interaktif. */}
+      <Card eyebrow="model" title="Model sesi">
         <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.5 }}>
-          Tiap step pipeline bisa pakai model & effort berbeda. Default: Opus 4.8, effort x-high.
+          Dipakai saat sesi Claude Code dibuka dari backlog. Di dalam terminal, <code>/model</code> mengubahnya kapan saja.
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 190px 130px", gap: 10, padding: "0 2px 8px", borderBottom: "1px solid var(--border-hair)" }}>
-          <span className="hn-eyebrow">Step</span>
-          <span className="hn-eyebrow">Model</span>
-          <span className="hn-eyebrow">Effort</span>
-        </div>
-        {S_STEPS.map((step, i) => (
-          <div key={step.key} style={{ display: "grid", gridTemplateColumns: "1fr 190px 130px", gap: 10, alignItems: "center", padding: "10px 2px", borderBottom: i < S_STEPS.length - 1 ? "1px solid var(--border-hair)" : "none" }}>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 9 }}>
-              <span style={{ width: 26, height: 26, borderRadius: "var(--radius-sm)", flex: "0 0 auto", background: "var(--brass-100)", color: "var(--brass-700)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-                <Icon name={step.icon} size={14} />
-              </span>
-              <span style={{ fontSize: 13.5, fontWeight: 500, color: "var(--text-strong)" }}>{step.label}</span>
-            </span>
-            <Select size="sm" value={(s.steps as any)[step.key].model} onChange={setStep(step.key, "model")} options={S_MODELS} style={{ width: 190 }} />
-            <Select size="sm" value={(s.steps as any)[step.key].effort} onChange={setStep(step.key, "effort")} options={S_EFFORT} style={{ width: 130 }} />
-          </div>
-        ))}
+        <SettingRow title="Model">
+          <Select size="sm" value={s.model} options={S_MODELS} style={{ width: 190 }}
+            onChange={(e) => save({ model: e.target.value }, "Model → " + e.target.value)} />
+        </SettingRow>
+        <SettingRow title="Effort" last desc="Anggaran berpikir per giliran.">
+          <Select size="sm" value={s.effort} options={S_EFFORT} style={{ width: 130 }}
+            onChange={(e) => save({ effort: e.target.value }, "Effort → " + e.target.value)} />
+        </SettingRow>
       </Card>
 
-      <Card eyebrow="runs" title="Run">
-        <SettingRow title="Run konkuren maksimum" desc="Berapa run Claude Code boleh jalan bersamaan.">
-          <Select size="sm" value={String(s.maxConcurrent)}
-            onChange={(e) => save({ maxConcurrent: Number(e.target.value) }, "Konkuren maks → " + e.target.value)} style={{ width: 90 }}
-            options={["1", "2", "3", "4", "6"].map((v) => ({ value: v, label: v }))} />
-        </SettingRow>
-        {/* SPEC-157 · `0` = jangan pernah menunggu, untuk batch tak berpenunggu. Run yang
-            menunggu menahan satu slot konkuren dan satu proses claude selama itu. */}
-        <SettingRow title="Tunggu keputusan manusia" desc="Berapa lama run berhenti menunggu jawabanmu sebelum memakai pilihan agen sendiri (dicatat sebagai ✗ di log). 0 = jangan pernah menunggu.">
-          <Select size="sm" value={String(s.askTimeoutMin ?? 30)}
-            onChange={(e) => save({ askTimeoutMin: Number(e.target.value) }, e.target.value === "0" ? "Tanpa menunggu keputusan" : "Tunggu keputusan → " + e.target.value + "m")} style={{ width: 110 }}
-            options={[{ value: "0", label: "tidak" }, ...["5", "15", "30", "60", "120"].map((v) => ({ value: v, label: v + " menit" }))]} />
-        </SettingRow>
-        <SettingRow title="Notifikasi saat run gagal" last desc="Kirim notifikasi ketika run execute gagal.">
+      <Card eyebrow="sesi" title="Sesi">
+        <SettingRow title="Notifikasi saat sesi gagal" last desc="Kirim notifikasi ketika sesi Claude Code berakhir dengan error.">
           <Switch checked={s.notifyFail} onChange={sw("notifyFail", "Notifikasi gagal")} />
         </SettingRow>
       </Card>
