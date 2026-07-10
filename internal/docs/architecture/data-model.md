@@ -46,6 +46,15 @@ Entitas inti (Postgres via Prisma).
 ## Trigger
 - `id`, `projectId`, `type`, `detail`, `target` ("plan + execute" | "audit" | "scaffold docs"), `enabled`
 
+## User / Session (auth — SPEC-169, [ADR-0028](../adr/0028-auth-sesi-opaque-di-db.md))
+- **User**: `id` (cuid), `email` (unique), `passwordHash` (`scrypt` "saltHex:hashHex"), `createdAt`.
+  Tanpa RBAC — tak ada kolom role; semua user setara. `passwordHash` tak pernah keluar ke client
+  (`UserView` = `{ id, email, createdAt }`).
+- **Session**: `id` = **`sha256(token)`** (token opaque 256-bit hidup hanya di cookie `httpOnly`),
+  `userId`, `createdAt`, `expiresAt`. `onDelete: Cascade` dari User. Revocable: logout menghapus
+  baris; ganti password menghapus semua sesi user; hapus user meng-cascade sesinya. Sesi kedaluwarsa
+  (`expiresAt < now`) diperlakukan tak valid dan dibersihkan saat di-lookup.
+
 ## Docs (Source of Truth) — TIDAK dipersist
 Docs bukan entitas DB. Tabel `DocFile` sudah di-drop (ADR-0011). Docs dibaca **live dari
 `Project.repoDir`**: korpus = semua `**/*.md` via `git ls-files`, dikelompokkan per direktori,
