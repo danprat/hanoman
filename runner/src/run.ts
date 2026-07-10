@@ -104,7 +104,52 @@ export async function runOne(
       resume: resuming ? input.resume : undefined,
     });
 
+    // `waits` salah → agen tetap dijawab, langsung dengan pilihannya sendiri. Ini jalur batch
+    // tak berpenunggu (askTimeoutMin 0) dan jalur CLI lokal yang tak punya kanal jawaban.
+    const waits = Boolean(ctl.answers) && askTimeoutMs > 0;
+
+    // Satu siklus tanya→jawab: park di `awaiting`, tunggu, lalu suntikkan jawabannya sebagai satu
+    // giliran. Dipakai dua kali — ask yang baru ditulis agen, dan ask yang terbawa dari percobaan
+    // sebelumnya. `"stopped"` SENGAJA tidak memancarkan `ask: null`: pertanyaannya harus selamat
+    // di baris Run supaya percobaan berikutnya menanyakannya ulang, bukan menebak diam-diam.
+    const settleAsk = async (ask: Ask, useDefault: boolean, why?: string): Promise<"ok" | "stopped" | "failed"> => {
+      let a: Answer;
+      if (useDefault || !waits) {
+        onEvent({ kind: "log", line: { t: "✗", s: `${why ?? "run berjalan tanpa penunggu"} — memakai pilihan agen: ${labelOf(ask, ask.default)}` } });
+        a = { value: ask.default, byHuman: false };
+        onEvent({ kind: "ask", ask: null });
+      } else {
+        onEvent({ kind: "ask", ask });
+        onEvent({ kind: "status", status: "awaiting" });
+        const got = await awaitAnswer(ask, ctl.answers!, askTimeoutMs, abortController.signal);
+        if (got === null) return "stopped";
+        onEvent({ kind: "ask", ask: null });
+        onEvent({ kind: "status", status: "running" });
+        a = got;
+        onEvent(a.byHuman
+          ? { kind: "log", line: { t: "»", s: `jawaban: ${labelOf(ask, a.value)}` } }
+          : { kind: "log", line: { t: "✗", s: `pertanyaan tak terjawab ${Math.round(askTimeoutMs / 60_000)}m — memakai pilihan agen: ${labelOf(ask, a.value)}` } });
+      }
+      const t = await takeTurn(session, answerText(ask, a, waits ? askTimeoutMs : 0), onLog);
+      costUsd = t.costUsd; tokensIn += t.tokensIn; tokensOut += t.tokensOut;
+      if (t.subtype.startsWith("error") || t.isError) {
+        onEvent({ kind: "log", line: { t: "✗", s: `giliran jawaban gagal · ${t.apiErrorStatus ? `API ${t.apiErrorStatus}` : t.subtype}` } });
+        return "failed";
+      }
+      return "ok";
+    };
+
     try {
+      // Pertanyaan yang tertinggal dari percobaan sebelumnya, ditanyakan ulang SEBELUM prompt fase
+      // apa pun dikirim. Tanpa worktree tak ada sesi yang di-resume, jadi konteks pertanyaannya
+      // ikut hilang — ask-nya basi dan dibuang, bukan ditanyakan di atas percakapan kosong.
+      if (input.pendingAsk && !resuming) onEvent({ kind: "ask", ask: null });
+      if (input.pendingAsk && resuming) {
+        const r = await settleAsk(input.pendingAsk, false);
+        if (r === "stopped") { onEvent({ kind: "status", status: "stopped" }); return stopped(); }
+        if (r === "failed") { onEvent({ kind: "status", status: "failed" }); return failed(); }
+      }
+
       for (const phase of phases) {
         if (pruned.has(phase)) { onEvent({ kind: "phase", name: phase, state: "skipped" }); continue; }
         if (abortController.signal.aborted) { onEvent({ kind: "status", status: "stopped" }); return stopped(); }
@@ -144,40 +189,13 @@ export async function runOne(
         // Agen boleh berhenti dan bertanya (SPEC-157). Fase belum `done` selama masih ada yang
         // ditanyakan: jawabannya menjadi giliran lanjutan dari pekerjaan fase ini, bukan fase baru.
         // `readAsk` mengonsumsi berkasnya, jadi loop ini berhenti sendiri saat agen tak bertanya lagi.
-        //
-        // `waits` salah → agen tetap dijawab, langsung dengan pilihannya sendiri. Ini jalur batch
-        // tak berpenunggu (askTimeoutMin 0) dan jalur CLI lokal yang tak punya kanal jawaban.
-        const waits = Boolean(ctl.answers) && askTimeoutMs > 0;
         for (let asked = 0; ; asked++) {
           const ask = readAsk(worktree);
           if (!ask) break;
           const capped = asked >= MAX_ASKS_PER_PHASE;
-          let a: Answer;
-
-          if (capped) {
-            onEvent({ kind: "log", line: { t: "✗", s: `batas ${MAX_ASKS_PER_PHASE} pertanyaan per fase terlampaui — memakai pilihan agen: ${labelOf(ask, ask.default)}` } });
-            a = { value: ask.default, byHuman: false };
-          } else if (!waits) {
-            onEvent({ kind: "log", line: { t: "✗", s: `run berjalan tanpa penunggu — memakai pilihan agen: ${labelOf(ask, ask.default)}` } });
-            a = { value: ask.default, byHuman: false };
-          } else {
-            onEvent({ kind: "ask", ask });
-            onEvent({ kind: "status", status: "awaiting" });
-            const got = await awaitAnswer(ask, ctl.answers!, askTimeoutMs, abortController.signal);
-            onEvent({ kind: "ask", ask: null });
-            if (got === null) { onEvent({ kind: "status", status: "stopped" }); return stopped(); }
-            onEvent({ kind: "status", status: "running" });
-            a = got;
-            onEvent(a.byHuman
-              ? { kind: "log", line: { t: "»", s: `jawaban: ${labelOf(ask, a.value)}` } }
-              : { kind: "log", line: { t: "✗", s: `pertanyaan tak terjawab ${Math.round(askTimeoutMs / 60_000)}m — memakai pilihan agen: ${labelOf(ask, a.value)}` } });
-          }
-
-          const t = await takeTurn(session, answerText(ask, a, waits ? askTimeoutMs : 0), onLog);
-          costUsd = t.costUsd; tokensIn += t.tokensIn; tokensOut += t.tokensOut;
-          if (t.subtype.startsWith("error") || t.isError) {
-            const why = t.apiErrorStatus ? `API ${t.apiErrorStatus}` : t.subtype;
-            onEvent({ kind: "log", line: { t: "✗", s: `fase ${phase} gagal saat menjawab · ${why}` } });
+          const r = await settleAsk(ask, capped, capped ? `batas ${MAX_ASKS_PER_PHASE} pertanyaan per fase terlampaui` : undefined);
+          if (r === "stopped") { onEvent({ kind: "status", status: "stopped" }); return stopped(); }
+          if (r === "failed") {
             onEvent({ kind: "phase", name: phase, state: "failed" });
             onEvent({ kind: "status", status: "failed" });
             return failed();

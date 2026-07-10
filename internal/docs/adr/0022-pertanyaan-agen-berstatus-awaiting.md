@@ -40,6 +40,16 @@ punya antriannya sendiri.
 ## Konsekuensi
 
 - Run `awaiting` menahan satu slot `maxConcurrent` dan satu proses `claude` selama ia menunggu.
+- **Pertanyaan yang belum terjawab bertahan melewati akhir run.** Abort saat `awaiting` (pause/stop)
+  **tidak** mengosongkan `pendingAsk`, dan percobaan berikutnya menanyakannya **ulang** sebelum
+  giliran fase apa pun. Ini bukan kenyamanan, melainkan koreksi: sesi yang di-resume masih memuat
+  pertanyaan agen sendiri di konteksnya, sehingga prompt fase yang datang tanpa jawaban terbaca
+  olehnya sebagai izin melanjutkan. Diamati langsung pada RUN-90012 — agen memakai default-nya lalu
+  melaporkan *"Keputusan scope diselesaikan lewat `.hanoman-ask.json`, bukan tebakan"*. Jaminan
+  fitur ini bocor tepat di batas resume. Worktree yang hilang → sesi tak di-resume, konteks
+  pertanyaannya ikut hilang, dan ask-nya dibuang sebagai basi.
+- UI menampilkan pertanyaan tertunda itu juga pada run `stopped`/`failed` (tombol mati). Kalau
+  disembunyikan, satu-satunya jejak bahwa run berhenti demi sebuah keputusan lenyap dari layar.
 - Timeout (`askTimeoutMin`, default 30; `0` = jangan pernah menunggu) jatuh ke `default` milik
   agen. Fallback itu **wajib** dicatat sebagai baris log `✗`. Tanpa itu tebakan kembali tak
   terlihat — persis masalah yang dipecahkan ADR ini. Teks yang disuntikkan pun berbeda: agen

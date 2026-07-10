@@ -70,3 +70,39 @@ describe("tombol keputusan untuk run awaiting (SPEC-157)", () => {
     expect(screen.queryByText("Retry")).toBeNull();
   });
 });
+
+// Run yang di-stop/gagal saat menunggu MENYIMPAN pertanyaannya (bug RUN-90012). Kalau UI
+// menyembunyikannya, satu-satunya jejak keputusan yang tertunda itu lenyap dari layar dan
+// operator tidak punya cara tahu run itu berhenti karena butuh dia.
+describe("pertanyaan tertunda pada run yang tidak lagi awaiting (SPEC-157)", () => {
+  beforeEach(() => runAnswer.mockClear());
+  const stopped = { ...RUN, status: "stopped", finishedAt: "2026-07-10T00:05:00.000Z" };
+
+  it("tetap menampilkan pertanyaannya pada run stopped", () => {
+    render(<RunsScreen runs={[stopped] as never[]} />);
+    expect(screen.getByText(ASK.question)).toBeTruthy();
+    expect(screen.getByText(/belum terjawab/i)).toBeTruthy();
+  });
+
+  it("tombolnya mati — tak ada proses yang mendengarkan jawabannya", () => {
+    render(<RunsScreen runs={[stopped] as never[]} />);
+    fireEvent.click(screen.getByText("Pembayar"));
+    expect(runAnswer).not.toHaveBeenCalled();
+  });
+
+  it("menawarkan Retry supaya run menanyakannya ulang", () => {
+    render(<RunsScreen runs={[stopped] as never[]} />);
+    expect(screen.getByText("Retry")).toBeTruthy();
+  });
+
+  it("run failed dengan pertanyaan tertunda juga menampilkannya", () => {
+    render(<RunsScreen runs={[{ ...stopped, status: "failed" }] as never[]} />);
+    expect(screen.getByText(ASK.question)).toBeTruthy();
+    expect(screen.getByText("Retry")).toBeTruthy();
+  });
+
+  it("run selesai tanpa pertanyaan tertunda tidak menampilkan kartunya", () => {
+    render(<RunsScreen runs={[{ ...stopped, status: "done", pendingAsk: null }] as never[]} />);
+    expect(screen.queryByText(ASK.question)).toBeNull();
+  });
+});

@@ -61,6 +61,11 @@ export type RunInput = { runId: string; projectId?: string; repoDir: string; bra
   // Melanjutkan run yang terputus (ADR-0017), diisi worker dari baris Run: sesi claude
   // milik run ini, dan fase yang sudah `done` sehingga tidak dikerjakan dua kali.
   resume?: string; donePhases?: string[];
+  // Pertanyaan yang belum terjawab dari percobaan sebelumnya (SPEC-157), dibaca worker dari
+  // `Run.pendingAsk`. Ditanyakan ULANG sebelum giliran fase apa pun: sesi yang di-resume masih
+  // memuat pertanyaan agen di konteksnya, dan prompt fase yang datang tanpa jawaban terbaca
+  // olehnya seperti izin melanjutkan — lalu ia memakai default-nya dan menyebutnya keputusan.
+  pendingAsk?: Ask;
   // github-backed runs (SPEC-006): commit to report status on, "owner/repo",
   // installation to auth git ops, and a tokenized push remote (set at run time).
   commitSha?: string; reportRepo?: string; installationId?: number; remoteUrl?: string };

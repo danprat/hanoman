@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runOne, MAX_ASKS_PER_PHASE } from "../src/run";
@@ -395,7 +395,8 @@ describe("runOne · pertanyaan agen (SPEC-157)", () => {
 
     expect(r.status).toBe("stopped");
     expect(events.some((e) => e.kind === "status" && e.status === "failed")).toBe(false);
-    expect(events.filter((e) => e.kind === "ask").at(-1)).toEqual({ kind: "ask", ask: null });
+    // Pertanyaannya TIDAK dibuang — lihat "abort saat menunggu TIDAK membuang pertanyaannya".
+    expect(events.filter((e) => e.kind === "ask").at(-1)).toEqual({ kind: "ask", ask: ASK });
   });
 
   it("ask yang cacat tidak menghentikan apa pun", async () => {
@@ -449,6 +450,55 @@ describe("runOne · pertanyaan agen (SPEC-157)", () => {
     expect(r.status).toBe("done");
     expect(events.some((e) => e.kind === "status" && e.status === "awaiting")).toBe(false);
     expect(events.some((e) => e.kind === "log" && e.line.t === "✗" && e.line.s.includes("tanpa penunggu"))).toBe(true);
+  });
+
+  // Bug nyata, ditemukan saat RUN-90012 dijalankan sungguhan. Abort saat awaiting dulu
+  // memancarkan `ask:null`, jadi pertanyaannya hilang dari baris Run. Retry me-resume sesi yang
+  // konteksnya masih memuat pertanyaan agen sendiri, prompt fase berikutnya terbaca seperti
+  // "lanjut saja", dan agen memakai default-nya lalu MELAPORKANNYA sebagai keputusan yang sah.
+  it("abort saat menunggu TIDAK membuang pertanyaannya", async () => {
+    const { repoDir } = askTree();
+    const abortController = new AbortController();
+    const events: any[] = [];
+    const r = await runOne(input({ repoDir, only: "Brainstorm" }), fakeDeps(), (e) => {
+      events.push(e);
+      if (e.kind === "status" && e.status === "awaiting") abortController.abort();
+    }, { answers: new SteerQueue(), abortController });
+
+    expect(r.status).toBe("stopped");
+    // Pertanyaan tetap tersimpan: `ask:null` tidak boleh pernah dipancarkan di jalur abort.
+    expect(events.filter((e) => e.kind === "ask" && e.ask === null)).toEqual([]);
+    expect(events.filter((e) => e.kind === "ask" && e.ask).length).toBe(1);
+  });
+
+  it("percobaan berikutnya menanyakan ULANG pertanyaan yang terbawa, sebelum giliran fase apa pun", async () => {
+    const { repoDir } = askTree();
+    rmSync(join(repoDir, ".worktrees", "run-1", ASK_FILE)); // agen tak menulis ulang; ask ada di baris Run
+    const s = fakeSession();
+    const answers = new SteerQueue(); answers.push("pembayar");
+    const events: any[] = [];
+    await runOne(input({ repoDir, only: "Brainstorm", resume: "sess-1", donePhases: [], pendingAsk: ASK }),
+      fakeDeps({ openSession: () => s }), (e) => events.push(e), { answers });
+
+    const kinds = events.filter((e) => e.kind === "ask" || e.kind === "status").map((e) =>
+      e.kind === "ask" ? (e.ask ? "ask" : "ask:null") : `status:${e.status}`);
+    expect(kinds.slice(0, 4)).toEqual(["status:running", "ask", "status:awaiting", "ask:null"]);
+    // Jawaban mendahului prompt fase: agen menerima keputusannya sebelum diminta bekerja lagi.
+    expect(s.sent[0]).toContain("Jawaban manusia atas pertanyaanmu");
+    expect(s.sent[0]).toContain("Pembayar");
+    expect(s.sent[1]).toContain("fase Brainstorm");
+  });
+
+  // Worktree hilang → sesi tak di-resume, konteks pertanyaannya ikut hilang. Ask-nya basi.
+  it("membuang ask terbawa kalau worktree-nya sudah tidak ada", async () => {
+    const repoDir = mkdtempSync(join(tmpdir(), "hanoman-ask-gone-"));
+    const events: any[] = [];
+    const r = await runOne(input({ repoDir, only: "Brainstorm", resume: "sess-1", pendingAsk: ASK }),
+      fakeDeps(), (e) => events.push(e), { answers: new SteerQueue() });
+
+    expect(r.status).toBe("done");
+    expect(events.some((e) => e.kind === "status" && e.status === "awaiting")).toBe(false);
+    expect(events.filter((e) => e.kind === "ask")).toEqual([{ kind: "ask", ask: null }]);
   });
 
   it("berhenti bertanya setelah 5 pertanyaan dalam satu fase", async () => {

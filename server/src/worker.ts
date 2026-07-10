@@ -1,6 +1,6 @@
 import { Worker, type Job } from "bullmq";
 import type { Trigger } from "@hanoman/shared";
-import { runOne, SteerQueue, type RunDeps, type RunEvent, type RunInput } from "@hanoman/runner";
+import { runOne, SteerQueue, type Ask, type RunDeps, type RunEvent, type RunInput } from "@hanoman/runner";
 import { depsWithGuard } from "./runner/deps";
 import { bullConnection, publisher, subscriber } from "./redis";
 import { RUNS_QUEUE, runsQueue } from "./queue";
@@ -67,7 +67,12 @@ export async function runProcessor(job: Job<RunInput>, deps?: RunDeps): Promise<
   // milik run itu plus fase mana yang sudah selesai. Keduanya dibaca di sini, bukan dititipkan
   // ke payload job: payload-nya dibuat saat enqueue, sebelum fase terakhir sempat rampung.
   // Run baru belum punya sessionId → runner membuka sesi baru, persis seperti sebelumnya.
-  const row = await prisma.run.findUnique({ where: { id }, select: { sessionId: true, phases: true } });
+  const row = await prisma.run.findUnique({ where: { id }, select: { sessionId: true, phases: true, pendingAsk: true } });
+  // Pertanyaan yang belum terjawab dari percobaan sebelumnya (SPEC-157). Dibawa masuk supaya
+  // runner menanyakannya ULANG sebelum giliran fase apa pun. Tanpa ini, sesi yang di-resume
+  // membawa pertanyaan agen di konteksnya, prompt fase berikutnya terbaca seperti izin lanjut,
+  // dan agen memakai default-nya lalu melaporkannya sebagai keputusan yang sah.
+  if (row?.pendingAsk) input = { ...input, pendingAsk: row.pendingAsk as unknown as Ask };
   if (row?.sessionId) {
     // "Jangan jalankan lagi" = selesai ATAU dipangkas keputusan audit (SPEC-145). Melewatkan
     // `skipped` di sini membuat run qa jalur cepat yang di-resume mengingkari keputusannya

@@ -355,26 +355,39 @@ function RunRetry({ run }: { run: RunVM }) {
 
 // Run `awaiting`: proses claude hidup dan terblokir menunggu satu keputusan. Satu tombol per
 // opsi; `value` yang dikirim, bukan label. Tak ada opsi yang cocok → Stop, perbaiki brief, Retry.
+//
+// Run yang di-stop atau gagal saat menunggu MENYIMPAN pertanyaannya. Kartunya tetap tampil
+// (tombol mati — tak ada proses yang mendengarkan), karena kalau disembunyikan, satu-satunya
+// jejak bahwa run itu berhenti demi sebuah keputusan ikut hilang dari layar. Retry membuat
+// runner menanyakannya ULANG sebelum giliran fase apa pun.
 function RunAsk({ run }: { run: RunVM }) {
   // `useState` mendahului early-return: hook tidak boleh dipanggil bersyarat.
   const [sending, setSending] = React.useState(false);
   const ask = run.pendingAsk;
   if (!ask) return null;
+  const live = run.status === "awaiting";
   const answer = (value: string) => async () => {
-    if (sending) return;
+    if (sending || !live) return;
     setSending(true);
     try { await api.runAnswer(run.id, value); } finally { setSending(false); }
   };
   return (
     <Card padding={20}>
-      <div className="hn-eyebrow" style={{ marginBottom: 6 }}>Menunggu keputusanmu</div>
-      <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600, letterSpacing: "-0.01em", color: "var(--text-strong)", marginBottom: 16 }}>
+      <div className="hn-eyebrow" style={{ marginBottom: 6 }}>
+        {live ? "Menunggu keputusanmu" : "Pertanyaan belum terjawab"}
+      </div>
+      <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600, letterSpacing: "-0.01em", color: "var(--text-strong)", marginBottom: live ? 16 : 10 }}>
         {ask.question}
       </div>
+      {!live && (
+        <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 16, lineHeight: 1.5 }}>
+          Run ini berhenti sebelum kamu menjawab, jadi tidak ada proses yang mendengarkan. Retry — pertanyaannya akan diajukan ulang sebelum agen melanjutkan.
+        </div>
+      )}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {ask.options.map((o) => (
-          <div key={o.value} style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-            <Button size="sm" variant={o.value === ask.default ? "primary" : "secondary"} disabled={sending} onClick={answer(o.value)}>
+          <div key={o.value} style={{ display: "flex", alignItems: "flex-start", gap: 12, opacity: live ? 1 : 0.55 }}>
+            <Button size="sm" variant={o.value === ask.default ? "primary" : "secondary"} disabled={sending || !live} onClick={answer(o.value)}>
               {o.label}
             </Button>
             {o.detail && <div style={{ fontSize: 12, color: "var(--text-muted)", paddingTop: 6 }}>{o.detail}</div>}
@@ -426,9 +439,12 @@ function RunDetail({ run }: { run: RunVM }) {
         </div>
       )}
       <LogView run={run} />
-      {run.status === "awaiting" && <RunAsk run={run} />}
+      {/* Bukan hanya saat `awaiting`: run yang di-stop/gagal saat menunggu tetap menyimpan
+          pertanyaannya, dan itu satu-satunya petunjuk kenapa ia berhenti. */}
+      {run.pendingAsk && <RunAsk run={run} />}
       {(run.status === "running" || run.status === "awaiting" || run.status === "paused") && <RunControls run={run} />}
-      {run.status === "failed" && <RunRetry run={run} />}
+      {/* `stopped` ikut: Retry membuat runner menanyakan ulang pertanyaan yang tertunda. */}
+      {(run.status === "failed" || (run.status === "stopped" && run.pendingAsk)) && <RunRetry run={run} />}
     </div>
   );
 }

@@ -210,3 +210,38 @@ describe("worker · jawaban atas pertanyaan agen (SPEC-157)", () => {
     expect(sent.slice(2).every((s) => s === "halo")).toBe(true);
   });
 });
+
+// Regresi dari RUN-90012 sungguhan: run yang di-stop saat awaiting lalu di-retry harus
+// MENANYAKAN ULANG, bukan membiarkan agen membaca prompt fase sebagai izin melanjutkan.
+describe("worker · pertanyaan terbawa dari percobaan sebelumnya (SPEC-157)", () => {
+  const ASK = { question: "q", options: [{ value: "pasien", label: "Pasien" }, { value: "pembayar", label: "Pembayar" }], default: "pasien" };
+
+  it("menanyakan ulang pendingAsk sebelum prompt fase, lalu mengosongkannya", async () => {
+    await resetDb(); await makeProject({ id: "p1" }); await makeSetting({ askTimeoutMin: 30 });
+    const repoDir = mkdtempSync(join(tmpdir(), "hanoman-carry-"));
+    mkdirSync(join(repoDir, ".worktrees", "run-carry"), { recursive: true }); // worktree ada → sesi di-resume
+    await makeRun({ id: "RUN-CARRY", projectId: "p1", status: "queued", sessionId: "sess-lama",
+      pendingAsk: ASK as never,
+      phases: [{ name: "Brainstorm", state: "active" }, { name: "Objective", state: "done" },
+        { name: "Spec", state: "done" }, { name: "Plan", state: "done" }, { name: "Execute", state: "done" }] as never });
+
+    const sent: string[] = [];
+    const deps: RunDeps = { ...fakeDeps, openSession: () => fakeSession(sent) };
+    const steps = await (await import("../src/services/settings")).stepModels();
+
+    const pub = publisher();
+    const beat = setInterval(() => void pub.publish("run:RUN-CARRY:control", JSON.stringify({ type: "answer", value: "pembayar" })), 20);
+    try {
+      await runProcessor({ data: { runId: "RUN-CARRY", repoDir, branchFrom: "main", branchTo: "x", flow: "feature", steps } } as never, deps);
+    } finally { clearInterval(beat); await pub.quit(); }
+
+    const prompts = sent.filter((s) => !s.startsWith("/"));
+    expect(prompts[0]).toContain("Jawaban manusia atas pertanyaanmu"); // jawaban MENDAHULUI prompt fase
+    expect(prompts[0]).toContain("Pembayar");
+    expect(prompts[1]).toContain("fase Brainstorm");
+
+    const row = await prisma.run.findUniqueOrThrow({ where: { id: "RUN-CARRY" } });
+    expect(row.pendingAsk).toBeNull();
+    expect(row.status).toBe("done");
+  });
+});
