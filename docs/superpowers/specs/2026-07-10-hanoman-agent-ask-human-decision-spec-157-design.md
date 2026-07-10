@@ -82,7 +82,11 @@ Yang ikut berubah, semuanya karena alasan yang sama — "run ini masih hidup":
 | `shared/src/enums.ts:19` | `isRunActive` + `awaiting` (gate poll, pesan "run tidak aktif") |
 | `server/src/queue.ts:39` | dedupe enqueue + `awaiting` → Resume ditolak, bukan diam-diam merusak |
 | `server/src/routes/runs.ts:108` | 409 `DELETE` + `awaiting` → run hidup tak bisa dihapus |
-| `server/src/github/status.ts` | `awaiting` → tanpa commit-status, sama seperti `paused` |
+| `server/src/routes/runs.ts:236` | `active` + `awaiting` → verb terminal `pause`/`stop`/`status` tetap jalan |
+| `server/src/worker.ts:35` | `reconcileRuns` + `awaiting` → run yatim (worker mati saat menunggu) ditandai `failed` |
+
+`server/src/github/status.ts` **tidak berubah**: `STATE` memetakan status yang dikenal saja, dan
+`awaiting` — seperti `paused` — tidak ada di sana, jadi `postStatus` sudah diam dengan sendirinya.
 
 **Tiga, jawaban lewat transport yang sudah ada.** Tidak ada kanal baru. `publishControl(id, {type:
 "answer", value})` ke `run:<id>:control`. Handler `sub.on("message")` di `worker.ts:87-93` bertambah
@@ -179,18 +183,23 @@ menulis baris `Run` tanpa tahu kolomnya ada.
 - `value` bukan salah satu `pendingAsk.options[].value` → **400**
 
 Validasi terhadap `options` adalah batas kepercayaan: klien tidak boleh menyuntik jawaban sembarang
-ke stdin agen lewat route ini. Teks bebas tetap punya jalannya sendiri — kotak steer yang sudah ada.
+ke stdin agen lewat route ini.
+
+**Teks bebas tidak menjawab.** Pesan `steer` masuk antrian steer dan baru dikuras *setelah* fase
+berjalan selesai — padahal fase itu justru sedang diblokir menunggu jawaban. Kalau kotak steer
+dibiarkan terlihat saat `awaiting`, mengetik jawaban ke sana tampak berhasil tetapi run tetap diam
+sampai timeout. Karena itu saat `awaiting` kotak steer **disembunyikan**; yang tersisa hanya tombol,
+plus Pause/Stop. Tidak ada opsi yang cocok → Stop, perbaiki brief, Retry.
 
 ## Frontend
 
 `RunsScreen` menampilkan `pendingAsk.question` dan satu tombol per `options[]` (label + `detail`
 sebagai teks penjelas) saat `status === "awaiting"`, memanggil `api.runAnswer(id, value)`.
-Kotak steer teks-bebas tetap terlihat untuk jawaban yang tidak ada di menu. `StatusPill`
-(`ds/components/feedback.tsx:90`) mendapat varian `awaiting`.
+`StatusPill` (`ds/components/feedback.tsx:90`) mendapat varian `awaiting`.
 
-`RunControls` hari ini muncul untuk `running|paused`; `awaiting` ikut, tetapi tombol **Resume
-disembunyikan** — tidak ada yang perlu di-resume, prosesnya hidup. Pause dan Stop tetap ada
-(keduanya mem-`abort`, dan wait ikut kalah balapan → `stopped`).
+`RunControls` hari ini muncul untuk `running|paused`; `awaiting` ikut, tetapi **kotak steer dan tombol
+Resume disembunyikan** — tak ada yang perlu di-resume (prosesnya hidup), dan teks bebas tidak menjawab
+(lihat Route). Pause dan Stop tetap ada; keduanya mem-`abort`, dan wait kalah balapan → `stopped`.
 
 ## Uji
 
