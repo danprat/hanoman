@@ -144,20 +144,36 @@ export async function runOne(
         // Agen boleh berhenti dan bertanya (SPEC-157). Fase belum `done` selama masih ada yang
         // ditanyakan: jawabannya menjadi giliran lanjutan dari pekerjaan fase ini, bukan fase baru.
         // `readAsk` mengonsumsi berkasnya, jadi loop ini berhenti sendiri saat agen tak bertanya lagi.
-        for (;;) {
+        //
+        // `waits` salah → agen tetap dijawab, langsung dengan pilihannya sendiri. Ini jalur batch
+        // tak berpenunggu (askTimeoutMin 0) dan jalur CLI lokal yang tak punya kanal jawaban.
+        const waits = Boolean(ctl.answers) && askTimeoutMs > 0;
+        for (let asked = 0; ; asked++) {
           const ask = readAsk(worktree);
           if (!ask) break;
-          if (!ctl.answers) break; // tak ada kanal jawaban (mis. `hanoman run` lokal) → jalan terus
+          const capped = asked >= MAX_ASKS_PER_PHASE;
+          let a: Answer;
 
-          onEvent({ kind: "ask", ask });
-          onEvent({ kind: "status", status: "awaiting" });
-          const a = await awaitAnswer(ask, ctl.answers, askTimeoutMs, abortController.signal);
-          onEvent({ kind: "ask", ask: null });
-          if (a === null) { onEvent({ kind: "status", status: "stopped" }); return stopped(); }
-          onEvent({ kind: "status", status: "running" });
-          onEvent({ kind: "log", line: { t: "»", s: `jawaban: ${labelOf(ask, a.value)}` } });
+          if (capped) {
+            onEvent({ kind: "log", line: { t: "✗", s: `batas ${MAX_ASKS_PER_PHASE} pertanyaan per fase terlampaui — memakai pilihan agen: ${labelOf(ask, ask.default)}` } });
+            a = { value: ask.default, byHuman: false };
+          } else if (!waits) {
+            onEvent({ kind: "log", line: { t: "✗", s: `run berjalan tanpa penunggu — memakai pilihan agen: ${labelOf(ask, ask.default)}` } });
+            a = { value: ask.default, byHuman: false };
+          } else {
+            onEvent({ kind: "ask", ask });
+            onEvent({ kind: "status", status: "awaiting" });
+            const got = await awaitAnswer(ask, ctl.answers!, askTimeoutMs, abortController.signal);
+            onEvent({ kind: "ask", ask: null });
+            if (got === null) { onEvent({ kind: "status", status: "stopped" }); return stopped(); }
+            onEvent({ kind: "status", status: "running" });
+            a = got;
+            onEvent(a.byHuman
+              ? { kind: "log", line: { t: "»", s: `jawaban: ${labelOf(ask, a.value)}` } }
+              : { kind: "log", line: { t: "✗", s: `pertanyaan tak terjawab ${Math.round(askTimeoutMs / 60_000)}m — memakai pilihan agen: ${labelOf(ask, a.value)}` } });
+          }
 
-          const t = await takeTurn(session, answerText(ask, a, askTimeoutMs), onLog);
+          const t = await takeTurn(session, answerText(ask, a, waits ? askTimeoutMs : 0), onLog);
           costUsd = t.costUsd; tokensIn += t.tokensIn; tokensOut += t.tokensOut;
           if (t.subtype.startsWith("error") || t.isError) {
             const why = t.apiErrorStatus ? `API ${t.apiErrorStatus}` : t.subtype;
@@ -166,6 +182,7 @@ export async function runOne(
             onEvent({ kind: "status", status: "failed" });
             return failed();
           }
+          if (capped) break;
         }
         onEvent({ kind: "phase", name: phase, state: "done" });
 

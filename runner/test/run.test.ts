@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { mkdtempSync, mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runOne } from "../src/run";
+import { runOne, MAX_ASKS_PER_PHASE } from "../src/run";
 import { SteerQueue } from "../src/steer-queue";
 import { DECISION_FILE, ASK_FILE } from "../src/phases";
 import type { ClaudeSession, CliOptions, RunDeps, RunInput, CliMessage } from "../src/index";
@@ -416,5 +416,53 @@ describe("runOne · pertanyaan agen (SPEC-157)", () => {
 
     expect(presentAtCommit).toBe(false);
     expect(existsSync(join(wt, ASK_FILE))).toBe(false);
+  });
+
+  it("timeout memakai pilihan agen dan mencatatnya sebagai ✗", async () => {
+    const { repoDir } = askTree();
+    const events: any[] = [];
+    const r = await runOne(input({ repoDir, only: "Brainstorm" }), fakeDeps(), (e) => events.push(e),
+      { answers: new SteerQueue(), askTimeoutMs: 10 });
+
+    expect(r.status).toBe("done");
+    const miss = events.find((e) => e.kind === "log" && e.line.t === "✗");
+    expect(miss.line.s).toContain("tak terjawab");
+    expect(miss.line.s).toContain("Pasien"); // label default
+  });
+
+  it("timeout menyuntikkan teks yang menolak mengaku sudah dikonfirmasi", async () => {
+    const { repoDir } = askTree();
+    const s = fakeSession();
+    await runOne(input({ repoDir, only: "Brainstorm" }), fakeDeps({ openSession: () => s }), () => {},
+      { answers: new SteerQueue(), askTimeoutMs: 10 });
+    expect(s.sent[1]).toContain("memakai pilihanmu sendiri");
+    expect(s.sent[1]).not.toContain("Jawaban manusia");
+  });
+
+  // askTimeoutMin: 0 → batch tak berpenunggu. Tak pernah `awaiting`, tak pernah menahan slot.
+  it("askTimeoutMs 0 langsung memakai default tanpa pernah masuk awaiting", async () => {
+    const { repoDir } = askTree();
+    const events: any[] = [];
+    const r = await runOne(input({ repoDir, only: "Brainstorm" }), fakeDeps(), (e) => events.push(e),
+      { answers: new SteerQueue(), askTimeoutMs: 0 });
+
+    expect(r.status).toBe("done");
+    expect(events.some((e) => e.kind === "status" && e.status === "awaiting")).toBe(false);
+    expect(events.some((e) => e.kind === "log" && e.line.t === "✗" && e.line.s.includes("tanpa penunggu"))).toBe(true);
+  });
+
+  it("berhenti bertanya setelah 5 pertanyaan dalam satu fase", async () => {
+    const { repoDir, wt } = askTree();
+    const answers = new SteerQueue();
+    for (let i = 0; i < 10; i++) answers.push("pasien");
+    const s = fakeSession();
+    // Setiap giliran jawaban menuliskan ask baru — agen yang tak pernah berhenti bertanya.
+    const openSession = () => ({ ...s, send(t: string) { s.send(t); writeFileSync(join(wt, ASK_FILE), JSON.stringify(ASK)); } });
+    const events: any[] = [];
+    const r = await runOne(input({ repoDir, only: "Brainstorm" }), fakeDeps({ openSession: openSession as never }), (e) => events.push(e), { answers });
+
+    expect(r.status).toBe("done");
+    expect(events.filter((e) => e.kind === "ask" && e.ask).length).toBe(MAX_ASKS_PER_PHASE);
+    expect(events.some((e) => e.kind === "log" && e.line.t === "✗" && e.line.s.includes("batas"))).toBe(true);
   });
 });
