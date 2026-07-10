@@ -39,7 +39,7 @@ Menemukan + mengklasifikasi dokumen sebuah backlog item, dengan sumber freshest-
   - `resolveDir(specId: string, sessions?: ReturnType<typeof listSessions>): Promise<string | null>`
   - `listSpecDocs(specId: string, sessions?: ReturnType<typeof listSessions>): Promise<SpecDoc[]>`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // server/test/spec-docs.test.ts
@@ -105,12 +105,12 @@ describe("resolveDir", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test spec-docs`
 Expected: FAIL — `Cannot find module '../src/services/spec-docs'`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```ts
 // server/src/services/spec-docs.ts
@@ -165,12 +165,12 @@ export async function listSpecDocs(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test spec-docs`
 Expected: PASS (semua `it` di file itu hijau).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/spec-docs.ts server/test/spec-docs.test.ts
