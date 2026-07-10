@@ -3,12 +3,16 @@ import { Button, IconButton, Icon, Select, StateBlock } from "../ds";
 import { api, type TerminalSession, type Phase } from "../api/client";
 import { TerminalPane } from "./TerminalPane";
 import { SpecDocsModal } from "./SpecDocsModal";
+import { IntegrateDialog } from "./IntegrateDialog";
+import type { Spec } from "./types";
 import * as L from "./terminal-layout";
 import * as W from "./terminal-workspace";
 
-export function TerminalScreen({ projects, onOpenReview, titleOf }: {
+export function TerminalScreen({ projects, onOpenReview, titleOf, onIntegrate, specOf }: {
   projects: { id: string; name: string }[]; onOpenReview?: (specId: string) => void;
   titleOf?: (specId: string) => string | undefined;
+  onIntegrate?: (spec: Spec, op: "merge" | "rebase", target: string) => void;
+  specOf?: (specId: string) => Spec | undefined;
 }) {
   const [sessions, setSessions] = React.useState<TerminalSession[]>([]);
   const [ws, setWs] = React.useState<W.Workspace>(() => W.load() ?? W.emptyWorkspace());
@@ -154,7 +158,8 @@ export function TerminalScreen({ projects, onOpenReview, titleOf }: {
                   }}>
                     {s
                       ? <Cell session={s} nameOf={nameOf} onClose={() => void close(s.id)}
-                          onDetach={() => detach(s.id)} onExit={() => markExited(s.id)} onReview={onOpenReview} titleOf={titleOf} />
+                          onDetach={() => detach(s.id)} onExit={() => markExited(s.id)} onReview={onOpenReview}
+                          titleOf={titleOf} onIntegrate={onIntegrate} specOf={specOf} />
                       : <EmptyCell unplaced={unplaced} nameOf={nameOf} onPick={(sid) => place(idx, sid)} />}
                   </div>
                 );
@@ -281,13 +286,18 @@ export function PhaseStrip({ phases }: { phases: Phase[] | null }) {
   );
 }
 
-function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, titleOf }: {
+function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, titleOf, onIntegrate, specOf }: {
   session: TerminalSession; nameOf: (pid: string) => string;
   onClose: () => void; onDetach: () => void; onExit: (code: number) => void;
   onReview?: (specId: string) => void; titleOf?: (specId: string) => string | undefined;
+  onIntegrate?: (spec: Spec, op: "merge" | "rebase", target: string) => void;
+  specOf?: (specId: string) => Spec | undefined;
 }) {
   const [phases, setPhases] = React.useState<Phase[] | null>(null);
   const [docs, setDocs] = React.useState(false);
+  const [integrate, setIntegrate] = React.useState(false);
+  // SPEC-175 · spec dari specId untuk aksi rebase/merge di header.
+  const spec = session.specId ? specOf?.(session.specId) : undefined;
   const proj = nameOf(session.projectId);
   const title = session.specId ? titleOf?.(session.specId) : undefined;
   const label = session.specId ? `${proj} · ${session.specId}${title ? ` · ${title}` : ""}` : proj;
@@ -313,6 +323,13 @@ function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, titleOf }:
             <Icon name="git-compare" size={12} />
           </span>
         )}
+        {/* SPEC-175 · rebase/merge branch hasil spec (muncul hanya bila spec-nya dikenal). */}
+        {spec && onIntegrate && (
+          <span onClick={() => setIntegrate(true)} title="Rebase / Merge branch spec"
+            style={{ cursor: "pointer", color: "var(--text-subtle)", display: "inline-flex", alignItems: "center" }}>
+            <Icon name="git-merge" size={12} />
+          </span>
+        )}
         <span onClick={onDetach} title="Lepas dari grid (sesi tetap hidup)"
           style={{ cursor: "pointer", color: "var(--text-subtle)" }}>lepas</span>
         <span aria-label={`Tutup sesi ${session.id}`} onClick={onClose}
@@ -324,6 +341,10 @@ function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, titleOf }:
         <TerminalPane key={session.id} sessionId={session.id} onExit={onExit} onPhases={setPhases} />
       </div>
       {docs && session.specId && <SpecDocsModal specId={session.specId} onClose={() => setDocs(false)} />}
+      {integrate && spec && onIntegrate && (
+        <IntegrateDialog spec={spec} onClose={() => setIntegrate(false)}
+          onIntegrate={(op, target) => { setIntegrate(false); onIntegrate(spec, op, target); }} />
+      )}
     </>
   );
 }

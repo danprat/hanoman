@@ -74,6 +74,24 @@ describe("tombol Review (SPEC-171)", () => {
   });
 });
 
+describe("Integrasi rebase/merge (SPEC-175)", () => {
+  it("SpecDetail spec done menampilkan aksi Rebase / Merge", async () => {
+    render(<BacklogScreen backlog={[spec({ id: "SPEC-9", stage: "done", title: "done spec" })]}
+      projects={[{ id: "p", name: "p" }] as never}
+      projectFilter="all" onProjectFilter={() => {}} onStart={() => {}} onIntegrate={() => {}} />);
+    fireEvent.click(screen.getByText("done spec"));            // buka detail
+    fireEvent.click(await screen.findByRole("button", { name: /rebase \/ merge/i }));
+    expect(await screen.findByLabelText("Target")).toBeTruthy();
+  });
+  it("SpecDetail spec belum done tak menampilkan Rebase / Merge", () => {
+    render(<BacklogScreen backlog={[spec({ id: "SPEC-8", stage: "planned", title: "wip spec" })]}
+      projects={[{ id: "p", name: "p" }] as never}
+      projectFilter="all" onProjectFilter={() => {}} onStart={() => {}} onIntegrate={() => {}} />);
+    fireEvent.click(screen.getByText("wip spec"));
+    expect(screen.queryByRole("button", { name: /rebase \/ merge/i })).toBeNull();
+  });
+});
+
 describe("board drag (jsdom)", () => {
   it("Backlog → Brainstorm memanggil onStart dengan spec yang diseret", () => {
     const onStart = board([spec({ title: "bikin login" })]);

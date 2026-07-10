@@ -382,6 +382,23 @@ export default function App() {
     }
   }
 
+  // SPEC-175 · rebase/merge branch hasil sebuah done spec. Bersih → toast; conflict → pindah ke
+  // Terminal tempat sesi claude membereskan konflik (pola startSession).
+  async function integrateSpec(spec: Spec, op: "merge" | "rebase", target: string) {
+    try {
+      const r = await api.integrateSpec(spec.id, op, target);
+      if (r.status === "conflict") {
+        setSection("terminal");
+        showToast(`${spec.id} · konflik ${op} — selesaikan di Terminal`, "warn", "git-merge");
+      } else {
+        showToast(`${spec.id} · ${op} berhasil · ${r.detail}`, "ok", "git-merge");
+      }
+    } catch (e) {
+      const code = e instanceof ApiError ? e.status : 0;
+      showToast(`${spec.id} · gagal ${op}` + (code === 409 ? " · cek target/branch" : ""), "err", "x-circle");
+    }
+  }
+
   // SPEC-166 · Reverse docs: sesi interaktif menyusun Source of Truth dari kode. Fase
   // Wawancara hidup di layar Terminal — di sanalah manusia menjawab agen.
   async function reverseDocs(p: ProjectVM) {
@@ -498,7 +515,7 @@ export default function App() {
         {gate(<BacklogScreen backlog={backlog} projects={projectsView} pageSize={20}
           onStart={startSession} activeSpecs={activeSpecs} onNew={() => setModal("brief")}
           onDelete={deleteSpec} onOpenRun={() => setSection("terminal")} onOpenReview={openReview}
-          onEditBranch={editBranch} onRevertStage={revertStage}
+          onEditBranch={editBranch} onRevertStage={revertStage} onIntegrate={integrateSpec}
           projectFilter={projectFilter} onProjectFilter={setProjectFilter} />)}
       </Shell>
     );
@@ -511,7 +528,8 @@ export default function App() {
               action={() => setModal("project")} actionLabel="Project baru" />
           : <TerminalScreen projects={projectsView}
               onOpenReview={(specId) => { setReviewSpecId(specId); setSection("review"); }}
-              titleOf={(id) => backlog.find((s) => s.id === id)?.title} />)}
+              titleOf={(id) => backlog.find((s) => s.id === id)?.title}
+              onIntegrate={integrateSpec} specOf={(id) => backlog.find((s) => s.id === id)} />)}
       </Shell>
     );
   } else if (section === "vps") {

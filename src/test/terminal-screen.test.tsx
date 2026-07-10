@@ -15,6 +15,7 @@ vi.mock("../src/api/client", () => ({
     listTerminals: (...a: unknown[]) => listTerminals(...a),
     createTerminal: (...a: unknown[]) => createTerminal(...a),
     deleteTerminal: (...a: unknown[]) => deleteTerminal(...a),
+    listBranches: vi.fn(async () => ({ branches: [], remotes: [] })),
   },
 }));
 
@@ -303,6 +304,22 @@ describe("TerminalScreen (layar penuh)", () => {
 
     expect(root()).toHaveStyle({ position: "fixed" });
     expect(screen.getByRole("button", { name: "Keluar layar penuh" })).toBeInTheDocument();
+  });
+});
+
+// SPEC-175 · aksi rebase/merge di header Cell, hanya untuk sesi ber-specId.
+describe("TerminalScreen · integrate (SPEC-175)", () => {
+  it("Cell sesi ber-specId punya aksi Rebase / Merge; sesi tanpa spec tidak", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 2, cells: ["spec1sess", "plain0000"] }));
+    listTerminals.mockResolvedValue([
+      { id: "spec1sess", projectId: "p1", specId: "SPEC-1", cwd: "/repo", exited: false },
+      { id: "plain0000", projectId: "p1", cwd: "/repo", exited: false },
+    ]);
+    const spec = { id: "SPEC-1", projectId: "p1", stage: "done", title: "t", source: "brief",
+      priority: "sedang", author: "a", objective: "o", payload: {}, branchFrom: null };
+    render(<TerminalScreen projects={projects} onIntegrate={() => {}} specOf={() => spec as never} />);
+    await waitFor(() => expect(screen.getAllByTestId("pane")).toHaveLength(2));
+    expect(screen.getAllByTitle(/Rebase \/ Merge/i)).toHaveLength(1); // hanya sesi ber-spec
   });
 });
 
