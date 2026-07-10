@@ -58,10 +58,12 @@ async function allFiles(wt: string): Promise<string[]> {
     .filter((p) => !gone.has(p)).sort();
 }
 
-async function changedFiles(wt: string, base: string, env: NodeJS.ProcessEnv): Promise<ChangedFile[]> {
+// revs = [base] (base vs working-tree lewat temp index) ATAU [base, head] (dua commit).
+async function changedFiles(cwd: string, revs: string[], env?: NodeJS.ProcessEnv): Promise<ChangedFile[]> {
+  const opts = { cwd, ...(env ? { env } : {}), ...GIT };
   const [num, name] = await Promise.all([
-    exec("git", ["diff", "--numstat", "-z", "--no-renames", base], { cwd: wt, env, ...GIT }),
-    exec("git", ["diff", "--name-status", "-z", "--no-renames", base], { cwd: wt, env, ...GIT }),
+    exec("git", ["diff", "--numstat", "-z", "--no-renames", ...revs], opts),
+    exec("git", ["diff", "--name-status", "-z", "--no-renames", ...revs], opts),
   ]);
   const map = new Map<string, ChangedFile>();
   // --numstat -z: `add \t del \t path` \0. Binary = `-`/`-` — cek SEBELUM Number() (kalau tidak: NaN).
@@ -87,8 +89,64 @@ export async function specReview(repoDir: string, specId: string, branchFrom: st
   const wt = worktreeDir(repoDir, specId);
   const base = await mergeBase(wt, branchFrom);
   const files = await allFiles(wt);
-  const changed = await withTempIndex(wt, (env) => changedFiles(wt, base, env));
+  const changed = await withTempIndex(wt, (env) => changedFiles(wt, [base], env));
   return { base, files, changed };
+}
+
+// ── Done spec: worktree & branch sudah lenyap, tapi commit-nya ada di history dengan konvensi
+// pesan `type(spec-N): …` (CLAUDE.md). Range `oldest^..newest` = tepat yang diubah spec ini
+// SELAMA commit-nya kontigu (satu run per backlog, merge berurutan — terverifikasi di repo ini).
+// ponytail: asumsi kontigu. History terjalin (dua spec dikerjakan berselang) akan over-report;
+//           upgrade-nya simpan base/head commit di Spec saat run selesai.
+const EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"; // git hash-object -t tree /dev/null
+
+export async function specCommitRange(
+  repoDir: string, specId: string,
+): Promise<{ base: string; head: string } | null> {
+  const { stdout } = await exec(
+    "git", ["log", "--all", "-i", "-F", `--grep=(${specId})`, "--format=%H"], { cwd: repoDir, ...GIT });
+  const shas = stdout.split("\n").map((s) => s.trim()).filter(Boolean); // newest → oldest
+  if (!shas.length) return null;
+  const oldest = shas[shas.length - 1]!;
+  const base = await exec("git", ["rev-parse", "--verify", "-q", `${oldest}^`], { cwd: repoDir, ...GIT })
+    .then((r) => r.stdout.trim())
+    .catch(() => EMPTY_TREE); // commit pertama = root → diff atas pohon kosong (semua "added")
+  return { base, head: shas[0]! };
+}
+
+async function filesAt(repoDir: string, head: string): Promise<string[]> {
+  const { stdout } = await exec("git", ["ls-tree", "-r", "--name-only", "-z", head], { cwd: repoDir, ...GIT });
+  return splitZ(stdout).sort();
+}
+
+export async function specReviewRange(repoDir: string, base: string, head: string): Promise<SpecReview> {
+  const [files, changed] = await Promise.all([
+    filesAt(repoDir, head),
+    changedFiles(repoDir, [base, head]),
+  ]);
+  return { base, files, changed };
+}
+
+export async function reviewFileRange(
+  repoDir: string, base: string, head: string, path: string,
+): Promise<ReviewFile | null> {
+  const { files, changed } = await specReviewRange(repoDir, base, head);
+  const cf = changed.find((c) => c.path === path);
+  if (!cf && !files.includes(path)) return null; // gerbang path → route 404
+  if (cf?.binary) return { path, status: cf.status, binary: true, truncated: false, diff: null, content: null };
+  const status = cf?.status ?? null;
+  const diffRaw = (await exec("git", ["diff", base, head, "--", path], { cwd: repoDir, ...GIT })).stdout;
+  let contentRaw: string | null = null;
+  if (status !== "D") {
+    try { contentRaw = (await exec("git", ["show", `${head}:${path}`], { cwd: repoDir, ...GIT })).stdout; }
+    catch { contentRaw = null; }
+  }
+  return {
+    path, status, binary: false,
+    truncated: diffRaw.length > MAX || (contentRaw?.length ?? 0) > MAX,
+    diff: diffRaw.slice(0, MAX),
+    content: contentRaw === null ? null : contentRaw.slice(0, MAX),
+  };
 }
 
 export async function reviewFile(

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { buildApp } from "../src/app";
 import { prisma } from "../src/db";
+import { makeProject, makeRepoWithBranches } from "./factory";
 
 // Gate aktif (requireAuth default true) untuk menguji 401/alur nyata.
 const app = buildApp();
@@ -77,6 +78,25 @@ describe("auth routes", () => {
     // logout → cookie invalid
     expect((await app.inject({ method: "POST", url: "/api/auth/logout", headers: { cookie: c2 } })).statusCode).toBe(204);
     expect((await app.inject({ method: "GET", url: "/api/projects", headers: { cookie: c2 } })).statusCode).toBe(401);
+  });
+
+  it("spec baru: author = email user yang login (QA diberi prefix)", async () => {
+    await prisma.spec.deleteMany(); await prisma.project.deleteMany();
+    const setup = await app.inject({ method: "POST", url: "/api/auth/setup", payload: { email: "rangga@nafanesia.id", password: "password1" } });
+    const cookie = cookieOf(setup);
+    await makeProject({ id: "p1", repoDir: makeRepoWithBranches() });
+
+    const brief = await app.inject({ method: "POST", url: "/api/specs", headers: { cookie },
+      payload: { project: "p1", source: "brief", title: "B", priority: "sedang",
+        payload: { context: "c", outcome: "o", constraints: "", priority: "sedang" } } });
+    expect(brief.statusCode).toBe(201);
+    expect(brief.json().author).toBe("rangga@nafanesia.id");
+
+    const qa = await app.inject({ method: "POST", url: "/api/specs", headers: { cookie },
+      payload: { project: "p1", source: "qa", title: "Q", priority: "tinggi",
+        payload: { severity: "major", steps: "s", expected: "e", actual: "a", env: "" } } });
+    expect(qa.statusCode).toBe(201);
+    expect(qa.json().author).toBe("QA · rangga@nafanesia.id");
   });
 
   it("rejects invalid bodies", async () => {

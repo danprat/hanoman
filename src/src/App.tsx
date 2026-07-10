@@ -18,8 +18,7 @@ import { DocsWorkspace } from "./screens/DocsWorkspace";
 import { ReviewScreen } from "./screens/ReviewScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 
-const OWNER = "Rangga";
-const SEVERITY = [{ value: "critical", label: "Critical" }, { value: "major", label: "Major" }, { value: "minor", label: "Minor" }];
+const SEVERITY =[{ value: "critical", label: "Critical" }, { value: "major", label: "Major" }, { value: "minor", label: "Minor" }];
 const PRIORITY = [{ value: "tinggi", label: "Tinggi" }, { value: "sedang", label: "Sedang" }, { value: "rendah", label: "Rendah" }];
 
 type SpecForm = { kind: string; project: string; title: string; context: string; outcome: string; constraints: string;
@@ -510,7 +509,9 @@ export default function App() {
           ? <StateBlock kind="empty" icon="box" title="Belum ada project"
               hint="Terminal butuh project dengan repoDir untuk dijalankan."
               action={() => setModal("project")} actionLabel="Project baru" />
-          : <TerminalScreen projects={projectsView} />)}
+          : <TerminalScreen projects={projectsView}
+              onOpenReview={(specId) => { setReviewSpecId(specId); setSection("review"); }}
+              titleOf={(id) => backlog.find((s) => s.id === id)?.title} />)}
       </Shell>
     );
   } else if (section === "vps") {

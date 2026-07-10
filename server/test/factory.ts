@@ -54,6 +54,28 @@ export function makeRepoWithWorktree(specId: string, base: Record<string, string
   return dir;
 }
 
+// Repo dengan commit ber-tag `(spec-N)` di pesan, TANPA worktree — persis keadaan item selesai:
+// worktree & branch sudah lenyap, tapi commit-nya tinggal di history. Tiap commit menerapkan
+// `changes` (null = hapus). Mengembalikan repoDir. (review done spec)
+export function makeRepoWithSpecCommits(
+  base: Record<string, string>,
+  commits: { msg: string; changes: Record<string, string | null> }[],
+): string {
+  const dir = mkdtempSync(join(tmpdir(), "hanoman-hist-"));
+  const g = (...a: string[]) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });
+  g("init", "-q"); g("config", "user.email", "t@t"); g("config", "user.name", "t");
+  const apply = (changes: Record<string, string | null>) => {
+    for (const [rel, content] of Object.entries(changes)) {
+      const abs = join(dir, rel);
+      if (content === null) { rmSync(abs, { force: true }); continue; }
+      mkdirSync(dirname(abs), { recursive: true }); writeFileSync(abs, content);
+    }
+  };
+  apply(base); g("add", "-A"); g("commit", "-qm", "base"); g("branch", "-M", "main");
+  for (const c of commits) { apply(c.changes); g("add", "-A"); g("commit", "-qm", c.msg); }
+  return dir;
+}
+
 // Truncate every table in FK-safe order (mirrors the deleted seed()).
 export async function resetDb(): Promise<void> {
   await prisma.$transaction([

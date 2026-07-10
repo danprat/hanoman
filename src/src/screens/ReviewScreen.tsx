@@ -70,7 +70,7 @@ function DiffView({ diff }: { diff: string }) {
         const plus = line.startsWith("+") && !line.startsWith("+++");
         const minus = line.startsWith("-") && !line.startsWith("---");
         const hunk = line.startsWith("@@");
-        const color = plus ? "var(--leaf-700)" : minus ? "var(--clay-600)" : hunk ? "var(--brass-700)" : "var(--text-body)";
+        const color = plus ? "var(--leaf-600)" : minus ? "var(--clay-600)" : hunk ? "var(--brass-700)" : "var(--text-body)";
         const bg = plus ? "color-mix(in srgb, var(--leaf-500) 10%, transparent)"
           : minus ? "color-mix(in srgb, var(--clay-500) 10%, transparent)" : "transparent";
         return <div key={i} style={{ color, background: bg, padding: "0 12px", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{line || " "}</div>;
@@ -174,7 +174,7 @@ export function ReviewScreen({ specId, title, onBack }: { specId: string; title:
             ))}
           </div>
         </div>
-        <div style={{ maxHeight: 640, overflow: "auto", background: "var(--surface-code)" }}>
+        <div style={{ maxHeight: 640, overflow: "auto", background: "var(--surface-card)" }}>
           {!selected ? <StateBlock kind="empty" icon="file-text" title="Pilih file" hint="Pilih file dari changed atau tree." />
             : !file ? <StateBlock kind="loading" title="Memuat file…" hint={selected} />
             : file.binary ? <StateBlock kind="empty" icon="file" title="Berkas biner" hint="Tak dapat di-review dari dashboard." />

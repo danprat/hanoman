@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { existsSync } from "node:fs";
 import { zCreateSpec, zPatchSpec, type Stage } from "@hanoman/shared";
 import { prisma } from "../db";
-import { specReview, reviewFile, worktreeDir } from "../services/spec-review";
+import { specReview, reviewFile, worktreeDir, specCommitRange, specReviewRange, reviewFileRange } from "../services/spec-review";
 import { nextSpecId } from "../services/id";
 import { listRepoBranches } from "../services/branches";
 import { STAGES } from "../services/stage-machine";
@@ -61,10 +61,13 @@ export default async function (app: FastifyInstance) {
     const objective = isQa && "actual" in b.payload
       ? (b.payload.actual || b.payload.steps || "— audit untuk menelusuri akar masalah.")
       : ("outcome" in b.payload ? (b.payload.outcome || b.payload.context || "— brainstorm untuk memperjelas objective.") : "");
+    // Author = user yang login (req.user diisi gate auth; dijamin ada di prod, fallback hanya
+    // untuk test requireAuth:false). Prefix `QA ·` tetap menandai spec dari alur QA.
+    const author = req.user?.email ?? "system";
     const spec = await prisma.spec.create({
       data: {
         id, projectId: b.project, title: b.title, source: b.source, stage: "brainstorming",
-        priority, author: isQa ? "QA · Rangga" : "Rangga", objective, payload: b.payload,
+        priority, author: isQa ? `QA · ${author}` : author, objective, payload: b.payload,
         branchFrom: b.branchFrom ?? null
       }
     });
@@ -118,19 +121,26 @@ export default async function (app: FastifyInstance) {
     return reply.code(204).send();
   });
 
-  // SPEC-171 · review worktree backlog item: all files + file changed, diturunkan dari git.
-  // Sumbernya worktree <repoDir>/.worktrees/<specid>; worktree hilang → 409 (bukan daftar
-  // kosong yang menipu). Gerbang path ada di reviewFile (di luar daftar → null → 404).
+  // SPEC-171 · review backlog item: all files + file changed, diturunkan dari git.
+  // Worktree hidup <repoDir>/.worktrees/<specid> → diff atas working tree. Worktree lenyap
+  // (item selesai) → jatuh ke range commit `oldest(spec-N)^..newest` di history, jadi perubahan
+  // tetap bisa di-review sesudah selesai. Tak ada keduanya → 409. Gerbang path ada di reviewFile*.
   const specWithProject = (id: string) =>
     prisma.spec.findUnique({ where: { id }, include: { project: true } });
+  // wt hidup > commit history. Null = tak ada sumber apa pun (409).
+  const resolveReview = async (repoDir: string, id: string) =>
+    existsSync(worktreeDir(repoDir, id))
+      ? { wt: true as const }
+      : await specCommitRange(repoDir, id).then((r) => (r ? { wt: false as const, ...r } : null));
   app.get("/specs/:id/review", async (req, reply) => {
     const { id } = req.params as { id: string };
     const spec = await specWithProject(id);
     if (!spec) return reply.code(404).send({ error: "not found" });
     if (!spec.project.repoDir) return reply.code(409).send({ error: "project belum punya repoDir" });
-    if (!existsSync(worktreeDir(spec.project.repoDir, id)))
-      return reply.code(409).send({ error: "worktree tidak ada — jalankan/lanjutkan sesi backlog dulu" });
-    return specReview(spec.project.repoDir, id, spec.branchFrom);
+    const r = await resolveReview(spec.project.repoDir, id);
+    if (!r) return reply.code(409).send({ error: "belum ada worktree atau commit untuk di-review — jalankan/lanjutkan sesi backlog dulu" });
+    return r.wt ? specReview(spec.project.repoDir, id, spec.branchFrom)
+      : specReviewRange(spec.project.repoDir, r.base, r.head);
   });
   app.get("/specs/:id/review/*", async (req, reply) => {
     const { id } = req.params as { id: string };
@@ -138,9 +148,10 @@ export default async function (app: FastifyInstance) {
     const spec = await specWithProject(id);
     if (!spec) return reply.code(404).send({ error: "not found" });
     if (!spec.project.repoDir) return reply.code(409).send({ error: "project belum punya repoDir" });
-    if (!existsSync(worktreeDir(spec.project.repoDir, id)))
-      return reply.code(409).send({ error: "worktree tidak ada" });
-    const rf = await reviewFile(spec.project.repoDir, id, spec.branchFrom, path);
+    const r = await resolveReview(spec.project.repoDir, id);
+    if (!r) return reply.code(409).send({ error: "belum ada worktree atau commit" });
+    const rf = r.wt ? await reviewFile(spec.project.repoDir, id, spec.branchFrom, path)
+      : await reviewFileRange(spec.project.repoDir, r.base, r.head, path);
     return rf === null ? reply.code(404).send({ error: "not found" }) : rf;
   });
 }

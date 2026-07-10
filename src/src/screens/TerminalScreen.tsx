@@ -6,7 +6,10 @@ import { SpecDocsModal } from "./SpecDocsModal";
 import * as L from "./terminal-layout";
 import * as W from "./terminal-workspace";
 
-export function TerminalScreen({ projects }: { projects: { id: string; name: string }[] }) {
+export function TerminalScreen({ projects, onOpenReview, titleOf }: {
+  projects: { id: string; name: string }[]; onOpenReview?: (specId: string) => void;
+  titleOf?: (specId: string) => string | undefined;
+}) {
   const [sessions, setSessions] = React.useState<TerminalSession[]>([]);
   const [ws, setWs] = React.useState<W.Workspace>(() => W.load() ?? W.emptyWorkspace());
   const [project, setProject] = React.useState(projects[0]?.id ?? "");
@@ -151,7 +154,7 @@ export function TerminalScreen({ projects }: { projects: { id: string; name: str
                   }}>
                     {s
                       ? <Cell session={s} nameOf={nameOf} onClose={() => void close(s.id)}
-                          onDetach={() => detach(s.id)} onExit={() => markExited(s.id)} />
+                          onDetach={() => detach(s.id)} onExit={() => markExited(s.id)} onReview={onOpenReview} titleOf={titleOf} />
                       : <EmptyCell unplaced={unplaced} nameOf={nameOf} onPick={(sid) => place(idx, sid)} />}
                   </div>
                 );
@@ -278,13 +281,16 @@ export function PhaseStrip({ phases }: { phases: Phase[] | null }) {
   );
 }
 
-function Cell({ session, nameOf, onClose, onDetach, onExit }: {
+function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, titleOf }: {
   session: TerminalSession; nameOf: (pid: string) => string;
   onClose: () => void; onDetach: () => void; onExit: (code: number) => void;
+  onReview?: (specId: string) => void; titleOf?: (specId: string) => string | undefined;
 }) {
   const [phases, setPhases] = React.useState<Phase[] | null>(null);
   const [docs, setDocs] = React.useState(false);
-  const label = session.specId ?? nameOf(session.projectId);
+  const proj = nameOf(session.projectId);
+  const title = session.specId ? titleOf?.(session.specId) : undefined;
+  const label = session.specId ? `${proj} · ${session.specId}${title ? ` · ${title}` : ""}` : proj;
   return (
     <>
       <div style={{
@@ -299,6 +305,12 @@ function Cell({ session, nameOf, onClose, onDetach, onExit }: {
           <span onClick={() => setDocs(true)} title="Lihat dokumen (audit/spec/plan)"
             style={{ cursor: "pointer", color: "var(--text-subtle)", display: "inline-flex", alignItems: "center" }}>
             <Icon name="file-text" size={12} />
+          </span>
+        )}
+        {session.specId && onReview && (
+          <span onClick={() => onReview(session.specId!)} title="Review perubahan (diff worktree)"
+            style={{ cursor: "pointer", color: "var(--text-subtle)", display: "inline-flex", alignItems: "center" }}>
+            <Icon name="git-compare" size={12} />
           </span>
         )}
         <span onClick={onDetach} title="Lepas dari grid (sesi tetap hidup)"

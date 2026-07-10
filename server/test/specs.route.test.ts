@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { buildApp } from "../src/app";
-import { resetDb, makeProject, makeSpec, makeRepoWithBranches, makeTempRepo, makeRepoWithWorktree } from "./factory";
+import { resetDb, makeProject, makeSpec, makeRepoWithBranches, makeTempRepo, makeRepoWithWorktree, makeRepoWithSpecCommits } from "./factory";
 const app = buildApp({ requireAuth: false });
 const brief = { context: "c", outcome: "o", constraints: "", priority: "sedang" as const };
 let artifactRepo: string;
@@ -24,6 +24,12 @@ beforeAll(async () => {
   await makeProject({ id: "pr", repoDir: wtRepo });
   await makeSpec({ id: "SPEC-171", projectId: "pr", stage: "executing", branchFrom: null });
   await makeSpec({ id: "SPEC-172", projectId: "pr", stage: "executing" });
+  // SPEC-171 · item selesai: worktree lenyap, review jatuh ke commit history `(spec-N)`.
+  const histRepo = makeRepoWithSpecCommits(
+    { "keep.txt": "satu\n" },
+    [{ msg: "feat(spec-901): ubah keep + tambah baru", changes: { "keep.txt": "satu\ndua\n", "new.md": "baru\n" } }]);
+  await makeProject({ id: "ph", repoDir: histRepo });
+  await makeSpec({ id: "SPEC-901", projectId: "ph", stage: "done" });
 });
 describe("specs routes", () => {
   it("filters by project", async () => {
@@ -154,9 +160,20 @@ describe("GET /specs/:id/review", () => {
     expect(b.files).toContain("new.txt");
     expect(b.changed.map((c: any) => c.path).sort()).toEqual(["keep.txt", "new.txt"]);
   });
-  it("worktree tak ada → 409", async () => {
+  it("worktree tak ada & tanpa commit → 409", async () => {
     const res = await app.inject({ url: "/api/specs/SPEC-172/review" });
     expect(res.statusCode).toBe(409);
+  });
+  it("item selesai tanpa worktree → review dari commit history (200)", async () => {
+    const res = await app.inject({ url: "/api/specs/SPEC-901/review" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().changed.map((c: any) => c.path).sort()).toEqual(["keep.txt", "new.md"]);
+  });
+  it("item selesai: file changed → diff + content dari commit", async () => {
+    const res = await app.inject({ url: "/api/specs/SPEC-901/review/keep.txt" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().diff).toContain("+dua");
+    expect(res.json().content).toBe("satu\ndua\n");
   });
   it("spec tak ada → 404", async () => {
     const res = await app.inject({ url: "/api/specs/SPEC-999/review" });
