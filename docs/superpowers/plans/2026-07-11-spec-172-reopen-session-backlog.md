@@ -8,6 +8,8 @@
 
 **Tech Stack:** TypeScript strict, Node + Fastify (server), React + Vite (frontend), Vitest, tmux + git worktree (sesi), Prisma/Postgres.
 
+> **Status: SELESAI & terverifikasi nyata.** `pnpm -r typecheck` bersih; test runner 33 / src 110 / server 175 hijau. Smoke API nyata: boot server terisolasi (DB throwaway), `POST /terminal/sessions {spec:done, flow}` → 201, worktree lahir, prompt sesi = `continuePrompt` (header `MELANJUTKAN`, "Lanjut di fase Execute", baca `docs/superpowers/plans/**`), **bukan** pipeline penuh ("Kerjakan fase berurutan" tak ada).
+
 ## Global Constraints
 
 - TypeScript strict — semua kode baru wajib lolos `tsc`.
@@ -31,7 +33,7 @@
 - Consumes: `Flow`, `SpecBrief` (dari `./types`), helper `skillInstruction` (sudah ada di `prompt.ts`).
 - Produces: `continuePrompt(flow: Flow, spec: SpecBrief, branchTo: string): string`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan blok ini di `runner/test/prompt.test.ts`. Ubah baris import teratas jadi:
 
@@ -86,12 +88,12 @@ describe("continuePrompt", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./runner test -- prompt`
 Expected: FAIL — `continuePrompt is not a function` / import error.
 
-- [ ] **Step 3: Implementasi `continuePrompt`**
+- [x] **Step 3: Implementasi `continuePrompt`**
 
 Tambahkan tepat setelah fungsi `startPrompt` di `runner/src/prompt.ts` (sebelum `REVERSE_PHASE_GUIDE`):
 
@@ -119,12 +121,12 @@ export function continuePrompt(flow: Flow, spec: SpecBrief, branchTo: string): s
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan lolos**
+- [x] **Step 4: Jalankan test, pastikan lolos**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./runner test -- prompt`
 Expected: PASS — semua test `startPrompt` lama + `continuePrompt` baru hijau.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runner/src/prompt.ts runner/test/prompt.test.ts
@@ -144,7 +146,7 @@ git commit -m "feat(runner): continuePrompt — reopen sesi lanjut di Execute (S
 - Consumes: `continuePrompt` (Task 1), `startPrompt` (sudah dipakai).
 - Produces: perilaku `POST /terminal/sessions` — untuk spec `done`, sesi baru memakai `continuePrompt`; selain itu tetap `startPrompt`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `server/test/terminal.route.test.ts`, di dalam `describe("terminal routes · sesi backlog", ...)` (setelah test terakhirnya). Butuh `connect`/`waitFor` yang sudah ada di file:
 
@@ -178,12 +180,12 @@ Tambahkan di `server/test/terminal.route.test.ts`, di dalam `describe("terminal 
   });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- terminal.route`
 Expected: FAIL — spec `done` masih memakai `startPrompt`, `MELANJUTKAN` tak ada di data.
 
-- [ ] **Step 3: Implementasi pemilihan prompt**
+- [x] **Step 3: Implementasi pemilihan prompt**
 
 Di `server/src/routes/terminal.ts`, ubah import baris 4 menambahkan `continuePrompt`:
 
@@ -213,12 +215,12 @@ Lalu di cabang `if ("spec" in parsed.data)`, ganti pemanggilan `startPrompt(...)
       return reply.code(201).send({ id: s.id });
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan lolos**
+- [x] **Step 4: Jalankan test, pastikan lolos**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- terminal.route`
 Expected: PASS — dua test SPEC-172 hijau, test lama tetap hijau.
 
-- [ ] **Step 5: Update docs api-contract**
+- [x] **Step 5: Update docs api-contract**
 
 Di `internal/docs/architecture/api-contract.md`, di blok `POST /terminal/sessions` (bagian sesi backlog `{ spec, flow }`), tambahkan satu kalimat:
 
@@ -228,7 +230,7 @@ Di `internal/docs/architecture/api-contract.md`, di blok `POST /terminal/session
   yang keburu ditandai selesai. Tak ada field baru di request; dipilih otomatis dari stage.
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/routes/terminal.ts server/test/terminal.route.test.ts internal/docs/architecture/api-contract.md
@@ -248,7 +250,7 @@ git commit -m "feat(server): reopen spec done pakai continuePrompt (SPEC-172)"
 - Consumes: prop `onStart?: (s: Spec) => void` yang sudah masuk ke `BacklogScreen` dari `App.tsx`.
 - Produces: `SpecDetail` merender tombol reopen saat `spec.stage === "done"`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/test/reopen-session.test.tsx`:
 
@@ -299,12 +301,12 @@ describe("reopen session (SPEC-172)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src test -- reopen-session`
 Expected: FAIL — `Buka sesi lagi` belum ada.
 
-- [ ] **Step 3: Implementasi tombol + wiring**
+- [x] **Step 3: Implementasi tombol + wiring**
 
 Di `src/src/screens/BacklogScreen.tsx`:
 
@@ -338,17 +340,17 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onStart }:
 
 (`Button` sudah diimport di baris 4. `SpecActions` tidak diubah sama sekali.)
 
-- [ ] **Step 4: Jalankan test, pastikan lolos**
+- [x] **Step 4: Jalankan test, pastikan lolos**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src test -- reopen-session`
 Expected: PASS — ketiga test hijau.
 
-- [ ] **Step 5: Pastikan tak ada regresi frontend**
+- [x] **Step 5: Pastikan tak ada regresi frontend**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src test -- backlog revert-stage`
 Expected: PASS — board & revert-stage lama tetap hijau (SpecActions tak berubah).
 
-- [ ] **Step 6: Update docs frontend**
+- [x] **Step 6: Update docs frontend**
 
 Di `internal/docs/frontend/frontend-implementation.md`, di bagian yang membahas `BacklogScreen`/`SpecDetail`, tambahkan:
 
@@ -358,7 +360,7 @@ Di `internal/docs/frontend/frontend-implementation.md`, di bagian yang membahas 
   di detail — `SpecActions` (list/grid/board) tak diubah, jadi aksi ini tak muncul di tiga view itu.
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/src/screens/BacklogScreen.tsx src/test/reopen-session.test.tsx internal/docs/frontend/frontend-implementation.md
@@ -371,17 +373,17 @@ git commit -m "feat(web): tombol 'Buka sesi lagi' di detail backlog untuk spec d
 
 **Files:** tidak ada perubahan kode — hanya verifikasi.
 
-- [ ] **Step 1: Typecheck seluruh workspace**
+- [x] **Step 1: Typecheck seluruh workspace**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm -r typecheck` (atau `pnpm -r build` bila tak ada script typecheck)
 Expected: 0 error TypeScript.
 
-- [ ] **Step 2: Test tiga paket yang tersentuh**
+- [x] **Step 2: Test tiga paket yang tersentuh**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./runner --filter ./server --filter ./src test`
 Expected: semua hijau (server pakai `--no-file-parallelism` bila diatur repo).
 
-- [ ] **Step 3: Smoke API nyata (wajib per CLAUDE.md)**
+- [x] **Step 3: Smoke API nyata (wajib per CLAUDE.md)**
 
 Boot server di port aman (bukan 8787 — ada sesi dev lain), lalu buka sesi untuk spec `done` sungguhan dan pastikan sesi terpakai `continuePrompt`.
 
@@ -402,7 +404,7 @@ curl -s -X POST localhost:8799/api/terminal/sessions -H 'content-type: applicati
 
 Expected: `201 { id }`; worktree spec-nya lahir; prompt sesi memuat marker `MELANJUTKAN` (lanjut Execute), bukan pipeline penuh. Kalau ada issue, fix sampai hijau sebelum menyatakan selesai.
 
-- [ ] **Step 4: Centang plan & catat fase**
+- [x] **Step 4: Centang plan & catat fase**
 
 Centang semua `- [ ]` yang selesai di file plan ini, lalu `echo "Execute done" >> "$HANOMAN_PHASE_FILE"`.
 
