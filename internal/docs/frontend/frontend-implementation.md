@@ -79,17 +79,28 @@ Hanya enam kolom tengah yang benar-benar `Spec.stage`. Tiga sisanya **turunan**,
 Konsekuensinya untuk drag: **enam kolom stage tidak bisa menerima maupun melepas kartu**
 (`draggable={false}`). `Spec.stage` milik runner (ADR-0008); UI yang menulisnya akan membuat
 `executing`/`done` bisa dicapai tanpa run yang lewat guardrail Source of Truth — persis yang
-ADR itu tutup. Dua drop yang sah keduanya bermuara ke `POST /runs`, bukan ke `PATCH /specs`:
+ADR itu tutup. Hanya ada **satu** drop yang sah, dan ia bermuara ke `POST /runs`, bukan ke
+`PATCH /specs`:
 
-    Backlog ──drag──► Brainstorm…Execute   = mulai run
-    Failed  ──drag──► Backlog              = jalankan lagi
+    Backlog ──drag──► Brainstorm   = mulai run
+
+Kenapa cuma Brainstorm, padahal lima kolom kerja semuanya "mulai run"? Karena kontrak sebuah
+kanban adalah **kartu mendarat di kolom tempat ia dijatuhkan**. Run selalu mulai dari awal
+pipeline, jadi spec yang baru dijalankan berakhir di stage `brainstorming`. Menerima drop di
+Execute berarti kartunya melompat empat kolom ke kiri sesaat setelah dilepas — UI menjanjikan
+yang tak ia tepati. Menerimanya di kolom yang benar berarti server harus bisa memulai run dari
+fase tertentu; itu belum ada, dan butuh ADR sendiri.
+
+Spec gagal **tidak** diseret. Retry-nya lewat tombol di kartu, karena kartunya akan kembali ke
+kolom stage-nya (mis. Plan), bukan ke kolom tempat ia dijatuhkan.
 
 Aturannya dua fungsi murni terekspor, `specColumn()` dan `canDrop()`, diuji di
-`src/test/backlog-board.test.tsx` — termasuk empat render test jsdom yang men-drag kartu
-sungguhan, karena `from`/`to` yang tertukar lolos dari unit test aturannya sendiri.
+`src/test/backlog-board.test.tsx` — termasuk render test jsdom yang men-drag kartu sungguhan,
+karena `from`/`to` yang tertukar lolos dari unit test aturannya sendiri.
 
-Drag pakai HTML5 drag-and-drop native, tanpa dependency. Ia **bukan** satu-satunya jalan:
-tombol Mulai/Jalankan lagi tetap ada di ketiga mode, karena drag tidak bisa dipakai keyboard.
+Drag pakai HTML5 drag-and-drop native, tanpa dependency — dan ia mati total di keyboard maupun
+layar sentuh. Karena itu **setiap kartu di ketiga mode, termasuk `BoardCard`, membawa
+`SpecActions`** (Mulai / Buka run / Jalankan lagi). Drag adalah jalan pintas, bukan jalan satu-satunya.
 
 Memulai run **tidak** memindahkan layar ke Runs — dulu `startRun` memanggil `setSection("runs")`,
 yang membuang filter dan mode tampilan operator setiap kali satu spec dijalankan, dan mustahil

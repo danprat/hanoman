@@ -207,7 +207,7 @@ function SpecRow({ spec, onStart, onDelete, onOpenRun, onOpenDetail, running }:
    kartu di sana tak bisa diangkat. Yang bisa didrag hanya dua kolom ujung,
    dan drop-nya memanggil aksi yang memang ada tombolnya: mulai / jalankan lagi. */
 const BACKLOG_COL = "backlog", SUCCESS_COL = "success", FAILED_COL = "failed";
-const WORK_COLS = B_STAGES.slice(0, 5).map((s) => s.key);   // brainstorming … executing
+const FIRST_STAGE = B_STAGES[0]!.key;   // brainstorming
 const COLUMNS: { key: string; label: string; icon?: string }[] = [
   { key: BACKLOG_COL, label: "Backlog", icon: "inbox" },
   ...B_STAGES.slice(0, 5).map((s) => ({ key: s.key, label: s.label })),
@@ -226,22 +226,31 @@ export function specColumn(spec: Spec, lastRun?: string): string {
   return spec.stage;
 }
 
-/* Satu-satunya aturan drop. Keduanya berujung pada POST /runs — tak ada field spec
-   yang ditulis, jadi state machine tak pernah dibohongi. */
-export const canDrop = (from: string, to: string): boolean =>
-  (from === BACKLOG_COL && WORK_COLS.includes(to)) || (from === FAILED_COL && to === BACKLOG_COL);
+/* Satu-satunya aturan drop, dan ia menuruti kontrak kanban: kartu mendarat di kolom
+   tempat ia dijatuhkan. Run selalu mulai dari awal pipeline, jadi spec yang baru
+   dijalankan berakhir di stage `brainstorming` — maka Brainstorm satu-satunya tujuan
+   yang jujur. Kolom kerja lain sengaja menolak: dulu drop di Execute diterima lalu
+   kartunya melompat empat kolom ke kiri. Retry spec gagal lewat tombol di kartu,
+   bukan drag — kartunya akan kembali ke kolom stage-nya, bukan ke Backlog.
 
-function BoardCard({ spec, col, onOpenDetail, onDragStart, onDragEnd, dragging }:
-  { spec: Spec; col: string; onOpenDetail?: (s: Spec) => void;
+   Drop berujung pada POST /runs, tak pernah menulis field spec. */
+export const canDrop = (from: string, to: string): boolean =>
+  from === BACKLOG_COL && to === FIRST_STAGE;
+
+function BoardCard({ spec, col, onOpenDetail, onStart, onOpenRun, running, onDragStart, onDragEnd, dragging }:
+  { spec: Spec; col: string; onOpenDetail?: (s: Spec) => void; onStart?: (s: Spec) => void;
+    onOpenRun?: (s: Spec) => void; running?: boolean;
     onDragStart: () => void; onDragEnd: () => void; dragging: boolean }) {
   const qa = spec.source === "qa";
   const prio = B_PRIO[spec.priority] || B_PRIO.sedang!;
-  const draggable = col === BACKLOG_COL || col === FAILED_COL;
+  const draggable = col === BACKLOG_COL;
   return (
     <div draggable={draggable}
       onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", spec.id); onDragStart(); }}
       onDragEnd={onDragEnd}
-      title={draggable ? "Seret ke kolom lain untuk menjalankan run" : "Stage dikelola runner — kartu tak bisa dipindah"}
+      title={draggable ? "Seret ke Brainstorm untuk memulai run"
+        : col === FAILED_COL ? "Run terakhir gagal — pakai tombol Jalankan lagi"
+        : "Stage dikelola runner — kartu tak bisa dipindah"}
       style={{
         // `0 0 auto`: tanpa ini kartu menyusut mengisi kolom, bukan kolomnya yang menggulir.
         flex: "0 0 auto",
@@ -259,13 +268,18 @@ function BoardCard({ spec, col, onOpenDetail, onDragStart, onDragEnd, dragging }
       {spec.branchFrom && (
         <div style={{ marginTop: 6 }}><Badge tone="neutral" size="sm" icon="git-branch">{spec.branchFrom}</Badge></div>
       )}
+      {/* HTML5 drag-and-drop mati di keyboard dan di layar sentuh. Tombol ini jalur
+          satu-satunya di sana — termasuk retry spec di kolom Failed. */}
+      <div style={{ marginTop: 8 }}>
+        <SpecActions spec={spec} onStart={onStart} onOpenRun={onOpenRun} running={running} />
+      </div>
     </div>
   );
 }
 
-function Board({ specs, lastRunStatus, onStart, onOpenDetail }:
-  { specs: Spec[]; lastRunStatus?: Map<string, string>;
-    onStart?: (s: Spec) => void; onOpenDetail?: (s: Spec) => void }) {
+function Board({ specs, lastRunStatus, activeRunSpecs, onStart, onOpenRun, onOpenDetail }:
+  { specs: Spec[]; lastRunStatus?: Map<string, string>; activeRunSpecs?: Set<string>;
+    onStart?: (s: Spec) => void; onOpenRun?: (s: Spec) => void; onOpenDetail?: (s: Spec) => void }) {
   const [drag, setDrag] = React.useState<{ spec: Spec; from: string } | null>(null);
   const [over, setOver] = React.useState<string | null>(null);
   const byCol = new Map<string, Spec[]>(COLUMNS.map((c) => [c.key, []]));
@@ -306,6 +320,7 @@ function Board({ specs, lastRunStatus, onStart, onOpenDetail }:
             <div style={{ ...LIST_SCROLL_STYLE, display: "flex", flexDirection: "column", gap: 8 }}>
               {items.map((s) => (
                 <BoardCard key={s.id} spec={s} col={c.key} onOpenDetail={onOpenDetail}
+                  onStart={onStart} onOpenRun={onOpenRun} running={activeRunSpecs?.has(s.id)}
                   dragging={drag?.spec.id === s.id}
                   onDragStart={() => setDrag({ spec: s, from: c.key })}
                   onDragEnd={() => { setDrag(null); setOver(null); }} />
@@ -364,8 +379,8 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
               action={() => { setTab("all"); setProj("all"); }} actionLabel="Reset filter" actionIcon="rotate-ccw" />
       ) : view === "board" ? (
         // Board tak dipaginasi: kolom yang terpotong halaman bukan board.
-        <Board specs={filtered} lastRunStatus={lastRunStatus} onStart={onStart}
-          onOpenDetail={(x) => setDetailId(x.id)} />
+        <Board specs={filtered} lastRunStatus={lastRunStatus} activeRunSpecs={activeRunSpecs}
+          onStart={onStart} onOpenRun={onOpenRun} onOpenDetail={(x) => setDetailId(x.id)} />
       ) : (
         <>
           {view === "list" ? (
