@@ -3,7 +3,7 @@
 **Fase:** Brainstorm → Objective (dikunci) · 2026-07-10
 **Jenis:** fitur — sumber `brief`, prioritas **tinggi**
 **Source of Truth:** `internal/docs/**` — dokumen ini subordinat terhadapnya.
-**Turunan:** brainstorm → [`docs/superpowers/specs/2026-07-10-hanoman-split-terminal-spec-158-brainstorm.md`]. design → fase Spec (belum ada). plan → fase Plan (belum ada).
+**Turunan:** brainstorm → [`docs/superpowers/specs/2026-07-10-hanoman-split-terminal-spec-158-brainstorm.md`], design → [`docs/superpowers/specs/2026-07-10-hanoman-split-terminal-spec-158-design.md`]. plan → fase Plan (belum ada).
 
 ## Masalah
 
@@ -133,3 +133,29 @@ tata letak frontend:
 
 > Chiranjivi — objective bertahan lebih lama dari satu run. Spec dan plan turunannya tunduk pada
 > pernyataan ini.
+
+## Amandemen — 2026-07-10 (fase Spec)
+
+Fase Spec memverifikasi premis objective ini terhadap kode nyata dan menemukan **dua** yang cacat.
+Rincian di [`docs/superpowers/specs/2026-07-10-hanoman-split-terminal-spec-158-design.md`].
+
+1. **"Sesi PTY mati saat server restart (SPEC-012)" — dicabut.** Kriteria sukses *"Layout bertahan
+   reload browser"* dan prinsip *"Layout adalah state UI"* menyandarkan diri pada klaim bahwa sesi
+   mati saat server restart. Itu tidak lagi benar: [ADR-0016](../adr/0016-sesi-terminal-hidup-di-tmux.md)
+   memindah sesi ke dalam tmux, sehingga sesi **selamat** dari restart `pnpm dev`. Konsekuensinya
+   **menguatkan**, bukan membalik, keputusan localStorage — layout tersimpan dapat menyambung kembali
+   ke sesi yang masih hidup lintas restart. Yang wajib ditambahkan: grid **merekonsiliasi** `cells`
+   terhadap `listSessions()` yang hidup saat mount (sel yang sesinya sudah di-kill dikosongkan; sesi
+   `exited` tetap terikat dan tampil "berakhir"). Larangan menyimpan layout ke **database** tetap
+   berlaku utuh — localStorage, bukan DB.
+
+2. **"Sesi run (`--resume`) tidak di-kill sembarangan — konsisten dengan perilaku tab hari ini" —
+   premisnya keliru.** `close()` pada tab hari ini (`TerminalScreen.tsx`) memanggil
+   `api.deleteTerminal(id)` → `killSession` untuk sesi run **maupun** bukan; tidak ada pembedaan.
+   SPEC-158 tidak boleh diam-diam mengubah semantik kill. Diganti **dua aksi sel yang eksplisit**:
+   **Lepas** (unbind — sesi tetap hidup, kembali ke tray; inilah aksi khas menata split) dan
+   **Tutup/`×`** (kill lewat `DELETE` — persis perilaku hari ini, untuk sesi apa pun). Kriteria sukses
+   *"Menutup pane melepas sesinya"* dibaca ulang sebagai kedua aksi ini.
+
+Sisa objective ini tetap berlaku utuh — termasuk "nol perubahan server/API/skema, nol migration &
+nol ADR".
