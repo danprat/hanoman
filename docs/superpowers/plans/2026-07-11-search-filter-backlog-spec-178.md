@@ -1,6 +1,6 @@
 # Search Filter Backlog (SPEC-178) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox syntax (`- [x]` when done) for tracking.
 
 **Goal:** Tambahkan pencarian teks + filter stage + filter prioritas ke toolbar backlog, semua client-side.
 
