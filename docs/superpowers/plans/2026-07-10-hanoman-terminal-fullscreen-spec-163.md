@@ -70,7 +70,7 @@ prop `compact` pada `GroupTabs`.
 - Produces: root screen ber-`data-testid="terminal-root"`; tombol ber-`aria-label` `"Layar penuh"` /
   `"Keluar layar penuh"` dengan `aria-pressed`.
 
-- [ ] **Step 0: Pastikan berkas bersih (blokir di atas)**
+- [x] **Step 0: Pastikan berkas bersih (blokir di atas)**
 
 ```bash
 git status --short src/src/screens/TerminalScreen.tsx src/src/screens/TerminalPane.tsx src/src/api/client.ts
@@ -78,7 +78,7 @@ git status --short src/src/screens/TerminalScreen.tsx src/src/screens/TerminalPa
 
 Expected: tak ada keluaran. Ada keluaran → **berhenti**, lapor ke pengguna.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di akhir `src/test/terminal-screen.test.tsx`, setelah `describe("TerminalScreen (tutup kolom/baris)", …)`:
 
@@ -149,7 +149,7 @@ describe("TerminalScreen (layar penuh)", () => {
 Test terakhir menjaga **keputusan**, bukan implementasi: kalau nanti seseorang menambah
 `onKeyDown` "biar bisa ditutup dengan Escape", test ini merah dan menjelaskan kenapa.
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/terminal-screen.test.tsx
@@ -157,7 +157,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/termina
 
 Expected: FAIL — 4 kasus baru gagal dengan `Unable to find an accessible element with the role "button" and name "Layar penuh"`. Kasus lama (21, termasuk milik SPEC-162) tetap lolos.
 
-- [ ] **Step 3: Tulis implementasi — tiga Edit ber-anchor**
+- [x] **Step 3: Tulis implementasi — tiga Edit ber-anchor**
 
 **Edit 3a — import `IconButton`.** Anchor:
 
@@ -301,7 +301,7 @@ menjadi:
 
 **Jangan sentuh** `Cell`, `PhaseStrip`, `EmptyCell`, `GutterX`, `RenameInput`, atau blok grid.
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/terminal-screen.test.tsx
@@ -312,7 +312,7 @@ Expected: PASS — `Tests 25 passed (25)` (21 lama + 4 baru).
 Kalau `toHaveStyle({ zIndex: "100" })` gagal: jest-dom membandingkan nilai terkomputasi sebagai
 string. Pastikan `zIndex: 100` (angka) di inline style — React menuliskannya `z-index: 100`.
 
-- [ ] **Step 5: Seluruh suite `src` + typecheck**
+- [x] **Step 5: Seluruh suite `src` + typecheck**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run
@@ -321,7 +321,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src typecheck
 
 Expected: semua berkas test lolos; typecheck exit 0.
 
-- [ ] **Step 6: Perbarui docs yang tersentuh**
+- [x] **Step 6: Perbarui docs yang tersentuh**
 
 Di `internal/docs/frontend/frontend-implementation.md`, bagian `## Terminal (sesi Claude Code
 interaktif)`, sisipkan sebelum kalimat `Proxy dev Vite harus memakai `ws: true`…`:
@@ -337,7 +337,7 @@ untuk keluar — hanya tombol. Pengguna yang mau seluruh layar device menekan `F
 `maxed` tidak dipersist (SPEC-163).
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 Periksa sekali lagi bahwa hanya berkas Anda yang berubah — sesi lain mungkin sudah menyentuh
 `TerminalPane.tsx`/`client.ts` lagi sejak Step 0:
@@ -369,7 +369,7 @@ di scratchpad, nol dependensi baru (Node 24 punya `WebSocket` + `fetch` global).
 diketahui: app **tak punya routing URL** (screen dicapai dengan mengklik `<div onClick>` di dalam
 `<nav>`), Vite mem-proxy `/api` ke **8787**, dan Vite bind ke `localhost` bukan `127.0.0.1`.
 
-- [ ] **Step 1: Boot**
+- [x] **Step 1: Boot**
 
 Jalankan dari direktori scratchpad sesi (bukan `/tmp`, bukan dalam repo):
 
@@ -384,7 +384,7 @@ Vite mencetak `http://localhost:5199/` — pakai `localhost`, `curl` ke `127.0.0
 
 Pastikan API di 8787 hidup: `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8787/api/terminal/sessions` → `200`.
 
-- [ ] **Step 2: Sesi uji tanpa risiko**
+- [x] **Step 2: Sesi uji tanpa risiko**
 
 **Jangan** panggil `POST /terminal/sessions` — ia men-spawn `claude --dangerously-skip-permissions`
 sungguhan di working tree yang dibagi sesi lain (`server/src/services/pty.ts:102`). Bikin sesi tmux
@@ -398,7 +398,7 @@ tmux -L hanoman -f /dev/null new-session -d -s hanoman-fs163 -c /tmp 'sh' \
 
 Ada sesi `claude` hidup milik sesi lain di socket itu — jangan attach, jangan kill.
 
-- [ ] **Step 3: Ukur — sel membesar, sidebar tertutup**
+- [x] **Step 3: Ukur — sel membesar, sidebar tertutup**
 
 Lewat CDP (`Emulation.setDeviceMetricsOverride` 1440×900), buka Terminal, taruh `fs163` di sel lewat
 picker, lalu:
@@ -422,37 +422,58 @@ const aside = document.querySelector("aside").getBoundingClientRect();
 const rootZ = getComputedStyle(document.querySelector('[data-testid="terminal-root"]')).zIndex;
 ```
 
-| Cek | Harapan |
-|---|---|
-| `after.width > before.width && after.height > before.height` | `true` — grid dapat ruang sidebar+topbar |
-| `document.elementFromPoint(aside.left + 10, aside.top + 100)` | **bukan** turunan `<aside>` — overlay menutupinya |
-| `rootZ` | `"100"` |
-| `.xterm` masih ada, `sessionId` sama | `true` — pane tidak remount |
-| `[aria-label="Keluar layar penuh"]` ada | `true` |
+**Hasil terukur** (Chrome 150 headless, viewport 1440×900, grid 1×1 berisi sesi `fs163`):
 
-- [ ] **Step 4: Escape tetap milik terminal**
+| Cek | Sebelum | Sesudah |
+|---|---|---|
+| Ukuran sel grid | `1110×577` | **`1390×780`** — grid menelan ruang sidebar + topbar |
+| `<aside>` tertutup overlay (`elementFromPoint`) | `false` | **`true`** |
+| `getComputedStyle(root).position` | `static` | **`fixed`** |
+| `getComputedStyle(root).zIndex` | `auto` | **`100`** |
+| `.xterm` ter-mount | `true` | `true` — pane **tidak** remount |
+| Tombol | `Layar penuh` | `Keluar layar penuh`, `aria-pressed="true"` |
 
-```js
-document.querySelector(".xterm-helper-textarea")
-  .dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+Chrome benar-benar jadi satu baris: pusat vertikal `[role=tab]` dan tombol `Sesi baru` berjarak
+< 20px (`chromeSingleRow: true`), dan `+ Kolom` / `Tutup kolom 1` / tabbar semuanya masih ada
+(`controlsPresent: true`).
+
+- [x] **Step 4: Escape tetap milik terminal**
+
+`KeyboardEvent("keydown", {key:"Escape"})` dikirim ke `.xterm-helper-textarea` **dan** ke `document`:
+
+```
+escapeSentTo:          "xterm-helper-textarea"
+stillMaxedAfterEscape: true      ← overlay tak bergeming
 ```
 
-Expected: `[data-testid="terminal-root"]` **masih** `position: fixed`. Lalu klik
-`[aria-label="Keluar layar penuh"]` → kembali normal, sidebar terlihat lagi
-(`document.elementFromPoint` di titik sidebar mengembalikan turunan `<aside>`).
+Klik `Keluar layar penuh` → `position: static`, `asideCoveredAfterExit: false` (sidebar terlihat
+lagi), sel kembali `1110×577`, `.xterm` tetap sama.
 
-- [ ] **Step 5: Screenshot + bersih-bersih**
+- [x] **Step 5: Screenshot + bersih-bersih**
 
-`Page.captureScreenshot` sebelum dan sesudah maximize. Lalu:
+Screenshot maximize & normal tersimpan di scratchpad. Lalu:
 
 ```bash
-curl -s -X DELETE http://127.0.0.1:8787/api/terminal/sessions/fs163   # → 204
+curl -s -X DELETE http://127.0.0.1:8787/api/terminal/sessions/fs163   # → 204 ✓
 pkill -f "chrome-profile"
 kill $(lsof -nP -iTCP:5199 -sTCP:LISTEN -t)
-tmux -L hanoman -f /dev/null ls    # dua sesi claude milik sesi lain harus utuh
+tmux -L hanoman -f /dev/null ls    # ✓ dua sesi claude milik sesi lain utuh
 ```
 
-- [ ] **Step 6: Centang checklist plan & commit**
+API 8787 dan 8788 milik sesi lain tetap `200` sesudahnya.
+
+## Yang TIDAK diverifikasi
+
+- **Sesi `claude` sungguhan** di dalam sel saat maximize (reflow TUI, resize xterm→tmux). Yang diuji
+  `sh`. Spawn `claude` demi smoke test menaruh agen otonom di working tree bersama — butuh
+  persetujuan pengguna lebih dulu.
+- **Safari / Firefox.** Tak ada API khusus browser yang dipakai (`position: fixed` + `z-index`), jadi
+  risikonya rendah, tapi pengukurannya cuma di Chrome 150.
+- **Modal di atas overlay.** `zIndex` dipilih terhadap nilai DS yang dibaca dari sumbernya
+  (`ds/kit.tsx:54,29`), tapi tak ada modal yang bisa dibuka dari screen Terminal hari ini untuk
+  membuktikannya secara nyata.
+
+- [x] **Step 6: Centang checklist plan & commit**
 
 Ubah `- [ ]` yang sudah dikerjakan jadi `- [x]`, catat hasil ukurannya di Task 2, lalu:
 
