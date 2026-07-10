@@ -191,7 +191,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Consumes: `listSpecDocs`, `resolveDir` (Task 1), `readDocFile(dir, rel): string | null` (`services/scan.ts:84`).
 - Produces (HTTP): `GET /api/specs/:id/docs` → `{ files: SpecDoc[] }`; `GET /api/specs/:id/docs/*` → `{ path, content }` atau 404.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // server/test/spec-docs.route.test.ts
@@ -236,12 +236,12 @@ describe("GET /specs/:id/docs", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test spec-docs.route`
 Expected: FAIL — 404/`files` undefined (route belum ada).
 
-- [ ] **Step 3: Add the imports**
+- [x] **Step 3: Add the imports**
 
 Di puncak `server/src/routes/specs.ts`, setelah baris import yang ada, tambah:
 
@@ -250,7 +250,7 @@ import { listSpecDocs, resolveDir } from "../services/spec-docs";
 import { readDocFile } from "../services/scan";
 ```
 
-- [ ] **Step 4: Add the routes**
+- [x] **Step 4: Add the routes**
 
 Di dalam `export default async function (app)`, sebelum `app.delete("/specs/:id", ...)` (baris ~98), sisipkan:
 
@@ -269,12 +269,12 @@ Di dalam `export default async function (app)`, sebelum `app.delete("/specs/:id"
   });
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test spec-docs.route`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/routes/specs.ts server/test/spec-docs.route.test.ts
