@@ -160,6 +160,19 @@ export function sessionPhases(id: string): Phase[] | null {
   return readPhases(p.phaseFile, p.flow);
 }
 
+// Fase per spec untuk semua sesi tmux, dalam satu `list-panes` — dipakai GET /specs untuk
+// menurunkan stage live tanpa satu tmux call per spec (SPEC-168). Tak difilter `exited`:
+// berkas fase pane mati (belum di-DELETE) tetap kebenaran terakhirnya; forward-only di
+// pemanggil (stageFor + guard STAGES.indexOf) menjaga tak ada stage yang mundur.
+export function sessionPhasesBySpec(): Map<string, Phase[]> {
+  const out = new Map<string, Phase[]>();
+  for (const p of listPanes()) {
+    if (!p.specId || !p.flow || !p.phaseFile) continue;
+    out.set(p.specId, readPhases(p.phaseFile, p.flow));
+  }
+  return out;
+}
+
 function broadcast(a: Attachment, f: Frame): void {
   const msg = frame(f);
   for (const c of a.clients) c.send(msg);

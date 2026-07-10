@@ -1,8 +1,11 @@
 import type { FastifyInstance } from "fastify";
-import { zCreateSpec, zPatchSpec } from "@hanoman/shared";
+import { zCreateSpec, zPatchSpec, type Stage } from "@hanoman/shared";
 import { prisma } from "../db";
 import { nextSpecId } from "../services/id";
 import { listRepoBranches } from "../services/branches";
+import { sessionPhasesBySpec } from "../services/pty";
+import { stageFor } from "../services/session-phases";
+import { STAGES } from "../services/stage-machine";
 
 // SPEC-143: daftar yang mengisi dropdown adalah daftar yang menjaga gerbang — tak ada validator
 // terpisah yang bisa ikut basi. Branch karangan ditolak di sini, bukan beberapa menit kemudian
@@ -12,7 +15,19 @@ const branchUnknown = (repoDir: string | null, branch: string) => !listRepoBranc
 export default async function (app: FastifyInstance) {
   app.get("/specs", async (req) => {
     const { project, source } = req.query as { project?: string; source?: string };
-    return prisma.spec.findMany({ where: { projectId: project, source }, orderBy: { id: "desc" } });
+    const specs = await prisma.spec.findMany({ where: { projectId: project, source }, orderBy: { id: "desc" } });
+    // Stage live: selama sesi hidup, stage diturunkan dari berkas fase (ADR-0018/0019), tidak
+    // dipersist tiap transisi. DELETE tetap memajukan Spec.stage ke keadaan finalnya. Hanya
+    // maju (ADR-0008). (SPEC-168)
+    const live = sessionPhasesBySpec();
+    if (live.size === 0) return specs;
+    return specs.map((s) => {
+      const phases = live.get(s.id);
+      if (!phases) return s;
+      const next = stageFor(phases);
+      if (!next || STAGES.indexOf(next) <= STAGES.indexOf(s.stage as Stage)) return s;
+      return { ...s, stage: next };
+    });
   });
   app.post("/specs", async (req, reply) => {
     const parsed = zCreateSpec.safeParse(req.body);
