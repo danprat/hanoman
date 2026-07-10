@@ -427,20 +427,17 @@ export default function App() {
     }
   }
 
-  async function startRun(spec: Spec) {
+  // SPEC-162 · Start membuka sesi claude interaktif di worktree backlog item ini, lalu pindah
+  // ke layar Terminal: di sanalah pekerjaannya terlihat, dan di sanalah manusia menjawab agen.
+  // `branchFrom` tak dikirim — server membacanya dari baris Spec (SPEC-143).
+  async function startSession(spec: Spec) {
     try {
-      const { runId } = await api.startRun({
-        project: spec.projectId,
-        flow: spec.source === "qa" ? "qa" : "feature",
-        specId: spec.id,
-        branchFrom: spec.branchFrom ?? "main",   // SPEC-143 · pilihan backlog, bukan default tersembunyi
-      });
-      setRuns(await api.listRuns());
-      // stay on backlog — kartu berubah jadi "Buka run" begitu activeRunSpecs ikut
-      showToast(spec.id + " · run " + runId + " dimulai", "info", "play");
+      const { id } = await api.startSession({ spec: spec.id, flow: spec.source === "qa" ? "qa" : "feature" });
+      setSection("terminal");
+      showToast(spec.id + " · sesi " + id + " dimulai", "info", "play");
     } catch (e) {
-      const budget = e instanceof ApiError && e.status === 409;
-      showToast(spec.id + " · gagal mulai run" + (budget ? " · budget harian tercapai" : ""), "warn", "x-circle");
+      const noRepo = e instanceof ApiError && e.status === 400;
+      showToast(spec.id + " · gagal mulai sesi" + (noRepo ? " · project belum punya repoDir" : ""), "warn", "x-circle");
     }
   }
 
@@ -552,8 +549,8 @@ export default function App() {
       <Shell active="backlog" title="Backlog" breadcrumb="specs · brainstorm → execute" onNavigate={setSection}
         actions={<Button size="sm" leftIcon="plus" onClick={() => setModal("brief")}>Tambah</Button>}>
         {gate(<BacklogScreen backlog={backlog} projects={projectsView} pageSize={20}
-          onStart={startRun} activeRunSpecs={activeRunSpecs} lastRunStatus={lastRunStatus} onNew={() => setModal("brief")}
-          onDelete={deleteSpec} onOpenRun={() => setSection("runs")} onEditBranch={editBranch}
+          onStart={startSession} activeRunSpecs={activeRunSpecs} lastRunStatus={lastRunStatus} onNew={() => setModal("brief")}
+          onDelete={deleteSpec} onOpenRun={() => setSection("terminal")} onEditBranch={editBranch}
           projectFilter={projectFilter} onProjectFilter={setProjectFilter} />)}
       </Shell>
     );

@@ -1,6 +1,6 @@
 import React from "react";
 import { Button, Select, StateBlock } from "../ds";
-import { api, type TerminalSession } from "../api/client";
+import { api, type TerminalSession, type Phase } from "../api/client";
 import { TerminalPane } from "./TerminalPane";
 import * as L from "./terminal-layout";
 import * as W from "./terminal-workspace";
@@ -86,7 +86,7 @@ export function TerminalScreen({ projects }: { projects: { id: string; name: str
             }}>
               <button onClick={() => placeFirst(s.id)} title="Taruh di sel kosong pertama grup ini"
                 style={{ all: "unset", cursor: "pointer" }}>
-                {(s.runId ? `${s.runId} · resume` : nameOf(s.projectId))} · {s.id.slice(0, 6)}
+                {s.specId ?? nameOf(s.projectId)} · {s.id.slice(0, 6)}
               </button>
               <span aria-label={`Tutup sesi ${s.id}`} onClick={() => void close(s.id)}
                 style={{ cursor: "pointer", color: "var(--text-subtle)" }}>×</span>
@@ -222,11 +222,42 @@ function RenameInput({ initial, onCommit, onCancel }: {
   );
 }
 
+// Fase yang DILAPORKAN agen, bukan yang disimpulkan server (SPEC-162). Agen yang lupa menulis
+// berkas fasenya meninggalkan strip ini diam — terminalnya sendiri yang jadi kebenaran.
+const PHASE_COLOR: Record<Phase["state"], string> = {
+  done: "var(--brass)",
+  active: "var(--text-strong)",
+  skipped: "var(--text-subtle)",
+  pending: "var(--text-subtle)",
+};
+export function PhaseStrip({ phases }: { phases: Phase[] | null }) {
+  if (!phases?.length) return null;
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 8, padding: "3px 8px", flex: "0 0 auto",
+      borderBottom: "1px solid var(--border-hair)", fontSize: 10, fontFamily: "var(--font-mono)",
+    }}>
+      {phases.map((p) => (
+        <span key={p.name} data-state={p.state} title={p.state}
+          style={{
+            color: PHASE_COLOR[p.state],
+            fontWeight: p.state === "active" ? 600 : 400,
+            textDecoration: p.state === "skipped" ? "line-through" : "none",
+            opacity: p.state === "pending" ? 0.5 : 1,
+          }}>
+          {p.name}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function Cell({ session, nameOf, onClose, onDetach, onExit }: {
   session: TerminalSession; nameOf: (pid: string) => string;
   onClose: () => void; onDetach: () => void; onExit: (code: number) => void;
 }) {
-  const label = session.runId ? `${session.runId} · resume` : nameOf(session.projectId);
+  const [phases, setPhases] = React.useState<Phase[] | null>(null);
+  const label = session.specId ?? nameOf(session.projectId);
   return (
     <>
       <div style={{
@@ -242,9 +273,10 @@ function Cell({ session, nameOf, onClose, onDetach, onExit }: {
         <span aria-label={`Tutup sesi ${session.id}`} onClick={onClose}
           style={{ cursor: "pointer", color: "var(--text-subtle)" }}>×</span>
       </div>
+      <PhaseStrip phases={phases} />
       {/* key = identitas sesi: pindah antar sel memindah subtree, bukan me-remount WebSocket. */}
       <div style={{ flex: 1, minHeight: 0 }}>
-        <TerminalPane key={session.id} sessionId={session.id} onExit={onExit} />
+        <TerminalPane key={session.id} sessionId={session.id} onExit={onExit} onPhases={setPhases} />
       </div>
     </>
   );
@@ -260,7 +292,7 @@ function EmptyCell({ unplaced, nameOf, onPick }: {
         options={[{ value: "", label: unplaced.length ? "Pilih sesi…" : "tidak ada sesi bebas" }]
           .concat(unplaced.map((s) => ({
             value: s.id,
-            label: `${s.runId ? `${s.runId} · resume` : nameOf(s.projectId)} · ${s.id.slice(0, 6)}`,
+            label: `${s.specId ?? nameOf(s.projectId)} · ${s.id.slice(0, 6)}`,
           })))} />
     </div>
   );

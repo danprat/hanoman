@@ -1,6 +1,6 @@
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { TerminalScreen } from "../src/screens/TerminalScreen";
+import { TerminalScreen, PhaseStrip } from "../src/screens/TerminalScreen";
 
 // TerminalPane membuka WebSocket + xterm (butuh canvas). jsdom tak punya keduanya; yang
 // diuji di sini adalah komposisi grid, bukan rendering terminalnya.
@@ -241,5 +241,30 @@ describe("TerminalScreen (tutup kolom/baris)", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "Backlog" }));
     expect(await screen.findByLabelText("Tutup kolom 2")).toBeInTheDocument();  // grup lain utuh
+  });
+});
+
+// SPEC-162 · fase dilaporkan agen, server menyiarkannya lewat WS terminal. Strip ini hanya
+// menggambar apa yang dilaporkan — ia tak menyimpulkan apa pun sendiri.
+describe("PhaseStrip", () => {
+  it("menandai tiap fase dengan state-nya", () => {
+    render(<PhaseStrip phases={[
+      { name: "Brainstorm", state: "done" },
+      { name: "Objective", state: "active" },
+      { name: "Spec", state: "pending" },
+    ]} />);
+    expect(screen.getByText("Brainstorm")).toHaveAttribute("data-state", "done");
+    expect(screen.getByText("Objective")).toHaveAttribute("data-state", "active");
+    expect(screen.getByText("Spec")).toHaveAttribute("data-state", "pending");
+  });
+
+  it("fase yang dilewati terbaca berbeda dari yang selesai", () => {
+    render(<PhaseStrip phases={[{ name: "Plan", state: "skipped" }]} />);
+    expect(screen.getByText("Plan")).toHaveAttribute("data-state", "skipped");
+  });
+
+  it("tanpa fase, tak menggambar apa pun (sesi project biasa)", () => {
+    const { container } = render(<PhaseStrip phases={null} />);
+    expect(container).toBeEmptyDOMElement();
   });
 });

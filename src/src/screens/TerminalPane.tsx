@@ -3,13 +3,18 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import { paths } from "@hanoman/shared";
+import type { Phase } from "../api/client";
 
-export function TerminalPane({ sessionId, onExit }: { sessionId: string; onExit: (code: number) => void }) {
+export function TerminalPane({ sessionId, onExit, onPhases }: {
+  sessionId: string; onExit: (code: number) => void; onPhases?: (p: Phase[]) => void;
+}) {
   const host = React.useRef<HTMLDivElement>(null);
   // onExit boleh berubah tiap render; menaruhnya di ref menjaga effect ini
   // hanya bergantung pada sessionId — remount = sesi yang benar-benar berbeda.
   const exitRef = React.useRef(onExit);
   exitRef.current = onExit;
+  const phaseRef = React.useRef(onPhases);
+  phaseRef.current = onPhases;
 
   React.useEffect(() => {
     const el = host.current;
@@ -32,8 +37,10 @@ export function TerminalPane({ sessionId, onExit }: { sessionId: string; onExit:
 
     ws.onopen = () => { term.focus(); send({ t: "resize", cols: term.cols, rows: term.rows }); };
     ws.onmessage = (ev) => {
-      const f = JSON.parse(ev.data as string) as { t: string; d?: string; code?: number };
+      const f = JSON.parse(ev.data as string) as { t: string; d?: string; code?: number; phases?: Phase[] };
       if (f.t === "data") term.write(f.d ?? "");
+      // Server menyiarkan fase saat attach dan setiap kali agen menutup satu (SPEC-162).
+      else if (f.t === "phase") phaseRef.current?.(f.phases ?? []);
       else if (f.t === "exit") {
         term.write(`\r\n\x1b[33m— sesi berakhir (exit ${f.code}) —\x1b[0m\r\n`);
         exitRef.current(f.code ?? 0);
