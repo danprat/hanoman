@@ -36,7 +36,13 @@ export function makeRepoWithBranches(...branches: string[]): string {
 export async function resetDb(): Promise<void> {
   await prisma.$transaction([
     prisma.spec.deleteMany(), prisma.setting.deleteMany(), prisma.project.deleteMany(),
+    prisma.vps.deleteMany(),
   ]);
+}
+
+export function makeVps(over: Partial<Prisma.VpsCreateInput> = {}) {
+  return prisma.vps.create({ data: {
+    name: "vps1", host: "203.0.113.10", user: "deploy", ...over } });
 }
 
 export function makeProject(over: Partial<Prisma.ProjectCreateManyInput> = {}) {

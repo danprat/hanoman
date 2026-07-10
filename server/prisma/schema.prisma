@@ -36,3 +36,20 @@ model Setting {
   id   Int  @id @default(1)
   data Json
 }
+
+// SPEC-164 · VPS yang dikelola hanoman. keyPath menunjuk berkas di mesin server —
+// isi private key TIDAK PERNAH ada di database.
+model Vps {
+  id          String    @id @default(cuid())
+  name        String
+  host        String
+  port        Int       @default(22)
+  user        String
+  keyPath     String?
+  createdAt   DateTime  @default(now())
+  lastSeenAt  DateTime? // healthcheck sukses terakhir
+  health      Json?     // { uptime, disk, mem, load }
+  lastAuditAt DateTime?
+  audit       Json?     // VpsCheck[] — [{ check, status, detail }]
+  hardened    Boolean   @default(false) // derived: semua check kritis pass
+}
