@@ -36,10 +36,12 @@ describe("readPhases", () => {
     expect(states("qa")).toEqual(["Audit:done", "Spec:skipped", "Plan:skipped", "Execute:active"]);
   });
 
-  // "Doc index" mengandung spasi: state adalah token TERAKHIR, bukan token kedua.
+  // "Docs teknis" / "Konvensi & index" mengandung spasi: state adalah token TERAKHIR,
+  // bukan token kedua. Fase selesai tak berurutan justru menguatkan parsing-nya.
   it("nama fase berspasi terbaca utuh", () => {
-    write("Scan done\nDoc index done\n");
-    expect(readPhases(file, "reverse").map((p) => p.state)).toEqual(["done", "done"]);
+    write("Scan done\nDocs teknis done\nKonvensi & index done\n");
+    expect(readPhases(file, "reverse").map((p) => p.state))
+      .toEqual(["done", "done", "active", "done", "pending"]);
   });
 
   it("seluruh fase tercatat → tak ada yang aktif", () => {

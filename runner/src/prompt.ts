@@ -1,10 +1,11 @@
-import type { Flow, SpecBrief } from "./types";
+import type { Flow, SpecBrief, ProjectBrief } from "./types";
+import { REVERSE_STANDARD } from "./reverse-standard";
 
 export const PIPELINES: Record<Flow, readonly string[]> = {
   feature: ["Brainstorm", "Objective", "Spec", "Plan", "Execute"],
   qa: ["Audit", "Spec", "Plan", "Execute"],
   scaffold: ["Brainstorm", "Objective", "Doc index"],
-  reverse: ["Scan", "Doc index"],
+  reverse: ["Scan", "Docs teknis", "Wawancara", "Konvensi & index", "Serah terima"],
 };
 
 // Agen yang melapor, server yang menonton: di PTY tak ada batas giliran yang terbaca mesin.
@@ -53,4 +54,36 @@ export function startPrompt(flow: Flow, spec: SpecBrief, branchTo: string): stri
     `Backlog item ${spec.id} · sumber ${spec.source} · prioritas ${spec.priority}\n`
       + `Judul: ${spec.title}\nObjective: ${spec.objective}${detail}`,
   ].filter(Boolean).join("\n\n");
+}
+
+// Panduan per fase reverse (SPEC-166). Wawancara adalah fase interaktif: manusia menonton
+// sesi ini lewat terminal dashboard dan menjawab di sana — karena itu SATU pertanyaan per
+// giliran, bukan borongan.
+const REVERSE_PHASE_GUIDE = [
+  "- Scan: baca source code — stack, arsitektur, data model, API surface, perilaku domain. Belum menulis docs.",
+  "- Docs teknis: tulis kategori yang bisa diturunkan dari kode (architecture, requirements + "
+    + "EARS dari perilaku nyata, adr ber-Status accepted (reverse-engineered), operations, "
+    + "security, design-system/frontend bila relevan). Isi lengkap dan spesifik, bukan kerangka.",
+  "- Wawancara: untuk product, business, brand, research, entrypoints — ajukan SATU pertanyaan "
+    + "per giliran ke manusia di terminal ini, tunggu jawabannya, isi docs dari jawaban. "
+    + "Jangan mengarang. Topik tanpa jawaban tandai: Status: draft — menunggu input.",
+  "- Konvensi & index: tulis internal/docs/README.md (index bernomor lengkap), CLAUDE.md, "
+    + "AGENTS.md, .claude/settings.json + .claude/hooks/ensure-docs-updated.py persis seperti STANDAR DOCS.",
+  "- Serah terima: pastikan setiap berkas docs terdaftar di index, lalu tulis ringkasan hasil "
+    + "+ daftar pertanyaan yang belum terjawab ke terminal.",
+].join("\n");
+
+export function startProjectPrompt(flow: Flow, project: ProjectBrief, branchTo: string): string {
+  return [
+    `hanoman ${flow}. Susun Source of Truth repo ini dari kodenya di internal/docs/**, `
+      + `mengikuti STANDAR DOCS di bagian bawah prompt ini.`,
+    phaseInstruction(PIPELINES[flow]),
+    REVERSE_PHASE_GUIDE,
+    `Setiap fase selesai: commit hasilnya, lalu \`git push origin HEAD:refs/heads/${branchTo}\` — `
+      + `push per fase, supaya pekerjaan tak hilang bila worktree lenyap. Bila remote origin tidak ada, `
+      + `lewati push dan catat itu di laporan akhir — jangan gagal diam-diam. Worktree ini `
+      + `detached HEAD — memang disengaja. Manusia yang me-review dan merge branch ${branchTo}.`,
+    `Project ${project.id} · ${project.name}\nDeskripsi: ${project.desc || "—"}\nStack: ${project.stack || "—"}`,
+    `=== STANDAR DOCS ===\n${REVERSE_STANDARD}`,
+  ].join("\n\n");
 }

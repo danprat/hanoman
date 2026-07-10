@@ -8,6 +8,10 @@ export type SpecBrief = {
   objective: string; payload?: unknown;
 };
 
+// Identitas project untuk sesi project-level (reverse): tak ada backlog item, jadi
+// konteksnya diambil dari baris Project (SPEC-166).
+export type ProjectBrief = { id: string; name: string; desc: string; stack: string };
+
 export interface GitOps {
   /** Mengembalikan baseSha — commit tempat worktree ini lahir. */
   addWorktree(repo: string, path: string, branchFrom: string): string;
