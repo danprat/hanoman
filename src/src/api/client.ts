@@ -43,8 +43,12 @@ export const api = {
   deleteTerminal: (id: string) => j<void>(paths.terminalSession(id), { method: "DELETE" }),
   // SPEC-164 · modul VPS
   listVps: () => j<VpsView[]>(paths.vps),
-  createVps: (b: { name: string; host: string; user: string; port?: number; keyPath?: string }) =>
+  createVps: (b: { name: string; host: string; user: string; port?: number; keyPath?: string; password?: string }) =>
     j<VpsView>(paths.vps, { method: "POST", ...body(b) }),
+  // SPEC-165 · `password` = bootstrap ulang key hanoman; tak pernah disimpan.
+  updateVps: (id: string, b: { name?: string; host?: string; user?: string; port?: number;
+    keyPath?: string | null; password?: string }) =>
+    j<VpsView>(paths.vpsOne(id), { method: "PATCH", ...body(b) }),
   deleteVps: (id: string) => j<void>(paths.vpsOne(id), { method: "DELETE" }),
   auditVps: (id: string) => j<{ audit: VpsCheck[]; hardened: boolean }>(paths.vpsAudit(id), { method: "POST" }),
   hardenVps: (id: string) => j<{ transcript: string; audit: VpsCheck[] | null; hardened: boolean }>(

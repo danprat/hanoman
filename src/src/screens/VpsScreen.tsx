@@ -32,20 +32,34 @@ function CheckRow({ c }: { c: VpsCheck }) {
   );
 }
 
-type VpsForm = { name: string; host: string; user: string; port: string; keyPath: string };
-function NewVpsModal({ open, onClose, onCreate }:
-  { open: boolean; onClose: () => void; onCreate: (f: VpsForm) => void }) {
-  const blank: VpsForm = { name: "", host: "", user: "", port: "22", keyPath: "" };
-  const [f, setF] = React.useState(blank);
-  React.useEffect(() => { if (open) setF(blank); }, [open]);
+export type VpsForm = { name: string; host: string; user: string; port: string; keyPath: string; password: string };
+
+// Field kosong TIDAK dikirim: string kosong akan ditolak zod (min(1)), dan `keyPath: ""`
+// bukan cara mengosongkan keyPath — itu `null`, lewat modal Edit.
+export function vpsFormToBody(f: VpsForm) {
+  const b: Record<string, unknown> = {
+    name: f.name.trim(), host: f.host.trim(), user: f.user.trim(), port: Number(f.port) || 22 };
+  if (f.keyPath.trim()) b.keyPath = f.keyPath.trim();
+  if (f.password) b.password = f.password;
+  return b as { name: string; host: string; user: string; port: number; keyPath?: string; password?: string };
+}
+
+const PASSWORD_HINT = "opsional — dipakai sekali untuk memasang key hanoman, tidak disimpan";
+
+// Satu form untuk daftar & edit: bedanya cuma judul, tombol, dan nilai awal.
+function VpsModal({ open, title, submitLabel, initial, onClose, onSubmit }:
+  { open: boolean; title: string; submitLabel: string; initial: VpsForm;
+    onClose: () => void; onSubmit: (f: VpsForm) => void }) {
+  const [f, setF] = React.useState(initial);
+  React.useEffect(() => { if (open) setF(initial); }, [open, initial]);
   const set = (k: keyof VpsForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setF((s) => ({ ...s, [k]: e.target.value }));
   const canSubmit = !!(f.name.trim() && f.host.trim() && f.user.trim());
   return (
-    <Modal open={open} onClose={onClose} icon="server" eyebrow="infra" title="Daftarkan VPS"
+    <Modal open={open} onClose={onClose} icon="server" eyebrow="infra" title={title}
       footer={<>
         <Button variant="ghost" size="sm" onClick={onClose}>Batal</Button>
-        <Button size="sm" leftIcon="check" onClick={() => canSubmit && onCreate(f)}>Daftarkan</Button>
+        <Button size="sm" leftIcon="check" onClick={() => canSubmit && onSubmit(f)}>{submitLabel}</Button>
       </>}>
       <Field label="Nama"><Input value={f.name} onChange={set("name")} placeholder="mis. web-1" style={{ width: "100%" }} /></Field>
       <Field label="Host" hint="hostname atau IP — tanpa user@">
@@ -55,11 +69,18 @@ function NewVpsModal({ open, onClose, onCreate }:
           <Input value={f.user} onChange={set("user")} mono placeholder="deploy" style={{ width: "100%" }} /></Field>
         <Field label="Port"><Input value={f.port} onChange={set("port")} mono style={{ width: "100%" }} /></Field>
       </div>
-      <Field label="Key path" hint="opsional — kosong berarti key/agent default mesin server">
+      <Field label="Password SSH" hint={PASSWORD_HINT}>
+        <Input type="password" value={f.password} onChange={set("password")}
+          placeholder="untuk VPS yang belum punya key" style={{ width: "100%" }} /></Field>
+      <Field label="Key path" hint="kosongkan bila memakai password di atas, atau key default mesin server">
         <Input value={f.keyPath} onChange={set("keyPath")} mono placeholder="~/.ssh/id_ed25519" style={{ width: "100%" }} /></Field>
     </Modal>
   );
 }
+
+const BLANK: VpsForm = { name: "", host: "", user: "", port: "22", keyPath: "", password: "" };
+const formOf = (v: VpsView): VpsForm => ({
+  name: v.name, host: v.host, user: v.user, port: String(v.port), keyPath: v.keyPath ?? "", password: "" });
 
 export function VpsScreen({ onToast, onGotoTerminal }:
   { onToast: (msg: string, kind?: string, icon?: string) => void; onGotoTerminal: () => void }) {
@@ -67,7 +88,8 @@ export function VpsScreen({ onToast, onGotoTerminal }:
   const [status, setStatus] = React.useState<"loading" | "ready" | "error">("loading");
   const [sel, setSel] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState<string | null>(null); // "<aksi>:<id>"
-  const [modal, setModal] = React.useState(false);
+  // null = tertutup · "new" = daftar · VpsView = edit
+  const [modal, setModal] = React.useState<null | "new" | VpsView>(null);
 
   const load = React.useCallback(() => {
     api.listVps().then((l) => { setList(l); setStatus("ready"); })
@@ -103,11 +125,20 @@ export function VpsScreen({ onToast, onGotoTerminal }:
 
   async function create(f: VpsForm) {
     try {
-      const v = await api.createVps({ name: f.name.trim(), host: f.host.trim(), user: f.user.trim(),
-        port: Number(f.port) || 22, keyPath: f.keyPath.trim() || undefined });
-      setModal(false); load();
-      onToast(`${v.name} terdaftar · jalankan audit`, "ok", "server");
-    } catch { onToast("Gagal mendaftarkan VPS — cek format host/user", "err", "x-circle"); }
+      const v = await api.createVps(vpsFormToBody(f));
+      setModal(null); load();
+      onToast(f.password ? `${v.name} terdaftar · key hanoman terpasang · password dibuang`
+                         : `${v.name} terdaftar · jalankan audit`, "ok", "server");
+    } catch { onToast("Gagal mendaftarkan VPS — cek host/user, atau password SSH-nya", "err", "x-circle"); }
+  }
+
+  async function save(target: VpsView, f: VpsForm) {
+    try {
+      const v = await api.updateVps(target.id, vpsFormToBody(f));
+      setModal(null); load();
+      onToast(f.password ? `${v.name} diperbarui · key hanoman terpasang · password dibuang`
+                         : `${v.name} diperbarui`, "ok", "server");
+    } catch { onToast("Gagal memperbarui VPS", "err", "x-circle"); }
   }
 
   if (status === "loading") return <StateBlock kind="loading" title="Memuat daftar VPS…" />;
@@ -116,8 +147,9 @@ export function VpsScreen({ onToast, onGotoTerminal }:
   if (list.length === 0) return (
     <>
       <StateBlock kind="empty" icon="server" title="Belum ada VPS"
-        hint="Daftarkan VPS untuk mulai audit & hardening." action={() => setModal(true)} actionLabel="Daftarkan VPS" />
-      <NewVpsModal open={modal} onClose={() => setModal(false)} onCreate={create} />
+        hint="Daftarkan VPS untuk mulai audit & hardening." action={() => setModal("new")} actionLabel="Daftarkan VPS" />
+      <VpsModal open={modal === "new"} title="Daftarkan VPS" submitLabel="Daftarkan"
+        initial={BLANK} onClose={() => setModal(null)} onSubmit={create} />
     </>
   );
 
@@ -126,7 +158,7 @@ export function VpsScreen({ onToast, onGotoTerminal }:
     <div style={{ display: "grid", gridTemplateColumns: selected ? "1.4fr 1fr" : "1fr", gap: 16 }}>
       <div>
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
-          <Button size="sm" leftIcon="plus" onClick={() => setModal(true)}>Daftarkan VPS</Button>
+          <Button size="sm" leftIcon="plus" onClick={() => setModal("new")}>Daftarkan VPS</Button>
         </div>
         {list.map((v) => {
           const h = HARDENED_PILL[hardenedLabel(v)];
@@ -150,6 +182,8 @@ export function VpsScreen({ onToast, onGotoTerminal }:
                 onClick={(e: React.MouseEvent) => { e.stopPropagation(); harden(v); }}>Harden</Button>
               <Button size="sm" variant="ghost" leftIcon="terminal" loading={busy === `sesi:${v.id}`}
                 onClick={(e: React.MouseEvent) => { e.stopPropagation(); void session(v); }}>Sesi Claude</Button>
+              <Button size="sm" variant="ghost" leftIcon="pencil" title={`Edit ${v.name}`}
+                onClick={(e: React.MouseEvent) => { e.stopPropagation(); setModal(v); }} />
               <Button size="sm" variant="ghost" leftIcon="trash-2"
                 onClick={(e: React.MouseEvent) => { e.stopPropagation(); void remove(v); }} />
             </div>
@@ -170,7 +204,12 @@ export function VpsScreen({ onToast, onGotoTerminal }:
             hint="Jalankan Audit untuk melihat status per check." />}
         </div>
       )}
-      <NewVpsModal open={modal} onClose={() => setModal(false)} onCreate={create} />
+      <VpsModal open={modal === "new"} title="Daftarkan VPS" submitLabel="Daftarkan"
+        initial={BLANK} onClose={() => setModal(null)} onSubmit={create} />
+      {modal && modal !== "new" && (
+        <VpsModal open title={`Edit ${modal.name}`} submitLabel="Simpan" initial={formOf(modal)}
+          onClose={() => setModal(null)} onSubmit={(f) => save(modal, f)} />
+      )}
     </div>
   );
 }
