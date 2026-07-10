@@ -536,7 +536,7 @@ git commit -m "feat(spec-181): frontend limits data layer — client, helpers, s
 - Consumes: `useLimits`, `worstWindow`, `severityToken` from `../api/limits`; `LimitsDTO`, `LimitWindow` from `@hanoman/shared`; DS `Card`, `ProgressBar`, `Tooltip`.
 - Produces: `<LimitBadge/>` (self-fetching via `useLimits`, no props) and `<LimitWindows dto={LimitsDTO} />`.
 
-- [ ] **Step 1: Write the failing render test**
+- [x] **Step 1: Write the failing render test**
 
 Create `src/test/limit-indicator.test.tsx`:
 
@@ -569,12 +569,12 @@ describe("LimitWindows", () => {
 });
 ```
 
-- [ ] **Step 2: Run — verify it fails**
+- [x] **Step 2: Run — verify it fails**
 
 Run: `cd src && pnpm vitest run test/limit-indicator.test.tsx`
 Expected: FAIL — `Cannot find module '../src/screens/LimitIndicator'`.
 
-- [ ] **Step 3: Implement `LimitIndicator.tsx`**
+- [x] **Step 3: Implement `LimitIndicator.tsx`**
 
 Create `src/src/screens/LimitIndicator.tsx`:
 
@@ -674,12 +674,12 @@ export function LimitBadge() {
 
 > Verify `ProgressBar` accepts `value`/`max`/`color` — check `src/src/ds/components/feedback.tsx`. If its prop names differ (e.g. `pct`), adapt the two `<ProgressBar>` usages to the real signature. If it has no color prop, wrap it in a `<div style={{ color: tok.fg }}>` or pass whatever it uses; do not invent props.
 
-- [ ] **Step 4: Run — verify it passes**
+- [x] **Step 4: Run — verify it passes**
 
 Run: `cd src && pnpm vitest run test/limit-indicator.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 5: Render the badge in the top bar (Shell)**
+- [x] **Step 5: Render the badge in the top bar (Shell)**
 
 In `src/src/ds/shell.tsx`, import at top:
 
@@ -698,7 +698,7 @@ This makes the badge appear on every screen with **no change to the 9 `<Shell>` 
 
 > Watch for an import cycle: `shell.tsx` → `LimitIndicator.tsx` → `../ds` (which re-exports `Shell`). `../ds/index.ts` exports `Shell` but `LimitIndicator` only imports `Card`/`ProgressBar`/`Tooltip` — ES modules handle this fine as long as `LimitIndicator` does not import `Shell`. Confirm the app builds (`cd src && pnpm build` or `pnpm vitest run`) after this step; if a cycle warning appears, import `Card`/`ProgressBar`/`Tooltip` from their concrete files (`../ds/components/surfaces`, `../ds/components/feedback`) instead of the barrel.
 
-- [ ] **Step 6: Add the limits card to Overview**
+- [x] **Step 6: Add the limits card to Overview**
 
 In `src/src/screens/OverviewScreen.tsx`, import:
 
@@ -721,16 +721,16 @@ and add a card alongside the existing ones (after the "Claude Code sedang jalan"
           </Card>
 ```
 
-- [ ] **Step 7: Full frontend test + typecheck**
+- [x] **Step 7: Full frontend test + typecheck**
 
 Run: `cd src && pnpm vitest run && pnpm tsc --noEmit`
 Expected: PASS, no type errors. (If `tsc` script differs, use the repo's typecheck command from `src/package.json`.)
 
-- [ ] **Step 8: Real boot verification (badge + card visible, updating)**
+- [x] **Step 8: Real boot verification (badge + card visible, updating)**
 
 With the server running (Task 1 Step 9) and a fresh Keychain token, start the frontend dev server and confirm the badge shows a percent in the top bar and the Overview card lists the windows. A browser smoke via CDP (repo pattern) or a manual look both work; assert the badge text is a percent (not "—") when `status: "ok"`.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/src/screens/LimitIndicator.tsx src/src/ds/shell.tsx src/src/screens/OverviewScreen.tsx src/test/limit-indicator.test.tsx

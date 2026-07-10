@@ -3,6 +3,8 @@
 import React from "react";
 import { Card, StatusPill, Badge, ProgressBar, Icon, Button, StateBlock } from "../ds";
 import type { ProjectVM, Spec } from "./types";
+import { LimitWindows } from "./LimitIndicator";
+import { useLimits } from "../api/limits";
 
 function oCovTone(s: string) { return s === "broken" ? "err" : s === "drift" ? "warn" : "ok"; }
 // Sesi tak punya status "failed" yang terbaca dari luar — yang gagal terlihat di terminalnya.
@@ -94,6 +96,7 @@ function MiniStat({ icon, label, value, tone }: { icon: string; label: string; v
 export function OverviewScreen({ projects, backlog, onOpenProject, onGoto }:
   { projects: ProjectVM[]; backlog: Spec[];
     onOpenProject: (p: ProjectVM) => void; onGoto: (s: string) => void }) {
+  const limits = useLimits();
   const live = projects.filter((p) => p.session.status === "running");
   const attention = projects.filter((p) => oAttention(p) !== "none")
     .sort((a, b) => (oAttention(a) === "high" ? 0 : 1) - (oAttention(b) === "high" ? 0 : 1));
@@ -136,6 +139,9 @@ export function OverviewScreen({ projects, backlog, onOpenProject, onGoto }:
           </Card>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <Card eyebrow="realtime · Claude" title="Limit langganan">
+            <LimitWindows dto={limits} />
+          </Card>
           <Card eyebrow="Source of Truth" title="Docs coverage"
             actions={<Button size="sm" variant="ghost" leftIcon="book-open" onClick={() => onGoto("docs")}>Docs</Button>}>
             {coverageSorted.length === 0

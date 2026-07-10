@@ -1,0 +1,52 @@
+import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import type { LimitsDTO } from "@hanoman/shared";
+
+// Badge self-fetch via useLimits(); pakai nilai tetap agar render deterministik. Helper murni
+// (worstWindow/severityToken/severityTone) tetap asli.
+let hookDto: LimitsDTO;
+vi.mock("../src/api/limits", async (orig) => ({
+  ...(await orig<typeof import("../src/api/limits")>()),
+  useLimits: () => hookDto,
+}));
+import { LimitWindows, LimitBadge } from "../src/screens/LimitIndicator";
+
+const dto: LimitsDTO = {
+  status: "ok", fetchedAt: "2026-07-11T06:00:00Z",
+  windows: [
+    { key: "session", label: "Sesi 5 jam", usedPct: 19, resetsAt: "2026-07-11T09:00:00Z", severity: "normal", isActive: false },
+    { key: "weekly_all", label: "Mingguan", usedPct: 40, resetsAt: "2026-07-15T00:00:00Z", severity: "warning", isActive: true },
+  ],
+};
+
+describe("LimitWindows", () => {
+  it("renders each window label and percent", () => {
+    render(<LimitWindows dto={dto} />);
+    expect(screen.getByText("Sesi 5 jam")).toBeTruthy();
+    expect(screen.getByText(/Mingguan/)).toBeTruthy();
+    expect(screen.getByText(/19%/)).toBeTruthy();
+    expect(screen.getByText(/40%/)).toBeTruthy();
+  });
+  it("shows unavailable message when no windows", () => {
+    render(<LimitWindows dto={{ status: "unavailable", windows: [], fetchedAt: null }} />);
+    expect(screen.getByText(/tidak tersedia|idle|belum login/i)).toBeTruthy();
+  });
+});
+
+describe("LimitBadge", () => {
+  it("shows the worst window percent and opens a popover on click", () => {
+    hookDto = dto;   // worst = weekly_all (warning) 40%
+    render(<LimitBadge />);
+    const btn = screen.getByTitle("Limit Claude");
+    expect(btn.textContent).toContain("40%");
+    expect(screen.queryByText("Limit Claude")).toBeNull();   // popover tertutup
+    fireEvent.click(btn);
+    expect(screen.getByText("Limit Claude")).toBeTruthy();    // popover terbuka
+    expect(screen.getByText(/Mingguan/)).toBeTruthy();
+  });
+  it("shows an em dash when unavailable", () => {
+    hookDto = { status: "unavailable", windows: [], fetchedAt: null };
+    render(<LimitBadge />);
+    expect(screen.getByTitle("Limit Claude").textContent).toContain("—");
+  });
+});
