@@ -12,6 +12,7 @@ import { ProjectsScreen } from "./screens/ProjectsScreen";
 import { ProjectDetailScreen } from "./screens/ProjectDetailScreen";
 import { BacklogScreen } from "./screens/BacklogScreen";
 import { TerminalScreen } from "./screens/TerminalScreen";
+import { VpsScreen } from "./screens/VpsScreen";
 import { DocsWorkspace } from "./screens/DocsWorkspace";
 import { SettingsScreen } from "./screens/SettingsScreen";
 
@@ -466,6 +467,13 @@ export default function App() {
               hint="Terminal butuh project dengan repoDir untuk dijalankan."
               action={() => setModal("project")} actionLabel="Project baru" />
           : <TerminalScreen projects={projectsView} />)}
+      </Shell>
+    );
+  } else if (section === "vps") {
+    // VpsScreen memuat datanya sendiri — tak lewat `gate`, yang menunggu project/backlog.
+    screen = (
+      <Shell active="vps" title="VPS" breadcrumb="infra · audit → harden" onNavigate={setSection}>
+        <VpsScreen onToast={showToast} onGotoTerminal={() => setSection("terminal")} />
       </Shell>
     );
   } else if (section === "docs") {

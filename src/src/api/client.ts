@@ -1,4 +1,4 @@
-import { paths, type ProjectView, type Spec, type Setting } from "@hanoman/shared";
+import { paths, type ProjectView, type Spec, type Setting, type VpsView, type VpsCheck } from "@hanoman/shared";
 export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 export type Flow = "feature" | "qa" | "scaffold" | "reverse";
 export type Phase = { name: string; state: "done" | "skipped" | "active" | "pending" };
@@ -41,5 +41,14 @@ export const api = {
   startSession: (b: { spec: string; flow: Flow }) =>
     j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body(b) }),
   deleteTerminal: (id: string) => j<void>(paths.terminalSession(id), { method: "DELETE" }),
+  // SPEC-164 · modul VPS
+  listVps: () => j<VpsView[]>(paths.vps),
+  createVps: (b: { name: string; host: string; user: string; port?: number; keyPath?: string }) =>
+    j<VpsView>(paths.vps, { method: "POST", ...body(b) }),
+  deleteVps: (id: string) => j<void>(paths.vpsOne(id), { method: "DELETE" }),
+  auditVps: (id: string) => j<{ audit: VpsCheck[]; hardened: boolean }>(paths.vpsAudit(id), { method: "POST" }),
+  hardenVps: (id: string) => j<{ transcript: string; audit: VpsCheck[] | null; hardened: boolean }>(
+    paths.vpsHarden(id), { method: "POST" }),
+  vpsSession: (id: string) => j<{ id: string }>(paths.vpsSession(id), { method: "POST" }),
 };
 
