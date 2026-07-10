@@ -692,7 +692,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 **Files:**
 - Modify: `internal/docs/frontend/frontend-implementation.md` (catat komponen baru)
 
-- [ ] **Step 1: Full test + typecheck**
+- [x] **Step 1: Full test + typecheck**
 
 Run:
 ```bash
@@ -702,7 +702,7 @@ pnpm -r typecheck
 ```
 Expected: semua PASS/hijau. Kalau ada yang merah, perbaiki dulu sebelum lanjut (systematic-debugging).
 
-- [ ] **Step 2: Boot server + curl endpoint (verifikasi nyata, wajib)**
+- [x] **Step 2: Boot server + curl endpoint (verifikasi nyata, wajib)**
 
 ```bash
 pnpm --filter ./server build
@@ -714,11 +714,11 @@ curl -s "localhost:8787/api/specs/SPEC-145/docs/internal/docs/operations/spec-14
 ```
 Expected: daftar `files` memuat jenis `audit`/`spec`/`plan`/`objective`; endpoint isi mengembalikan `{ path, content }` berisi Markdown. (Port default server = 8787; sesuaikan bila berbeda. Jangan tabrakan dengan dev server lain — memory: port 8787 bisa dipakai sesi dev lain; pakai port lain kalau bentrok.)
 
-- [ ] **Step 3: Smoke UI**
+- [x] **Step 3: Smoke UI**
 
 Buka dashboard (`pnpm dev:web`), Backlog: klik ikon "lihat dokumen" pada sebuah item → dialog muncul, kiri berisi daftar dikelompok per jenis, kanan me-render Markdown. Terminal: pada sel sesi yang punya `specId`, klik ikon dokumen → dialog sama muncul dan (untuk sesi hidup) membaca worktree. Item tanpa dokumen → empty state.
 
-- [ ] **Step 4: Update docs SoT**
+- [x] **Step 4: Update docs SoT**
 
 Di `internal/docs/frontend/frontend-implementation.md`, tambahkan pada bagian komponen/screen yang sesuai:
 
@@ -731,7 +731,7 @@ Di `internal/docs/frontend/frontend-implementation.md`, tambahkan pada bagian ko
   header `Cell` (Terminal).
 ```
 
-- [ ] **Step 5: Commit docs + final phase**
+- [x] **Step 5: Commit docs + final phase**
 
 ```bash
 git add internal/docs/frontend/frontend-implementation.md
@@ -741,7 +741,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 echo "Execute done" >> "$HANOMAN_PHASE_FILE"
 ```
 
-- [ ] **Step 6: Push**
+- [x] **Step 6: Push**
 
 ```bash
 git push origin HEAD:refs/heads/hanoman/spec-170
