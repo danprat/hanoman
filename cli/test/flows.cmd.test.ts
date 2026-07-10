@@ -18,7 +18,6 @@ const captureBranch = () => {
     openSession: fakeSession,
     git: { addWorktree: (_r: string, _p: string, b: string) => { seen.push(b); },
       removeWorktree() {}, commitAndPush() {}, switchBase() {} },
-    verify: () => ({ blocked: false }),
   } as any;
   return { seen, deps };
 };

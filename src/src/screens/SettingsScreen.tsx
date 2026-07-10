@@ -29,7 +29,7 @@ const S_DEFAULT_STEP = { model: "claude-opus-4-8", effort: "xhigh" };
 const S_DEFAULTS: Setting = {
   steps: { brainstorm: { ...S_DEFAULT_STEP }, spec: { ...S_DEFAULT_STEP }, plan: { ...S_DEFAULT_STEP },
     execute: { ...S_DEFAULT_STEP }, audit: { ...S_DEFAULT_STEP } },
-  autoDefault: true, blockStale: true, requireLinks: true, autoScaffold: true,
+  autoDefault: true, autoScaffold: true,
   maxConcurrent: 3, notifyFail: true, askTimeoutMin: 30,
 };
 
@@ -79,9 +79,13 @@ export function SettingsScreen({ onToast }: { onToast?: ShowToast }) {
   return (
     <div style={{ maxWidth: 760, display: "flex", flexDirection: "column", gap: 20 }}>
       <Card eyebrow="general" title="Umum">
-        <SettingRow title="Full-auto sebagai default" last
+        <SettingRow title="Full-auto sebagai default"
           desc="Run baru jalan sendiri sampai selesai. Manusia tetap bisa steer / interupsi kapan pun.">
           <Switch checked={s.autoDefault} onChange={sw("autoDefault", "Full-auto default")} />
+        </SettingRow>
+        <SettingRow title="Auto-scaffold doc index" last
+          desc="Project from-scratch otomatis di-scaffold doc index-nya setelah objective terkunci.">
+          <Switch checked={s.autoScaffold} onChange={sw("autoScaffold", "Auto-scaffold")} />
         </SettingRow>
       </Card>
 
@@ -112,21 +116,6 @@ export function SettingsScreen({ onToast }: { onToast?: ShowToast }) {
         ))}
       </Card>
 
-      <Card eyebrow="guardrails" title="Source of Truth">
-        <SettingRow title="Blok plan saat docs stale"
-          desc="Stop hook menahan plan sampai docs acuannya diperbarui. Inti workflow docs-driven.">
-          <Switch checked={s.blockStale} onChange={sw("blockStale", "Blok docs stale")} />
-        </SettingRow>
-        <SettingRow title="Wajib link setiap doc"
-          desc="Setiap dokumen di internal/docs harus ter-link dari index sebelum execute.">
-          <Switch checked={s.requireLinks} onChange={sw("requireLinks", "Wajib link doc")} />
-        </SettingRow>
-        <SettingRow title="Auto-scaffold doc index" last
-          desc="Project from-scratch otomatis di-scaffold doc index-nya setelah objective terkunci.">
-          <Switch checked={s.autoScaffold} onChange={sw("autoScaffold", "Auto-scaffold")} />
-        </SettingRow>
-      </Card>
-
       <Card eyebrow="runs" title="Run">
         <SettingRow title="Run konkuren maksimum" desc="Berapa run Claude Code boleh jalan bersamaan.">
           <Select size="sm" value={String(s.maxConcurrent)}
@@ -140,7 +129,7 @@ export function SettingsScreen({ onToast }: { onToast?: ShowToast }) {
             onChange={(e) => save({ askTimeoutMin: Number(e.target.value) }, e.target.value === "0" ? "Tanpa menunggu keputusan" : "Tunggu keputusan → " + e.target.value + "m")} style={{ width: 110 }}
             options={[{ value: "0", label: "tidak" }, ...["5", "15", "30", "60", "120"].map((v) => ({ value: v, label: v + " menit" }))]} />
         </SettingRow>
-        <SettingRow title="Notifikasi saat run gagal" last desc="Kirim notifikasi ketika plan diblok atau execute gagal.">
+        <SettingRow title="Notifikasi saat run gagal" last desc="Kirim notifikasi ketika run execute gagal.">
           <Switch checked={s.notifyFail} onChange={sw("notifyFail", "Notifikasi gagal")} />
         </SettingRow>
       </Card>

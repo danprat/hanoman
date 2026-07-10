@@ -61,7 +61,7 @@ export const zStepModel = z.object({ model: z.string(), effort: z.string() });
 export const zSetting = z.object({
   steps: z.object({ brainstorm: zStepModel, spec: zStepModel, plan: zStepModel,
     execute: zStepModel, audit: zStepModel }),
-  autoDefault: z.boolean(), blockStale: z.boolean(), requireLinks: z.boolean(),
+  autoDefault: z.boolean(),
   autoScaffold: z.boolean(), maxConcurrent: z.number().int(),
   notifyFail: z.boolean(),
   // Menit menunggu jawaban manusia sebelum `default` milik agen dipakai (SPEC-157). `0` =

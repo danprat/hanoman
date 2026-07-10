@@ -50,9 +50,10 @@ Docs bukan entitas DB. Tabel `DocFile` sudah di-drop (ADR-0011). Docs dibaca **l
 
 ## Settings (per workspace)
 - `steps`: { brainstorm|spec|plan|execute|audit: { model, effort } } (default opus/x-high)
-- `autoDefault`, `blockStale`, `requireLinks`, `autoScaffold`, `maxConcurrent`, `dailyBudget`, `notifyFail`
+- `autoDefault`, `autoScaffold`, `maxConcurrent`, `dailyBudget`, `notifyFail`
 
-## Kunci: docs sebagai gerbang
-Sebelum `Run` boleh masuk fase execute, DocIndex project harus lolos verifikasi (tidak stale, semua doc acuan ter-link). Lihat ADR 0001.
-
-Gate `docs verify` membedakan tiga hasil: bersih → lanjut; docs benar-benar stale → `plan diblok · <violations>`; **tool verify-nya crash → di-retry sekali, lalu `guardrail tool error · <stderr>` dan fail-closed** (tidak disamarkan jadi "docs stale"). Lihat SPEC-010 / ADR-0009.
+## Docs sebagai konvensi, bukan lagi gerbang
+`Run` tidak lagi diverifikasi terhadap DocIndex sebelum masuk fase execute — guardrail Source of
+Truth dicabut (SPEC-160/ADR-0023, supersedes ADR-0001). `internal/docs/**` tetap Source of Truth
+secara konvensi; coverage/DocIndex tetap dihitung dan ditampilkan (di bawah), hanya tidak lagi
+memblokir run.

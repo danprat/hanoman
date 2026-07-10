@@ -22,6 +22,7 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 - [stack](architecture/stack.md) · [data-model](architecture/data-model.md) · [api-contract](architecture/api-contract.md) · [nfr](architecture/nfr.md)
 
 ## adr
+- [0023 — Guardrail Source of Truth dicabut](adr/0023-guardrail-sot-dicabut.md)
 - [0021 — Nomor SPEC diklaim docs, bukan hanya database](adr/0021-nomor-spec-diklaim-docs-bukan-hanya-database.md)
 - [0022 — Agen bertanya, run berstatus `awaiting`](adr/0022-pertanyaan-agen-berstatus-awaiting.md)
 - [0020 — Fase perencanaan QA dipangkas oleh keputusan audit](adr/0020-fase-perencanaan-qa-dipangkas-keputusan-audit.md)
@@ -64,6 +65,8 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 - [spec-149 — audit (run failed tidak bisa di-retry)](operations/spec-149-retry-runs-audit.md)
 - [spec-158 — objective (split terminal)](operations/spec-158-split-terminal-objective.md)
 - [spec-159 — audit (urutan panel run detail menutupi terminal)](operations/spec-159-runs-orders-audit.md)
+- [spec-160 — audit (hilangkan guardrail)](operations/spec-160-hilangkan-guardrail-audit.md)
+- [spec-160 — spec (hilangkan guardrail Source of Truth)](operations/spec-160-hilangkan-guardrail-spec.md)
 
 ## security
 - [security-standard](security/security-standard.md)

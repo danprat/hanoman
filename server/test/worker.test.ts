@@ -24,7 +24,6 @@ function fakeSession(sent: string[] = []): ClaudeSession {
 const fakeDeps: RunDeps = {
   openSession: () => fakeSession(),
   git: { addWorktree: () => "base00", removeWorktree() {}, commitAndPush: () => "head99", switchBase() {} },
-  verify: () => ({ blocked: false }),
 };
 
 describe("worker processor", () => {

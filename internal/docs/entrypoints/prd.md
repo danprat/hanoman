@@ -13,7 +13,7 @@ Lihat `requirements/prd.md` untuk detail terukur. Ini gambaran produk.
 4. **Runs** — monitor live Claude Code: pipeline fase, diff, token/biaya, terminal interaktif, steer/interupsi, git worktree.
 5. **Docs · SoT** — index internal/docs, preview markdown ter-render, edit file.
 6. **Triggers** — otomasi: commit / schedule / manual / interval.
-7. **Settings** — model per step, guardrail SoT, konkuren & anggaran.
+7. **Settings** — model per step, konkuren & anggaran.
 
 ## Di luar scope MVP
 - Kolaborasi realtime multi-user, RBAC granular.

@@ -9,7 +9,7 @@ const STEP = { model: "claude-opus-4-8", effort: "xhigh" };
 // P2025. Mirrors the original prototype seed (commit ca20bf8).
 export const DEFAULT_SETTING: Setting = {
   steps: { brainstorm: STEP, spec: STEP, plan: STEP, execute: STEP, audit: STEP },
-  autoDefault: true, blockStale: true, requireLinks: true, autoScaffold: true,
+  autoDefault: true, autoScaffold: true,
   maxConcurrent: 3, notifyFail: true, askTimeoutMin: 30,
 };
 export async function getSetting(): Promise<Setting> {

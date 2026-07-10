@@ -34,4 +34,12 @@ describe("triggers + settings", () => {
       payload: { ...(got.json() as Record<string, unknown>), maxConcurrent: 5 } });
     expect(put.json().maxConcurrent).toBe(5);
   });
+  it("accepts a settings body without the removed guardrail fields (SPEC-160)", async () => {
+    const got = (await app.inject({ url: "/api/settings" })).json() as Record<string, unknown>;
+    delete got.blockStale; delete got.requireLinks;
+    const put = await app.inject({ method: "PUT", url: "/api/settings", payload: { ...got, notifyFail: false } });
+    expect(put.statusCode).toBe(200);
+    expect(put.json()).not.toHaveProperty("blockStale");
+    expect(put.json()).not.toHaveProperty("requireLinks");
+  });
 });
