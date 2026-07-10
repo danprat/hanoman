@@ -15,7 +15,7 @@ export function addColumn(l: Layout): Layout {
   const cells: (string | null)[] = [];
   for (let r = 0; r < l.rows; r++)
     for (let c = 0; c < cols; c++)
-      cells.push(c < l.cols ? l.cells[r * l.cols + c] : null);
+      cells.push(c < l.cols ? (l.cells[r * l.cols + c] ?? null) : null);
   return { rows: l.rows, cols, cells };
 }
 
