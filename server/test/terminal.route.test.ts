@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import WebSocket from "ws";
-import { mkdtempSync, appendFileSync, existsSync } from "node:fs";
+import { mkdtempSync, appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -195,6 +195,36 @@ describe("terminal routes · sesi backlog", () => {
     await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-905" });
     const spec = await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-905" } });
     expect(spec.stage).toBe("planned");
+  });
+
+  // SPEC-173 · ADR-0029: `Execute done` tak boleh mencapai `done` selama plan spec-nya
+  // masih punya `- [ ]`. Plan ditulis ke worktree sesi (untracked; dibaca dari filesystem).
+  const writePlan = (sessionId: string, body: string) => {
+    const dir = join(repoDir, ".worktrees", sessionId, "docs/superpowers/plans");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, `2026-07-11-x-${sessionId}.md`), body);
+  };
+
+  it("DELETE menahan di executing bila plan spec masih punya - [ ]", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    await makeSpec({ id: "SPEC-910", projectId: "p1", stage: "planned" });
+    await start("SPEC-910");
+    writePlan("spec-910", "- [x] a\n- [ ] b\n");
+    appendFileSync(phaseFilePath(repoDir, "spec-910"), "Execute done\n");
+    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-910" });
+    const spec = await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-910" } });
+    expect(spec.stage).toBe("executing");
+  });
+
+  it("DELETE mencapai done saat semua kotak plan sudah - [x]", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    await makeSpec({ id: "SPEC-911", projectId: "p1", stage: "planned" });
+    await start("SPEC-911");
+    writePlan("spec-911", "- [x] a\n- [x] b\n");
+    appendFileSync(phaseFilePath(repoDir, "spec-911"), "Execute done\n");
+    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-911" });
+    const spec = await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-911" } });
+    expect(spec.stage).toBe("done");
   });
 });
 
