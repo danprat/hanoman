@@ -7,6 +7,13 @@ export type TerminalSession = {
 };
 // SPEC-167 · respons dry-run PATCH /specs/:id saat revert akan menghapus artefak.
 export type RevertPending = { pending: true; stage: string; wouldDelete: string[] };
+// SPEC-171 · review worktree backlog item.
+export type ChangedFile = { path: string; add: number; del: number; status: "A" | "M" | "D"; binary: boolean };
+export type SpecReview = { base: string; files: string[]; changed: ChangedFile[] };
+export type ReviewFile = {
+  path: string; status: "A" | "M" | "D" | null; binary: boolean;
+  truncated: boolean; diff: string | null; content: string | null;
+};
 async function j<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { headers: { "content-type": "application/json" }, ...init });
   if (!res.ok) throw new ApiError(res.status, `${init?.method ?? "GET"} ${url} → ${res.status}`);
@@ -28,6 +35,9 @@ export const api = {
   listBranches: (id: string) => j<{ branches: string[] }>(paths.branches(id)),
   patchSpec: (id: string, b: { branchFrom?: string | null; stage?: string; confirmDelete?: boolean }) =>
     j<Spec | RevertPending>(paths.spec(id), { method: "PATCH", ...body(b) }),
+  // SPEC-171 · all files + file changed dari worktree backlog item.
+  specReview: (id: string) => j<SpecReview>(paths.specReview(id)),
+  specReviewFile: (id: string, path: string) => j<ReviewFile>(paths.specReviewFile(id, path)),
   getSettings: () => j<Setting>(paths.settings),
   putSettings: (b: unknown) => j<Setting>(paths.settings, { method: "PUT", ...body(b) }),
   getDocs: (id: string) => j<{ coverage: number; tree: any[] }>(paths.docs(id)),

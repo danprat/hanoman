@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { buildApp } from "../src/app";
-import { resetDb, makeProject, makeSpec, makeRepoWithBranches, makeTempRepo } from "./factory";
+import { resetDb, makeProject, makeSpec, makeRepoWithBranches, makeTempRepo, makeRepoWithWorktree } from "./factory";
 const app = buildApp();
 const brief = { context: "c", outcome: "o", constraints: "", priority: "sedang" as const };
 let artifactRepo: string;
@@ -18,6 +18,12 @@ beforeAll(async () => {
   });
   await makeProject({ id: "p2", repoDir: artifactRepo });
   await makeSpec({ id: "SPEC-200", projectId: "p2", stage: "done" });
+  // SPEC-171 · project + spec dengan worktree berisi perubahan, dan satu spec tanpa worktree.
+  const wtRepo = makeRepoWithWorktree("SPEC-171",
+    { "keep.txt": "a\n" }, { "keep.txt": "a\nb\n", "new.txt": "baru\n" });
+  await makeProject({ id: "pr", repoDir: wtRepo });
+  await makeSpec({ id: "SPEC-171", projectId: "pr", stage: "executing", branchFrom: null });
+  await makeSpec({ id: "SPEC-172", projectId: "pr", stage: "executing" });
 });
 describe("specs routes", () => {
   it("filters by project", async () => {
@@ -119,5 +125,34 @@ describe("specs routes", () => {
   it("deletes a spec", async () => {
     const res = await app.inject({ method: "DELETE", url: "/api/specs/SPEC-142" });
     expect(res.statusCode).toBe(204);
+  });
+});
+
+// SPEC-171 · review worktree backlog item.
+describe("GET /specs/:id/review", () => {
+  it("mengembalikan base, files, changed", async () => {
+    const res = await app.inject({ url: "/api/specs/SPEC-171/review" });
+    expect(res.statusCode).toBe(200);
+    const b = res.json();
+    expect(b.files).toContain("new.txt");
+    expect(b.changed.map((c: any) => c.path).sort()).toEqual(["keep.txt", "new.txt"]);
+  });
+  it("worktree tak ada → 409", async () => {
+    const res = await app.inject({ url: "/api/specs/SPEC-172/review" });
+    expect(res.statusCode).toBe(409);
+  });
+  it("spec tak ada → 404", async () => {
+    const res = await app.inject({ url: "/api/specs/SPEC-999/review" });
+    expect(res.statusCode).toBe(404);
+  });
+  it("file changed → diff + content", async () => {
+    const res = await app.inject({ url: "/api/specs/SPEC-171/review/keep.txt" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().diff).toContain("+b");
+    expect(res.json().content).toBe("a\nb\n");
+  });
+  it("path di luar daftar → 404", async () => {
+    const res = await app.inject({ url: "/api/specs/SPEC-171/review/does/not/exist.ts" });
+    expect(res.statusCode).toBe(404);
   });
 });

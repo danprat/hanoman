@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify";
+import { existsSync } from "node:fs";
 import { zCreateSpec, zPatchSpec, type Stage } from "@hanoman/shared";
 import { prisma } from "../db";
+import { specReview, reviewFile, worktreeDir } from "../services/spec-review";
 import { nextSpecId } from "../services/id";
 import { listRepoBranches } from "../services/branches";
 import { STAGES } from "../services/stage-machine";
@@ -99,5 +101,31 @@ export default async function (app: FastifyInstance) {
     const { id } = req.params as { id: string };
     await prisma.spec.delete({ where: { id } }).catch(() => { });
     return reply.code(204).send();
+  });
+
+  // SPEC-171 · review worktree backlog item: all files + file changed, diturunkan dari git.
+  // Sumbernya worktree <repoDir>/.worktrees/<specid>; worktree hilang → 409 (bukan daftar
+  // kosong yang menipu). Gerbang path ada di reviewFile (di luar daftar → null → 404).
+  const specWithProject = (id: string) =>
+    prisma.spec.findUnique({ where: { id }, include: { project: true } });
+  app.get("/specs/:id/review", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const spec = await specWithProject(id);
+    if (!spec) return reply.code(404).send({ error: "not found" });
+    if (!spec.project.repoDir) return reply.code(409).send({ error: "project belum punya repoDir" });
+    if (!existsSync(worktreeDir(spec.project.repoDir, id)))
+      return reply.code(409).send({ error: "worktree tidak ada — jalankan/lanjutkan sesi backlog dulu" });
+    return specReview(spec.project.repoDir, id, spec.branchFrom);
+  });
+  app.get("/specs/:id/review/*", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const path = (req.params as Record<string, string>)["*"] ?? "";
+    const spec = await specWithProject(id);
+    if (!spec) return reply.code(404).send({ error: "not found" });
+    if (!spec.project.repoDir) return reply.code(409).send({ error: "project belum punya repoDir" });
+    if (!existsSync(worktreeDir(spec.project.repoDir, id)))
+      return reply.code(409).send({ error: "worktree tidak ada" });
+    const rf = await reviewFile(spec.project.repoDir, id, spec.branchFrom, path);
+    return rf === null ? reply.code(404).send({ error: "not found" }) : rf;
   });
 }
