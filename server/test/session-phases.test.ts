@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { phaseFilePath, readPhases, stageFor, type Phase } from "../src/services/session-phases";
+import {
+  phaseFilePath, readPhases, stageFor, planComplete, stageForRun, type Phase,
+} from "../src/services/session-phases";
 
 let dir = "";
 let file = "";
@@ -76,5 +78,47 @@ describe("stageFor", () => {
   });
   it("tak ada yang cocok → null (jangan sentuh stage)", () => {
     expect(stageFor(P([["Brainstorm", "pending"]]))).toBe(null);
+  });
+});
+
+// SPEC-173 · ADR-0029 — `Execute done` hanya sah bila plan spec-nya terceklist penuh.
+const mkWorktree = (files: Record<string, string>) => {
+  const wt = mkdtempSync(join(tmpdir(), "hanoman-wt-"));
+  if (Object.keys(files).length) mkdirSync(join(wt, "docs/superpowers/plans"), { recursive: true });
+  for (const [name, body] of Object.entries(files))
+    writeFileSync(join(wt, "docs/superpowers/plans", name), body);
+  return wt;
+};
+
+describe("planComplete", () => {
+  it("true bila tak ada dir plan sama sekali", () => {
+    expect(planComplete(mkWorktree({}), "SPEC-173")).toBe(true);
+  });
+  it("true bila tak ada file plan yang cocok spec-id (fast-path qa)", () => {
+    expect(planComplete(mkWorktree({ "2026-07-11-lain-spec-999.md": "- [ ] belum" }), "SPEC-173")).toBe(true);
+  });
+  it("false bila plan spec-nya masih punya - [ ]", () => {
+    expect(planComplete(mkWorktree({ "2026-07-11-x-spec-173.md": "- [x] a\n- [ ] b\n" }), "SPEC-173")).toBe(false);
+  });
+  it("true bila semua kotak plan sudah - [x]", () => {
+    expect(planComplete(mkWorktree({ "2026-07-11-x-spec-173.md": "- [x] a\n- [x] b\n" }), "SPEC-173")).toBe(true);
+  });
+  it("spec-16 tak menyerempet spec-167", () => {
+    expect(planComplete(mkWorktree({ "2026-07-11-x-spec-167.md": "- [ ] belum" }), "SPEC-16")).toBe(true);
+  });
+});
+
+describe("stageForRun", () => {
+  const P = (pairs: [string, string][]): Phase[] =>
+    pairs.map(([name, state]) => ({ name, state })) as Phase[];
+  const mkPlan = (body: string) => mkWorktree({ "2026-07-11-x-spec-173.md": body });
+  it("Execute done + plan belum tuntas → executing, bukan done", () => {
+    expect(stageForRun(P([["Execute", "done"]]), mkPlan("- [x] a\n- [ ] b\n"), "SPEC-173")).toBe("executing");
+  });
+  it("Execute done + plan tuntas → done", () => {
+    expect(stageForRun(P([["Execute", "done"]]), mkPlan("- [x] a\n- [x] b\n"), "SPEC-173")).toBe("done");
+  });
+  it("stage non-done tak terpengaruh gerbang", () => {
+    expect(stageForRun(P([["Plan", "done"]]), mkPlan("- [ ] b\n"), "SPEC-173")).toBe("planned");
   });
 });

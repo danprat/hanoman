@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { prisma } from "../db";
 import { zTerminalSession, type Stage } from "@hanoman/shared";
 import { realGit, startPrompt, continuePrompt, startProjectPrompt, type Flow } from "@hanoman/runner";
-import { phaseFilePath, readPhases, stageFor } from "../services/session-phases";
+import { phaseFilePath, readPhases, stageForRun } from "../services/session-phases";
 import { sessionModel } from "../services/settings";
 import { STAGES } from "../services/stage-machine";
 import {
@@ -17,8 +17,12 @@ import {
 
 // Stage hanya maju (ADR-0008). Agen bisa saja tak pernah menulis berkas fasenya; itu tak
 // boleh menyeret backlog item mundur ke `brainstorming`.
-async function advanceStage(specId: string, repoDir: string, sessionId: string, flow: Flow): Promise<void> {
-  const next = stageFor(readPhases(phaseFilePath(repoDir, sessionId), flow));
+async function advanceStage(
+  specId: string, repoDir: string, sessionId: string, flow: Flow, worktree: string,
+): Promise<void> {
+  // stageForRun (bukan stageFor): `Execute done` tak boleh mencapai `done` selama plan
+  // spec-nya di worktree masih punya `- [ ]` — tahan di `executing` (SPEC-173, ADR-0029).
+  const next = stageForRun(readPhases(phaseFilePath(repoDir, sessionId), flow), worktree, specId);
   if (!next) return;
   const spec = await prisma.spec.findUnique({ where: { id: specId }, select: { stage: true } });
   if (!spec || STAGES.indexOf(next) <= STAGES.indexOf(spec.stage as Stage)) return;
@@ -122,7 +126,7 @@ export default async function (app: FastifyInstance) {
       const project = await prisma.project.findUnique({ where: { id: s.projectId } });
       if (project?.repoDir) {
         // Bacaan terakhir sebelum worktree-nya lenyap: sesudah ini berkas fasenya tak berarti lagi.
-        if (s.specId) await advanceStage(s.specId, project.repoDir, id, s.flow);
+        if (s.specId) await advanceStage(s.specId, project.repoDir, id, s.flow, s.cwd);
         killSession(id);
         realGit.removeWorktree(project.repoDir, s.cwd);
         return reply.code(204).send();

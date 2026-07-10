@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { PIPELINES, type Flow } from "@hanoman/runner";
 import type { Stage } from "@hanoman/shared";
 import { STAGES } from "./stage-machine";
@@ -57,4 +57,32 @@ export function stageFor(phases: Phase[]): Stage | null {
   }
   if (phases[0]?.state === "active") best = Math.max(best, STAGES.indexOf("brainstorming"));
   return best < 0 ? null : STAGES[best]!;
+}
+
+// SPEC-173 · ADR-0029 — plan superpowers milik spec ini, dibaca dari worktree run-nya:
+// `false` hanya jika ada file plan yang cocok segmen spec-id DAN masih memuat task `- [ ]`.
+// Tak ada plan yang cocok (fast-path qa yang melewati Plan, atau worktree tanpa docs) →
+// `true`: tak ada checklist untuk digerbang. Cocokkan sama seperti artifactsToRemove —
+// batas kiri non-alnum, kanan non-digit, jadi "spec-16" tak menyerempet "spec-167".
+export function planComplete(worktree: string, specId: string): boolean {
+  const dir = `${worktree}/docs/superpowers/plans`;
+  const re = new RegExp(`(^|[^a-z0-9])${specId.toLowerCase()}([^0-9]|$)`);
+  let names: string[];
+  try { names = readdirSync(dir); } catch { return true; }
+  for (const n of names) {
+    if (!re.test(n.toLowerCase())) continue;
+    try { if (/^[ \t]*- \[ \]/m.test(readFileSync(`${dir}/${n}`, "utf8"))) return false; }
+    catch { /* file lenyap saat dibaca — abaikan */ }
+  }
+  return true;
+}
+
+// Stage turunan untuk run nyata: `Execute done` hanya sah bila plan spec-nya terceklist
+// penuh. Selama masih ada `- [ ]`, agen berhenti sebelum semua PR selesai — tahan di
+// `executing`, jangan biarkan backlog claim `done`. `stageFor` yang murni tetap dipakai
+// langsung oleh test; gerbang I/O hidup di sini, dipanggil kedua jalur persist stage.
+export function stageForRun(phases: Phase[], worktree: string, specId: string): Stage | null {
+  const s = stageFor(phases);
+  if (s === "done" && !planComplete(worktree, specId)) return "executing";
+  return s;
 }
