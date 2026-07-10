@@ -37,6 +37,24 @@ model Setting {
   data Json
 }
 
+// SPEC-169 · auth. passwordHash = scrypt "<saltHex>:<hashHex>". Tak ada RBAC — semua user setara.
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  sessions     Session[]
+}
+
+// SPEC-169 · sesi opaque revocable. id = sha256(token); token asli hanya ada di cookie httpOnly.
+model Session {
+  id        String   @id
+  userId    String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 // SPEC-164 · VPS yang dikelola hanoman. keyPath menunjuk berkas di mesin server —
 // isi private key TIDAK PERNAH ada di database.
 model Vps {
