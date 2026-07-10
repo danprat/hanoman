@@ -3,7 +3,7 @@
 **Fase:** Brainstorm → Objective (dikunci) · 2026-07-10
 **Jenis:** fitur — sumber `brief`, prioritas **tinggi**
 **Source of Truth:** `internal/docs/**` — dokumen ini subordinat terhadapnya.
-**Turunan:** brainstorm → [`docs/superpowers/specs/2026-07-10-hanoman-split-terminal-spec-158-brainstorm.md`], design → [`docs/superpowers/specs/2026-07-10-hanoman-split-terminal-spec-158-design.md`]. plan → fase Plan (belum ada).
+**Turunan:** brainstorm → [`docs/superpowers/specs/2026-07-10-hanoman-split-terminal-spec-158-brainstorm.md`], design → [`docs/superpowers/specs/2026-07-10-hanoman-split-terminal-spec-158-design.md`], plan → [`docs/superpowers/plans/2026-07-10-hanoman-split-terminal-spec-158.md`].
 
 ## Masalah
 
