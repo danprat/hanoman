@@ -1,12 +1,12 @@
 import { Worker, type Job } from "bullmq";
 import type { Trigger } from "@hanoman/shared";
 import { runOne, SteerQueue, type Ask, type RunDeps, type RunEvent, type RunInput } from "@hanoman/runner";
-import { depsWithGuard } from "./runner/deps";
+import { prodDeps } from "./runner/deps";
 import { bullConnection, publisher, subscriber } from "./redis";
 import { RUNS_QUEUE, runsQueue } from "./queue";
 import { SCHEDULES_QUEUE, reconcile } from "./schedules";
 import { fireTrigger } from "./fire-trigger";
-import { getSetting, maxConcurrent } from "./services/settings";
+import { askTimeoutMs, maxConcurrent } from "./services/settings";
 import { persistEvent, publishEvent } from "./runner/events-io";
 import { checkRunnerCredentials } from "./runner/credentials";
 import { ensureClone } from "./github/clone";
@@ -49,11 +49,8 @@ export async function reconcileRuns(
 // Process one run job: subscribe to its control channel, drive runOne, and
 // persist+publish every event. Persists are chained so read-modify-write events
 // (log/phase/file) can't race; awaited before returning so the final status lands.
-export async function runProcessor(job: Job<RunInput>, deps?: RunDeps): Promise<void> {
-  // Guardrail Source of Truth dijalankan sebagai subprocess di worktree run, jadi switch-nya
-  // harus dibaca di sini — satu-satunya titik yang punya DB — lalu dititipkan ke deps.verify.
-  const setting = await getSetting();
-  const d = deps ?? depsWithGuard(setting);
+export async function runProcessor(job: Job<RunInput>, deps: RunDeps = prodDeps): Promise<void> {
+  const d = deps;
   let input = job.data;
   const id = input.runId;
   // Load the backlog item this run was queued for, fresh from the DB (the job
@@ -111,7 +108,7 @@ export async function runProcessor(job: Job<RunInput>, deps?: RunDeps): Promise<
     publishEvent(pub, id, e);
   };
   try {
-    await runOne(input, d, onEvent, { abortController, steer, answers, askTimeoutMs: (setting.askTimeoutMin ?? 30) * 60_000 });
+    await runOne(input, d, onEvent, { abortController, steer, answers, askTimeoutMs: await askTimeoutMs() });
   } finally {
     await pending;
     await sub.quit();

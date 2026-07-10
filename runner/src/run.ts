@@ -7,7 +7,6 @@ import { SteerQueue } from "./steer-queue";
 
 export interface RunDeps {
   openSession: OpenSession; git: GitOps;
-  verify: (cwd: string) => { blocked: boolean; reason?: string; error?: string };
 }
 
 // ponytail: 5 pertanyaan per fase. Agen bingung bisa bertanya tanpa henti, dan tiap pertanyaan
@@ -154,19 +153,6 @@ export async function runOne(
         if (pruned.has(phase)) { onEvent({ kind: "phase", name: phase, state: "skipped" }); continue; }
         if (abortController.signal.aborted) { onEvent({ kind: "status", status: "stopped" }); return stopped(); }
         onEvent({ kind: "phase", name: phase, state: "active" });
-
-        if (phase === "Execute") {
-          const v = deps.verify(worktree);
-          if (v.error !== undefined || v.blocked) {
-            const why = v.error !== undefined
-              ? `guardrail tool error · ${v.error}`
-              : `plan diblok · ${v.reason ?? "docs stale (Source of Truth)"}`;
-            onEvent({ kind: "log", line: { t: "✗", s: why } });
-            onEvent({ kind: "phase", name: phase, state: "failed" });
-            onEvent({ kind: "status", status: "failed" });
-            return failed();
-          }
-        }
 
         const r = await runPhase({ session, step: input.steps[stepFor(phase)], current,
           prompt: phasePrompt(input.flow, phase, input), onEvent });
