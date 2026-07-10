@@ -37,7 +37,7 @@
 - Produces:
   - Prop baru `TerminalScreen({ backlog?: Spec[] })` (default `[]`, jadi test lama yang tak mengirim prop tetap lolos)
 
-- [ ] **Step 1: Setup — install deps di worktree (sekali)**
+- [x] **Step 1: Setup — install deps di worktree (sekali)**
 
 Run:
 ```bash
@@ -46,7 +46,7 @@ pnpm install
 ```
 Expected: selesai tanpa error; `src/node_modules` terisi. (Kalau sudah pernah, ia no-op cepat.)
 
-- [ ] **Step 2: Tulis test yang gagal — modal membuka & menyaring spec startable**
+- [x] **Step 2: Tulis test yang gagal — modal membuka & menyaring spec startable**
 
 Di `src/test/terminal-screen.test.tsx`, tambahkan mock `startSession` + `ApiError` ke blok mock yang ada, fixture `backlog`, dan sebuah `describe` baru. Ubah blok mock jadi:
 
@@ -139,12 +139,12 @@ describe("TerminalScreen (Ambil backlog)", () => {
 });
 ```
 
-- [ ] **Step 3: Jalankan test — pastikan gagal**
+- [x] **Step 3: Jalankan test — pastikan gagal**
 
-Run: `pnpm --filter ./src exec vitest run src/test/terminal-screen.test.tsx -t "Ambil backlog"`
+Run: `pnpm --filter ./src exec vitest run test/terminal-screen.test.tsx -t "Ambil backlog"`
 Expected: FAIL — tombol `name: "Ambil backlog"` belum ada / prop `backlog` belum dikenal.
 
-- [ ] **Step 4: Implementasi — prop, handler, tombol, modal di `TerminalScreen.tsx`**
+- [x] **Step 4: Implementasi — prop, handler, tombol, modal di `TerminalScreen.tsx`**
 
 Ubah baris import teratas:
 
@@ -263,12 +263,12 @@ function BacklogPicker({ specs, error, onPick, onClose }: {
 }
 ```
 
-- [ ] **Step 5: Jalankan test — pastikan lolos**
+- [x] **Step 5: Jalankan test — pastikan lolos**
 
-Run: `pnpm --filter ./src exec vitest run src/test/terminal-screen.test.tsx -t "Ambil backlog"`
+Run: `pnpm --filter ./src exec vitest run test/terminal-screen.test.tsx -t "Ambil backlog"`
 Expected: PASS (5 test hijau).
 
-- [ ] **Step 6: Wire `backlog` prop dari App.tsx**
+- [x] **Step 6: Wire `backlog` prop dari App.tsx**
 
 Di `src/src/App.tsx` (blok `section === "terminal"`, ~baris 512), tambahkan prop:
 
@@ -278,12 +278,12 @@ Di `src/src/App.tsx` (blok `section === "terminal"`, ~baris 512), tambahkan prop
               titleOf={(id) => backlog.find((s) => s.id === id)?.title} />)}
 ```
 
-- [ ] **Step 7: Typecheck**
+- [x] **Step 7: Typecheck**
 
 Run: `pnpm --filter ./src typecheck`
 Expected: PASS, nol error.
 
-- [ ] **Step 8: Update doc Source of Truth**
+- [x] **Step 8: Update doc Source of Truth**
 
 Di `internal/docs/frontend/frontend-implementation.md`, di bagian `## Terminal`, tambahkan satu paragraf (setelah paragraf pertama tentang grid, sebelum paragraf grup):
 
@@ -295,21 +295,21 @@ Mulai/Lanjutkan di halaman Backlog — lalu menaruh sesinya di sel kosong pertam
 `flow` dipilih otomatis dari `spec.source` (`qa`/`feature`). Nol perubahan server.
 ```
 
-- [ ] **Step 9: Jalankan seluruh suite frontend + typecheck (regression)**
+- [x] **Step 9: Jalankan seluruh suite frontend + typecheck (regression)**
 
 Run:
 ```bash
-pnpm --filter ./src exec vitest run src/test/terminal-screen.test.tsx
+pnpm --filter ./src exec vitest run test/terminal-screen.test.tsx
 pnpm --filter ./src typecheck
 ```
 Expected: semua test file hijau (test lama + 5 baru), typecheck bersih. Test lama tetap lolos karena `backlog` opsional (default `[]`).
 
-- [ ] **Step 10: Verifikasi build produksi frontend**
+- [x] **Step 10: Verifikasi build produksi frontend**
 
 Run: `pnpm --filter ./src build`
 Expected: `tsc && vite build` sukses tanpa error.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add src/src/screens/TerminalScreen.tsx src/src/App.tsx src/test/terminal-screen.test.tsx internal/docs/frontend/frontend-implementation.md
