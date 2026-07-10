@@ -46,7 +46,7 @@
 - Consumes: `listRepoDocs(repoDir)` from `../services/scan`, `STAGES` from `../services/stage-machine`, `prisma` from `../db`, `Stage` from `@hanoman/shared`.
 - Produces: `artifactsToRemove(projectId: string, specId: string, target: Stage, current: Stage): Promise<string[]>` — daftar path repo-relatif (.md) yang harus dihapus saat revert `current`→`target`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `server/test/stage-artifacts.test.ts`:
 
@@ -94,12 +94,12 @@ describe("artifactsToRemove", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run stage-artifacts`
 Expected: FAIL — `Cannot find module '../src/services/stage-artifacts'`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Create `server/src/services/stage-artifacts.ts`:
 
@@ -138,12 +138,12 @@ export async function artifactsToRemove(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run stage-artifacts`
 Expected: PASS (5 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/stage-artifacts.ts server/test/stage-artifacts.test.ts
@@ -163,7 +163,7 @@ git commit -m "feat(server): matcher artefak fase→docs by spec-id (SPEC-167)"
 - Consumes: `artifactsToRemove` (Task 1), `STAGES` from `../services/stage-machine`, `deleteDoc` from `../services/docs`, `Stage` from `@hanoman/shared`.
 - Produces: `PATCH /specs/:id` menerima `{ branchFrom?, stage?, confirmDelete? }`. Respons: `Spec` (eksekusi/branch), atau `200 { pending: true, stage, wouldDelete: string[] }` (dry-run), `422` (maju/sama), `400` (body/stage cacat), `404` (spec tak ada).
 
-- [ ] **Step 1: Extend the DTO**
+- [x] **Step 1: Extend the DTO**
 
 Modify `shared/src/dto.ts`. Ganti import enums (baris ~3) untuk memuat `zStage`:
 
@@ -184,7 +184,7 @@ export const zPatchSpec = z.object({
 });
 ```
 
-- [ ] **Step 2: Write the failing route tests**
+- [x] **Step 2: Write the failing route tests**
 
 Di `server/test/specs.route.test.ts`, ubah `beforeAll` untuk memakai repo ber-artefak dan spec `done`, lalu tambah blok test. Ganti baris 6-13 (`beforeAll`) jadi:
 
@@ -255,12 +255,12 @@ Tambahkan blok test ini di dalam `describe("specs routes", ...)`:
   });
 ```
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run specs.route`
 Expected: FAIL — revert cases return 200-with-branchFrom-only / tak ada guard 422; `pending` undefined.
 
-- [ ] **Step 4: Implement the route**
+- [x] **Step 4: Implement the route**
 
 Di `server/src/routes/specs.ts`, tambah imports (di bawah import yang ada, baris ~5):
 
@@ -304,12 +304,12 @@ Ganti seluruh handler `app.patch("/specs/:id", ...)` (baris 42-55) dengan:
   });
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run specs.route`
 Expected: PASS (semua, termasuk regresi branchFrom lama). Lalu `pnpm typecheck` → PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add shared/src/dto.ts server/src/routes/specs.ts server/test/specs.route.test.ts
@@ -330,7 +330,7 @@ git commit -m "feat(server): PATCH /specs/:id revert stage backward-only + dry-r
 - Consumes: `api.patchSpec` (Task 2 shape), `Stage`/`B_STAGES` lokal.
 - Produces: `revertStage(spec, target, confirmDelete?)` di App; prop `onRevertStage` diteruskan `BacklogScreen`→`SpecDetail`.
 
-- [ ] **Step 1: Update the API client**
+- [x] **Step 1: Update the API client**
 
 Di `src/src/api/client.ts`, tambah tipe (dekat `TerminalSession`, ~baris 6):
 
@@ -345,7 +345,7 @@ Ganti `patchSpec` (baris 27-28):
     j<Spec | RevertPending>(paths.spec(id), { method: "PATCH", ...body(b) }),
 ```
 
-- [ ] **Step 2: Write the failing UI test**
+- [x] **Step 2: Write the failing UI test**
 
 Create `src/test/revert-stage.test.tsx`:
 
@@ -399,12 +399,12 @@ describe("revert stage", () => {
 });
 ```
 
-- [ ] **Step 3: Run test to verify it fails**
+- [x] **Step 3: Run test to verify it fails**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run revert-stage`
 Expected: FAIL — `onRevertStage` prop belum ada, `findByLabelText("Kembalikan stage")` tak ketemu.
 
-- [ ] **Step 4: Implement SpecDetail revert UI**
+- [x] **Step 4: Implement SpecDetail revert UI**
 
 Di `src/src/screens/BacklogScreen.tsx`, ubah `SpecDetail` untuk menerima `onRevertStage` dan render dropdown + dialog. Ganti signature (baris 70-71):
 
@@ -488,7 +488,7 @@ Dan di render `<SpecDetail>` (baris 406-407) tambah prop:
         onEditBranch={onEditBranch} onRevertStage={onRevertStage} />
 ```
 
-- [ ] **Step 5: Wire the App handler**
+- [x] **Step 5: Wire the App handler**
 
 Di `src/src/App.tsx`, tambah handler setelah `editBranch` (setelah baris 395):
 
@@ -513,12 +513,12 @@ Teruskan ke `BacklogScreen` (baris ~470-472, dekat `onEditBranch={editBranch}`):
           onRevertStage={revertStage}
 ```
 
-- [ ] **Step 6: Run tests to verify they pass**
+- [x] **Step 6: Run tests to verify they pass**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run revert-stage`
 Expected: PASS (2 tests). Lalu `pnpm typecheck` → PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/src/api/client.ts src/src/screens/BacklogScreen.tsx src/src/App.tsx src/test/revert-stage.test.tsx
@@ -534,7 +534,7 @@ git commit -m "feat(web): dropdown revert stage + dialog konfirmasi hapus artefa
 - Modify: `internal/docs/architecture/api-contract.md:22-29`
 - Create: `internal/docs/adr/00NN-revert-stage-backward-only.md` (nomor diverifikasi lintas branch)
 
-- [ ] **Step 1: Verify next ADR number across all branches**
+- [x] **Step 1: Verify next ADR number across all branches**
 
 Run:
 ```bash
@@ -544,7 +544,7 @@ for b in $(git for-each-ref --format='%(refname)' refs/heads refs/remotes); do g
 ```
 Expected: tertinggi `0026` → pakai `0027`. Kalau branch lain sudah pakai `0027`, ambil berikutnya.
 
-- [ ] **Step 2: Write the ADR**
+- [x] **Step 2: Write the ADR**
 
 Create `internal/docs/adr/0027-revert-stage-backward-only.md` (sesuaikan nomor):
 
@@ -575,7 +575,7 @@ Execute tak pernah dihapus otomatis.
   `DELETE /projects/:id/docs/*path`. Proyek tanpa dir superpowers → no-op.
 ```
 
-- [ ] **Step 3: Update data-model.md**
+- [x] **Step 3: Update data-model.md**
 
 Di `internal/docs/architecture/data-model.md`, pada blok `## Spec (backlog item)` (baris 15), setelah baris `stage` tambahkan:
 
@@ -586,7 +586,7 @@ Di `internal/docs/architecture/data-model.md`, pada blok `## Spec (backlog item)
   di atas target; kode/commit Execute tak pernah dihapus.
 ```
 
-- [ ] **Step 4: Update api-contract.md**
+- [x] **Step 4: Update api-contract.md**
 
 Di `internal/docs/architecture/api-contract.md`, ganti blok `PATCH /specs/:id` (baris 23-27) jadi:
 
@@ -599,7 +599,7 @@ PATCH /specs/:id          { branchFrom?: string|null, stage?, confirmDelete? }  
 #   set stage. Agen tetap forward-only (ADR-0008/0024, diamandemen ADR-0027).
 ```
 
-- [ ] **Step 5: Verify docs link integrity + typecheck + full suite**
+- [x] **Step 5: Verify docs link integrity + typecheck + full suite**
 
 Run:
 ```bash
@@ -608,7 +608,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm test
 ```
 Expected: typecheck PASS; seluruh suite hijau. (Pastikan ADR baru reachable dari index bila index ADR mendaftar per-berkas — cek `internal/docs/adr/README.md` bila ada; tambah tautan di commit yang sama.)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/docs/adr/0027-revert-stage-backward-only.md internal/docs/architecture/data-model.md internal/docs/architecture/api-contract.md
