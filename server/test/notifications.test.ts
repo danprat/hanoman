@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { prisma } from "../src/db";
 import { resetDb } from "./factory";
 import { zNotification } from "@hanoman/shared";
+import { recordCompletion } from "../src/services/notifications";
 
 describe("Notification model", () => {
   beforeEach(async () => { await resetDb(); });
@@ -18,5 +19,15 @@ describe("Notification model", () => {
     await prisma.notification.create({ data: { specId: "SPEC-2", title: "a", projectId: null } });
     await expect(prisma.notification.create({ data: { specId: "SPEC-2", title: "b", projectId: null } }))
       .rejects.toMatchObject({ code: "P2002" });
+  });
+});
+
+describe("recordCompletion", () => {
+  beforeEach(async () => { await resetDb(); });
+
+  it("idempoten: dua panggilan untuk spec yang sama → satu baris", async () => {
+    await recordCompletion("SPEC-3", "judul", "p1");
+    await recordCompletion("SPEC-3", "judul", "p1");
+    expect(await prisma.notification.count({ where: { specId: "SPEC-3" } })).toBe(1);
   });
 });

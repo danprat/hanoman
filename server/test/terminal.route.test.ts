@@ -258,6 +258,17 @@ describe("terminal routes · sesi backlog", () => {
     const spec = await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-911" } });
     expect(spec.stage).toBe("done");
   });
+
+  it("DELETE yang mencapai done membuat satu notifikasi (SPEC-180)", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    await makeSpec({ id: "SPEC-914", projectId: "p1", stage: "planned", title: "Judul 914" });
+    await start("SPEC-914");
+    writePlan("spec-914", "- [x] a\n");
+    appendFileSync(phaseFilePath(repoDir, "spec-914"), "Execute done\n");
+    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-914" });
+    const notif = await prisma.notification.findUnique({ where: { specId: "SPEC-914" } });
+    expect(notif?.title).toBe("Judul 914");
+  });
 });
 
 // SPEC-166: reverse menyusun Source of Truth dari kode — sesi project-level di worktree-nya.
@@ -384,13 +395,16 @@ describe("GET /specs · stage live dari sesi", () => {
     await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-912" });
   });
 
-  it("write-through mencapai done saat semua kotak plan - [x]", async () => {
+  it("write-through mencapai done saat semua kotak plan - [x] + membuat notifikasi (SPEC-180)", async () => {
     process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
-    await makeSpec({ id: "SPEC-913", projectId: "p1", stage: "planned" });
+    await makeSpec({ id: "SPEC-913", projectId: "p1", stage: "planned", title: "Judul 913" });
     await start("SPEC-913");
     writeLivePlan("spec-913", "- [x] a\n- [x] b\n");
     appendFileSync(phaseFilePath(repoDir, "spec-913"), "Execute done\n");
     expect(await stageOf("SPEC-913")).toBe("done");
+    // SPEC-180 · jalur write-through GET /specs juga mencatat notifikasi saat masuk done.
+    const notif = await prisma.notification.findUnique({ where: { specId: "SPEC-913" } });
+    expect(notif?.title).toBe("Judul 913");
     await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-913" });
   });
 });

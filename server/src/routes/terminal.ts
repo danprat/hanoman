@@ -4,6 +4,7 @@ import { zTerminalSession, type Stage } from "@hanoman/shared";
 import { realGit, startPrompt, continuePrompt, startProjectPrompt, type Flow } from "@hanoman/runner";
 import { phaseFilePath, readPhases, stageForRun } from "../services/session-phases";
 import { sessionModel } from "../services/settings";
+import { recordCompletion } from "../services/notifications";
 import { STAGES } from "../services/stage-machine";
 import {
   createSession, getSession, listSessions, killSession, sessionPhases,
@@ -24,9 +25,11 @@ async function advanceStage(
   // spec-nya di worktree masih punya `- [ ]` — tahan di `executing` (SPEC-173, ADR-0029).
   const next = stageForRun(readPhases(phaseFilePath(repoDir, sessionId), flow), worktree, specId);
   if (!next) return;
-  const spec = await prisma.spec.findUnique({ where: { id: specId }, select: { stage: true } });
+  const spec = await prisma.spec.findUnique({ where: { id: specId }, select: { stage: true, title: true, projectId: true } });
   if (!spec || STAGES.indexOf(next) <= STAGES.indexOf(spec.stage as Stage)) return;
   await prisma.spec.update({ where: { id: specId }, data: { stage: next } });
+  // SPEC-180 · transisi masuk `done` (guard di atas menjamin stage lama < done).
+  if (next === "done") await recordCompletion(specId, spec.title, spec.projectId);
 }
 
 export default async function (app: FastifyInstance) {

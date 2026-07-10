@@ -159,7 +159,7 @@ git commit -m "feat(server): model Notification + migration + tipe shared (SPEC-
 - Consumes: `prisma`, `stageForRun` (sudah ada).
 - Produces: `recordCompletion(specId: string, title: string, projectId: string | null): Promise<void>` — insert notif, abaikan duplikat (P2002).
 
-- [ ] **Step 1: Tulis test yang gagal (idempotensi service)**
+- [x] **Step 1: Tulis test yang gagal (idempotensi service)**
 
 Tambah ke `server/test/notifications.test.ts`:
 
@@ -177,12 +177,12 @@ describe("recordCompletion", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman pnpm --filter ./server exec vitest run notifications.test`
 Expected: FAIL — `recordCompletion` belum ada (module not found).
 
-- [ ] **Step 3: Implementasi service**
+- [x] **Step 3: Implementasi service**
 
 `server/src/services/notifications.ts`:
 
@@ -199,7 +199,7 @@ export async function recordCompletion(specId: string, title: string, projectId:
 }
 ```
 
-- [ ] **Step 4: Pasang di `advanceStage` (terminal.ts)**
+- [x] **Step 4: Pasang di `advanceStage` (terminal.ts)**
 
 Di `server/src/routes/terminal.ts`: import service dan catat saat next `done`. Ganti fungsi `advanceStage`:
 
@@ -221,7 +221,7 @@ async function advanceStage(
 }
 ```
 
-- [ ] **Step 5: Pasang di write-through (specs.ts)**
+- [x] **Step 5: Pasang di write-through (specs.ts)**
 
 Di `server/src/routes/specs.ts`, `GET /specs`: setelah `advanced.push`, catat done. Ubah blok `map` + persist agar notifikasi dibuat untuk entry yang masuk `done`:
 
@@ -250,31 +250,31 @@ Ganti bagian dalam `.map((s) => { ... })` dan blok persist:
     return out;
 ```
 
-- [ ] **Step 6: Tulis test integrasi (done → notif) di terminal.route.test.ts**
+- [x] **Step 6: Tulis test integrasi (done → notif) di terminal.route.test.ts**
 
 Di `server/test/terminal.route.test.ts`, di dalam `describe` SPEC-173, extend kasus "DELETE mencapai done" (baris ~251) — tambahkan assert notif, dan tambah satu test write-through done. Sesudah test "DELETE mencapai done saat semua kotak plan sudah - [x]", tambahkan:
 
 ```ts
   it("DELETE yang mencapai done membuat satu notifikasi", async () => {
     process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
-    await makeSpec({ id: "SPEC-912", projectId: "p1", stage: "planned", title: "Judul 912" });
-    await start("SPEC-912");
-    writePlan("spec-912", "- [x] a\n");
-    appendFileSync(phaseFilePath(repoDir, "spec-912"), "Execute done\n");
-    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-912" });
-    const notif = await prisma.notification.findUnique({ where: { specId: "SPEC-912" } });
-    expect(notif?.title).toBe("Judul 912");
+    await makeSpec({ id: "SPEC-914", projectId: "p1", stage: "planned", title: "Judul 914" });
+    await start("SPEC-914");
+    writePlan("spec-914", "- [x] a\n");
+    appendFileSync(phaseFilePath(repoDir, "spec-914"), "Execute done\n");
+    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-914" });
+    const notif = await prisma.notification.findUnique({ where: { specId: "SPEC-914" } });
+    expect(notif?.title).toBe("Judul 914");
   });
 ```
 
 Pastikan `prisma` sudah di-import di file test (dipakai oleh test SPEC-173 yang ada — `import { prisma } from "../src/db"`).
 
-- [ ] **Step 7: Jalankan, pastikan lulus**
+- [x] **Step 7: Jalankan, pastikan lulus**
 
 Run: `env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman pnpm --filter ./server exec vitest run notifications.test terminal.route`
 Expected: notifications 3 PASS; terminal.route semua PASS termasuk kasus notif baru.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/src/services/notifications.ts server/src/routes/terminal.ts server/src/routes/specs.ts server/test/notifications.test.ts server/test/terminal.route.test.ts
