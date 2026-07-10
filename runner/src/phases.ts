@@ -1,11 +1,5 @@
 import { readFileSync, rmSync } from "node:fs";
 import type { Ask, AskOption, Flow, RunInput, StepModels } from "./types";
-export const PIPELINES: Record<Flow, readonly string[]> = {
-  feature: ["Brainstorm", "Objective", "Spec", "Plan", "Execute"],
-  qa: ["Audit", "Spec", "Plan", "Execute"],
-  scaffold: ["Brainstorm", "Objective", "Doc index"],
-  reverse: ["Scan", "Doc index"],
-};
 
 // Artefak keputusan pasca-Audit (SPEC-145). Ditulis agen di root worktree, dibaca `runOne`,
 // dan dihapus TANPA SYARAT sebelum commit — `git add -A` men-stage berkas ber-titik di root,

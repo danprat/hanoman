@@ -1,4 +1,5 @@
 export * from "./types";
+export * from "./prompt";
 export * from "./phases";
 export * from "./git";
 export * from "./steer-queue";

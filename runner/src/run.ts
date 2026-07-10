@@ -1,6 +1,7 @@
 import { existsSync, rmSync } from "node:fs";
 import type { Ask, OpenSession, RunEvent, RunInput, RunResult, GitOps, CliMessage } from "./types";
-import { PIPELINES, phasePrompt, stepFor, readDecision, readAsk, DECISION_FILE, ASK_FILE, QA_PLANNING } from "./phases";
+import { phasePrompt, stepFor, readDecision, readAsk, DECISION_FILE, ASK_FILE, QA_PLANNING } from "./phases";
+import { PIPELINES } from "./prompt";
 import { DENY, runPhase, type StepState } from "./phase";
 import { takeTurn } from "./turns";
 import { SteerQueue } from "./steer-queue";
