@@ -43,3 +43,30 @@ export const zDocIndexCat = z.object({
   cat: z.string(), files: z.array(z.string()), linked: z.boolean(),
   scored: z.boolean(), root: z.boolean().optional() });
 export const zDocIndex = z.object({ coverage: z.number(), tree: z.array(zDocIndexCat) });
+
+// SPEC-164 · modul VPS. host/user masuk ke argv ssh dan (user) ke string perintah
+// `sudo -n env SSH_USER=…` — regex ini trust boundary, bukan kosmetik.
+const HOST_RE = /^[A-Za-z0-9._-]+$/;
+const USER_RE = /^[a-z_][a-z0-9_-]*$/i;
+export const zCreateVps = z.object({
+  name: z.string().min(1), host: z.string().min(1).regex(HOST_RE),
+  user: z.string().min(1).regex(USER_RE),
+  port: z.number().int().min(1).max(65535).default(22),
+  keyPath: z.string().min(1).optional(),
+});
+// Tanpa default: PATCH {name} tak boleh diam-diam mengembalikan port ke 22.
+export const zPatchVps = z.object({
+  name: z.string().min(1), host: z.string().min(1).regex(HOST_RE),
+  user: z.string().min(1).regex(USER_RE),
+  port: z.number().int().min(1).max(65535),
+  keyPath: z.string().min(1).nullable(), // null = kembali ke key default server
+}).partial();
+export const zVpsCheck = z.object({
+  check: z.string(), status: z.enum(["pass", "fail", "warn"]), detail: z.string() });
+export type VpsCheck = z.infer<typeof zVpsCheck>;
+export type VpsHealth = { uptime: string; disk: string; mem: string; load: string };
+export type VpsView = {
+  id: string; name: string; host: string; port: number; user: string; keyPath: string | null;
+  createdAt: string; lastSeenAt: string | null; health: VpsHealth | null;
+  lastAuditAt: string | null; audit: VpsCheck[] | null; hardened: boolean;
+};

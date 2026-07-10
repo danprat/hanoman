@@ -13,4 +13,9 @@ export const paths = {
   terminalSession: (id: string) => `${API}/terminal/sessions/${id}`,
   terminalPhases: (id: string) => `${API}/terminal/sessions/${id}/phases`,
   terminalWs: (id: string) => `${API}/terminal/sessions/${id}/ws`,
+  vps: `${API}/vps`,
+  vpsOne: (id: string) => `${API}/vps/${id}`,
+  vpsAudit: (id: string) => `${API}/vps/${id}/audit`,
+  vpsHarden: (id: string) => `${API}/vps/${id}/harden`,
+  vpsSession: (id: string) => `${API}/vps/${id}/session`,
 } as const;
