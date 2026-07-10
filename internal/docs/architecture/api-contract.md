@@ -27,7 +27,7 @@ GET  /projects/:id
 PATCH /projects/:id       { name?, desc? }   # 200 view; 400 name kosong; 404 tak ada.
 #   `id` tak pernah berubah (kunci asing spec/run/trigger) — tak ada gate run aktif seperti DELETE.
 POST /projects/:id/scan   # re-scan docs SoT
-GET  /projects/:id/branches  -> { branches: string[] }   # refs/heads repoDir; [] bila tanpa repo. 404 project tak ada.
+GET  /projects/:id/branches  -> { branches: string[], remotes: string[] }   # branches=refs/heads, remotes=refs/remotes/origin (tanpa prefix origin/, tanpa HEAD); [] bila tanpa repo. 404 project tak ada. remotes memasok target rebase/merge (SPEC-175).
 DELETE /projects/:id      # 409 bila ada run queued/running/paused; cascade ke spec/run/trigger.
 #   Worktree on-disk di server/.worktrees/ tidak ikut dibersihkan.
 ```
@@ -50,6 +50,14 @@ GET  /specs/:id/review        # { base, files:string[], changed:{path,add,del,st
 #   files = git ls-files (tracked ∪ untracked-tak-ignored, minus --deleted). 409 bila repoDir/worktree tak ada.
 GET  /specs/:id/review/*path  # { path, status, binary, truncated, diff, content }  isi 1 file (256 KB)
 #   404 bila path di luar (files ∪ changed) — sekaligus gerbang path traversal.
+POST /specs/:id/integrate     { op:"merge"|"rebase", target:"local:<b>"|"origin:<b>" }  (SPEC-175 · ADR-0031)
+#   Rebase/merge branch hasil done spec `hanoman/<id>`. Hanya stage `done` (else 409). Server jalankan git
+#   di worktree isolasi <repoDir>/.worktrees/merge-<id>, TAK menyentuh working tree utama.
+#   merge → target: base tip target, `git merge` branch spec; bersih → target lokal `git branch -f` (409 bila
+#     branch sedang di-checkout), target origin `git push` (409 bila non-fast-forward). rebase → replay branch
+#     spec di atas target, bersih → `git push --force-with-lease` ke hanoman/<id>.
+#   Bersih → 200 { status:"clean", detail }. Conflict → 200 { status:"conflict", sessionId } — sesi claude di
+#     worktree konflik itu menyelesaikannya (dibuka di Terminal). 400 op/target invalid; 409 non-done/source hilang.
 ```
 
 ## Runs

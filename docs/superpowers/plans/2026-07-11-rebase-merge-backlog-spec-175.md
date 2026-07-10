@@ -50,7 +50,7 @@
 - Produces: `listRepoRemoteBranches(repoDir: string|null): string[]` (nama tanpa prefix `origin/`, tanpa `HEAD`, sorted). Branches route response `{ branches: string[]; remotes: string[] }`.
 - Produces (test): `makeRepoWithSpecBranch(specId, opts): { repoDir: string; origin: string }`.
 
-- [ ] **Step 1: Add the test factory helper**
+- [x] **Step 1: Add the test factory helper**
 
 Tambah ke akhir `server/test/factory.ts`:
 
@@ -104,7 +104,7 @@ export function makeRepoWithSpecBranch(
 }
 ```
 
-- [ ] **Step 2: Write the failing test for `listRepoRemoteBranches`**
+- [x] **Step 2: Write the failing test for `listRepoRemoteBranches`**
 
 Tambah ke `server/test/branches.test.ts`:
 
@@ -123,12 +123,12 @@ describe("listRepoRemoteBranches", () => {
 });
 ```
 
-- [ ] **Step 3: Run to verify failure**
+- [x] **Step 3: Run to verify failure**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test branches`
 Expected: FAIL — `listRepoRemoteBranches is not a function`.
 
-- [ ] **Step 4: Implement `listRepoRemoteBranches`**
+- [x] **Step 4: Implement `listRepoRemoteBranches`**
 
 Tambah ke `server/src/services/branches.ts` (di bawah `listRepoBranches`):
 
@@ -148,12 +148,12 @@ export function listRepoRemoteBranches(repoDir: string | null): string[] {
 }
 ```
 
-- [ ] **Step 5: Run to verify pass**
+- [x] **Step 5: Run to verify pass**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test branches`
 Expected: PASS.
 
-- [ ] **Step 6: Add `remotes` to the branches route + failing route test**
+- [x] **Step 6: Add `remotes` to the branches route + failing route test**
 
 Ubah `server/src/routes/projects.ts`:
 
@@ -177,12 +177,12 @@ it("GET /projects/:id/branches returns local branches and origin remotes", async
 
 (Tambah `makeRepoWithSpecBranch` ke import factory di file test itu.)
 
-- [ ] **Step 7: Run route test, verify pass**
+- [x] **Step 7: Run route test, verify pass**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test projects.route`
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/test/factory.ts server/src/services/branches.ts server/src/routes/projects.ts server/test/branches.test.ts server/test/projects.route.test.ts
@@ -206,7 +206,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
   - `integrate(repoDir: string, specId: string, op: "merge"|"rebase", target: string): IntegrateResult` where
     `IntegrateResult = { status:"clean"; detail:string } | { status:"conflict"; worktree:string; op; source:string; target:string; finalize:string } | { status:"error"; code:number; error:string }`.
 
-- [ ] **Step 1: Write failing tests (resolution + merge clean + conflict + guards)**
+- [x] **Step 1: Write failing tests (resolution + merge clean + conflict + guards)**
 
 Create `server/test/integrate.test.ts`:
 
@@ -273,12 +273,12 @@ describe("integrate — merge conflict", () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test integrate`
 Expected: FAIL — cannot import `integrate`.
 
-- [ ] **Step 3: Implement the service**
+- [x] **Step 3: Implement the service**
 
 Create `server/src/services/integrate.ts`:
 
@@ -407,12 +407,12 @@ function finalizeInstruction(op: IntegrateOp, f: Finalize): string {
 }
 ```
 
-- [ ] **Step 4: Run to verify pass**
+- [x] **Step 4: Run to verify pass**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test integrate`
 Expected: PASS (guards, merge clean origin/local, checked-out 409, merge conflict).
 
-- [ ] **Step 5: Add rebase tests**
+- [x] **Step 5: Add rebase tests**
 
 Tambah ke `server/test/integrate.test.ts`:
 
@@ -441,12 +441,12 @@ describe("integrate — rebase", () => {
 });
 ```
 
-- [ ] **Step 6: Run to verify pass** (rebase branch already implemented in Step 3)
+- [x] **Step 6: Run to verify pass** (rebase branch already implemented in Step 3)
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test integrate`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/services/integrate.ts server/test/integrate.test.ts
@@ -468,7 +468,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Consumes: `integrate` (Task 2).
 - Produces: `zIntegrate` (`{ op: "merge"|"rebase"; target: string }`), `paths.specIntegrate(id)`, route `POST /specs/:id/integrate` → `{status:"clean",detail}` | `{status:"conflict",sessionId}` | `reply.code(code).send({error})`.
 
-- [ ] **Step 1: Add the DTO + path**
+- [x] **Step 1: Add the DTO + path**
 
 `shared/src/dto.ts` (setelah `zPatchSpec`):
 
@@ -486,7 +486,7 @@ export const zIntegrate = z.object({
   specIntegrate: (id: string) => `${API}/specs/${id}/integrate`,
 ```
 
-- [ ] **Step 2: Write the failing route tests**
+- [x] **Step 2: Write the failing route tests**
 
 Tambah ke `server/test/specs.route.test.ts` (pakai `buildApp`/`app.inject` sesuai pola file itu; import `makeRepoWithSpecBranch`, `makeProject`, `makeSpec`):
 
@@ -520,12 +520,12 @@ describe("POST /specs/:id/integrate", () => {
 
 (Import `execFileSync` bila belum. Nama project unik per test agar tak bentrok DB.)
 
-- [ ] **Step 3: Run to verify failure**
+- [x] **Step 3: Run to verify failure**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test specs.route`
 Expected: FAIL — 404 (route belum ada).
 
-- [ ] **Step 4: Implement the route (clean + guards)**
+- [x] **Step 4: Implement the route (clean + guards)**
 
 `server/src/routes/specs.ts` — tambah import & route:
 
@@ -551,12 +551,12 @@ import { integrate, sourceBranch } from "../services/integrate";
   });
 ```
 
-- [ ] **Step 5: Run to verify pass**
+- [x] **Step 5: Run to verify pass**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test specs.route`
 Expected: PASS (non-done 409, target 400, merge clean 200).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add shared/src/dto.ts shared/src/api.ts server/src/routes/specs.ts server/test/specs.route.test.ts
@@ -578,7 +578,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Consumes: `integrate` conflict result (Task 2), `createSession`/`getSession` from `../services/pty`, `sessionModel` from `../services/settings`.
 - Produces: route conflict response `{ status:"conflict", sessionId }`; DELETE removes worktree for no-flow sessions whose cwd is under `.worktrees/`.
 
-- [ ] **Step 1: Write the failing conflict route test**
+- [x] **Step 1: Write the failing conflict route test**
 
 Tambah ke `server/test/specs.route.test.ts`. Gunakan fake claude + `killAll()` (lihat `terminal.route.test.ts`):
 
@@ -604,12 +604,12 @@ it("merge konflik → 200 {status:conflict, sessionId}, sesi dibuat", async () =
 });
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test specs.route`
 Expected: FAIL — got 501.
 
-- [ ] **Step 3: Replace the 501 stub with session spawn**
+- [x] **Step 3: Replace the 501 stub with session spawn**
 
 `server/src/routes/specs.ts` — tambah import & ganti cabang conflict:
 
@@ -631,12 +631,12 @@ import { sessionModel } from "../services/settings";
     return { status: "conflict", sessionId: s.id };
 ```
 
-- [ ] **Step 4: Run to verify pass**
+- [x] **Step 4: Run to verify pass**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test specs.route`
 Expected: PASS.
 
-- [ ] **Step 5: Write failing DELETE-cleanup test**
+- [x] **Step 5: Write failing DELETE-cleanup test**
 
 Tambah ke `server/test/terminal.route.test.ts` (repoDir & app sudah disiapkan di file itu). Buat worktree merge secara manual lalu sesi tanpa-flow di sana:
 
@@ -660,12 +660,12 @@ const createSessionAt = (wt: string) =>
   createSessionSvc("p1", wt, { id: "merge-cleanup", specId: "SPEC-1" });
 ```
 
-- [ ] **Step 6: Run to verify failure**
+- [x] **Step 6: Run to verify failure**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test terminal.route`
 Expected: FAIL — worktree masih ada (DELETE tak menghapusnya).
 
-- [ ] **Step 7: Extend the DELETE handler**
+- [x] **Step 7: Extend the DELETE handler**
 
 `server/src/routes/terminal.ts` — ubah blok DELETE agar sesi tanpa-flow yang cwd-nya di `.worktrees/*` juga dibersihkan worktree-nya:
 
@@ -693,12 +693,12 @@ Expected: FAIL — worktree masih ada (DELETE tak menghapusnya).
   });
 ```
 
-- [ ] **Step 8: Run to verify pass**
+- [x] **Step 8: Run to verify pass**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test terminal.route`
 Expected: PASS. Also re-run full server suite: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test` → all green.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add server/src/routes/specs.ts server/src/routes/terminal.ts server/test/specs.route.test.ts server/test/terminal.route.test.ts
@@ -722,7 +722,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
   - `api.listBranches(id): Promise<{ branches: string[]; remotes: string[] }>`
   - `<IntegrateDialog spec onClose onIntegrate />` — `onIntegrate(op:"merge"|"rebase", target:string)`.
 
-- [ ] **Step 1: Extend the client**
+- [x] **Step 1: Extend the client**
 
 `src/src/api/client.ts`:
 
@@ -734,7 +734,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
       paths.specIntegrate(id), { method: "POST", ...body({ op, target }) }),
 ```
 
-- [ ] **Step 2: Write the failing dialog test**
+- [x] **Step 2: Write the failing dialog test**
 
 Create `src/test/integrate-dialog.test.tsx`:
 
@@ -768,12 +768,12 @@ describe("IntegrateDialog", () => {
 });
 ```
 
-- [ ] **Step 3: Run to verify failure**
+- [x] **Step 3: Run to verify failure**
 
 Run: `pnpm --filter ./src test integrate-dialog`
 Expected: FAIL — cannot import `IntegrateDialog`.
 
-- [ ] **Step 4: Implement the dialog**
+- [x] **Step 4: Implement the dialog**
 
 Create `src/src/screens/IntegrateDialog.tsx`:
 
@@ -827,12 +827,12 @@ export function IntegrateDialog({ spec, onClose, onIntegrate }: {
 }
 ```
 
-- [ ] **Step 5: Run to verify pass**
+- [x] **Step 5: Run to verify pass**
 
 Run: `pnpm --filter ./src test integrate-dialog`
 Expected: PASS.
 
-- [ ] **Step 6: Fix the existing backlog test's listBranches mock**
+- [x] **Step 6: Fix the existing backlog test's listBranches mock**
 
 `src/test/backlog-board.test.tsx` — mock `listBranches` sekarang mengembalikan `{ branches: [] }`; tambahkan `remotes: []` agar tipe cocok:
 
@@ -842,7 +842,7 @@ Expected: PASS.
 
 Run: `pnpm --filter ./src test backlog-board` → PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/src/api/client.ts src/src/screens/IntegrateDialog.tsx src/test/integrate-dialog.test.tsx src/test/backlog-board.test.tsx
@@ -865,7 +865,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Consumes: `IntegrateDialog`, `api.integrateSpec` (Task 5).
 - Produces: `BacklogScreen` prop `onIntegrate?: (spec, op, target) => void`; `TerminalScreen` prop `onIntegrate?`; App handler `integrateSpec(spec, op, target)`.
 
-- [ ] **Step 1: Write the failing BacklogScreen test (Integrasi hanya untuk done)**
+- [x] **Step 1: Write the failing BacklogScreen test (Integrasi hanya untuk done)**
 
 Tambah ke `src/test/backlog-board.test.tsx`:
 
@@ -887,12 +887,12 @@ it("SpecDetail spec belum done tak menampilkan Integrasi", () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `pnpm --filter ./src test backlog-board`
 Expected: FAIL — no Integrasi trigger.
 
-- [ ] **Step 3: Wire IntegrateDialog into SpecDetail**
+- [x] **Step 3: Wire IntegrateDialog into SpecDetail**
 
 `src/src/screens/BacklogScreen.tsx`:
 1. Import: `import { IntegrateDialog } from "./IntegrateDialog";`
@@ -917,12 +917,12 @@ Expected: FAIL — no Integrasi trigger.
 
 5. Teruskan `onIntegrate` di pemakaian `<SpecDetail ... onIntegrate={onIntegrate} />` (~line 504).
 
-- [ ] **Step 4: Run to verify pass**
+- [x] **Step 4: Run to verify pass**
 
 Run: `pnpm --filter ./src test backlog-board`
 Expected: PASS.
 
-- [ ] **Step 5: Write the failing TerminalScreen test (merge icon for spec session)**
+- [x] **Step 5: Write the failing TerminalScreen test (merge icon for spec session)**
 
 Tambah ke `src/test/terminal-screen.test.tsx` (ikuti pola mock file itu; lihat cara mengatur sessions). Assert ikon merge muncul untuk sesi ber-specId dan memanggil pembuka dialog:
 
@@ -935,7 +935,7 @@ it("Cell sesi ber-specId punya aksi merge; sesi tanpa spec tidak", async () => {
 
 (Sesuaikan setup dengan pola mock `api.listTerminals` di file test itu; bila menata sesi rumit, cukup uji unit render `Cell` bila diekspor, atau tambahkan assertion pada judul ikon.)
 
-- [ ] **Step 6: Run to verify failure → Implement Terminal Cell action**
+- [x] **Step 6: Run to verify failure → Implement Terminal Cell action**
 
 `src/src/screens/TerminalScreen.tsx`:
 1. Import `IntegrateDialog`, `Spec`.
@@ -953,7 +953,7 @@ it("Cell sesi ber-specId punya aksi merge; sesi tanpa spec tidak", async () => {
 
 dan render `IntegrateDialog` dengan `spec = specOf(session.specId)` saat `integrate` true.
 
-- [ ] **Step 7: Add the App handler + wiring**
+- [x] **Step 7: Add the App handler + wiring**
 
 `src/src/App.tsx`:
 
@@ -980,12 +980,12 @@ Teruskan ke screens:
 - `<BacklogScreen ... onIntegrate={integrateSpec} />`
 - `<TerminalScreen ... onIntegrate={integrateSpec} specOf={(id) => backlog.find((s) => s.id === id)} />`
 
-- [ ] **Step 8: Run UI tests + typecheck**
+- [x] **Step 8: Run UI tests + typecheck**
 
 Run: `pnpm --filter ./src test` and `pnpm --filter ./src exec tsc --noEmit`
 Expected: PASS / no type errors.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/src/screens/BacklogScreen.tsx src/src/screens/TerminalScreen.tsx src/src/App.tsx src/test/backlog-board.test.tsx src/test/terminal-screen.test.tsx
@@ -1004,14 +1004,14 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Create: `internal/docs/adr/ADR-00NN-*.md` (nomor dialokasikan setelah enumerate lintas worktree)
 - Modify: `internal/docs/README.md` (index ADR baru)
 
-- [ ] **Step 1: Allocate the ADR number (avoid collisions)**
+- [x] **Step 1: Allocate the ADR number (avoid collisions)**
 
 Enumerate lintas SEMUA worktree/branch dulu (memory "ADR/SPEC number collisions"):
 
 Run: `ls internal/docs/adr/ && git for-each-ref --format='%(refname)' | while read r; do git ls-tree -r --name-only "$r" -- internal/docs/adr 2>/dev/null; done | grep -oE 'ADR-[0-9]+' | sort -u | tail`
 Pilih nomor > tertinggi yang muncul.
 
-- [ ] **Step 2: Write the ADR**
+- [x] **Step 2: Write the ADR**
 
 Create `internal/docs/adr/ADR-00NN-rebase-merge-backlog.md` — Status: accepted. Keputusan:
 - Server jalankan `git merge`/`git rebase` untuk branch done spec di worktree isolasi; claude hanya untuk conflict.
@@ -1019,13 +1019,13 @@ Create `internal/docs/adr/ADR-00NN-rebase-merge-backlog.md` — Status: accepted
 - Target boleh lokal atau origin (pilihan user). Rebase selalu force-push ke `hanoman/<id>`.
 Konsekuensi + alternatif ditolak (selalu-claude).
 
-- [ ] **Step 3: Update requirements (EARS) + entrypoints + README index**
+- [x] **Step 3: Update requirements (EARS) + entrypoints + README index**
 
 - `internal/docs/requirements/**`: tambah EARS mis. *"When operator triggers rebase/merge on a done backlog item, the system SHALL run it in an isolated worktree and, on conflict, open a claude session to resolve it."* + constraint hanya-done + never-touch-main.
 - `internal/docs/entrypoints/**`: dokumentasikan `POST /specs/:id/integrate {op,target}` (200 clean/conflict, 400/409) dan field `remotes` pada `GET /projects/:id/branches`.
 - `internal/docs/README.md`: daftarkan ADR baru di index bernomor.
 
-- [ ] **Step 4: Real local smoke (WAJIB — CLAUDE.md)**
+- [x] **Step 4: Real local smoke (WAJIB — CLAUDE.md)**
 
 Boot server + curl endpoint nyata terhadap DB throwaway + repo dengan branch `hanoman/*` (memory "Live smoke: dedicated DB", "Worktree butuh install+generate"):
 
@@ -1040,12 +1040,12 @@ curl -s -XPOST localhost:<port>/api/specs/<sid>/integrate -H 'content-type: appl
 ```
 Verifikasi: clean → kerja mendarat di origin/target; conflict → sesi muncul di `GET /api/terminal/sessions`. Kalau ada issue, fix sampai hijau sebelum lanjut.
 
-- [ ] **Step 5: Full test sweep**
+- [x] **Step 5: Full test sweep**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test --no-file-parallelism` dan `pnpm --filter ./src test`
 Expected: semua hijau.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/docs docs/superpowers/plans/2026-07-11-rebase-merge-backlog-spec-175.md
