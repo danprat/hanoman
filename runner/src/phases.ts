@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
-import type { Flow, RunInput, StepModels } from "./types";
+import { readFileSync, rmSync } from "node:fs";
+import type { Ask, AskOption, Flow, RunInput, StepModels } from "./types";
 export const PIPELINES: Record<Flow, readonly string[]> = {
   feature: ["Brainstorm", "Objective", "Spec", "Plan", "Execute"],
   qa: ["Audit", "Spec", "Plan", "Execute"],
@@ -28,6 +28,37 @@ export function readDecision(worktree: string): Decision {
     return typeof j.reason === "string" ? { path: "execute", reason: j.reason } : { path: "execute" };
   } catch { return { path: "spec" }; }
 }
+
+// Pertanyaan agen ke manusia (SPEC-157). Ditulis agen di root worktree, dibaca `runOne` di
+// antara giliran, dan — seperti DECISION_FILE — dihapus TANPA SYARAT sebelum commit.
+export const ASK_FILE = ".hanoman-ask.json";
+
+// Fail-safe by construction, persis seperti `readDecision`: berkas absen, JSON rusak, bukan
+// objek, opsi < 2, atau `default` di luar menu → `null`, dan run berjalan seperti tanpa fitur
+// ini. Berkas yang cacat tidak boleh bisa menyandera run. Tidak pernah melempar.
+//
+// Berkasnya DIKONSUMSI (unlink) sebelum diparse, bukan sesudah: satu tulis = satu pertanyaan,
+// dan ask rusak yang tertinggal akan dibaca ulang di setiap fase berikutnya selamanya.
+export function readAsk(worktree: string): Ask | null {
+  const path = `${worktree}/${ASK_FILE}`;
+  let raw: string;
+  try { raw = readFileSync(path, "utf8"); } catch { return null; }
+  rmSync(path, { force: true });
+  try {
+    const j = JSON.parse(raw) as Record<string, unknown>;
+    if (typeof j?.question !== "string" || !j.question.trim()) return null;
+    if (!Array.isArray(j.options) || j.options.length < 2) return null;
+    const options: AskOption[] = [];
+    for (const o of j.options as Record<string, unknown>[]) {
+      if (typeof o?.value !== "string" || !o.value) return null;
+      if (typeof o?.label !== "string" || !o.label) return null;
+      options.push({ value: o.value, label: o.label, ...(typeof o.detail === "string" ? { detail: o.detail } : {}) });
+    }
+    if (typeof j.default !== "string" || !options.some((o) => o.value === j.default)) return null;
+    return { question: j.question, options, default: j.default };
+  } catch { return null; }
+}
+
 const STEP: Record<string, keyof StepModels> = {
   Brainstorm: "brainstorm", Objective: "brainstorm", Spec: "spec", Plan: "plan",
   Execute: "execute", Audit: "audit", "Doc index": "spec", Scan: "audit",

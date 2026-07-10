@@ -31,6 +31,11 @@ export interface ClaudeSession {
 }
 export type OpenSession = (o: CliOptions) => ClaudeSession;
 
+// Pertanyaan yang diajukan agen ke manusia (SPEC-157). `default` WAJIB salah satu
+// `options[].value`: ia yang diterapkan kalau tak ada yang menjawab sebelum timeout.
+export type AskOption = { value: string; label: string; detail?: string };
+export type Ask = { question: string; options: AskOption[]; default: string };
+
 // `skipped`: run memutuskan untuk tidak menjalankan fase ini (SPEC-145) — berbeda dari
 // `pending` ("belum jalan"). Ia keluar dari penyebut progress dan tidak diulang saat resume.
 export type PhaseState = "pending" | "active" | "done" | "failed" | "skipped";
