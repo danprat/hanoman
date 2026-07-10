@@ -407,7 +407,7 @@ git commit -m "feat(server): rute GET/POST read/DELETE notifications (SPEC-180)"
 **Interfaces:**
 - Produces: `type NotifySound = "off" | "short" | "medium" | "long"`; `playNotifySound(kind: NotifySound): void` — memutar `/sounds/notify-<kind>.wav`, no-op saat `"off"`, di-catch (autoplay bisa diblokir).
 
-- [ ] **Step 1: Skrip pembangkit WAV**
+- [x] **Step 1: Skrip pembangkit WAV**
 
 `scripts/gen-notify-sounds.mjs`:
 
@@ -460,13 +460,13 @@ for (const [name, segs] of Object.entries(TONES)) {
 }
 ```
 
-- [ ] **Step 2: Bangkitkan file**
+- [x] **Step 2: Bangkitkan file**
 
 Run: `node scripts/gen-notify-sounds.mjs`
 Expected: 3 baris `wrote notify-*.wav (... bytes)`; file ada di `src/public/sounds/`.
 Verify: `ls -l src/public/sounds/` menampilkan 3 `.wav` non-kosong.
 
-- [ ] **Step 3: Util pemutar**
+- [x] **Step 3: Util pemutar**
 
 `src/src/notifications/sound.ts`:
 
@@ -483,7 +483,7 @@ export function playNotifySound(kind: NotifySound): void {
 }
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add scripts/gen-notify-sounds.mjs src/public/sounds src/src/notifications/sound.ts
