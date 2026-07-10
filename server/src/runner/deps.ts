@@ -19,3 +19,6 @@ export function resolveCliEntry(startDir: string = process.cwd()): string {
 }
 // Quoted: resolveCliEntry can sit under a path with spaces, and hook commands are shell-run.
 export const guardCommand = () => `node "${resolveCliEntry()}" hook pretooluse`;
+
+// SPEC-164: script vps dibaca dari <root>/server/scripts/vps — jangkar yang sama.
+export const repoRoot = (startDir: string = process.cwd()): string => repoRootFrom(startDir);
