@@ -297,7 +297,7 @@ git commit -m "feat(server): catat notifikasi saat backlog masuk done (SPEC-180)
   - `POST /api/notifications/read` → 204; set `readAt=now()` untuk semua `readAt: null`.
   - `DELETE /api/notifications` → 204; hapus semua.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 `server/test/notifications.route.test.ts`:
 
@@ -339,12 +339,12 @@ describe("notifications routes", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman pnpm --filter ./server exec vitest run notifications.route`
 Expected: FAIL — 404 (rute belum terdaftar).
 
-- [ ] **Step 3: Implementasi rute**
+- [x] **Step 3: Implementasi rute**
 
 `server/src/routes/notifications.ts`:
 
@@ -371,7 +371,7 @@ export default async function (app: FastifyInstance) {
 }
 ```
 
-- [ ] **Step 4: Register di app.ts**
+- [x] **Step 4: Register di app.ts**
 
 Di `server/src/app.ts`: import + register di scope `/api` (setelah `specs`):
 
@@ -383,12 +383,12 @@ import notifications from "./routes/notifications";
     await api.register(notifications);
 ```
 
-- [ ] **Step 5: Jalankan, pastikan lulus**
+- [x] **Step 5: Jalankan, pastikan lulus**
 
 Run: `env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman pnpm --filter ./server exec vitest run notifications.route`
 Expected: 3 PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/routes/notifications.ts server/src/app.ts server/test/notifications.route.test.ts
