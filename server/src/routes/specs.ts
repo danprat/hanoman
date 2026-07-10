@@ -2,6 +2,8 @@ import type { FastifyInstance } from "fastify";
 import { existsSync } from "node:fs";
 import { zCreateSpec, zPatchSpec, zIntegrate, type Stage } from "@hanoman/shared";
 import { integrate, sourceBranch } from "../services/integrate";
+import { createSession } from "../services/pty";
+import { sessionModel } from "../services/settings";
 import { prisma } from "../db";
 import { specReview, reviewFile, worktreeDir, specCommitRange, specReviewRange, reviewFileRange } from "../services/spec-review";
 import { nextSpecId } from "../services/id";
@@ -136,8 +138,20 @@ export default async function (app: FastifyInstance) {
     const r = integrate(spec.project.repoDir, spec.id, parsed.data.op, parsed.data.target);
     if (r.status === "error") return reply.code(r.code).send({ error: r.error });
     if (r.status === "clean") return { status: "clean", detail: r.detail };
-    // conflict → Task 4 spawn sesi; sementara balas 501 supaya test clean/guard hijau lebih dulu.
-    return reply.code(501).send({ error: "conflict handling belum terpasang" });
+    // conflict → sesi claude interaktif di worktree yang tertinggal (never touch main working tree).
+    // Tanpa flow: tak menggerakkan stage; worktree-nya dibersihkan saat sesi ditutup (terminal.ts DELETE).
+    const { model, effort } = await sessionModel();
+    const prompt = [
+      `hanoman · selesaikan konflik ${r.op} branch \`${sourceBranch(spec.id)}\` ${r.op === "merge" ? "ke" : "di atas"} \`${r.target}\`.`,
+      `Kamu berada di worktree yang tertinggal di tengah operasi ${r.op} dengan konflik. Resolve konflik pada file bertanda, jaga kedua sisi perubahan sesuai maksudnya.`,
+      r.finalize,
+      `Backlog item ${spec.id} — ${spec.title}.`,
+    ].join("\n\n");
+    const s = createSession(spec.projectId, r.worktree, {
+      id: `merge-${spec.id.toLowerCase().replace(/[^a-z0-9_-]/g, "_")}`,
+      specId: spec.id, model, effort, prompt,
+    });
+    return { status: "conflict", sessionId: s.id };
   });
 
   // SPEC-171 · review backlog item: all files + file changed, diturunkan dari git.

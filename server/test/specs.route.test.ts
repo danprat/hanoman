@@ -221,4 +221,19 @@ describe("POST /specs/:id/integrate", () => {
     expect(res.json().status).toBe("clean");
     expect(execFileSync("git", ["--git-dir", origin, "show", "main:work.txt"], { encoding: "utf8" })).toBe("work\n");
   });
+  it("merge konflik → 200 {status:conflict, sessionId}, sesi dibuat", async () => {
+    killAll();
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const { repoDir } = makeRepoWithSpecBranch("SPEC-I7", {
+      base: { "f.txt": "base\n" }, work: { "f.txt": "branch\n" }, mainAdvance: { "f.txt": "main\n" },
+    });
+    await makeProject({ id: "pi7", repoDir });
+    await makeSpec({ id: "SPEC-I7", projectId: "pi7", stage: "done" });
+    const res = await app.inject({ method: "POST", url: "/api/specs/SPEC-I7/integrate", payload: { op: "merge", target: "origin:main" } });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().status).toBe("conflict");
+    const sid = res.json().sessionId as string;
+    expect(getSession(sid)).toBeTruthy();
+    killAll();
+  });
 });
