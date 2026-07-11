@@ -39,11 +39,15 @@ model Setting {
   data Json
 }
 
-// SPEC-180 · notifikasi backlog selesai. specId @unique = 1 notif per backlog (idempoten
-// terhadap poll write-through 3s & dua jalur persist stage). readAt null = belum dibaca.
+// SPEC-180/184 · notifikasi. type "done" (backlog selesai) | "decision" (menunggu keputusan
+// manusia). Dedup selesai lewat `key` unik ("done:<specId>"); decision di-dedup di sisi scan
+// (key null; NULL berulang diizinkan Postgres pada kolom unik). sessionId = target redirect.
 model Notification {
   id        String    @id @default(cuid())
-  specId    String    @unique
+  type      String    @default("done")
+  key       String?   @unique
+  specId    String?
+  sessionId String?
   title     String
   projectId String?
   createdAt DateTime  @default(now())
