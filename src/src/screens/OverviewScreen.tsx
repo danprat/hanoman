@@ -71,10 +71,12 @@ function LiveSessionRow({ p, onGoto }: { p: ProjectVM; onGoto: (s: string) => vo
 
 function CoverageRow({ p, onOpen }: { p: ProjectVM; onOpen: (p: ProjectVM) => void }) {
   return (
-    <div onClick={() => onOpen(p)} style={{ display: "grid", gridTemplateColumns: "92px 1fr 78px", alignItems: "center", gap: 12, padding: "9px 4px", cursor: "pointer", borderBottom: "1px solid var(--border-hair)" }}>
+    <div onClick={() => onOpen(p)} style={{ display: "grid", gridTemplateColumns: "92px minmax(0, 1fr) 120px", alignItems: "center", gap: 12, padding: "9px 4px", cursor: "pointer", borderBottom: "1px solid var(--border-hair)" }}>
       <span style={{ fontFamily: "var(--font-mono)", fontSize: 12.5, color: "var(--text-strong)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
       <ProgressBar value={p.coverage} tone={oCovTone(p.docStatus)} size="sm" />
-      <StatusPill status={p.docStatus} size="sm" />
+      {/* kolom 120px muat label terpanjang "Off convention" (~107px); justifySelf:end bikin
+          pill seukuran konten & rata kanan — bukan stretch yang bikin teks tumpah dari pill. */}
+      <StatusPill status={p.docStatus} size="sm" style={{ justifySelf: "end" }} />
     </div>
   );
 }
