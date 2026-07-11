@@ -63,6 +63,15 @@ describe("startPrompt", () => {
       expect(p).toContain("- [x]");
     }
   });
+
+  // SPEC-187 · ADR-0035: lanjut antar-fase tanpa berhenti; berhenti hanya untuk keputusan manusia.
+  it("feature/qa: menyuruh terus lanjut antar-fase, berhenti hanya untuk keputusan manusia", () => {
+    for (const flow of ["feature", "qa"] as const) {
+      const p = startPrompt(flow, spec, "b");
+      expect(p).toContain("tanpa berhenti di batas antar-fase");
+      expect(p).toContain("keputusan manusia");
+    }
+  });
 });
 
 // SPEC-172 · reopen: lanjut di Execute untuk spec yang keburu `done`, tanpa mengulang pipeline.
@@ -105,6 +114,11 @@ describe("continuePrompt", () => {
   it("payload ikut saat ada, tanpa 'undefined' saat tidak", () => {
     expect(continuePrompt("qa", { ...spec, payload: { severity: "major" } }, "b")).toContain("severity");
     expect(continuePrompt("feature", spec, "b")).not.toContain("undefined");
+  });
+
+  // SPEC-187 · ADR-0035: reopen Execute pun lanjut tanpa berhenti antar-checkpoint.
+  it("membawa klausa otonomi (berhenti hanya untuk keputusan manusia)", () => {
+    expect(continuePrompt("feature", spec, branch)).toContain("tanpa berhenti di batas antar-fase");
   });
 });
 
@@ -150,5 +164,10 @@ describe("startProjectPrompt", () => {
   // SPEC-173: klausa plan hanya untuk flow ber-fase Plan+Execute; reverse tak punya.
   it("reverse: tanpa klausa penyelesaian plan (tak ada fase Plan+Execute)", () => {
     expect(startProjectPrompt("reverse", project, "reverse-docs")).not.toContain("Execute BELUM selesai");
+  });
+
+  // SPEC-187 · ADR-0035: reverse dikecualikan — Wawancara memang interaktif, satu tanya per giliran.
+  it("reverse: TIDAK membawa klausa otonomi", () => {
+    expect(startProjectPrompt("reverse", project, "reverse-docs")).not.toContain("tanpa berhenti di batas antar-fase");
   });
 });

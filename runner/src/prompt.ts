@@ -8,6 +8,19 @@ export const PIPELINES: Record<Flow, readonly string[]> = {
   reverse: ["Scan", "Docs teknis", "Wawancara", "Konvensi & index", "Serah terima"],
 };
 
+// SPEC-187 · ADR-0035 — sesi spec-flow menggerakkan dirinya sendiri melewati seluruh fase
+// (ADR-0024): tak ada runner yang menyuntik giliran berikutnya. Skill superpowers punya
+// checkpoint "review/approval"; di sesi tak-berpenunggu itu BUKAN titik berhenti, dan agen
+// yang mematuhinya akan mandek diam menunggu review yang tak akan datang. Berhenti hanya untuk
+// keputusan manusia sejati, yang agen surface sebagai pertanyaan di terminalnya (ADR-0024).
+// Sengaja tak dipakai startProjectPrompt: fase Wawancara reverse memang interaktif.
+const AUTONOMY_CLAUSE =
+  "Jalankan seluruh pipeline sampai tuntas tanpa berhenti di batas antar-fase. Checkpoint "
+  + "\"review\"/\"approval\"/\"need review\" milik skill superpowers BUKAN titik berhenti di sini — "
+  + "lanjut saja ke fase berikutnya. Berhenti HANYA saat butuh keputusan manusia sejati (percabangan "
+  + "yang mengubah bentuk kerja: data model, kontrak API, scope); saat itu tanyakan di terminal ini "
+  + "dan tunggu jawabannya. Selain itu, terus lanjut.";
+
 // Agen yang melapor, server yang menonton: di PTY tak ada batas giliran yang terbaca mesin.
 // Append, bukan tulis-timpa — keadaan penuh selalu ada di berkasnya, jadi tak ada transisi
 // yang bisa terlewat kalau server sedang tidak menonton. Berkasnya di luar worktree, jadi
@@ -57,6 +70,7 @@ export function startPrompt(flow: Flow, spec: SpecBrief, branchTo: string): stri
     `hanoman ${flow}. Ikuti internal/docs sebagai Source of Truth; perbarui docs yang tersentuh `
       + `dan link-nya di index, dalam commit yang sama.`,
     phaseInstruction(PIPELINES[flow]),
+    AUTONOMY_CLAUSE,
     skillInstruction(PIPELINES[flow]),
     `Setelah fase terakhir: commit, lalu \`git push origin HEAD:refs/heads/${branchTo}\`. `
       + `Worktree ini detached HEAD — itu memang disengaja.`,
@@ -79,6 +93,7 @@ export function continuePrompt(flow: Flow, spec: SpecBrief, branchTo: string): s
     `JANGAN mengulang fase awal — spec & plan sudah ada. Lanjut di fase Execute: baca plan `
       + `di docs/superpowers/plans/** untuk backlog item ini, periksa task yang sudah \`[x]\` `
       + `dan selesaikan yang masih \`[ ]\`. Verifikasi nyata sebelum klaim selesai.`,
+    AUTONOMY_CLAUSE,
     skillInstruction(["Execute"]),
     `Setelah selesai: commit, lalu \`git push origin HEAD:refs/heads/${branchTo}\`. Worktree `
       + `ini detached HEAD — itu memang disengaja.`,

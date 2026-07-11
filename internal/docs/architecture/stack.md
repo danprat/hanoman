@@ -50,7 +50,9 @@ untuk rentang review (SPEC-176/ADR-0030). Jenis sesi: **spec-flow** (`feature`/`
 **Fase bukan proses melainkan giliran** di dalam sesi itu: `runner/src/prompt.ts` `PIPELINES` mendefinisikan
 nama fase per flow, dan prompt menyuruh agen `echo "<Fase> done" >> $HANOMAN_PHASE_FILE` selesai tiap fase.
 Server membaca file append-only itu (`services/session-phases.ts`) untuk menurunkan fase aktif → `Stage`.
-Konteks terbawa antar fase karena semuanya satu sesi. Model tidak lagi per fase: sesi lahir dengan
+Konteks terbawa antar fase karena semuanya satu sesi. Prompt membawa **kontrak otonomi** (ADR-0035):
+agen menembus batas antar-fase tanpa berhenti — checkpoint "review" milik skill superpowers bukan
+titik berhenti — dan hanya berhenti untuk bertanya di terminal saat butuh keputusan manusia sejati. Model tidak lagi per fase: sesi lahir dengan
 **satu** `--model`/`--effort` dari Settings (`Setting.model`/`effort`), dan manusia bisa mengetik `/model`
 di dalam terminal untuk menggesernya — model-per-step (ADR-0003) usang bersama runner headless (ADR-0024).
 
