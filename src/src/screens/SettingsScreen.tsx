@@ -19,10 +19,15 @@ const S_EFFORT = [
   { value: "xhigh", label: "x-high" }, { value: "high", label: "high" },
   { value: "medium", label: "medium" }, { value: "low", label: "low" },
 ];
-// SPEC-180 · durasi nada notifikasi backlog selesai. "off" = senyap (toast+daftar tetap jalan).
+// SPEC-180 · nada notifikasi backlog selesai (durasi bervariasi). "off" = senyap (toast+daftar tetap jalan).
 const S_SOUNDS = [
-  { value: "short", label: "Short" }, { value: "medium", label: "Medium" },
-  { value: "long", label: "Long" }, { value: "off", label: "Senyap" },
+  { value: "blip", label: "Blip · 0.1s" }, { value: "pop", label: "Pop · 0.1s" },
+  { value: "short", label: "Short · 0.15s" }, { value: "ping", label: "Ping · 0.2s" },
+  { value: "coin", label: "Coin · 0.3s" }, { value: "alert", label: "Alert · 0.3s" },
+  { value: "medium", label: "Medium · 0.4s" }, { value: "chime", label: "Chime · 0.4s" },
+  { value: "success", label: "Success · 0.4s" }, { value: "bell", label: "Bell · 0.5s" },
+  { value: "marimba", label: "Marimba · 0.6s" }, { value: "long", label: "Long · 0.8s" },
+  { value: "fanfare", label: "Fanfare · 0.9s" }, { value: "off", label: "Senyap" },
 ];
 const S_DEFAULTS: Setting = {
   model: "claude-opus-4-8", effort: "xhigh",
@@ -221,7 +226,7 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
         </SettingRow>
         <SettingRow title="Sound notifikasi" desc="Durasi nada saat backlog selesai.">
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Select size="sm" value={s.notifySound} options={S_SOUNDS} style={{ width: 130 }}
+            <Select size="sm" value={s.notifySound} options={S_SOUNDS} style={{ width: 160 }}
               onChange={(e) => save({ notifySound: e.target.value as NotifySound }, "Sound → " + e.target.value)} />
             <Button size="sm" variant="ghost" leftIcon="volume-2" disabled={s.notifySound === "off"}
               onClick={() => playNotifySound(s.notifySound as NotifySound)}>Preview</Button>

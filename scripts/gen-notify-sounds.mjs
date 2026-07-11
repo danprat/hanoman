@@ -1,4 +1,4 @@
-// SPEC-180 · membangkitkan 3 nada notifikasi (short/medium/long) sebagai WAV PCM 16-bit mono.
+// SPEC-180 · membangkitkan nada notifikasi (13 variasi) sebagai WAV PCM 16-bit mono.
 // Deterministik, in-repo — memenuhi pilihan "file audio bundled" tanpa mengunduh aset.
 // Jalankan sekali: `node scripts/gen-notify-sounds.mjs`. Aman diulang (menimpa).
 import { writeFileSync, mkdirSync } from "node:fs";
@@ -35,6 +35,17 @@ const TONES = {
   "notify-short":  [{ freq: 880, dur: 0.15 }],
   "notify-medium": [{ freq: 660, dur: 0.18 }, { freq: 988, dur: 0.20 }],
   "notify-long":   [{ freq: 523.25, dur: 0.26 }, { freq: 659.25, dur: 0.26 }, { freq: 783.99, dur: 0.32 }],
+  // 10 variasi tambahan, durasi ~0.1s → 0.9s.
+  "notify-blip":    [{ freq: 1046.5, dur: 0.08 }],
+  "notify-pop":     [{ freq: 440, dur: 0.09 }],
+  "notify-ping":    [{ freq: 783.99, dur: 0.08 }, { freq: 1046.5, dur: 0.10 }],
+  "notify-coin":    [{ freq: 987.77, dur: 0.07 }, { freq: 1318.51, dur: 0.18 }],
+  "notify-alert":   [{ freq: 880, dur: 0.09 }, { freq: 659.25, dur: 0.08 }, { freq: 880, dur: 0.13 }],
+  "notify-chime":   [{ freq: 1318.51, dur: 0.13 }, { freq: 1046.5, dur: 0.13 }, { freq: 880, dur: 0.16 }],
+  "notify-success": [{ freq: 523.25, dur: 0.11 }, { freq: 659.25, dur: 0.11 }, { freq: 783.99, dur: 0.11 }, { freq: 1046.5, dur: 0.11 }],
+  "notify-bell":    [{ freq: 987.77, dur: 0.22 }, { freq: 1318.51, dur: 0.30 }],
+  "notify-marimba": [{ freq: 587.33, dur: 0.20 }, { freq: 739.99, dur: 0.20 }, { freq: 880, dur: 0.20 }],
+  "notify-fanfare": [{ freq: 523.25, dur: 0.20 }, { freq: 783.99, dur: 0.20 }, { freq: 1046.5, dur: 0.20 }, { freq: 1318.51, dur: 0.30 }],
 };
 const dir = resolve(dirname(fileURLToPath(import.meta.url)), "../src/public/sounds");
 mkdirSync(dir, { recursive: true });

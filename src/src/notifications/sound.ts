@@ -1,5 +1,6 @@
 // SPEC-180 · nada notifikasi backlog selesai. Aset di src/public/sounds (Vite serve di root).
-export type NotifySound = "off" | "short" | "medium" | "long";
+export type NotifySound = "off" | "short" | "medium" | "long"
+  | "blip" | "pop" | "ping" | "coin" | "alert" | "chime" | "success" | "bell" | "marimba" | "fanfare";
 
 export function playNotifySound(kind: NotifySound): void {
   if (kind === "off") return;
