@@ -373,7 +373,7 @@ Expected: PASS semua (test lama + dua test SPEC-186).
 Run: `cd src && npx tsc --noEmit` dan `cd shared && npx tsc --noEmit` dan `cd server && npx tsc --noEmit`
 Expected: 0 error. (Bila ada literal `Spec` lain yang kini kurang `baseSha`, tambahkan `baseSha: null`.)
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/src/api/client.ts src/src/screens/BacklogScreen.tsx src/src/App.tsx src/test/backlog-board.test.tsx
