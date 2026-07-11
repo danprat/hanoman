@@ -24,6 +24,7 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 ## adr
 - [0031 — Rebase & merge branch done spec dari dashboard](adr/0031-rebase-merge-backlog.md)
 - [0030 — `Spec` menyimpan baseSha/headSha; review done men-diff darinya](adr/0030-spec-menyimpan-base-head-sha.md)
+- [0030 — Notifikasi saat backlog selesai dikerjakan](adr/0030-notifikasi-backlog-selesai.md)
 - [0029 — `Execute done` hanya sah bila plan terceklist penuh](adr/0029-execute-done-butuh-plan-terceklist.md)
 - [0028 — Auth: sesi opaque revocable di DB, bind 127.0.0.1 + reverse proxy TLS](adr/0028-auth-sesi-opaque-di-db.md)
 - [0027 — Stage boleh mundur atas perintah human eksplisit](adr/0027-revert-stage-backward-only.md)

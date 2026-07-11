@@ -7,6 +7,7 @@ import { dirname, resolve } from "node:path";
 import health from "./routes/health";
 import projects from "./routes/projects";
 import specs from "./routes/specs";
+import notifications from "./routes/notifications";
 import settings from "./routes/settings";
 import docs from "./routes/docs";
 import fs from "./routes/fs";
@@ -60,6 +61,7 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
     await api.register(health);
     await api.register(projects);
     await api.register(specs);
+    await api.register(notifications);
     await api.register(settings);
     await api.register(docs);
     await api.register(fs);

@@ -256,3 +256,25 @@ spiralnya saat runtime dan tak pernah menyimpannya sebagai string; berkas `.svg`
 tangan. Tak ada `favicon.ico`: Safari 26+ sudah mendukung favicon SVG, dan bila suatu saat browser
 lawas perlu didukung, `.ico` cukup dijatuhkan ke `src/public/` **tanpa perubahan markup** — browser
 me-request `/favicon.ico` dari root dengan sendirinya.
+
+## Notifikasi backlog selesai (SPEC-180)
+Awareness saat backlog mencapai `done`: toast, daftar (lonceng), dan sound. Semua sisi klien
+bersandar pada notifikasi yang **dibuat server-side** (`GET /notifications`) — lihat
+[ADR-0030](../adr/0030-notifikasi-backlog-selesai.md).
+
+- **`NotificationsProvider`** (`src/src/notifications/NotificationsContext.tsx`) membungkus tree
+  ter-autentikasi di `App`. Ia memoll `GET /notifications` tiap 10s (independen dari sesi aktif,
+  jadi lonceng tetap segar setelah sesi ditutup — jalur `advanceStage` menghentikan poll 3s board).
+  Baseline = `createdAt` terbesar saat mount (mount pertama **tidak** men-toast riwayat lama);
+  notifikasi lebih baru → `showToast` + `playNotifySound`, digerbang setting `notifyDone`/`notifySound`.
+  Helper murni `newSince`/`maxAt` diuji terpisah.
+- **`NotificationBell`** (`.../NotificationBell.tsx`) dirender di topbar `Shell` (konsumsi context,
+  nol prop-threading ke ~9 call-site `<Shell>`; nilai context default aman untuk test tanpa provider):
+  tombol lonceng + badge unread (`--clay-500`), dropdown daftar (`SPEC-x · judul`, "selesai · Xm lalu",
+  dot unread). Membuka dropdown = `POST /notifications/read` (unread → 0). Tombol "Bersihkan" =
+  `DELETE /notifications`.
+- **Sound**: 3 WAV bundled di `src/public/sounds/notify-{short,medium,long}.wav`, dibangkitkan
+  `scripts/gen-notify-sounds.mjs` (deterministik, in-repo). `playNotifySound(kind)`
+  (`.../sound.ts`) = `new Audio(...)` di-catch (autoplay bisa diblokir sebelum gestur user).
+- **Setting** di layar Settings → section "Sesi & notifikasi": toggle **Notifikasi backlog selesai**
+  (`notifyDone`), select **Sound** (`notifySound`: Short/Medium/Long/Senyap) + tombol **Preview**.

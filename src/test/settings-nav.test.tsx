@@ -9,8 +9,9 @@ vi.mock("../src/api/client", () => ({
 }));
 
 beforeEach(() => {
-  (api.getSettings as any).mockResolvedValue({ model: "claude-opus-4-8", effort: "xhigh", autoDefault: true, autoScaffold: true, notifyFail: true });
+  (api.getSettings as any).mockResolvedValue({ model: "claude-opus-4-8", effort: "xhigh", autoDefault: true, autoScaffold: true, notifyFail: true, notifyDone: true, notifySound: "short" });
   (api.listUsers as any).mockResolvedValue([{ id: "u1", email: "a@b.c", createdAt: new Date().toISOString() }]);
+  (api.putSettings as any).mockResolvedValue({});
 });
 
 const me = { id: "u1", email: "a@b.c" } as any;
@@ -28,5 +29,15 @@ describe("SettingsScreen sidebar", () => {
     fireEvent.click(screen.getByText("Umum"));
     expect(await screen.findByText("Full-auto sebagai default")).toBeInTheDocument();
     expect(screen.getByText("Reset ke default")).toBeInTheDocument();
+  });
+
+  it("tab Sesi mem-PUT notifyDone saat toggle (SPEC-180)", async () => {
+    render(<SettingsScreen me={me} onLoggedOut={() => {}} onToast={() => {}} />);
+    fireEvent.click(screen.getByText("Sesi"));
+    expect(await screen.findByText("Notifikasi backlog selesai")).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("switch")[0]!); // toggle pertama = notifyDone
+    await waitFor(() => expect(api.putSettings).toHaveBeenCalled());
+    const arg = (api.putSettings as any).mock.calls.at(-1)[0];
+    expect(arg).toHaveProperty("notifyDone", false);
   });
 });

@@ -39,6 +39,17 @@ model Setting {
   data Json
 }
 
+// SPEC-180 · notifikasi backlog selesai. specId @unique = 1 notif per backlog (idempoten
+// terhadap poll write-through 3s & dua jalur persist stage). readAt null = belum dibaca.
+model Notification {
+  id        String    @id @default(cuid())
+  specId    String    @unique
+  title     String
+  projectId String?
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+}
+
 // SPEC-169 · auth. passwordHash = scrypt "<saltHex>:<hashHex>". Tak ada RBAC — semua user setara.
 model User {
   id           String    @id @default(cuid())

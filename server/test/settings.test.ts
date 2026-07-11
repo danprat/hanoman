@@ -40,6 +40,11 @@ describe("settings", () => {
     expect(await getSetting()).toEqual(DEFAULT_SETTING);
   });
 
+  it("default memuat notifyDone + notifySound (SPEC-180)", () => {
+    expect(DEFAULT_SETTING.notifyDone).toBe(true);
+    expect(DEFAULT_SETTING.notifySound).toBe("short");
+  });
+
   it("baris yang sudah bentuk baru dikembalikan apa adanya", async () => {
     await prisma.setting.create({ data: { id: 1, data: {
       model: "claude-sonnet-5", effort: "low", autoDefault: false, autoScaffold: false, notifyFail: false } } });

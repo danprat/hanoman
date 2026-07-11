@@ -8,6 +8,7 @@ vi.mock("../src/api/client", () => ({
       session: { status: "running", phase: "Execute", flow: "feature" }, activity: "x", commit: "y" }]),
     listSpecs: vi.fn(async () => []), listTerminals: vi.fn(async () => []),
     getSettings: vi.fn(async () => ({})), startSession: vi.fn(), deleteSpec: vi.fn(), createSpec: vi.fn(),
+    listNotifications: vi.fn(async () => ({ items: [], unread: 0 })), // SPEC-180 · provider poll
   },
   ApiError: class extends Error {},
 }));

@@ -5,6 +5,7 @@ import { Card, Switch, Select, Button, Input, Field, Icon, StateBlock } from "..
 import { api, ApiError } from "../api/client";
 import type { Setting, UserView } from "@hanoman/shared";
 import type { ShowToast } from "../ds";
+import { playNotifySound, type NotifySound } from "../notifications/sound";
 
 // Valid Claude model ids, diteruskan apa adanya ke `claude --model`. Keep in
 // sync with the server default in services/settings.ts.
@@ -18,9 +19,15 @@ const S_EFFORT = [
   { value: "xhigh", label: "x-high" }, { value: "high", label: "high" },
   { value: "medium", label: "medium" }, { value: "low", label: "low" },
 ];
+// SPEC-180 · durasi nada notifikasi backlog selesai. "off" = senyap (toast+daftar tetap jalan).
+const S_SOUNDS = [
+  { value: "short", label: "Short" }, { value: "medium", label: "Medium" },
+  { value: "long", label: "Long" }, { value: "off", label: "Senyap" },
+];
 const S_DEFAULTS: Setting = {
   model: "claude-opus-4-8", effort: "xhigh",
   autoDefault: true, autoScaffold: true, notifyFail: true,
+  notifyDone: true, notifySound: "short",
 };
 
 function SettingRow({ title, desc, children, last }: { title: string; desc?: string; children?: React.ReactNode; last?: boolean }) {
@@ -201,7 +208,19 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
       </Card>
     );
     return ( // sesi
-      <Card eyebrow="sesi" title="Sesi">
+      <Card eyebrow="sesi" title="Sesi & notifikasi">
+        <SettingRow title="Notifikasi backlog selesai"
+          desc="Toast + sound saat sebuah backlog mencapai stage done. Daftar lonceng tetap terisi meski dimatikan.">
+          <Switch checked={s.notifyDone} onChange={sw("notifyDone", "Notifikasi backlog selesai")} />
+        </SettingRow>
+        <SettingRow title="Sound notifikasi" desc="Durasi nada saat backlog selesai.">
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Select size="sm" value={s.notifySound} options={S_SOUNDS} style={{ width: 130 }}
+              onChange={(e) => save({ notifySound: e.target.value as NotifySound }, "Sound → " + e.target.value)} />
+            <Button size="sm" variant="ghost" leftIcon="volume-2" disabled={s.notifySound === "off"}
+              onClick={() => playNotifySound(s.notifySound as NotifySound)}>Preview</Button>
+          </div>
+        </SettingRow>
         <SettingRow title="Notifikasi saat sesi gagal" last desc="Kirim notifikasi ketika sesi Claude Code berakhir dengan error.">
           <Switch checked={s.notifyFail} onChange={sw("notifyFail", "Notifikasi gagal")} />
         </SettingRow>

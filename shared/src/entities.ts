@@ -35,8 +35,18 @@ export const zSetting = z.object({
   autoDefault: z.boolean(),
   autoScaffold: z.boolean(),
   notifyFail: z.boolean(),
+  notifyDone: z.boolean().default(true),                                   // SPEC-180
+  notifySound: z.enum(["off", "short", "medium", "long"]).default("short"), // SPEC-180
 });
 export type Setting = z.infer<typeof zSetting>;
+
+// SPEC-180 · notifikasi backlog selesai. Tanggal = string ISO (JSON). readAt null = unread.
+export const zNotification = z.object({
+  id: z.string(), specId: z.string(), title: z.string(),
+  projectId: z.string().nullable(),
+  createdAt: z.string(), readAt: z.string().nullable(),
+});
+export type Notification = z.infer<typeof zNotification>;
 
 export const zDocFile = z.object({
   projectId: z.string(), path: z.string(), category: z.string(),
