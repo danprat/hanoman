@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { zProject, zSpec, zStage, zCreateSpec, zPatchSpec, zProjectView } from "../src/index";
+import { zProject, zSpec, zStage, zCreateSpec, zPatchSpec, zProjectView, zNotification, zSetting } from "../src/index";
 
 describe("schemas", () => {
   it("parses a valid project", () => {
@@ -50,5 +50,21 @@ describe("schemas", () => {
       coverage: 94, createdAt: new Date().toISOString(), stack: "Go", backlog: 6, topStage: "execute",
       session: { status: "running", phase: "Execute", flow: "feature" }, activity: "x", commit: "y" });
     expect(v.backlog).toBe(6);
+  });
+  // SPEC-184 · notifikasi human decision
+  it("zNotification decision: specId null, sessionId terisi, type decision", () => {
+    const r = zNotification.safeParse({ id: "1", type: "decision", specId: null, sessionId: "s1",
+      title: "x", projectId: "p1", createdAt: "2026-07-11T00:00:00.000Z", readAt: null });
+    expect(r.success).toBe(true);
+  });
+  it("zNotification: type default done bila tak diberikan", () => {
+    const r = zNotification.parse({ id: "1", specId: "SPEC-1", sessionId: null,
+      title: "x", projectId: null, createdAt: "2026-07-11T00:00:00.000Z", readAt: null });
+    expect(r.type).toBe("done");
+  });
+  it("zSetting mengisi default notifyDecision + notifyDecisionSound", () => {
+    const s = zSetting.parse({ autoDefault: true, autoScaffold: true, notifyFail: true });
+    expect(s.notifyDecision).toBe(true);
+    expect(s.notifyDecisionSound).toBe("alert");
   });
 });

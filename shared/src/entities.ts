@@ -26,6 +26,10 @@ export const zSpec = z.object({
 });
 export type Spec = z.infer<typeof zSpec>;
 
+// SPEC-180/184 · nada notifikasi (aset .wav di src/public/sounds). "off" = senyap.
+const NOTIFY_SOUNDS = ["off", "short", "medium", "long",
+  "blip", "pop", "ping", "coin", "alert", "chime", "success", "bell", "marimba", "fanfare"] as const;
+
 // SPEC-162 · satu model per sesi interaktif, dipakai sebagai argv saat sesi lahir. Manusia
 // tetap bebas mengetik `/model` di dalam terminal. `steps` (model per fase), `maxConcurrent`,
 // dan `askTimeoutMin` hilang bersama runner headless.
@@ -36,14 +40,20 @@ export const zSetting = z.object({
   autoScaffold: z.boolean(),
   notifyFail: z.boolean(),
   notifyDone: z.boolean().default(true),                                   // SPEC-180
-  notifySound: z.enum(["off", "short", "medium", "long",                    // SPEC-180
-    "blip", "pop", "ping", "coin", "alert", "chime", "success", "bell", "marimba", "fanfare"]).default("short"),
+  notifySound: z.enum(NOTIFY_SOUNDS).default("short"),                     // SPEC-180
+  notifyDecision: z.boolean().default(true),                              // SPEC-184
+  notifyDecisionSound: z.enum(NOTIFY_SOUNDS).default("alert"),            // SPEC-184
 });
 export type Setting = z.infer<typeof zSetting>;
 
-// SPEC-180 · notifikasi backlog selesai. Tanggal = string ISO (JSON). readAt null = unread.
+// SPEC-180/184 · notifikasi. type done|decision; specId null untuk sesi reverse; sessionId
+// = target redirect terminal. Tanggal = string ISO (JSON). readAt null = unread.
 export const zNotification = z.object({
-  id: z.string(), specId: z.string(), title: z.string(),
+  id: z.string(),
+  type: z.enum(["done", "decision"]).default("done"),
+  specId: z.string().nullable(),
+  sessionId: z.string().nullable(),
+  title: z.string(),
   projectId: z.string().nullable(),
   createdAt: z.string(), readAt: z.string().nullable(),
 });
