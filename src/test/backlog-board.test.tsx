@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 
 vi.mock("../src/api/client", () => ({
-  api: { listBranches: vi.fn(async () => ({ branches: [] })) },
+  api: { listBranches: vi.fn(async () => ({ branches: [], remotes: [] })) },
   ApiError: class extends Error {},
 }));
 import { BacklogScreen, specColumn, canDrop } from "../src/screens/BacklogScreen";
@@ -71,6 +71,24 @@ describe("tombol Review (SPEC-171)", () => {
     fireEvent.click(screen.getByText("Review"));
     expect(onOpenReview).toHaveBeenCalledOnce();
     expect(onOpenReview.mock.calls[0]![0].id).toBe("SPEC-1");
+  });
+});
+
+describe("Integrasi rebase/merge (SPEC-175)", () => {
+  it("SpecDetail spec done menampilkan aksi Rebase / Merge", async () => {
+    render(<BacklogScreen backlog={[spec({ id: "SPEC-9", stage: "done", title: "done spec" })]}
+      projects={[{ id: "p", name: "p" }] as never}
+      projectFilter="all" onProjectFilter={() => {}} onStart={() => {}} onIntegrate={() => {}} />);
+    fireEvent.click(screen.getByText("done spec"));            // buka detail
+    fireEvent.click(await screen.findByRole("button", { name: /rebase \/ merge/i }));
+    expect(await screen.findByLabelText("Target")).toBeTruthy();
+  });
+  it("SpecDetail spec belum done tak menampilkan Rebase / Merge", () => {
+    render(<BacklogScreen backlog={[spec({ id: "SPEC-8", stage: "planned", title: "wip spec" })]}
+      projects={[{ id: "p", name: "p" }] as never}
+      projectFilter="all" onProjectFilter={() => {}} onStart={() => {}} onIntegrate={() => {}} />);
+    fireEvent.click(screen.getByText("wip spec"));
+    expect(screen.queryByRole("button", { name: /rebase \/ merge/i })).toBeNull();
   });
 });
 

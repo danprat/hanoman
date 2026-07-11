@@ -76,6 +76,54 @@ export function makeRepoWithSpecCommits(
   return dir;
 }
 
+// Repo dengan bare origin + branch main (base) + branch hanoman/<id> berisi kerja spec, keduanya
+// di-push ke origin (refs/remotes/origin/* terisi). Persis keadaan sebuah done spec: kerja ada di
+// origin/hanoman/<id>. Opsi:
+//   base        = file di commit base main (default { "file.txt": "base\n" })
+//   work        = perubahan di branch hanoman/<id>, satu commit (default { "work.txt": "work\n" })
+//   mainAdvance = commit tambahan di main SETELAH bercabang; file yang sama dgn `work` → konflik,
+//                 file lain → maju bersih (default: tak ada)
+//   localBranches = branch lokal tambahan dari tip main saat itu, TAK di-checkout (uji merge→lokal)
+export function makeRepoWithSpecBranch(
+  specId: string,
+  opts: {
+    base?: Record<string, string>;
+    work?: Record<string, string | null>;
+    mainAdvance?: Record<string, string | null>;
+    localBranches?: string[];
+  } = {},
+): { repoDir: string; origin: string } {
+  const base = opts.base ?? { "file.txt": "base\n" };
+  const work = opts.work ?? { "work.txt": "work\n" };
+  const origin = mkdtempSync(join(tmpdir(), "hanoman-origin-"));
+  const repoDir = mkdtempSync(join(tmpdir(), "hanoman-src-"));
+  const g = (cwd: string, ...a: string[]) => {
+    const r = spawnSync("git", a, { cwd, encoding: "utf8" });
+    if (r.status !== 0) throw new Error(`git ${a.join(" ")}: ${r.stderr}`);
+    return r.stdout;
+  };
+  const apply = (dir: string, changes: Record<string, string | null>) => {
+    for (const [rel, content] of Object.entries(changes)) {
+      const abs = join(dir, rel);
+      if (content === null) { rmSync(abs, { force: true }); continue; }
+      mkdirSync(dirname(abs), { recursive: true }); writeFileSync(abs, content);
+    }
+  };
+  g(origin, "init", "-q", "--bare", "-b", "main");
+  g(repoDir, "init", "-q", "-b", "main");
+  g(repoDir, "config", "user.email", "t@t"); g(repoDir, "config", "user.name", "t");
+  g(repoDir, "remote", "add", "origin", origin);
+  apply(repoDir, base); g(repoDir, "add", "-A"); g(repoDir, "commit", "-qm", "base");
+  const branch = `hanoman/${specId.toLowerCase().replace(/[^a-z0-9_-]/g, "_")}`;
+  g(repoDir, "checkout", "-q", "-b", branch);
+  apply(repoDir, work); g(repoDir, "add", "-A"); g(repoDir, "commit", "-qm", `feat(${specId}): work`);
+  g(repoDir, "checkout", "-q", "main");
+  if (opts.mainAdvance) { apply(repoDir, opts.mainAdvance); g(repoDir, "add", "-A"); g(repoDir, "commit", "-qm", "main advance"); }
+  for (const b of opts.localBranches ?? []) g(repoDir, "branch", b);
+  g(repoDir, "push", "-q", "origin", "main", branch); // memperbarui refs/remotes/origin/*
+  return { repoDir, origin };
+}
+
 // Truncate every table in FK-safe order (mirrors the deleted seed()).
 export async function resetDb(): Promise<void> {
   await prisma.$transaction([

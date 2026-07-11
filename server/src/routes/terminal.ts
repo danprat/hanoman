@@ -120,13 +120,14 @@ export default async function (app: FastifyInstance) {
     const s = getSession(id);
     if (!s) return reply.code(404).send({ error: "not found" });
 
-    // Sesi ber-flow apa pun hidup di worktree-nya sendiri — spec-bound maupun project-level
-    // (reverse, SPEC-166). Hanya yang ber-spec menggerakkan stage.
-    if (s.flow) {
+    // Sesi ber-flow (run/reverse) DAN sesi integrasi (SPEC-175, tanpa flow) sama-sama hidup di
+    // worktree-nya sendiri di `.worktrees/*` — keduanya harus dibersihkan. Hanya yang ber-spec-flow
+    // menggerakkan stage. Terminal biasa (cwd = repoDir) tak tersentuh.
+    if (s.flow || s.cwd.includes("/.worktrees/")) {
       const project = await prisma.project.findUnique({ where: { id: s.projectId } });
       if (project?.repoDir) {
         // Bacaan terakhir sebelum worktree-nya lenyap: sesudah ini berkas fasenya tak berarti lagi.
-        if (s.specId) await advanceStage(s.specId, project.repoDir, id, s.flow, s.cwd);
+        if (s.flow && s.specId) await advanceStage(s.specId, project.repoDir, id, s.flow, s.cwd);
         killSession(id);
         realGit.removeWorktree(project.repoDir, s.cwd);
         return reply.code(204).send();

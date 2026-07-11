@@ -7,6 +7,7 @@ import {
 } from "../ds";
 import { api } from "../api/client";
 import { SpecDocsModal } from "./SpecDocsModal";
+import { IntegrateDialog } from "./IntegrateDialog";
 import { branchOptions } from "./branch";
 import type { Spec } from "./types";
 import type { ProjectVM } from "./types";
@@ -72,16 +73,18 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, onStart }:
+function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, onStart, onIntegrate }:
   {
     spec: Spec | null; onClose: () => void; onEditBranch?: (s: Spec, b: string | null) => void;
     onRevertStage?: (s: Spec, target: string, confirmDelete?: boolean) => Promise<any>;
     onOpenReview?: (s: Spec) => void;
-    onStart?: (s: Spec) => void
+    onStart?: (s: Spec) => void;
+    onIntegrate?: (s: Spec, op: "merge" | "rebase", target: string) => void
   }) {
   // Hook HARUS mendahului early-return `if (!spec)` — rules-of-hooks.
   const [branches, setBranches] = React.useState<string[]>([]);
   const [confirm, setConfirm] = React.useState<{ target: string; files: string[] } | null>(null);
+  const [showIntegrate, setShowIntegrate] = React.useState(false);
   const projectId = spec?.projectId;
   React.useEffect(() => {
     if (!projectId) { setBranches([]); return; }
@@ -134,6 +137,15 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
             </Button>
           </div>
         )}
+        {/* SPEC-175 · rebase/merge branch hasil done spec ke target pilihan (lokal/origin). */}
+        {spec.stage === "done" && onIntegrate && (
+          <div style={{ marginTop: 12 }}>
+            <div className="hn-eyebrow" style={{ marginBottom: 4 }}>Integrasi</div>
+            <Button size="sm" variant="secondary" leftIcon="git-merge" onClick={() => setShowIntegrate(true)}>
+              Rebase / Merge
+            </Button>
+          </div>
+        )}
         {onRevertStage && earlier.length > 0 && (
           <div style={{ marginTop: 12 }}>
             <div className="hn-eyebrow" style={{ marginBottom: 4 }}>Kembalikan stage</div>
@@ -170,6 +182,10 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
             <Button size="sm" variant="primary" leftIcon="trash-2" onClick={confirmRevert}>Hapus & kembalikan</Button>
           </div>
         </Modal>
+      )}
+      {showIntegrate && onIntegrate && (
+        <IntegrateDialog spec={spec} onClose={() => setShowIntegrate(false)}
+          onIntegrate={(op, target) => { setShowIntegrate(false); onIntegrate(spec, op, target); }} />
       )}
     </Modal>
   );
@@ -429,13 +445,14 @@ const VIEWS = [
   { value: "board", label: "Board", icon: "kanban" },
 ];
 
-export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onOpenReview, onNew, onEditBranch, onRevertStage, projectFilter, onProjectFilter }:
+export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onOpenReview, onNew, onEditBranch, onRevertStage, onIntegrate, projectFilter, onProjectFilter }:
   {
     backlog: Spec[]; projects: ProjectVM[]; pageSize?: number;
     onStart?: (s: Spec) => void; activeSpecs?: Set<string>;
     onDelete?: (s: Spec) => void; onOpenRun?: (s: Spec) => void; onOpenReview?: (s: Spec) => void; onNew?: () => void;
     onEditBranch?: (s: Spec, b: string | null) => void;
     onRevertStage?: (s: Spec, target: string, confirmDelete?: boolean) => Promise<any>;
+    onIntegrate?: (s: Spec, op: "merge" | "rebase", target: string) => void;
     projectFilter: string; onProjectFilter: (id: string) => void
   }) {
   const [tab, setTab] = React.useState("all");
@@ -502,7 +519,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
         </>
       )}
       <SpecDetail spec={backlog.find((s) => s.id === detailId) || null} onClose={() => setDetailId(null)}
-        onEditBranch={onEditBranch} onRevertStage={onRevertStage} onOpenReview={onOpenReview} onStart={onStart} />
+        onEditBranch={onEditBranch} onRevertStage={onRevertStage} onOpenReview={onOpenReview} onStart={onStart} onIntegrate={onIntegrate} />
     </div>
   );
 }

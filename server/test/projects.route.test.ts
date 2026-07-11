@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { buildApp } from "../src/app";
 import { prisma } from "../src/db";
-import { resetDb, makeProject, makeSpec, makeTempRepo, makeRepoWithBranches } from "./factory";
+import { resetDb, makeProject, makeSpec, makeTempRepo, makeRepoWithBranches, makeRepoWithSpecBranch } from "./factory";
 import { createSession, killAll } from "../src/services/pty";
 import { fileURLToPath } from "node:url";
 
@@ -98,6 +98,13 @@ describe("projects routes", () => {
     const res = await app.inject({ url: "/api/projects/pb/branches" });
     expect(res.statusCode).toBe(200);
     expect(res.json().branches).toContain("main");
+  });
+  it("GET /projects/:id/branches returns local branches and origin remotes (SPEC-175)", async () => {
+    const { repoDir } = makeRepoWithSpecBranch("SPEC-1");
+    await makeProject({ id: "pbr", repoDir });
+    const res = await app.inject({ url: "/api/projects/pbr/branches" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ branches: ["hanoman/spec-1", "main"], remotes: ["hanoman/spec-1", "main"] });
   });
   it("GET /projects/:id/branches: no repoDir → []", async () => {
     await makeProject({ id: "pn", repoDir: null });

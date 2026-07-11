@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import type { AddressInfo } from "node:net";
 import { buildApp } from "../src/app";
 import { prisma } from "../src/db";
-import { killAll, killSession, listSessions } from "../src/services/pty";
+import { killAll, killSession, listSessions, createSession as createSessionSvc } from "../src/services/pty";
 import { phaseFilePath } from "../src/services/session-phases";
 import { resetDb, makeProject, makeSpec } from "./factory";
 
@@ -392,5 +392,20 @@ describe("GET /specs · stage live dari sesi", () => {
     appendFileSync(phaseFilePath(repoDir, "spec-913"), "Execute done\n");
     expect(await stageOf("SPEC-913")).toBe("done");
     await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-913" });
+  });
+});
+
+// SPEC-175: sesi integrasi (resolve konflik merge/rebase) hidup di .worktrees/* tanpa flow —
+// DELETE harus tetap membersihkan worktree-nya.
+describe("terminal DELETE — integrate session cleanup (SPEC-175)", () => {
+  it("DELETE sesi tanpa-flow di .worktrees/* menghapus worktree-nya", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+    const wt = join(repoDir, ".worktrees", "merge-cleanup");
+    execFileSync("git", ["worktree", "add", "--detach", "-q", wt, "main"], { cwd: repoDir });
+    const s = createSessionSvc("p1", wt, { id: "merge-cleanup", specId: "SPEC-1" });
+    expect(existsSync(wt)).toBe(true);
+    const res = await app.inject({ method: "DELETE", url: `/api/terminal/sessions/${s.id}` });
+    expect(res.statusCode).toBe(204);
+    expect(existsSync(wt)).toBe(false);
   });
 });
