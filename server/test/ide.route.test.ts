@@ -3,13 +3,25 @@ import { buildApp } from "../src/app";
 import { resetDb, makeProject, makeRepoWithBranches } from "./factory";
 import { createSession, killAll } from "../src/services/pty";
 import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
+import { writeFileSync } from "node:fs";
 
 const FAKE_CLAUDE = fileURLToPath(new URL("./fixtures/fake-claude.sh", import.meta.url));
 const app = buildApp({ requireAuth: false });
 
+// Repo dgn dev MAJU 1 commit di depan main → merge dev bisa fast-forward (uji ff opsional).
+function ffRepo(): string {
+  const dir = makeRepoWithBranches("dev");
+  const g = (...a: string[]) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });
+  g("checkout", "-q", "dev"); writeFileSync(`${dir}/x.txt`, "d"); g("add", "-A"); g("commit", "-qm", "dev ahead");
+  g("checkout", "-q", "main");
+  return dir;
+}
+
 beforeAll(async () => {
   await resetDb();
   await makeProject({ id: "ide", repoDir: makeRepoWithBranches("dev") });
+  await makeProject({ id: "ffrepo", repoDir: ffRepo() });
   await makeProject({ id: "nodir", repoDir: null });
 });
 
@@ -59,5 +71,12 @@ describe("ide routes", () => {
   it("POST /git: project tanpa repoDir → 400", async () => {
     const r = await app.inject({ method: "POST", url: "/api/projects/nodir/git", payload: { op: "checkout", ref: "main" } });
     expect(r.statusCode).toBe(400);
+  });
+  it("POST /git merge: ff buruk → 400; --no-ff → 200 merge commit (SPEC-193)", async () => {
+    const bad = await app.inject({ method: "POST", url: "/api/projects/ffrepo/git", payload: { op: "merge", ref: "dev", ff: "bogus" } });
+    expect(bad.statusCode).toBe(400);
+    const r = await app.inject({ method: "POST", url: "/api/projects/ffrepo/git", payload: { op: "merge", ref: "dev", ff: "no-ff" } });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().ok).toBe(true); // merge-commit vs ff dibuktikan di git-ide.test.ts (unit)
   });
 });

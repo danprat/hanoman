@@ -1,6 +1,6 @@
 # Merge optional fast-forward (SPEC-193) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Beri user pilihan perilaku fast-forward saat merge dari Terminal / IDE git graph.
 
@@ -171,9 +171,9 @@ git commit -m "feat(ide): pilihan fast-forward di menu merge git graph (SPEC-193
 
 ---
 
- Verifikasi end-to-end nyata (bukan hanya unit test)
+### Task 3: Verifikasi end-to-end nyata (bukan hanya unit test)
 
-- [ ] **Step 1: Boot server + curl endpoint git dengan opsi ff**
+- [x] **Step 1: Boot server + curl endpoint git dengan opsi ff**
 
 Ikuti pola smoke repo ini (DB throwaway, port bukan 8787). Buat project ber-`repoDir` yang punya branch bisa/ tak-bisa ff, lalu:
 ```bash
@@ -189,7 +189,7 @@ curl -s -XPOST localhost:<port>/projects/<id>/git -H 'content-type: application/
 ```
 Expected: no-ff→200 merge commit; ff-only divergen→409; bogus→400.
 
-- [ ] **Step 2: Jalankan suite server penuh (regresi)**
+- [x] **Step 2: Jalankan suite server penuh (regresi)**
 
 Run: `cd server && env -u NODE_ENV -u DATABASE_URL pnpm test`
 Expected: hijau (tak ada test lama yang patah).
