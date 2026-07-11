@@ -133,6 +133,12 @@ belum tertempat, dan sesi yang belum di grid duduk di **tray**. Satu sesi menemp
 satu sel** (menjaga resize tmux tak berkedip). Dua aksi per sel: **Lepas** (unbind, sesi tetap
 hidup) dan **Tutup/`×`** (kill lewat `DELETE`).
 
+Toolbar juga punya **Ambil backlog** (SPEC-179): tombol yang membuka modal picker berisi
+backlog item yang bisa diambil (`stage !== "done"` dan belum punya sesi hidup). Memilih satu
+memanggil `POST /terminal/sessions {spec, flow}` — endpoint idempoten yang sama dengan tombol
+Mulai/Lanjutkan di halaman Backlog — lalu menaruh sesinya di sel kosong pertama grup aktif.
+`flow` dipilih otomatis dari `spec.source` (`qa`/`feature`). Nol perubahan server.
+
 Grid-grid itu dikelompokkan ke **grup** bernama yang dipindah lewat tabbar (`+` menambah, `✎`
 mengganti nama, `×` menghapus; grup terakhir tak bisa dihapus). Tiap grup memegang `Layout`-nya
 sendiri, dan satu sesi menempati paling banyak satu sel **di satu grup** — tray karena itu global,

@@ -1,5 +1,6 @@
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { Spec } from "@hanoman/shared";
 import { TerminalScreen, PhaseStrip } from "../src/screens/TerminalScreen";
 
 // TerminalPane membuka WebSocket + xterm (butuh canvas). jsdom tak punya keduanya; yang
@@ -10,12 +11,15 @@ vi.mock("../src/screens/TerminalPane", () => ({
 const listTerminals = vi.fn();
 const createTerminal = vi.fn();
 const deleteTerminal = vi.fn();
+const startSession = vi.fn();
 vi.mock("../src/api/client", () => ({
+  ApiError: class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } },
   api: {
     listTerminals: (...a: unknown[]) => listTerminals(...a),
     createTerminal: (...a: unknown[]) => createTerminal(...a),
     deleteTerminal: (...a: unknown[]) => deleteTerminal(...a),
     listBranches: vi.fn(async () => ({ branches: [], remotes: [] })),
+    startSession: (...a: unknown[]) => startSession(...a),
   },
 }));
 
@@ -23,9 +27,19 @@ const projects = [{ id: "p1", name: "hanoman" }];
 const LKEY = "hanoman.terminal.layout";
 const WKEY = "hanoman.terminal.workspace";
 
+const backlog: Spec[] = [
+  { id: "SPEC-100", projectId: "p1", title: "Fitur A", source: "brief", stage: "brainstorming",
+    priority: "tinggi", author: "human", objective: "obj A", payload: null, branchFrom: null },
+  { id: "SPEC-101", projectId: "p1", title: "Bug B", source: "qa", stage: "planned",
+    priority: "sedang", author: "human", objective: "obj B", payload: null, branchFrom: null },
+  { id: "SPEC-102", projectId: "p1", title: "Selesai C", source: "brief", stage: "done",
+    priority: "rendah", author: "human", objective: "obj C", payload: null, branchFrom: null },
+];
+
 beforeEach(() => {
   localStorage.clear();
   listTerminals.mockReset(); createTerminal.mockReset(); deleteTerminal.mockReset();
+  startSession.mockReset();
   deleteTerminal.mockResolvedValue(undefined);
 });
 
@@ -101,6 +115,59 @@ describe("TerminalScreen (grid)", () => {
     await screen.findByTestId("pane");
     fireEvent.click(screen.getByLabelText("Tutup sesi aaaa1111"));
     await waitFor(() => expect(deleteTerminal).toHaveBeenCalledWith("aaaa1111"));
+  });
+});
+
+describe("TerminalScreen (Ambil backlog)", () => {
+  it("membuka modal berisi spec yang bisa diambil — bukan yang done", async () => {
+    listTerminals.mockResolvedValue([]);
+    render(<TerminalScreen projects={projects} backlog={backlog} />);
+    await screen.findByText("Belum ada sesi terminal");
+    fireEvent.click(screen.getByRole("button", { name: "Ambil backlog" }));
+    expect(await screen.findByText("Fitur A")).toBeInTheDocument();
+    expect(screen.getByText("Bug B")).toBeInTheDocument();
+    expect(screen.queryByText("Selesai C")).toBeNull();       // done tak ditawarkan
+  });
+
+  it("spec yang sudah punya sesi hidup tak ditawarkan lagi", async () => {
+    listTerminals.mockResolvedValue([
+      { id: "spec-100", projectId: "p1", specId: "SPEC-100", flow: "feature", cwd: "/repo", exited: false },
+    ]);
+    render(<TerminalScreen projects={projects} backlog={backlog} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Ambil backlog" }));
+    expect(await screen.findByText("Bug B")).toBeInTheDocument();
+    expect(screen.queryByText("Fitur A")).toBeNull();          // sudah aktif
+  });
+
+  it("cari memfilter daftar backlog", async () => {
+    listTerminals.mockResolvedValue([]);
+    render(<TerminalScreen projects={projects} backlog={backlog} />);
+    await screen.findByText("Belum ada sesi terminal");
+    fireEvent.click(screen.getByRole("button", { name: "Ambil backlog" }));
+    fireEvent.change(await screen.findByLabelText("Cari backlog"), { target: { value: "bug" } });
+    expect(screen.getByText("Bug B")).toBeInTheDocument();
+    expect(screen.queryByText("Fitur A")).toBeNull();
+  });
+
+  it("memilih spec memanggil startSession (flow qa) & menaruh sesinya di grid", async () => {
+    listTerminals.mockResolvedValue([]);
+    startSession.mockResolvedValue({ id: "spec101sess" });
+    render(<TerminalScreen projects={projects} backlog={backlog} />);
+    await screen.findByText("Belum ada sesi terminal");
+    fireEvent.click(screen.getByRole("button", { name: "Ambil backlog" }));
+    fireEvent.click(await screen.findByText("Bug B"));         // SPEC-101, source qa
+    await waitFor(() => expect(screen.getByTestId("pane")).toHaveTextContent("spec101sess"));
+    expect(startSession).toHaveBeenCalledWith({ spec: "SPEC-101", flow: "qa" });
+  });
+
+  it("brief memakai flow feature", async () => {
+    listTerminals.mockResolvedValue([]);
+    startSession.mockResolvedValue({ id: "sfeat" });
+    render(<TerminalScreen projects={projects} backlog={backlog} />);
+    await screen.findByText("Belum ada sesi terminal");
+    fireEvent.click(screen.getByRole("button", { name: "Ambil backlog" }));
+    fireEvent.click(await screen.findByText("Fitur A"));       // SPEC-100, source brief
+    await waitFor(() => expect(startSession).toHaveBeenCalledWith({ spec: "SPEC-100", flow: "feature" }));
   });
 });
 
