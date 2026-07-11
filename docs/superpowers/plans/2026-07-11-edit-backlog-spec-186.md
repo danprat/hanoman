@@ -177,7 +177,7 @@ Di `internal/docs/entrypoints/frd.md`, di bawah bagian `## Backlog`, tambahkan s
 - WHILE sebuah backlog item masih di stage awal (`brainstorming`) dan belum pernah dijalankan (belum ada worktree sesi), THE SYSTEM SHALL mengizinkan edit judul, prioritas, dan detail brief/QA-nya; objective diturunkan ulang dari detail. IF item sudah dimulai atau stage-nya maju, THEN THE SYSTEM SHALL menolak edit konten (SPEC-186).
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add shared/src/dto.ts shared/src/entities.ts server/src/routes/specs.ts server/test/specs.route.test.ts internal/docs/entrypoints/frd.md
@@ -199,7 +199,7 @@ git commit -m "feat(spec-186): PATCH edit konten backlog selagi belum dimulai"
 - Produces: `BacklogScreen` prop `onEditSpec?: (s: Spec, patch: { title?: string; priority?: string; payload?: unknown }) => void`.
 - Produces: `api.patchSpec(id, { title?, priority?, payload? , branchFrom?, stage?, confirmDelete? })`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Di `src/test/backlog-board.test.tsx`, ubah helper `spec()` agar menyertakan `baseSha` (tipe `Spec` kini memuatnya):
 
@@ -240,12 +240,12 @@ describe("Edit backlog (SPEC-186)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `cd src && npx vitest run test/backlog-board.test.tsx -t "Edit backlog"`
 Expected: FAIL — tombol Edit tak ada.
 
-- [ ] **Step 3: api client — perluas tipe patchSpec**
+- [x] **Step 3: api client — perluas tipe patchSpec**
 
 Di `src/src/api/client.ts`, ganti signature `patchSpec`:
 
@@ -255,7 +255,7 @@ Di `src/src/api/client.ts`, ganti signature `patchSpec`:
     j<Spec | RevertPending>(paths.spec(id), { method: "PATCH", ...body(b) }),
 ```
 
-- [ ] **Step 4: BacklogScreen — edit mode di SpecDetail + prop baru**
+- [x] **Step 4: BacklogScreen — edit mode di SpecDetail + prop baru**
 
 Di `src/src/screens/BacklogScreen.tsx`:
 
@@ -342,7 +342,7 @@ Catatan: blok "Branch worktree" (Select) tetap di posisinya semula, di luar perc
 
 (f) Teruskan prop dari `BacklogScreen` ke `SpecDetail`. Tambahkan `onEditSpec` ke daftar parameter `BacklogScreen({ ... })` dan tipenya, lalu pada pemanggilan `<SpecDetail ... onIntegrate={onIntegrate} />` jadi `... onIntegrate={onIntegrate} onEditSpec={onEditSpec} />`.
 
-- [ ] **Step 5: App.tsx — handler editSpec + wiring**
+- [x] **Step 5: App.tsx — handler editSpec + wiring**
 
 Di `src/src/App.tsx`, tambahkan handler dekat `editBranch`:
 
@@ -363,12 +363,12 @@ Di `src/src/App.tsx`, tambahkan handler dekat `editBranch`:
 
 Pada elemen `<BacklogScreen ...>`, tambahkan prop `onEditSpec={editSpec}` (di baris yang sama dengan `onEditBranch`/`onRevertStage`/`onIntegrate`).
 
-- [ ] **Step 6: Jalankan test frontend, pastikan hijau**
+- [x] **Step 6: Jalankan test frontend, pastikan hijau**
 
 Run: `cd src && npx vitest run test/backlog-board.test.tsx`
 Expected: PASS semua (test lama + dua test SPEC-186).
 
-- [ ] **Step 7: Typecheck**
+- [x] **Step 7: Typecheck**
 
 Run: `cd src && npx tsc --noEmit` dan `cd shared && npx tsc --noEmit` dan `cd server && npx tsc --noEmit`
 Expected: 0 error. (Bila ada literal `Spec` lain yang kini kurang `baseSha`, tambahkan `baseSha: null`.)

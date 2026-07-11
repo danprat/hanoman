@@ -10,7 +10,7 @@ import type { Spec } from "../src/screens/types";
 
 const spec = (over: Partial<Spec> = {}) =>
   ({ id: "SPEC-1", projectId: "p", title: "t", source: "brief", stage: "brainstorming",
-     priority: "sedang", author: "a", objective: "o", payload: {}, branchFrom: null, ...over }) as Spec;
+     priority: "sedang", author: "a", objective: "o", payload: {}, branchFrom: null, baseSha: null, ...over }) as Spec;
 
 describe("specColumn", () => {
   it("spec tanpa sesi duduk di Backlog", () => {
@@ -91,6 +91,33 @@ describe("Integrasi rebase/merge (SPEC-175)", () => {
       projectFilter="all" onProjectFilter={() => {}} onStart={() => {}} onIntegrate={() => {}} />);
     fireEvent.click(screen.getByText("wip spec"));
     expect(screen.queryByRole("button", { name: /rebase \/ merge/i })).toBeNull();
+  });
+});
+
+describe("Edit backlog (SPEC-186)", () => {
+  const editable = spec({ id: "SPEC-5", title: "judul lama", stage: "brainstorming", baseSha: null,
+    payload: { context: "c", outcome: "o", constraints: "", priority: "sedang" } });
+
+  it("item belum dimulai: klik Edit → ubah judul → Simpan memanggil onEditSpec", async () => {
+    const onEditSpec = vi.fn();
+    render(<BacklogScreen backlog={[editable]} projects={[{ id: "p", name: "p" }] as never}
+      projectFilter="all" onProjectFilter={() => {}} onStart={() => {}} onEditSpec={onEditSpec} />);
+    fireEvent.click(screen.getByText("judul lama"));                 // buka detail
+    fireEvent.click(await screen.findByRole("button", { name: /^edit$/i }));
+    const judul = screen.getByLabelText("Judul") as HTMLInputElement;
+    fireEvent.change(judul, { target: { value: "judul baru" } });
+    fireEvent.click(screen.getByRole("button", { name: /simpan/i }));
+    expect(onEditSpec).toHaveBeenCalledOnce();
+    expect(onEditSpec.mock.calls[0]![0].id).toBe("SPEC-5");
+    expect(onEditSpec.mock.calls[0]![1].title).toBe("judul baru");
+  });
+
+  it("item sudah dimulai (baseSha) tak menampilkan tombol Edit", () => {
+    const started = spec({ id: "SPEC-6", title: "wip", stage: "brainstorming", baseSha: "abc123" });
+    render(<BacklogScreen backlog={[started]} projects={[{ id: "p", name: "p" }] as never}
+      projectFilter="all" onProjectFilter={() => {}} onStart={() => {}} onEditSpec={() => {}} />);
+    fireEvent.click(screen.getByText("wip"));
+    expect(screen.queryByRole("button", { name: /^edit$/i })).toBeNull();
   });
 });
 

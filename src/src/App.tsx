@@ -423,6 +423,19 @@ export default function App() {
     } catch { showToast("Gagal mengubah branch " + spec.id, "err", "x-circle"); }
   }
 
+  // SPEC-186 · edit konten backlog selagi belum dimulai. 409 = keburu dimulai sesi lain.
+  async function editSpec(spec: Spec, patch: { title?: string; priority?: string; payload?: unknown }) {
+    try {
+      const updated = await api.patchSpec(spec.id, patch);
+      if ("pending" in updated) return;
+      setBacklog((b) => b.map((s) => (s.id === updated.id ? updated : s)));
+      showToast(spec.id + " diperbarui", "ok", "check");
+    } catch (e) {
+      const started = e instanceof ApiError && e.status === 409;
+      showToast(started ? spec.id + " sudah dimulai — tak bisa diedit" : "Gagal menyimpan " + spec.id, "warn", "x-circle");
+    }
+  }
+
   // SPEC-167 · revert backward-only. Respons `pending` = dry-run: kembalikan ke pemanggil
   // supaya dialog konfirmasi muncul; hanya panggilan confirmDelete yang mengubah state.
   async function revertStage(spec: Spec, target: string, confirmDelete?: boolean) {
@@ -516,7 +529,7 @@ export default function App() {
         {gate(<BacklogScreen backlog={backlog} projects={projectsView} pageSize={20}
           onStart={startSession} activeSpecs={activeSpecs} onNew={() => setModal("brief")}
           onDelete={deleteSpec} onOpenRun={() => setSection("terminal")} onOpenReview={openReview}
-          onEditBranch={editBranch} onRevertStage={revertStage} onIntegrate={integrateSpec}
+          onEditBranch={editBranch} onRevertStage={revertStage} onIntegrate={integrateSpec} onEditSpec={editSpec}
           projectFilter={projectFilter} onProjectFilter={setProjectFilter} />)}
       </Shell>
     );
