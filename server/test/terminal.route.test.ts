@@ -219,6 +219,10 @@ describe("terminal routes · sesi backlog", () => {
     expect(existsSync(join(repoDir, ".worktrees", "spec-920"))).toBe(true);
     const c = connect("spec-920");
     await c.opened;
+    // Marker MELANJUTKAN ada di puncak continuePrompt; sejak SPEC-184 --settings (hooks decision)
+    // lebih besar dan mendorongnya keluar viewport 80×24 fake-claude. Perbesar viewport agar
+    // riwayat ter-scroll tergambar ulang — asersi perilaku (continuePrompt) tetap sama.
+    c.ws.send(JSON.stringify({ t: "resize", cols: 80, rows: 200 }));
     await waitFor(() => c.data().includes("MELANJUTKAN"));
     expect(c.data()).not.toContain("Kerjakan fase berurutan"); // pipeline penuh tak dipakai
     c.ws.close();
