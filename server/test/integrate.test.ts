@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { integrate } from "../src/services/integrate";
 import { makeRepoWithSpecBranch } from "./factory";
 
@@ -37,8 +38,16 @@ describe("integrate — merge clean", () => {
     expect(r.status).toBe("clean");
     expect(showRepo(repoDir, "staging", "work.txt")).toBe("work\n");
   });
-  it("→ lokal branch yang sedang di-checkout (main) → 409 gagal-aman", () => {
+  it("→ lokal checked-out (main), tree bersih: fast-forward, main maju ke commit merge", () => {
     const { repoDir } = makeRepoWithSpecBranch("SPEC-1");
+    const r = integrate(repoDir, "SPEC-1", "merge", "local:main");
+    expect(r.status).toBe("clean");
+    expect(showRepo(repoDir, "main", "work.txt")).toBe("work\n");
+  });
+  it("→ lokal checked-out, working tree kotor bertabrakan → 409", () => {
+    const { repoDir } = makeRepoWithSpecBranch("SPEC-1");
+    // merge akan menambah work.txt; file untracked bernama sama memblokir fast-forward.
+    writeFileSync(join(repoDir, "work.txt"), "uncommitted\n");
     expect(integrate(repoDir, "SPEC-1", "merge", "local:main")).toMatchObject({ status: "error", code: 409 });
   });
 });
@@ -55,6 +64,17 @@ describe("integrate — merge conflict", () => {
     if (r.status === "conflict") {
       expect(existsSync(r.worktree)).toBe(true);
       expect(r.finalize).toContain("git push origin HEAD:refs/heads/main");
+    }
+  });
+  it("konflik → lokal checked-out: finalize pakai merge --ff-only, bukan branch -f", () => {
+    const { repoDir } = makeRepoWithSpecBranch("SPEC-1", {
+      base: { "f.txt": "base\n" }, work: { "f.txt": "branch\n" }, mainAdvance: { "f.txt": "main\n" },
+    });
+    const r = integrate(repoDir, "SPEC-1", "merge", "local:main");
+    expect(r.status).toBe("conflict");
+    if (r.status === "conflict") {
+      expect(r.finalize).toContain("merge --ff-only");
+      expect(r.finalize).not.toContain("git branch -f");
     }
   });
 });

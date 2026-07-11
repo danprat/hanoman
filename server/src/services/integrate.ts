@@ -19,6 +19,17 @@ const ok = (cwd: string, args: string[]) => sh(cwd, args).status === 0;
 const out = (cwd: string, args: string[]) => sh(cwd, args).stdout.trim();
 const refExists = (repoDir: string, ref: string) => ok(repoDir, ["rev-parse", "--verify", "-q", `${ref}^{commit}`]);
 
+// Path worktree yang meng-checkout refs/heads/<branch>, atau null bila tak ter-checkout di mana pun.
+// Parsing `git worktree list --porcelain`: blok "worktree <path>" ... "branch refs/heads/<name>".
+function worktreeForBranch(repoDir: string, branch: string): string | null {
+  let path: string | null = null;
+  for (const line of out(repoDir, ["worktree", "list", "--porcelain"]).split("\n")) {
+    if (line.startsWith("worktree ")) path = line.slice("worktree ".length);
+    else if (line === `branch refs/heads/${branch}`) return path;
+  }
+  return null;
+}
+
 // origin/hanoman/<id> lebih dulu (hasil push run), fallback branch lokal. Null = belum ada.
 function resolveSource(repoDir: string, specId: string): string | null {
   const b = sourceBranch(specId);
@@ -46,7 +57,7 @@ function reclaim(repoDir: string, wt: string) {
 }
 
 type Finalize =
-  | { kind: "branch-f"; branch: string }
+  | { kind: "branch-f"; branch: string; checkout: string | null }
   | { kind: "push"; branch: string }
   | { kind: "force-push"; branch: string };
 
@@ -76,7 +87,7 @@ export function integrate(repoDir: string, specId: string, op: IntegrateOp, targ
   const finalize: Finalize = op === "rebase"
     ? { kind: "force-push", branch: sourceBranch(specId) }
     : tgt.dest === "local"
-      ? { kind: "branch-f", branch: tgt.name }
+      ? { kind: "branch-f", branch: tgt.name, checkout: worktreeForBranch(repoDir, tgt.name) }
       : { kind: "push", branch: tgt.name };
 
   if (run.status === 0) {
@@ -94,11 +105,17 @@ export function integrate(repoDir: string, specId: string, op: IntegrateOp, targ
 function runFinalize(wt: string, repoDir: string, f: Finalize):
   { ok: true; detail: string } | { ok: false; error: string } {
   if (f.kind === "branch-f") {
-    // Update refs/heads/<b> ke HEAD worktree. git menolak bila branch sedang di-checkout → gagal aman.
     const head = out(wt, ["rev-parse", "HEAD"]);
-    return ok(repoDir, ["branch", "-f", f.branch, head])
-      ? { ok: true, detail: `lokal ${f.branch} → ${head.slice(0, 7)}` }
-      : { ok: false, error: `branch "${f.branch}" sedang di-checkout — pilih target origin` };
+    // Tak di-checkout: git izinkan branch -f langsung update refs/heads/<b>.
+    if (f.checkout === null)
+      return ok(repoDir, ["branch", "-f", f.branch, head])
+        ? { ok: true, detail: `lokal ${f.branch} → ${head.slice(0, 7)}` }
+        : { ok: false, error: `gagal memperbarui branch "${f.branch}"` };
+    // Di-checkout: fast-forward DI worktree pemiliknya → ref+index+working tree konsisten. Edit
+    // uncommitted yang tak bertabrakan tetap aman (git membatalkan ff bila akan menimpanya).
+    return ok(f.checkout, ["merge", "--ff-only", head])
+      ? { ok: true, detail: `lokal ${f.branch} (ff) → ${head.slice(0, 7)}` }
+      : { ok: false, error: `working tree "${f.branch}" ada perubahan belum tersimpan atau bukan fast-forward — commit/stash lalu ulangi, atau pilih target origin` };
   }
   const args = f.kind === "force-push"
     ? ["push", "--force-with-lease", "origin", `HEAD:refs/heads/${f.branch}`]
@@ -114,7 +131,11 @@ function finalizeInstruction(op: IntegrateOp, f: Finalize): string {
     ? `git push --force-with-lease origin HEAD:refs/heads/${f.branch}`
     : f.kind === "push"
       ? `git push origin HEAD:refs/heads/${f.branch}`
-      : `git branch -f ${f.branch} HEAD`;
+      // branch lokal di-checkout: mendarat lewat fast-forward di worktree pemiliknya.
+      // `$(git rev-parse HEAD)` dievaluasi di worktree merge (commit resolusi), `-C` menuju checkout.
+      : f.checkout !== null
+        ? `git -C ${f.checkout} merge --ff-only $(git rev-parse HEAD)`
+        : `git branch -f ${f.branch} HEAD`;
   return op === "merge"
     ? `Sesudah resolve konflik: \`git add -A && git commit --no-edit\`, lalu \`${push}\`.`
     : `Sesudah resolve tiap konflik: \`git add -A && git rebase --continue\` (ulangi sampai selesai), lalu \`${push}\`.`;

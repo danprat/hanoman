@@ -58,8 +58,9 @@ GET  /specs/:id/review/*path           # { path, status, binary, truncated, diff
 POST /specs/:id/integrate     { op:"merge"|"rebase", target:"local:<b>"|"origin:<b>" }  (SPEC-175 · ADR-0031)
 #   Rebase/merge branch hasil done spec `hanoman/<id>`. Hanya stage `done` (else 409). Server jalankan git
 #   di worktree isolasi <repoDir>/.worktrees/merge-<id>, TAK menyentuh working tree utama.
-#   merge → target: base tip target, `git merge` branch spec; bersih → target lokal `git branch -f` (409 bila
-#     branch sedang di-checkout), target origin `git push` (409 bila non-fast-forward). rebase → replay branch
+#   merge → target: base tip target, `git merge` branch spec; bersih → target lokal: `git branch -f` bila branch
+#     tak di-checkout, else fast-forward `git merge --ff-only` di worktree pemiliknya (409 bila working tree
+#     kotor/bukan-ff — commit/stash lalu ulangi atau pilih origin); target origin `git push` (409 non-ff). rebase → replay branch
 #     spec di atas target, bersih → `git push --force-with-lease` ke hanoman/<id>.
 #   Bersih → 200 { status:"clean", detail }. Conflict → 200 { status:"conflict", sessionId } — sesi claude di
 #     worktree konflik itu menyelesaikannya (dibuka di Terminal). 400 op/target invalid; 409 non-done/source hilang.
