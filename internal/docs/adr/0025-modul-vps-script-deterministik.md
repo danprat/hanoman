@@ -31,5 +31,10 @@ tidak ada lagi queue/Redis untuk pekerjaan terjadwal.
   `ID=opencloudos` eksplisit karena `ID_LIKE`-nya self-referential; diperlakukan
   sebagai RHEL, fail2ban dari repo EPOL — SPEC-183). Distro lain ditolak eksplisit
   (`os_supported` fail).
+- Jail sshd fail2ban ditulis dengan `backend = systemd` (baca journald), bukan
+  backend file default. Di image RHEL/OpenCloudOS journald-only `/var/log/secure`
+  belum ada, sehingga backend default membuat `fail2ban-server` gagal start dan
+  service mati sesudah harden — `backend = systemd` membuatnya aktif andal lintas
+  distro (SPEC-190).
 - Endpoint vps mewarisi postur tanpa-auth + bind 127.0.0.1 (lihat ADR-0016 /
   komentar `routes/terminal.ts`).

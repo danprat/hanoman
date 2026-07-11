@@ -39,4 +39,11 @@ describe("deteksi keluarga OS (SPEC-183)", () => {
     expect(harden).toMatch(/\*opencloudos\*\)\s*FAM=rhel/);
     expect(harden).toContain("epol-release");
   });
+
+  it("harden.sh mem-pin backend = systemd untuk jail sshd (SPEC-190)", () => {
+    // fail2ban di RHEL/OpenCloudOS journald-only gagal start dengan backend file default
+    // (/var/log/secure tak ada). backend=systemd bikin service aktif setelah harden.
+    const harden = readFileSync(join(vpsDir, "harden.sh"), "utf8");
+    expect(harden).toMatch(/\[sshd\][\s\S]*?backend = systemd/);
+  });
 });

@@ -50,6 +50,10 @@ if pkg fail2ban; then
   cat > /etc/fail2ban/jail.d/hanoman.conf <<'EOF'
 [sshd]
 enabled = true
+# backend=systemd: baca journald, bukan /var/log/secure. Di RHEL/OpenCloudOS
+# journald-only berkas itu belum ada → backend file default gagal konfigurasi
+# jail sshd → service mati (SPEC-190). Deb sudah default systemd; aman lintas distro.
+backend = systemd
 maxretry = 3
 bantime = 1h
 findtime = 10m
