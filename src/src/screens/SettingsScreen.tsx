@@ -33,6 +33,7 @@ const S_DEFAULTS: Setting = {
   model: "claude-opus-4-8", effort: "xhigh",
   autoDefault: true, autoScaffold: true, notifyFail: true,
   notifyDone: true, notifySound: "short",
+  notifyDecision: true, notifyDecisionSound: "alert",
 };
 
 function SettingRow({ title, desc, children, last }: { title: string; desc?: string; children?: React.ReactNode; last?: boolean }) {
@@ -230,6 +231,18 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
               onChange={(e) => save({ notifySound: e.target.value as NotifySound }, "Sound → " + e.target.value)} />
             <Button size="sm" variant="ghost" leftIcon="volume-2" disabled={s.notifySound === "off"}
               onClick={() => playNotifySound(s.notifySound as NotifySound)}>Preview</Button>
+          </div>
+        </SettingRow>
+        <SettingRow title="Notifikasi butuh keputusan"
+          desc="Toast + sound saat sesi Claude berhenti menunggu keputusanmu. Nada sengaja beda dari selesai.">
+          <Switch checked={s.notifyDecision} onChange={sw("notifyDecision", "Notifikasi keputusan")} />
+        </SettingRow>
+        <SettingRow title="Sound keputusan" desc="Nada saat sebuah sesi menunggu keputusan.">
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Select size="sm" value={s.notifyDecisionSound} options={S_SOUNDS} style={{ width: 160 }}
+              onChange={(e) => save({ notifyDecisionSound: e.target.value as NotifySound }, "Sound keputusan → " + e.target.value)} />
+            <Button size="sm" variant="ghost" leftIcon="volume-2" disabled={s.notifyDecisionSound === "off"}
+              onClick={() => playNotifySound(s.notifyDecisionSound as NotifySound)}>Preview</Button>
           </div>
         </SettingRow>
         <SettingRow title="Notifikasi saat sesi gagal" last desc="Kirim notifikasi ketika sesi Claude Code berakhir dengan error.">

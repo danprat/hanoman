@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { newSince, maxAt } from "../src/notifications/NotificationsContext";
 
 const n = (specId: string, createdAt: string) =>
-  ({ id: specId, specId, title: specId, projectId: null, createdAt, readAt: null });
+  ({ id: specId, type: "done" as const, specId, sessionId: null, title: specId, projectId: null, createdAt, readAt: null });
 
 describe("newSince / maxAt", () => {
   it("maxAt: createdAt terbesar; kosong → ''", () => {
