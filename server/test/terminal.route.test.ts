@@ -279,7 +279,7 @@ describe("terminal routes · sesi backlog", () => {
     writePlan("spec-914", "- [x] a\n");
     appendFileSync(phaseFilePath(repoDir, "spec-914"), "Execute done\n");
     await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-914" });
-    const notif = await prisma.notification.findUnique({ where: { specId: "SPEC-914" } });
+    const notif = await prisma.notification.findFirst({ where: { specId: "SPEC-914" } });
     expect(notif?.title).toBe("Judul 914");
   });
 });
@@ -416,7 +416,7 @@ describe("GET /specs · stage live dari sesi", () => {
     appendFileSync(phaseFilePath(repoDir, "spec-913"), "Execute done\n");
     expect(await stageOf("SPEC-913")).toBe("done");
     // SPEC-180 · jalur write-through GET /specs juga mencatat notifikasi saat masuk done.
-    const notif = await prisma.notification.findUnique({ where: { specId: "SPEC-913" } });
+    const notif = await prisma.notification.findFirst({ where: { specId: "SPEC-913" } });
     expect(notif?.title).toBe("Judul 913");
     await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-913" });
   });

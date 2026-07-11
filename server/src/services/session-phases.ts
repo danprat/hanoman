@@ -11,6 +11,12 @@ export type Phase = { name: string; state: PhaseState };
 export const phaseFilePath = (repoDir: string, sessionId: string): string =>
   `${repoDir}/.worktrees/.phases/${sessionId}`;
 
+// SPEC-184 · marker "menunggu keputusan manusia" per sesi. Sekamar dengan berkas fase, di dalam
+// `.worktrees` yang sudah `.gitignore` — tak pernah mendarat di branch mana pun. Kosong = tak
+// menunggu; non-kosong (ditulis hook Notification) = butuh keputusan.
+export const decisionFilePath = (repoDir: string, sessionId: string): string =>
+  `${repoDir}/.worktrees/.decisions/${sessionId}`;
+
 // Satu baris = satu transisi: "<Nama Fase> done" | "<Nama Fase> skipped". Nama fase boleh
 // berspasi ("Doc index"), jadi state-nya token TERAKHIR. Baris yang tak dikenali diabaikan —
 // berkas ini ditulis agen lewat `echo`, dan tak boleh ada yang bisa menyandera tampilan fase.
