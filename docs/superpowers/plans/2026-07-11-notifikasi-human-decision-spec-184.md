@@ -1,6 +1,6 @@
 # Notifikasi Human Decision (SPEC-184) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Menotifikasi (sound berbeda + toast + entri lonceng) ketika sebuah sesi Claude berhenti menunggu keputusan manusia, dengan setting nada tersendiri dan aksi item yang mengarahkan ke terminal/backlog.
 
@@ -1247,7 +1247,7 @@ masih hidup, kalau tidak Backlog item-nya. Nada decision default `alert`, beda d
   bebas dependency.
 ```
 
-- [ ] **Step 2: Update index README**
+- [x] **Step 2: Update index README**
 
 Di `internal/docs/README.md`, sisipkan di **puncak** daftar ADR (di atas baris 0034/0033):
 ```markdown
@@ -1255,7 +1255,7 @@ Di `internal/docs/README.md`, sisipkan di **puncak** daftar ADR (di atas baris 0
 ```
 (Konfirmasi baris tetangga dengan `grep -n '0033-notifikasi' internal/docs/README.md`; sisipkan tepat di atasnya bila 0034 belum ada di branch ini.)
 
-- [ ] **Step 3: Update data-model.md**
+- [x] **Step 3: Update data-model.md**
 
 Ganti bagian `## Notification` di `internal/docs/architecture/data-model.md`:
 ```markdown
@@ -1272,14 +1272,14 @@ dan `decision` (sesi Claude menunggu keputusan manusia, dibuat `scanDecisions()`
   `POST /notifications/read` (tandai semua), `DELETE /notifications` (clear).
 ```
 
-- [ ] **Step 4: Verifikasi coverage SoT (tanpa boot server)**
+- [x] **Step 4: Verifikasi coverage SoT (tanpa boot server)**
 
 ```bash
 env -u NODE_ENV pnpm --filter ./shared exec node --experimental-strip-types shared/src/coverage.ts 2>/dev/null || true
 ```
 (Jika skrip coverage berbeda, lewati — cukup pastikan link ADR baru ada di index: `grep -c '0036-notifikasi-human-decision' internal/docs/README.md` → `1`.)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/docs/adr/0036-notifikasi-human-decision.md internal/docs/README.md internal/docs/architecture/data-model.md
@@ -1294,7 +1294,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 **Files:** tidak ada perubahan kode — hanya verifikasi.
 
-- [ ] **Step 1: Seluruh suite hijau**
+- [x] **Step 1: Seluruh suite hijau**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-184
@@ -1306,7 +1306,7 @@ env -u NODE_ENV pnpm -r typecheck
 ```
 Expected: semua PASS; typecheck clean. (Bila ada flake `queue-durability`, jalankan ulang suite server penuh — lihat memory.)
 
-- [ ] **Step 2: Live smoke HTTP (DB throwaway migrated)**
+- [x] **Step 2: Live smoke HTTP (DB throwaway migrated)**
 
 Boot server terhadap DB khusus (jangan hanoman_test — sibling test bisa men-truncate mid-smoke; memory "live-smoke dedicated DB"), lalu curl endpoint tersentuh:
 
@@ -1334,9 +1334,9 @@ Expected: `GET /notifications` → `{"items":[],"unread":0}` (tak 500 — `scanD
 
 > **Deteksi decision end-to-end** (hook → marker → notif) sudah tercakup unit test `scanDecisions` + `guardSettings` (reader palsu + berkas temp). Menjalankan sesi Claude nyata di smoke butuh tmux+claude+worktree dan di luar cakupan smoke HTTP ini — nyatakan apa adanya di ringkasan.
 
-- [ ] **Step 3: Bereskan** DB smoke bila mau: `docker exec hanoman-db-1 psql -U hanoman -d postgres -c 'DROP DATABASE hanoman_smoke184'`.
+- [x] **Step 3: Bereskan** DB smoke bila mau: `docker exec hanoman-db-1 psql -U hanoman -d postgres -c 'DROP DATABASE hanoman_smoke184'`.
 
-- [ ] **Step 4: Centang plan** — pastikan semua `- [ ]` di file ini jadi `- [x]`, lalu commit centang terakhir + `Execute done` ke `$HANOMAN_PHASE_FILE`.
+- [x] **Step 4: Centang plan** — pastikan semua `- [x]` di file ini jadi `- [x]`, lalu commit centang terakhir + `Execute done` ke `$HANOMAN_PHASE_FILE`.
 
 ## Self-Review (diisi saat menulis plan)
 
