@@ -9,8 +9,8 @@ import type { Spec } from "./types";
 import * as L from "./terminal-layout";
 import * as W from "./terminal-workspace";
 
-export function TerminalScreen({ projects, backlog = [], onOpenReview, titleOf, onIntegrate, specOf }: {
-  projects: { id: string; name: string }[]; backlog?: Spec[];
+export function TerminalScreen({ projects, backlog = [], focusSession, onOpenReview, titleOf, onIntegrate, specOf }: {
+  projects: { id: string; name: string }[]; backlog?: Spec[]; focusSession?: string | null;
   onOpenReview?: (specId: string) => void;
   titleOf?: (specId: string) => string | undefined;
   onIntegrate?: (spec: Spec, op: "merge" | "rebase", target: string) => void;
@@ -38,6 +38,14 @@ export function TerminalScreen({ projects, backlog = [], onOpenReview, titleOf, 
   }, [loaded, sessions]);
 
   React.useEffect(() => { W.save(ws); }, [ws]);
+
+  // SPEC-184 · notifikasi mengarahkan ke sesi tertentu → tempatkan ke grid aktif begitu sesi itu
+  // muncul di daftar hidup. Re-klik id yang sama saat sudah tampil = no-op (nilai tak berubah).
+  React.useEffect(() => {
+    if (!focusSession || !loaded) return;
+    if (!sessions.some((s) => s.id === focusSession && !s.exited)) return;
+    setWs((w) => W.placeFirstEmptyInActive(w, focusSession));
+  }, [focusSession, loaded, sessions]);
 
   const byId = (id: string) => sessions.find((s) => s.id === id) ?? null;
   const nameOf = (pid: string) => projects.find((p) => p.id === pid)?.name ?? pid;

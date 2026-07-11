@@ -3,9 +3,10 @@
    calls the client and updates state from the response. */
 import React from "react";
 import { NotificationsProvider } from "./notifications/NotificationsContext";
+import { notifTarget } from "./notifications/target";
 import { Shell, Modal, Field, HnTextarea, Button, StatusPill, Select, Input, Tabs, Toast, useToast, Icon, StateBlock } from "./ds";
 import { api, ApiError, type TerminalSession } from "./api/client";
-import type { ProjectView, Spec, AuthStatus, UserView } from "@hanoman/shared";
+import type { ProjectView, Spec, AuthStatus, UserView, Notification } from "@hanoman/shared";
 import { AuthScreen } from "./screens/AuthScreen";
 import type { ProjectVM } from "./screens/types";
 import { branchOptions } from "./screens/branch";
@@ -273,6 +274,8 @@ export default function App() {
   // `projectId` ("project yang sedang dibuka Docs/detail"): menyatukannya membuat klik
   // sidebar Runs diam-diam menyaring ke project terakhir yang dibuka Docs.
   const [projectFilter, setProjectFilter] = React.useState("all");
+  // SPEC-184 · sesi yang harus difokuskan di Terminal setelah klik aksi notifikasi.
+  const [focusSession, setFocusSession] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState("");
   const [modal, setModal] = React.useState<string | null>(null);
   const [toast, showToast] = useToast();
@@ -329,6 +332,14 @@ export default function App() {
   function openProject(p: ProjectVM) { setProjectId(p.id); setSection("project"); }
   // SPEC-171 · buka layar review file worktree sebuah backlog item.
   function openReview(s: Spec) { setReviewSpecId(s.id); setSection("review"); }
+
+  // SPEC-184 · klik aksi notifikasi. `sessions` = daftar ter-poll (cek liveness untuk notif done).
+  const openNotification = React.useCallback((nt: Notification) => {
+    const t = notifTarget(nt, sessions);
+    if (t.projectFilter) setProjectFilter(t.projectFilter);
+    if (t.focus) setFocusSession(t.focus);
+    setSection(t.section);
+  }, [sessions]);
 
   async function updateProject(f: { name: string; desc: string }) {
     if (!proj) return;
@@ -527,7 +538,7 @@ export default function App() {
           ? <StateBlock kind="empty" icon="box" title="Belum ada project"
               hint="Terminal butuh project dengan repoDir untuk dijalankan."
               action={() => setModal("project")} actionLabel="Project baru" />
-          : <TerminalScreen projects={projectsView} backlog={backlog}
+          : <TerminalScreen projects={projectsView} backlog={backlog} focusSession={focusSession}
               onOpenReview={(specId) => { setReviewSpecId(specId); setSection("review"); }}
               titleOf={(id) => backlog.find((s) => s.id === id)?.title}
               onIntegrate={integrateSpec} specOf={(id) => backlog.find((s) => s.id === id)} />)}
@@ -578,7 +589,7 @@ export default function App() {
   }
 
   return (
-    <NotificationsProvider showToast={showToast}>
+    <NotificationsProvider showToast={showToast} onOpen={openNotification}>
       {screen}
       <NewSpecModal open={modal === "brief"} onClose={() => setModal(null)} projects={projectsView} defaultProject={proj ? proj.id : ""} onCreate={createSpec} />
       <NewProjectModal open={modal === "project"} onClose={() => setModal(null)} onCreate={createProject} />
