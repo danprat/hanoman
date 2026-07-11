@@ -24,6 +24,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 
 ## adr
 > Nomor unik & imutable. ADR usang tidak dihapus — ditandai statusnya di bawah dan di header masing-masing.
+- [0034 — IDE Visual boleh memutasi working tree, digerbang sesi + force](adr/0034-ide-mutasi-working-tree-utama.md)
 - [0033 — Notifikasi saat backlog selesai](adr/0033-notifikasi-backlog-selesai.md)
 - [0032 — Branch adalah properti backlog item](adr/0032-branch-adalah-properti-backlog-item.md)
 - [0031 — Rebase & merge branch done spec dari dashboard](adr/0031-rebase-merge-backlog.md)

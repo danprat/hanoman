@@ -80,6 +80,22 @@ DELETE /projects/:id/docs/*path         # hapus file .md asli di disk; 204 sukse
 > kategori di luarnya bertanda `scored: false`. SoT coverage = % kategori berskor yang seluruh
 > Markdown-nya **transitif reachable** dari `docsDir/README.md` (ADR-0013).
 
+## IDE Visual (SPEC-182 · ADR-0034)
+```
+GET    /projects/:id/tree?ref=          # { ref, files:string[] }  ref kosong=working tree (ls-files), isi=ls-tree <ref>; 404 project tak ada
+GET    /projects/:id/file?path=&ref=    # { path, content, binary, truncated }  disk / git show <ref>:<path>; 400 path keluar repo/.git; 404 file tak ada
+PUT    /projects/:id/file               { path, content }   # tulis file ke working tree; 400 guard path. TAK digerbang sesi.
+GET    /projects/:id/graph?limit=200    # { commits:{sha,parents,author,at,subject,refs}[], current }  git log --all --date-order
+GET    /projects/:id/commit/:sha        # { sha,parents,author,at,subject,body, changed:{path,add,del,status,binary}[] }  404 sha bukan hex / tak ada
+POST   /projects/:id/git                { op, ...args, force? }   # { ok, stdout, stderr, current }
+#   op ∈ checkout|branch|merge|cherry-pick|revert|delete-branch. 400 op/field cacat; 400 tanpa repoDir.
+#   409 bila ada sesi aktif project (force melewatinya) ATAU git exit≠0 (stderr diteruskan). force → -f/-D.
+```
+
+> Semua bekerja pada **`Project.repoDir` (working tree utama)** — read diturunkan dari git tiap request
+> (tanpa cache, cermin ADR-0018). Mutasi git digerbang sesi-aktif + tree-bersih dengan escape `force`
+> (ADR-0034). Read-di-`ref` memungkinkan **melihat** branch local/origin tanpa checkout.
+
 ## Settings / notifications / limits
 ```
 GET/PUT  /settings                      # Setting blob (zSetting): model, effort, autoDefault, autoScaffold,

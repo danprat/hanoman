@@ -10,6 +10,7 @@ import specs from "./routes/specs";
 import notifications from "./routes/notifications";
 import settings from "./routes/settings";
 import docs from "./routes/docs";
+import ide from "./routes/ide";
 import fs from "./routes/fs";
 import terminal from "./routes/terminal";
 import vps from "./routes/vps";
@@ -65,6 +66,7 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
     await api.register(notifications);
     await api.register(settings);
     await api.register(docs);
+    await api.register(ide);
     await api.register(fs);
     await api.register(terminal);
     await api.register(vps);

@@ -15,6 +15,13 @@ export const paths = {
   limits: `${API}/limits`,
   docs: (id: string) => `${API}/projects/${id}/docs`,
   docFile: (id: string, path: string) => `${API}/projects/${id}/docs/${path}`,
+  // SPEC-182 · IDE Visual
+  ideTree: (id: string, ref = "") => `${API}/projects/${id}/tree${ref ? `?ref=${encodeURIComponent(ref)}` : ""}`,
+  ideFile: (id: string, path?: string, ref = "") =>
+    `${API}/projects/${id}/file${path ? `?path=${encodeURIComponent(path)}${ref ? `&ref=${encodeURIComponent(ref)}` : ""}` : ""}`,
+  ideGraph: (id: string, limit = 200) => `${API}/projects/${id}/graph?limit=${limit}`,
+  ideCommit: (id: string, sha: string) => `${API}/projects/${id}/commit/${sha}`,
+  ideGit: (id: string) => `${API}/projects/${id}/git`,
   fsBrowse: (path?: string) => `${API}/fs/browse${path ? `?path=${encodeURIComponent(path)}` : ""}`,
   terminalSessions: `${API}/terminal/sessions`,
   terminalSession: (id: string) => `${API}/terminal/sessions/${id}`,

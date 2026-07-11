@@ -17,6 +17,18 @@ export type ReviewFile = {
   path: string; status: "A" | "M" | "D" | null; binary: boolean;
   truncated: boolean; diff: string | null; content: string | null;
 };
+// SPEC-182 · IDE Visual
+export type RepoFile = { path: string; content: string | null; binary: boolean; truncated: boolean };
+export type GraphCommit = { sha: string; parents: string[]; author: string; at: string; subject: string; refs: string[] };
+export type CommitDetail = { sha: string; parents: string[]; author: string; at: string; subject: string; body: string; changed: ChangedFile[] };
+export type GitOp =
+  | { op: "checkout"; ref: string; force?: boolean }
+  | { op: "branch"; name: string; at?: string; checkout?: boolean }
+  | { op: "merge"; ref: string; force?: boolean }
+  | { op: "cherry-pick"; sha: string; force?: boolean }
+  | { op: "revert"; sha: string; force?: boolean }
+  | { op: "delete-branch"; name: string; force?: boolean };
+export type GitOpResult = { ok: boolean; stdout: string; stderr: string; current: string; error?: string };
 async function j<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { headers: { "content-type": "application/json" }, ...init });
   if (!res.ok) throw new ApiError(res.status, `${init?.method ?? "GET"} ${url} → ${res.status}`);
@@ -60,6 +72,13 @@ export const api = {
   putDoc: (id: string, path: string, content: string) =>
     j<{ path: string; content: string }>(paths.docFile(id, path), { method: "PUT", ...body({ content }) }),
   deleteDoc: (id: string, path: string) => j<void>(paths.docFile(id, path), { method: "DELETE" }),
+  ideTree: (id: string, ref = "") => j<{ ref: string; files: string[] }>(paths.ideTree(id, ref)),
+  ideFile: (id: string, path: string, ref = "") => j<RepoFile>(paths.ideFile(id, path, ref)),
+  putIdeFile: (id: string, path: string, content: string) =>
+    j<{ path: string; content: string }>(paths.ideFile(id), { method: "PUT", ...body({ path, content }) }),
+  ideGraph: (id: string, limit = 200) => j<{ commits: GraphCommit[]; current: string }>(paths.ideGraph(id, limit)),
+  ideCommit: (id: string, sha: string) => j<CommitDetail>(paths.ideCommit(id, sha)),
+  ideGit: (id: string, op: GitOp) => j<GitOpResult>(paths.ideGit(id), { method: "POST", ...body(op) }),
   browseFs: (path?: string) =>
     j<{ path: string; parent: string | null; entries: { name: string; path: string }[] }>(paths.fsBrowse(path)),
   listTerminals: () => j<TerminalSession[]>(paths.terminalSessions),

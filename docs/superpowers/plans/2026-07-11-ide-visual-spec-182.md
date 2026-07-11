@@ -471,7 +471,7 @@ git commit -m "feat(ide): git-ide write file + guarded git mutations (SPEC-182)"
   - `GET /projects/:id/commit/:sha` → `CommitDetail` | 404
   - `POST /projects/:id/git` `{op,...,force?}` → `GitOpResult` | 400 | 409
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/ide.route.test.ts`:
 
@@ -541,12 +541,12 @@ describe("ide routes", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./server test -- ide.route`
 Expected: FAIL — route belum terdaftar (404 di semua).
 
-- [ ] **Step 3: Tulis route**
+- [x] **Step 3: Tulis route**
 
 Buat `server/src/routes/ide.ts`:
 
@@ -628,7 +628,7 @@ export default async function (app: FastifyInstance) {
 }
 ```
 
-- [ ] **Step 4: Daftarkan route di `server/src/app.ts`**
+- [x] **Step 4: Daftarkan route di `server/src/app.ts`**
 
 Tambah import setelah baris `import docs from "./routes/docs";`:
 
@@ -642,7 +642,7 @@ Tambah register setelah baris `await api.register(docs);`:
     await api.register(ide);
 ```
 
-- [ ] **Step 5: Tambah path entries di `shared/src/api.ts`**
+- [x] **Step 5: Tambah path entries di `shared/src/api.ts`**
 
 Setelah baris `docFile: ...`, tambah:
 
@@ -655,7 +655,7 @@ Setelah baris `docFile: ...`, tambah:
   ideGit: (id: string) => `${API}/projects/${id}/git`,
 ```
 
-- [ ] **Step 6: Tambah client methods + types di `src/src/api/client.ts`**
+- [x] **Step 6: Tambah client methods + types di `src/src/api/client.ts`**
 
 Setelah blok type `ReviewFile` (dekat baris 20), tambah tipe IDE:
 
@@ -686,14 +686,14 @@ Di dalam objek `api = { ... }`, setelah `deleteDoc: ...`, tambah:
   ideGit: (id: string, op: GitOp) => j<GitOpResult>(paths.ideGit(id), { method: "POST", ...body(op) }),
 ```
 
-- [ ] **Step 7: Jalankan test, pastikan lulus**
+- [x] **Step 7: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./server test -- ide.route`
 Expected: PASS (7 test). Jalankan juga typecheck: `pnpm -r typecheck` → tak ada error.
 
 > Catatan: bila test `current === "dev"` gagal karena `makeRepoWithBranches` meninggalkan HEAD di `main`, ganti assertion menjadi `expect(["main","dev"]).toContain(r.json().current)` — branch tercheckout adalah `main` (worktree factory tak checkout `dev`).
 
-- [ ] **Step 8: Tulis ADR-0034 + update SoT**
+- [x] **Step 8: Tulis ADR-0034 + update SoT**
 
 Buat `internal/docs/adr/0034-ide-mutasi-working-tree-utama.md`:
 
@@ -742,7 +742,7 @@ Di `internal/docs/README.md`, pada daftar `## adr`, sisipkan di atas baris 0033:
 - [0034 — IDE Visual boleh memutasi working tree, digerbang sesi + force](adr/0034-ide-mutasi-working-tree-utama.md)
 ```
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add server/src/routes/ide.ts server/src/app.ts shared/src/api.ts src/src/api/client.ts \
