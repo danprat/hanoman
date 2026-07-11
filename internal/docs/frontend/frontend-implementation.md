@@ -179,7 +179,8 @@ kelas `.hn-md`) — sumber yang sama untuk `SpecDocsModal` dan `DocsWorkspace`.
 ## Review worktree: collapse & tree Changed (SPEC-171, SPEC-177)
 `ReviewScreen` (`screens/ReviewScreen.tsx`) menampilkan file worktree backlog item ala VSCode:
 sidebar **Changed** (SCM) + **Files** (tree), viewer Diff|Source, read-only. Dua pohon dibangun
-oleh `buildFileTree(paths)` dan dirender `TreeRow`.
+oleh `buildFileTree(paths)` dan dirender `TreeRow` — keduanya kini di modul bersama
+`screens/file-tree.tsx` (SPEC-189), dipakai Review **dan** IDE Explorer.
 
 `TreeRow` mount **collapsed** (`useState(defaultOpen)`, default `false`) — buka Review pertama kali
 = semua folder tertutup (SPEC-177; sebelumnya `depth < 1` membuat folder top-level ikut terbuka).
@@ -245,13 +246,17 @@ Nav entri **IDE** (`code-2`) membuka `IdeScreen` (`screens/IdeScreen.tsx`), difi
   `origin/<b>` dari `api.listBranches`) + tombol **Checkout**. Memilih ref hanya mengubah **sudut
   pandang** (drives `GET /tree`/`/file` lewat `?ref=`) — melihat branch origin **tanpa** checkout.
   Tombol Checkout memanggil `POST /git {op:"checkout"}` yang memindah HEAD working tree sungguhan.
-- **Explorer**: grid `288px 1fr`. Kiri pohon file datar (`api.ideTree`), kanan pane isi (`api.ideFile`).
+- **Explorer**: grid `288px 1fr`. Kiri **pohon folder** (`buildFileTree`+`TreeRow` dari
+  `screens/file-tree.tsx`, `api.ideTree`) — folder **default collapse** ala Review (SPEC-189, tanpa
+  `meta`/`defaultOpen` → ikon file biasa, tertutup). Kanan pane isi (`api.ideFile`).
   Preview = `<pre><code class="hljs">` di-highlight **highlight.js** (bahasa dari ekstensi, fallback
   `highlightAuto`); edit = `<textarea>` mono + Simpan (`api.putIdeFile`). File biner → placeholder.
 - **Git Graph** (`screens/GitGraph.tsx`): DAG commit dari `api.ideGraph`, lane dihitung **client-side**
-  murni oleh `computeLanes` (`screens/git-graph.ts`, nol dep, diuji terpisah). Baris = SVG lane
-  berwarna + chip ref (HEAD di-`--brass-500`) + subject + author + tanggal. **Klik** commit → panel
-  detail (`api.ideCommit`) + daftar file berubah (klik file → buka di Explorer pada sha itu).
+  murni oleh `computeLanes` (`screens/git-graph.ts`, nol dep, diuji terpisah). Segmen penyambung
+  diturunkan `rowEdges` (in/out/through per-baris) → digambar **cubic-bezier** (SPEC-189) sehingga
+  branch & merge tersambung lintas lane, bukan garis melayang. Baris = SVG lane berwarna + chip ref
+  (HEAD di-`--brass-500`) + subject + author + tanggal relatif (kolom rata, hover bone). **Klik**
+  commit → panel detail (`api.ideCommit`) + daftar file berubah (klik file → buka di Explorer pada sha itu).
   **Klik-kanan** → context-menu: Checkout / Merge ke branch ini / Cherry-pick / Revert / Buat branch
   di sini… / Hapus branch (hanya ref local) — tiap aksi `POST /git`.
 - **Dialog Paksa**: mutasi yang balas **409** (sesi aktif / tree kotor) memunculkan `ForceDialog`
