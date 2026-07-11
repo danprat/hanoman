@@ -35,7 +35,7 @@
   - `type RepoFile = { path: string; content: string | null; binary: boolean; truncated: boolean }`
   - `readRepoFile(repoDir: string | null, rel: string, ref?: string): Promise<RepoFile | null>` — throws pada path buruk (→route 400), `null` pada file tak ada (→route 404).
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/git-ide.test.ts`:
 
@@ -84,12 +84,12 @@ describe("git-ide read", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./server test -- git-ide`
 Expected: FAIL — `Cannot find module '../src/services/git-ide'`.
 
-- [ ] **Step 3: Tulis implementasi minimal**
+- [x] **Step 3: Tulis implementasi minimal**
 
 Buat `server/src/services/git-ide.ts`:
 
@@ -145,12 +145,12 @@ export async function readRepoFile(repoDir: string | null, rel: string, ref = ""
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan lulus**
+- [x] **Step 4: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./server test -- git-ide`
 Expected: PASS (8 test).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/git-ide.ts server/test/git-ide.test.ts
@@ -173,7 +173,7 @@ git commit -m "feat(ide): git-ide read service — tree + file (SPEC-182)"
   - `type CommitDetail = { sha: string; parents: string[]; author: string; at: string; subject: string; body: string; changed: ChangedFile[] }`
   - `commitDetail(repoDir: string | null, sha: string): Promise<CommitDetail | null>`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambah ke `server/test/git-ide.test.ts`:
 
@@ -209,12 +209,12 @@ describe("git-ide graph", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./server test -- git-ide`
 Expected: FAIL — `listGraph is not a function`.
 
-- [ ] **Step 3: Tulis implementasi**
+- [x] **Step 3: Tulis implementasi**
 
 Tambah ke `server/src/services/git-ide.ts`:
 
@@ -293,12 +293,12 @@ export async function commitDetail(repoDir: string | null, sha: string): Promise
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan lulus**
+- [x] **Step 4: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./server test -- git-ide`
 Expected: PASS (12 test total).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/git-ide.ts server/test/git-ide.test.ts

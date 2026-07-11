@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { makeTempRepo, makeRepoWithBranches } from "./factory";
-import { listRepoTree, readRepoFile, repoAbsPath } from "../src/services/git-ide";
+import { makeTempRepo, makeRepoWithBranches, makeRepoWithSpecCommits } from "./factory";
+import { listRepoTree, readRepoFile, repoAbsPath, listGraph, commitDetail } from "../src/services/git-ide";
 
 const NUL = "a" + String.fromCharCode(0) + "b";
 
@@ -37,5 +37,32 @@ describe("git-ide read", () => {
     expect(() => repoAbsPath(dir, "../etc/passwd")).toThrow();
     expect(() => repoAbsPath(dir, ".git/config")).toThrow();
     expect(repoAbsPath(dir, "src/a.ts")).toBe(`${dir}/src/a.ts`);
+  });
+});
+
+describe("git-ide graph", () => {
+  it("listGraph mengembalikan commit terurut + refs + current branch", async () => {
+    const dir = makeRepoWithSpecCommits({ "a.txt": "1" }, [{ msg: "kedua", changes: { "a.txt": "2" } }]);
+    const g = await listGraph(dir);
+    expect(g.commits.length).toBe(2);
+    expect(g.commits[0].subject).toBe("kedua");
+    expect(g.commits[0].parents.length).toBe(1);
+    expect(g.commits[1].parents.length).toBe(0); // root
+    expect(g.current).toBe("main");
+    expect(g.commits.some((c) => c.refs.includes("main"))).toBe(true);
+  });
+  it("listGraph: repoDir null → kosong", async () => {
+    expect(await listGraph(null)).toEqual({ commits: [], current: "" });
+  });
+  it("commitDetail: file berubah + pesan", async () => {
+    const dir = makeRepoWithSpecCommits({ "a.txt": "1" }, [{ msg: "ubah", changes: { "a.txt": "2\n" } }]);
+    const head = (await listGraph(dir)).commits[0].sha;
+    const d = await commitDetail(dir, head);
+    expect(d!.subject).toBe("ubah");
+    expect(d!.changed.map((c) => c.path)).toEqual(["a.txt"]);
+    expect(d!.changed[0]).toMatchObject({ status: "M" });
+  });
+  it("commitDetail: sha bukan hex → null (gerbang)", async () => {
+    expect(await commitDetail(makeRepoWithSpecCommits({ "a": "1" }, []), "../etc")).toBeNull();
   });
 });
