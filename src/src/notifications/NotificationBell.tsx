@@ -11,7 +11,7 @@ function timeAgo(iso: string): string {
 }
 
 export function NotificationBell() {
-  const { items, unread, markAllRead, clear } = useNotifications();
+  const { items, unread, markAllRead, clear, onOpen } = useNotifications();
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
 
@@ -62,19 +62,32 @@ export function NotificationBell() {
             <div style={{ padding: "18px 10px", textAlign: "center", color: "var(--text-subtle)", fontSize: 13 }}>
               Belum ada notifikasi
             </div>
-          ) : items.map((n) => (
+          ) : items.map((n) => {
+            const decision = n.type === "decision";
+            return (
             <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px",
               borderRadius: "var(--radius-sm)" }}>
-              <Icon name="check-circle-2" size={16} color="var(--leaf-500)" />
+              <Icon name={decision ? "git-merge" : "check-circle-2"} size={16}
+                color={decision ? "var(--amber-600)" : "var(--leaf-500)"} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, color: "var(--text-strong)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {n.specId} · {n.title}
+                  {(n.specId ?? n.sessionId)} · {n.title}
                 </div>
-                <div style={{ fontSize: 11.5, color: "var(--text-subtle)" }}>selesai · {timeAgo(n.createdAt)}</div>
+                <div style={{ fontSize: 11.5, color: "var(--text-subtle)" }}>
+                  {decision ? "butuh keputusan" : "selesai"} · {timeAgo(n.createdAt)}
+                </div>
               </div>
+              {onOpen && (
+                <button onClick={() => { onOpen(n); setOpen(false); }} style={{
+                  flex: "0 0 auto", border: "none", background: "transparent", cursor: "pointer",
+                  color: decision ? "var(--amber-600)" : "var(--text-muted)", fontSize: 12, fontFamily: "var(--font-ui)", whiteSpace: "nowrap" }}>
+                  {decision ? "Buka terminal" : "Buka"}
+                </button>
+              )}
               {!n.readAt && <span style={{ flex: "0 0 auto", width: 7, height: 7, borderRadius: "50%", background: "var(--accent)" }} />}
             </div>
-          ))}
+            );
+          })}
           {items.length > 0 && (
             <button onClick={markAllRead} style={{ width: "100%", marginTop: 4, padding: "8px", border: "none",
               borderTop: "1px solid var(--border-hair)", background: "transparent", cursor: "pointer",
