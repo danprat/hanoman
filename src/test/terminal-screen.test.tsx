@@ -116,6 +116,24 @@ describe("TerminalScreen (grid)", () => {
     fireEvent.click(screen.getByLabelText("Tutup sesi aaaa1111"));
     await waitFor(() => expect(deleteTerminal).toHaveBeenCalledWith("aaaa1111"));
   });
+
+  it("sesi yang exited menampilkan badge Selesai + badan meredup (bukan suffix berakhir)", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["done1111"] }));
+    listTerminals.mockResolvedValue([{ id: "done1111", projectId: "p1", cwd: "/repo", exited: true }]);
+    const { container } = render(<TerminalScreen projects={projects} />);
+    await screen.findByTestId("pane");
+    expect(screen.getByText("Selesai")).toBeInTheDocument();
+    expect(screen.queryByText(/berakhir/)).toBeNull();
+    expect(container.querySelector("[style*='opacity: 0.6']")).not.toBeNull();
+  });
+
+  it("sesi yang masih hidup tak menampilkan badge Selesai", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["live1111"] }));
+    listTerminals.mockResolvedValue([{ id: "live1111", projectId: "p1", cwd: "/repo", exited: false }]);
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByTestId("pane");
+    expect(screen.queryByText("Selesai")).toBeNull();
+  });
 });
 
 describe("TerminalScreen (Ambil backlog)", () => {

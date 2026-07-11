@@ -151,6 +151,10 @@ dan `Escape` adalah tombol tersibuk di TUI Claude Code. Karena itu pula **tak ad
 untuk keluar — hanya tombol. Pengguna yang mau seluruh layar device menekan `F11` sendiri. State
 `maxed` tidak dipersist (SPEC-163).
 
+Sesi yang **berakhir** (`exited`) ditandai kontras di header cell dengan `StatusPill`
+hijau **"Selesai"**, dan badan terminalnya diredupkan (`opacity: 0.6`) untuk menandakan
+proses sudah beku — menggantikan suffix teks `· berakhir` yang lama (SPEC-188).
+
 Proxy dev Vite harus memakai `ws: true`, kalau tidak upgrade WebSocket dijawab 404.
 
 ## Melihat dokumen audit/spec/plan (SPEC-170)
