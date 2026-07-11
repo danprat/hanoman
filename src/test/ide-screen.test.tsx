@@ -22,6 +22,16 @@ describe("IdeScreen Explorer", () => {
     fireEvent.click(await screen.findByText("README.md"));
     await waitFor(() => expect(api.ideFile).toHaveBeenCalledWith("p1", "README.md", ""));
   });
+  it("mengelompokkan file per folder, folder collapse default", async () => {
+    render(<IdeScreen projects={projects} projectId="p1" onProject={() => {}} />);
+    // folder src/ tampil sebagai header…
+    expect(await screen.findByText("src/")).toBeInTheDocument();
+    // …tapi isinya (a.ts) tersembunyi sampai di-expand
+    expect(screen.queryByText("a.ts")).toBeNull();
+    // buka folder → a.ts muncul
+    fireEvent.click(screen.getByText("src/"));
+    expect(await screen.findByText("a.ts")).toBeInTheDocument();
+  });
   it("tombol Checkout memanggil ideGit", async () => {
     vi.spyOn(api, "ideGit").mockResolvedValue({ ok: true, stdout: "", stderr: "", current: "dev" });
     render(<IdeScreen projects={projects} projectId="p1" onProject={() => {}} />);

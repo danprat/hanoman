@@ -7,6 +7,7 @@ import { Card, Button, Select, Icon, StateBlock, Tabs, Badge } from "../ds";
 import { api, ApiError, type RepoFile, type GitOp } from "../api/client";
 import type { ProjectVM } from "./types";
 import { GitGraph } from "./GitGraph";
+import { buildFileTree, TreeRow } from "./file-tree";
 
 const langOf = (p: string): string => {
   const ext = p.slice(p.lastIndexOf(".") + 1);
@@ -14,27 +15,6 @@ const langOf = (p: string): string => {
     json: "json", md: "markdown", css: "css", html: "xml", sh: "bash", py: "python", yml: "yaml", yaml: "yaml", sql: "sql" };
   return map[ext] ?? "";
 };
-
-function FileTree({ files, selected, onSelect }: { files: string[]; selected: string; onSelect: (p: string) => void }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-      {files.map((f) => {
-        const on = f === selected;
-        return (
-          <button key={f} onClick={() => onSelect(f)} style={{
-            display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "5px 8px",
-            borderRadius: "var(--radius-sm)", border: "none", cursor: "pointer", textAlign: "left",
-            background: on ? "var(--brass-100)" : "transparent",
-          }}>
-            <Icon name="file-text" size={13} color={on ? "var(--brass-700)" : "var(--text-subtle)"} />
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 12,
-              color: on ? "var(--brass-700)" : "var(--text-body)", fontWeight: on ? 600 : 400 }}>{f}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 // Dialog "Paksa": muncul saat mutasi git balas 409. Mengulang op dengan force:true.
 function ForceDialog({ msg, onForce, onCancel }: { msg: string; onForce: () => void; onCancel: () => void }) {
@@ -150,7 +130,9 @@ export function IdeScreen({ projects, projectId, onProject }:
               {treeState === "loading" ? <StateBlock kind="loading" compact title="Memuat file…" />
                 : treeState === "error" ? <StateBlock kind="error" compact title="Gagal memuat file" action={reloadTree} />
                 : files.length === 0 ? <StateBlock kind="empty" compact icon="folder-open" title="Tak ada file" />
-                : <FileTree files={files} selected={selected} onSelect={setSelected} />}
+                : buildFileTree(files).map((n) => (
+                    <TreeRow key={n.path} node={n} selected={selected} onSelect={setSelected} />
+                  ))}
             </div>
           </Card>
           <Card padding={0}>
