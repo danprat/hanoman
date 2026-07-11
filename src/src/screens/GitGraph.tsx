@@ -3,22 +3,38 @@
 import React from "react";
 import { Card, Button, StateBlock, Badge } from "../ds";
 import { api, type GraphCommit, type CommitDetail, type GitOp } from "../api/client";
-import { computeLanes, type GraphRow } from "./git-graph";
+import { computeLanes, rowEdges, type GraphRow, type Edge } from "./git-graph";
 
 const LANE_W = 14, ROW_H = 30, DOT = 4;
 const COLORS = ["#a9791c", "#3b7a57", "#8a5a44", "#4a6fa5", "#7d5ba6", "#b0503a"]; // brass-leaf-clay-ink
 const laneColor = (i: number) => COLORS[i % COLORS.length];
-const rel = (iso: string): string => { try { return new Date(iso).toLocaleDateString(); } catch { return ""; } };
+const rel = (iso: string): string => {
+  const t = new Date(iso).getTime();
+  if (!t) return "";
+  const s = Math.max(0, (Date.now() - t) / 1000);
+  if (s < 3600) return `${Math.floor(s / 60)}m`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h`;
+  if (s < 2592000) return `${Math.floor(s / 86400)}d`;
+  return new Date(iso).toLocaleDateString();
+};
 
-function RowSvg({ row, maxLanes }: { row: GraphRow; maxLanes: number }) {
+// Segmen edge → path SVG. Kurva-S (bezier) saat pindah lane, garis lurus saat sejajar.
+function edgePath(e: Edge): string {
   const x = (i: number) => LANE_W / 2 + i * LANE_W;
+  const y1 = e.half === "bottom" ? ROW_H / 2 : 0;
+  const y2 = e.half === "top" ? ROW_H / 2 : ROW_H;
+  const x1 = x(e.fromLane), x2 = x(e.toLane), ym = (y1 + y2) / 2;
+  return x1 === x2 ? `M${x1} ${y1}V${y2}` : `M${x1} ${y1}C${x1} ${ym},${x2} ${ym},${x2} ${y2}`;
+}
+
+function RowSvg({ row, edges, maxLanes }: { row: GraphRow; edges: Edge[]; maxLanes: number }) {
+  const cx = LANE_W / 2 + row.lane * LANE_W;
   return (
     <svg width={maxLanes * LANE_W} height={ROW_H} style={{ flex: "0 0 auto" }}>
-      {/* garis vertikal untuk tiap lane aktif setelah commit ini */}
-      {row.lanes.map((s, i) => s ? <line key={i} x1={x(i)} y1={0} x2={x(i)} y2={ROW_H} stroke={laneColor(i)} strokeWidth={1.5} /> : null)}
-      {/* garis dari commit ke lane parent-nya di baris berikut */}
-      <line x1={x(row.lane)} y1={ROW_H / 2} x2={x(row.lane)} y2={ROW_H} stroke={laneColor(row.lane)} strokeWidth={1.5} />
-      <circle cx={x(row.lane)} cy={ROW_H / 2} r={DOT} fill={laneColor(row.lane)} />
+      {edges.map((e, i) => (
+        <path key={i} d={edgePath(e)} fill="none" stroke={laneColor(e.colorLane)} strokeWidth={1.5} />
+      ))}
+      <circle cx={cx} cy={ROW_H / 2} r={DOT} fill={laneColor(row.lane)} stroke="var(--surface-card)" strokeWidth={1.5} />
     </svg>
   );
 }
@@ -60,6 +76,7 @@ export function GitGraph({ projectId, onRunGit, onOpenFile }:
   async function act(op: GitOp) { setMenu(null); await onRunGit(op).then(load).catch(() => {}); }
 
   const maxLanes = Math.max(1, ...rows.map((r) => r.width));
+  const allEdges = React.useMemo(() => rowEdges(rows), [rows]);
 
   if (state === "loading") return <StateBlock kind="loading" title="Memuat git graph…" />;
   if (state === "error") return <StateBlock kind="error" title="Gagal memuat git graph" action={load} />;
@@ -68,16 +85,19 @@ export function GitGraph({ projectId, onRunGit, onOpenFile }:
   return (
     <div style={{ display: "grid", gridTemplateColumns: detail ? "1fr 340px" : "1fr", gap: 16, alignItems: "start" }}>
       <Card padding={0}>
-        {rows.map((r) => {
+        {rows.map((r, i) => {
           const c = r.commit;
           const isHead = c.refs.includes(current);
+          const sel = detail?.sha === c.sha;
           return (
             <div key={c.sha} onClick={() => api.ideCommit(projectId, c.sha).then(setDetail).catch(() => {})}
               onContextMenu={(e) => openMenu(e, c)}
+              onMouseEnter={(e) => { if (!sel) e.currentTarget.style.background = "var(--bone-100)"; }}
+              onMouseLeave={(e) => { if (!sel) e.currentTarget.style.background = "transparent"; }}
               style={{ display: "flex", alignItems: "center", gap: 10, height: ROW_H, padding: "0 12px",
                 cursor: "pointer", borderBottom: "1px solid var(--border-hair)",
-                background: detail?.sha === c.sha ? "var(--brass-100)" : "transparent" }}>
-              <RowSvg row={r} maxLanes={maxLanes} />
+                background: sel ? "var(--brass-100)" : "transparent" }}>
+              <RowSvg row={r} edges={allEdges[i] ?? []} maxLanes={maxLanes} />
               <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1 }}>
                 {c.refs.map((ref) => (
                   <span key={ref} style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, padding: "1px 6px",
@@ -86,8 +106,10 @@ export function GitGraph({ projectId, onRunGit, onOpenFile }:
                 ))}
                 <span style={{ fontSize: 12.5, color: "var(--text-body)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.subject}</span>
               </div>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)", flex: "0 0 auto" }}>{c.author}</span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)", flex: "0 0 auto" }}>{rel(c.at)}</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)",
+                flex: "0 0 auto", width: 88, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "right" }}>{c.author}</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)",
+                flex: "0 0 auto", width: 40, textAlign: "right" }}>{rel(c.at)}</span>
             </div>
           );
         })}
