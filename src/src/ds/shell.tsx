@@ -5,6 +5,7 @@ import { Icon } from "./icon";
 import { Input } from "./components/forms";
 import { Mark } from "./marks";
 import { NotificationBell } from "../notifications/NotificationBell";
+import { LimitBadge } from "../screens/LimitIndicator";
 
 // Setiap key WAJIB punya cabang `section === …` di App.tsx. Bila tidak, `screen` tetap
 // null dan App merender kosong — sidebar ikut hilang, pengguna terjebak sampai reload.
@@ -119,6 +120,8 @@ export function Shell({ active, title, breadcrumb, actions, showSearch = false, 
               readOnly={!onSearchChange} />
           )}
           <NotificationBell />
+          {/* Selalu tampil di semua layar; self-fetch via useLimits — 9 call-site <Shell> tak berubah. */}
+          <LimitBadge />
           {actions}
         </header>
 

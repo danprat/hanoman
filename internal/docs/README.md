@@ -81,6 +81,8 @@ Ini **index Source of Truth** hanoman. Setiap dokumen harus ter-link dari sini s
 - [spec-171 — objective (All File & File Changed: review worktree backlog)](operations/spec-171-all-file-changed-objective.md)
 - [spec-176 — audit (review backlog `done` kosong file changed-nya)](operations/spec-176-review-file-changed-audit.md)
 - [spec-177 — objective (Review collapse default + File Changed tree toggle)](operations/spec-177-review-collapse-tree-objective.md)
+- [spec-181 — objective (Indicator Limit: limit Claude realtime di dashboard)](operations/spec-181-indicator-limit-objective.md)
+- [spec-181 — spec (Indicator Limit: GET /api/limits + badge top bar & kartu Overview)](operations/spec-181-indicator-limit-spec.md)
 
 ## security
 - [security-standard](security/security-standard.md)

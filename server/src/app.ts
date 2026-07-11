@@ -13,6 +13,7 @@ import docs from "./routes/docs";
 import fs from "./routes/fs";
 import terminal from "./routes/terminal";
 import vps from "./routes/vps";
+import limits from "./routes/limits";
 import authRoutes from "./routes/auth";
 import { COOKIE_NAME, lookupSession } from "./services/auth";
 import { detachAll } from "./services/pty";
@@ -67,6 +68,7 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
     await api.register(fs);
     await api.register(terminal);
     await api.register(vps);
+    await api.register(limits);
   }, { prefix: "/api" });
 
   // Prod: serve the built dashboard from one process; SPA-fallback to
