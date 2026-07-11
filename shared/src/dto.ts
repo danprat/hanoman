@@ -25,6 +25,10 @@ export const zPatchSpec = z.object({
   branchFrom: z.string().min(1).nullable().optional(),
   stage: zStage.optional(),
   confirmDelete: z.boolean().optional(),
+  // SPEC-186 · edit konten selagi item belum dimulai. Ditolak server bila sudah mulai.
+  title: z.string().min(1).optional(),
+  priority: zPriority.optional(),
+  payload: z.union([zBriefPayload, zQaPayload]).optional(),
 });
 // SPEC-175 · rebase/merge branch hasil done spec. target = "local:<b>" | "origin:<b>".
 export const zIntegrate = z.object({

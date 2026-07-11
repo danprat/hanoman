@@ -9,6 +9,7 @@ Perilaku per fitur (gaya EARS; lihat `requirements/acceptance-criteria-ears-stan
 
 ## Backlog
 - WHEN brief/finding dibuat, THE SYSTEM SHALL memasukkannya sebagai spec pada tahap awal lifecycle.
+- WHILE sebuah backlog item masih di stage awal (`brainstorming`) dan belum pernah dijalankan (belum ada worktree sesi), THE SYSTEM SHALL mengizinkan edit judul, prioritas, dan detail brief/QA-nya; objective diturunkan ulang dari detail. IF item sudah dimulai atau stage-nya maju, THEN THE SYSTEM SHALL menolak edit konten (SPEC-186).
 - WHERE spec pada tahap tertentu, THE SYSTEM SHALL menawarkan aksi yang sesuai (kunci objective / tulis spec / plan / execute).
 - WHERE spec sudah `done`, THE SYSTEM SHALL menawarkan aksi rebase/merge branch hasilnya ke target pilihan (branch lokal atau origin) dari backlog & terminal (SPEC-175).
 - WHEN operator memicu rebase/merge, THE SYSTEM SHALL menjalankannya di worktree terisolasi tanpa menyentuh working tree utama, dan IF timbul konflik, THEN THE SYSTEM SHALL membuka sesi claude di worktree itu untuk menyelesaikannya.

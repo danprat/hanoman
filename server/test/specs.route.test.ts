@@ -44,6 +44,11 @@ beforeAll(async () => {
   const shaHead = execFileSync("git", ["rev-parse", "HEAD"], { cwd: shaRepo, encoding: "utf8" }).trim();
   await makeProject({ id: "psha", repoDir: shaRepo });
   await makeSpec({ id: "SPEC-960", projectId: "psha", stage: "done", baseSha: shaBase, headSha: shaHead });
+  // SPEC-186 · edit konten selagi belum dimulai.
+  await makeSpec({ id: "SPEC-186A", projectId: "p1", stage: "brainstorming",
+    priority: "sedang", objective: "lama", payload: { context: "c0", outcome: "o0", constraints: "", priority: "sedang" } });
+  await makeSpec({ id: "SPEC-186B", projectId: "p1", stage: "brainstorming",
+    payload: { context: "", outcome: "", constraints: "", priority: "sedang" }, baseSha: "deadbeef" }); // sudah dimulai
 });
 describe("specs routes", () => {
   it("filters by project", async () => {
@@ -157,6 +162,32 @@ describe("specs routes", () => {
     const { join } = await import("node:path");
     expect(existsSync(join(artifactRepo, "docs/superpowers/plans/2026-07-11-x-spec-200.md"))).toBe(false);
     expect(existsSync(join(artifactRepo, "docs/superpowers/specs/2026-07-11-x-spec-200-design.md"))).toBe(false);
+  });
+
+  // SPEC-186 — edit backlog selagi belum dimulai
+  it("PATCH edit title/priority/payload → 200, objective dihitung ulang", async () => {
+    const res = await app.inject({
+      method: "PATCH", url: "/api/specs/SPEC-186A",
+      payload: { title: "Judul baru", priority: "tinggi",
+        payload: { context: "c1", outcome: "hasil baru", constraints: "x", priority: "tinggi" } },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().title).toBe("Judul baru");
+    expect(res.json().priority).toBe("tinggi");
+    expect(res.json().objective).toBe("hasil baru");     // outcome → objective
+    expect(res.json().payload.context).toBe("c1");
+  });
+  it("PATCH konten pada item yang sudah dimulai (baseSha) → 409", async () => {
+    const res = await app.inject({
+      method: "PATCH", url: "/api/specs/SPEC-186B", payload: { title: "tak boleh" },
+    });
+    expect(res.statusCode).toBe(409);
+  });
+  it("PATCH konten pada item stage maju → 409", async () => {
+    const res = await app.inject({
+      method: "PATCH", url: "/api/specs/SPEC-137", payload: { title: "tak boleh" }, // SPEC-137 stage done
+    });
+    expect(res.statusCode).toBe(409);
   });
 
   it("deletes a spec", async () => {

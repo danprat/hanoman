@@ -1,6 +1,6 @@
 # Edit Backlog (SPEC-186) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Izinkan edit judul/prioritas/detail sebuah backlog item selagi masih di backlog dan belum pernah dijalankan.
 
@@ -32,7 +32,7 @@
 - Produces: `zPatchSpec` menerima `title?`, `priority?`, `payload?` selain `branchFrom?`/`stage?`/`confirmDelete?`.
 - Produces: `zSpec` kini punya `baseSha: string | null`.
 
-- [ ] **Step 1: Tulis test yang gagal (edit sukses + tolak yang sudah dimulai)**
+- [x] **Step 1: Tulis test yang gagal (edit sukses + tolak yang sudah dimulai)**
 
 Tambahkan di `server/test/specs.route.test.ts`. Pertama, di `beforeAll` tambahkan dua spec brainstorming untuk diedit + satu yang sudah dimulai:
 
@@ -74,12 +74,12 @@ Lalu blok test baru sebelum `it("deletes a spec"...)`:
   });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run test/specs.route.test.ts -t "SPEC-186|edit backlog|dimulai" --no-file-parallelism`
 Expected: FAIL — edit title tak berlaku (200 tapi title lama / objective lama), dan 409 tak muncul (200/200).
 
-- [ ] **Step 3: Shared — perluas zPatchSpec & expose baseSha**
+- [x] **Step 3: Shared — perluas zPatchSpec & expose baseSha**
 
 Di `shared/src/entities.ts`, tambahkan baris terakhir field `zSpec`:
 
@@ -105,7 +105,7 @@ export const zPatchSpec = z.object({
 
 (`zBriefPayload`, `zQaPayload`, `zPriority` sudah di-import di `dto.ts`.)
 
-- [ ] **Step 4: Server — helper `deriveSpecFields` + refactor POST + PATCH content edit**
+- [x] **Step 4: Server — helper `deriveSpecFields` + refactor POST + PATCH content edit**
 
 Di `server/src/routes/specs.ts`, tambahkan helper module-level (dekat `branchUnknown`):
 
@@ -164,12 +164,12 @@ Di handler PATCH, ganti destructuring & blok akhir. Setelah `const spec = await 
     return prisma.spec.update({ where: { id }, data });
 ```
 
-- [ ] **Step 5: Jalankan test, pastikan hijau**
+- [x] **Step 5: Jalankan test, pastikan hijau**
 
 Run: `cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run test/specs.route.test.ts --no-file-parallelism`
 Expected: PASS semua (test lama branchFrom/stage + tiga test SPEC-186 baru).
 
-- [ ] **Step 6: Update Source of Truth (FRD) — bagian Backlog**
+- [x] **Step 6: Update Source of Truth (FRD) — bagian Backlog**
 
 Di `internal/docs/entrypoints/frd.md`, di bawah bagian `## Backlog`, tambahkan setelah baris pertama (`WHEN brief/finding dibuat…`):
 
