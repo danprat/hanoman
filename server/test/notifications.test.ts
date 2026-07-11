@@ -31,9 +31,16 @@ describe("Notification model", () => {
 describe("recordCompletion", () => {
   beforeEach(async () => { await resetDb(); });
 
-  it("idempoten: dua panggilan untuk spec yang sama → satu baris", async () => {
+  it("idempoten via key: dua panggilan spec sama → satu baris", async () => {
     await recordCompletion("SPEC-3", "judul", "p1");
     await recordCompletion("SPEC-3", "judul", "p1");
     expect(await prisma.notification.count({ where: { specId: "SPEC-3" } })).toBe(1);
+  });
+
+  it("menyimpan sessionId turunan untuk aksi 'Buka'", async () => {
+    await recordCompletion("SPEC-4", "judul", "p1");
+    const row = await prisma.notification.findFirstOrThrow({ where: { specId: "SPEC-4" } });
+    expect(row.sessionId).toBe("spec-4");
+    expect(row.type).toBe("done");
   });
 });
