@@ -23,6 +23,7 @@ export const zSpec = z.object({
   stage: zStage, priority: zPriority, author: z.string(), objective: z.string(),
   payload: z.union([zBriefPayload, zQaPayload]).nullable(),
   branchFrom: z.string().nullable(),                   // SPEC-143 · null = default project (main)
+  baseSha: z.string().nullable(),                      // SPEC-186 · null = belum pernah ada sesi (belum dimulai)
 });
 export type Spec = z.infer<typeof zSpec>;
 

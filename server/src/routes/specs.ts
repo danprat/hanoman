@@ -22,6 +22,18 @@ import { recordCompletion } from "../services/notifications";
 // saat worktree gagal di dalam run.
 const branchUnknown = (repoDir: string | null, branch: string) => !listRepoBranches(repoDir).includes(branch);
 
+// SPEC-186 · derivasi priority + objective dari source+payload. Satu sumber untuk POST & PATCH:
+// qa → priority dari severity, objective dari actual/steps; brief → priority manual, objective dari outcome/context.
+function deriveSpecFields(source: string, payload: any, manualPriority: string) {
+  const isQa = source === "qa";
+  const priority = isQa && payload && "severity" in payload
+    ? (payload.severity === "minor" ? "sedang" : "tinggi") : manualPriority;
+  const objective = isQa && payload && "actual" in payload
+    ? (payload.actual || payload.steps || "— audit untuk menelusuri akar masalah.")
+    : (payload && "outcome" in payload ? (payload.outcome || payload.context || "— brainstorm untuk memperjelas objective.") : "");
+  return { priority, objective };
+}
+
 export default async function (app: FastifyInstance) {
   app.get("/specs", async (req) => {
     const { project, source } = req.query as { project?: string; source?: string };
@@ -65,11 +77,7 @@ export default async function (app: FastifyInstance) {
       return reply.code(400).send({ error: `branch "${b.branchFrom}" tidak ada di repo project` });
     const id = await nextSpecId(project.repoDir);
     const isQa = b.source === "qa";
-    const priority = isQa && "severity" in b.payload
-      ? (b.payload.severity === "minor" ? "sedang" : "tinggi") : b.priority;
-    const objective = isQa && "actual" in b.payload
-      ? (b.payload.actual || b.payload.steps || "— audit untuk menelusuri akar masalah.")
-      : ("outcome" in b.payload ? (b.payload.outcome || b.payload.context || "— brainstorm untuk memperjelas objective.") : "");
+    const { priority, objective } = deriveSpecFields(b.source, b.payload, b.priority);
     // Author = user yang login (req.user diisi gate auth; dijamin ada di prod, fallback hanya
     // untuk test requireAuth:false). Prefix `QA ·` tetap menandai spec dari alur QA.
     const author = req.user?.email ?? "system";
@@ -92,7 +100,11 @@ export default async function (app: FastifyInstance) {
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
     const spec = await prisma.spec.findUnique({ where: { id } });
     if (!spec) return reply.code(404).send({ error: "not found" });
-    const { branchFrom, stage, confirmDelete } = parsed.data;
+    const { branchFrom, stage, confirmDelete, title, priority: newPriority, payload } = parsed.data;
+    const editingContent = title !== undefined || newPriority !== undefined || payload !== undefined;
+    // SPEC-186 · konten hanya boleh diubah selagi item masih di backlog & belum dimulai.
+    if (editingContent && (spec.stage !== "brainstorming" || spec.baseSha !== null))
+      return reply.code(409).send({ error: "backlog item sudah dimulai — tak bisa diedit" });
     if (branchFrom) {
       const project = await prisma.project.findUnique({ where: { id: spec.projectId } });
       if (branchUnknown(project?.repoDir ?? null, branchFrom))
@@ -106,9 +118,17 @@ export default async function (app: FastifyInstance) {
         return reply.send({ pending: true, stage, wouldDelete });
       for (const rel of wouldDelete) await deleteDoc(spec.projectId, rel).catch(() => { });
     }
-    const data: { branchFrom?: string | null; stage?: string } = {};
+    const data: { branchFrom?: string | null; stage?: string; title?: string; priority?: string; objective?: string; payload?: any } = {};
     if (branchFrom !== undefined) data.branchFrom = branchFrom;
     if (stage !== undefined) data.stage = stage;
+    if (editingContent) {
+      const effPayload = payload ?? spec.payload;
+      const { priority, objective } = deriveSpecFields(spec.source, effPayload, newPriority ?? spec.priority);
+      if (title !== undefined) data.title = title;
+      if (payload !== undefined) data.payload = payload;
+      data.priority = priority;
+      data.objective = objective;
+    }
     return prisma.spec.update({ where: { id }, data });
   });
   // SPEC-170 · dokumen sebuah backlog item (audit/objective/spec/plan/brainstorm).

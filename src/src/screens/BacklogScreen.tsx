@@ -3,7 +3,7 @@
 import React from "react";
 import {
   Card, Badge, Tabs, Select, Button, IconButton, Icon, usePaged, Pager, Modal, StateBlock, Input,
-  LIST_SCROLL_STYLE, LIST_SCREEN_STYLE, FIXED_ROW_STYLE
+  Field, HnTextarea, LIST_SCROLL_STYLE, LIST_SCREEN_STYLE, FIXED_ROW_STYLE
 } from "../ds";
 import { api } from "../api/client";
 import { SpecDocsModal } from "./SpecDocsModal";
@@ -24,6 +24,9 @@ const B_PRIO: Record<string, { tone: any; label: string }> = {
   sedang: { tone: "neutral", label: "prioritas sedang" },
   rendah: { tone: "neutral", label: "prioritas rendah" },
 };
+// SPEC-186 · opsi enum untuk form edit inline.
+const PRIO_OPTS = [{ value: "tinggi", label: "Tinggi" }, { value: "sedang", label: "Sedang" }, { value: "rendah", label: "Rendah" }];
+const SEV_OPTS = [{ value: "critical", label: "Critical" }, { value: "major", label: "Major" }, { value: "minor", label: "Minor" }];
 
 function StageBar({ stage }: { stage: string }) {
   const idx = bStageIndex(stage);
@@ -74,18 +77,38 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, onStart, onIntegrate }:
+function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, onStart, onIntegrate, onEditSpec }:
   {
     spec: Spec | null; onClose: () => void; onEditBranch?: (s: Spec, b: string | null) => void;
     onRevertStage?: (s: Spec, target: string, confirmDelete?: boolean) => Promise<any>;
     onOpenReview?: (s: Spec) => void;
     onStart?: (s: Spec) => void;
-    onIntegrate?: (s: Spec, op: "merge" | "rebase", target: string) => void
+    onIntegrate?: (s: Spec, op: "merge" | "rebase", target: string) => void;
+    onEditSpec?: (s: Spec, patch: { title?: string; priority?: string; payload?: unknown }) => void
   }) {
   // Hook HARUS mendahului early-return `if (!spec)` — rules-of-hooks.
   const [branches, setBranches] = React.useState<string[]>([]);
   const [confirm, setConfirm] = React.useState<{ target: string; files: string[] } | null>(null);
   const [showIntegrate, setShowIntegrate] = React.useState(false);
+  // SPEC-186 · konten hanya boleh diubah selagi item masih di backlog & belum pernah dimulai.
+  const [editing, setEditing] = React.useState(false);
+  const [form, setForm] = React.useState<Record<string, string>>({});
+  const editable = spec?.stage === "brainstorming" && spec?.baseSha == null && !!onEditSpec;
+  const startEdit = () => {
+    if (!spec) return;
+    const pp = (spec.payload || {}) as Record<string, string>;
+    setForm({ title: spec.title, priority: spec.priority, ...pp });
+    setEditing(true);
+  };
+  const setField = (k: string) => (e: React.ChangeEvent<any>) => setForm((s) => ({ ...s, [k]: e.target.value }));
+  const saveEdit = () => {
+    if (!spec || !onEditSpec) return;
+    const patch = spec.source === "qa"
+      ? { title: form.title, payload: { severity: form.severity, steps: form.steps, expected: form.expected, actual: form.actual, env: form.env } }
+      : { title: form.title, priority: form.priority, payload: { context: form.context, outcome: form.outcome, constraints: form.constraints, priority: form.priority } };
+    onEditSpec(spec, patch);
+    setEditing(false);
+  };
   const projectId = spec?.projectId;
   React.useEffect(() => {
     if (!projectId) { setBranches([]); return; }
@@ -113,7 +136,7 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
   const fields = qa ? QA_FIELDS : BRIEF_FIELDS;
   return (
     <Modal open title={spec.title} eyebrow={spec.id + " · " + spec.projectId}
-      icon={qa ? "bug" : "lightbulb"} onClose={onClose}>
+      icon={qa ? "bug" : "lightbulb"} onClose={() => { setEditing(false); onClose(); }}>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
         <Badge tone={qa ? "err" : "brass"} size="sm">{qa ? "QA finding" : "feature brief"}</Badge>
         <Badge tone={(B_PRIO[spec.priority] || B_PRIO.sedang!).tone} size="sm" variant="outline">
@@ -121,6 +144,10 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
         </Badge>
         <Badge tone="neutral" size="sm">{spec.author}</Badge>
         <span style={{ flex: 1 }} />
+        {/* SPEC-186 · edit konten selagi item masih di backlog & belum dimulai. */}
+        {editable && !editing && (
+          <Button size="sm" variant="secondary" leftIcon="pencil" onClick={startEdit}>Edit</Button>
+        )}
         {/* SPEC-171 · buka layar review all files + file changed dari worktree. */}
         {onOpenReview && (
           <Button size="sm" variant="secondary" leftIcon="git-compare"
@@ -157,7 +184,11 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
           </div>
         )}
       </div>
-      <DetailRow label="Objective" value={spec.objective} />
+      {editing ? (
+        <Field label="Judul"><Input value={form.title ?? ""} onChange={setField("title")} style={{ width: "100%" }} /></Field>
+      ) : (
+        <DetailRow label="Objective" value={spec.objective} />
+      )}
       {/* SPEC-143 · dapat diubah selama item masih di backlog; hanya menentukan basis run berikutnya. */}
       <div style={{ marginBottom: 14 }}>
         <div className="hn-eyebrow" style={{ marginBottom: 4 }}>Branch worktree</div>
@@ -165,7 +196,28 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
           onChange={(e) => onEditBranch && onEditBranch(spec, e.target.value || null)}
           options={branchOptions(branches)} />
       </div>
-      {fields.map(([k, label]) => <DetailRow key={k} label={label} value={p[k] ?? ""} />)}
+      {editing ? (
+        <>
+          {!qa && (
+            <Field label="Prioritas">
+              <Select value={form.priority ?? "sedang"} onChange={setField("priority")} options={PRIO_OPTS} style={{ width: "100%" }} />
+            </Field>
+          )}
+          {fields.map(([k, label]) => (
+            <Field key={k} label={label}>
+              {k === "severity"
+                ? <Select value={form[k] ?? "major"} onChange={setField(k)} options={SEV_OPTS} style={{ width: "100%" }} />
+                : <HnTextarea value={form[k] ?? ""} onChange={setField(k)} rows={2} />}
+            </Field>
+          ))}
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 }}>
+            <Button size="sm" variant="secondary" onClick={() => setEditing(false)}>Batal</Button>
+            <Button size="sm" variant="primary" leftIcon="check" onClick={saveEdit}>Simpan</Button>
+          </div>
+        </>
+      ) : (
+        fields.map(([k, label]) => <DetailRow key={k} label={label} value={p[k] ?? ""} />)
+      )}
       {confirm && (
         <Modal open title="Kembalikan stage & hapus artefak" icon="rotate-ccw"
           eyebrow={spec.id + " → " + confirm.target} onClose={() => setConfirm(null)}>
@@ -446,7 +498,7 @@ const VIEWS = [
   { value: "board", label: "Board", icon: "kanban" },
 ];
 
-export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onOpenReview, onNew, onEditBranch, onRevertStage, onIntegrate, projectFilter, onProjectFilter }:
+export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onOpenReview, onNew, onEditBranch, onRevertStage, onIntegrate, onEditSpec, projectFilter, onProjectFilter }:
   {
     backlog: Spec[]; projects: ProjectVM[]; pageSize?: number;
     onStart?: (s: Spec) => void; activeSpecs?: Set<string>;
@@ -454,6 +506,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
     onEditBranch?: (s: Spec, b: string | null) => void;
     onRevertStage?: (s: Spec, target: string, confirmDelete?: boolean) => Promise<any>;
     onIntegrate?: (s: Spec, op: "merge" | "rebase", target: string) => void;
+    onEditSpec?: (s: Spec, patch: { title?: string; priority?: string; payload?: unknown }) => void;
     projectFilter: string; onProjectFilter: (id: string) => void
   }) {
   const [tab, setTab] = React.useState("all");
@@ -543,7 +596,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
         </>
       )}
       <SpecDetail spec={backlog.find((s) => s.id === detailId) || null} onClose={() => setDetailId(null)}
-        onEditBranch={onEditBranch} onRevertStage={onRevertStage} onOpenReview={onOpenReview} onStart={onStart} onIntegrate={onIntegrate} />
+        onEditBranch={onEditBranch} onRevertStage={onRevertStage} onOpenReview={onOpenReview} onStart={onStart} onIntegrate={onIntegrate} onEditSpec={onEditSpec} />
     </div>
   );
 }

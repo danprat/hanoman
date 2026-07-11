@@ -53,7 +53,8 @@ export const api = {
   integrateSpec: (id: string, op: "merge" | "rebase", target: string) =>
     j<{ status: "clean"; detail: string } | { status: "conflict"; sessionId: string }>(
       paths.specIntegrate(id), { method: "POST", ...body({ op, target }) }),
-  patchSpec: (id: string, b: { branchFrom?: string | null; stage?: string; confirmDelete?: boolean }) =>
+  patchSpec: (id: string, b: { branchFrom?: string | null; stage?: string; confirmDelete?: boolean;
+    title?: string; priority?: string; payload?: unknown }) =>
     j<Spec | RevertPending>(paths.spec(id), { method: "PATCH", ...body(b) }),
   // SPEC-171 · all files + file changed dari worktree backlog item.
   specReview: (id: string) => j<SpecReview>(paths.specReview(id)),
