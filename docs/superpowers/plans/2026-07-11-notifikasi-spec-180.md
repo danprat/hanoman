@@ -996,7 +996,7 @@ git commit -m "feat(app): setting notifyDone + notifySound (enable + pilih duras
 - Modify: `internal/docs/frontend/frontend-implementation.md` (lonceng, provider, settings)
 - Modify: `docs/superpowers/plans/2026-07-11-notifikasi-spec-180.md` (centang task)
 
-- [ ] **Step 1: Suite penuh + typecheck**
+- [x] **Step 1: Suite penuh + typecheck**
 
 Run:
 ```bash
@@ -1007,7 +1007,7 @@ pnpm --filter ./server exec tsc --noEmit && pnpm --filter ./src exec tsc --noEmi
 ```
 Expected: semua hijau, exit 0.
 
-- [ ] **Step 2: Smoke API nyata — notifikasi ujung ke ujung**
+- [x] **Step 2: Smoke API nyata — notifikasi ujung ke ujung**
 
 Boot server terhadap DB throwaway yang termigrasi (jangan hanoman_test — sibling test bisa men-truncate-nya di tengah smoke), lalu buktikan siklusnya. Contoh (sesuaikan bila perlu):
 
@@ -1025,21 +1025,23 @@ Skrip smoke node (scratchpad) memakai `buildApp({requireAuth:false})` + `app.inj
 
 Expected: ketiga assert lulus. (Alternatif lebih ringan bila tmux tak tersedia di lingkungan smoke: panggil `recordCompletion` langsung lalu uji ketiga rute — tetap membuktikan rute + siklus baca/hapus.)
 
-- [ ] **Step 3: Smoke UI (opsional, bila layak) — lonceng muncul**
+- [x] **Step 3: Smoke UI (opsional) — diganti build nyata**
+
+Smoke browser headless dilewati (rapuh; app tanpa URL routing, POST /terminal/sessions men-spawn claude nyata). Sebagai gantinya: `vite build` sukses (1563 modul, `dist/sounds/notify-{short,medium,long}.wav` ter-ship) + unit test bell/provider/settings hijau membuktikan komponen + aset ter-bundle & merender.
 
 Boot `pnpm --filter ./src dev` + server; login; picu satu penyelesaian; pastikan badge lonceng bertambah, dropdown memuat item, toast muncul, sound terputar (sekali interaksi user lebih dulu agar autoplay tak diblokir). Bila lingkungan headless, lewati dan andalkan Step 2 + unit test.
 
-- [ ] **Step 4: Tulis ADR-0030**
+- [x] **Step 4: Tulis ADR-0030**
 
 `internal/docs/adr/0030-notifikasi-backlog-selesai.md` — Context (awareness backlog selesai minim), Decision (model `Notification` `specId @unique`; dibuat server-side di dua titik persist saat transisi `done`; read-state global; poll 10s + toast/sound client; setting `notifyDone`/`notifySound` menumpang blob `Setting`), Consequences (idempoten; reopen tak re-notify — ceiling; tanpa push tab-tertutup). Status accepted, Date 2026-07-11, Spec SPEC-180.
 
-- [ ] **Step 5: Perbarui docs teknis + index**
+- [x] **Step 5: Perbarui docs teknis + index**
 
 - `internal/docs/README.md`: tambahkan baris index ADR-0030.
 - `internal/docs/architecture/**`: catat subsistem notifikasi (model, endpoint, jalur pembuatan) di file arsitektur yang relevan.
 - `internal/docs/frontend/frontend-implementation.md`: catat `NotificationsProvider`, `NotificationBell` di topbar, setting notifikasi, aset sound.
 
-- [ ] **Step 6: Centang semua task di plan + commit docs**
+- [x] **Step 6: Centang semua task di plan + commit docs**
 
 Pastikan tiap `- [ ]` di plan ini sudah `- [x]`. Commit:
 ```bash

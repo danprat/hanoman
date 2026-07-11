@@ -83,7 +83,11 @@ GET/POST /triggers ; POST /triggers/:id/toggle ; DELETE /triggers/:id
 #   create/toggle/delete sync a BullMQ repeatable job (queue hanoman-schedules);
 #   worker reconciles DB->schedulers on boot. On fire: fireTrigger -> enqueueRun
 #   (plan+execute = one feature run per ready spec; audit/qa=qa; scaffold docs=scaffold).
-GET/PUT  /settings
+GET/PUT  /settings                      # Setting blob; incl. notifyDone (bool) + notifySound (off|short|medium|long) — SPEC-180
+GET      /notifications                 # { items:Notification[] (≤50 terbaru dulu), unread:int }  (SPEC-180)
+#   Notification dibuat server-side saat backlog masuk `done` (advanceStage + write-through GET /specs).
+POST     /notifications/read            # 204; tandai semua unread jadi terbaca
+DELETE   /notifications                 # 204; clear semua
 GET    /projects/:id/docs               # index + tree, live-scanned dari repoDir
 GET    /projects/:id/docs/*path         # isi file .md asli (raw, dari disk)
 PUT    /projects/:id/docs/*path         { content }   # tulis file .md asli; 400 kalau path keluar repo / bukan .md

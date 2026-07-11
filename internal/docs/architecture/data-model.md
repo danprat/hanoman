@@ -61,9 +61,21 @@ Docs bukan entitas DB. Tabel `DocFile` sudah di-drop (ADR-0011). Docs dibaca **l
 `linked` = reachable dari root index (`internal/docs/README.md` → `README.md`) lewat graf link Markdown.
 - coverage = % direktori yang seluruh Markdown-nya reachable dari index. **Tidak dipersist**: `toProjectView` menghitungnya dari `Project.repoDir` setiap kali project dibaca (ADR-0018).
 
+## Notification (SPEC-180, [ADR-0030](../adr/0030-notifikasi-backlog-selesai.md))
+Dibuat server-side saat sebuah backlog masuk stage `done` (di `advanceStage()` dan write-through
+`GET /specs`).
+- `id` (cuid), `specId` **@unique** — 1 notif per backlog; membuat pembuatan idempoten terhadap poll
+  write-through 3s & dua jalur persist (insert kedua kena P2002, diabaikan).
+- `title` (snapshot judul spec), `projectId` (opsional), `createdAt`.
+- `readAt` (nullable) — `null` = belum dibaca. Read-state **global** (bukan per-user).
+- Rute: `GET /notifications` (`{ items ≤50 terbaru dulu, unread }`), `POST /notifications/read`
+  (tandai semua), `DELETE /notifications` (clear).
+
 ## Settings (per workspace)
 - `steps`: { brainstorm|spec|plan|execute|audit: { model, effort } } (default opus/x-high)
 - `autoDefault`, `autoScaffold`, `maxConcurrent`, `dailyBudget`, `notifyFail`
+- `notifyDone` (SPEC-180) — enable toast+sound saat backlog selesai (default true)
+- `notifySound` (SPEC-180) — `off|short|medium|long`, durasi nada notifikasi (default `short`)
 
 ## Docs sebagai konvensi, bukan lagi gerbang
 `Run` tidak lagi diverifikasi terhadap DocIndex sebelum masuk fase execute — guardrail Source of

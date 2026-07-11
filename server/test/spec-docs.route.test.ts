@@ -2,7 +2,9 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { buildApp } from "../src/app";
 import { resetDb, makeProject, makeSpec, makeTempRepo } from "./factory";
 
-const app = buildApp();
+// requireAuth:false — sama seperti route-test lain; test ini menguji rute docs, bukan gate auth
+// (SPEC-169). Tanpa ini tiap request 401 (regresi laten dari merge SPEC-169 × SPEC-170).
+const app = buildApp({ requireAuth: false });
 const repo = makeTempRepo({
   "internal/docs/operations/spec-170-x-audit.md": "# audit\n\nbody",
   "docs/superpowers/specs/2026-07-11-x-spec-170-design.md": "# design",
