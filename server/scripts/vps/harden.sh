@@ -8,10 +8,11 @@ SSH_PORT="${SSH_PORT:-22}"
 step() { echo "STEP $1 $2 ${3:-}"; }
 
 [ "$(id -u)" = 0 ] || { step precheck fail "bukan root"; exit 1; }
-. /etc/os-release 2>/dev/null || true
+# ponytail: path overridable HANYA untuk test (fixture os-release); default = /etc/os-release
+. "${HANOMAN_OS_RELEASE:-/etc/os-release}" 2>/dev/null || true
 case "${ID:-} ${ID_LIKE:-}" in
   *debian*|*ubuntu*) FAM=deb ;;
-  *rhel*|*fedora*|*centos*|*rocky*|*alma*) FAM=rhel ;;
+  *rhel*|*fedora*|*centos*|*rocky*|*alma*|*opencloudos*) FAM=rhel ;;
   *) step precheck fail "distro ${ID:-unknown} tidak didukung"; exit 1 ;;
 esac
 step precheck ok "$FAM ssh_port=$SSH_PORT"
@@ -39,7 +40,11 @@ else
 fi
 
 # 2 · fail2ban
-[ "$FAM" = rhel ] && pkg epel-release
+# fail2ban di RHEL-family butuh repo tambahan: EPEL, kecuali OpenCloudOS yang
+# memakai EPOL (epel-release tak ada di sana). Best-effort — gagal tak fatal.
+if [ "$FAM" = rhel ]; then
+  if [ "${ID:-}" = opencloudos ]; then pkg epol-release; else pkg epel-release; fi
+fi
 if pkg fail2ban; then
   mkdir -p /etc/fail2ban/jail.d
   cat > /etc/fail2ban/jail.d/hanoman.conf <<'EOF'

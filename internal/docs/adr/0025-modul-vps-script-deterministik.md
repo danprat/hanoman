@@ -27,6 +27,9 @@ tidak ada lagi queue/Redis untuk pekerjaan terjadwal.
 
 - Status `hardened` = derivasi audit terakhir (semua check kritis pass) — bisa
   basi maksimal satu hari, atau segar setelah tombol Audit/Harden.
-- Distro di luar debian/rhel-family ditolak eksplisit (`os_supported` fail).
+- Distro didukung: debian/ubuntu, keluarga RHEL, dan OpenCloudOS (dideteksi via
+  `ID=opencloudos` eksplisit karena `ID_LIKE`-nya self-referential; diperlakukan
+  sebagai RHEL, fail2ban dari repo EPOL — SPEC-183). Distro lain ditolak eksplisit
+  (`os_supported` fail).
 - Endpoint vps mewarisi postur tanpa-auth + bind 127.0.0.1 (lihat ADR-0016 /
   komentar `routes/terminal.ts`).

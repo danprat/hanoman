@@ -8,15 +8,16 @@ emit() { echo "CHECK $1 $2 ${3:-}"; }
 if [ "$(id -u)" = 0 ]; then emit sudo_ok pass root
 else emit sudo_ok fail "bukan root — beri passwordless sudo pada user ini"; fi
 
-. /etc/os-release 2>/dev/null || true
+# ponytail: path overridable HANYA untuk test (fixture os-release); default = /etc/os-release
+. "${HANOMAN_OS_RELEASE:-/etc/os-release}" 2>/dev/null || true
 FAM=""
 case "${ID:-} ${ID_LIKE:-}" in
   *debian*|*ubuntu*) FAM=deb ;;
-  *rhel*|*fedora*|*centos*|*rocky*|*alma*) FAM=rhel ;;
+  *rhel*|*fedora*|*centos*|*rocky*|*alma*|*opencloudos*) FAM=rhel ;;
 esac
 if [ -n "$FAM" ]; then emit os_supported pass "${ID:-?} ${VERSION_ID:-?}"
 else
-  emit os_supported fail "${ID:-unknown} — hanya keluarga debian/rhel"
+  emit os_supported fail "${ID:-unknown} — hanya keluarga debian/rhel/opencloudos"
   exit 0   # check lain tak bermakna di distro asing
 fi
 

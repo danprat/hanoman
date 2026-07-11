@@ -1,0 +1,5 @@
+NAME="OpenCloudOS"
+ID="opencloudos"
+ID_LIKE="opencloudos"
+VERSION_ID="9.2"
+PLATFORM_ID="platform:oc9"
