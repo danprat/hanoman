@@ -29,6 +29,8 @@ model Spec {
   objective String
   payload   Json?
   branchFrom String? // SPEC-143 · branch sumber worktree; null = default project (main)
+  baseSha    String? // SPEC-176 · ADR-0030 · commit detach worktree sesi (nilai balik addWorktree)
+  headSha    String? // SPEC-176 · ADR-0030 · commit HEAD worktree di akhir sesi (sebelum removeWorktree)
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 

@@ -35,6 +35,15 @@ beforeAll(async () => {
     [{ msg: "feat(spec-901): ubah keep + tambah baru", changes: { "keep.txt": "satu\ndua\n", "new.md": "baru\n" } }]);
   await makeProject({ id: "ph", repoDir: histRepo });
   await makeSpec({ id: "SPEC-901", projectId: "ph", stage: "done" });
+  // SPEC-176 · done via baseSha/headSha tersimpan; pesan commit SENGAJA tanpa (spec-N) →
+  // grep specCommitRange pasti kosong, jadi 200 membuktikan SHA tersimpan yang dipakai.
+  const shaRepo = makeRepoWithSpecCommits(
+    { "keep.txt": "satu\n" },
+    [{ msg: "ubah keep tanpa penanda spec", changes: { "keep.txt": "satu\ndua\n" } }]);
+  const shaBase = execFileSync("git", ["rev-parse", "HEAD~1"], { cwd: shaRepo, encoding: "utf8" }).trim();
+  const shaHead = execFileSync("git", ["rev-parse", "HEAD"], { cwd: shaRepo, encoding: "utf8" }).trim();
+  await makeProject({ id: "psha", repoDir: shaRepo });
+  await makeSpec({ id: "SPEC-960", projectId: "psha", stage: "done", baseSha: shaBase, headSha: shaHead });
 });
 describe("specs routes", () => {
   it("filters by project", async () => {
@@ -173,6 +182,17 @@ describe("GET /specs/:id/review", () => {
     const res = await app.inject({ url: "/api/specs/SPEC-901/review" });
     expect(res.statusCode).toBe(200);
     expect(res.json().changed.map((c: any) => c.path).sort()).toEqual(["keep.txt", "new.md"]);
+  });
+  it("done via baseSha/headSha tersimpan — meski pesan commit tanpa (spec-N) (SPEC-176)", async () => {
+    const res = await app.inject({ url: "/api/specs/SPEC-960/review" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().changed.map((c: any) => c.path)).toEqual(["keep.txt"]);
+  });
+  it("done via SHA tersimpan: file changed → diff dari commit range (SPEC-176)", async () => {
+    const res = await app.inject({ url: "/api/specs/SPEC-960/review/keep.txt" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().diff).toContain("+dua");
+    expect(res.json().content).toBe("satu\ndua\n");
   });
   it("item selesai: file changed → diff + content dari commit", async () => {
     const res = await app.inject({ url: "/api/specs/SPEC-901/review/keep.txt" });

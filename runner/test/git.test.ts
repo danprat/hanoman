@@ -34,6 +34,15 @@ describe("git worktree ops", () => {
     realGit.removeWorktree(repo, wt);
   });
 
+  // SPEC-176 · headSha dibaca sebelum removeWorktree untuk menyimpan ujung range review.
+  it("headSha mengembalikan HEAD worktree", () => {
+    const { repo } = seedRepo();
+    const wt = join(repo, ".worktrees", "spec-head");
+    const base = realGit.addWorktree(repo, wt, "main"); // detached di base, belum commit
+    expect(realGit.headSha(wt)).toBe(base);
+    realGit.removeWorktree(repo, wt);
+  });
+
   // Worktree yang tertinggal dari sesi mati tak boleh memblokir sesi berikutnya: id backlog
   // item bisa dipakai ulang, dan "already exists" akan menyandera Start selamanya.
   it("merebut kembali .worktrees/<id> yang tertinggal", () => {

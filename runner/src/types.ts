@@ -16,4 +16,6 @@ export interface GitOps {
   /** Mengembalikan baseSha — commit tempat worktree ini lahir. */
   addWorktree(repo: string, path: string, branchFrom: string): string;
   removeWorktree(repo: string, path: string): void;
+  /** HEAD worktree sekarang — dibaca sebelum removeWorktree untuk simpan headSha (SPEC-176). */
+  headSha(worktree: string): string;
 }

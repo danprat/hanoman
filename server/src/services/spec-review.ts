@@ -39,6 +39,14 @@ async function withTempIndex<T>(wt: string, fn: (env: NodeJS.ProcessEnv) => Prom
 
 const splitZ = (s: string): string[] => s.split("\0").filter(Boolean);
 
+// SPEC-176 · ADR-0030 · apakah SHA masih ada di object database? `cat-file -e` exit 0 = ada.
+// Menjaga review done tak crash bila objek head/base sudah di-`git gc` (branch run dibuang
+// sebelum di-merge) — pemanggil jatuh ke fallback/409, bukan 500.
+export async function shaResolvable(repoDir: string, sha: string): Promise<boolean> {
+  return exec("git", ["cat-file", "-e", `${sha}^{commit}`], { cwd: repoDir, ...GIT })
+    .then(() => true).catch(() => false);
+}
+
 async function mergeBase(wt: string, branchFrom: string | null): Promise<string> {
   const { stdout } = await exec("git", ["merge-base", branchFrom || "main", "HEAD"], { cwd: wt, ...GIT });
   return stdout.trim();

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { execFileSync } from "node:child_process";
-import { specReview, reviewFile, specCommitRange, specReviewRange, reviewFileRange } from "../src/services/spec-review";
+import { specReview, reviewFile, specCommitRange, specReviewRange, reviewFileRange, shaResolvable } from "../src/services/spec-review";
 import { makeRepoWithWorktree, makeRepoWithSpecCommits } from "./factory";
 
 const SID = "SPEC-900";
@@ -77,6 +77,12 @@ describe("review done spec (dari commit history)", () => {
     const dir = hrepo();
     expect(await specCommitRange(dir, HID)).not.toBeNull();
     expect(await specCommitRange(dir, "SPEC-999")).toBeNull();
+  });
+  it("shaResolvable: true untuk commit ada, false untuk sha karangan (SPEC-176)", async () => {
+    const dir = hrepo();
+    const r = (await specCommitRange(dir, HID))!;
+    expect(await shaResolvable(dir, r.head)).toBe(true);
+    expect(await shaResolvable(dir, "0".repeat(40))).toBe(false);
   });
   it("specReviewRange: changed sepanjang range, file base tak tersentuh hanya di tree", async () => {
     const dir = hrepo();

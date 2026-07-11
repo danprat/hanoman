@@ -55,7 +55,11 @@ export default async function (app: FastifyInstance) {
       const { model, effort } = await sessionModel();
       // Worktree lahir `--detach` di commit branchFrom: sesi tak pernah berjalan di working
       // tree utama, dan `main` boleh tetap ter-checkout di sana (ADR-0002).
-      realGit.addWorktree(repoDir, `${repoDir}/.worktrees/${id}`, spec.branchFrom ?? "main");
+      // baseSha = commit detach worktree; disimpan agar review backlog done men-diff
+      // baseSha..headSha, bukan grep pesan commit (SPEC-176, ADR-0030). Overwrite tiap sesi:
+      // range review = perubahan sesi ini.
+      const baseSha = realGit.addWorktree(repoDir, `${repoDir}/.worktrees/${id}`, spec.branchFrom ?? "main");
+      await prisma.spec.update({ where: { id: spec.id }, data: { baseSha, headSha: null } });
       // SPEC-172 · spec yang keburu `done` di-reopen untuk melanjutkan (lanjut di Execute,
       // tak mengulang pipeline). Deteksi dari stage — satu-satunya jalur yang men-start spec
       // `done` adalah tombol "Buka sesi lagi" di detail; list/grid/board menyembunyikan start.
@@ -127,7 +131,15 @@ export default async function (app: FastifyInstance) {
       const project = await prisma.project.findUnique({ where: { id: s.projectId } });
       if (project?.repoDir) {
         // Bacaan terakhir sebelum worktree-nya lenyap: sesudah ini berkas fasenya tak berarti lagi.
-        if (s.flow && s.specId) await advanceStage(s.specId, project.repoDir, id, s.flow, s.cwd);
+        if (s.specId) {
+          if (s.flow) await advanceStage(s.specId, project.repoDir, id, s.flow, s.cwd);
+          // HEAD worktree = ujung range review sesudah item selesai (SPEC-176, ADR-0030).
+          // Dibaca sebelum removeWorktree; gagal-diam agar tak memblok penutupan sesi.
+          try {
+            const headSha = realGit.headSha(s.cwd);
+            await prisma.spec.update({ where: { id: s.specId }, data: { headSha } });
+          } catch { /* HEAD tak resolve — biarkan headSha apa adanya */ }
+        }
         killSession(id);
         realGit.removeWorktree(project.repoDir, s.cwd);
         return reply.code(204).send();

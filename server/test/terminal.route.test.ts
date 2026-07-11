@@ -144,6 +144,19 @@ describe("terminal routes · sesi backlog", () => {
     expect(existsSync(join(repoDir, ".worktrees", "spec-900"))).toBe(true);
   });
 
+  // SPEC-176 · ADR-0030: SHA start/end disimpan agar review backlog done tak bergantung grep.
+  it("menyimpan baseSha saat start dan headSha saat DELETE", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    await makeSpec({ id: "SPEC-930", projectId: "p1", stage: "planned" });
+    await start("SPEC-930");
+    const afterStart = await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-930" } });
+    expect(afterStart.baseSha).toMatch(/^[0-9a-f]{40}$/);
+    expect(afterStart.headSha).toBeNull();
+    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-930" });
+    const afterDel = await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-930" } });
+    expect(afterDel.headSha).toMatch(/^[0-9a-f]{40}$/);
+  });
+
   it("POST kedua untuk spec yang sama mengembalikan sesi yang sama, bukan yang kedua", async () => {
     process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
     await makeSpec({ id: "SPEC-901", projectId: "p1" });
