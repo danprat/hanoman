@@ -1,0 +1,48 @@
+# ADR-0036 — Notifikasi human decision dari hook Claude
+
+**Status:** aktif (SPEC-184)
+
+## Konteks
+
+Sesi Claude yang berhenti menunggu keputusan manusia (brainstorm interview, resolusi konflik,
+reverse-docs) tak menghasilkan sinyal apa pun — harus dicek satu-satu. Pill `awaiting`
+("Menunggu keputusan") ada di design-system tapi tak pernah terhubung ke deteksi. Mekanisme
+lama `.hanoman-ask.json` (ADR-0022) sudah superseded ADR-0024: pertanyaan kini hidup di
+terminal interaktif, bukan berkas ask headless.
+
+## Keputusan
+
+**Satu, deteksi lewat hook `Notification` Claude, bukan scraping TUI.** `guardSettings`
+(sudah meng-inject hook, merge dengan milik user — ADR-0010) menambah hook `Notification`
+yang menandai marker `.worktrees/.decisions/<sessionId>` untuk tipe idle/permission/needs-input,
+dan hook `UserPromptSubmit` yang mengosongkannya saat manusia menjawab. Marker ada di dalam
+`.worktrees` yang sudah `.gitignore`.
+
+**Dua, notifikasi dibuat reaktif di poll, bukan interval baru.** `scanDecisions()` dipanggil
+di `GET /notifications` (poll 10s), membaca marker tiap sesi hidup, dan membuat baris
+`Notification` bertipe `decision` pada transisi kosong→terisi. Dedup episode via `Set`
+in-memory yang di-rebuild dari kondisi marker (sesi mati otomatis ter-prune). Persis pola
+`recordCompletion` yang reaktif.
+
+**Tiga, skema Notification diperluas.** `+type ("done"|"decision")`, `+key String? @unique`
+(dedup selesai pindah dari `specId @unique` ke `key`; decision key null), `+sessionId`
+(target redirect), `specId` jadi nullable (sesi reverse tak punya spec).
+
+**Empat, aksi item.** decision → buka Terminal + fokus sesi. done → Terminal bila sesinya
+masih hidup, kalau tidak Backlog item-nya. Nada decision default `alert`, beda dari selesai
+(`short`), diatur di Settings (`notifyDecision` + `notifyDecisionSound`).
+
+## Konsekuensi
+
+- Latensi ~60s: notifikasi idle Claude muncul sekitar semenit setelah agen benar-benar bertanya.
+- Restart server: paling banter satu notif ulang untuk keputusan yang masih terbuka (Set hilang).
+- Dedup single-process; jika server jadi multi-worker, pindahkan `awaiting` ke kolom DB.
+- Marker tak pernah mendarat di branch (di `.worktrees`); `git add -A` agen tak melihatnya.
+- `specId` tak lagi `@unique`: `recordCompletion` dedup lewat `key` (`done:<specId>`), bukan skema.
+
+## Alternatif yang ditolak
+
+- **Heuristik idle pane server** (sesi diam >N detik = menunggu): tak bisa membedakan "menunggu
+  keputusan" dari "tool jalan senyap"; rapuh seperti sentinel yang ditolak ADR-0020/0022.
+- **Filter notification_type lebih halus dari grep**: tak sepadan; grep substring cukup dan
+  bebas dependency.

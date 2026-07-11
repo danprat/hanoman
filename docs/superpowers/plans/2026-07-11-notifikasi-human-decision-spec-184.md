@@ -38,9 +38,9 @@
 - `src/src/screens/SettingsScreen.tsx` — `S_DEFAULTS` + 2 baris kartu sesi.
 - `src/src/App.tsx` — handler `openNotification`, state `focusSession`, wiring provider + TerminalScreen.
 - `src/src/screens/TerminalScreen.tsx` — prop `focusSession` + efek penempatan.
-- `internal/docs/adr/0035-notifikasi-human-decision.md` (+ index `internal/docs/README.md`) & `internal/docs/architecture/data-model.md` — SoT.
+- `internal/docs/adr/0036-notifikasi-human-decision.md` (+ index `internal/docs/README.md`) & `internal/docs/architecture/data-model.md` — SoT.
 
-> **Catatan nomor ADR:** 0034 sudah dipakai `origin/hanoman/spec-182`. Sebelum menulis, verifikasi ulang nomor bebas lintas branch (memory "ADR/SPEC number collisions"): `for b in $(git branch -a --format='%(refname:short)'|grep -v HEAD); do git ls-tree -r --name-only "$b" -- internal/docs/adr/; done | grep -oE 'adr/[0-9]{4}' | sort -u | tail`. Pakai nomor bebas terkecil ≥ 0035.
+> **Catatan nomor ADR:** 0034 sudah dipakai `origin/hanoman/spec-182`. Sebelum menulis, verifikasi ulang nomor bebas lintas branch (memory "ADR/SPEC number collisions"): `for b in $(git branch -a --format='%(refname:short)'|grep -v HEAD); do git ls-tree -r --name-only "$b" -- internal/docs/adr/; done | grep -oE 'adr/[0-9]{4}' | sort -u | tail`. Pakai nomor bebas terkecil ≥ 0035 (0035 diklaim spec-187 → pakai 0036).
 
 ---
 
@@ -54,7 +54,7 @@
 **Interfaces:**
 - Produces: kolom `Notification.type` (default `"done"`), `key String? @unique`, `sessionId String?`, `specId` nullable.
 
-- [ ] **Step 1: Ubah schema.prisma**
+- [x] **Step 1: Ubah schema.prisma**
 
 Ganti model `Notification`:
 
@@ -75,7 +75,7 @@ model Notification {
 }
 ```
 
-- [ ] **Step 2: Tulis migration.sql**
+- [x] **Step 2: Tulis migration.sql**
 
 Buat `server/prisma/migrations/20260711160000_notification_decision/migration.sql`:
 
@@ -90,7 +90,7 @@ DROP INDEX "Notification_specId_key";
 CREATE UNIQUE INDEX "Notification_key_key" ON "Notification"("key");
 ```
 
-- [ ] **Step 3: Terapkan migration ke kedua DB + generate client**
+- [x] **Step 3: Terapkan migration ke kedua DB + generate client**
 
 Jalankan (override env agar tak menyentuh prod; tiap DB dapat `migrate deploy` sendiri):
 
@@ -106,7 +106,7 @@ env -u NODE_ENV pnpm --filter ./server exec prisma generate
 
 Expected: kedua `migrate deploy` melaporkan `1 migration ... applied` (atau "already applied" bila sudah). `generate` sukses. (Cek kredensial DB nyata dari `.env`/`docker-compose.yml` bila berbeda; Postgres jalan via Docker.)
 
-- [ ] **Step 4: Perbarui notifications.test.ts (dedup pindah dari specId ke key)**
+- [x] **Step 4: Perbarui notifications.test.ts (dedup pindah dari specId ke key)**
 
 Ganti kedua `describe` teratas di `server/test/notifications.test.ts`:
 
@@ -135,14 +135,14 @@ describe("Notification model", () => {
 });
 ```
 
-- [ ] **Step 5: Jalankan test model**
+- [x] **Step 5: Jalankan test model**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run --no-file-parallelism test/notifications.test.ts
 ```
 Expected: 3 test "Notification model" PASS (recordCompletion di-update Task 3 — abaikan kegagalannya untuk sekarang bila ada).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/prisma/schema.prisma server/prisma/migrations/20260711160000_notification_decision/migration.sql server/test/notifications.test.ts
@@ -162,7 +162,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 **Interfaces:**
 - Produces: tipe `Notification` (+`type: "done"|"decision"`, `specId: string|null`, `sessionId: string|null`), `Setting` (+`notifyDecision: boolean`, `notifyDecisionSound`).
 
-- [ ] **Step 1: Tulis failing test**
+- [x] **Step 1: Tulis failing test**
 
 Buat/også tambah di `shared/test/entities.test.ts`:
 
@@ -191,14 +191,14 @@ describe("zSetting (SPEC-184)", () => {
 });
 ```
 
-- [ ] **Step 2: Run → fail**
+- [x] **Step 2: Run → fail**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./shared exec vitest run test/entities.test.ts
 ```
 Expected: FAIL (`notifyDecision`/`sessionId` belum ada).
 
-- [ ] **Step 3: Implementasi di entities.ts**
+- [x] **Step 3: Implementasi di entities.ts**
 
 Ekstrak daftar nada jadi konstanta (DRY) tepat sebelum `zSetting`, dan pakai untuk kedua picker:
 
@@ -233,7 +233,7 @@ export const zNotification = z.object({
 });
 ```
 
-- [ ] **Step 4: Run → pass + typecheck**
+- [x] **Step 4: Run → pass + typecheck**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./shared exec vitest run test/entities.test.ts
@@ -241,7 +241,7 @@ env -u NODE_ENV pnpm --filter ./shared typecheck
 ```
 Expected: PASS; typecheck clean.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add shared/src/entities.ts shared/test/entities.test.ts
@@ -262,7 +262,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Consumes: model dari Task 1.
 - Produces: `recordCompletion(specId, title, projectId)` — kini menyetel `key="done:<specId>"` & `sessionId=<idFor(specId)>`.
 
-- [ ] **Step 1: Perbarui test recordCompletion**
+- [x] **Step 1: Perbarui test recordCompletion**
 
 Ganti `describe("recordCompletion", …)`:
 
@@ -285,14 +285,14 @@ describe("recordCompletion", () => {
 });
 ```
 
-- [ ] **Step 2: Run → fail**
+- [x] **Step 2: Run → fail**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run --no-file-parallelism test/notifications.test.ts -t recordCompletion
 ```
 Expected: FAIL (`sessionId` null).
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 Ganti isi `recordCompletion` di `server/src/services/notifications.ts` (biarkan komentar SPEC-180 di atasnya, sesuaikan):
 
@@ -307,14 +307,14 @@ export async function recordCompletion(specId: string, title: string, projectId:
 }
 ```
 
-- [ ] **Step 4: Run → pass**
+- [x] **Step 4: Run → pass**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run --no-file-parallelism test/notifications.test.ts
 ```
 Expected: seluruh `notifications.test.ts` PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/notifications.ts server/test/notifications.test.ts
@@ -334,7 +334,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 **Interfaces:**
 - Produces: `guardSettings(guardCommand: string, decisionFile?: string)` → `{ hooks }`. Dengan `decisionFile`: +`Notification` (grep → `echo waiting >> file`) +`UserPromptSubmit` (`: > file`).
 
-- [ ] **Step 1: Tulis failing test**
+- [x] **Step 1: Tulis failing test**
 
 Buat `runner/test/settings.test.ts`:
 
@@ -357,14 +357,14 @@ describe("guardSettings", () => {
 });
 ```
 
-- [ ] **Step 2: Run → fail**
+- [x] **Step 2: Run → fail**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./runner exec vitest run test/settings.test.ts
 ```
 Expected: FAIL (arity/hook belum ada).
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 Ganti `guardSettings` di `runner/src/settings.ts` (pertahankan blok komentar ADR-0010 di atasnya):
 
@@ -387,7 +387,7 @@ export const guardSettings = (guardCommand: string, decisionFile?: string) => {
 };
 ```
 
-- [ ] **Step 4: Run → pass + typecheck**
+- [x] **Step 4: Run → pass + typecheck**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./runner exec vitest run test/settings.test.ts
@@ -395,7 +395,7 @@ env -u NODE_ENV pnpm --filter ./runner typecheck
 ```
 Expected: PASS; typecheck clean.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runner/src/settings.ts runner/test/settings.test.ts
@@ -417,7 +417,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Consumes: `guardSettings(cmd, decisionFile?)` (Task 4).
 - Produces: `decisionFilePath(repoDir, sessionId): string`; `CreateOpts.decisionFile?`; `liveDecisions(): { id, specId?, projectId, decisionFile }[]`.
 
-- [ ] **Step 1: Tulis failing test decisionFilePath**
+- [x] **Step 1: Tulis failing test decisionFilePath**
 
 Tambah/buat `server/test/session-phases.test.ts`:
 
@@ -432,14 +432,14 @@ describe("decisionFilePath (SPEC-184)", () => {
 });
 ```
 
-- [ ] **Step 2: Run → fail**
+- [x] **Step 2: Run → fail**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run --no-file-parallelism test/session-phases.test.ts
 ```
 Expected: FAIL (`decisionFilePath` belum ada).
 
-- [ ] **Step 3: Tambah decisionFilePath**
+- [x] **Step 3: Tambah decisionFilePath**
 
 Di `server/src/services/session-phases.ts`, tepat di bawah `phaseFilePath`:
 
@@ -451,7 +451,7 @@ export const decisionFilePath = (repoDir: string, sessionId: string): string =>
   `${repoDir}/.worktrees/.decisions/${sessionId}`;
 ```
 
-- [ ] **Step 4: Plumbing pty.ts**
+- [x] **Step 4: Plumbing pty.ts**
 
 Di `server/src/services/pty.ts`:
 
@@ -514,7 +514,7 @@ export const liveDecisions = (): { id: string; specId?: string; projectId: strin
     .map((p) => ({ id: p.id, specId: p.specId, projectId: p.projectId, decisionFile: p.decisionFile! }));
 ```
 
-- [ ] **Step 5: Run → pass + typecheck**
+- [x] **Step 5: Run → pass + typecheck**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run --no-file-parallelism test/session-phases.test.ts
@@ -522,7 +522,7 @@ env -u NODE_ENV pnpm --filter ./server typecheck
 ```
 Expected: PASS; typecheck clean.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/services/session-phases.ts server/src/services/pty.ts server/test/session-phases.test.ts
@@ -543,14 +543,14 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 > Diverifikasi lewat live smoke (Task 13) — `createSession` menelurkan tmux+claude, tak diunit-test.
 
-- [ ] **Step 1: Import decisionFilePath**
+- [x] **Step 1: Import decisionFilePath**
 
 Di `server/src/routes/terminal.ts` baris 5, tambah `decisionFilePath`:
 ```ts
 import { phaseFilePath, decisionFilePath, readPhases, stageForRun } from "../services/session-phases";
 ```
 
-- [ ] **Step 2: Sesi spec (createSession ~baris 70)**
+- [x] **Step 2: Sesi spec (createSession ~baris 70)**
 
 Tambah `decisionFile` di opts:
 ```ts
@@ -565,7 +565,7 @@ Tambah `decisionFile` di opts:
       });
 ```
 
-- [ ] **Step 3: Sesi reverse (createSession ~baris 103)**
+- [x] **Step 3: Sesi reverse (createSession ~baris 103)**
 
 Tambah `decisionFile`:
 ```ts
@@ -579,14 +579,14 @@ Tambah `decisionFile`:
       });
 ```
 
-- [ ] **Step 4: Typecheck + build**
+- [x] **Step 4: Typecheck + build**
 
 ```bash
 env -u NODE_ENV pnpm --filter ./server typecheck
 ```
 Expected: clean.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/routes/terminal.ts
@@ -608,7 +608,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Consumes: `liveDecisions` (Task 5), model (Task 1).
 - Produces: `scanDecisions(read?)` — buat notif `decision` untuk marker yang baru terisi; `__resetAwaiting()` (test-only).
 
-- [ ] **Step 1: Tulis failing test scanDecisions**
+- [x] **Step 1: Tulis failing test scanDecisions**
 
 Tambah di `server/test/notifications.test.ts` (impor di atas: `scanDecisions, __resetAwaiting` dari service; `mkdtempSync, writeFileSync, truncateSync` dari `node:fs`; `tmpdir` dari `node:os`; `join` dari `node:path`):
 
@@ -650,14 +650,14 @@ describe("scanDecisions", () => {
 });
 ```
 
-- [ ] **Step 2: Run → fail**
+- [x] **Step 2: Run → fail**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run --no-file-parallelism test/notifications.test.ts -t scanDecisions
 ```
 Expected: FAIL (import tak ada).
 
-- [ ] **Step 3: Implementasi scanDecisions**
+- [x] **Step 3: Implementasi scanDecisions**
 
 Tambah di `server/src/services/notifications.ts` (atas: `import { statSync } from "node:fs";` dan `import { liveDecisions } from "./pty";`):
 
@@ -694,7 +694,7 @@ export async function scanDecisions(read: () => DecisionSession[] = liveDecision
 }
 ```
 
-- [ ] **Step 4: Wire ke route**
+- [x] **Step 4: Wire ke route**
 
 Ganti handler `GET /notifications` di `server/src/routes/notifications.ts` (import `scanDecisions`):
 
@@ -709,14 +709,14 @@ import { scanDecisions } from "../services/notifications";
   });
 ```
 
-- [ ] **Step 5: Run → pass (unit + route)**
+- [x] **Step 5: Run → pass (unit + route)**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run --no-file-parallelism test/notifications.test.ts test/notifications.route.test.ts
 ```
 Expected: PASS. (Route test: tanpa tmux `scanDecisions()` no-op → tetap 2 item.)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/services/notifications.ts server/src/routes/notifications.ts server/test/notifications.test.ts
@@ -737,7 +737,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 **Interfaces:**
 - Consumes: `Setting` (Task 2).
 
-- [ ] **Step 1: Tulis failing test default**
+- [x] **Step 1: Tulis failing test default**
 
 Tambah di `server/test/settings.test.ts`:
 ```ts
@@ -747,14 +747,14 @@ Tambah di `server/test/settings.test.ts`:
   });
 ```
 
-- [ ] **Step 2: Run → fail**
+- [x] **Step 2: Run → fail**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run --no-file-parallelism test/settings.test.ts -t SPEC-184
 ```
 Expected: FAIL.
 
-- [ ] **Step 3: DEFAULT_SETTING**
+- [x] **Step 3: DEFAULT_SETTING**
 
 Di `server/src/services/settings.ts`, `DEFAULT_SETTING`:
 ```ts
@@ -766,14 +766,14 @@ export const DEFAULT_SETTING: Setting = {
 };
 ```
 
-- [ ] **Step 4: Run → pass**
+- [x] **Step 4: Run → pass**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run --no-file-parallelism test/settings.test.ts
 ```
 Expected: PASS (termasuk `getSetting()` toEqual DEFAULT_SETTING tetap konsisten).
 
-- [ ] **Step 5: UI — S_DEFAULTS + baris kartu**
+- [x] **Step 5: UI — S_DEFAULTS + baris kartu**
 
 Di `src/src/screens/SettingsScreen.tsx` `S_DEFAULTS` (baris ~32-36) tambah 2 kunci:
 ```ts
@@ -801,14 +801,14 @@ Di kartu "Sesi & notifikasi", tepat setelah `SettingRow` "Sound notifikasi" dan 
         </SettingRow>
 ```
 
-- [ ] **Step 6: Typecheck web**
+- [x] **Step 6: Typecheck web**
 
 ```bash
 env -u NODE_ENV pnpm --filter ./src typecheck
 ```
 Expected: clean.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/services/settings.ts server/test/settings.test.ts src/src/screens/SettingsScreen.tsx
@@ -829,7 +829,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Consumes: `Notification`, `Setting` (Task 2).
 - Produces: `toastFor(n, prefs)`; `Ctx.onOpen?`; prop `onOpen?` di `NotificationsProvider`.
 
-- [ ] **Step 1: Tulis failing test toastFor**
+- [x] **Step 1: Tulis failing test toastFor**
 
 Tambah di `src/test/notifications-context.test.tsx`:
 ```ts
@@ -854,14 +854,14 @@ describe("toastFor (SPEC-184)", () => {
 });
 ```
 
-- [ ] **Step 2: Run → fail**
+- [x] **Step 2: Run → fail**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/notifications-context.test.tsx
 ```
 Expected: FAIL (`toastFor` tak ada).
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 Di `src/src/notifications/NotificationsContext.tsx`:
 
@@ -913,7 +913,7 @@ export function NotificationsProvider({ showToast, onOpen, children }: { showToa
     <NotificationsContext.Provider value={{ items, unread, markAllRead, clear, onOpen }}>
 ```
 
-- [ ] **Step 4: Run → pass + typecheck**
+- [x] **Step 4: Run → pass + typecheck**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/notifications-context.test.tsx
@@ -921,7 +921,7 @@ env -u NODE_ENV pnpm --filter ./src typecheck
 ```
 Expected: PASS; typecheck clean.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/notifications/NotificationsContext.tsx src/test/notifications-context.test.tsx
@@ -941,7 +941,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 **Interfaces:**
 - Consumes: `Ctx.onOpen` (Task 9).
 
-- [ ] **Step 1: Tulis failing test aksi**
+- [x] **Step 1: Tulis failing test aksi**
 
 Ganti `src/test/notification-bell.test.tsx` dengan (tambah `vi`):
 ```ts
@@ -980,14 +980,14 @@ describe("NotificationBell", () => {
 });
 ```
 
-- [ ] **Step 2: Run → fail**
+- [x] **Step 2: Run → fail**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/notification-bell.test.tsx
 ```
 Expected: FAIL (tombol belum ada).
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 Di `src/src/notifications/NotificationBell.tsx`: ambil `onOpen` dari context dan render per tipe. Ganti baris `const { items, unread, markAllRead, clear } = useNotifications();`:
 ```ts
@@ -1022,7 +1022,7 @@ Ganti blok `items.map((n) => ( … ))` (baris ~70-85) dengan:
           })}
 ```
 
-- [ ] **Step 4: Run → pass + typecheck**
+- [x] **Step 4: Run → pass + typecheck**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/notification-bell.test.tsx
@@ -1030,7 +1030,7 @@ env -u NODE_ENV pnpm --filter ./src typecheck
 ```
 Expected: PASS; typecheck clean.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/notifications/NotificationBell.tsx src/test/notification-bell.test.tsx
@@ -1053,7 +1053,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Consumes: `Notification` (Task 2), `TerminalSession`, `Ctx.onOpen` (Task 9), `W.placeFirstEmptyInActive`.
 - Produces: `notifTarget(n, sessions): { section, projectFilter?, focus? }`.
 
-- [ ] **Step 1: Tulis failing test notifTarget**
+- [x] **Step 1: Tulis failing test notifTarget**
 
 Buat `src/test/notif-target.test.ts`:
 ```ts
@@ -1076,14 +1076,14 @@ describe("notifTarget (SPEC-184)", () => {
 });
 ```
 
-- [ ] **Step 2: Run → fail**
+- [x] **Step 2: Run → fail**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/notif-target.test.ts
 ```
 Expected: FAIL (modul tak ada).
 
-- [ ] **Step 3: Buat target.ts**
+- [x] **Step 3: Buat target.ts**
 
 `src/src/notifications/target.ts`:
 ```ts
@@ -1100,14 +1100,14 @@ export function notifTarget(n: Notification, sessions: TerminalSession[]): { sec
 }
 ```
 
-- [ ] **Step 4: Run → pass**
+- [x] **Step 4: Run → pass**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/notif-target.test.ts
 ```
 Expected: PASS.
 
-- [ ] **Step 5: Wire App.tsx**
+- [x] **Step 5: Wire App.tsx**
 
 (a) Import — tambah `Notification` ke import shared di baris 6 (`import { Shell, … }` tetap; tambahkan baris impor tipe):
 ```ts
@@ -1144,7 +1144,7 @@ import type { Notification } from "@hanoman/shared";
               onIntegrate={integrateSpec} specOf={(id) => backlog.find((s) => s.id === id)} />)}
 ```
 
-- [ ] **Step 6: Wire TerminalScreen.tsx**
+- [x] **Step 6: Wire TerminalScreen.tsx**
 
 (a) Prop di destructure + tipe (baris ~11-17):
 ```ts
@@ -1168,7 +1168,7 @@ export function TerminalScreen({ projects, backlog = [], focusSession, onOpenRev
   }, [focusSession, loaded, sessions]);
 ```
 
-- [ ] **Step 7: Typecheck + full web test**
+- [x] **Step 7: Typecheck + full web test**
 
 ```bash
 env -u NODE_ENV pnpm --filter ./src typecheck
@@ -1176,7 +1176,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run
 ```
 Expected: clean; semua test web PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/src/notifications/target.ts src/test/notif-target.test.ts src/src/App.tsx src/src/screens/TerminalScreen.tsx
@@ -1190,15 +1190,15 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ## Task 12: ADR + SoT docs
 
 **Files:**
-- Create: `internal/docs/adr/0035-notifikasi-human-decision.md` (verifikasi nomor dulu — lihat catatan di File Structure)
+- Create: `internal/docs/adr/0036-notifikasi-human-decision.md` (verifikasi nomor dulu — lihat catatan di File Structure)
 - Modify: `internal/docs/README.md` (index ADR — sisipkan di puncak daftar)
 - Modify: `internal/docs/architecture/data-model.md` (bagian `## Notification`)
 
-- [ ] **Step 1: Tulis ADR**
+- [x] **Step 1: Tulis ADR**
 
-Buat `internal/docs/adr/0035-notifikasi-human-decision.md`:
+Buat `internal/docs/adr/0036-notifikasi-human-decision.md`:
 ```markdown
-# ADR-0035 — Notifikasi human decision dari hook Claude
+# ADR-0036 — Notifikasi human decision dari hook Claude
 
 **Status:** aktif (SPEC-184)
 
@@ -1251,7 +1251,7 @@ masih hidup, kalau tidak Backlog item-nya. Nada decision default `alert`, beda d
 
 Di `internal/docs/README.md`, sisipkan di **puncak** daftar ADR (di atas baris 0034/0033):
 ```markdown
-- [0035 — Notifikasi human decision dari hook Claude](adr/0035-notifikasi-human-decision.md)
+- [0035 — Notifikasi human decision dari hook Claude](adr/0036-notifikasi-human-decision.md)
 ```
 (Konfirmasi baris tetangga dengan `grep -n '0033-notifikasi' internal/docs/README.md`; sisipkan tepat di atasnya bila 0034 belum ada di branch ini.)
 
@@ -1259,7 +1259,7 @@ Di `internal/docs/README.md`, sisipkan di **puncak** daftar ADR (di atas baris 0
 
 Ganti bagian `## Notification` di `internal/docs/architecture/data-model.md`:
 ```markdown
-## Notification (SPEC-180/184, [ADR-0033](../adr/0033-notifikasi-backlog-selesai.md), [ADR-0035](../adr/0035-notifikasi-human-decision.md))
+## Notification (SPEC-180/184, [ADR-0033](../adr/0033-notifikasi-backlog-selesai.md), [ADR-0036](../adr/0036-notifikasi-human-decision.md))
 Dua tipe: `done` (backlog masuk `done`, dibuat di `advanceStage()` & write-through `GET /specs`)
 dan `decision` (sesi Claude menunggu keputusan manusia, dibuat `scanDecisions()` di `GET /notifications`).
 - `id` (cuid), `type` (`done|decision`, default `done`).
@@ -1277,13 +1277,13 @@ dan `decision` (sesi Claude menunggu keputusan manusia, dibuat `scanDecisions()`
 ```bash
 env -u NODE_ENV pnpm --filter ./shared exec node --experimental-strip-types shared/src/coverage.ts 2>/dev/null || true
 ```
-(Jika skrip coverage berbeda, lewati — cukup pastikan link ADR baru ada di index: `grep -c '0035-notifikasi-human-decision' internal/docs/README.md` → `1`.)
+(Jika skrip coverage berbeda, lewati — cukup pastikan link ADR baru ada di index: `grep -c '0036-notifikasi-human-decision' internal/docs/README.md` → `1`.)
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/docs/adr/0035-notifikasi-human-decision.md internal/docs/README.md internal/docs/architecture/data-model.md
-git commit -m "docs(sot): ADR-0035 notifikasi human decision + data-model Notification (SPEC-184)
+git add internal/docs/adr/0036-notifikasi-human-decision.md internal/docs/README.md internal/docs/architecture/data-model.md
+git commit -m "docs(sot): ADR-0036 notifikasi human decision + data-model Notification (SPEC-184)
 
 Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ```
