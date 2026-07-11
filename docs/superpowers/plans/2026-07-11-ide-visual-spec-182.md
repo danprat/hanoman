@@ -321,7 +321,7 @@ git commit -m "feat(ide): git-ide graph + commit detail (SPEC-182)"
   - `runGitOp(repoDir: string, op: GitOp): Promise<GitOpResult>`
   - `validateGitOp(op: unknown): string | null` — null bila valid, pesan bila tidak.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambah ke `server/test/git-ide.test.ts`:
 
@@ -363,12 +363,12 @@ describe("git-ide write + mutate", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./server test -- git-ide`
 Expected: FAIL — `writeRepoFile is not a function`.
 
-- [ ] **Step 3: Tulis implementasi**
+- [x] **Step 3: Tulis implementasi**
 
 Tambah ke `server/src/services/git-ide.ts` (import `writeFile`, `mkdir`, `dirname`):
 
@@ -435,12 +435,12 @@ export async function runGitOp(repoDir: string, op: GitOp): Promise<GitOpResult>
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan lulus**
+- [x] **Step 4: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./server test -- git-ide`
 Expected: PASS (18 test total).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/git-ide.ts server/test/git-ide.test.ts

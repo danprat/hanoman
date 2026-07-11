@@ -1,8 +1,8 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { resolve, sep } from "node:path";
+import { resolve, sep, dirname } from "node:path";
 import type { ChangedFile } from "./spec-review";
 
 const exec = promisify(execFile);
@@ -118,4 +118,61 @@ export async function commitDetail(repoDir: string | null, sha: string): Promise
       subject: subject ?? "", body: parts.slice(5).join(US), changed: await changedOf(repoDir, sha),
     };
   } catch { return null; }
+}
+
+export async function writeRepoFile(repoDir: string | null, rel: string, content: string): Promise<void> {
+  if (!repoDir) throw new Error("project tidak punya repoDir");
+  const abs = repoAbsPath(repoDir, rel);
+  await mkdir(dirname(abs), { recursive: true });
+  await writeFile(abs, content);
+}
+
+export type GitOp =
+  | { op: "checkout"; ref: string; force?: boolean }
+  | { op: "branch"; name: string; at?: string; checkout?: boolean }
+  | { op: "merge"; ref: string }
+  | { op: "cherry-pick"; sha: string }
+  | { op: "revert"; sha: string }
+  | { op: "delete-branch"; name: string; force?: boolean };
+
+export type GitOpResult = { ok: boolean; stdout: string; stderr: string; current: string };
+
+// Field wajib per-op. force di-cek terpisah di route (gerbang sesi). null = valid.
+export function validateGitOp(op: unknown): string | null {
+  const o = op as Record<string, unknown>;
+  if (!o || typeof o !== "object") return "body wajib";
+  const need = (k: string) => (typeof o[k] === "string" && o[k] ? null : `${k} wajib`);
+  switch (o.op) {
+    case "checkout": return need("ref");
+    case "branch": return need("name");
+    case "merge": return need("ref");
+    case "cherry-pick": return need("sha");
+    case "revert": return need("sha");
+    case "delete-branch": return need("name");
+    default: return `op tak dikenal: ${String(o.op)}`;
+  }
+}
+
+function gitArgs(op: GitOp): string[] {
+  switch (op.op) {
+    case "checkout": return ["checkout", ...(op.force ? ["-f"] : []), op.ref];
+    case "branch": return ["branch", op.name, ...(op.at ? [op.at] : [])];
+    case "merge": return ["merge", "--no-edit", op.ref];
+    case "cherry-pick": return ["cherry-pick", op.sha];
+    case "revert": return ["revert", "--no-edit", op.sha];
+    case "delete-branch": return ["branch", op.force ? "-D" : "-d", op.name];
+  }
+}
+
+// Jalankan satu op git. Exit ≠ 0 → { ok:false, stderr } (route ubah jadi 409), tak throw.
+// `branch` dengan checkout:true → buat lalu checkout (dua exec).
+export async function runGitOp(repoDir: string, op: GitOp): Promise<GitOpResult> {
+  try {
+    const { stdout, stderr } = await exec("git", gitArgs(op), { cwd: repoDir, ...GIT });
+    if (op.op === "branch" && op.checkout) return runGitOp(repoDir, { op: "checkout", ref: op.name });
+    return { ok: true, stdout, stderr, current: await currentBranch(repoDir) };
+  } catch (e) {
+    const err = e as { stdout?: string; stderr?: string };
+    return { ok: false, stdout: err.stdout ?? "", stderr: err.stderr ?? String(e), current: await currentBranch(repoDir) };
+  }
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { makeTempRepo, makeRepoWithBranches, makeRepoWithSpecCommits } from "./factory";
-import { listRepoTree, readRepoFile, repoAbsPath, listGraph, commitDetail } from "../src/services/git-ide";
+import { listRepoTree, readRepoFile, repoAbsPath, listGraph, commitDetail, writeRepoFile, runGitOp, validateGitOp } from "../src/services/git-ide";
+import { readFileSync } from "node:fs";
 
 const NUL = "a" + String.fromCharCode(0) + "b";
 
@@ -45,9 +46,9 @@ describe("git-ide graph", () => {
     const dir = makeRepoWithSpecCommits({ "a.txt": "1" }, [{ msg: "kedua", changes: { "a.txt": "2" } }]);
     const g = await listGraph(dir);
     expect(g.commits.length).toBe(2);
-    expect(g.commits[0].subject).toBe("kedua");
-    expect(g.commits[0].parents.length).toBe(1);
-    expect(g.commits[1].parents.length).toBe(0); // root
+    expect(g.commits[0]!.subject).toBe("kedua");
+    expect(g.commits[0]!.parents.length).toBe(1);
+    expect(g.commits[1]!.parents.length).toBe(0); // root
     expect(g.current).toBe("main");
     expect(g.commits.some((c) => c.refs.includes("main"))).toBe(true);
   });
@@ -56,13 +57,46 @@ describe("git-ide graph", () => {
   });
   it("commitDetail: file berubah + pesan", async () => {
     const dir = makeRepoWithSpecCommits({ "a.txt": "1" }, [{ msg: "ubah", changes: { "a.txt": "2\n" } }]);
-    const head = (await listGraph(dir)).commits[0].sha;
+    const head = (await listGraph(dir)).commits[0]!.sha;
     const d = await commitDetail(dir, head);
     expect(d!.subject).toBe("ubah");
     expect(d!.changed.map((c) => c.path)).toEqual(["a.txt"]);
-    expect(d!.changed[0]).toMatchObject({ status: "M" });
+    expect(d!.changed[0]!).toMatchObject({ status: "M" });
   });
   it("commitDetail: sha bukan hex → null (gerbang)", async () => {
     expect(await commitDetail(makeRepoWithSpecCommits({ "a": "1" }, []), "../etc")).toBeNull();
+  });
+});
+
+describe("git-ide write + mutate", () => {
+  it("writeRepoFile menulis ke disk lewat path-guard", async () => {
+    const dir = makeTempRepo({});
+    await writeRepoFile(dir, "sub/x.ts", "isi\n");
+    expect(readFileSync(`${dir}/sub/x.ts`, "utf8")).toBe("isi\n");
+  });
+  it("writeRepoFile menolak path keluar repo", async () => {
+    await expect(writeRepoFile(makeTempRepo({}), "../evil", "x")).rejects.toThrow();
+  });
+  it("runGitOp checkout memindah HEAD", async () => {
+    const dir = makeRepoWithBranches("dev");
+    const r = await runGitOp(dir, { op: "checkout", ref: "dev" });
+    expect(r.ok).toBe(true);
+    expect(r.current).toBe("dev");
+  });
+  it("runGitOp checkout ref tak ada → ok:false + stderr (bukan throw)", async () => {
+    const r = await runGitOp(makeRepoWithBranches(), { op: "checkout", ref: "ghost" });
+    expect(r.ok).toBe(false);
+    expect(r.stderr).toMatch(/ghost|did not match|pathspec/i);
+  });
+  it("runGitOp branch + checkout membuat & pindah", async () => {
+    const dir = makeRepoWithBranches();
+    const r = await runGitOp(dir, { op: "branch", name: "feat-x", checkout: true });
+    expect(r.ok).toBe(true);
+    expect(r.current).toBe("feat-x");
+  });
+  it("validateGitOp menolak op tak dikenal & field kurang", () => {
+    expect(validateGitOp({ op: "nuke" })).toBeTruthy();
+    expect(validateGitOp({ op: "checkout" })).toBeTruthy();
+    expect(validateGitOp({ op: "checkout", ref: "main" })).toBeNull();
   });
 });
