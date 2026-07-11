@@ -90,6 +90,7 @@ GET    /projects/:id/graph?limit=200    # { commits:{sha,parents,author,at,subje
 GET    /projects/:id/commit/:sha        # { sha,parents,author,at,subject,body, changed:{path,add,del,status,binary}[] }  404 sha bukan hex / tak ada
 POST   /projects/:id/git                { op, ...args, force? }   # { ok, stdout, stderr, current }
 #   op ∈ checkout|branch|merge|cherry-pick|revert|delete-branch. 400 op/field cacat; 400 tanpa repoDir.
+#   merge menerima ff opsional (SPEC-193): absen=default git (ff bila bisa); "no-ff"=selalu merge commit; "ff-only"=ff saja (409 bila tak bisa). ff lain → 400.
 #   409 bila ada sesi aktif project (force melewatinya) ATAU git exit≠0 (stderr diteruskan). force → -f/-D.
 ```
 

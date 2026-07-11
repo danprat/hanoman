@@ -130,7 +130,7 @@ export async function writeRepoFile(repoDir: string | null, rel: string, content
 export type GitOp =
   | { op: "checkout"; ref: string; force?: boolean }
   | { op: "branch"; name: string; at?: string; checkout?: boolean }
-  | { op: "merge"; ref: string }
+  | { op: "merge"; ref: string; ff?: "no-ff" | "ff-only" }
   | { op: "cherry-pick"; sha: string }
   | { op: "revert"; sha: string }
   | { op: "delete-branch"; name: string; force?: boolean };
@@ -145,7 +145,11 @@ export function validateGitOp(op: unknown): string | null {
   switch (o.op) {
     case "checkout": return need("ref");
     case "branch": return need("name");
-    case "merge": return need("ref");
+    case "merge": {
+      const e = need("ref"); if (e) return e;
+      if (o.ff !== undefined && o.ff !== "no-ff" && o.ff !== "ff-only") return "ff harus no-ff atau ff-only";
+      return null;
+    }
     case "cherry-pick": return need("sha");
     case "revert": return need("sha");
     case "delete-branch": return need("name");
@@ -157,7 +161,7 @@ function gitArgs(op: GitOp): string[] {
   switch (op.op) {
     case "checkout": return ["checkout", ...(op.force ? ["-f"] : []), op.ref];
     case "branch": return ["branch", op.name, ...(op.at ? [op.at] : [])];
-    case "merge": return ["merge", "--no-edit", op.ref];
+    case "merge": return ["merge", "--no-edit", ...(op.ff ? [`--${op.ff}`] : []), op.ref];
     case "cherry-pick": return ["cherry-pick", op.sha];
     case "revert": return ["revert", "--no-edit", op.sha];
     case "delete-branch": return ["branch", op.force ? "-D" : "-d", op.name];

@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { makeTempRepo, makeRepoWithBranches, makeRepoWithSpecCommits } from "./factory";
 import { listRepoTree, readRepoFile, repoAbsPath, listGraph, commitDetail, writeRepoFile, runGitOp, validateGitOp } from "../src/services/git-ide";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 
 const NUL = "a" + String.fromCharCode(0) + "b";
 
@@ -98,5 +99,57 @@ describe("git-ide write + mutate", () => {
     expect(validateGitOp({ op: "nuke" })).toBeTruthy();
     expect(validateGitOp({ op: "checkout" })).toBeTruthy();
     expect(validateGitOp({ op: "checkout", ref: "main" })).toBeNull();
+  });
+});
+
+describe("git-ide merge fast-forward opsional (SPEC-193)", () => {
+  const parentsOf = (dir: string): string[] =>
+    spawnSync("git", ["rev-list", "--parents", "-n1", "HEAD"], { cwd: dir, encoding: "utf8" }).stdout.trim().split(" ");
+
+  // main & dev di base yang sama, lalu dev MAJU 1 commit → dev bisa di-fast-forward ke main.
+  // HEAD ditinggal di main (tertinggal 1 commit di belakang dev).
+  function makeFfRepo(): string {
+    const dir = makeRepoWithBranches("dev");
+    const g = (...a: string[]) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });
+    g("checkout", "-q", "dev"); writeFileSync(`${dir}/on-dev.txt`, "d"); g("add", "-A"); g("commit", "-qm", "dev ahead");
+    g("checkout", "-q", "main");
+    return dir;
+  }
+
+  // main & dev sama-sama maju 1 commit dari base (file beda) → divergen, tak bisa fast-forward.
+  function makeDivergentRepo(): string {
+    const dir = makeRepoWithBranches("dev");
+    const g = (...a: string[]) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });
+    writeFileSync(`${dir}/on-main.txt`, "m"); g("add", "-A"); g("commit", "-qm", "main advance");
+    g("checkout", "-q", "dev"); writeFileSync(`${dir}/on-dev.txt`, "d"); g("add", "-A"); g("commit", "-qm", "dev advance");
+    g("checkout", "-q", "main");
+    return dir;
+  }
+
+  it("merge --no-ff selalu buat merge commit (walau bisa ff)", async () => {
+    const dir = makeFfRepo();
+    const r = await runGitOp(dir, { op: "merge", ref: "dev", ff: "no-ff" });
+    expect(r.ok).toBe(true);
+    expect(parentsOf(dir).length).toBe(3); // commit + 2 parent = merge commit
+  });
+
+  it("merge --ff-only gagal saat divergen (ok:false, bukan throw)", async () => {
+    const r = await runGitOp(makeDivergentRepo(), { op: "merge", ref: "dev", ff: "ff-only" });
+    expect(r.ok).toBe(false);
+    expect(r.stderr).toMatch(/not possible to fast-forward|fast-forward/i);
+  });
+
+  it("merge tanpa ff = default (fast-forward: HEAD pindah tanpa merge commit)", async () => {
+    const dir = makeFfRepo();
+    const r = await runGitOp(dir, { op: "merge", ref: "dev" });
+    expect(r.ok).toBe(true);
+    expect(parentsOf(dir).length).toBe(2); // ff ke commit dev (1 parent) → commit + 1 parent
+  });
+
+  it("validateGitOp: ff harus no-ff/ff-only bila ada; absen valid", () => {
+    expect(validateGitOp({ op: "merge", ref: "x", ff: "bogus" })).toBeTruthy();
+    expect(validateGitOp({ op: "merge", ref: "x", ff: "no-ff" })).toBeNull();
+    expect(validateGitOp({ op: "merge", ref: "x", ff: "ff-only" })).toBeNull();
+    expect(validateGitOp({ op: "merge", ref: "x" })).toBeNull();
   });
 });
