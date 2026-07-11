@@ -175,6 +175,22 @@ Pemicunya dua, keduanya membuka modal ber-`specId` yang sama:
 Renderer Markdown dipakai bersama: `MarkdownView`/`hnDocHtml` (`ds/markdown.tsx`, marked +
 kelas `.hn-md`) — sumber yang sama untuk `SpecDocsModal` dan `DocsWorkspace`.
 
+## Review worktree: collapse & tree Changed (SPEC-171, SPEC-177)
+`ReviewScreen` (`screens/ReviewScreen.tsx`) menampilkan file worktree backlog item ala VSCode:
+sidebar **Changed** (SCM) + **Files** (tree), viewer Diff|Source, read-only. Dua pohon dibangun
+oleh `buildFileTree(paths)` dan dirender `TreeRow`.
+
+`TreeRow` mount **collapsed** (`useState(defaultOpen)`, default `false`) — buka Review pertama kali
+= semua folder tertutup (SPEC-177; sebelumnya `depth < 1` membuat folder top-level ikut terbuka).
+Dua prop opsional membuat satu komponen melayani kedua pohon: `defaultOpen` (Changed-tree
+mengoper `true` supaya rantai induk file changed langsung terlihat) dan `meta` (map
+`path → ChangedFile`; leaf yang ada di map menampilkan status `A/M/D` + `+add −del`, sama seperti
+flat list).
+
+Section **Changed** punya toggle **List | Tree** (`chView`, default `list`) di header "Changed · N":
+List = flat path penuh (existing), Tree = `buildFileTree(changed.map(c => c.path))` dengan
+`meta`+`defaultOpen`. Pilihan tak dipersist. Tak ada perubahan endpoint — murni frontend.
+
 ## Live run view (SPEC-008)
 `RunsScreen` berlangganan `GET /runs/:id/log` (SSE) untuk run running/paused via
 `subscribeRun`; event live (`log`/`phase`/`status`/`cost`/`file`) digabung lewat reducer
