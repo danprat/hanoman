@@ -14,6 +14,7 @@ import { ProjectsScreen } from "./screens/ProjectsScreen";
 import { ProjectDetailScreen } from "./screens/ProjectDetailScreen";
 import { BacklogScreen } from "./screens/BacklogScreen";
 import { TerminalScreen } from "./screens/TerminalScreen";
+import { IdeScreen } from "./screens/IdeScreen";
 import { VpsScreen } from "./screens/VpsScreen";
 import { DocsWorkspace } from "./screens/DocsWorkspace";
 import { ReviewScreen } from "./screens/ReviewScreen";
@@ -531,6 +532,17 @@ export default function App() {
               onOpenReview={(specId) => { setReviewSpecId(specId); setSection("review"); }}
               titleOf={(id) => backlog.find((s) => s.id === id)?.title}
               onIntegrate={integrateSpec} specOf={(id) => backlog.find((s) => s.id === id)} />)}
+      </Shell>
+    );
+  } else if (section === "ide") {
+    // SPEC-182 · IDE Visual: explorer + branch switch + git graph, difilter per project.
+    screen = (
+      <Shell active="ide" title="IDE" breadcrumb={proj ? proj.name : "workspace"} onNavigate={setSection} wide>
+        {gate(projectsView.length === 0
+          ? <StateBlock kind="empty" icon="box" title="Belum ada project"
+              hint="IDE butuh project dengan repoDir." action={() => setModal("project")} actionLabel="Project baru" />
+          : <IdeScreen projects={projectsView} projectId={proj ? proj.id : projectsView[0]!.id}
+              onProject={(id) => setProjectId(id)} />)}
       </Shell>
     );
   } else if (section === "vps") {

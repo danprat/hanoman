@@ -232,3 +232,24 @@ bersandar pada notifikasi yang **dibuat server-side** (`GET /notifications`) —
   (`.../sound.ts`) = `new Audio(...)` di-catch (autoplay bisa diblokir sebelum gestur user).
 - **Setting** di layar Settings → section "Sesi & notifikasi": toggle **Notifikasi backlog selesai**
   (`notifyDone`), select **Sound** (`notifySound`: Short/Medium/Long/Senyap) + tombol **Preview**.
+
+## IDE Visual (SPEC-182 · ADR-0034)
+Nav entri **IDE** (`code-2`) membuka `IdeScreen` (`screens/IdeScreen.tsx`), difilter per project lewat
+`Select` di toolbar (pola sama dengan Docs · SoT). Dua tab berbagi toolbar: **Explorer** dan **Git Graph**.
+
+- **Toolbar**: `Select` project + `Select` **ref** (opsi `· working tree ·` + branch local +
+  `origin/<b>` dari `api.listBranches`) + tombol **Checkout**. Memilih ref hanya mengubah **sudut
+  pandang** (drives `GET /tree`/`/file` lewat `?ref=`) — melihat branch origin **tanpa** checkout.
+  Tombol Checkout memanggil `POST /git {op:"checkout"}` yang memindah HEAD working tree sungguhan.
+- **Explorer**: grid `288px 1fr`. Kiri pohon file datar (`api.ideTree`), kanan pane isi (`api.ideFile`).
+  Preview = `<pre><code class="hljs">` di-highlight **highlight.js** (bahasa dari ekstensi, fallback
+  `highlightAuto`); edit = `<textarea>` mono + Simpan (`api.putIdeFile`). File biner → placeholder.
+- **Git Graph** (`screens/GitGraph.tsx`): DAG commit dari `api.ideGraph`, lane dihitung **client-side**
+  murni oleh `computeLanes` (`screens/git-graph.ts`, nol dep, diuji terpisah). Baris = SVG lane
+  berwarna + chip ref (HEAD di-`--brass-500`) + subject + author + tanggal. **Klik** commit → panel
+  detail (`api.ideCommit`) + daftar file berubah (klik file → buka di Explorer pada sha itu).
+  **Klik-kanan** → context-menu: Checkout / Merge ke branch ini / Cherry-pick / Revert / Buat branch
+  di sini… / Hapus branch (hanya ref local) — tiap aksi `POST /git`.
+- **Dialog Paksa**: mutasi yang balas **409** (sesi aktif / tree kotor) memunculkan `ForceDialog`
+  dengan pesan git asli + tombol **Paksa** yang mengulang op `force:true` (peringatan: bisa membuang
+  perubahan tak ter-commit & mengganggu sesi Claude). Aman-default; force opt-in per aksi.

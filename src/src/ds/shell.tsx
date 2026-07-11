@@ -17,6 +17,7 @@ const HN_NAV: NavItem[] = [
   { key: "projects", label: "Projects", icon: "layout-grid" },
   { key: "backlog", label: "Backlog", icon: "list-checks" },
   { key: "terminal", label: "Terminal", icon: "terminal" },
+  { key: "ide", label: "IDE", icon: "code-2" },
   { key: "vps", label: "VPS", icon: "server" },
   { key: "docs", label: "Docs · SoT", icon: "book-open" },
   { key: "settings", label: "Settings", icon: "settings" },

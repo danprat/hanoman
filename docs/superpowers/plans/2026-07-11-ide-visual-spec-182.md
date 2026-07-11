@@ -1161,7 +1161,7 @@ git commit -m "feat(ide): IdeScreen Explorer + editor highlight.js + force dialo
 - Consumes: `api.ideGraph`, `api.ideCommit`, `computeLanes` (Task 5), `GitOp`, `GraphCommit`.
 - Produces: `GitGraph({ projectId, onRunGit, onOpenFile })` terisi penuh; entri nav `ide`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/test/git-graph-view.test.tsx`:
 
@@ -1204,12 +1204,12 @@ describe("GitGraph", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./src test -- git-graph-view`
 Expected: FAIL — GitGraph masih stub (tak menampilkan "kedua").
 
-- [ ] **Step 3: Isi penuh `src/src/screens/GitGraph.tsx`**
+- [x] **Step 3: Isi penuh `src/src/screens/GitGraph.tsx`**
 
 ```tsx
 /* GitGraph — DAG commit read + aksi (SPEC-182). Lane dihitung computeLanes (nol dep).
@@ -1339,12 +1339,12 @@ export function GitGraph({ projectId, onRunGit, onOpenFile }:
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan lulus**
+- [x] **Step 4: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./src test -- git-graph-view`
 Expected: PASS (3 test).
 
-- [ ] **Step 5: Tambah entri nav IDE di `src/src/ds/shell.tsx`**
+- [x] **Step 5: Tambah entri nav IDE di `src/src/ds/shell.tsx`**
 
 Di array `HN_NAV`, sisipkan setelah baris `{ key: "terminal", ... }`:
 
@@ -1352,7 +1352,7 @@ Di array `HN_NAV`, sisipkan setelah baris `{ key: "terminal", ... }`:
   { key: "ide", label: "IDE", icon: "code-2" },
 ```
 
-- [ ] **Step 6: Tambah cabang `section === "ide"` di `src/src/App.tsx`**
+- [x] **Step 6: Tambah cabang `section === "ide"` di `src/src/App.tsx`**
 
 Import di atas (dekat import screen lain):
 
@@ -1379,14 +1379,14 @@ Tambah cabang (mis. setelah cabang `section === "terminal"`), meniru pola bagian
 > Verifikasi nama state pemilih project di App.tsx (`setProjectId`/`proj`) — bagian `docs`
 > (baris ~543) memakainya; tiru persis. Bila App memakai `projectFilter`, gunakan itu.
 
-- [ ] **Step 7: Update SoT `internal/docs/frontend/frontend-implementation.md`**
+- [x] **Step 7: Update SoT `internal/docs/frontend/frontend-implementation.md`**
 
 Tambahkan bagian **IDE Visual (SPEC-182)** yang mendeskripsikan: nav entri `ide`, `IdeScreen`
 (Explorer: pohon file `api.ideTree` + editor highlight.js + simpan `api.putIdeFile`; toolbar
 project + branch switcher local/origin + Checkout), `GitGraph` (DAG dari `computeLanes`, detail
 commit, context-menu aksi), dan dialog Paksa untuk 409. Ikuti gaya/heading file yang ada.
 
-- [ ] **Step 8: Jalankan seluruh test + typecheck**
+- [x] **Step 8: Jalankan seluruh test + typecheck**
 
 Run:
 ```bash
@@ -1395,7 +1395,7 @@ pnpm -r typecheck
 ```
 Expected: semua PASS; typecheck bersih.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/src/screens/GitGraph.tsx src/src/ds/shell.tsx src/src/App.tsx \
