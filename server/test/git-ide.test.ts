@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { makeTempRepo, makeRepoWithBranches, makeRepoWithSpecCommits } from "./factory";
+import { makeTempRepo, makeRepoWithBranches, makeRepoWithSpecCommits, makeRepoWithSpecBranch } from "./factory";
 import { listRepoTree, readRepoFile, repoAbsPath, listGraph, commitDetail, writeRepoFile, runGitOp, validateGitOp } from "../src/services/git-ide";
 import { readFileSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -151,5 +151,42 @@ describe("git-ide merge fast-forward opsional (SPEC-193)", () => {
     expect(validateGitOp({ op: "merge", ref: "x", ff: "no-ff" })).toBeNull();
     expect(validateGitOp({ op: "merge", ref: "x", ff: "ff-only" })).toBeNull();
     expect(validateGitOp({ op: "merge", ref: "x" })).toBeNull();
+  });
+});
+
+describe("git-ide merge + hapus branch local & origin (SPEC-193)", () => {
+  const list = (dir: string, ...a: string[]) =>
+    spawnSync("git", a, { cwd: dir, encoding: "utf8" }).stdout.trim();
+
+  it("merge deleteBranch: hapus branch local + origin setelah merge sukses", async () => {
+    const { repoDir } = makeRepoWithSpecBranch("btest"); // main; branch hanoman/btest ada local + origin
+    const branch = "hanoman/btest";
+    const r = await runGitOp(repoDir, { op: "merge", ref: branch, deleteBranch: branch });
+    expect(r.ok).toBe(true);
+    expect(list(repoDir, "branch", "--list", branch)).toBe("");          // local terhapus
+    expect(list(repoDir, "ls-remote", "origin", branch)).toBe("");       // origin terhapus
+  });
+
+  it("merge deleteBranch tanpa origin: hapus local saja, tetap ok", async () => {
+    const dir = makeRepoWithBranches("dev");
+    const g = (...a: string[]) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });
+    g("checkout", "-q", "dev"); writeFileSync(`${dir}/z.txt`, "z"); g("add", "-A"); g("commit", "-qm", "dev ahead"); g("checkout", "-q", "main");
+    const r = await runGitOp(dir, { op: "merge", ref: "dev", deleteBranch: "dev" });
+    expect(r.ok).toBe(true);
+    expect(list(dir, "branch", "--list", "dev")).toBe("");
+  });
+
+  it("merge gagal (konflik) TIDAK menghapus branch", async () => {
+    // main & branch mengubah file sama → merge konflik; deleteBranch tak boleh jalan
+    const { repoDir } = makeRepoWithSpecBranch("cft", { base: { "f.txt": "base\n" }, work: { "f.txt": "work\n" }, mainAdvance: { "f.txt": "main\n" } });
+    const branch = "hanoman/cft";
+    const r = await runGitOp(repoDir, { op: "merge", ref: branch, deleteBranch: branch });
+    expect(r.ok).toBe(false);
+    expect(list(repoDir, "branch", "--list", branch)).toBe(branch); // branch masih ada
+  });
+
+  it("validateGitOp: deleteBranch harus string tak kosong bila ada", () => {
+    expect(validateGitOp({ op: "merge", ref: "x", deleteBranch: "" })).toBeTruthy();
+    expect(validateGitOp({ op: "merge", ref: "x", deleteBranch: "dev" })).toBeNull();
   });
 });

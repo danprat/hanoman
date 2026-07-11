@@ -130,7 +130,7 @@ export async function writeRepoFile(repoDir: string | null, rel: string, content
 export type GitOp =
   | { op: "checkout"; ref: string; force?: boolean }
   | { op: "branch"; name: string; at?: string; checkout?: boolean }
-  | { op: "merge"; ref: string; ff?: "no-ff" | "ff-only" }
+  | { op: "merge"; ref: string; ff?: "no-ff" | "ff-only"; deleteBranch?: string }
   | { op: "cherry-pick"; sha: string }
   | { op: "revert"; sha: string }
   | { op: "delete-branch"; name: string; force?: boolean };
@@ -148,6 +148,7 @@ export function validateGitOp(op: unknown): string | null {
     case "merge": {
       const e = need("ref"); if (e) return e;
       if (o.ff !== undefined && o.ff !== "no-ff" && o.ff !== "ff-only") return "ff harus no-ff atau ff-only";
+      if (o.deleteBranch !== undefined && !(typeof o.deleteBranch === "string" && o.deleteBranch)) return "deleteBranch harus string tak kosong";
       return null;
     }
     case "cherry-pick": return need("sha");
@@ -168,12 +169,31 @@ function gitArgs(op: GitOp): string[] {
   }
 }
 
+// Setelah merge sukses: hapus branch yang baru di-merge, lokal (-D, aman karena sudah ter-merge)
+// lalu origin bila remote-tracking-nya ada (`git push origin --delete`). Gagal di salah satu langkah
+// → ok:false + stderr; merge-nya sendiri tetap terjadi (graph reload menunjukkan keadaan sebenarnya).
+async function afterMergeDelete(repoDir: string, branch: string, mergeOut: string, mergeErr: string): Promise<GitOpResult> {
+  const out = [mergeOut], err = [mergeErr];
+  const step = async (args: string[]) => { const r = await exec("git", args, { cwd: repoDir, ...GIT }); out.push(r.stdout); err.push(r.stderr); };
+  try {
+    await step(["branch", "-D", branch]);
+    const hasOrigin = await exec("git", ["rev-parse", "--verify", "--quiet", `refs/remotes/origin/${branch}`], { cwd: repoDir, ...GIT }).then(() => true).catch(() => false);
+    if (hasOrigin) await step(["push", "origin", "--delete", branch]);
+    return { ok: true, stdout: out.join("\n").trim(), stderr: err.join("\n").trim(), current: await currentBranch(repoDir) };
+  } catch (e) {
+    const ee = e as { stdout?: string; stderr?: string };
+    return { ok: false, stdout: [...out, ee.stdout ?? ""].join("\n").trim(), stderr: [...err, ee.stderr ?? String(e)].join("\n").trim(), current: await currentBranch(repoDir) };
+  }
+}
+
 // Jalankan satu op git. Exit ≠ 0 → { ok:false, stderr } (route ubah jadi 409), tak throw.
-// `branch` dengan checkout:true → buat lalu checkout (dua exec).
+// `branch` dengan checkout:true → buat lalu checkout (dua exec). `merge` dengan deleteBranch →
+// merge lalu bersihkan branch lokal+origin (SPEC-193).
 export async function runGitOp(repoDir: string, op: GitOp): Promise<GitOpResult> {
   try {
     const { stdout, stderr } = await exec("git", gitArgs(op), { cwd: repoDir, ...GIT });
     if (op.op === "branch" && op.checkout) return runGitOp(repoDir, { op: "checkout", ref: op.name });
+    if (op.op === "merge" && op.deleteBranch) return afterMergeDelete(repoDir, op.deleteBranch, stdout, stderr);
     return { ok: true, stdout, stderr, current: await currentBranch(repoDir) };
   } catch (e) {
     const err = e as { stdout?: string; stderr?: string };

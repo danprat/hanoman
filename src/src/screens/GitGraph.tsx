@@ -142,6 +142,11 @@ export function GitGraph({ projectId, onRunGit, onOpenFile }:
         { label: "Cherry-pick", run: () => act({ op: "cherry-pick", sha: menu.c.sha }) },
         { label: "Revert", run: () => act({ op: "revert", sha: menu.c.sha }) },
         { label: "Buat branch di sini…", run: () => { const name = window.prompt("Nama branch baru:"); if (name) act({ op: "branch", name, at: menu.c.sha, checkout: true }); } },
+        // Merge branch ini lalu hapus (local + origin bila ada). Hanya branch lokal selain yang aktif.
+        ...menu.c.refs.filter((r) => !r.startsWith("origin/") && r !== current).map((r) => ({
+          label: `Merge ${r} lalu hapus (local${menu.c.refs.includes(`origin/${r}`) ? " + origin" : ""})`,
+          run: () => act({ op: "merge", ref: r, deleteBranch: r }),
+        })),
         ...menu.c.refs.filter((r) => !r.startsWith("origin/")).map((r) => ({ label: `Hapus branch ${r}`, run: () => act({ op: "delete-branch", name: r }) })),
       ]} />}
     </div>

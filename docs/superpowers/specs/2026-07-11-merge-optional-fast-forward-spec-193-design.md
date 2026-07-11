@@ -50,6 +50,29 @@ Menu graf mengganti satu item "Merge ke branch ini" jadi tiga pilihan eksplisit:
 4. **`internal/docs/architecture/api-contract.md`** — dokumentasikan opsi `ff` di `POST
    /projects/:id/git`.
 
+## Tambahan: merge lalu hapus branch (local + origin)
+Aksi menu terpisah **"Merge `<b>` lalu hapus (local + origin)"** untuk tiap branch lokal di commit
+yang bukan branch aktif. Op merge menerima field opsional `deleteBranch`:
+
+```
+{ op: "merge"; ref: string; ff?: ...; deleteBranch?: string }
+```
+
+Setelah merge **sukses**, `runGitOp` menghapus `deleteBranch`:
+1. lokal — `git branch -D <b>` (aman: branch baru saja ter-merge),
+2. origin — `git push origin --delete <b>` **hanya** bila `refs/remotes/origin/<b>` ada.
+
+Gagal di salah satu langkah → `ok:false` (route 409), tapi merge-nya sudah terjadi; graph reload
+menunjukkan keadaan sebenarnya. Merge yang gagal (mis. konflik) **tak** menghapus apa pun.
+
+Keputusan sadar:
+- **Aksi eksplisit, bukan otomatis di tiap merge** — menghapus branch origin itu destruktif &
+  outward-facing; tak boleh jadi efek samping diam-diam dari merge biasa.
+- **Satu request** (bukan chain client) → gerbang sesi/`force` sekali, tak ada state setengah jadi.
+- Label menu menampilkan "+ origin" hanya bila `origin/<b>` memang ada.
+- Ini satu-satunya mutasi IDE yang menyentuh remote — dicatat di ADR-0034 (tanpa ADR baru: tak ada
+  skema/konvensi baru, digerbang sama).
+
 ## Yang TIDAK berubah
 - Route `POST /projects/:id/git` melewatkan op apa adanya — nol perubahan handler.
 - Gerbang sesi-aktif + `force` (ADR-0034) tetap; `ff` ortogonal terhadap `force`.

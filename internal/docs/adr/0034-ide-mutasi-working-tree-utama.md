@@ -31,3 +31,8 @@ untuk diselesaikan lewat Terminal (konsisten `POST /specs/:id/integrate`).
   sebagai keputusan sadar user, dibatasi ke escape eksplisit.
 - Read di ref (`?ref=`) memungkinkan **melihat** branch origin tanpa checkout — jalur aman default;
   checkout sungguhan hanya saat user menekan tombolnya.
+- **Pengecualian outward-facing (SPEC-193):** `merge` dengan `deleteBranch` menghapus branch yang
+  di-merge — lokal (`git branch -D`) lalu **origin** (`git push origin --delete`) bila remote-tracking-nya
+  ada. Ini satu-satunya mutasi IDE yang menyentuh remote (bukan sekadar working tree utama); tetap
+  digerbang sesi-aktif + `force` yang sama, dan hanya berjalan setelah merge sukses. Push penghapusan
+  ke origin hanya untuk branch yang barusan di-merge, opt-in per aksi menu — tak pernah default.

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { buildApp } from "../src/app";
-import { resetDb, makeProject, makeRepoWithBranches } from "./factory";
+import { resetDb, makeProject, makeRepoWithBranches, makeRepoWithSpecBranch } from "./factory";
 import { createSession, killAll } from "../src/services/pty";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -22,6 +22,7 @@ beforeAll(async () => {
   await resetDb();
   await makeProject({ id: "ide", repoDir: makeRepoWithBranches("dev") });
   await makeProject({ id: "ffrepo", repoDir: ffRepo() });
+  await makeProject({ id: "delrepo", repoDir: makeRepoWithSpecBranch("del").repoDir }); // branch hanoman/del local+origin
   await makeProject({ id: "nodir", repoDir: null });
 });
 
@@ -78,5 +79,14 @@ describe("ide routes", () => {
     const r = await app.inject({ method: "POST", url: "/api/projects/ffrepo/git", payload: { op: "merge", ref: "dev", ff: "no-ff" } });
     expect(r.statusCode).toBe(200);
     expect(r.json().ok).toBe(true); // merge-commit vs ff dibuktikan di git-ide.test.ts (unit)
+  });
+  it("POST /git merge deleteBranch: hapus branch local+origin (SPEC-193); deleteBranch kosong → 400", async () => {
+    const bad = await app.inject({ method: "POST", url: "/api/projects/delrepo/git", payload: { op: "merge", ref: "hanoman/del", deleteBranch: "" } });
+    expect(bad.statusCode).toBe(400);
+    const r = await app.inject({ method: "POST", url: "/api/projects/delrepo/git", payload: { op: "merge", ref: "hanoman/del", deleteBranch: "hanoman/del" } });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().ok).toBe(true);
+    // branch tak lagi muncul di daftar branch project
+    expect((await app.inject({ url: "/api/projects/delrepo/branches" })).json().branches).not.toContain("hanoman/del");
   });
 });
