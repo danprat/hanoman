@@ -52,7 +52,9 @@ describe("canDrop", () => {
 const DRAGGABLE = "Seret ke Brainstorm untuk memulai sesi";
 const AGENT_OWNED = "Stage mengikuti fase yang dilaporkan agen — kartu tak bisa dipindah";
 const dt = () => ({ dataTransfer: { setData: () => {}, effectAllowed: "", dropEffect: "" } });
-const column = (label: string) => screen.getByText(label).closest("div")!.parentElement!;
+// { selector: "span" } — sejak SPEC-178 label stage juga muncul di <option> filter stage;
+// header kolom board adalah <span class="hn-eyebrow">, jadi scope ke span agar tak ambigu.
+const column = (label: string) => screen.getByText(label, { selector: "span" }).closest("div")!.parentElement!;
 
 function board(specs: Spec[], activeSpecs?: Set<string>) {
   const onStart = vi.fn();
