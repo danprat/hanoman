@@ -149,6 +149,26 @@ describe("TerminalScreen (Ambil backlog)", () => {
     expect(screen.queryByText("Fitur A")).toBeNull();
   });
 
+  it("filter stage memangkas daftar backlog", async () => {
+    listTerminals.mockResolvedValue([]);
+    render(<TerminalScreen projects={projects} backlog={backlog} />);
+    await screen.findByText("Belum ada sesi terminal");
+    fireEvent.click(screen.getByRole("button", { name: "Ambil backlog" }));
+    fireEvent.change(await screen.findByLabelText("Filter stage"), { target: { value: "planned" } });
+    expect(screen.getByText("Bug B")).toBeInTheDocument();     // SPEC-101 stage planned
+    expect(screen.queryByText("Fitur A")).toBeNull();          // SPEC-100 stage brainstorming
+  });
+
+  it("filter prioritas memangkas daftar backlog", async () => {
+    listTerminals.mockResolvedValue([]);
+    render(<TerminalScreen projects={projects} backlog={backlog} />);
+    await screen.findByText("Belum ada sesi terminal");
+    fireEvent.click(screen.getByRole("button", { name: "Ambil backlog" }));
+    fireEvent.change(await screen.findByLabelText("Filter prioritas"), { target: { value: "tinggi" } });
+    expect(screen.getByText("Fitur A")).toBeInTheDocument();   // SPEC-100 prioritas tinggi
+    expect(screen.queryByText("Bug B")).toBeNull();            // SPEC-101 prioritas sedang
+  });
+
   it("memilih spec memanggil startSession (flow qa) & menaruh sesinya di grid", async () => {
     listTerminals.mockResolvedValue([]);
     startSession.mockResolvedValue({ id: "spec101sess" });

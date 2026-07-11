@@ -4,6 +4,7 @@ import { api, ApiError, type TerminalSession, type Phase, type Flow } from "../a
 import { TerminalPane } from "./TerminalPane";
 import { SpecDocsModal } from "./SpecDocsModal";
 import { IntegrateDialog } from "./IntegrateDialog";
+import { B_STAGES } from "./BacklogScreen";
 import type { Spec } from "./types";
 import * as L from "./terminal-layout";
 import * as W from "./terminal-workspace";
@@ -207,28 +208,43 @@ export function TerminalScreen({ projects, backlog = [], onOpenReview, titleOf, 
 }
 
 // SPEC-179 · picker backlog dari Terminal. Daftar padat + cari; klik baris = ambil.
+// Filter search/stage/prioritas mencermin halaman Backlog (SPEC-178) supaya konsisten.
 function BacklogPicker({ specs, error, onPick, onClose }: {
   specs: Spec[]; error: string | null; onPick: (s: Spec) => void; onClose: () => void;
 }) {
   const [q, setQ] = React.useState("");
+  const [stageFilter, setStageFilter] = React.useState("all");
+  const [prioFilter, setPrioFilter] = React.useState("all");
   const needle = q.trim().toLowerCase();
-  const shown = needle
-    ? specs.filter((s) => `${s.id} ${s.title} ${s.objective}`.toLowerCase().includes(needle))
-    : specs;
+  const shown = specs.filter((s) =>
+    (stageFilter === "all" || s.stage === stageFilter) &&
+    (prioFilter === "all" || s.priority === prioFilter) &&
+    (needle === "" || `${s.id} ${s.title} ${s.objective}`.toLowerCase().includes(needle)));
   return (
-    <Modal open title="Ambil backlog" icon="inbox" onClose={onClose} width={520}>
+    <Modal open title="Ambil backlog" icon="inbox" onClose={onClose} width={760}>
       {error && (
         <div style={{ marginBottom: 10, padding: "8px 10px", borderRadius: "var(--radius-sm)",
           background: "var(--clay-100)", color: "var(--clay-600)", fontSize: 12 }}>{error}</div>
       )}
-      <Input size="sm" leftIcon="search" placeholder="Cari backlog…" aria-label="Cari backlog"
-        value={q} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value)}
-        style={{ marginBottom: 10 }} />
+      {/* baris penyaring: search + stage + prioritas (startable tak pernah `done`). */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+        <Input size="sm" leftIcon="search" placeholder="Cari backlog…" aria-label="Cari backlog"
+          value={q} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value)}
+          style={{ flex: "1 1 220px" }} />
+        <Select size="sm" aria-label="Filter stage" value={stageFilter} onChange={(e) => setStageFilter(e.target.value)}
+          options={[{ value: "all", label: "Semua stage" }].concat(
+            B_STAGES.filter((s) => s.key !== "done").map((s) => ({ value: s.key, label: s.label })))} />
+        <Select size="sm" aria-label="Filter prioritas" value={prioFilter} onChange={(e) => setPrioFilter(e.target.value)}
+          options={[
+            { value: "all", label: "Semua prioritas" }, { value: "tinggi", label: "Tinggi" },
+            { value: "sedang", label: "Sedang" }, { value: "rendah", label: "Rendah" },
+          ]} />
+      </div>
       {shown.length === 0 ? (
         <StateBlock kind="empty" icon="inbox" title="Tak ada backlog untuk diambil"
-          hint="Semua item sudah selesai atau sedang aktif — buat brief baru di halaman Backlog." />
+          hint="Semua item sudah selesai/aktif atau tak cocok filter — buat brief baru di halaman Backlog." />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", maxHeight: "48vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", flexDirection: "column", maxHeight: "62vh", overflowY: "auto" }}>
           {shown.map((s) => (
             <button key={s.id} onClick={() => onPick(s)} style={{
               all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 10,

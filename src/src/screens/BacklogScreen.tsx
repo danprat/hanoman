@@ -12,7 +12,8 @@ import { branchOptions } from "./branch";
 import type { Spec } from "./types";
 import type { ProjectVM } from "./types";
 
-const B_STAGES = [
+// Kosakata stage frontend (key → label). Di-reuse oleh BacklogPicker di TerminalScreen (SPEC-179).
+export const B_STAGES = [
   { key: "brainstorming", label: "Brainstorm" }, { key: "objective", label: "Objective" },
   { key: "spec-ready", label: "Spec" }, { key: "planned", label: "Plan" },
   { key: "executing", label: "Execute" }, { key: "done", label: "Done" },
