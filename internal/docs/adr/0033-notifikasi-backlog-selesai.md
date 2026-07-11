@@ -50,5 +50,6 @@ dibangkitkan `scripts/gen-notify-sounds.mjs`). Setting `notifyDone` (enable) + `
   via `updateMany({ where: { stage: { not: "done" } } }).count === 1`.
 - **Tanpa push saat tab tertutup**: scope = awareness in-app (toast/daftar/sound). Web Push / service
   worker sengaja tak dibangun (YAGNI).
-- Autoplay sound bisa diblokir browser sebelum interaksi user; penolakan di-`catch` (tombol Preview
-  di Settings selalu memicu setelah gestur klik).
+- Autoplay sound bisa diblokir browser sebelum interaksi user. **SPEC-192**: satu elemen `Audio`
+  dipakai ulang dan di-*unlock* (prime muted) pada gestur user pertama, sehingga notifikasi dari
+  poll timer berbunyi setelah user berinteraksi minimal sekali (tombol Preview tetap memicu langsung).

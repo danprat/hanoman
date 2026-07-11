@@ -2,7 +2,7 @@ import React from "react";
 import type { Notification, Setting } from "@hanoman/shared";
 import type { ShowToast } from "../ds/kit";
 import { api } from "../api/client";
-import { playNotifySound, type NotifySound } from "./sound";
+import { playNotifySound, unlockNotifySound, type NotifySound } from "./sound";
 
 export function maxAt(items: Notification[]): string {
   return items.reduce((m, n) => (n.createdAt > m ? n.createdAt : m), "");
@@ -60,7 +60,11 @@ export function NotificationsProvider({ showToast, onOpen, children }: { showToa
   React.useEffect(() => {
     void tick();
     const t = setInterval(() => { void tick(); }, POLL_MS);
-    return () => clearInterval(t);
+    // SPEC-192 · autoplay diblokir sampai user berinteraksi; unlock audio pada gestur pertama.
+    const unlock = () => { unlockNotifySound(); window.removeEventListener("pointerdown", unlock); window.removeEventListener("keydown", unlock); };
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => { clearInterval(t); window.removeEventListener("pointerdown", unlock); window.removeEventListener("keydown", unlock); };
   }, [tick]);
 
   const markAllRead = React.useCallback(() => {

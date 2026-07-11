@@ -231,9 +231,11 @@ bersandar pada notifikasi yang **dibuat server-side** (`GET /notifications`) —
   tombol lonceng + badge unread (`--clay-500`), dropdown daftar (`SPEC-x · judul`, "selesai · Xm lalu",
   dot unread). Membuka dropdown = `POST /notifications/read` (unread → 0). Tombol "Bersihkan" =
   `DELETE /notifications`.
-- **Sound**: 3 WAV bundled di `src/public/sounds/notify-{short,medium,long}.wav`, dibangkitkan
-  `scripts/gen-notify-sounds.mjs` (deterministik, in-repo). `playNotifySound(kind)`
-  (`.../sound.ts`) = `new Audio(...)` di-catch (autoplay bisa diblokir sebelum gestur user).
+- **Sound**: WAV bundled di `src/public/sounds/notify-<kind>.wav`, dibangkitkan
+  `scripts/gen-notify-sounds.mjs` (deterministik, in-repo). `playNotifySound(kind)` (`.../sound.ts`)
+  memakai **satu** elemen `Audio` yang dipakai ulang; `unlockNotifySound()` meng-unlock elemen itu
+  (prime muted→play→pause) pada **gestur user pertama** (listener `pointerdown`/`keydown` di
+  `NotificationsProvider`), supaya bunyi dari poll timer tak ditolak autoplay (SPEC-192).
 - **Setting** di layar Settings → section "Sesi & notifikasi": toggle **Notifikasi backlog selesai**
   (`notifyDone`), select **Sound** (`notifySound`: Short/Medium/Long/Senyap) + tombol **Preview**.
 
