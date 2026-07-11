@@ -27,3 +27,28 @@ export function computeLanes(commits: GraphCommit[]): GraphRow[] {
   }
   return rows;
 }
+
+export type Edge = { fromLane: number; toLane: number; half: "top" | "bottom" | "full"; colorLane: number };
+
+// Turunkan segmen penyambung per-baris dari state lane atas (baris sebelumnya) & bawah (baris ini).
+// top = commit ini masuk dari mana; bottom = tiap parent keluar ke lane mana; through = lane lain yang menerus.
+export function rowEdges(rows: GraphRow[]): Edge[][] {
+  return rows.map((row, i) => {
+    const top = i > 0 ? rows[i - 1]!.lanes : [];
+    const bottom = row.lanes;
+    const sha = row.commit.sha;
+    const edges: Edge[] = [];
+    const cIn = top.indexOf(sha);                                   // lane yang memesan commit ini
+    if (cIn !== -1) edges.push({ fromLane: cIn, toLane: row.lane, half: "top", colorLane: row.lane });
+    for (const p of row.commit.parents) {                           // ke tiap parent (setengah bawah)
+      const tl = bottom.indexOf(p);
+      if (tl !== -1) edges.push({ fromLane: row.lane, toLane: tl, half: "bottom", colorLane: tl });
+    }
+    top.forEach((s, j) => {                                          // lane lain yang menerus (penuh)
+      if (!s || s === sha) return;
+      const k = bottom.indexOf(s);
+      if (k !== -1) edges.push({ fromLane: j, toLane: k, half: "full", colorLane: k });
+    });
+    return edges;
+  });
+}
