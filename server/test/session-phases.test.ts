@@ -3,8 +3,14 @@ import { mkdtempSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  phaseFilePath, readPhases, stageFor, planComplete, stageForRun, type Phase,
+  phaseFilePath, decisionFilePath, readPhases, stageFor, planComplete, stageForRun, type Phase,
 } from "../src/services/session-phases";
+
+describe("decisionFilePath (SPEC-184)", () => {
+  it("di .worktrees/.decisions/<id> (di dalam .gitignore)", () => {
+    expect(decisionFilePath("/repo", "spec_9")).toBe("/repo/.worktrees/.decisions/spec_9");
+  });
+});
 
 let dir = "";
 let file = "";

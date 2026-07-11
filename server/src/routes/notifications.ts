@@ -1,10 +1,12 @@
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../db";
+import { scanDecisions } from "../services/notifications";
 
 // SPEC-180 · daftar notifikasi backlog selesai. Read-state global (satu readAt per baris),
 // bukan per-user: workspace single-team. Rute di belakang gate auth (app.ts).
 export default async function (app: FastifyInstance) {
   app.get("/notifications", async () => {
+    await scanDecisions();   // SPEC-184 · buat notif decision dari marker sesi sebelum membaca
     const items = await prisma.notification.findMany({ orderBy: { createdAt: "desc" }, take: 50 });
     const unread = await prisma.notification.count({ where: { readAt: null } });
     return { items, unread };

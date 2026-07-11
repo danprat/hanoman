@@ -9,6 +9,7 @@ export const DEFAULT_SETTING: Setting = {
   ...STEP,
   autoDefault: true, autoScaffold: true, notifyFail: true,
   notifyDone: true, notifySound: "short",
+  notifyDecision: true, notifyDecisionSound: "alert",
 };
 
 // Baris Setting adalah `Json` bebas bentuk, dan baris yang ditulis SEBELUM SPEC-162 masih

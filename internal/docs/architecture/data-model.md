@@ -50,15 +50,17 @@ Singleton `id = 1`, kolom `data` (Json) berbentuk `zSetting`:
   baris; ganti password menghapus semua sesi user; hapus user meng-cascade sesinya. Sesi kedaluwarsa
   (`expiresAt < now`) diperlakukan tak valid dan dibersihkan saat di-lookup.
 
-## Notification (SPEC-180, [ADR-0033](../adr/0033-notifikasi-backlog-selesai.md))
-Dibuat server-side saat sebuah backlog masuk stage `done` (di `advanceStage()` dan write-through
-`GET /specs`).
-- `id` (cuid), `specId` **@unique** — 1 notif per backlog; membuat pembuatan idempoten terhadap poll
-  write-through 3s & dua jalur persist (insert kedua kena P2002, diabaikan).
-- `title` (snapshot judul spec), `projectId` (opsional), `createdAt`.
+## Notification (SPEC-180/184, [ADR-0033](../adr/0033-notifikasi-backlog-selesai.md), [ADR-0036](../adr/0036-notifikasi-human-decision.md))
+Dua tipe: `done` (backlog masuk `done`, dibuat di `advanceStage()` & write-through `GET /specs`)
+dan `decision` (sesi Claude menunggu keputusan manusia, dibuat `scanDecisions()` di `GET /notifications`).
+- `id` (cuid), `type` (`done|decision`, default `done`).
+- `key` **@unique** nullable — dedup selesai `"done:<specId>"` (insert kedua kena P2002, diabaikan);
+  `null` untuk decision (di-dedup di sisi scan via `Set` episode; NULL berulang diizinkan Postgres).
+- `specId` (nullable — sesi reverse tak punya spec), `sessionId` (target redirect terminal),
+  `title` (snapshot), `projectId` (opsional), `createdAt`.
 - `readAt` (nullable) — `null` = belum dibaca. Read-state **global** (bukan per-user).
-- Rute: `GET /notifications` (`{ items ≤50 terbaru dulu, unread }`), `POST /notifications/read`
-  (tandai semua), `DELETE /notifications` (clear).
+- Rute: `GET /notifications` (memicu `scanDecisions()`, lalu `{ items ≤50 terbaru dulu, unread }`),
+  `POST /notifications/read` (tandai semua), `DELETE /notifications` (clear).
 
 ## Vps (SPEC-164, [ADR-0025](../adr/0025-modul-vps-script-deterministik.md))
 VPS yang dikelola hanoman. `keyPath` menunjuk berkas private key **di mesin server** — isinya tak pernah

@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { prisma } from "../db";
 import { zTerminalSession, type Stage } from "@hanoman/shared";
 import { realGit, startPrompt, continuePrompt, startProjectPrompt, type Flow } from "@hanoman/runner";
-import { phaseFilePath, readPhases, stageForRun } from "../services/session-phases";
+import { phaseFilePath, decisionFilePath, readPhases, stageForRun } from "../services/session-phases";
 import { sessionModel } from "../services/settings";
 import { recordCompletion } from "../services/notifications";
 import { STAGES } from "../services/stage-machine";
@@ -70,6 +70,7 @@ export default async function (app: FastifyInstance) {
       const s = createSession(spec.projectId, `${repoDir}/.worktrees/${id}`, {
         specId: spec.id, flow: parsed.data.flow, model, effort,
         phaseFile: phaseFilePath(repoDir, id),
+        decisionFile: decisionFilePath(repoDir, id),
         prompt: mkPrompt(parsed.data.flow, {
           id: spec.id, title: spec.title, source: spec.source,
           priority: spec.priority, objective: spec.objective, payload: spec.payload ?? undefined,
@@ -103,6 +104,7 @@ export default async function (app: FastifyInstance) {
       const s = createSession(project.id, `${project.repoDir}/.worktrees/${id}`, {
         id, flow: "reverse", model, effort,
         phaseFile: phaseFilePath(project.repoDir, id),
+        decisionFile: decisionFilePath(project.repoDir, id),
         prompt: startProjectPrompt("reverse", {
           id: project.id, name: project.name, desc: project.desc, stack: project.stack,
         }, "reverse-docs"),

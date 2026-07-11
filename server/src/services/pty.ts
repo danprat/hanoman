@@ -33,7 +33,7 @@ export type Client = { send(msg: string): void; close(): void };
 export type SessionInfo = {
   id: string; projectId: string; specId?: string; flow?: Flow; cwd: string; exited: boolean;
 };
-type Pane = SessionInfo & { code: number; phaseFile?: string };
+type Pane = SessionInfo & { code: number; phaseFile?: string; decisionFile?: string };
 
 // Satu attachment per sesi: satu klien tmux melayani semua WebSocket yang menonton.
 // `lastPhases` menahan JSON fase terakhir yang disiarkan — frame lahir hanya saat berubah.
@@ -74,6 +74,7 @@ const idFor = (specId?: string) =>
 const FMT = [
   "#{session_name}", "#{@hanoman_project}", "#{@hanoman_spec}", "#{@hanoman_flow}",
   "#{@hanoman_phase_file}", "#{@hanoman_cwd}", "#{pane_dead}", "#{pane_dead_status}",
+  "#{@hanoman_decision_file}",
 ].join("\t");
 
 // Satu-satunya sumber kebenaran soal sesi adalah tmux server. Tidak ada map yang perlu
@@ -83,12 +84,13 @@ function listPanes(): Pane[] {
   try { out = tmux("list-panes", "-a", "-F", FMT); }
   catch { return []; } // tmux server belum jalan — belum ada sesi sama sekali
   return out.split("\n").filter(Boolean).flatMap((line) => {
-    const [n, projectId, specId, flow, phaseFile, cwd, dead, code] = line.split("\t");
+    const [n, projectId, specId, flow, phaseFile, cwd, dead, code, decisionFile] = line.split("\t");
     if (!n?.startsWith(PREFIX)) return [];
     return [{
       id: n.slice(PREFIX.length), projectId: projectId ?? "", specId: specId || undefined,
       flow: (flow || undefined) as Flow | undefined, phaseFile: phaseFile || undefined,
       cwd: cwd ?? "", exited: dead === "1", code: Number(code) || 0,
+      decisionFile: decisionFile || undefined,
     }];
   });
 }
@@ -96,11 +98,17 @@ function listPanes(): Pane[] {
 export const listSessions = (): SessionInfo[] =>
   listPanes().map(({ id, projectId, specId, flow, cwd, exited }) => ({ id, projectId, specId, flow, cwd, exited }));
 
+// SPEC-184 · sesi hidup yang punya marker keputusan — masukan scanDecisions().
+export const liveDecisions = (): { id: string; specId?: string; projectId: string; decisionFile: string }[] =>
+  listPanes()
+    .filter((p) => !p.exited && p.decisionFile)
+    .map((p) => ({ id: p.id, specId: p.specId, projectId: p.projectId, decisionFile: p.decisionFile! }));
+
 export const getSession = (id: string): Pane | undefined => listPanes().find((p) => p.id === id);
 
 export type CreateOpts = {
   id?: string; specId?: string; flow?: Flow; prompt?: string; phaseFile?: string;
-  model?: string; effort?: string;
+  decisionFile?: string; model?: string; effort?: string;
 };
 
 export function createSession(projectId: string, cwd: string, opts: CreateOpts = {}): SessionInfo {
@@ -121,7 +129,7 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
     ...(opts.model ? ["--model", opts.model] : []),
     ...(opts.effort ? ["--effort", opts.effort] : []),
     "--dangerously-skip-permissions",
-    "--settings", JSON.stringify(guardSettings(guardCommand())),
+    "--settings", JSON.stringify(guardSettings(guardCommand(), opts.decisionFile)),
   ].map(sq).join(" ");
 
   // Env di depan perintah, bukan `new-session -e`: tmux menyerahkan sisa argv-nya ke shell,
@@ -132,6 +140,8 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
     mkdirSync(dirname(opts.phaseFile), { recursive: true });
     cmd = `HANOMAN_PHASE_FILE=${sq(opts.phaseFile)} ${argv}`;
   }
+  // SPEC-184 · direktori marker keputusan; hook Notification menulis absolute path di dalamnya.
+  if (opts.decisionFile) mkdirSync(dirname(opts.decisionFile), { recursive: true });
 
   // Opsi global mendahului `new-session` dalam satu invokasi: window lahir sudah membawa
   // `remain-on-exit`, jadi proses yang mati seketika pun meninggalkan pane mati yang masih
@@ -149,6 +159,7 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
   if (opts.specId) tmux("set-option", "-t", name(id), "@hanoman_spec", opts.specId);
   if (opts.flow) tmux("set-option", "-t", name(id), "@hanoman_flow", opts.flow);
   if (opts.phaseFile) tmux("set-option", "-t", name(id), "@hanoman_phase_file", opts.phaseFile);
+  if (opts.decisionFile) tmux("set-option", "-t", name(id), "@hanoman_decision_file", opts.decisionFile);
   return { id, projectId, specId: opts.specId, flow: opts.flow, cwd, exited: false };
 }
 

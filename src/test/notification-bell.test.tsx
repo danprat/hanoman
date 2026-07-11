@@ -1,24 +1,33 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { NotificationBell } from "../src/notifications/NotificationBell";
 import { NotificationsContext } from "../src/notifications/NotificationsContext";
 
-// Uji presentasi murni: bungkus bell dengan value context palsu.
-function Harness({ unread, items }: { unread: number; items: any[] }) {
-  const ctx = { items, unread, markAllRead: () => {}, clear: () => {} };
+function Harness({ items, onOpen }: { items: any[]; onOpen?: (n: any) => void }) {
+  const ctx = { items, unread: items.filter((n) => !n.readAt).length, markAllRead: () => {}, clear: () => {}, onOpen };
   return <NotificationsContext.Provider value={ctx}><NotificationBell /></NotificationsContext.Provider>;
 }
+const now = () => new Date().toISOString();
 
 describe("NotificationBell", () => {
   it("menampilkan badge unread", () => {
-    render(<Harness unread={3} items={[]} />);
-    expect(screen.getByText("3")).toBeInTheDocument();
+    render(<Harness items={[{ id: "1", type: "done", specId: "SPEC-180", sessionId: "s", title: "x", projectId: null, createdAt: now(), readAt: null }]} />);
+    expect(screen.getByText("1")).toBeInTheDocument();
   });
-  it("klik lonceng membuka dropdown berisi judul notifikasi", () => {
-    const items = [{ id: "1", specId: "SPEC-180", title: "Notifikasi", projectId: null, createdAt: new Date().toISOString(), readAt: null }];
-    render(<Harness unread={1} items={items} />);
+  it("done: tombol Buka memanggil onOpen dengan item", () => {
+    const n = { id: "1", type: "done", specId: "SPEC-180", sessionId: "spec-180", title: "Selesai", projectId: "p", createdAt: now(), readAt: null };
+    const onOpen = vi.fn();
+    render(<Harness items={[n]} onOpen={onOpen} />);
     fireEvent.click(screen.getByLabelText("Notifikasi"));
-    expect(screen.getByText(/SPEC-180/)).toBeInTheDocument();
-    expect(screen.getByText("Tandai semua dibaca")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Buka"));
+    expect(onOpen).toHaveBeenCalledWith(n);
+  });
+  it("decision: tombol Buka terminal memanggil onOpen", () => {
+    const n = { id: "2", type: "decision", specId: "SPEC-9", sessionId: "spec_9", title: "x", projectId: "p", createdAt: now(), readAt: null };
+    const onOpen = vi.fn();
+    render(<Harness items={[n]} onOpen={onOpen} />);
+    fireEvent.click(screen.getByLabelText("Notifikasi"));
+    fireEvent.click(screen.getByText("Buka terminal"));
+    expect(onOpen).toHaveBeenCalledWith(n);
   });
 });

@@ -219,6 +219,10 @@ describe("terminal routes · sesi backlog", () => {
     expect(existsSync(join(repoDir, ".worktrees", "spec-920"))).toBe(true);
     const c = connect("spec-920");
     await c.opened;
+    // Marker MELANJUTKAN ada di puncak continuePrompt; sejak SPEC-184 --settings (hooks decision)
+    // lebih besar dan mendorongnya keluar viewport 80×24 fake-claude. Perbesar viewport agar
+    // riwayat ter-scroll tergambar ulang — asersi perilaku (continuePrompt) tetap sama.
+    c.ws.send(JSON.stringify({ t: "resize", cols: 80, rows: 200 }));
     await waitFor(() => c.data().includes("MELANJUTKAN"));
     expect(c.data()).not.toContain("Kerjakan fase berurutan"); // pipeline penuh tak dipakai
     c.ws.close();
@@ -279,7 +283,7 @@ describe("terminal routes · sesi backlog", () => {
     writePlan("spec-914", "- [x] a\n");
     appendFileSync(phaseFilePath(repoDir, "spec-914"), "Execute done\n");
     await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-914" });
-    const notif = await prisma.notification.findUnique({ where: { specId: "SPEC-914" } });
+    const notif = await prisma.notification.findFirst({ where: { specId: "SPEC-914" } });
     expect(notif?.title).toBe("Judul 914");
   });
 });
@@ -416,7 +420,7 @@ describe("GET /specs · stage live dari sesi", () => {
     appendFileSync(phaseFilePath(repoDir, "spec-913"), "Execute done\n");
     expect(await stageOf("SPEC-913")).toBe("done");
     // SPEC-180 · jalur write-through GET /specs juga mencatat notifikasi saat masuk done.
-    const notif = await prisma.notification.findUnique({ where: { specId: "SPEC-913" } });
+    const notif = await prisma.notification.findFirst({ where: { specId: "SPEC-913" } });
     expect(notif?.title).toBe("Judul 913");
     await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-913" });
   });
