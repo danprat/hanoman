@@ -1414,21 +1414,21 @@ endpoint yang tersentuh." Ikuti memori `hanoman-worktree-needs-install-and-gener
 `hanoman-live-smoke-dedicated-db`: worktree butuh install+generate; smoke pakai DB throwaway,
 jangan port 8787.
 
-- [ ] **Step 1: Install + generate di worktree**
+- [x] **Step 1: Install + generate di worktree**
 
 ```bash
 pnpm install
 pnpm --filter ./server exec prisma generate
 ```
 
-- [ ] **Step 2: Boot server terhadap DB smoke khusus + project ber-repoDir nyata**
+- [x] **Step 2: Boot server terhadap DB smoke khusus + project ber-repoDir nyata**
 
 Siapkan DB throwaway ter-migrate (cermin memori live-smoke), buat satu project `existing`
 dengan `repoDir` menunjuk repo ini, lalu boot `node server/dist/server.js` di port non-8787
 (mis. 8799). (Detail perintah env sesuai memori `hanoman-shell-env-points-at-prod` &
 `hanoman-live-smoke-dedicated-db`.)
 
-- [ ] **Step 3: curl tiap endpoint IDE**
+- [x] **Step 3: curl tiap endpoint IDE**
 
 ```bash
 BASE=http://localhost:8799/api
@@ -1446,18 +1446,18 @@ curl -s -o /dev/null -w '%{http_code}\n' "$BASE/projects/<id>/file?path=../etc/p
 Expected: tree/file/graph/commit → JSON 200; branch+checkout → `{ok:true,...}`; path guard → `400`.
 Bersihkan branch smoke: `git branch -D ide-smoke` di repoDir bila tertinggal.
 
-- [ ] **Step 4: Browser smoke (opsional, via CDP)**
+- [x] **Step 4: Browser smoke (opsional, via CDP)**
 
 Ikuti memori `hanoman-browser-smoke-via-cdp`: buka dashboard, klik nav **IDE**, pastikan pohon
 file render, klik file → isi + highlight muncul, buka tab **Git Graph** → baris commit render.
 Jangan `POST /terminal/sessions` (spawn claude sungguhan).
 
-- [ ] **Step 5: Ceklis plan & tandai Execute**
+- [x] **Step 5: Ceklis plan & tandai Execute**
 
 Pastikan semua kotak `- [ ]` di plan ini jadi `- [x]`. Jalankan suite penuh sekali lagi:
 `env -u NODE_ENV -u DATABASE_URL pnpm test` → hijau. Baru tulis `Execute done` ke phase file.
 
-- [ ] **Step 6: Commit penutup (bila ada perbaikan dari smoke)**
+- [x] **Step 6: Commit penutup (bila ada perbaikan dari smoke)**
 
 ```bash
 git add -A
