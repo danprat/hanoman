@@ -765,7 +765,7 @@ git commit -m "feat(ide): rute IDE + client + ADR-0034 (SPEC-182)"
   - `type GraphRow = { commit: GraphCommit; lane: number; lanes: (string | null)[]; width: number }`
   - `computeLanes(commits: GraphCommit[]): GraphRow[]`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/test/git-graph.test.ts`:
 
@@ -794,12 +794,12 @@ describe("computeLanes", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./src test -- git-graph`
 Expected: FAIL — `Cannot find module '../src/screens/git-graph'`.
 
-- [ ] **Step 3: Tulis implementasi**
+- [x] **Step 3: Tulis implementasi**
 
 Buat `src/src/screens/git-graph.ts`:
 
@@ -835,12 +835,12 @@ export function computeLanes(commits: GraphCommit[]): GraphRow[] {
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan lulus**
+- [x] **Step 4: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./src test -- git-graph`
 Expected: PASS (3 test).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/git-graph.ts src/test/git-graph.test.ts
