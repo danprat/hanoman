@@ -98,6 +98,10 @@ export function Shell({ active, title, breadcrumb, actions, showSearch = false, 
           gap: 16, padding: "0 22px", borderBottom: "1px solid var(--border-hair)",
           background: "color-mix(in srgb, var(--bone-100) 80%, transparent)",
           backdropFilter: "blur(8px)",
+          // backdropFilter bikin stacking context: tanpa ini popover Notifikasi/Limit terjebak
+          // di konteks header dan tertimpa konten <main>. z 90: di atas isi halaman, di bawah
+          // overlay terminal fullscreen (100), Modal (150), Toast (200).
+          position: "relative", zIndex: 90,
         }}>
           <div style={{ minWidth: 0 }}>
             {breadcrumb && (
