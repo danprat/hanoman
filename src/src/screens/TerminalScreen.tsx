@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, IconButton, Icon, Select, StateBlock, Modal, Input, Badge } from "../ds";
+import { Button, IconButton, Icon, Select, StateBlock, Modal, Input, Badge, StatusPill } from "../ds";
 import { api, ApiError, type TerminalSession, type Phase, type Flow } from "../api/client";
 import { TerminalPane } from "./TerminalPane";
 import { SpecDocsModal } from "./SpecDocsModal";
@@ -412,8 +412,9 @@ function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, titleOf, o
         fontFamily: "var(--font-mono)", fontSize: 11, color: session.exited ? "var(--text-muted)" : "var(--text-body)",
       }}>
         <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {label} · {session.id.slice(0, 6)}{session.exited && " · berakhir"}
+          {label} · {session.id.slice(0, 6)}
         </span>
+        {session.exited && <StatusPill status="done" size="sm">Selesai</StatusPill>}
         {session.specId && (
           <span onClick={() => setDocs(true)} title="Lihat dokumen (audit/spec/plan)"
             style={{ cursor: "pointer", color: "var(--text-subtle)", display: "inline-flex", alignItems: "center" }}>
@@ -438,10 +439,15 @@ function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, titleOf, o
         <span aria-label={`Tutup sesi ${session.id}`} onClick={onClose}
           style={{ cursor: "pointer", color: "var(--text-subtle)" }}>×</span>
       </div>
-      <PhaseStrip phases={phases} />
-      {/* key = identitas sesi: pindah antar sel memindah subtree, bukan me-remount WebSocket. */}
-      <div style={{ flex: 1, minHeight: 0 }}>
-        <TerminalPane key={session.id} sessionId={session.id} onExit={onExit} onPhases={setPhases} />
+      {/* Sesi berakhir (SPEC-188): badan diredupkan agar terbaca beku; header + badge
+          "Selesai" tetap penuh supaya statusnya justru paling kontras. */}
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0,
+        opacity: session.exited ? 0.6 : 1 }}>
+        <PhaseStrip phases={phases} />
+        {/* key = identitas sesi: pindah antar sel memindah subtree, bukan me-remount WebSocket. */}
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <TerminalPane key={session.id} sessionId={session.id} onExit={onExit} onPhases={setPhases} />
+        </div>
       </div>
       {docs && session.specId && <SpecDocsModal specId={session.specId} onClose={() => setDocs(false)} />}
       {integrate && spec && onIntegrate && (
