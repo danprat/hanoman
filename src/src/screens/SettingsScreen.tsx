@@ -74,7 +74,11 @@ function AccountPanel({ me, onLoggedOut, onToast }: { me: UserView; onLoggedOut:
           <Field label={<>Password baru <span style={{ fontWeight: 400, color: "var(--text-subtle)" }}>· min 8</span></>}>
             <Input type="password" autoComplete="new-password" value={next}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNext(e.target.value)} style={{ width: "100%" }} /></Field>
-          <Button size="sm" leftIcon="key-round" disabled={!canChange} onClick={changePw}>Ganti</Button>
+          {/* marginBottom = Field.marginBottom (kit.tsx). alignItems:end mendasarkan tombol
+              ke dasar baris, tapi margin bawah Field mengangkat input 14px dari sana; tanpa
+              ini tombol jatuh 14px di bawah input. */}
+          <Button size="sm" leftIcon="key-round" disabled={!canChange} onClick={changePw}
+            style={{ marginBottom: 14 }}>Ganti</Button>
         </div>
       </div>
     </Card>
@@ -125,7 +129,9 @@ function UsersPanel({ me, onToast }: { me: UserView; onToast?: ShowToast }) {
           <Field label={<>Password <span style={{ fontWeight: 400, color: "var(--text-subtle)" }}>· min 8</span></>}>
             <Input type="password" autoComplete="new-password" value={password}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)} style={{ width: "100%" }} /></Field>
-          <Button size="sm" leftIcon="user-plus" disabled={!canInvite} onClick={invite}>Invite</Button>
+          {/* marginBottom = Field.marginBottom — sejajarkan dasar tombol dengan dasar input (lihat AccountPanel). */}
+          <Button size="sm" leftIcon="user-plus" disabled={!canInvite} onClick={invite}
+            style={{ marginBottom: 14 }}>Invite</Button>
         </div>
       </div>
     </Card>
