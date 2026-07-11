@@ -3,32 +3,33 @@
 Turunan terukur dari `entrypoints/prd.md`.
 
 ## 1. Overview
-- Tampilkan KPI: run aktif, perlu perhatian, docs on-convention (rata-rata coverage), spec di backlog, biaya runs.
-- Panel: perlu perhatian, live runs (progress), docs coverage per project, ringkas backlog, triggers, aktivitas.
+- Tampilkan KPI: sesi aktif, perlu perhatian, docs on-convention (rata-rata coverage), spec di backlog, indikator limit.
+- Panel: perlu perhatian, sesi live (stage), docs coverage per project, ringkas backlog, aktivitas.
 - Semua baris deep-link ke bagian terkait.
 
 ## 2. Projects
-- Daftar (list) project: nama, kind (from-scratch/existing), status run + fase, coverage docs, backlog + top stage, triggers, aktivitas.
+- Daftar (list) project: nama, kind (from-scratch/existing), sesi aktif + stage, coverage docs, backlog + top stage, aktivitas.
 - Cari (filter), pagination, tambah project, buka SoT project.
 
 ## 3. Backlog
 - Spec dari brief/QA, badge sumber & prioritas, stage bar lifecycle.
 - Filter by project + tab sumber, pagination.
-- Aksi per spec sesuai tahap: kunci objective → tulis spec → buat plan → execute → buka run; hapus.
+- Aksi per spec sesuai tahap: kunci objective → tulis spec → buat plan → execute → buka sesi; hapus.
 
-## 4. Runs
-- Daftar run + detail terfokus: pipeline fase, metrik (project/spec/trigger/durasi/token/biaya).
-- **Git worktree**: pull dari branch mana pun → push ke branch mana pun (switchable).
-- **Kendali manusia**: full-auto toggle, steer (sisip instruksi), interupsi/lanjut/hentikan; retry saat gagal.
-- **Terminal interaktif**: perintah help/status/plan/files/steer/pause/resume/stop/docs/clear + histori.
+## 4. Terminal (sesi interaktif)
+- Grid multi-pane sesi `claude` di tmux; ambil backlog; reopen sesi `done` (lanjut fase Execute).
+- **Git worktree**: tiap sesi di `.worktrees/<spec>` dari `branchFrom` (default `main`); integrasi (rebase/merge) ke target dipicu manual.
+- **Kendali manusia**: steer & interupsi langsung di TTY; sesi hidup lintas restart API (tmux, ADR-0016).
+- **Stage live**: diturunkan dari phase-file sesi (`$HANOMAN_PHASE_FILE`), bukan status run.
 
 ## 5. Docs · SoT
 - Index kategori (tree) + coverage; preview markdown ter-render (bukan plain text); edit + simpan (persist).
 - Render file non-markdown (JSON/TOML) sebagai blok kode. Sertakan agents/ (AGENTS.md, CLAUDE.md, README.md, .claude, .codex).
 
-## 6. Triggers
-- Empat tipe: commit/schedule/manual/interval; target plan+execute / audit / scaffold docs. Toggle aktif; tambah.
+## 6. VPS
+- Daftar VPS + audit/harden (script bash deterministik, `sudo -n bash -s` lewat ssh); `hardened` = semua check kritis pass.
+- Buka sesi `claude` berkonteks VPS (cwd `$HOME`). Bootstrap key sekali pakai dari password (dibuang setelah dipasang).
 
 ## 7. Settings
-- **Model per step** (brainstorm/spec/plan/execute/audit), default opus · effort x-high.
-- Full-auto default; auto-scaffold doc index; konkuren maks; anggaran harian; notifikasi gagal.
+- **Model & effort** satu per sesi, default opus · effort x-high; manusia bisa `/model` di terminal.
+- auto-default; auto-scaffold doc index; notifikasi gagal & selesai (+ sound). Tanpa anggaran harian / konkuren maks (hilang bersama runner headless).

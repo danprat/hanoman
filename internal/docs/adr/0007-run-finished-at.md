@@ -1,6 +1,6 @@
 # ADR-0007 — Run.finishedAt for real run duration
 
-**Status:** accepted (SPEC-008) · 2026-07-08
+**Status:** de-facto obsolete (SPEC-008) · 2026-07-08 — [ADR-0024](0024-sesi-interaktif-menggantikan-run.md) men-drop model `Run`, jadi `Run.finishedAt` tak ada lagi; durasi kini turunan dari sesi tmux
 
 ## Context
 `RunsScreen` showed a hardcoded `duration: "—"`. `Run` stored `createdAt` (start) but no

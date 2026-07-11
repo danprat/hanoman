@@ -1,7 +1,7 @@
 # ADR-0031 — Rebase & merge branch done spec dari dashboard
 
 **Status:** accepted · **Date:** 2026-07-11 · **Spec:** SPEC-175
-**Terkait:** [ADR-0002](0002-git-worktree-isolation.md) (isolasi worktree), [ADR-0016](0016-sesi-terminal-hidup-di-tmux.md) (sesi tmux), [ADR-0018](0018-branch-adalah-properti-backlog-item.md) (branch properti backlog item)
+**Terkait:** [ADR-0002](0002-git-worktree-isolation.md) (isolasi worktree), [ADR-0016](0016-sesi-terminal-hidup-di-tmux.md) (sesi tmux), [ADR-0032](0032-branch-adalah-properti-backlog-item.md) (branch properti backlog item)
 
 ## Context
 Sebuah backlog item yang selesai meninggalkan branch hasil kerja `hanoman/<id>` — agen

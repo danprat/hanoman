@@ -5,4 +5,4 @@ hanoman adalah **alat internal** yang meningkatkan leverage tim: lebih banyak pr
 ## Nilai
 - Kualitas output agent naik (docs-driven).
 - Visibilitas & kendali terpusat.
-- Biaya terkontrol (anggaran + model per step).
+- Biaya terpantau (model per sesi + indikator limit); biaya = estimasi (ADR-0012).

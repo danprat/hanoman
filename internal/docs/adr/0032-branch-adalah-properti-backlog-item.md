@@ -1,7 +1,7 @@
-# ADR-0018 — Branch adalah properti backlog item
+# ADR-0032 — Branch adalah properti backlog item
 
 **Status:** accepted · 2026-07-09
-**Konteks:** [SPEC-143 objective](../operations/spec-143-select-branch-in-backlog-objective.md)
+**Konteks:** SPEC-143 (objective backlog: pilih branch sumber worktree)
 
 ## Konteks
 

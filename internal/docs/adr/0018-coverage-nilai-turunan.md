@@ -8,7 +8,7 @@ filesystem nyata, bukan salinan DB" — tetapi menyisakan `Project.coverage` dan
 `Project.docStatus` sebagai kolom Postgres. Itu **disengaja**: design SPEC-011 memilih agar
 `POST /scan` menyegarkan angka cache yang dibaca daftar project "without re-walking".
 
-Harganya sebuah angka yang bohong di layar utama. Audit [SPEC-141](../operations/spec-141-overview-coverage-realtime-objective.md)
+Harganya sebuah angka yang bohong di layar utama. Audit SPEC-141
 mengukurnya pada disk yang sama, detik yang sama: project yang baru ditambahkan tampil
 `0% / broken` padahal nyatanya `100%`; setelah satu doc tak ter-link ditambahkan, Overview
 tetap memamerkan `100% / ok` padahal nyatanya `92%`. Basi dua arah, dan setiap run hanoman —

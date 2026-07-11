@@ -1,6 +1,6 @@
 # ADR-0009 — a crashed guardrail tool fails loud, not silent
 
-**Status:** accepted · 2026-07-08 · SPEC-010
+**Status:** historis per [ADR-0023](0023-guardrail-sot-dicabut.md) (SPEC-160) · 2026-07-08 · SPEC-010 — guardrail SoT yang "gagal keras" ini dicabut; prinsip fail-loud tetap relevan untuk guardrail perintah berbahaya
 
 ## Context
 `verifyViaCli` shelled out to `hanoman docs verify` and treated **any** non-zero exit as

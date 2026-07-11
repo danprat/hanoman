@@ -1,6 +1,6 @@
 # ADR 0003 — Pemilihan model per step
 
-**Status:** accepted
+**Status:** de-facto obsolete — [ADR-0024](0024-sesi-interaktif-menggantikan-run.md) (SPEC-162) mengganti model-per-fase dengan **satu** `model`/`effort` per sesi interaktif (`Setting.model`/`effort`); `steps` per fase dihapus. Manusia bisa `/model` di dalam terminal.
 
 ## Konteks
 Langkah berbeda punya kebutuhan berbeda: brainstorm/plan menuntut penalaran tinggi; langkah mekanis bisa model lebih murah. Biaya harus terkendali.

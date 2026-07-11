@@ -19,8 +19,10 @@
   ```
   `HOST=0.0.0.0` hanya bila ada TLS di depannya. Lakukan `setup` segera pada deploy pertama (jendela
   0-user terbuka sampai akun pertama dibuat).
-- **Kredensial**: token GitHub App & API model disimpan terenkripsi (server-side), tak pernah ke client.
-- **Permissions agent**: dibatasi via `.claude/settings.json` (deny `rm -rf`, deny push langsung ke `main`).
-- **Isolasi**: run di worktree; tak ada akses ke luar direktori project.
-- **Webhook**: verifikasi signature GitHub.
-- **Anggaran**: batas harian mencegah biaya liar.
+- **Kredensial Claude**: sesi memakai auth Claude Code (Keychain macOS / `~/.claude/.credentials.json` /
+  env `CLAUDE_CODE_OAUTH_TOKEN`|`ANTHROPIC_API_KEY`); tak pernah ke client. Private key VPS ada sebagai
+  file di server (`Vps.keyPath`), tak pernah di DB.
+- **Guardrail perintah**: sesi jalan `--dangerously-skip-permissions`, jadi satu-satunya gerbang adalah
+  PreToolUse hook (`runner/src/safety.ts` `deniesDangerous` via `hanoman hook pretooluse`) yang dipasang
+  tiap sesi — deny `rm -rf`, deny push ke `main`, deny `git worktree add` liar.
+- **Isolasi**: sesi di worktree terpisah; tak ada akses ke luar direktori project.

@@ -1,4 +1,4 @@
-# ADR-0030 — Notifikasi saat backlog selesai dikerjakan
+# ADR-0033 — Notifikasi saat backlog selesai dikerjakan
 
 **Status:** accepted · **Date:** 2026-07-11 · **Spec:** SPEC-180
 

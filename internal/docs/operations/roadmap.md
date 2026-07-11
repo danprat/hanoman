@@ -1,5 +1,16 @@
 # Roadmap
 
-- **v0.x** — Overview, Projects, Backlog, Runs (steer + worktree), Docs SoT (render+edit), Triggers, Settings (model per step). *(scope prototipe saat ini)*
-- **v1.0** — persistence penuh (Postgres), runner Claude Code headless nyata, webhook GitHub, scheduler.
-- **v1.1** — notifikasi Slack, laporan biaya per project, audit log, retry policy.
+## Sekarang (shipped)
+- **Auth** multi-user — sesi opaque revocable, invite, bind `127.0.0.1` + reverse proxy TLS (ADR-0028).
+- **Projects** from-scratch / existing + detail (identitas, coverage, pintu ke docs/terminal/backlog).
+- **Backlog** lifecycle brainstorm → objective → spec → plan → execute → done; grid/list/board; review
+  worktree ala VSCode; rebase/merge branch `done` ke target lokal/origin (SPEC-175/ADR-0031).
+- **Terminal** sesi `claude` interaktif multi-pane di tmux — hidup lintas restart API (ADR-0016),
+  ambil backlog, reopen sesi `done`.
+- **Docs · SoT** render+edit+hapus markdown, coverage live per project, reverse-docs dari codebase.
+- **VPS** registrasi + audit/harden + sesi berkonteks VPS (SPEC-164/ADR-0025).
+- **Notifikasi** backlog selesai (toast/lonceng/sound) + **indikator limit** model dari OAuth usage API.
+
+## Berikutnya (belum terjadwal)
+Item terbuka dikelola sebagai backlog di dashboard, bukan di sini. Arah lama "runner headless + webhook
+GitHub + scheduler" **dibatalkan** saat pindah ke sesi interaktif (ADR-0024) — jangan dihidupkan tanpa ADR baru.

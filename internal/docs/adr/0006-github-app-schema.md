@@ -1,6 +1,6 @@
 # ADR 0006 — GitHub App schema deltas
 
-**Status:** accepted
+**Status:** de-facto obsolete — [ADR-0024](0024-sesi-interaktif-menggantikan-run.md) (SPEC-162) membuang trigger commit/webhook GitHub; GitHub App tak lagi dipakai
 
 ## Konteks
 GitHub App (SPEC-006) butuh memetakan installation → repo/project dan melacak sha commit

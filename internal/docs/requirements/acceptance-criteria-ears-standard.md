@@ -10,4 +10,4 @@ Semua kriteria ditulis **EARS** (Easy Approach to Requirements Syntax).
 - **Optional** — WHERE <fitur>, THE SYSTEM SHALL ...
 
 ## Contoh
-> WHEN operator menekan *Interupsi* pada run berjalan, THE SYSTEM SHALL menjeda run dalam ≤ 2 dtk dan menampilkan opsi lanjut/hentikan.
+> WHEN operator menekan *Interupsi* pada sesi berjalan, THE SYSTEM SHALL menyampaikan sinyal ke terminal sesi dalam ≤ 2 dtk.

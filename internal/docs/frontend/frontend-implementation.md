@@ -2,20 +2,19 @@
 
 - React + TypeScript (Vite). Komponen dari Hanoman Design System.
 - Layout: sidebar 248px + topbar 56px; konten maks 1200px (Docs full-width).
-- Bagian: Overview, Projects (list + pagination + cari + hapus project per baris) → **detail project** (identitas, coverage, edit `name`/`desc` lewat `PATCH /projects/:id`, dan tiga pintu: docs, runs, backlog). `id` tak pernah dapat diubah — ia kunci asing spec/run/trigger (SPEC-146). Hapus project ada di detail dan di header Docs — konfirmasi dulu, ditolak bila ada run aktif; rename tidak ditolak, karena `id` tak bergerak, Backlog (cari teks + filter project/stage/prioritas + tab sumber + tiga mode tampilan grid/list/board + aksi per spec + detail spec via modal: judul, stage bar, objective, field brief/QA), Runs (filter project + list + detail: pipeline, worktree, kendali, terminal), Terminal (sesi Claude Code interaktif), Docs (tree realtime semua `.md` di repo via `GET /docs`, dikelompokkan per direktori; kategori di luar `docsDir` masuk grup **Lainnya (tidak dinilai)** tanpa status linked — hanya kategori berskor yang masuk coverage, lihat ADR-0013; tombol **Muat ulang** membaca ulang tree, **Hapus** menghapus file asli, path ditampilkan repo-relative tanpa prefix `internal/docs`), Triggers (toggle + hapus per baris, konfirmasi dulu), Settings (model per step).
-- Filter project di Backlog dan Runs dibaca dari satu state `projectFilter` milik `App`, bukan
-  state lokal tiap layar (SPEC-146) — detail project memakainya untuk membuka kedua layar dalam
-  keadaan sudah tersaring.
-- Realtime: konsumsi SSE `/runs/:id/log` untuk log & status; optimistic UI untuk kontrol.
-- Biaya ditampilkan sebagai **estimasi** (`~$0.03`), bukan tagihan, dan tidak menggerakkan
-  apa pun (ADR-0012): run memakai auth OAuth subscription, jadi `total_cost_usd` dari claude
-  adalah jumlah yang *akan* dibayar pengguna API key. Format dan parse-nya dipusatkan di
-  `fmtEstCost`/`parseEstCost` (`@hanoman/shared`). Settings tidak lagi punya field anggaran
-  harian; kartu "Run" hanya berisi konkuren maks dan notifikasi gagal.
+- Bagian: Overview, Projects (list + pagination + cari + hapus project per baris) → **detail project** (identitas, coverage, edit `name`/`desc` lewat `PATCH /projects/:id`, dan pintu: Source of Truth, Terminal, Backlog, Reverse docs). `id` tak pernah dapat diubah — ia kunci asing spec (SPEC-146). Hapus project ada di detail dan di header Docs — konfirmasi dulu, ditolak bila ada sesi tmux aktif; rename tidak ditolak, karena `id` tak bergerak. Backlog (cari teks + filter project/stage/prioritas + tab sumber + tiga mode tampilan grid/list/board + aksi per spec + detail spec via modal: judul, stage bar, objective, field brief/QA), Terminal (sesi Claude Code interaktif di tmux), Docs (tree realtime semua `.md` di repo via `GET /docs`, dikelompokkan per direktori; kategori di luar `docsDir` masuk grup **Lainnya (tidak dinilai)** tanpa status linked — hanya kategori berskor yang masuk coverage, lihat ADR-0013; tombol **Muat ulang** membaca ulang tree, **Hapus** menghapus file asli, path ditampilkan repo-relative tanpa prefix `internal/docs`), VPS (daftar + audit/harden + buka sesi), Settings (model & effort sesi, notifikasi, akun, users).
+- Filter project di Backlog dibaca dari satu state `projectFilter` milik `App`, bukan state lokal
+  tiap layar (SPEC-146) — detail project memakainya untuk membuka Backlog dalam keadaan tersaring.
+- Realtime: **WebSocket PTY** per terminal (`/terminal/sessions/:id/ws`, frame `data`/`phase`/`exit`);
+  sisanya **HTTP polling** (projects/backlog/notifications/limits/vps). Tidak ada SSE. Optimistic UI
+  untuk kontrol lokal.
+- Tidak ada layar Runs, biaya, maupun anggaran: run + queue dicabut (ADR-0024). Kuota model dipantau
+  lewat **LimitIndicator** (badge topbar + kartu Overview) yang membaca `GET /limits` dari OAuth usage
+  API Anthropic (SPEC-181/ADR-0024). Settings tak punya `dailyBudget`/`maxConcurrent`.
 - Markdown render: pustaka marked; file non-.md dirender sebagai blok kode.
 - State ringan lewat React; persist preferensi (edit docs, settings) ke server (dan localStorage sebagai draft).
 - **Loading / empty / error** dirender lewat satu komponen `StateBlock` (`ds/components/state.tsx`),
-  jadi ketiganya tidak pernah terlihat sama. Fetch awal (`projects+specs+runs+triggers`) digerbangkan
+  jadi ketiganya tidak pernah terlihat sama. Fetch awal (`projects+specs`) digerbangkan
   sekali di `App` untuk semua section kecuali Settings, yang memuat datanya sendiri. Error state selalu
   membawa aksi retry; empty state membawa call-to-action ke aksi yang relevan. Settings **tidak** lagi
   jatuh ke nilai default saat GET gagal — toggle berikutnya akan mem-PUT default itu menimpa server.
@@ -50,9 +49,8 @@ dengan `height`, anak-anaknya jadi flex item bertinggi tetap dan ikut menyusut. 
 wajib, kalau tidak padding menambah tinggi di atas 100% dan melahirkan scrollbar kedua.
 
 `Card` punya prop `fill` untuk kartu yang membungkus header + daftar + Pager
-(Projects, Runs, Triggers): ia meneruskan rantai flex ke pembungkus anaknya. Tanpa `fill`,
-`Card` berperilaku persis seperti sebelumnya. `RunsScreen` ikut berubah dari
-`align-items: start` ke `stretch` — kedua kolomnya kini menggulir sendiri-sendiri.
+(Projects, dan daftar berpager lain): ia meneruskan rantai flex ke pembungkus anaknya. Tanpa `fill`,
+`Card` berperilaku persis seperti sebelumnya.
 
 ## Backlog: tiga mode tampilan, dan board yang tidak boleh berbohong
 `BacklogScreen` merender satu daftar spec dalam tiga bentuk — **grid** (default, kartu penuh
@@ -70,37 +68,29 @@ Ketiganya memakai rantai flex di atas. Board sedikit berbeda: barisnya menggulir
 kolom tak pernah tergulir keluar dan kolom terpanjang tak menyeret yang lain. Kartu board
 `flex: 0 0 auto` — tanpa itu kartu menyusut mengisi kolom alih-alih kolomnya menggulir.
 
-Kolomnya: `Backlog · Brainstorm · Objective · Spec · Plan · Execute · Success · Failed`.
-Hanya enam kolom tengah yang benar-benar `Spec.stage`. Tiga sisanya **turunan**, bukan field:
+Kolomnya: `Backlog · Brainstorm · Objective · Spec · Plan · Execute · Success`. Lima kolom tengah
+(Brainstorm…Execute) benar-benar `Spec.stage`; **Backlog** dan **Success** turunan, bukan field:
 
-- **Backlog** — spec yang belum pernah punya run sama sekali. Spec yang stage-nya sudah maju
-  tapi run-nya dihapus tetap tinggal di kolom stage-nya, tidak diklaim balik ke sini.
+- **Backlog** — spec `brainstorming` yang **belum punya sesi hidup** (`!hasSession`). Begitu sesinya
+  mulai, kartunya pindah ke Brainstorm. `hasSession` datang dari `listSessions()` (tmux), bukan status run.
 - **Success** — `stage === "done"`.
-- **Failed** — run **terakhir** spec itu `failed`/`stopped`. Ini tidak bisa dibaca dari spec:
-  `mirrorStage` monotonic-forward (ADR-0008), jadi run yang gagal meninggalkan spec diam di
-  stage terakhir yang sempat tercapai. Karena itu `App` menurunkan `lastRunStatus`
-  (`Map<specId, status run terakhir>`) dari array `runs` — `GET /runs` sudah `desc by id`,
-  jadi kecocokan pertama per `specId` adalah yang terbaru.
+- Kolom **Failed** dihapus bersama tabel `Run` (ADR-0024): sebuah sesi tak meninggalkan status terminal
+  yang bisa dibaca dari spec — `mirrorStage` monotonic-forward (ADR-0008) menahan spec di stage terakhir
+  yang tercapai, jadi tak ada yang bisa mengklaim kartu ke "Failed".
 
-Konsekuensinya untuk drag: **enam kolom stage tidak bisa menerima maupun melepas kartu**
-(`draggable={false}`). `Spec.stage` milik runner (ADR-0008); UI yang menulisnya akan membuat
-`executing`/`done` bisa dicapai tanpa run yang lewat guardrail Source of Truth — persis yang
-ADR itu tutup. Hanya ada **satu** drop yang sah, dan ia bermuara ke `POST /runs`, bukan ke
-`PATCH /specs`:
+Konsekuensinya untuk drag: **kolom stage tidak bisa menerima maupun melepas kartu** (`draggable={false}`).
+`Spec.stage` diturunkan dari phase-file sesi (ADR-0008/0024); UI yang menulisnya akan membuat
+`executing`/`done` tercapai tanpa sesi yang benar-benar berjalan. Hanya ada **satu** drop yang sah, dan
+ia bermuara ke `POST /terminal/sessions`, bukan ke `PATCH /specs`:
 
-    Backlog ──drag──► Brainstorm   = mulai run
+    Backlog ──drag──► Brainstorm   = mulai sesi
 
-Kenapa cuma Brainstorm, padahal lima kolom kerja semuanya "mulai run"? Karena kontrak sebuah
-kanban adalah **kartu mendarat di kolom tempat ia dijatuhkan**. Run selalu mulai dari awal
-pipeline, jadi spec yang baru dijalankan berakhir di stage `brainstorming`. Menerima drop di
-Execute berarti kartunya melompat empat kolom ke kiri sesaat setelah dilepas — UI menjanjikan
-yang tak ia tepati. Menerimanya di kolom yang benar berarti server harus bisa memulai run dari
-fase tertentu; itu belum ada, dan butuh ADR sendiri.
+Kenapa cuma Brainstorm? Karena kontrak kanban adalah **kartu mendarat di kolom tempat ia dijatuhkan**.
+Sesi selalu mulai dari awal pipeline, jadi spec yang baru dijalankan berakhir di stage `brainstorming` —
+Brainstorm satu-satunya tujuan yang jujur. Menerima drop di Execute berarti kartunya melompat empat
+kolom ke kiri sesaat setelah dilepas.
 
-Spec gagal **tidak** diseret. Retry-nya lewat tombol di kartu, karena kartunya akan kembali ke
-kolom stage-nya (mis. Plan), bukan ke kolom tempat ia dijatuhkan.
-
-Aturannya dua fungsi murni terekspor, `specColumn()` dan `canDrop()`, diuji di
+Aturannya dua fungsi murni terekspor, `specColumn(spec, hasSession)` dan `canDrop(from, to)`, diuji di
 `src/test/backlog-board.test.tsx` — termasuk render test jsdom yang men-drag kartu sungguhan,
 karena `from`/`to` yang tertukar lolos dari unit test aturannya sendiri.
 
@@ -113,15 +103,12 @@ tak diubah, jadi aksi ini tak muncul di tiga mode tampilan itu. Stage tetap `don
 `src/test/reopen-session.test.tsx`.
 
 Drag pakai HTML5 drag-and-drop native, tanpa dependency — dan ia mati total di keyboard maupun
-layar sentuh. Karena itu **setiap kartu di ketiga mode, termasuk `BoardCard`, membawa
-`SpecActions`** (Mulai / Buka run / Jalankan lagi). Drag adalah jalan pintas, bukan jalan satu-satunya.
+layar sentuh. Karena itu **setiap kartu di ketiga mode, termasuk `BoardCard`, membawa `SpecActions`**
+(mulai/lanjutkan sesi, lihat dokumen, review). Drag adalah jalan pintas, bukan jalan satu-satunya.
 
-Memulai run **tidak** memindahkan layar ke Runs — dulu `startRun` memanggil `setSection("runs")`,
-yang membuang filter dan mode tampilan operator setiap kali satu spec dijalankan, dan mustahil
-dipakai bersama board (menyeret satu kartu langsung melempar keluar dari board-nya). Yang menandai
-run sudah jalan adalah kartunya sendiri: `setRuns(await api.listRuns())` menyegarkan `activeRunSpecs`,
-tombolnya berubah jadi **Buka run**, dan toast menyebut `runId`-nya. Hanya **Buka run** yang
-menavigasi.
+Memulai sesi **tidak** memindahkan layar — operator tetap di Backlog dengan filter dan mode tampilannya
+utuh. Yang menandai sesi sudah jalan adalah kartunya sendiri: `activeSpecs` (diturunkan dari
+`listSessions()` tmux) menyegar, tombolnya berubah, dan toast muncul.
 
 ## Terminal (sesi Claude Code interaktif)
 `TerminalScreen` menampilkan sesi dalam **grid `rows × cols`** (CSS Grid): `+ Kolom` menambah
@@ -153,9 +140,7 @@ Layout (`{rows,cols,cells}`) tiap grup disimpan di
 selamat dari restart server (ADR-0016), jadi sel yang sesinya masih hidup tersambung ulang dan sel
 yang sesinya sudah di-kill dikosongkan. Logika grid murni ada di `screens/terminal-layout.ts`
 (teruji tanpa DOM). Ini bukan chat buatan sendiri — yang dirender adalah TUI Claude Code asli, byte
-demi byte. Terminal di `RunsScreen` adalah hal yang berbeda: interpreter perintah
-(`status`/`plan`/`steer`) untuk run terjadwal, bukan TTY. Nol perubahan server: route dan `pty.ts`
-dipakai apa adanya (SPEC-158).
+demi byte. Nol perubahan server: route dan `pty.ts` dipakai apa adanya (SPEC-158).
 
 Tombol **Layar penuh** (`maximize-2`) di ujung toolbar memaksimalkan screen: root-nya jadi
 `position: fixed; inset: 0; z-index: 100`, menimpa sidebar dan topbar `Shell` — di bawah modal (150)
@@ -203,48 +188,17 @@ Section **Changed** punya toggle **List | Tree** (`chView`, default `list`) di h
 List = flat path penuh (existing), Tree = `buildFileTree(changed.map(c => c.path))` dengan
 `meta`+`defaultOpen`. Pilihan tak dipersist. Tak ada perubahan endpoint — murni frontend.
 
-## Live run view (SPEC-008)
-`RunsScreen` berlangganan `GET /runs/:id/log` (SSE) untuk run running/paused via
-`subscribeRun`; event live (`log`/`phase`/`status`/`cost`/`file`) digabung lewat reducer
-murni `reduceRunEvent`. Panel kontrol menggerakkan `POST /runs/:id/command` (teks bebas →
-steer) dan `/control` (pause/resume/stop/retry). Durasi dihitung `(finishedAt ?? now) − createdAt`
-(ADR-0007), tick tiap detik selama run berjalan.
+## Stage & progress
+Tidak ada layar Runs, SSE, maupun StatusPill status-run — semuanya dicabut bersama tabel `Run`
+(ADR-0024). Progres sebuah backlog dibaca dari **`Spec.stage`**, yang server turunkan dari phase-file
+sesi (`$HANOMAN_PHASE_FILE` → `services/session-phases.ts`, `services/stage-machine.ts`). Kartu backlog
+dan modal detail menampilkan **stage bar** (Brainstorm → … → Done); daftar disegarkan lewat poll, bukan
+langganan. Sesi hidup dideteksi dari `listSessions()` (tmux) — saat sesi ditutup, `GET /specs`
+write-through memajukan stage dan membuat notifikasi `done`. `executing` tertahan (tak jadi `done`)
+selama plan `docs/superpowers/plans/**` masih punya `- [ ]` (SPEC-173/ADR-0029). Fase `skipped`
+(alur `qa`, SPEC-145/ADR-0020) keluar dari penyebut progress sehingga jalur cepat yang sukses tetap 100%.
 
-Run `failed` merender `RunRetry` alih-alih `RunControls`: satu tombol yang memanggil
-`/control` action `retry` — re-enqueue runId yang sama, melanjutkan sesi claude yang sama
-via `sessionId` tersimpan (ADR-0017), bukan input steer + pause/stop (tidak ada proses hidup
-untuk run yang sudah terminal). SPEC-149.
-
-`StatusPill` (`ds/components/feedback.tsx`) memetakan **setiap** status `Run` di data-model
-(`queued | running | paused | stopped | failed | done`). Status yang tidak ada di peta jatuh
-ke fallback `idle` ("Idle", abu-abu) — jadi `paused` dan `stopped` sempat tampil sebagai
-"Idle" meski `paused` punya tombol Resume dan poll `isRunActive` menganggapnya aktif. Setiap
-status baru di `Run.status` wajib ditambah ke peta ini, kalau tidak pill-nya diam-diam bohong.
-
-Daftar run **tidak** berlangganan SSE — SSE hanya mengisi overlay panel detail lewat
-`reduceRunEvent`, tak pernah menyentuh array `runs`. Yang menyegarkan daftar adalah poll
-3 dtk di `App` (`listSpecs` + `listRuns`) selama ada run **aktif**, dan "aktif" berarti
-`isRunActive(status)` — satu predikat di `@hanoman/shared` yang mencakup `queued`,
-`running`, dan `paused` (SPEC-142). `queued` wajib ikut: setiap run lahir `queued`, jadi
-gate yang melewatkannya membuat daftar membeku sampai refresh manual. Predikat yang sama
-menentukan kartu backlog menampilkan **Buka run** alih-alih **Mulai**, baris run
-menyembunyikan aksi hapus, dan baris project menampilkan label fase. Predikat "punya
-proses hidup" (`running | paused`, untuk steer/pause/stop) sengaja berbeda dan tetap inline.
-
-Overlay `live` di `RunsScreen` di-seed ulang saat **id atau status** run berubah, bukan id
-saja. Poll membawa status baru dari DB, tapi overlay itu snapshot sekali per run: dengan
-`[picked?.id]` saja, panel detail tertinggal di `queued` sementara baris daftar sudah
-`running`. Redis pub/sub tak punya replay, jadi event `status: running` yang terbit sebelum
-langganan SSE dibuka hilang selamanya — status berikutnya baru tiba saat run selesai. DB
-adalah sumber kebenaran status; SSE hanya mempercepatnya.
-
-`PhasePipeline` mengenal lima state fase. `skipped` (SPEC-145) adalah fase yang run **putuskan**
-untuk tidak dijalankan — alur `qa` yang audit-nya memilih perbaikan langsung menandai Spec dan
-Plan begitu. Ia dirender terisi `--bone-400` dengan ikon `minus` dan label redup, sengaja berbeda
-dari `pending` (lingkaran kosong, "belum jalan"), dan konektor sesudahnya berwarna `--leaf-500`
-karena alur memang lewat sana. `progress` mengeluarkan fase `skipped` dari penyebutnya, sehingga
-run jalur cepat yang sukses tetap 100%.
-
+## Favicon (SPEC-147)
 Favicon adalah **aset statis**, bukan komponen: `src/public/favicon.svg` (SPEC-147). Vite root
 adalah `src/`, jadi `publicDir` default-nya `src/public/` — dev menyajikannya di `/favicon.svg`,
 `vite build` menyalinnya ke `src/dist/`, dan di produksi `fastifyStatic` (`server/src/app.ts:51-52`)
@@ -260,7 +214,7 @@ me-request `/favicon.ico` dari root dengan sendirinya.
 ## Notifikasi backlog selesai (SPEC-180)
 Awareness saat backlog mencapai `done`: toast, daftar (lonceng), dan sound. Semua sisi klien
 bersandar pada notifikasi yang **dibuat server-side** (`GET /notifications`) — lihat
-[ADR-0030](../adr/0030-notifikasi-backlog-selesai.md).
+[ADR-0033](../adr/0033-notifikasi-backlog-selesai.md).
 
 - **`NotificationsProvider`** (`src/src/notifications/NotificationsContext.tsx`) membungkus tree
   ter-autentikasi di `App`. Ia memoll `GET /notifications` tiap 10s (independen dari sesi aktif,
