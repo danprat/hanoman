@@ -860,7 +860,7 @@ git commit -m "feat(ide): lane-builder murni untuk git graph (SPEC-182)"
 - Consumes: `api.ideTree`, `api.ideFile`, `api.putIdeFile`, `api.listBranches`, `api.ideGit`, `RepoFile` dari client; `ProjectVM` dari `./types`; DS `Card`, `Button`, `Select`, `Icon`, `StateBlock`, `Tabs`, `Badge`.
 - Produces: `export function IdeScreen({ projects, projectId, onProject }: { projects: ProjectVM[]; projectId: string; onProject: (id: string) => void })` — dipakai App.tsx (Task 7).
 
-- [ ] **Step 1: Tambah dependency highlight.js**
+- [x] **Step 1: Tambah dependency highlight.js**
 
 Run (dari root):
 
@@ -870,7 +870,7 @@ pnpm --filter ./src add highlight.js
 
 Expected: `highlight.js` masuk ke `dependencies` di `src/package.json`; lockfile terupdate.
 
-- [ ] **Step 2: Tulis test yang gagal**
+- [x] **Step 2: Tulis test yang gagal**
 
 Buat `src/test/ide-screen.test.tsx`:
 
@@ -915,12 +915,12 @@ describe("IdeScreen Explorer", () => {
 });
 ```
 
-- [ ] **Step 3: Jalankan test, pastikan gagal**
+- [x] **Step 3: Jalankan test, pastikan gagal**
 
 Run: `pnpm --filter ./src test -- ide-screen`
 Expected: FAIL — `Cannot find module '../src/screens/IdeScreen'`.
 
-- [ ] **Step 4: Tulis IdeScreen (Explorer + toolbar; tab Graph disematkan di Task 7)**
+- [x] **Step 4: Tulis IdeScreen (Explorer + toolbar; tab Graph disematkan di Task 7)**
 
 Buat `src/src/screens/IdeScreen.tsx`:
 
@@ -1122,7 +1122,7 @@ export function IdeScreen({ projects, projectId, onProject }:
 
 > Catatan reuse: bila DS tak punya `Tabs` dengan signature `{tabs,active,onChange}`, sesuaikan ke API `Tabs` yang ada di `src/src/ds` (cek `ds/index.ts`); pola tab sudah dipakai di App.tsx (import `Tabs`).
 
-- [ ] **Step 5: Buat stub GitGraph agar import resolve**
+- [x] **Step 5: Buat stub GitGraph agar import resolve**
 
 Buat sementara `src/src/screens/GitGraph.tsx` (diisi penuh di Task 7):
 
@@ -1134,12 +1134,12 @@ export function GitGraph(_: { projectId: string; onRunGit: (op: GitOp) => Promis
 }
 ```
 
-- [ ] **Step 6: Jalankan test, pastikan lulus**
+- [x] **Step 6: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./src test -- ide-screen`
 Expected: PASS (4 test).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/package.json pnpm-lock.yaml src/src/screens/IdeScreen.tsx src/src/screens/GitGraph.tsx src/test/ide-screen.test.tsx

@@ -1,0 +1,193 @@
+/* IdeScreen — IDE Visual (SPEC-182): Explorer (pohon file + editor highlight) & Git Graph,
+   satu toolbar (project + branch switcher). Pola tree/editor meniru DocsWorkspace. */
+import React from "react";
+import hljs from "highlight.js";
+import "highlight.js/styles/github.css";
+import { Card, Button, Select, Icon, StateBlock, Tabs, Badge } from "../ds";
+import { api, ApiError, type RepoFile, type GitOp } from "../api/client";
+import type { ProjectVM } from "./types";
+import { GitGraph } from "./GitGraph";
+
+const langOf = (p: string): string => {
+  const ext = p.slice(p.lastIndexOf(".") + 1);
+  const map: Record<string, string> = { ts: "typescript", tsx: "typescript", js: "javascript", jsx: "javascript",
+    json: "json", md: "markdown", css: "css", html: "xml", sh: "bash", py: "python", yml: "yaml", yaml: "yaml", sql: "sql" };
+  return map[ext] ?? "";
+};
+
+function FileTree({ files, selected, onSelect }: { files: string[]; selected: string; onSelect: (p: string) => void }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+      {files.map((f) => {
+        const on = f === selected;
+        return (
+          <button key={f} onClick={() => onSelect(f)} style={{
+            display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "5px 8px",
+            borderRadius: "var(--radius-sm)", border: "none", cursor: "pointer", textAlign: "left",
+            background: on ? "var(--brass-100)" : "transparent",
+          }}>
+            <Icon name="file-text" size={13} color={on ? "var(--brass-700)" : "var(--text-subtle)"} />
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 12,
+              color: on ? "var(--brass-700)" : "var(--text-body)", fontWeight: on ? 600 : 400 }}>{f}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Dialog "Paksa": muncul saat mutasi git balas 409. Mengulang op dengan force:true.
+function ForceDialog({ msg, onForce, onCancel }: { msg: string; onForce: () => void; onCancel: () => void }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 150, background: "rgba(0,0,0,.35)",
+      display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <Card padding={20} style={{ maxWidth: 460 }}>
+        <div style={{ fontWeight: 600, marginBottom: 8, color: "var(--text-strong)" }}>Operasi ditolak</div>
+        <pre style={{ fontFamily: "var(--font-mono)", fontSize: 12, whiteSpace: "pre-wrap",
+          color: "var(--text-muted)", marginBottom: 12 }}>{msg}</pre>
+        <div style={{ fontSize: 12.5, color: "var(--clay-600)", marginBottom: 14 }}>
+          Paksa bisa membuang perubahan tak ter-commit &amp; mengganggu sesi Claude yang jalan.
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <Button size="sm" variant="ghost" onClick={onCancel}>Batal</Button>
+          <Button size="sm" leftIcon="alert-triangle" onClick={onForce}>Paksa</Button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+export function IdeScreen({ projects, projectId, onProject }:
+  { projects: ProjectVM[]; projectId: string; onProject: (id: string) => void }) {
+  const [tab, setTab] = React.useState("explorer");
+  const [viewRef, setViewRef] = React.useState("");         // branch/ref yang dilihat (kosong = working tree)
+  const [branches, setBranches] = React.useState<{ branches: string[]; remotes: string[] }>({ branches: [], remotes: [] });
+  const [files, setFiles] = React.useState<string[]>([]);
+  const [treeState, setTreeState] = React.useState<"loading" | "ready" | "error">("loading");
+  const [selected, setSelected] = React.useState("");
+  const [file, setFile] = React.useState<RepoFile | null>(null);
+  const [mode, setMode] = React.useState<"view" | "edit">("view");
+  const [draft, setDraft] = React.useState("");
+  const [pendingForce, setPendingForce] = React.useState<{ op: GitOp; msg: string } | null>(null);
+
+  const reloadTree = React.useCallback(() => {
+    setTreeState("loading");
+    api.ideTree(projectId, viewRef).then((t) => { setFiles(t.files); setTreeState("ready"); })
+      .catch(() => setTreeState("error"));
+  }, [projectId, viewRef]);
+
+  React.useEffect(() => { reloadTree(); }, [reloadTree]);
+  React.useEffect(() => { api.listBranches(projectId).then(setBranches).catch(() => {}); }, [projectId]);
+  React.useEffect(() => {
+    if (!selected) { setFile(null); return; }
+    let alive = true;
+    api.ideFile(projectId, selected, viewRef).then((f) => { if (alive) { setFile(f); setMode("view"); } })
+      .catch(() => { if (alive) setFile(null); });
+    return () => { alive = false; };
+  }, [selected, projectId, viewRef]);
+
+  // Semua ref: local + origin (prefix "origin/") untuk dilihat/checkout.
+  const refOptions = [
+    { value: "", label: "· working tree ·" },
+    ...branches.branches.map((b) => ({ value: b, label: b })),
+    ...branches.remotes.map((b) => ({ value: `origin/${b}`, label: `origin/${b}` })),
+  ];
+
+  async function runGit(op: GitOp) {
+    try {
+      const r = await api.ideGit(projectId, op);
+      setViewRef(""); reloadTree();
+      return r;
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 409) setPendingForce({ op, msg: e.message });
+      throw e;
+    }
+  }
+  async function checkout() { if (viewRef) await runGit({ op: "checkout", ref: viewRef }).catch(() => {}); }
+  async function confirmForce() {
+    if (!pendingForce) return;
+    const op = { ...pendingForce.op, force: true } as GitOp;
+    setPendingForce(null);
+    await api.ideGit(projectId, op).then(() => { setViewRef(""); reloadTree(); }).catch(() => {});
+  }
+
+  function startEdit() { setDraft(file?.content ?? ""); setMode("edit"); }
+  async function save() {
+    await api.putIdeFile(projectId, selected, draft);
+    setFile((f) => (f ? { ...f, content: draft } : f)); setMode("view");
+  }
+
+  const highlighted = React.useMemo(() => {
+    if (!file || file.content === null) return "";
+    const lang = langOf(selected);
+    try { return lang ? hljs.highlight(file.content, { language: lang }).value : hljs.highlightAuto(file.content).value; }
+    catch { return file.content; }
+  }, [file, selected]);
+
+  const toolbar = (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      <Select size="sm" value={projectId} onChange={(e) => onProject(e.target.value)}
+        options={projects.map((p) => ({ value: p.id, label: p.name }))} />
+      <Select size="sm" value={viewRef} onChange={(e) => setViewRef(e.target.value)} options={refOptions} />
+      <Button size="sm" variant="secondary" leftIcon="git-branch" onClick={checkout} disabled={!viewRef}>Checkout</Button>
+    </div>
+  );
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <Tabs tabs={[{ value: "explorer", label: "Explorer" }, { value: "graph", label: "Git Graph" }]} value={tab} onChange={setTab} />
+        {toolbar}
+      </div>
+
+      {tab === "explorer" ? (
+        <div style={{ display: "grid", gridTemplateColumns: "288px 1fr", gap: 20, alignItems: "start" }}>
+          <Card padding={0}>
+            <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--border-hair)" }}>
+              <span className="hn-eyebrow">files · {viewRef || "working tree"}</span>
+            </div>
+            <div style={{ padding: 8, maxHeight: 620, overflow: "auto" }}>
+              {treeState === "loading" ? <StateBlock kind="loading" compact title="Memuat file…" />
+                : treeState === "error" ? <StateBlock kind="error" compact title="Gagal memuat file" action={reloadTree} />
+                : files.length === 0 ? <StateBlock kind="empty" compact icon="folder-open" title="Tak ada file" />
+                : <FileTree files={files} selected={selected} onSelect={setSelected} />}
+            </div>
+          </Card>
+          <Card padding={0}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderBottom: "1px solid var(--border-hair)" }}>
+              <Icon name="file-text" size={15} color="var(--text-muted)" />
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--text-strong)" }}>{selected || "—"}</span>
+              {file?.truncated && <Badge tone="warn" size="sm">terpotong</Badge>}
+              <span style={{ flex: 1 }} />
+              {mode === "view"
+                ? <Button size="sm" variant="secondary" leftIcon="pencil" onClick={startEdit}
+                    disabled={!file || file.binary}>Edit</Button>
+                : <div style={{ display: "flex", gap: 8 }}>
+                    <Button size="sm" variant="ghost" onClick={() => setMode("view")}>Batal</Button>
+                    <Button size="sm" leftIcon="check" onClick={save}>Simpan</Button>
+                  </div>}
+            </div>
+            <div style={{ maxHeight: 620, overflow: "auto" }}>
+              {!selected ? <StateBlock kind="empty" icon="file-text" title="Pilih file dari pohon di kiri" />
+                : file === null ? <StateBlock kind="loading" title="Memuat…" hint={selected} />
+                : file.binary ? <StateBlock kind="empty" icon="file" title="File biner" hint={selected} />
+                : mode === "edit"
+                  ? <textarea value={draft} onChange={(e) => setDraft(e.target.value)} spellCheck={false} style={{
+                      width: "100%", minHeight: 560, boxSizing: "border-box", resize: "vertical", border: "none",
+                      outline: "none", padding: "16px 18px", fontFamily: "var(--font-mono)", fontSize: 12.5,
+                      lineHeight: 1.7, color: "var(--text-body)", background: "var(--surface-card)" }} />
+                  : <pre style={{ margin: 0, padding: "16px 18px", overflow: "auto" }}>
+                      <code className="hljs" style={{ fontFamily: "var(--font-mono)", fontSize: 12.5, lineHeight: 1.7 }}
+                        dangerouslySetInnerHTML={{ __html: highlighted }} />
+                    </pre>}
+            </div>
+          </Card>
+        </div>
+      ) : (
+        <GitGraph projectId={projectId} onRunGit={runGit} onOpenFile={(p, ref) => { setViewRef(ref); setSelected(p); setTab("explorer"); }} />
+      )}
+
+      {pendingForce && <ForceDialog msg={pendingForce.msg} onForce={confirmForce} onCancel={() => setPendingForce(null)} />}
+    </div>
+  );
+}
