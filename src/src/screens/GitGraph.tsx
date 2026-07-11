@@ -136,7 +136,9 @@ export function GitGraph({ projectId, onRunGit, onOpenFile }:
 
       {menu && <Menu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={[
         { label: `Checkout ${menu.c.sha.slice(0, 7)}`, run: () => act({ op: "checkout", ref: menu.c.sha }) },
-        { label: "Merge ke branch ini", run: () => act({ op: "merge", ref: menu.c.sha }) },
+        { label: "Merge (fast-forward bila bisa)", run: () => act({ op: "merge", ref: menu.c.sha }) },
+        { label: "Merge tanpa fast-forward", run: () => act({ op: "merge", ref: menu.c.sha, ff: "no-ff" }) },
+        { label: "Merge fast-forward saja", run: () => act({ op: "merge", ref: menu.c.sha, ff: "ff-only" }) },
         { label: "Cherry-pick", run: () => act({ op: "cherry-pick", sha: menu.c.sha }) },
         { label: "Revert", run: () => act({ op: "revert", sha: menu.c.sha }) },
         { label: "Buat branch di sini…", run: () => { const name = window.prompt("Nama branch baru:"); if (name) act({ op: "branch", name, at: menu.c.sha, checkout: true }); } },

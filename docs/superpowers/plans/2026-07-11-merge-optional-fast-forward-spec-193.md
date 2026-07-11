@@ -141,14 +141,14 @@ git commit -m "feat(git-ide): opsi fast-forward pada merge terminal (SPEC-193)"
 - Consumes: op merge dgn `ff` dari Task 1 (dilewatkan apa adanya oleh route).
 - Produces: tiga item menu yang mengirim `{op:"merge",ref}`, `{...,ff:"no-ff"}`, `{...,ff:"ff-only"}`.
 
-- [ ] **Step 1: Selaraskan tipe client**
+- [x] **Step 1: Selaraskan tipe client**
 
 `src/src/api/client.ts` — ganti baris merge:
 ```ts
   | { op: "merge"; ref: string; ff?: "no-ff" | "ff-only"; force?: boolean }
 ```
 
-- [ ] **Step 2: Ganti item menu tunggal jadi tiga pilihan**
+- [x] **Step 2: Ganti item menu tunggal jadi tiga pilihan**
 
 `src/src/screens/GitGraph.tsx` — ganti baris `{ label: "Merge ke branch ini", ... }`:
 ```tsx
@@ -157,12 +157,12 @@ git commit -m "feat(git-ide): opsi fast-forward pada merge terminal (SPEC-193)"
         { label: "Merge fast-forward saja", run: () => act({ op: "merge", ref: menu.c.sha, ff: "ff-only" }) },
 ```
 
-- [ ] **Step 3: Typecheck + build frontend**
+- [x] **Step 3: Typecheck + build frontend**
 
 Run: `cd src && pnpm tsc --noEmit` (atau `pnpm build`)
 Expected: nol error tipe.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/src/api/client.ts src/src/screens/GitGraph.tsx
@@ -171,7 +171,7 @@ git commit -m "feat(ide): pilihan fast-forward di menu merge git graph (SPEC-193
 
 ---
 
-### Task 3: Verifikasi end-to-end nyata (bukan hanya unit test)
+ Verifikasi end-to-end nyata (bukan hanya unit test)
 
 - [ ] **Step 1: Boot server + curl endpoint git dengan opsi ff**
 

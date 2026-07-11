@@ -24,7 +24,7 @@ export type CommitDetail = { sha: string; parents: string[]; author: string; at:
 export type GitOp =
   | { op: "checkout"; ref: string; force?: boolean }
   | { op: "branch"; name: string; at?: string; checkout?: boolean }
-  | { op: "merge"; ref: string; force?: boolean }
+  | { op: "merge"; ref: string; ff?: "no-ff" | "ff-only"; force?: boolean }
   | { op: "cherry-pick"; sha: string; force?: boolean }
   | { op: "revert"; sha: string; force?: boolean }
   | { op: "delete-branch"; name: string; force?: boolean };
