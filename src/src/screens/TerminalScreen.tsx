@@ -1,7 +1,6 @@
 import React from "react";
 import { Button, IconButton, Icon, Select, StateBlock, Modal, Input, Badge } from "../ds";
 import { api, ApiError, type TerminalSession, type Phase, type Flow } from "../api/client";
-import type { Spec } from "@hanoman/shared";
 import { TerminalPane } from "./TerminalPane";
 import { SpecDocsModal } from "./SpecDocsModal";
 import { IntegrateDialog } from "./IntegrateDialog";
