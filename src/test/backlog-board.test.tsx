@@ -2,10 +2,13 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 
 vi.mock("../src/api/client", () => ({
-  api: { listBranches: vi.fn(async () => ({ branches: [], remotes: [] })) },
+  // listSpecs default vi.fn() → undefined; BacklogScreen optional-call-nya no-op, jadi test
+  // di bawah render dari prop `backlog` (seed). Test SPEC-198 mengeset mockResolvedValue sendiri.
+  api: { listBranches: vi.fn(async () => ({ branches: [], remotes: [] })), listSpecs: vi.fn() },
   ApiError: class extends Error {},
 }));
 import { BacklogScreen, specColumn, canDrop } from "../src/screens/BacklogScreen";
+import { api } from "../src/api/client";
 import type { Spec } from "../src/screens/types";
 
 const spec = (over: Partial<Spec> = {}) =>
@@ -163,5 +166,20 @@ describe("board drag (jsdom)", () => {
     board([spec({ stage: "planned" })], new Set(["SPEC-1"]));
     expect(screen.getByTitle(AGENT_OWNED).getAttribute("draggable")).toBe("false");
     expect(screen.queryByTitle(DRAGGABLE)).toBeNull();
+  });
+});
+
+// SPEC-198 · daftar grid/list didorong server: item + total datang dari envelope, bukan slice klien.
+describe("server-driven fetch (SPEC-198)", () => {
+  it("fetch halaman terfilter via API lalu render item + total dari server", async () => {
+    vi.mocked(api.listSpecs).mockResolvedValue({
+      items: [spec({ id: "SPEC-77", title: "dari server" })], total: 42, page: 1, pageSize: 20,
+    });
+    render(<BacklogScreen backlog={[]} projects={[{ id: "p", name: "p" }] as never}
+      projectFilter="all" onProjectFilter={() => {}} onStart={() => {}} />);
+    expect(await screen.findByText("dari server")).toBeTruthy();   // item dari server, bukan prop
+    expect(screen.getByText("42 spec")).toBeTruthy();              // total dari envelope
+    const params = vi.mocked(api.listSpecs).mock.calls[0]![0];
+    expect(params).toMatchObject({ page: 1, limit: 20 });
   });
 });

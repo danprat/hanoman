@@ -1,84 +1,57 @@
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// SPEC-198 · search/filter kini via API: BacklogScreen mengirim q/stage/priority ke listSpecs,
+// server yang menyaring. Test ini memverifikasi PARAM yang dikirim, bukan penyaringan klien.
 vi.mock("../src/api/client", () => ({
-  api: { listBranches: vi.fn(async () => ({ branches: [] })) },
+  api: { listBranches: vi.fn(async () => ({ branches: [] })), listSpecs: vi.fn() },
   ApiError: class extends Error {},
 }));
 import { BacklogScreen } from "../src/screens/BacklogScreen";
+import { api } from "../src/api/client";
 
-const spec = (over: Record<string, unknown>) => ({
-  id: "SPEC-1", projectId: "arta", title: "t", source: "brief",
-  stage: "planned", priority: "sedang", author: "a", objective: "", payload: null, branchFrom: null,
-  ...over,
-});
+const envelope = (items: unknown[] = []) => ({ items, total: items.length, page: 1, pageSize: 20 });
+beforeEach(() => { vi.mocked(api.listSpecs).mockReset(); vi.mocked(api.listSpecs).mockResolvedValue(envelope()); });
+const lastParams = () => vi.mocked(api.listSpecs).mock.calls.at(-1)![0];
 
-function renderBacklog(backlog: unknown[]) {
+function renderBacklog() {
   return render(
-    <BacklogScreen backlog={backlog as never}
+    <BacklogScreen backlog={[] as never}
       projects={[{ id: "arta", name: "arta" }] as never}
       projectFilter="all" onProjectFilter={() => {}} />
   );
 }
 
-describe("search + filter backlog (SPEC-178)", () => {
-  it("search mencocokkan judul", () => {
-    renderBacklog([
-      spec({ id: "SPEC-1", title: "Login page" }),
-      spec({ id: "SPEC-2", title: "Export CSV" }),
-    ]);
+describe("search + filter backlog via API (SPEC-178 → SPEC-198)", () => {
+  it("mengirim q ke API saat mengetik (debounced)", async () => {
+    renderBacklog();
     fireEvent.change(screen.getByPlaceholderText("Cari backlog…"), { target: { value: "csv" } });
-    expect(screen.queryByText("SPEC-1")).toBeNull();
-    expect(screen.getAllByText("SPEC-2").length).toBeGreaterThan(0);
+    await waitFor(() => expect(lastParams()).toMatchObject({ q: "csv" }));
   });
 
-  it("search mencocokkan objective (bukan hanya judul/id)", () => {
-    renderBacklog([
-      spec({ id: "SPEC-1", title: "A", objective: "perbaiki tombol simpan" }),
-      spec({ id: "SPEC-2", title: "B", objective: "tambah ekspor pdf" }),
-    ]);
-    fireEvent.change(screen.getByPlaceholderText("Cari backlog…"), { target: { value: "ekspor" } });
-    expect(screen.queryByText("SPEC-1")).toBeNull();
-    expect(screen.getAllByText("SPEC-2").length).toBeGreaterThan(0);
-  });
-
-  it("filter stage menyaring per stage", () => {
-    renderBacklog([
-      spec({ id: "SPEC-1", stage: "brainstorming" }),
-      spec({ id: "SPEC-2", stage: "planned" }),
-    ]);
+  it("mengirim stage ke API", async () => {
+    renderBacklog();
     fireEvent.change(screen.getByLabelText("Filter stage"), { target: { value: "planned" } });
-    expect(screen.queryByText("SPEC-1")).toBeNull();
-    expect(screen.getAllByText("SPEC-2").length).toBeGreaterThan(0);
+    await waitFor(() => expect(lastParams()).toMatchObject({ stage: "planned" }));
   });
 
-  it("filter prioritas menyaring per prioritas", () => {
-    renderBacklog([
-      spec({ id: "SPEC-1", priority: "tinggi" }),
-      spec({ id: "SPEC-2", priority: "rendah" }),
-    ]);
+  it("mengirim priority ke API", async () => {
+    renderBacklog();
     fireEvent.change(screen.getByLabelText("Filter prioritas"), { target: { value: "rendah" } });
-    expect(screen.queryByText("SPEC-1")).toBeNull();
-    expect(screen.getAllByText("SPEC-2").length).toBeGreaterThan(0);
+    await waitFor(() => expect(lastParams()).toMatchObject({ priority: "rendah" }));
   });
 
-  it("kombinasi search + stage + prioritas = irisan", () => {
-    renderBacklog([
-      spec({ id: "SPEC-1", title: "alpha", stage: "planned", priority: "tinggi" }),
-      spec({ id: "SPEC-2", title: "alpha", stage: "planned", priority: "rendah" }),
-      spec({ id: "SPEC-3", title: "beta", stage: "planned", priority: "tinggi" }),
-    ]);
+  it("kombinasi search + stage + priority = satu query berisi ketiganya", async () => {
+    renderBacklog();
     fireEvent.change(screen.getByPlaceholderText("Cari backlog…"), { target: { value: "alpha" } });
     fireEvent.change(screen.getByLabelText("Filter stage"), { target: { value: "planned" } });
     fireEvent.change(screen.getByLabelText("Filter prioritas"), { target: { value: "tinggi" } });
-    expect(screen.getAllByText("SPEC-1").length).toBeGreaterThan(0);
-    expect(screen.queryByText("SPEC-2")).toBeNull();
-    expect(screen.queryByText("SPEC-3")).toBeNull();
+    await waitFor(() => expect(lastParams()).toMatchObject({ q: "alpha", stage: "planned", priority: "tinggi" }));
   });
 
-  it("tanpa filter menampilkan semua (tak menyaring)", () => {
-    renderBacklog([spec({ id: "SPEC-1" }), spec({ id: "SPEC-2" })]);
-    expect(screen.getAllByText("SPEC-1").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("SPEC-2").length).toBeGreaterThan(0);
+  it("tanpa filter: params tanpa q/stage/priority (server balikkan semua)", async () => {
+    renderBacklog();
+    await waitFor(() => expect(api.listSpecs).toHaveBeenCalled());
+    expect(lastParams()).toMatchObject({ q: undefined, stage: undefined, priority: undefined });
   });
 });

@@ -5,7 +5,7 @@ export { StateBlock } from "./components/state";
 export { Button, IconButton, Input, Select, Checkbox, Switch } from "./components/forms";
 export { Card } from "./components/surfaces";
 export { Tabs } from "./components/ui";
-export { useToast, Toast, Modal, Field, HnTextarea, usePaged, Pager, LIST_SCROLL_STYLE, LIST_SCREEN_STYLE, FIXED_ROW_STYLE } from "./kit";
+export { useToast, Toast, Modal, Field, HnTextarea, usePaged, serverPage, Pager, LIST_SCROLL_STYLE, LIST_SCREEN_STYLE, FIXED_ROW_STYLE } from "./kit";
 export type { ToastData, ShowToast } from "./kit";
 export { Shell } from "./shell";
 export { MarkdownView, hnDocHtml } from "./markdown";

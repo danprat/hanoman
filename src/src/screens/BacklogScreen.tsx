@@ -2,7 +2,7 @@
    Ported; spec.project → spec.projectId; window → ds imports. */
 import React from "react";
 import {
-  Card, Badge, Tabs, Select, Button, IconButton, Icon, usePaged, Pager, Modal, StateBlock, Input,
+  Card, Badge, Tabs, Select, Button, IconButton, Icon, serverPage, Pager, Modal, StateBlock, Input,
   Field, HnTextarea, LIST_SCROLL_STYLE, LIST_SCREEN_STYLE, FIXED_ROW_STYLE
 } from "../ds";
 import { api } from "../api/client";
@@ -502,7 +502,7 @@ const VIEWS = [
   { value: "board", label: "Board", icon: "kanban" },
 ];
 
-export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onOpenReview, onNew, onEditBranch, onRevertStage, onIntegrate, onEditSpec, projectFilter, onProjectFilter }:
+export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onOpenReview, onNew, onEditBranch, onRevertStage, onIntegrate, onEditSpec, projectFilter, onProjectFilter, dataVersion }:
   {
     backlog: Spec[]; projects: ProjectVM[]; pageSize?: number;
     onStart?: (s: Spec) => void; activeSpecs?: Set<string>;
@@ -511,7 +511,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
     onRevertStage?: (s: Spec, target: string, confirmDelete?: boolean) => Promise<any>;
     onIntegrate?: (s: Spec, op: "merge" | "rebase", target: string) => void;
     onEditSpec?: (s: Spec, patch: { title?: string; priority?: string; payload?: unknown }) => void;
-    projectFilter: string; onProjectFilter: (id: string) => void
+    projectFilter: string; onProjectFilter: (id: string) => void; dataVersion?: number
   }) {
   const [tab, setTab] = React.useState("all");
   const [view, setView] = React.useState("grid");
@@ -525,14 +525,32 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
   // keep the id, not the object: backlog re-polls and the stage bar must stay live
   const [detailId, setDetailId] = React.useState<string | null>(null);
   const projOptions = projects || [...new Set(backlog.map((s) => s.projectId))].map((id) => ({ id, name: id }));
-  const needle = q.trim().toLowerCase();
-  const filtered = backlog.filter((s) =>
-    (tab === "all" || s.source === tab) &&
-    (proj === "all" || s.projectId === proj) &&
-    (stageFilter === "all" || s.stage === stageFilter) &&
-    (prioFilter === "all" || s.priority === prioFilter) &&
-    (needle === "" || (s.id + " " + s.title + " " + s.objective).toLowerCase().includes(needle)));
-  const pg = usePaged(filtered, pageSize, [tab, proj, stageFilter, prioFilter, needle].join("|"));
+  // SPEC-198 · search/filter/paginasi via API. Seed dari prop `backlog` (App tetap memuat set
+  // penuh utk Overview/board/poll) → render instan + tahan mock parsial di test; lalu refetch
+  // potongan terfilter/terpaginasi dari server. Board minta set terfilter penuh (tanpa page).
+  const [data, setData] = React.useState<{ items: Spec[]; total: number }>(
+    () => ({ items: backlog, total: backlog.length }));
+  const [page, setPage] = React.useState(1);
+  const [dq, setDq] = React.useState("");
+  React.useEffect(() => { const t = setTimeout(() => setDq(q.trim()), 250); return () => clearTimeout(t); }, [q]);
+  React.useEffect(() => { setPage(1); }, [tab, proj, stageFilter, prioFilter, dq, view]);
+  React.useEffect(() => {
+    let alive = true;
+    // sentinel "all" → undefined di call-site; server yang menyaring/memotong.
+    const p = api.listSpecs?.({
+      project: proj === "all" ? undefined : proj,
+      source: tab === "all" ? undefined : tab,
+      q: dq || undefined,
+      stage: stageFilter === "all" ? undefined : stageFilter,
+      priority: prioFilter === "all" ? undefined : prioFilter,
+      page: view === "board" ? undefined : page,
+      limit: view === "board" ? undefined : pageSize,
+    });
+    p?.then((r) => { if (alive) setData({ items: r.items, total: r.total }); }).catch(() => { });
+    return () => { alive = false; };
+  }, [tab, proj, stageFilter, prioFilter, dq, view, page, pageSize, dataVersion]);
+  const items = data.items;
+  const sp = serverPage(data.total, page, pageSize);
   return (
     <div style={LIST_SCREEN_STYLE}>
       <div style={{ ...FIXED_ROW_STYLE, marginBottom: 18 }}>
@@ -542,7 +560,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
           ]} />
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <Tabs variant="pill" value={view} onChange={setView} tabs={VIEWS} aria-label="Mode tampilan" />
-            <span className="hn-eyebrow">{filtered.length} spec</span>
+            <span className="hn-eyebrow">{data.total} spec</span>
           </div>
         </div>
         {/* SPEC-178 · baris penyaring: search + project + stage + prioritas. */}
@@ -560,7 +578,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
             ]} />
         </div>
       </div>
-      {filtered.length === 0 ? (
+      {data.total === 0 ? (
         backlog.length === 0
           ? <StateBlock kind="empty" icon="lightbulb" title="Backlog masih kosong"
             hint="Filekan feature brief atau QA finding — hanoman menjalankannya dari brainstorm sampai execute."
@@ -569,8 +587,8 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
             hint={`${backlog.length} spec ada di backlog, tapi tak ada yang cocok dengan filter aktif.`}
             action={() => { setTab("all"); setProj("all"); setQ(""); setStageFilter("all"); setPrioFilter("all"); }} actionLabel="Reset filter" actionIcon="rotate-ccw" />
       ) : view === "board" ? (
-        // Board tak dipaginasi: kolom yang terpotong halaman bukan board.
-        <Board specs={filtered} activeSpecs={activeSpecs}
+        // Board tak dipaginasi: minta set terfilter penuh dari server (fetch tanpa page/limit).
+        <Board specs={items} activeSpecs={activeSpecs}
           onStart={onStart} onOpenRun={onOpenRun} onOpenReview={onOpenReview} onOpenDetail={(x) => setDetailId(x.id)} />
       ) : (
         <>
@@ -580,7 +598,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
               ...LIST_SCROLL_STYLE, border: "1px solid var(--border-hair)",
               borderRadius: "var(--radius-lg)", overflowX: "hidden"
             }}>
-              {pg.pageItems.map((s) => <SpecRow key={s.id} spec={s} onStart={onStart}
+              {items.map((s) => <SpecRow key={s.id} spec={s} onStart={onStart}
                 running={activeSpecs?.has(s.id)} onDelete={onDelete} onOpenRun={onOpenRun}
                 onOpenReview={onOpenReview} onOpenDetail={(x) => setDetailId(x.id)} />)}
             </div>
@@ -589,13 +607,13 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
               ...LIST_SCROLL_STYLE, display: "grid", gap: 12,
               gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))"
             }}>
-              {pg.pageItems.map((s) => <SpecCard key={s.id} spec={s} onStart={onStart}
+              {items.map((s) => <SpecCard key={s.id} spec={s} onStart={onStart}
                 running={activeSpecs?.has(s.id)} onDelete={onDelete} onOpenRun={onOpenRun}
                 onOpenReview={onOpenReview} onOpenDetail={(x) => setDetailId(x.id)} />)}
             </div>
           )}
           <div style={{ ...FIXED_ROW_STYLE, marginTop: 14, border: "1px solid var(--border-hair)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
-            <Pager {...pg} onPage={pg.setPage} unit="spec" />
+            <Pager page={sp.page} pageCount={sp.pageCount} total={data.total} from={sp.from} to={sp.to} onPage={setPage} unit="spec" />
           </div>
         </>
       )}

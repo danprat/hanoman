@@ -131,6 +131,16 @@ export const LIST_SCROLL_STYLE: React.CSSProperties = { flex: "1 1 auto", minHei
 export const LIST_SCREEN_STYLE: React.CSSProperties = { display: "flex", flexDirection: "column", flex: "1 1 auto", minHeight: 0 };
 export const FIXED_ROW_STYLE: React.CSSProperties = { flex: "0 0 auto" };
 
+// SPEC-198 · paginasi server-driven: total datang dari envelope API, komponen cuma perlu
+// menghitung metadata Pager (bukan memotong array — server sudah memotong).
+export function serverPage(total: number, page: number, pageSize: number) {
+  const pageCount = Math.max(1, Math.ceil(total / Math.max(1, pageSize)));
+  const p = Math.min(Math.max(1, page), pageCount);
+  const from = total === 0 ? 0 : (p - 1) * pageSize + 1;
+  const to = Math.min(total, p * pageSize);
+  return { page: p, pageCount, from, to };
+}
+
 export function usePaged<T>(items: T[], pageSize: number, resetKey?: unknown) {
   const [page, setPage] = React.useState(1);
   React.useEffect(() => { setPage(1); }, [resetKey, items.length]);

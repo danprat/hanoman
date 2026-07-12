@@ -458,7 +458,7 @@ git commit -m "refactor(web/app): buka .items dari envelope + dataVersion sinyal
 - Consumes: `api.listSpecs(params)` → `Paginated<Spec>`; `dataVersion` prop.
 - Produces: `serverPage(total, page, pageSize) => { page, pageCount, from, to }` (murni) di `ds/kit.tsx`.
 
-- [ ] **Step 1: Tulis `serverPage` + test**
+- [x] **Step 1: Tulis `serverPage` + test**
 
 Di `src/src/ds/kit.tsx` (dekat `usePaged`):
 
@@ -474,17 +474,17 @@ export function serverPage(total: number, page: number, pageSize: number) {
 
 Export via `src/src/ds/index.ts` (baris 8, tambahkan `serverPage`). Tambah unit test cepat di file test ds yang ada (mis. cek `serverPage(0,1,20)` → `{page:1,pageCount:1,from:0,to:0}` dan `serverPage(45,3,20)` → `{page:3,pageCount:3,from:41,to:45}`). Bila belum ada test ds, tambahkan `src/test/server-page.test.ts` kecil.
 
-- [ ] **Step 2: Jalankan — gagal**
+- [x] **Step 2: Jalankan — gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/web test server-page`
 Expected: FAIL — `serverPage` belum ada.
 
-- [ ] **Step 3: Jalankan lagi setelah Step 1 tersimpan — hijau**
+- [x] **Step 3: Jalankan lagi setelah Step 1 tersimpan — hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/web test server-page`
 Expected: PASS.
 
-- [ ] **Step 4: Jadikan BacklogScreen self-fetching**
+- [x] **Step 4: Jadikan BacklogScreen self-fetching**
 
 Di `src/src/screens/BacklogScreen.tsx`, komponen `BacklogScreen`:
 - Tambah prop `dataVersion: number`.
@@ -526,16 +526,16 @@ const sp = serverPage(data.total, page, pageSize);
 
 Di `src/src/App.tsx:554`, tambahkan `dataVersion={dataVersion}` pada `<BacklogScreen .../>`.
 
-- [ ] **Step 5: Update test backlog**
+- [x] **Step 5: Update test backlog**
 
 `src/test/backlog-board.test.tsx` (dan test backlog lain bila ada): sekarang BacklogScreen memanggil `api.listSpecs` sendiri — mock `api.listSpecs` untuk balik `{ items: [...specs...], total: N, page: 1, pageSize: 20 }`. Board test yang dulu mengoper `backlog` prop tetap boleh, tapi render sekarang bergantung pada hasil fetch → sesuaikan mock. Pastikan test menunggu efek async (mis. `await screen.findBy...`).
 
-- [ ] **Step 6: Jalankan — hijau**
+- [x] **Step 6: Jalankan — hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/web test backlog`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/src/ds/kit.tsx src/src/ds/index.ts src/src/screens/BacklogScreen.tsx src/src/App.tsx src/test/backlog-board.test.tsx src/test/server-page.test.ts

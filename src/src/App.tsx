@@ -561,7 +561,7 @@ export default function App() {
           onStart={startSession} activeSpecs={activeSpecs} onNew={() => setModal("brief")}
           onDelete={deleteSpec} onOpenRun={() => setSection("terminal")} onOpenReview={openReview}
           onEditBranch={editBranch} onRevertStage={revertStage} onIntegrate={integrateSpec} onEditSpec={editSpec}
-          projectFilter={projectFilter} onProjectFilter={setProjectFilter} />)}
+          projectFilter={projectFilter} onProjectFilter={setProjectFilter} dataVersion={dataVersion} />)}
       </Shell>
     );
   } else if (section === "terminal") {
