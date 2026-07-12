@@ -48,7 +48,8 @@ export async function shaResolvable(repoDir: string, sha: string): Promise<boole
 }
 
 async function mergeBase(wt: string, branchFrom: string | null): Promise<string> {
-  const { stdout } = await exec("git", ["merge-base", branchFrom || "main", "HEAD"], { cwd: wt, ...GIT });
+  // SPEC-197 · --end-of-options: branchFrom (dari DB) berbentuk `-` tak boleh ditelan sbg opsi.
+  const { stdout } = await exec("git", ["merge-base", "--end-of-options", branchFrom || "main", "HEAD"], { cwd: wt, ...GIT });
   return stdout.trim();
 }
 

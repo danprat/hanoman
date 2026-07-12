@@ -158,14 +158,17 @@ export function validateGitOp(op: unknown): string | null {
   }
 }
 
+// SPEC-197 · `--end-of-options` sebelum ref/name yang berasal dari data: refname berbentuk
+// `-`/`--x` sah, dan git membaca opsi di posisi mana pun → flag confusion. Cegah sekali di sini,
+// cermin runner/src/git.ts yang sudah menjaga kelas bug ini di addWorktree.
 function gitArgs(op: GitOp): string[] {
   switch (op.op) {
-    case "checkout": return ["checkout", ...(op.force ? ["-f"] : []), op.ref];
-    case "branch": return ["branch", op.name, ...(op.at ? [op.at] : [])];
-    case "merge": return ["merge", "--no-edit", ...(op.ff ? [`--${op.ff}`] : []), op.ref];
-    case "cherry-pick": return ["cherry-pick", op.sha];
-    case "revert": return ["revert", "--no-edit", op.sha];
-    case "delete-branch": return ["branch", op.force ? "-D" : "-d", op.name];
+    case "checkout": return ["checkout", ...(op.force ? ["-f"] : []), "--end-of-options", op.ref];
+    case "branch": return ["branch", "--end-of-options", op.name, ...(op.at ? [op.at] : [])];
+    case "merge": return ["merge", "--no-edit", ...(op.ff ? [`--${op.ff}`] : []), "--end-of-options", op.ref];
+    case "cherry-pick": return ["cherry-pick", "--end-of-options", op.sha];
+    case "revert": return ["revert", "--no-edit", "--end-of-options", op.sha];
+    case "delete-branch": return ["branch", op.force ? "-D" : "-d", "--end-of-options", op.name];
   }
 }
 
