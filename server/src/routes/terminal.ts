@@ -27,7 +27,10 @@ async function advanceStage(
   if (!next) return;
   const spec = await prisma.spec.findUnique({ where: { id: specId }, select: { stage: true, title: true, projectId: true } });
   if (!spec || STAGES.indexOf(next) <= STAGES.indexOf(spec.stage as Stage)) return;
-  await prisma.spec.update({ where: { id: specId }, data: { stage: next } });
+  // CAS (SPEC-197): hanya maju bila stage DB belum berubah sejak dibaca. Revert konkuren
+  // (PATCH /specs mundur + hapus artefak docs) tak boleh ter-overwrite maju lagi.
+  const { count } = await prisma.spec.updateMany({ where: { id: specId, stage: spec.stage }, data: { stage: next } });
+  if (count === 0) return; // stage berubah di bawah kita → jangan lanjut ke recordCompletion
   // SPEC-180 · transisi masuk `done` (guard di atas menjamin stage lama < done).
   if (next === "done") await recordCompletion(specId, spec.title, spec.projectId);
 }
