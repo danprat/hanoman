@@ -34,4 +34,39 @@ describe("GitGraph", () => {
     fireEvent.click(await screen.findByText(/checkout/i));
     await waitFor(() => expect(onRunGit).toHaveBeenCalledWith({ op: "checkout", ref: "aaaa111" }));
   });
+
+  // SPEC-206 · hapus branch local dan/atau origin lewat klik-kanan
+  it("branch local+origin: tawarkan hapus local+origin, local, dan origin", async () => {
+    const onRunGit = vi.fn().mockResolvedValue({});
+    vi.spyOn(api, "ideGraph").mockResolvedValue({
+      commits: [{ sha: "aaaa111", parents: [], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["feat", "origin/feat"] }],
+      current: "main",
+    });
+    render(<GitGraph projectId="p1" onRunGit={onRunGit} onOpenFile={vi.fn()} />);
+    fireEvent.contextMenu(await screen.findByText("kedua"));
+
+    fireEvent.click(await screen.findByText("Hapus feat (local + origin)"));
+    await waitFor(() => expect(onRunGit).toHaveBeenCalledWith({ op: "delete-branch", name: "feat", remote: true }));
+
+    fireEvent.contextMenu(await screen.findByText("kedua"));
+    fireEvent.click(await screen.findByText("Hapus feat (local)"));
+    await waitFor(() => expect(onRunGit).toHaveBeenCalledWith({ op: "delete-branch", name: "feat" }));
+
+    fireEvent.contextMenu(await screen.findByText("kedua"));
+    fireEvent.click(await screen.findByText("Hapus origin/feat"));
+    await waitFor(() => expect(onRunGit).toHaveBeenCalledWith({ op: "delete-branch", name: "feat", local: false, remote: true }));
+  });
+
+  it("ref origin saja (tanpa local): hanya tawarkan hapus origin", async () => {
+    const onRunGit = vi.fn().mockResolvedValue({});
+    vi.spyOn(api, "ideGraph").mockResolvedValue({
+      commits: [{ sha: "aaaa111", parents: [], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["origin/gone"] }],
+      current: "main",
+    });
+    render(<GitGraph projectId="p1" onRunGit={onRunGit} onOpenFile={vi.fn()} />);
+    fireEvent.contextMenu(await screen.findByText("kedua"));
+    expect(screen.queryByText(/Hapus gone \(local/)).toBeNull();
+    fireEvent.click(await screen.findByText("Hapus origin/gone"));
+    await waitFor(() => expect(onRunGit).toHaveBeenCalledWith({ op: "delete-branch", name: "gone", local: false, remote: true }));
+  });
 });

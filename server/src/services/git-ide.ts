@@ -133,7 +133,8 @@ export type GitOp =
   | { op: "merge"; ref: string; ff?: "no-ff" | "ff-only"; deleteBranch?: string }
   | { op: "cherry-pick"; sha: string }
   | { op: "revert"; sha: string }
-  | { op: "delete-branch"; name: string; force?: boolean };
+  // SPEC-206 · hapus branch mandiri: local (`local` default true), origin (`remote`), atau keduanya.
+  | { op: "delete-branch"; name: string; force?: boolean; local?: boolean; remote?: boolean };
 
 export type GitOpResult = { ok: boolean; stdout: string; stderr: string; current: string };
 
@@ -189,10 +190,28 @@ async function afterMergeDelete(repoDir: string, branch: string, mergeOut: strin
   }
 }
 
+// SPEC-206 · hapus branch mandiri (bukan lewat merge): local (`git branch -d/-D`) dan/atau origin
+// (`git push origin --delete`). `local` default true; set false untuk hapus origin saja (mis. ref
+// origin/<b> tanpa branch lokal). Reuse gitArgs untuk langkah lokal. Gagal salah satu langkah →
+// ok:false + stderr (langkah sebelumnya sudah terjadi; graph reload menunjukkan keadaan sebenarnya).
+async function runDeleteBranch(repoDir: string, op: Extract<GitOp, { op: "delete-branch" }>): Promise<GitOpResult> {
+  const out: string[] = [], err: string[] = [];
+  const step = async (args: string[]) => { const r = await exec("git", args, { cwd: repoDir, ...GIT }); out.push(r.stdout); err.push(r.stderr); };
+  try {
+    if (op.local !== false) await step(gitArgs({ op: "delete-branch", name: op.name, force: op.force }));
+    if (op.remote) await step(["push", "origin", "--delete", "--end-of-options", op.name]);
+    return { ok: true, stdout: out.join("\n").trim(), stderr: err.join("\n").trim(), current: await currentBranch(repoDir) };
+  } catch (e) {
+    const ee = e as { stdout?: string; stderr?: string };
+    return { ok: false, stdout: [...out, ee.stdout ?? ""].join("\n").trim(), stderr: [...err, ee.stderr ?? String(e)].join("\n").trim(), current: await currentBranch(repoDir) };
+  }
+}
+
 // Jalankan satu op git. Exit ≠ 0 → { ok:false, stderr } (route ubah jadi 409), tak throw.
 // `branch` dengan checkout:true → buat lalu checkout (dua exec). `merge` dengan deleteBranch →
-// merge lalu bersihkan branch lokal+origin (SPEC-193).
+// merge lalu bersihkan branch lokal+origin (SPEC-193). `delete-branch` → runDeleteBranch (SPEC-206).
 export async function runGitOp(repoDir: string, op: GitOp): Promise<GitOpResult> {
+  if (op.op === "delete-branch") return runDeleteBranch(repoDir, op);
   try {
     const { stdout, stderr } = await exec("git", gitArgs(op), { cwd: repoDir, ...GIT });
     if (op.op === "branch" && op.checkout) return runGitOp(repoDir, { op: "checkout", ref: op.name });

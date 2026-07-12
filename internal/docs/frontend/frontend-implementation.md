@@ -281,7 +281,10 @@ Nav entri **IDE** (`code-2`) membuka `IdeScreen` (`screens/IdeScreen.tsx`), difi
   (HEAD di-`--brass-500`) + subject + author + tanggal relatif (kolom rata, hover bone). **Klik**
   commit → panel detail (`api.ideCommit`) + daftar file berubah (klik file → buka di Explorer pada sha itu).
   **Klik-kanan** → context-menu: Checkout / Merge ke branch ini / Cherry-pick / Revert / Buat branch
-  di sini… / Hapus branch (hanya ref local) — tiap aksi `POST /git`.
+  di sini… / **Hapus branch** — tiap aksi `POST /git`. Hapus sadar local vs origin (SPEC-206,
+  `menuItems`): ref `origin/<b>` dikelompokkan dengan branch lokal `<b>`; per branch ditawarkan
+  "Hapus `<b>` (local + origin)" / "(local)" / "Hapus origin/`<b>`" sesuai ref yang ada (local tak
+  boleh branch aktif; origin selalu boleh). `origin/HEAD` diabaikan.
 - **Dialog Paksa**: mutasi yang balas **409** (sesi aktif / tree kotor) memunculkan `ForceDialog`
   dengan pesan git asli + tombol **Paksa** yang mengulang op `force:true` (peringatan: bisa membuang
   perubahan tak ter-commit & mengganggu sesi Claude). Aman-default; force opt-in per aksi.

@@ -23,6 +23,8 @@ beforeAll(async () => {
   await makeProject({ id: "ide", repoDir: makeRepoWithBranches("dev") });
   await makeProject({ id: "ffrepo", repoDir: ffRepo() });
   await makeProject({ id: "delrepo", repoDir: makeRepoWithSpecBranch("del").repoDir }); // branch hanoman/del local+origin
+  await makeProject({ id: "delrepo2", repoDir: makeRepoWithSpecBranch("del2").repoDir }); // idem, untuk hapus mandiri (SPEC-206)
+  await makeProject({ id: "delrepo3", repoDir: makeRepoWithSpecBranch("del3").repoDir });
   await makeProject({ id: "nodir", repoDir: null });
 });
 
@@ -88,5 +90,23 @@ describe("ide routes", () => {
     expect(r.json().ok).toBe(true);
     // branch tak lagi muncul di daftar branch project
     expect((await app.inject({ url: "/api/projects/delrepo/branches" })).json().branches).not.toContain("hanoman/del");
+  });
+  it("POST /git delete-branch origin saja: local tetap, origin lenyap (SPEC-206)", async () => {
+    const r = await app.inject({ method: "POST", url: "/api/projects/delrepo2/git",
+      payload: { op: "delete-branch", name: "hanoman/del2", local: false, remote: true } });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().ok).toBe(true);
+    const b = (await app.inject({ url: "/api/projects/delrepo2/branches" })).json();
+    expect(b.branches).toContain("hanoman/del2");     // local tetap
+    expect(b.remotes).not.toContain("hanoman/del2");  // origin lenyap
+  });
+  it("POST /git delete-branch local+origin (force): keduanya lenyap (SPEC-206)", async () => {
+    const r = await app.inject({ method: "POST", url: "/api/projects/delrepo3/git",
+      payload: { op: "delete-branch", name: "hanoman/del3", remote: true, force: true } });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().ok).toBe(true);
+    const b = (await app.inject({ url: "/api/projects/delrepo3/branches" })).json();
+    expect(b.branches).not.toContain("hanoman/del3");
+    expect(b.remotes).not.toContain("hanoman/del3");
   });
 });

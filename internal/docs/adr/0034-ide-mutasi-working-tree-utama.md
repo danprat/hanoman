@@ -33,6 +33,12 @@ untuk diselesaikan lewat Terminal (konsisten `POST /specs/:id/integrate`).
   checkout sungguhan hanya saat user menekan tombolnya.
 - **Pengecualian outward-facing (SPEC-193):** `merge` dengan `deleteBranch` menghapus branch yang
   di-merge — lokal (`git branch -D`) lalu **origin** (`git push origin --delete`) bila remote-tracking-nya
-  ada. Ini satu-satunya mutasi IDE yang menyentuh remote (bukan sekadar working tree utama); tetap
+  ada. Ini mutasi IDE yang menyentuh remote (bukan sekadar working tree utama); tetap
   digerbang sesi-aktif + `force` yang sama, dan hanya berjalan setelah merge sukses. Push penghapusan
   ke origin hanya untuk branch yang barusan di-merge, opt-in per aksi menu — tak pernah default.
+- **Hapus branch mandiri (SPEC-206):** `delete-branch` diperluas dengan `local?`(default true)/`remote?`
+  — bisa menghapus branch **origin** langsung dari klik-kanan (`git push origin --delete`), tanpa harus
+  lewat merge. `local:false + remote` menghapus origin saja (untuk ref `origin/<b>` yang branch lokalnya
+  sudah tak ada). Prinsipnya sama dengan di atas: outward-facing tapi opt-in per aksi menu, digerbang
+  sesi-aktif + `force` yang sama, dan hanya menyentuh origin (bukan remote lain). Gagal satu langkah →
+  409 (langkah sebelumnya sudah terjadi; graph reload menampilkan keadaan sebenarnya).

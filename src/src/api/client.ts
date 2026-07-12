@@ -28,7 +28,8 @@ export type GitOp =
   | { op: "merge"; ref: string; ff?: "no-ff" | "ff-only"; deleteBranch?: string; force?: boolean }
   | { op: "cherry-pick"; sha: string; force?: boolean }
   | { op: "revert"; sha: string; force?: boolean }
-  | { op: "delete-branch"; name: string; force?: boolean };
+  // SPEC-206 · local (default true) dan/atau origin (remote)
+  | { op: "delete-branch"; name: string; force?: boolean; local?: boolean; remote?: boolean };
 export type GitOpResult = { ok: boolean; stdout: string; stderr: string; current: string; error?: string };
 async function j<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { headers: { "content-type": "application/json" }, ...init });

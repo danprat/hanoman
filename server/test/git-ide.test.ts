@@ -190,3 +190,40 @@ describe("git-ide merge + hapus branch local & origin (SPEC-193)", () => {
     expect(validateGitOp({ op: "merge", ref: "x", deleteBranch: "dev" })).toBeNull();
   });
 });
+
+describe("git-ide hapus branch local &/atau origin standalone (SPEC-206)", () => {
+  const list = (dir: string, ...a: string[]) =>
+    spawnSync("git", a, { cwd: dir, encoding: "utf8" }).stdout.trim();
+  const branch = "hanoman/btest";
+
+  it("delete-branch remote:true → hapus branch local + origin", async () => {
+    const { repoDir } = makeRepoWithSpecBranch("btest"); // main; branch local + origin
+    const r = await runGitOp(repoDir, { op: "delete-branch", name: branch, remote: true, force: true });
+    expect(r.ok).toBe(true);
+    expect(list(repoDir, "branch", "--list", branch)).toBe("");        // local terhapus
+    expect(list(repoDir, "ls-remote", "origin", branch)).toBe("");     // origin terhapus
+  });
+
+  it("delete-branch local:false remote:true → hapus origin saja, local tetap", async () => {
+    const { repoDir } = makeRepoWithSpecBranch("btest");
+    const r = await runGitOp(repoDir, { op: "delete-branch", name: branch, local: false, remote: true });
+    expect(r.ok).toBe(true);
+    expect(list(repoDir, "branch", "--list", branch)).toBe(branch);    // local tetap
+    expect(list(repoDir, "ls-remote", "origin", branch)).toBe("");     // origin terhapus
+  });
+
+  it("delete-branch default → hapus local saja, origin tetap", async () => {
+    const { repoDir } = makeRepoWithSpecBranch("btest");
+    const r = await runGitOp(repoDir, { op: "delete-branch", name: branch, force: true });
+    expect(r.ok).toBe(true);
+    expect(list(repoDir, "branch", "--list", branch)).toBe("");        // local terhapus
+    expect(list(repoDir, "ls-remote", "origin", branch)).not.toBe(""); // origin tetap
+  });
+
+  it("delete-branch remote:true origin tak ada → ok:false + stderr (local tetap terhapus)", async () => {
+    const dir = makeRepoWithBranches("dev"); // tanpa origin
+    const r = await runGitOp(dir, { op: "delete-branch", name: "dev", remote: true });
+    expect(r.ok).toBe(false);                                          // push --delete gagal (no origin)
+    expect(list(dir, "branch", "--list", "dev")).toBe("");             // local sudah terhapus lebih dulu
+  });
+});

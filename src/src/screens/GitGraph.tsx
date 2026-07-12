@@ -54,6 +54,39 @@ function Menu({ x, y, items, onClose }: { x: number; y: number; items: { label: 
   );
 }
 
+type MenuItem = { label: string; run: () => void };
+
+// Item context-menu untuk satu commit. Aksi hapus branch sadar local vs origin (SPEC-206):
+// ref `origin/<b>` dikelompokkan dengan branch lokal `<b>` bila keduanya menunjuk commit ini.
+function menuItems(c: GraphCommit, current: string, act: (op: GitOp) => void): MenuItem[] {
+  const locals = c.refs.filter((r) => !r.startsWith("origin/"));
+  const origins = c.refs.filter((r) => r.startsWith("origin/") && r !== "origin/HEAD").map((r) => r.slice("origin/".length));
+  const names = [...new Set([...locals, ...origins])];
+  return [
+    { label: `Checkout ${c.sha.slice(0, 7)}`, run: () => act({ op: "checkout", ref: c.sha }) },
+    { label: "Merge (fast-forward bila bisa)", run: () => act({ op: "merge", ref: c.sha }) },
+    { label: "Merge tanpa fast-forward", run: () => act({ op: "merge", ref: c.sha, ff: "no-ff" }) },
+    { label: "Merge fast-forward saja", run: () => act({ op: "merge", ref: c.sha, ff: "ff-only" }) },
+    { label: "Cherry-pick", run: () => act({ op: "cherry-pick", sha: c.sha }) },
+    { label: "Revert", run: () => act({ op: "revert", sha: c.sha }) },
+    { label: "Buat branch di sini…", run: () => { const name = window.prompt("Nama branch baru:"); if (name) act({ op: "branch", name, at: c.sha, checkout: true }); } },
+    // Merge branch ini lalu hapus (local + origin bila ada). Hanya branch lokal selain yang aktif.
+    ...locals.filter((r) => r !== current).map((r) => ({
+      label: `Merge ${r} lalu hapus (local${origins.includes(r) ? " + origin" : ""})`,
+      run: () => act({ op: "merge", ref: r, deleteBranch: r }),
+    })),
+    // Hapus mandiri per branch: local &/atau origin. Local tak boleh branch aktif; origin selalu boleh.
+    ...names.flatMap((r) => {
+      const localOk = locals.includes(r) && r !== current, hasOrigin = origins.includes(r);
+      const items: MenuItem[] = [];
+      if (localOk && hasOrigin) items.push({ label: `Hapus ${r} (local + origin)`, run: () => act({ op: "delete-branch", name: r, remote: true }) });
+      if (localOk) items.push({ label: `Hapus ${r} (local)`, run: () => act({ op: "delete-branch", name: r }) });
+      if (hasOrigin) items.push({ label: `Hapus origin/${r}`, run: () => act({ op: "delete-branch", name: r, local: false, remote: true }) });
+      return items;
+    }),
+  ];
+}
+
 export function GitGraph({ projectId, onRunGit, onOpenFile }:
   { projectId: string; onRunGit: (op: GitOp) => Promise<unknown>; onOpenFile: (path: string, ref: string) => void }) {
   const [state, setState] = React.useState<"loading" | "ready" | "error">("loading");
@@ -134,21 +167,7 @@ export function GitGraph({ projectId, onRunGit, onOpenFile }:
         </Card>
       )}
 
-      {menu && <Menu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={[
-        { label: `Checkout ${menu.c.sha.slice(0, 7)}`, run: () => act({ op: "checkout", ref: menu.c.sha }) },
-        { label: "Merge (fast-forward bila bisa)", run: () => act({ op: "merge", ref: menu.c.sha }) },
-        { label: "Merge tanpa fast-forward", run: () => act({ op: "merge", ref: menu.c.sha, ff: "no-ff" }) },
-        { label: "Merge fast-forward saja", run: () => act({ op: "merge", ref: menu.c.sha, ff: "ff-only" }) },
-        { label: "Cherry-pick", run: () => act({ op: "cherry-pick", sha: menu.c.sha }) },
-        { label: "Revert", run: () => act({ op: "revert", sha: menu.c.sha }) },
-        { label: "Buat branch di sini…", run: () => { const name = window.prompt("Nama branch baru:"); if (name) act({ op: "branch", name, at: menu.c.sha, checkout: true }); } },
-        // Merge branch ini lalu hapus (local + origin bila ada). Hanya branch lokal selain yang aktif.
-        ...menu.c.refs.filter((r) => !r.startsWith("origin/") && r !== current).map((r) => ({
-          label: `Merge ${r} lalu hapus (local${menu.c.refs.includes(`origin/${r}`) ? " + origin" : ""})`,
-          run: () => act({ op: "merge", ref: r, deleteBranch: r }),
-        })),
-        ...menu.c.refs.filter((r) => !r.startsWith("origin/")).map((r) => ({ label: `Hapus branch ${r}`, run: () => act({ op: "delete-branch", name: r }) })),
-      ]} />}
+      {menu && <Menu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={menuItems(menu.c, current, act)} />}
     </div>
   );
 }
