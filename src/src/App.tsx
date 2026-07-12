@@ -6,6 +6,7 @@ import { NotificationsProvider } from "./notifications/NotificationsContext";
 import { notifTarget } from "./notifications/target";
 import { Shell, Modal, Field, HnTextarea, Button, StatusPill, Select, Input, Tabs, Toast, useToast, Icon, StateBlock } from "./ds";
 import { api, ApiError, type TerminalSession } from "./api/client";
+import { subscribe } from "./api/events";
 import type { ProjectView, Spec, AuthStatus, UserView, Notification } from "@hanoman/shared";
 import { AuthScreen } from "./screens/AuthScreen";
 import type { ProjectVM } from "./screens/types";
@@ -311,31 +312,13 @@ export default function App() {
     () => new Set(sessions.filter((s) => s.specId && !s.exited).map((s) => s.specId as string)),
     [sessions]);
 
-  // Stage bergerak saat sesi ditutup — server membaca berkas fase sekali terakhir — dan sesi
-  // bisa mati dari luar hanoman. Selama ada sesi hidup, poll ringan menjaga board jujur.
-  const anySessionActive = activeSpecs.size > 0;
-  // SPEC-197 · poll 3s dulu selalu setBacklog/setSessions dgn array baru → seluruh tree re-render
-  // tiap tick walau data identik, dan bikin openNotification (dep [sessions]) tak stabil = badai
-  // request. Guard signature: hanya setState kalau ada perubahan nyata; skip saat tab tak terlihat.
-  const pollSigRef = React.useRef("");
-  React.useEffect(() => {
-    if (!anySessionActive) return;
-    const t = setInterval(() => {
-      if (document.hidden) return;
-      Promise.all([api.listSpecs(), api.listTerminals()])
-        .then(([s, t]) => {
-          const sig = JSON.stringify({
-            s: s.map((x) => [x.id, x.stage]),
-            t: t.map((x) => [x.id, x.exited, x.decision]),
-          });
-          if (sig === pollSigRef.current) return; // identik → jangan sentuh state (bail-out re-render)
-          pollSigRef.current = sig;
-          setBacklog(s); setSessions(t);
-        })
-        .catch(() => {});
-    }, 3000);
-    return () => clearInterval(t);
-  }, [anySessionActive]);
+  // SPEC-199 · board didorong lewat WebSocket siar (ADR-0038), bukan poll 3s. `load()` awal
+  // tetap (muat projects). Server kirim snapshot penuh tiap connect → state re-sync sendiri.
+  // Stage tetap forward-only & write-through di server (liveSpecs) — board hanya menampilkan.
+  React.useEffect(() => subscribe((m) => {
+    if (m.t === "specs") setBacklog(m.specs);
+    else if (m.t === "sessions") setSessions(m.sessions as TerminalSession[]);
+  }), []);
 
   const proj = projectsView.find((p) => p.id === projectId) || projectsView[0];
   const q = search.trim().toLowerCase();

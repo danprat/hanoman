@@ -2,16 +2,19 @@ import { render, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const getSettings = vi.fn();
-const listNotifications = vi.fn();
 vi.mock("../src/api/client", () => ({
   api: {
     getSettings: (...a: unknown[]) => getSettings(...a),
-    listNotifications: (...a: unknown[]) => listNotifications(...a),
     markNotificationsRead: vi.fn(),
     clearNotifications: vi.fn(),
   },
 }));
 vi.mock("../src/notifications/sound", () => ({ playNotifySound: vi.fn(), unlockNotifySound: vi.fn() }));
+// SPEC-199 · notif kini didorong lewat WS siar; tangkap handler subscribe untuk mempush frame.
+const ev = vi.hoisted(() => ({ handler: undefined as ((m: unknown) => void) | undefined }));
+vi.mock("../src/api/events", () => ({
+  subscribe: (fn: (m: unknown) => void) => { ev.handler = fn; return () => { ev.handler = undefined; }; },
+}));
 
 import { NotificationsProvider } from "../src/notifications/NotificationsContext";
 
@@ -34,27 +37,25 @@ beforeEach(() => {
   }
   vi.stubGlobal("Notification", FakeNotification);
 });
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); setHidden(false); vi.clearAllMocks(); });
+afterEach(() => { vi.unstubAllGlobals(); setHidden(false); vi.clearAllMocks(); });
 
+// Render, tunggu loadPrefs, lalu push dua frame: kosong (seed baseline, tanpa toast) → [done] (fresh).
 async function boot() {
   render(<NotificationsProvider showToast={vi.fn()}>{null}</NotificationsProvider>);
-  await act(async () => { await vi.advanceTimersByTimeAsync(0); });     // tick mount → seed baseline
-  await act(async () => { await vi.advanceTimersByTimeAsync(10000); }); // tick poll → notif fresh
+  await act(async () => { await Promise.resolve(); });                                    // loadPrefs microtask
+  await act(async () => { ev.handler?.({ t: "notifications", items: [], unread: 0 }); });  // seed
+  await act(async () => { ev.handler?.({ t: "notifications", items: [done], unread: 1 }); }); // fresh
 }
 
 describe("NotificationsProvider · notifikasi OS lintas tab (SPEC-196)", () => {
   it("tab tersembunyi + izin granted → new Notification saat notif fresh", async () => {
-    vi.useFakeTimers();
     setHidden(true);
-    listNotifications.mockResolvedValueOnce({ items: [], unread: 0 }).mockResolvedValue({ items: [done], unread: 1 });
     await boot();
     expect(ctor).toHaveBeenCalledWith('SPEC-196 · "Judul" selesai', { tag: "n1" });
   });
 
   it("tab terlihat → tak menembak OS (toast in-app cukup)", async () => {
-    vi.useFakeTimers();
     setHidden(false);
-    listNotifications.mockResolvedValueOnce({ items: [], unread: 0 }).mockResolvedValue({ items: [done], unread: 1 });
     await boot();
     expect(ctor).not.toHaveBeenCalled();
   });

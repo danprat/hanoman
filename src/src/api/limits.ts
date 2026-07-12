@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import type { LimitsDTO, LimitWindow, LimitSeverity } from "@hanoman/shared";
-import { api } from "./client";
+import { subscribe as subscribeEvents } from "./events";
 
 const RANK: Record<LimitSeverity, number> = { normal: 0, warning: 1, critical: 2 };
 
@@ -25,24 +25,23 @@ export function severityTone(s: LimitSeverity): "ok" | "warn" | "err" {
   return s === "critical" ? "err" : s === "warning" ? "warn" : "ok";
 }
 
-// Poller singleton: satu interval 60s + satu nilai ter-cache di module scope, dibagi semua
-// pemakai (ref-count). Selamat dari navigasi; badge (Shell) + kartu (Overview) memakai satu poll.
-const POLL_MS = 60_000;
+// SPEC-199 · nilai limits didorong lewat WS siar (grup "limits"), bukan poll 60s. Store
+// singleton ref-count tetap: badge (Shell) + kartu (Overview) berbagi satu langganan.
+// useLimits() tak berubah.
 let state: LimitsDTO = { status: "unavailable", windows: [], fetchedAt: null };
-let timer: ReturnType<typeof setInterval> | undefined;
+let unsub: (() => void) | undefined;
 const subs = new Set<() => void>();
 
-async function pull() {
-  try { state = await api.getLimits(); }
-  catch { /* biarkan nilai terakhir; badge tampil apa adanya */ }
-  for (const s of subs) s();
-}
 function subscribe(cb: () => void): () => void {
   subs.add(cb);
-  if (subs.size === 1) { void pull(); timer = setInterval(() => void pull(), POLL_MS); }
+  if (subs.size === 1) {
+    unsub = subscribeEvents((m) => {
+      if (m.t === "limits") { state = m.limits; for (const s of subs) s(); }
+    });
+  }
   return () => {
     subs.delete(cb);
-    if (subs.size === 0 && timer) { clearInterval(timer); timer = undefined; }
+    if (subs.size === 0 && unsub) { unsub(); unsub = undefined; }
   };
 }
 

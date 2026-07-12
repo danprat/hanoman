@@ -2,6 +2,7 @@ import React from "react";
 import type { Notification, Setting } from "@hanoman/shared";
 import type { ShowToast } from "../ds/kit";
 import { api } from "../api/client";
+import { subscribe } from "../api/events";
 import { playNotifySound, unlockNotifySound, type NotifySound } from "./sound";
 
 export function maxAt(items: Notification[]): string {
@@ -41,8 +42,6 @@ type Ctx = { items: Notification[]; unread: number; markAllRead: () => void; cle
 export const NotificationsContext = React.createContext<Ctx>({ items: [], unread: 0, markAllRead: () => { }, clear: () => { } });
 export const useNotifications = () => React.useContext(NotificationsContext);
 
-const POLL_MS = 10_000;
-
 export function NotificationsProvider({ showToast, onOpen, children }: { showToast: ShowToast; onOpen?: (n: Notification) => void; children: React.ReactNode }) {
   const [items, setItems] = React.useState<Notification[]>([]);
   const [unread, setUnread] = React.useState(0);
@@ -63,9 +62,9 @@ export function NotificationsProvider({ showToast, onOpen, children }: { showToa
     } catch { /* biarkan nilai lama */ }
   }, []);
 
-  const tick = React.useCallback(async () => {
-    let data: { items: Notification[]; unread: number };
-    try { data = await api.listNotifications(); } catch { return; }
+  // SPEC-199 · data notif didorong lewat WS siar (grup "notifications"), bukan poll 10s.
+  // Argumen = payload frame yang sudah di-fetch server.
+  const handle = React.useCallback((data: { items: Notification[]; unread: number }) => {
     setItems(data.items); setUnread(data.unread);
     if (baseline.current === undefined) { baseline.current = maxAt(data.items); return; } // seed, no toast
     const fresh = newSince(data.items, baseline.current);
@@ -79,8 +78,8 @@ export function NotificationsProvider({ showToast, onOpen, children }: { showToa
   }, [showToast]);
 
   React.useEffect(() => {
-    void loadPrefs(); void tick();
-    const t = setInterval(() => { void tick(); }, POLL_MS);
+    void loadPrefs();
+    const unsub = subscribe((m) => { if (m.t === "notifications") handle({ items: m.items, unread: m.unread }); });
     // SPEC-192 · autoplay diblokir sampai user berinteraksi; unlock audio pada gestur pertama.
     const unlock = () => {
       unlockNotifySound();
@@ -90,8 +89,8 @@ export function NotificationsProvider({ showToast, onOpen, children }: { showToa
     };
     window.addEventListener("pointerdown", unlock, { once: true });
     window.addEventListener("keydown", unlock, { once: true });
-    return () => { clearInterval(t); window.removeEventListener("pointerdown", unlock); window.removeEventListener("keydown", unlock); };
-  }, [tick, loadPrefs]);
+    return () => { unsub(); window.removeEventListener("pointerdown", unlock); window.removeEventListener("keydown", unlock); };
+  }, [handle, loadPrefs]);
 
   const markAllRead = React.useCallback(() => {
     setUnread(0);
