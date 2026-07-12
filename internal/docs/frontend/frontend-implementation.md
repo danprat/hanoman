@@ -155,6 +155,14 @@ Sesi yang **berakhir** (`exited`) ditandai kontras di header cell dengan `Status
 hijau **"Selesai"**, dan badan terminalnya diredupkan (`opacity: 0.6`) untuk menandakan
 proses sudah beku — menggantikan suffix teks `· berakhir` yang lama (SPEC-188).
 
+Sesi yang **berhenti menunggu keputusan manusia** (marker `.worktrees/.decisions/<id>` terisi,
+disurface `listSessions().decision`) ditandai pill amber berdenyut **"Menunggu keputusan"**
+(`StatusPill status="awaiting"`). Header cell diberi tint sesuai state — hijau untuk `exited`,
+amber untuk menunggu keputusan — supaya pembeda terbaca sekilas, bukan hanya dari pill.
+`TerminalScreen` mem-poll `GET /terminal/sessions` tiap ~8s (guard signature `id:exited:decision`,
+tak men-thrash) agar transisi ke/keluar "menunggu keputusan" tampak tanpa refresh — `exited` sendiri
+tetap datang instan lewat WebSocket (SPEC-196).
+
 Proxy dev Vite harus memakai `ws: true`, kalau tidak upgrade WebSocket dijawab 404.
 
 ## Melihat dokumen audit/spec/plan (SPEC-170)
@@ -227,6 +235,11 @@ bersandar pada notifikasi yang **dibuat server-side** (`GET /notifications`) —
   Baseline = `createdAt` terbesar saat mount (mount pertama **tidak** men-toast riwayat lama);
   notifikasi lebih baru → `showToast` + `playNotifySound`, digerbang setting `notifyDone`/`notifySound`.
   Helper murni `newSince`/`maxAt` diuji terpisah.
+- **Notifikasi OS lintas tab (SPEC-196):** toast in-app hanya terlihat di tab hanoman yang fokus.
+  Saat `document.hidden` (user pindah tab) dan izin `Notification` sudah granted, `notifyOS` menembak
+  `new Notification(msg, { tag: id })` (Web Notifications API native) untuk `done` **dan** `decision`,
+  sehingga notifikasi tetap sampai di level OS. Izin diminta pada gestur user pertama (membonceng
+  listener unlock audio). Klik notifikasi OS → `window.focus()` + redirect ke sesi (`onOpen`).
 - **`NotificationBell`** (`.../NotificationBell.tsx`) dirender di topbar `Shell` (konsumsi context,
   nol prop-threading ke ~9 call-site `<Shell>`; nilai context default aman untuk test tanpa provider):
   tombol lonceng + badge unread (`--clay-500`), dropdown daftar (`SPEC-x · judul`, "selesai · Xm lalu",

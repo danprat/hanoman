@@ -28,6 +28,23 @@ export function TerminalScreen({ projects, backlog = [], focusSession, onOpenRev
     api.listTerminals().then(setSessions).catch(() => setSessions([])).finally(() => setLoaded(true));
   }, []);
 
+  // SPEC-196 · `exited` datang lewat WS, tapi "menunggu keputusan" hanya diketahui server
+  // (marker). Poll ringan menyegarkan keduanya. tmux = source of truth, jadi respons list
+  // menggantikan state; guard signature `id:exited:decision` agar tak men-thrash efek
+  // rekonsiliasi/simpan tiap tick. ponytail: sesi optimistik dari openNew/pickBacklog sudah
+  // hidup di tmux saat POST resolve, jadi replace tak menjatuhkannya.
+  React.useEffect(() => {
+    if (!loaded) return;
+    const sig = (xs: TerminalSession[]) =>
+      xs.map((s) => `${s.id}:${s.exited ? 1 : 0}:${s.decision ? 1 : 0}`).sort().join("|");
+    const t = setInterval(() => {
+      api.listTerminals()
+        .then((fresh) => setSessions((prev) => (sig(prev) === sig(fresh) ? prev : fresh)))
+        .catch(() => {});
+    }, 8000);
+    return () => clearInterval(t);
+  }, [loaded]);
+
   // Sesi hidup di tmux dan selamat dari restart server (ADR-0016): workspace ter-load bisa
   // menunjuk sesi yang masih hidup (disambung ulang) atau yang sudah di-kill (dikosongkan).
   // Ditahan sampai `loaded`: sebelum listTerminals() resolve, `sessions` masih [] dan
@@ -404,17 +421,22 @@ function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, titleOf, o
   const proj = nameOf(session.projectId);
   const title = session.specId ? titleOf?.(session.specId) : undefined;
   const label = session.specId ? `${proj} · ${session.specId}${title ? ` · ${title}` : ""}` : proj;
+  // SPEC-196 · sesi yang berhenti menunggu keputusan manusia (marker) belum `exited` — beri
+  // pembeda sendiri. `exited` menang bila keduanya benar (proses sudah beku).
+  const awaiting = !session.exited && !!session.decision;
   return (
     <>
       <div style={{
         display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", flex: "0 0 auto",
-        background: "var(--bone-200)", borderBottom: "1px solid var(--border-hair)",
+        background: session.exited ? "var(--status-ok-tint)" : awaiting ? "var(--status-warn-tint)" : "var(--bone-200)",
+        borderBottom: "1px solid var(--border-hair)",
         fontFamily: "var(--font-mono)", fontSize: 11, color: session.exited ? "var(--text-muted)" : "var(--text-body)",
       }}>
         <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {label} · {session.id.slice(0, 6)}
         </span>
         {session.exited && <StatusPill status="done" size="sm">Selesai</StatusPill>}
+        {awaiting && <StatusPill status="awaiting" size="sm" />}
         {session.specId && (
           <span onClick={() => setDocs(true)} title="Lihat dokumen (audit/spec/plan)"
             style={{ cursor: "pointer", color: "var(--text-subtle)", display: "inline-flex", alignItems: "center" }}>

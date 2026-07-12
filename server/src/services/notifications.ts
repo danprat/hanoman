@@ -1,6 +1,5 @@
-import { statSync } from "node:fs";
 import { prisma } from "../db";
-import { liveDecisions } from "./pty";
+import { liveDecisions, markerFilled } from "./pty";
 
 // SPEC-180 · dipanggil tepat saat stage backlog masuk `done`. specId @unique membuat ini
 // idempoten: poll write-through 3s dan advanceStage yang balapan hanya menyisakan satu baris —
@@ -27,13 +26,11 @@ type DecisionSession = { id: string; specId?: string; projectId: string; decisio
 let awaiting = new Set<string>();
 export function __resetAwaiting(): void { awaiting = new Set(); } // test-only
 
-const nonEmpty = (f: string): boolean => { try { return statSync(f).size > 0; } catch { return false; } };
-
 export async function scanDecisions(read: () => DecisionSession[] = liveDecisions): Promise<void> {
   const next = new Set<string>();
   const fresh: DecisionSession[] = [];
   for (const s of read()) {
-    if (!nonEmpty(s.decisionFile)) continue;
+    if (!markerFilled(s.decisionFile)) continue;
     next.add(s.id);
     if (!awaiting.has(s.id)) fresh.push(s);
   }
