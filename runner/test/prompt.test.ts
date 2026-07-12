@@ -50,6 +50,22 @@ describe("startPrompt", () => {
     expect(p).not.toContain("superpowers:brainstorming");
   });
 
+  // SPEC-204 · ADR-0040: pasca-Audit, temuan berconfidence tinggi & langsung → lewati Spec+Plan.
+  it("qa: menginstruksikan jalur cepat — lewati Spec & Plan bila temuan langsung dikerjakan", () => {
+    const p = startPrompt("qa", spec, "b");
+    expect(p).toContain("confidence");
+    expect(p).toContain("Spec skipped");
+    expect(p).toContain("Plan skipped");
+    // keputusan berpangkal pada hasil Audit
+    expect(p.indexOf("Audit")).toBeLessThan(p.indexOf("Spec skipped"));
+  });
+
+  it("feature: TIDAK membawa klausa jalur cepat Audit (khusus qa)", () => {
+    const p = startPrompt("feature", spec, "b");
+    expect(p).not.toContain("Spec skipped");
+    expect(p).not.toContain("Plan skipped");
+  });
+
   it("payload ikut saat ada, dan tak menghasilkan 'undefined' saat tak ada", () => {
     expect(startPrompt("qa", { ...spec, payload: { severity: "major" } }, "b")).toContain("severity");
     expect(startPrompt("qa", spec, "b")).not.toContain("undefined");

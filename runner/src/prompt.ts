@@ -64,12 +64,27 @@ const skillInstruction = (phases: readonly string[]) => {
     : "";
 };
 
+// SPEC-204 · ADR-0040 — jalur cepat qa: sesudah Audit, temuan berconfidence tinggi yang
+// perbaikannya langsung (diff kecil, akar masalah jelas) melewati Spec+Plan. Keputusan
+// diambil AGEN, disurface sebagai `skipped` di phase file (bukan artefak runner — mekanisme
+// ADR-0020 disuperseded). Confidence hidup di sini, satu-bit; buktinya `reason` audit di log.
+const auditDecisionInstruction = (flow: Flow): string =>
+  flow !== "qa" ? "" :
+    "Keputusan pasca-Audit (qa): bila temuan berconfidence tinggi dan perbaikannya bisa "
+    + "dikerjakan langsung (diff kecil, akar masalah jelas), LEWATI Spec dan Plan — tandai "
+    + "keduanya `skipped` (`echo \"Spec skipped\" >> \"$HANOMAN_PHASE_FILE\"` lalu "
+    + "`echo \"Plan skipped\" >> \"$HANOMAN_PHASE_FILE\"`) dan langsung ke Execute; dokumen "
+    + "audit menjadi doc-of-record perbaikan itu. Bila temuan luas, berisiko, atau ambigu, "
+    + "jalankan Spec → Plan → Execute penuh. Keputusan ini milikmu berdasarkan hasil Audit, "
+    + "bukan default — jangan bayar perencanaan yang tak perlu untuk perbaikan sepele.";
+
 export function startPrompt(flow: Flow, spec: SpecBrief, branchTo: string): string {
   const detail = spec.payload ? `\nDetail: ${JSON.stringify(spec.payload)}` : "";
   return [
     `hanoman ${flow}. Ikuti internal/docs sebagai Source of Truth; perbarui docs yang tersentuh `
       + `dan link-nya di index, dalam commit yang sama.`,
     phaseInstruction(PIPELINES[flow]),
+    auditDecisionInstruction(flow),
     AUTONOMY_CLAUSE,
     skillInstruction(PIPELINES[flow]),
     `Setelah fase terakhir: commit, lalu \`git push origin HEAD:refs/heads/${branchTo}\`. `
