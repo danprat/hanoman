@@ -216,7 +216,7 @@ git commit -m "feat(specs): envelope + filter/paginasi via API, overlay atas set
 - Consumes: `Paginated<T>` (Task 1), helper `paginate` (duplikat kecil di projects.ts — ATAU pindahkan `paginate` ke `server/src/services/paginate.ts` dan import di kedua route; pilih ini bila mau DRY).
 - Produces: `GET /api/projects?q&page&limit` → `Paginated<ProjectView>`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Di `server/test/projects.route.test.ts`, ganti/augment test list (baris ~15-16):
 
@@ -238,12 +238,12 @@ it("filters projects by q and paginates", async () => {
 
 Assertion lama `expect(res.json().length).toBe(1)` (baris 16) → `expect(res.json().items.length).toBe(1)`.
 
-- [ ] **Step 2: Jalankan — gagal**
+- [x] **Step 2: Jalankan — gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server test projects.route`
 Expected: FAIL — `b.items` undefined.
 
-- [ ] **Step 3: Implementasi handler**
+- [x] **Step 3: Implementasi handler**
 
 Di `server/src/routes/projects.ts`, handler `app.get("/projects", ...)`:
 
@@ -263,12 +263,12 @@ app.get("/projects", async (req) => {
 
 Import `paginate` dari `../services/paginate` (bila kamu ekstrak di Task 2 Interfaces) atau salin fungsi kecil yang sama seperti Task 1 Step 4. **Pilih ekstrak** bila tak mau duplikat.
 
-- [ ] **Step 4: Jalankan — hijau**
+- [x] **Step 4: Jalankan — hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server test projects.route`
 Expected: PASS.
 
-- [ ] **Step 5: Update docs**
+- [x] **Step 5: Update docs**
 
 `internal/docs/architecture/api-contract.md` baris 26:
 
@@ -277,7 +277,7 @@ GET  /projects?q=&page=&limit=      # -> { items: ProjectView[], total, page, pa
 #   q menyaring name+desc+stack; tanpa page/limit → seluruh item. coverage/docStatus tetap live-scan tiap panggil.
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/routes/projects.ts server/test/projects.route.test.ts internal/docs/architecture/api-contract.md

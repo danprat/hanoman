@@ -4,14 +4,23 @@ import { prisma } from "../db";
 import { toProjectView } from "../services/project-view";
 import { listRepoBranches, listRepoRemoteBranches } from "../services/branches";
 import { listSessions } from "../services/pty";
+import { paginate } from "../services/paginate";
 
 export default async function (app: FastifyInstance) {
-  app.get("/projects", async () => {
+  // SPEC-198 · envelope + filter q + paginasi via API. project-view dihitung penuh
+  // (coverage/docStatus live per project), lalu filter q (name+desc+stack) + potong di memori.
+  app.get("/projects", async (req) => {
+    const { q, page, limit } = req.query as { q?: string; page?: string; limit?: string };
     // SPEC-197 · satu listSessions untuk seluruh request (bukan re-scan tmux per project),
     // dan oper baris `p` yang sudah ada (bukan findUniqueOrThrow lagi = N+1).
     const ps = await prisma.project.findMany({ orderBy: { createdAt: "desc" } });
     const sessions = listSessions();
-    return Promise.all(ps.map((p) => toProjectView(p, sessions)));
+    const views = await Promise.all(ps.map((p) => toProjectView(p, sessions)));
+    const needle = (q ?? "").trim().toLowerCase();
+    const filtered = needle
+      ? views.filter((v) => `${v.name} ${v.desc} ${v.stack}`.toLowerCase().includes(needle))
+      : views;
+    return paginate(filtered, page, limit);
   });
   app.get("/projects/:id", async (req, reply) => {
     const { id } = req.params as { id: string };

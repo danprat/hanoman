@@ -16,6 +16,7 @@ import { readDocFile } from "../services/scan";
 import { sessionPhasesBySpec } from "../services/pty";
 import { stageForRun } from "../services/session-phases";
 import { recordCompletion } from "../services/notifications";
+import { paginate } from "../services/paginate";
 
 // SPEC-143: daftar yang mengisi dropdown adalah daftar yang menjaga gerbang — tak ada validator
 // terpisah yang bisa ikut basi. Branch karangan ditolak di sini, bukan beberapa menit kemudian
@@ -46,15 +47,6 @@ function filterSpecs<T extends { id: string; title: string; objective: string; s
     (!f.priority || s.priority === f.priority) &&
     (f.startable !== "true" || s.stage !== "done") &&
     (needle === "" || `${s.id} ${s.title} ${s.objective}`.toLowerCase().includes(needle)));
-}
-// Paginasi murni. Tanpa limit → seluruh item (page 1, pageSize=total) — dipakai full-fetch App,
-// board, dan poll. Overlay/write-through tetap jalan atas set penuh; ini hanya memotong RESPONS.
-function paginate<T>(items: T[], page?: string, limit?: string) {
-  const total = items.length;
-  const pageSize = limit ? Math.max(1, Math.floor(+limit) || 1) : total;
-  const p = page ? Math.max(1, Math.floor(+page) || 1) : 1;
-  const start = (p - 1) * pageSize;
-  return { items: pageSize ? items.slice(start, start + pageSize) : items, total, page: p, pageSize };
 }
 
 export default async function (app: FastifyInstance) {

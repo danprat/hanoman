@@ -11,10 +11,26 @@ const app = buildApp({ requireAuth: false });
 beforeAll(async () => { await resetDb(); await makeProject({ id: "p1" }); });
 describe("projects routes", () => {
 
-  it("lists project views", async () => {
+  it("lists project views (envelope)", async () => {
     const res = await app.inject({ url: "/api/projects" });
-    expect(res.statusCode).toBe(200); expect(res.json().length).toBe(1);
-    expect(res.json()[0]).toHaveProperty("backlog");
+    expect(res.statusCode).toBe(200);
+    const b = res.json();
+    expect(Array.isArray(b.items)).toBe(true);
+    expect(b.total).toBe(b.items.length);
+    expect(b.page).toBe(1);
+    expect(b.items[0]).toHaveProperty("backlog");
+  });
+  // SPEC-198 · filter q (name+desc+stack) + paginasi via API.
+  it("filters by q and paginates", async () => {
+    await makeProject({ id: "zeta-find", name: "zeta-find", repoDir: makeTempRepo({}) });
+    await makeProject({ id: "zeta-two", name: "zeta-two", repoDir: makeTempRepo({}) });
+    const q = (await app.inject({ url: "/api/projects?q=zeta" })).json();
+    expect(q.items.length).toBe(2);
+    expect(q.items.every((p: any) => p.id.startsWith("zeta"))).toBe(true);
+    const pg = (await app.inject({ url: "/api/projects?q=zeta&page=1&limit=1" })).json();
+    expect(pg.items.length).toBe(1);
+    expect(pg.total).toBe(2);
+    expect(pg.pageSize).toBe(1);
   });
   it("creates a from-scratch project", async () => {
     const res = await app.inject({

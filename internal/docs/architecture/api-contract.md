@@ -23,7 +23,8 @@ POST /auth/change-password { currentPassword, newPassword }  # 200 + cookie baru
 
 ## Projects
 ```
-GET  /projects
+GET  /projects?q=&page=&limit=      # -> { items: ProjectView[], total, page, pageSize } (SPEC-198)
+#   q menyaring name+desc+stack; tanpa page/limit → seluruh item. coverage/docStatus tetap live-scan tiap panggil.
 POST /projects            { name, kind, repoDir?, desc }
 GET  /projects/:id
 PATCH /projects/:id       { name?, desc? }   # 200 view; 400 name kosong; 404 tak ada.
