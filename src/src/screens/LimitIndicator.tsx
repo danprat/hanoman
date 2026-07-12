@@ -5,12 +5,17 @@ import type { LimitsDTO } from "@hanoman/shared";
 import { ProgressBar } from "../ds/components/feedback";
 import { useLimits, worstWindow, severityToken, severityTone } from "../api/limits";
 
-function resetLabel(iso: string | null): string {
+// Tanggal+jam absolut reset (waktu lokal browser, id-ID). Weekly reset berhari-hari ke depan —
+// countdown saja tak cukup; tampilkan momen persisnya. SPEC-205.
+const resetFmt = new Intl.DateTimeFormat("id-ID", {
+  weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+});
+function resetLabel(iso: string | null, absolute = false): string {
   if (!iso) return "";
   const ms = new Date(iso).getTime() - Date.now();
-  if (ms <= 0) return "reset segera";
   const h = Math.floor(ms / 3_600_000), m = Math.round((ms % 3_600_000) / 60_000);
-  return h >= 1 ? `reset ${h}j ${m}m` : `reset ${m}m`;
+  const cd = ms <= 0 ? "reset segera" : h >= 1 ? `reset ${h}j ${m}m` : `reset ${m}m`;
+  return absolute ? `${cd} · ${resetFmt.format(new Date(iso))}` : cd;
 }
 function agoLabel(iso: string | null): string {
   if (!iso) return "";
@@ -42,7 +47,7 @@ export function LimitWindows({ dto }: { dto: LimitsDTO }) {
             </div>
             <ProgressBar value={w.usedPct} max={100} tone={severityTone(w.severity)} size="sm" />
             {w.resetsAt && (
-              <span style={{ fontSize: 11, color: "var(--text-subtle)" }}>{resetLabel(w.resetsAt)}</span>
+              <span style={{ fontSize: 11, color: "var(--text-subtle)" }}>{resetLabel(w.resetsAt, w.key.startsWith("weekly"))}</span>
             )}
           </div>
         );

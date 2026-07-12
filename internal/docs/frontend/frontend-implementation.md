@@ -13,7 +13,10 @@
   `setInterval`. Optimistic UI untuk kontrol lokal.
 - Tidak ada layar Runs, biaya, maupun anggaran: run + queue dicabut (ADR-0024). Kuota model dipantau
   lewat **LimitIndicator** (badge topbar + kartu Overview) yang membaca `GET /limits` dari OAuth usage
-  API Anthropic (SPEC-181/ADR-0024). Settings tak punya `dailyBudget`/`maxConcurrent`.
+  API Anthropic (SPEC-181/ADR-0024). Settings tak punya `dailyBudget`/`maxConcurrent`. Label reset tiap
+  window = countdown (`reset 5j 30m`); window **weekly** menambah momen absolut reset (tanggal+jam, waktu
+  lokal browser, `id-ID`) — mis. `reset 52j 8m · Rab, 15 Jul, 07.00` — karena reset mingguan berhari-hari
+  ke depan (SPEC-205).
 - Markdown render: pustaka marked; file non-.md dirender sebagai blok kode.
 - State ringan lewat React; persist preferensi (edit docs, settings) ke server (dan localStorage sebagai draft).
 - **Loading / empty / error** dirender lewat satu komponen `StateBlock` (`ds/components/state.tsx`),

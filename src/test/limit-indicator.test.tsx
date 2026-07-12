@@ -31,6 +31,13 @@ describe("LimitWindows", () => {
     render(<LimitWindows dto={{ status: "unavailable", windows: [], fetchedAt: null }} />);
     expect(screen.getByText(/tidak tersedia|idle|belum login/i)).toBeTruthy();
   });
+  it("weekly window shows absolute reset date+time, session shows countdown only", () => {
+    render(<LimitWindows dto={dto} />);
+    // weekly_all reset 2026-07-15 → tanggal absolut (bulan Jul) tampil di samping countdown
+    expect(screen.getByText(/reset.*Jul/)).toBeTruthy();
+    // session (5 jam) tetap countdown saja — tanpa tanggal absolut
+    expect(screen.getByText((t) => t.startsWith("reset") && !/Jul/.test(t))).toBeTruthy();
+  });
 });
 
 describe("LimitBadge", () => {
