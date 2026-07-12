@@ -50,11 +50,20 @@ export function NotificationsProvider({ showToast, onOpen, children }: { showToa
   // TIDAK men-toast riwayat lama). Ref, bukan state: tak perlu memicu render.
   const baseline = React.useRef<string | undefined>(undefined);
   const prefs = React.useRef<NotifyPrefs>({ notifyDone: true, notifySound: "short", notifyDecision: true, notifyDecisionSound: "alert" });
+  // SPEC-197 · onOpen berubah tiap render App (dep [sessions]); simpan di ref supaya `tick` stabil
+  // dan efek poll tak teardown/rebuild tiap 3s (badai request selama sesi aktif).
+  const onOpenRef = React.useRef(onOpen);
+  onOpenRef.current = onOpen;
+
+  // Settings nyaris tak pernah berubah: fetch sekali saat mount, bukan tiap tick (SPEC-197).
+  const loadPrefs = React.useCallback(async () => {
+    try {
+      const s: Setting = await api.getSettings();
+      prefs.current = { notifyDone: s.notifyDone, notifySound: s.notifySound, notifyDecision: s.notifyDecision, notifyDecisionSound: s.notifyDecisionSound };
+    } catch { /* biarkan nilai lama */ }
+  }, []);
 
   const tick = React.useCallback(async () => {
-    let s: Setting | null = null;
-    try { s = await api.getSettings(); } catch { /* biarkan nilai lama */ }
-    if (s) prefs.current = { notifyDone: s.notifyDone, notifySound: s.notifySound, notifyDecision: s.notifyDecision, notifyDecisionSound: s.notifyDecisionSound };
     let data: { items: Notification[]; unread: number };
     try { data = await api.listNotifications(); } catch { return; }
     setItems(data.items); setUnread(data.unread);
@@ -65,12 +74,12 @@ export function NotificationsProvider({ showToast, onOpen, children }: { showToa
     const latest = fresh[0]; // items terbaru dulu (server orderBy desc)
     if (latest) {
       const t = toastFor(latest, prefs.current);
-      if (t.enabled) { showToast(t.msg, t.tone, t.icon); playNotifySound(t.sound); notifyOS(t.msg, latest, onOpen); }
+      if (t.enabled) { showToast(t.msg, t.tone, t.icon); playNotifySound(t.sound); notifyOS(t.msg, latest, onOpenRef.current); }
     }
-  }, [showToast, onOpen]);
+  }, [showToast]);
 
   React.useEffect(() => {
-    void tick();
+    void loadPrefs(); void tick();
     const t = setInterval(() => { void tick(); }, POLL_MS);
     // SPEC-192 · autoplay diblokir sampai user berinteraksi; unlock audio pada gestur pertama.
     const unlock = () => {
@@ -82,7 +91,7 @@ export function NotificationsProvider({ showToast, onOpen, children }: { showToa
     window.addEventListener("pointerdown", unlock, { once: true });
     window.addEventListener("keydown", unlock, { once: true });
     return () => { clearInterval(t); window.removeEventListener("pointerdown", unlock); window.removeEventListener("keydown", unlock); };
-  }, [tick]);
+  }, [tick, loadPrefs]);
 
   const markAllRead = React.useCallback(() => {
     setUnread(0);

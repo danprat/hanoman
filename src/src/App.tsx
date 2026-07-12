@@ -314,11 +314,24 @@ export default function App() {
   // Stage bergerak saat sesi ditutup — server membaca berkas fase sekali terakhir — dan sesi
   // bisa mati dari luar hanoman. Selama ada sesi hidup, poll ringan menjaga board jujur.
   const anySessionActive = activeSpecs.size > 0;
+  // SPEC-197 · poll 3s dulu selalu setBacklog/setSessions dgn array baru → seluruh tree re-render
+  // tiap tick walau data identik, dan bikin openNotification (dep [sessions]) tak stabil = badai
+  // request. Guard signature: hanya setState kalau ada perubahan nyata; skip saat tab tak terlihat.
+  const pollSigRef = React.useRef("");
   React.useEffect(() => {
     if (!anySessionActive) return;
     const t = setInterval(() => {
+      if (document.hidden) return;
       Promise.all([api.listSpecs(), api.listTerminals()])
-        .then(([s, t]) => { setBacklog(s); setSessions(t); })
+        .then(([s, t]) => {
+          const sig = JSON.stringify({
+            s: s.map((x) => [x.id, x.stage]),
+            t: t.map((x) => [x.id, x.exited, x.decision]),
+          });
+          if (sig === pollSigRef.current) return; // identik → jangan sentuh state (bail-out re-render)
+          pollSigRef.current = sig;
+          setBacklog(s); setSessions(t);
+        })
         .catch(() => {});
     }, 3000);
     return () => clearInterval(t);

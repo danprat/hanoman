@@ -57,11 +57,13 @@ export function TerminalScreen({ projects, backlog = [], focusSession, onOpenRev
   React.useEffect(() => { W.save(ws); }, [ws]);
 
   // SPEC-184 · notifikasi mengarahkan ke sesi tertentu → tempatkan ke grid aktif begitu sesi itu
-  // muncul di daftar hidup. Re-klik id yang sama saat sudah tampil = no-op (nilai tak berubah).
+  // muncul di daftar hidup. SPEC-197 · efek ini jalan tiap `sessions` berubah; tanpa guard, sesi
+  // fokus yang sudah tampil bisa "loncat" ke sel-kosong-pertama saat sesi lain exit. Hanya place
+  // bila belum ada di grid mana pun (placedIds); kalau sudah, kembalikan w apa adanya (no-op).
   React.useEffect(() => {
     if (!focusSession || !loaded) return;
     if (!sessions.some((s) => s.id === focusSession && !s.exited)) return;
-    setWs((w) => W.placeFirstEmptyInActive(w, focusSession));
+    setWs((w) => W.placedIds(w).has(focusSession) ? w : W.placeFirstEmptyInActive(w, focusSession));
   }, [focusSession, loaded, sessions]);
 
   const byId = (id: string) => sessions.find((s) => s.id === id) ?? null;
