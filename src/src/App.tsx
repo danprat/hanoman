@@ -344,10 +344,7 @@ export default function App() {
   }, [anySessionActive]);
 
   const proj = projectsView.find((p) => p.id === projectId) || projectsView[0];
-  const q = search.trim().toLowerCase();
-  const shownProjects = q
-    ? projectsView.filter((p) => (p.name + " " + p.desc + " " + p.stack).toLowerCase().includes(q))
-    : projectsView;
+  // SPEC-198 · search project via API di ProjectsScreen (bukan filter klien di App).
 
   function openProject(p: ProjectVM) { setProjectId(p.id); setSection("project"); }
   // SPEC-171 · buka layar review file worktree sebuah backlog item.
@@ -530,11 +527,8 @@ export default function App() {
             ? <StateBlock kind="empty" icon="box" title="Belum ada project"
                 hint="Mulai dari nol atau tambahkan codebase yang sudah ada — hanoman menyusun Source of Truth-nya."
                 action={() => setModal("project")} actionLabel="Project baru" />
-            : shownProjects.length === 0
-              ? <StateBlock kind="empty" icon="search" title={`Tidak ada project cocok dengan “${search}”`}
-                  hint="Coba kata kunci lain, atau kosongkan pencarian."
-                  action={() => setSearch("")} actionLabel="Hapus pencarian" actionIcon="x" />
-              : <ProjectsScreen projects={shownProjects} variant="list" onOpen={openProject} onDelete={deleteProject} pageSize={20} />)}
+            : <ProjectsScreen projects={projectsView} variant="list" onOpen={openProject} onDelete={deleteProject}
+                pageSize={20} search={search} dataVersion={dataVersion} onClearSearch={() => setSearch("")} />)}
       </Shell>
     );
   } else if (section === "project") {

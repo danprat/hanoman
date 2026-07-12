@@ -555,16 +555,16 @@ git commit -m "feat(web/backlog): grid/list/board search+filter+paginasi via API
 - Consumes: `api.listProjects({ q, page, limit })` → `Paginated<ProjectView>`; props `projects` (SET PENUH, untuk StatStrip), `search`, `dataVersion`.
 - Produces: (UI) baris terpaginasi server; StatStrip tetap dari `projects` penuh.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambah `src/test/projects-screen.test.tsx`: render `<ProjectsScreen projects={FULL} search="arta" pageSize={20} dataVersion={0} />` dengan `api.listProjects` di-mock balik `{ items: [oneMatch], total: 1, page: 1, pageSize: 20 }`; assert baris yang tampil = hasil fetch (bukan `projects` penuh), dan StatStrip mencerminkan `projects` penuh.
 
-- [ ] **Step 2: Jalankan — gagal**
+- [x] **Step 2: Jalankan — gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/web test projects-screen`
 Expected: FAIL — ProjectsScreen belum fetch.
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 `src/src/screens/ProjectsScreen.tsx`, komponen `ProjectsScreen`:
 - Tambah props `search?: string; dataVersion?: number`.
@@ -593,12 +593,12 @@ const sp = serverPage(total, page, pageSize || total || 1);
 - Hapus `q`/`shownProjects` (baris 341-344) — atau biarkan `search` state, tapi jangan filter di App.
 - Baris 527-531: render `<ProjectsScreen projects={projectsView} search={search} pageSize={20} dataVersion={dataVersion} onOpen={openProject} onDelete={deleteProject} />`. Empty-state "Tidak ada project cocok" (baris 528): pindahkan penilaian ke dalam ProjectsScreen (bila `rows.length===0 && search` → StateBlock), atau pertahankan di App memakai `total` yang tak tersedia di App — **lebih bersih: tangani di ProjectsScreen**. Tambahkan StateBlock kosong di ProjectsScreen saat `rows.length === 0`.
 
-- [ ] **Step 4: Jalankan — hijau**
+- [x] **Step 4: Jalankan — hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/web test projects-screen app-states`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/ProjectsScreen.tsx src/src/App.tsx src/test/projects-screen.test.tsx

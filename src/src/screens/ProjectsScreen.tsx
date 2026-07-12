@@ -1,8 +1,9 @@
 /* ProjectsScreen — multi-project monitor. Kolom "trigger" hilang bersama subsistem
    trigger; yang berjalan adalah sesi claude di tmux (SPEC-162). */
 import React from "react";
-import { Card, StatusPill, Badge, ProgressBar, Icon, IconButton, usePaged, Pager,
+import { Card, StatusPill, Badge, ProgressBar, Icon, IconButton, StateBlock, serverPage, Pager,
   LIST_SCROLL_STYLE, LIST_SCREEN_STYLE, FIXED_ROW_STYLE } from "../ds";
+import { api } from "../api/client";
 import type { ProjectVM } from "./types";
 
 function hnCovTone(s: string) { return s === "broken" ? "err" : s === "drift" ? "warn" : "ok"; }
@@ -88,25 +89,44 @@ function ProjectRow({ p, onOpen, onDelete }:
   );
 }
 
-export function ProjectsScreen({ projects, onOpen, onDelete, pageSize }:
+export function ProjectsScreen({ projects, onOpen, onDelete, pageSize, search = "", dataVersion, onClearSearch }:
   { projects: ProjectVM[]; variant?: string; onOpen?: (p: ProjectVM) => void;
-    onDelete?: (p: ProjectVM) => void; pageSize?: number }) {
+    onDelete?: (p: ProjectVM) => void; pageSize?: number;
+    search?: string; dataVersion?: number; onClearSearch?: () => void }) {
   const cols = ["Project", "Status", "Docs · SoT", "Backlog", "Aktivitas"];
   const tmpl = "1.7fr 1.2fr 1.5fr 1.1fr 1.4fr";
-  const pg = usePaged(projects, pageSize || projects.length, "proj");
-  const rows = pageSize ? pg.pageItems : projects;
+  // SPEC-198 · search + paginasi via API. StatStrip tetap dari `projects` PENUH (statistik global).
+  // Baris = potongan server; seed dari prop utk render instan + tahan mock parsial di test.
+  const [rows, setRows] = React.useState<ProjectVM[]>(projects);
+  const [total, setTotal] = React.useState(projects.length);
+  const [page, setPage] = React.useState(1);
+  React.useEffect(() => { setPage(1); }, [search]);
+  React.useEffect(() => {
+    if (!pageSize) { setRows(projects); setTotal(projects.length); return; }
+    let alive = true;
+    const p = api.listProjects?.({ q: search || undefined, page, limit: pageSize });
+    p?.then((r) => { if (alive) { setRows(r.items as ProjectVM[]); setTotal(r.total); } }).catch(() => { });
+    return () => { alive = false; };
+  }, [search, page, pageSize, dataVersion, projects]);
+  const sp = serverPage(total, page, pageSize || total || 1);
   return (
     <div style={LIST_SCREEN_STYLE}>
       <div style={FIXED_ROW_STYLE}><StatStrip projects={projects} /></div>
-      <Card padding={0} fill>
-        <div style={{ ...FIXED_ROW_STYLE, display: "grid", gridTemplateColumns: tmpl, gap: 12, padding: "10px 14px 10px 15px", borderBottom: "1px solid var(--border-hair)" }}>
-          {cols.map((c) => <span key={c} className="hn-eyebrow">{c}</span>)}
-        </div>
-        <div style={LIST_SCROLL_STYLE}>
-          {rows.map((p) => <ProjectRow key={p.id} p={p} onOpen={onOpen} onDelete={onDelete} />)}
-        </div>
-        {pageSize && <Pager {...pg} onPage={pg.setPage} unit="project" />}
-      </Card>
+      {rows.length === 0 && search ? (
+        <StateBlock kind="empty" icon="search" title={`Tidak ada project cocok dengan “${search}”`}
+          hint="Coba kata kunci lain, atau kosongkan pencarian."
+          action={onClearSearch} actionLabel="Hapus pencarian" actionIcon="x" />
+      ) : (
+        <Card padding={0} fill>
+          <div style={{ ...FIXED_ROW_STYLE, display: "grid", gridTemplateColumns: tmpl, gap: 12, padding: "10px 14px 10px 15px", borderBottom: "1px solid var(--border-hair)" }}>
+            {cols.map((c) => <span key={c} className="hn-eyebrow">{c}</span>)}
+          </div>
+          <div style={LIST_SCROLL_STYLE}>
+            {rows.map((p) => <ProjectRow key={p.id} p={p} onOpen={onOpen} onDelete={onDelete} />)}
+          </div>
+          {pageSize && <Pager page={sp.page} pageCount={sp.pageCount} total={total} from={sp.from} to={sp.to} onPage={setPage} unit="project" />}
+        </Card>
+      )}
     </div>
   );
 }
