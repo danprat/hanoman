@@ -17,8 +17,11 @@ function isExternalLink(target: string): boolean {
 
 // Resolve a Markdown link target found inside `fromRel` to a repo-relative posix path.
 export function resolveLink(fromRel: string, target: string): string {
-  const clean = target.trim().split("#")[0]!.split("\\").join("/");
+  // SPEC-197 · link bertitel `[x](a.md "judul")` → ambil token pertama sebelum spasi; `#anchor` dibuang.
+  const clean = target.trim().split(/\s+/)[0]!.split("#")[0]!.split("\\").join("/");
   if (!clean) return "";
+  // Absolut dari root repo (`/internal/docs/x.md`) → root-relative; jangan gabung ke dir sumber.
+  if (clean.startsWith("/")) return clean.slice(1).split("/").filter((p) => p && p !== ".").join("/");
   const dir = fromRel.includes("/") ? fromRel.slice(0, fromRel.lastIndexOf("/")) : "";
   const parts = (dir ? dir.split("/") : []).concat(clean.replace(/^\.\//, "").split("/"));
   const out: string[] = [];

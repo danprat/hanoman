@@ -19,10 +19,20 @@ describe("schemas", () => {
       priority: "sedang", payload: { context: "c", outcome: "o", constraints: "", priority: "sedang" } });
     expect(b.source).toBe("brief");
   });
+  // SPEC-197 · source harus cocok dengan bentuk payload (qa↔severity), agar deriveSpecFields tak
+  // menurunkan objective/priority dari bentuk yang salah.
+  it("create-spec menolak source qa dengan brief payload (dan sebaliknya)", () => {
+    const brief = { context: "c", outcome: "o", constraints: "", priority: "sedang" as const };
+    const qa = { severity: "major" as const, steps: "s", expected: "e", actual: "a", env: "x" };
+    expect(zCreateSpec.safeParse({ project: "arta", source: "qa", title: "T", priority: "sedang", payload: brief }).success).toBe(false);
+    expect(zCreateSpec.safeParse({ project: "arta", source: "brief", title: "T", priority: "sedang", payload: qa }).success).toBe(false);
+    expect(zCreateSpec.safeParse({ project: "arta", source: "qa", title: "T", priority: "sedang", payload: qa }).success).toBe(true);
+  });
   // SPEC-143: branch sumber worktree adalah properti backlog item.
   it("spec carries a nullable branchFrom", () => {
     const base = { id: "SPEC-1", projectId: "p1", title: "t", source: "brief" as const,
-      stage: "brainstorming" as const, priority: "sedang" as const, author: "a", objective: "o", payload: null };
+      stage: "brainstorming" as const, priority: "sedang" as const, author: "a", objective: "o",
+      payload: null, baseSha: null }; // baseSha wajib (nullable) sejak SPEC-186 — test lama terlewat
     expect(zSpec.parse({ ...base, branchFrom: null }).branchFrom).toBeNull();
     expect(zSpec.parse({ ...base, branchFrom: "release/v2" }).branchFrom).toBe("release/v2");
   });

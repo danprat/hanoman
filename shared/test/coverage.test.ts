@@ -13,6 +13,12 @@ describe("resolveLink", () => {
     expect(resolveLink("a/b.md", "./e.md")).toBe("a/e.md");
     expect(resolveLink("README.md", "internal/docs/x.md")).toBe("internal/docs/x.md");
   });
+  // SPEC-197 · link bertitel & absolut-dari-root sebelumnya salah resolve → under-count coverage.
+  it("strips a link title and handles root-absolute targets", () => {
+    expect(resolveLink("internal/docs/a.md", './b.md "judul"')).toBe("internal/docs/b.md");
+    expect(resolveLink("internal/docs/a.md", "/internal/docs/c.md")).toBe("internal/docs/c.md");
+    expect(resolveLink("internal/docs/sub/a.md", "../b.md")).toBe("internal/docs/b.md");
+  });
 });
 
 describe("linkedSetFrom", () => {

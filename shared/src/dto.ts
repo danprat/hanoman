@@ -15,7 +15,15 @@ export const zUpdateProject = z.object({
 export const zCreateSpec = z.object({
   project: z.string(), source: zSpecSource, title: z.string().min(1),
   priority: zPriority, payload: z.union([zBriefPayload, zQaPayload]),
-  branchFrom: z.string().min(1).optional() });
+  branchFrom: z.string().min(1).optional() })
+  // SPEC-197 · ikat source ke bentuk payload: `qa` → QaPayload (punya `severity`), selain itu →
+  // BriefPayload. Union saja tak menjaganya (objek non-strict), jadi `deriveSpecFields` bisa
+  // menurunkan objective/priority dari bentuk yang salah. superRefine menegakkannya di boundary.
+  .superRefine((o, ctx) => {
+    const isQa = "severity" in o.payload;
+    if ((o.source === "qa") !== isQa)
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["payload"], message: "bentuk payload tak cocok dengan source" });
+  });
 // nullable, bukan optional: `null` berarti "kosongkan, kembali ke default project",
 // dan itu harus terbedakan dari "jangan sentuh".
 // branchFrom: nullable+optional — `null` mengosongkan (kembali ke default project),
