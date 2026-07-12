@@ -1,7 +1,7 @@
 import { spawn, type IPty } from "node-pty";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, statSync } from "node:fs";
 import { dirname } from "node:path";
 import { guardSettings, type Flow } from "@hanoman/runner";
 import { guardCommand } from "../runner/deps";
@@ -22,6 +22,13 @@ const PREFIX = "hanoman-";
 const MAX_SCROLLBACK = 256 * 1024;
 const POLL_MS = 500;
 
+// SPEC-196 · marker keputusan (.worktrees/.decisions/<id>) yang terisi = sesi sedang menunggu
+// manusia. Satu definisi dipakai listSessions (pembeda terminal) dan scanDecisions (notifikasi).
+// statSync gagal (berkas belum ada) → false.
+export const markerFilled = (f: string): boolean => {
+  try { return statSync(f).size > 0; } catch { return false; }
+};
+
 export type Frame =
   | { t: "data"; d: string }
   | { t: "exit"; code: number }
@@ -32,6 +39,7 @@ export type Client = { send(msg: string): void; close(): void };
 
 export type SessionInfo = {
   id: string; projectId: string; specId?: string; flow?: Flow; cwd: string; exited: boolean;
+  decision: boolean;
 };
 type Pane = SessionInfo & { code: number; phaseFile?: string; decisionFile?: string };
 
@@ -86,17 +94,22 @@ function listPanes(): Pane[] {
   return out.split("\n").filter(Boolean).flatMap((line) => {
     const [n, projectId, specId, flow, phaseFile, cwd, dead, code, decisionFile] = line.split("\t");
     if (!n?.startsWith(PREFIX)) return [];
+    const exited = dead === "1";
     return [{
       id: n.slice(PREFIX.length), projectId: projectId ?? "", specId: specId || undefined,
       flow: (flow || undefined) as Flow | undefined, phaseFile: phaseFile || undefined,
-      cwd: cwd ?? "", exited: dead === "1", code: Number(code) || 0,
+      cwd: cwd ?? "", exited, code: Number(code) || 0,
       decisionFile: decisionFile || undefined,
+      // SPEC-196 · sesi hidup dengan marker keputusan terisi = menunggu manusia.
+      decision: !exited && !!decisionFile && markerFilled(decisionFile),
     }];
   });
 }
 
 export const listSessions = (): SessionInfo[] =>
-  listPanes().map(({ id, projectId, specId, flow, cwd, exited }) => ({ id, projectId, specId, flow, cwd, exited }));
+  listPanes().map(({ id, projectId, specId, flow, cwd, exited, decision }) => ({
+    id, projectId, specId, flow, cwd, exited, decision,
+  }));
 
 // SPEC-184 · sesi hidup yang punya marker keputusan — masukan scanDecisions().
 export const liveDecisions = (): { id: string; specId?: string; projectId: string; decisionFile: string }[] =>
@@ -160,7 +173,7 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
   if (opts.flow) tmux("set-option", "-t", name(id), "@hanoman_flow", opts.flow);
   if (opts.phaseFile) tmux("set-option", "-t", name(id), "@hanoman_phase_file", opts.phaseFile);
   if (opts.decisionFile) tmux("set-option", "-t", name(id), "@hanoman_decision_file", opts.decisionFile);
-  return { id, projectId, specId: opts.specId, flow: opts.flow, cwd, exited: false };
+  return { id, projectId, specId: opts.specId, flow: opts.flow, cwd, exited: false, decision: false };
 }
 
 // Fase dibaca dari berkasnya, tidak disimpan: sesi yang selamat dari restart API tetap

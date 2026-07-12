@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   createSession, getSession, listSessions, killSession, killAll, detachAll, attach, writeTo,
-  sessionPhases,
+  sessionPhases, markerFilled,
 } from "../src/services/pty";
 import { phaseFilePath, type Phase } from "../src/services/session-phases";
 
@@ -179,5 +179,22 @@ describe("pty service", () => {
     expect(listSessions()).toEqual([]);
     expect(getSession(s.id)).toBeUndefined();
     expect(killSession(s.id)).toBe(false);
+  });
+
+  it("markerFilled: absent/empty → false, non-empty → true (SPEC-196)", () => {
+    const f = join(repoDir, "marker");
+    expect(markerFilled(f)).toBe(false);        // berkas belum ada
+    appendFileSync(f, "menunggu");
+    expect(markerFilled(f)).toBe(true);
+  });
+
+  it("listSessions melaporkan decision saat marker keputusan terisi (SPEC-196)", () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const decisionFile = join(repoDir, ".worktrees", ".decisions", "spec-d");
+    const s = createSession("p1", repoDir, { specId: "SPEC-D", flow: "feature", prompt: "x", decisionFile });
+    const find = () => listSessions().find((x) => x.id === s.id)!;
+    expect(find().decision).toBe(false);        // sesi hidup, marker belum ditulis
+    appendFileSync(decisionFile, "menunggu\n");  // hook Notification menulis marker
+    expect(find().decision).toBe(true);
   });
 });
