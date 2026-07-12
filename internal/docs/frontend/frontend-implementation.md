@@ -5,9 +5,12 @@
 - Bagian: Overview, Projects (list + pagination + cari + hapus project per baris) → **detail project** (identitas, coverage, edit `name`/`desc` lewat `PATCH /projects/:id`, dan pintu: Source of Truth, Terminal, Backlog, Reverse docs). `id` tak pernah dapat diubah — ia kunci asing spec (SPEC-146). Hapus project ada di detail dan di header Docs — konfirmasi dulu, ditolak bila ada sesi tmux aktif; rename tidak ditolak, karena `id` tak bergerak. Backlog (cari teks + filter project/stage/prioritas + tab sumber + tiga mode tampilan grid/list/board + aksi per spec + detail spec via modal: judul, stage bar, objective, field brief/QA), Terminal (sesi Claude Code interaktif di tmux), Docs (tree realtime semua `.md` di repo via `GET /docs`, dikelompokkan per direktori; kategori di luar `docsDir` masuk grup **Lainnya (tidak dinilai)** tanpa status linked — hanya kategori berskor yang masuk coverage, lihat ADR-0013; tombol **Muat ulang** membaca ulang tree, **Hapus** menghapus file asli, path ditampilkan repo-relative tanpa prefix `internal/docs`), VPS (daftar + audit/harden + buka sesi), Settings (model & effort sesi, notifikasi, akun, users).
 - Filter project di Backlog dibaca dari satu state `projectFilter` milik `App`, bukan state lokal
   tiap layar (SPEC-146) — detail project memakainya untuk membuka Backlog dalam keadaan tersaring.
-- Realtime: **WebSocket PTY** per terminal (`/terminal/sessions/:id/ws`, frame `data`/`phase`/`exit`);
-  sisanya **HTTP polling** (projects/backlog/notifications/limits/vps). Tidak ada SSE. Optimistic UI
-  untuk kontrol lokal.
+- Realtime: **WebSocket** untuk semua data live — satu WS siar dashboard `/events/ws`
+  (backlog/sesi/notifikasi/limits/vps, SPEC-199/ADR-0038) + WS PTY per terminal
+  (`/terminal/sessions/:id/ws`, frame `data`/`phase`/`exit`). Klien punya satu koneksi events
+  singleton (`api/events.ts`, ref-count) yang di-`subscribe` tiap consumer. HTTP GET hanya untuk
+  paint pertama (projects tetap HTTP — bukan data real-time). Tidak ada SSE, tidak ada poll
+  `setInterval`. Optimistic UI untuk kontrol lokal.
 - Tidak ada layar Runs, biaya, maupun anggaran: run + queue dicabut (ADR-0024). Kuota model dipantau
   lewat **LimitIndicator** (badge topbar + kartu Overview) yang membaca `GET /limits` dari OAuth usage
   API Anthropic (SPEC-181/ADR-0024). Settings tak punya `dailyBudget`/`maxConcurrent`.
@@ -159,11 +162,12 @@ Sesi yang **berhenti menunggu keputusan manusia** (marker `.worktrees/.decisions
 disurface `listSessions().decision`) ditandai pill amber berdenyut **"Menunggu keputusan"**
 (`StatusPill status="awaiting"`). Header cell diberi tint sesuai state — hijau untuk `exited`,
 amber untuk menunggu keputusan — supaya pembeda terbaca sekilas, bukan hanya dari pill.
-`TerminalScreen` mem-poll `GET /terminal/sessions` tiap ~8s (guard signature `id:exited:decision`,
-tak men-thrash) agar transisi ke/keluar "menunggu keputusan" tampak tanpa refresh — `exited` sendiri
-tetap datang instan lewat WebSocket (SPEC-196).
+`TerminalScreen` menerima daftar sesi lewat WS siar `/events/ws` (grup `sessions`, SPEC-199) —
+bukan lagi poll 8s. Transisi ke/keluar "menunggu keputusan" dan `exited` datang sebagai push;
+server men-poll tmux di satu loop dan menyiarkan saat berubah (dedup signature).
 
-Proxy dev Vite harus memakai `ws: true`, kalau tidak upgrade WebSocket dijawab 404.
+Proxy dev Vite harus memakai `ws: true`, kalau tidak upgrade WebSocket dijawab 404 (berlaku untuk
+kedua WS: `/terminal/sessions/:id/ws` dan `/events/ws`).
 
 ## Melihat dokumen audit/spec/plan (SPEC-170)
 Setiap backlog item mengumpulkan dokumen yang ditulis agent sepanjang alur —
@@ -205,9 +209,10 @@ List = flat path penuh (existing), Tree = `buildFileTree(changed.map(c => c.path
 Tidak ada layar Runs, SSE, maupun StatusPill status-run — semuanya dicabut bersama tabel `Run`
 (ADR-0024). Progres sebuah backlog dibaca dari **`Spec.stage`**, yang server turunkan dari phase-file
 sesi (`$HANOMAN_PHASE_FILE` → `services/session-phases.ts`, `services/stage-machine.ts`). Kartu backlog
-dan modal detail menampilkan **stage bar** (Brainstorm → … → Done); daftar disegarkan lewat poll, bukan
-langganan. Sesi hidup dideteksi dari `listSessions()` (tmux) — saat sesi ditutup, `GET /specs`
-write-through memajukan stage dan membuat notifikasi `done`. `executing` tertahan (tak jadi `done`)
+dan modal detail menampilkan **stage bar** (Brainstorm → … → Done); daftar didorong lewat WS siar
+`/events/ws` (grup `specs`, SPEC-199), bukan poll. Sesi hidup dideteksi dari `listSessions()` (tmux) —
+saat sesi ditutup, `liveSpecs()` (server, dipakai `GET /specs` DAN hub siar) write-through memajukan
+stage dan membuat notifikasi `done`. `executing` tertahan (tak jadi `done`)
 selama plan `docs/superpowers/plans/**` masih punya `- [ ]` (SPEC-173/ADR-0029). Fase `skipped`
 (alur `qa`, SPEC-145/ADR-0020) keluar dari penyebut progress sehingga jalur cepat yang sukses tetap 100%.
 
@@ -230,9 +235,9 @@ bersandar pada notifikasi yang **dibuat server-side** (`GET /notifications`) —
 [ADR-0033](../adr/0033-notifikasi-backlog-selesai.md).
 
 - **`NotificationsProvider`** (`src/src/notifications/NotificationsContext.tsx`) membungkus tree
-  ter-autentikasi di `App`. Ia memoll `GET /notifications` tiap 10s (independen dari sesi aktif,
-  jadi lonceng tetap segar setelah sesi ditutup — jalur `advanceStage` menghentikan poll 3s board).
-  Baseline = `createdAt` terbesar saat mount (mount pertama **tidak** men-toast riwayat lama);
+  ter-autentikasi di `App`. Ia menerima notifikasi lewat WS siar `/events/ws` (grup `notifications`,
+  SPEC-199) — bukan lagi poll 10s; server men-`scanDecisions` + query di satu loop lalu menyiarkan.
+  Baseline = `createdAt` terbesar saat frame pertama (frame pertama **tidak** men-toast riwayat lama);
   notifikasi lebih baru → `showToast` + `playNotifySound`, digerbang setting `notifyDone`/`notifySound`.
   Helper murni `newSince`/`maxAt` diuji terpisah.
 - **Notifikasi OS lintas tab (SPEC-196):** toast in-app hanya terlihat di tab hanoman yang fokus.
@@ -249,7 +254,7 @@ bersandar pada notifikasi yang **dibuat server-side** (`GET /notifications`) —
   `scripts/gen-notify-sounds.mjs` (deterministik, in-repo). `playNotifySound(kind)` (`.../sound.ts`)
   memakai **satu** elemen `Audio` yang dipakai ulang; `unlockNotifySound()` meng-unlock elemen itu
   (prime muted→play→pause) pada **gestur user pertama** (listener `pointerdown`/`keydown` di
-  `NotificationsProvider`), supaya bunyi dari poll timer tak ditolak autoplay (SPEC-192).
+  `NotificationsProvider`), supaya bunyi dari push notifikasi WS tak ditolak autoplay (SPEC-192).
 - **Setting** di layar Settings → section "Sesi & notifikasi": toggle **Notifikasi backlog selesai**
   (`notifyDone`), select **Sound** (`notifySound`: Short/Medium/Long/Senyap) + tombol **Preview**.
 
