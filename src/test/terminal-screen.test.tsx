@@ -134,6 +134,33 @@ describe("TerminalScreen (grid)", () => {
     await screen.findByTestId("pane");
     expect(screen.queryByText("Selesai")).toBeNull();
   });
+
+  it("sesi menunggu keputusan menampilkan pill Menunggu keputusan (SPEC-196)", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["dec11111"] }));
+    listTerminals.mockResolvedValue([{ id: "dec11111", projectId: "p1", cwd: "/repo", exited: false, decision: true }]);
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByTestId("pane");
+    expect(screen.getByText("Menunggu keputusan")).toBeInTheDocument();
+    expect(screen.queryByText("Selesai")).toBeNull();
+  });
+
+  it("exited menang atas decision: pill Selesai, bukan Menunggu (SPEC-196)", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["done2222"] }));
+    listTerminals.mockResolvedValue([{ id: "done2222", projectId: "p1", cwd: "/repo", exited: true, decision: true }]);
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByTestId("pane");
+    expect(screen.getByText("Selesai")).toBeInTheDocument();
+    expect(screen.queryByText("Menunggu keputusan")).toBeNull();
+  });
+
+  it("sesi bekerja (tanpa decision/exited) tak ada pill (SPEC-196)", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["run33333"] }));
+    listTerminals.mockResolvedValue([{ id: "run33333", projectId: "p1", cwd: "/repo", exited: false, decision: false }]);
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByTestId("pane");
+    expect(screen.queryByText("Menunggu keputusan")).toBeNull();
+    expect(screen.queryByText("Selesai")).toBeNull();
+  });
 });
 
 describe("TerminalScreen (Ambil backlog)", () => {

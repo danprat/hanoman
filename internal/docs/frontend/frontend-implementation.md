@@ -155,6 +155,14 @@ Sesi yang **berakhir** (`exited`) ditandai kontras di header cell dengan `Status
 hijau **"Selesai"**, dan badan terminalnya diredupkan (`opacity: 0.6`) untuk menandakan
 proses sudah beku — menggantikan suffix teks `· berakhir` yang lama (SPEC-188).
 
+Sesi yang **berhenti menunggu keputusan manusia** (marker `.worktrees/.decisions/<id>` terisi,
+disurface `listSessions().decision`) ditandai pill amber berdenyut **"Menunggu keputusan"**
+(`StatusPill status="awaiting"`). Header cell diberi tint sesuai state — hijau untuk `exited`,
+amber untuk menunggu keputusan — supaya pembeda terbaca sekilas, bukan hanya dari pill.
+`TerminalScreen` mem-poll `GET /terminal/sessions` tiap ~8s (guard signature `id:exited:decision`,
+tak men-thrash) agar transisi ke/keluar "menunggu keputusan" tampak tanpa refresh — `exited` sendiri
+tetap datang instan lewat WebSocket (SPEC-196).
+
 Proxy dev Vite harus memakai `ws: true`, kalau tidak upgrade WebSocket dijawab 404.
 
 ## Melihat dokumen audit/spec/plan (SPEC-170)

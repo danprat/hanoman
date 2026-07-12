@@ -4,6 +4,7 @@ export type Flow = "feature" | "qa" | "scaffold" | "reverse";
 export type Phase = { name: string; state: "done" | "skipped" | "active" | "pending" };
 export type TerminalSession = {
   id: string; projectId: string; specId?: string; flow?: Flow; cwd: string; exited: boolean;
+  decision?: boolean;
 };
 // SPEC-167 · respons dry-run PATCH /specs/:id saat revert akan menghapus artefak.
 export type RevertPending = { pending: true; stage: string; wouldDelete: string[] };

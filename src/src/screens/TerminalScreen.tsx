@@ -404,17 +404,22 @@ function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, titleOf, o
   const proj = nameOf(session.projectId);
   const title = session.specId ? titleOf?.(session.specId) : undefined;
   const label = session.specId ? `${proj} · ${session.specId}${title ? ` · ${title}` : ""}` : proj;
+  // SPEC-196 · sesi yang berhenti menunggu keputusan manusia (marker) belum `exited` — beri
+  // pembeda sendiri. `exited` menang bila keduanya benar (proses sudah beku).
+  const awaiting = !session.exited && !!session.decision;
   return (
     <>
       <div style={{
         display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", flex: "0 0 auto",
-        background: "var(--bone-200)", borderBottom: "1px solid var(--border-hair)",
+        background: session.exited ? "var(--status-ok-tint)" : awaiting ? "var(--status-warn-tint)" : "var(--bone-200)",
+        borderBottom: "1px solid var(--border-hair)",
         fontFamily: "var(--font-mono)", fontSize: 11, color: session.exited ? "var(--text-muted)" : "var(--text-body)",
       }}>
         <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {label} · {session.id.slice(0, 6)}
         </span>
         {session.exited && <StatusPill status="done" size="sm">Selesai</StatusPill>}
+        {awaiting && <StatusPill status="awaiting" size="sm" />}
         {session.specId && (
           <span onClick={() => setDocs(true)} title="Lihat dokumen (audit/spec/plan)"
             style={{ cursor: "pointer", color: "var(--text-subtle)", display: "inline-flex", alignItems: "center" }}>
