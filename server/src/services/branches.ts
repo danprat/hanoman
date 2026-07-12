@@ -1,25 +1,29 @@
-import { spawnSync } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+const exec = promisify(execFile);
+const GIT = { maxBuffer: 1 << 24, encoding: "utf8" as const };
 
-// Cermin listRepoDocs di services/scan.ts: spawn git, [] saat gagal, tidak pernah melempar.
+// SPEC-197 · execFile async (bukan spawnSync): dipanggil di jalur tulis spec (POST/PATCH /specs)
+// dan GET /projects/:id/branches; spawnSync memblok event loop tiap request. Cermin listRepoDocs
+// di services/scan.ts: [] saat gagal, tidak pernah melempar.
+async function refs(repoDir: string | null, glob: string): Promise<string[]> {
+  if (!repoDir) return [];
+  try {
+    const { stdout } = await exec("git", ["for-each-ref", "--format=%(refname:short)", glob], { cwd: repoDir, ...GIT });
+    return [...new Set(stdout.split("\n").map((s) => s.trim()).filter(Boolean))];
+  } catch { return []; }
+}
+
 // Hanya refs/heads — branch remote sengaja di luar scope (SPEC-143). Daftar ini memasok
 // dropdown DAN menjaga gerbang validasi, jadi tak ada validator terpisah yang bisa ikut basi.
-export function listRepoBranches(repoDir: string | null): string[] {
-  if (!repoDir) return [];
-  const r = spawnSync("git", ["for-each-ref", "--format=%(refname:short)", "refs/heads"],
-    { cwd: repoDir, encoding: "utf8" });
-  if (r.status !== 0) return [];
-  return [...new Set(r.stdout.split("\n").map((s) => s.trim()).filter(Boolean))].sort();
+export async function listRepoBranches(repoDir: string | null): Promise<string[]> {
+  return (await refs(repoDir, "refs/heads")).sort();
 }
 
 // SPEC-175 · target merge/rebase boleh branch origin. refname:short `refs/remotes/origin/main` =
-// `origin/main`; buang symbolic `origin/HEAD`, lucuti prefix `origin/`. Cermin listRepoBranches:
-// spawn git, [] saat gagal, tak pernah melempar.
-export function listRepoRemoteBranches(repoDir: string | null): string[] {
-  if (!repoDir) return [];
-  const r = spawnSync("git", ["for-each-ref", "--format=%(refname:short)", "refs/remotes/origin"],
-    { cwd: repoDir, encoding: "utf8" });
-  if (r.status !== 0) return [];
-  return [...new Set(r.stdout.split("\n").map((s) => s.trim()).filter(Boolean))]
+// `origin/main`; buang symbolic `origin/HEAD`, lucuti prefix `origin/`.
+export async function listRepoRemoteBranches(repoDir: string | null): Promise<string[]> {
+  return (await refs(repoDir, "refs/remotes/origin"))
     .filter((b) => b !== "origin/HEAD" && b !== "origin")
     .map((b) => b.replace(/^origin\//, ""))
     .sort();

@@ -61,6 +61,6 @@ export default async function (app: FastifyInstance) {
     const { id } = req.params as { id: string };
     const p = await prisma.project.findUnique({ where: { id } });
     if (!p) return reply.code(404).send({ error: "not found" });
-    return { branches: listRepoBranches(p.repoDir), remotes: listRepoRemoteBranches(p.repoDir) };
+    return { branches: await listRepoBranches(p.repoDir), remotes: await listRepoRemoteBranches(p.repoDir) };
   });
 }

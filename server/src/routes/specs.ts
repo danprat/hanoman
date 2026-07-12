@@ -20,7 +20,8 @@ import { recordCompletion } from "../services/notifications";
 // SPEC-143: daftar yang mengisi dropdown adalah daftar yang menjaga gerbang — tak ada validator
 // terpisah yang bisa ikut basi. Branch karangan ditolak di sini, bukan beberapa menit kemudian
 // saat worktree gagal di dalam run.
-const branchUnknown = (repoDir: string | null, branch: string) => !listRepoBranches(repoDir).includes(branch);
+const branchUnknown = async (repoDir: string | null, branch: string) =>
+  !(await listRepoBranches(repoDir)).includes(branch);
 
 // SPEC-186 · derivasi priority + objective dari source+payload. Satu sumber untuk POST & PATCH:
 // qa → priority dari severity, objective dari actual/steps; brief → priority manual, objective dari outcome/context.
@@ -73,7 +74,7 @@ export default async function (app: FastifyInstance) {
     // project tak dikenal kini 404 jujur, bukan pelanggaran foreign-key.
     const project = await prisma.project.findUnique({ where: { id: b.project } });
     if (!project) return reply.code(404).send({ error: `project "${b.project}" tidak ada` });
-    if (b.branchFrom && branchUnknown(project.repoDir, b.branchFrom))
+    if (b.branchFrom && await branchUnknown(project.repoDir, b.branchFrom))
       return reply.code(400).send({ error: `branch "${b.branchFrom}" tidak ada di repo project` });
     const id = await nextSpecId(project.repoDir);
     const isQa = b.source === "qa";
@@ -107,7 +108,7 @@ export default async function (app: FastifyInstance) {
       return reply.code(409).send({ error: "backlog item sudah dimulai — tak bisa diedit" });
     if (branchFrom) {
       const project = await prisma.project.findUnique({ where: { id: spec.projectId } });
-      if (branchUnknown(project?.repoDir ?? null, branchFrom))
+      if (await branchUnknown(project?.repoDir ?? null, branchFrom))
         return reply.code(400).send({ error: `branch "${branchFrom}" tidak ada di repo project` });
     }
     if (stage !== undefined) {
