@@ -29,7 +29,7 @@
 **Interfaces:**
 - Produces: `SessionDTO`, `EventMsg` (union), `paths.eventsWs: string`. Dipakai server hub (Task 3), route (Task 4), klien (Task 5–6).
 
-- [ ] **Step 1: Tambah tipe kontrak di `shared/src/dto.ts`**
+- [x] **Step 1: Tambah tipe kontrak di `shared/src/dto.ts`**
 
 Di akhir file `shared/src/dto.ts`, tambah (import `Spec`/`Notification` dari entities di baris atas file — gabung dengan import yang ada bila perlu):
 
@@ -52,7 +52,7 @@ export type EventMsg =
   | { t: "vps"; vps: VpsView[] };
 ```
 
-- [ ] **Step 2: Tambah path `eventsWs` di `shared/src/api.ts`**
+- [x] **Step 2: Tambah path `eventsWs` di `shared/src/api.ts`**
 
 Setelah baris `terminalWs: (id) => ...` (baris 29), tambah:
 
@@ -60,14 +60,14 @@ Setelah baris `terminalWs: (id) => ...` (baris 29), tambah:
   eventsWs: `${API}/events/ws`,   // SPEC-199 · WebSocket siar dashboard (global, bukan per-sesi)
 ```
 
-- [ ] **Step 3: Verifikasi typecheck shared bersih**
+- [x] **Step 3: Verifikasi typecheck shared bersih**
 
 Run: `cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-199 && pnpm --filter @hanoman/shared build`
 Expected: build sukses, tanpa error TS. Konfirmasi `paths.eventsWs === "/api/events/ws"`:
 Run: `node -e "import('./shared/dist/api.js').then(m=>console.log(m.paths.eventsWs))"`
 Expected: mencetak `/api/events/ws`
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add shared/src/dto.ts shared/src/api.ts
@@ -90,7 +90,7 @@ Hub dan route HTTP harus hitung data yang sama. Ekstrak dua logika yang kini inl
 **Interfaces:**
 - Produces: `liveSpecs(filter?: { project?: string; source?: string }): Promise<Spec[]>`; `notificationsFeed(): Promise<{ items: Notification[]; unread: number }>`. Dikonsumsi Task 3 (hub) + route.
 
-- [ ] **Step 1: Buat `server/src/services/live-specs.ts` (pindahkan logika stage-live dari route)**
+- [x] **Step 1: Buat `server/src/services/live-specs.ts` (pindahkan logika stage-live dari route)**
 
 ```typescript
 import type { Stage } from "@hanoman/shared";
@@ -128,7 +128,7 @@ export async function liveSpecs(filter: { project?: string; source?: string } = 
 }
 ```
 
-- [ ] **Step 2: Rewire `GET /specs` di `server/src/routes/specs.ts` memakai `liveSpecs`**
+- [x] **Step 2: Rewire `GET /specs` di `server/src/routes/specs.ts` memakai `liveSpecs`**
 
 Ganti seluruh handler `app.get("/specs", ...)` (baris 39–70) dengan:
 
@@ -144,7 +144,7 @@ Tambah import di atas: `import { liveSpecs } from "../services/live-specs";`. Ha
 Run: `cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-199 && grep -nE 'sessionPhasesBySpec|stageForRun|STAGES|recordCompletion' server/src/routes/specs.ts`
 Expected: hanya baris import yang cocok (bila 0 pemakaian selain import → hapus importnya).
 
-- [ ] **Step 3: Tambah `notificationsFeed` di `server/src/services/notifications.ts`**
+- [x] **Step 3: Tambah `notificationsFeed` di `server/src/services/notifications.ts`**
 
 Di akhir file, tambah:
 
@@ -161,7 +161,7 @@ export async function notificationsFeed(): Promise<{ items: Notification[]; unre
 
 Tambah import tipe di atas file: `import type { Notification } from "@hanoman/shared";`.
 
-- [ ] **Step 4: Rewire `GET /notifications` memakai `notificationsFeed`**
+- [x] **Step 4: Rewire `GET /notifications` memakai `notificationsFeed`**
 
 Di `server/src/routes/notifications.ts`, ganti isi handler GET (baris 8–13) jadi:
 
@@ -171,12 +171,12 @@ Di `server/src/routes/notifications.ts`, ganti isi handler GET (baris 8–13) ja
 
 Ubah import di baris 3 dari `import { scanDecisions } from "../services/notifications";` menjadi `import { notificationsFeed } from "../services/notifications";`. Hapus import `scanDecisions` bila tak dipakai lagi di route ini.
 
-- [ ] **Step 5: Jalankan test route yang ada — harus tetap hijau (logika tak berubah, cuma pindah)**
+- [x] **Step 5: Jalankan test route yang ada — harus tetap hijau (logika tak berubah, cuma pindah)**
 
 Run: `cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-199 && env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- specs.route notifications.route`
 Expected: PASS semua (perilaku identik; ekstraksi murni).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/services/live-specs.ts server/src/routes/specs.ts server/src/services/notifications.ts server/src/routes/notifications.ts
@@ -195,7 +195,7 @@ git commit -m "refactor(server): ekstrak liveSpecs + notificationsFeed untuk dip
 - Consumes: `liveSpecs` (Task 2), `notificationsFeed` (Task 2), `listSessions` + `type Client` (pty.ts), `getLimits` (services/limits), `prisma`.
 - Produces: `attach(c: Client): Promise<void>` (tambah klien + kirim snapshot penuh ke klien itu, start loop), `detach(c: Client): void`, `__tick(): Promise<void>` (satu iterasi loop — dipakai test & interval), `__reset(): void` (test-only: kosongkan klien + stop loop). Dikonsumsi Task 4 (route).
 
-- [ ] **Step 1: Tulis test gagal `server/test/events.test.ts`**
+- [x] **Step 1: Tulis test gagal `server/test/events.test.ts`**
 
 ```typescript
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
@@ -253,12 +253,12 @@ describe("events hub", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — verifikasi gagal**
+- [x] **Step 2: Jalankan test — verifikasi gagal**
 
 Run: `cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-199 && env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- events`
 Expected: FAIL — `services/events` belum ada / `attach` undefined.
 
-- [ ] **Step 3: Implementasi `server/src/services/events.ts`**
+- [x] **Step 3: Implementasi `server/src/services/events.ts`**
 
 ```typescript
 import type { Client } from "./pty";
@@ -344,12 +344,12 @@ export function detach(c: Client): void {
 export function __reset(): void { clients.clear(); stopLoop(); }
 ```
 
-- [ ] **Step 4: Jalankan test — verifikasi lulus**
+- [x] **Step 4: Jalankan test — verifikasi lulus**
 
 Run: `cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-199 && env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- events`
 Expected: PASS ketiga test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/events.ts server/test/events.test.ts
@@ -369,7 +369,7 @@ git commit -m "feat(server): hub siar events dashboard, satu loop ref-counted + 
 - Consumes: `attach`, `detach` (Task 3), `type Client` (pty.ts).
 - Produces: route `GET /api/events/ws` (WebSocket).
 
-- [ ] **Step 1: Tulis test gagal `server/test/events.route.test.ts` (WS nyata, mirror terminal.route.test.ts)**
+- [x] **Step 1: Tulis test gagal `server/test/events.route.test.ts` (WS nyata, mirror terminal.route.test.ts)**
 
 ```typescript
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
@@ -426,12 +426,12 @@ describe("events WS route", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — verifikasi gagal**
+- [x] **Step 2: Jalankan test — verifikasi gagal**
 
 Run: `cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-199 && env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- events.route`
 Expected: FAIL — route belum ada (WS `error`/close 404).
 
-- [ ] **Step 3: Buat `server/src/routes/events.ts`**
+- [x] **Step 3: Buat `server/src/routes/events.ts`**
 
 ```typescript
 import type { FastifyInstance } from "fastify";
@@ -449,7 +449,7 @@ export default async function (app: FastifyInstance) {
 }
 ```
 
-- [ ] **Step 4: Registrasi di `server/src/app.ts`**
+- [x] **Step 4: Registrasi di `server/src/app.ts`**
 
 Tambah import setelah baris 17 (`import limits from "./routes/limits";`):
 
@@ -463,12 +463,12 @@ Tambah register setelah baris 76 (`await api.register(limits);`):
     await api.register(events);
 ```
 
-- [ ] **Step 5: Jalankan test — verifikasi lulus**
+- [x] **Step 5: Jalankan test — verifikasi lulus**
 
 Run: `cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-199 && env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- events.route`
 Expected: PASS kedua test.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/routes/events.ts server/src/app.ts
@@ -487,7 +487,7 @@ git commit -m "feat(server): route GET /api/events/ws siar dashboard (SPEC-199)"
 - Consumes: `paths.eventsWs`, `EventMsg` (Task 1).
 - Produces: `subscribe(handler: (m: EventMsg) => void): () => void`. Dikonsumsi Task 6.
 
-- [ ] **Step 1: Tulis test gagal `src/src/api/events.test.ts` (mock WebSocket)**
+- [x] **Step 1: Tulis test gagal `src/src/api/events.test.ts` (mock WebSocket)**
 
 ```typescript
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -520,12 +520,12 @@ describe("client events singleton", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — verifikasi gagal**
+- [x] **Step 2: Jalankan test — verifikasi gagal**
 
 Run: `cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-199 && pnpm --filter ./src test -- events`
 Expected: FAIL — `./events` belum ada.
 
-- [ ] **Step 3: Implementasi `src/src/api/events.ts`**
+- [x] **Step 3: Implementasi `src/src/api/events.ts`**
 
 ```typescript
 import { paths, type EventMsg } from "@hanoman/shared";
@@ -582,12 +582,12 @@ export function subscribe(handler: (m: EventMsg) => void): () => void {
 }
 ```
 
-- [ ] **Step 4: Jalankan test — verifikasi lulus**
+- [x] **Step 4: Jalankan test — verifikasi lulus**
 
 Run: `cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-199 && pnpm --filter ./src test -- events`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/api/events.ts src/src/api/events.test.ts
@@ -610,7 +610,7 @@ Pola sama di semua file: buang `setInterval`, pasang `subscribe` dari `api/event
 **Interfaces:**
 - Consumes: `subscribe` (Task 5).
 
-- [ ] **Step 1: `App.tsx` — ganti poll 3s dengan subscribe**
+- [x] **Step 1: `App.tsx` — ganti poll 3s dengan subscribe**
 
 Hapus blok `pollSigRef` + `React.useEffect` poll (baris 320–338). Ganti dengan:
 
@@ -626,7 +626,7 @@ Tambah import: `import { subscribe } from "./api/events";`. Hapus `anySessionAct
 
 Run: `grep -nE 'anySessionActive' src/src/App.tsx` → bila hanya deklarasinya, hapus baris itu.
 
-- [ ] **Step 2: `TerminalScreen.tsx` — ganti poll 8s dengan subscribe**
+- [x] **Step 2: `TerminalScreen.tsx` — ganti poll 8s dengan subscribe**
 
 Buang `setInterval(... 8000)` + guard signature-nya. Ganti dengan subscribe yang men-`setSessions` pada frame `sessions`. Tambah `import { subscribe } from "../api/events";`. Pola:
 
@@ -636,7 +636,7 @@ Buang `setInterval(... 8000)` + guard signature-nya. Ganti dengan subscribe yang
 
 Pertahankan pemuatan awal `api.listTerminals()` yang sudah ada (paint pertama). Sesuaikan nama setter dengan yang ada di file (mis. `setSessions`).
 
-- [ ] **Step 3: `NotificationsContext.tsx` — ganti poll 10s dengan subscribe**
+- [x] **Step 3: `NotificationsContext.tsx` — ganti poll 10s dengan subscribe**
 
 Ubah `tick` agar MENERIMA data yang didorong, bukan fetch. Ganti tanda tangan + isi:
 
@@ -675,7 +675,7 @@ Ganti efek poll (baris 81–94) — buang `setInterval`/`tick`, pasang subscribe
 
 Hapus `const POLL_MS = 10_000;` (baris 44). Tambah `import { subscribe } from "../api/events";`. `api.listNotifications` tak lagi dipakai di sini (dorong via WS) — biarkan import `api` bila masih dipakai `markAllRead`/`clear` (ya, dipakai).
 
-- [ ] **Step 4: `limits.ts` — ganti poll 60s dengan subscribe ke grup limits**
+- [x] **Step 4: `limits.ts` — ganti poll 60s dengan subscribe ke grup limits**
 
 Ganti blok poller (baris 28–51) dengan:
 
@@ -709,7 +709,7 @@ Hapus import `api` bila tak dipakai lagi di file (cek: `worstWindow`/`severityTo
 
 Run: `grep -nE '\bapi\b' src/src/api/limits.ts` → bila 0 pemakaian selain import, hapus barisnya.
 
-- [ ] **Step 5: `VpsScreen.tsx` — ganti poll 30s dengan subscribe**
+- [x] **Step 5: `VpsScreen.tsx` — ganti poll 30s dengan subscribe**
 
 Ganti efek (baris 98–102) dengan:
 
@@ -722,17 +722,17 @@ Ganti efek (baris 98–102) dengan:
 
 Tambah `import { subscribe } from "../api/events";`.
 
-- [ ] **Step 6: Typecheck + build klien**
+- [x] **Step 6: Typecheck + build klien**
 
 Run: `cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-199 && pnpm --filter ./src build`
 Expected: build sukses, tanpa error TS (tak ada variabel/import yatim).
 
-- [ ] **Step 7: Jalankan test klien**
+- [x] **Step 7: Jalankan test klien**
 
 Run: `cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-199 && pnpm --filter ./src test`
 Expected: PASS (termasuk events.test.ts; test lain tak regresi).
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/src/App.tsx src/src/screens/TerminalScreen.tsx src/src/notifications/NotificationsContext.tsx src/src/api/limits.ts src/src/screens/VpsScreen.tsx
@@ -750,7 +750,7 @@ git commit -m "feat(web): kelima consumer beralih dari poll ke WS subscribe (SPE
 
 **Interfaces:** —
 
-- [ ] **Step 1: Update `api-contract.md`**
+- [x] **Step 1: Update `api-contract.md`**
 
 Ganti baris 3–5 (header transport) jadi menyebut dua WebSocket + hilangkan klaim "HTTP polling" untuk data real-time:
 
@@ -778,7 +778,7 @@ GET    /events/ws                    # WebSocket siar dashboard (global). Auth =
 > GET tiap sumber tetap ada untuk paint pertama.
 ```
 
-- [ ] **Step 2: Update `frontend-implementation.md`**
+- [x] **Step 2: Update `frontend-implementation.md`**
 
 Ganti baris 8–9 (bagian "Realtime") jadi:
 
@@ -798,7 +798,7 @@ Perbaiki kalimat yang menyebut poll agar akurat:
 Jalankan grep untuk menemukan baris persisnya sebelum edit:
 Run: `grep -nE 'poll|8s|3s board|disegarkan' internal/docs/frontend/frontend-implementation.md`
 
-- [ ] **Step 3: Live smoke — boot server ke DB throwaway, connect WS nyata**
+- [x] **Step 3: Live smoke — boot server ke DB throwaway, connect WS nyata**
 
 Ikuti memory "Live smoke: dedicated DB" (jangan pakai hanoman_test — sibling test bisa truncate). Buat DB throwaway + migrate + boot server di port non-8787, lalu connect `WebSocket` global (Node 24). Skrip di scratchpad:
 
@@ -817,12 +817,12 @@ Karena route di belakang gate auth, smoke paling ringkas mem-boot app `buildApp(
 
 Expected: skrip mencetak frame yang diterima + "SMOKE OK".
 
-- [ ] **Step 4: Full test server + klien (regresi)**
+- [x] **Step 4: Full test server + klien (regresi)**
 
 Run: `cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-199 && env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test --no-file-parallelism && pnpm --filter ./src test`
 Expected: seluruh suite PASS.
 
-- [ ] **Step 5: Commit docs**
+- [x] **Step 5: Commit docs**
 
 ```bash
 git add internal/docs/architecture/api-contract.md internal/docs/frontend/frontend-implementation.md
