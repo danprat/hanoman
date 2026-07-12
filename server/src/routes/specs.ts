@@ -160,7 +160,7 @@ export default async function (app: FastifyInstance) {
     if (!spec) return reply.code(404).send({ error: "not found" });
     if (spec.stage !== "done") return reply.code(409).send({ error: "hanya backlog item yang sudah done bisa di-rebase/merge" });
     if (!spec.project.repoDir) return reply.code(409).send({ error: "project belum punya repoDir" });
-    const r = integrate(spec.project.repoDir, spec.id, parsed.data.op, parsed.data.target);
+    const r = await integrate(spec.project.repoDir, spec.id, parsed.data.op, parsed.data.target);
     if (r.status === "error") return reply.code(r.code).send({ error: r.error });
     if (r.status === "clean") return { status: "clean", detail: r.detail };
     // conflict → sesi claude interaktif di worktree yang tertinggal (never touch main working tree).
