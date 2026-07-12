@@ -1,6 +1,6 @@
 # ADR 0010 — Runner spawn `claude` CLI langsung, bukan Agent SDK
 
-**Status:** sebagian superseded oleh [ADR-0024](0024-sesi-interaktif-menggantikan-run.md) (SPEC-162) — runner headless dicabut, tetapi keputusan "hook PreToolUse adalah satu-satunya gerbang di bawah `--dangerously-skip-permissions`" TETAP BERLAKU dan dipasang di setiap sesi interaktif
+**Status:** sebagian superseded oleh [ADR-0024](0024-sesi-interaktif-menggantikan-run.md) (SPEC-162) — runner headless dicabut. **Diperbarui [ADR-0037](0037-cabut-guardrail-safety.md) (SPEC-197):** hook PreToolUse deny (`deniesDangerous`) dicabut sepenuhnya — tak ada lagi gerbang deny perintah; agen dipercaya penuh, isolasi murni lewat worktree. Bagian di bawah yang menyebut "PreToolUse satu-satunya gerbang" bersifat historis
 
 ## Konteks
 Runner memanggil `query()` dari `@anthropic-ai/claude-agent-sdk`. SDK itu sendiri hanya

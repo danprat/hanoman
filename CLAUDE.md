@@ -13,6 +13,6 @@ hanoman adalah orchestrator + dashboard. Frontend React+TS (Vite). Server Node+T
 - **Setiap selesai satu task execute:** centang checklist task/step yang selesai di file plan (`docs/superpowers/plans/**`, `- [ ]` → `- [x]`), lalu **test API-nya secara nyata di local** — boot server (`pnpm dev` atau `node server/dist/server.js`) dan curl endpoint yang tersentuh, jangan hanya andalkan unit test. Kalau masih ada issue, fixing dulu sampai hijau sebelum lanjut ke task berikutnya.
 
 ## Jangan
-- Guardrail Source of Truth telah dicabut (SPEC-160, ADR-0023): `internal/docs/**` tetap Source of Truth secara konvensi — perbarui docs yang tersentuh dalam commit yang sama — tetapi tak ada lagi gate/Stop hook yang memblokir. Jangan menambahkannya kembali tanpa ADR baru. (Guardrail deny perintah berbahaya di `runner/src/safety.ts` tetap.)
+- Guardrail Source of Truth telah dicabut (SPEC-160, ADR-0023): `internal/docs/**` tetap Source of Truth secara konvensi — perbarui docs yang tersentuh dalam commit yang sama — tetapi tak ada lagi gate/Stop hook yang memblokir. Jangan menambahkannya kembali tanpa ADR baru. (Guardrail deny perintah berbahaya di `runner/src/safety.ts` juga telah dicabut — SPEC-197, ADR-0037; agen dipercaya penuh, isolasi murni lewat worktree. Jangan hidupkan kembali tanpa ADR baru.)
 - Jangan ubah skema tanpa migration + ADR.
 - Jangan jalankan run di working tree utama — selalu worktree terpisah.

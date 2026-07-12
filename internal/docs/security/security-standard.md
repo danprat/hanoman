@@ -22,7 +22,8 @@
 - **Kredensial Claude**: sesi memakai auth Claude Code (Keychain macOS / `~/.claude/.credentials.json` /
   env `CLAUDE_CODE_OAUTH_TOKEN`|`ANTHROPIC_API_KEY`); tak pernah ke client. Private key VPS ada sebagai
   file di server (`Vps.keyPath`), tak pernah di DB.
-- **Guardrail perintah**: sesi jalan `--dangerously-skip-permissions`, jadi satu-satunya gerbang adalah
-  PreToolUse hook (`runner/src/safety.ts` `deniesDangerous` via `hanoman hook pretooluse`) yang dipasang
-  tiap sesi — deny `rm -rf`, deny push ke `main`, deny `git worktree add` liar.
-- **Isolasi**: sesi di worktree terpisah; tak ada akses ke luar direktori project.
+- **Guardrail perintah**: DICABUT sepenuhnya (SPEC-197, [ADR-0037](../adr/0037-cabut-guardrail-safety.md)).
+  Sesi jalan `--dangerously-skip-permissions` tanpa hook deny apa pun — agen dipercaya penuh, setara
+  developer yang menjalankan `claude` di mesinnya sendiri. Batas kerusakan satu-satunya adalah isolasi worktree.
+- **Isolasi**: sesi di worktree terpisah (`.worktrees/<id>`); tak ada akses ke working tree utama.
+  Sejak ADR-0037 ini adalah satu-satunya batas keamanan yang tersisa.

@@ -4,7 +4,6 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, statSync } from "node:fs";
 import { dirname } from "node:path";
 import { guardSettings, type Flow } from "@hanoman/runner";
-import { guardCommand } from "../runner/deps";
 import { readPhases, type Phase } from "./session-phases";
 
 // Sesi hidup di dalam tmux server, bukan di proses API (ADR-0016). Restart `pnpm dev`
@@ -133,16 +132,16 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
   const existing = getSession(id);
   if (existing) return existing;
 
-  // `--dangerously-skip-permissions` melewati prompt izin, bukan sistem hook. Tanpa
-  // `--settings` di bawah, sesi ini tidak punya gerbang sama sekali — dan di bawah flag itu
-  // PreToolUse adalah satu-satunya yang tersisa (ADR-0010).
+  // `--dangerously-skip-permissions` melewati prompt izin, bukan sistem hook. Sejak ADR-0037
+  // tak ada lagi hook deny — `--settings` di sini hanya memasang marker keputusan (SPEC-184),
+  // digabung dengan settings pengguna. Agen dipercaya penuh; isolasi murni lewat worktree.
   const argv = [
     claudeBin(),
     ...(opts.prompt ? [opts.prompt] : []),
     ...(opts.model ? ["--model", opts.model] : []),
     ...(opts.effort ? ["--effort", opts.effort] : []),
     "--dangerously-skip-permissions",
-    "--settings", JSON.stringify(guardSettings(guardCommand(), opts.decisionFile)),
+    "--settings", JSON.stringify(guardSettings(opts.decisionFile)),
   ].map(sq).join(" ");
 
   // Env di depan perintah, bukan `new-session -e`: tmux menyerahkan sisa argv-nya ke shell,
