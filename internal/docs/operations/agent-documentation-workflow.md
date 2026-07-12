@@ -4,7 +4,7 @@ Kontrak operasional untuk hanoman + Claude Code.
 
 - Docs di `internal/docs/**` adalah **Source of Truth**.
 - Sebelum plan execute: **Update the index. Link every doc.**
-- **Fitur:** spec → plan → execute. **QA:** audit → **keputusan** → (spec → plan)? → execute — temuan kecil langsung execute, Spec & Plan ditandai `skipped` (SPEC-145, ADR-0020).
+- **Fitur:** spec → plan → execute. **QA:** audit → **keputusan** → (spec → plan)? → execute — temuan kecil langsung execute, Spec & Plan ditandai `skipped`; keputusan dielicit lewat prompt & diambil agen (SPEC-145/ADR-0020, mekanisme SPEC-204/ADR-0040).
 - Prompt sesi memetakan fase → skill superpowers (SPEC-166): Brainstorm→brainstorming,
   Audit→systematic-debugging, Plan→writing-plans, Execute→executing-plans + TDD +
   verification-before-completion. Objective/Spec adalah keluaran brainstorming.

@@ -24,6 +24,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 
 ## adr
 > Nomor unik & imutable. ADR usang tidak dihapus — ditandai statusnya di bawah dan di header masing-masing.
+- [0040 — Jalur cepat qa dielicit lewat prompt, diputuskan agen](adr/0040-jalur-cepat-qa-dielicit-prompt.md) — **supersedes mekanisme 0020**
 - [0039 — Data real-time dashboard lewat satu WebSocket siar, bukan polling klien](adr/0039-realtime-lewat-websocket-siar.md)
 - [0038 — Paginasi/filter daftar di response layer, overlay atas set penuh](adr/0038-paginasi-di-response-layer.md)
 - [0037 — Cabut guardrail deny perintah (PreToolUse) sepenuhnya](adr/0037-cabut-guardrail-safety.md)
@@ -43,7 +44,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 - [0023 — Guardrail Source of Truth dicabut](adr/0023-guardrail-sot-dicabut.md) — **supersedes 0001**
 - [0022 — Agen bertanya, run berstatus `awaiting`](adr/0022-pertanyaan-agen-berstatus-awaiting.md) — *superseded by 0024*
 - [0021 — Nomor SPEC diklaim docs, bukan hanya database](adr/0021-nomor-spec-diklaim-docs-bukan-hanya-database.md)
-- [0020 — Fase perencanaan QA dipangkas oleh keputusan audit](adr/0020-fase-perencanaan-qa-dipangkas-keputusan-audit.md)
+- [0020 — Fase perencanaan QA dipangkas oleh keputusan audit](adr/0020-fase-perencanaan-qa-dipangkas-keputusan-audit.md) — *mekanisme superseded by 0040*
 - [0019 — SHA disimpan, diff diturunkan](adr/0019-sha-disimpan-diff-diturunkan.md)
 - [0018 — Coverage diturunkan saat dibaca, bukan disimpan](adr/0018-coverage-nilai-turunan.md)
 - [0017 — Run terputus melanjutkan sesinya](adr/0017-run-terputus-melanjutkan-sesinya.md) — *superseded by 0024*

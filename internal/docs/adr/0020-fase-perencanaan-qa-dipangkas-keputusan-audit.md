@@ -1,6 +1,6 @@
 # ADR-0020 — Fase perencanaan alur QA dipangkas oleh keputusan audit
 
-**Status:** diterima · 2026-07-09 · SPEC-145
+**Status:** diterima · 2026-07-09 · SPEC-145 · **mekanisme disuperseded oleh ADR-0040** (kebijakan tetap)
 
 ## Konteks
 
