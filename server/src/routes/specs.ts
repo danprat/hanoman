@@ -76,19 +76,30 @@ export default async function (app: FastifyInstance) {
     if (!project) return reply.code(404).send({ error: `project "${b.project}" tidak ada` });
     if (b.branchFrom && await branchUnknown(project.repoDir, b.branchFrom))
       return reply.code(400).send({ error: `branch "${b.branchFrom}" tidak ada di repo project` });
-    const id = await nextSpecId(project.repoDir);
     const isQa = b.source === "qa";
     const { priority, objective } = deriveSpecFields(b.source, b.payload, b.priority);
     // Author = user yang login (req.user diisi gate auth; dijamin ada di prod, fallback hanya
     // untuk test requireAuth:false). Prefix `QA ·` tetap menandai spec dari alur QA.
     const author = req.user?.email ?? "system";
-    const spec = await prisma.spec.create({
-      data: {
-        id, projectId: b.project, title: b.title, source: b.source, stage: "brainstorming",
-        priority, author: isQa ? `QA · ${author}` : author, objective, payload: b.payload,
-        branchFrom: b.branchFrom ?? null
+    const repoDir = project.repoDir;
+    // SPEC-197 · nextSpecId menurunkan id dari max saat ini (TOCTOU): dua POST /specs konkuren bisa
+    // menghitung id yang sama → unique violation P2002. Retry hitung ulang id (maks 3x) — bukan 500.
+    let spec: Awaited<ReturnType<typeof prisma.spec.create>> | null = null;
+    for (let attempt = 0; attempt < 3 && !spec; attempt++) {
+      const id = await nextSpecId(repoDir);
+      try {
+        spec = await prisma.spec.create({
+          data: {
+            id, projectId: b.project, title: b.title, source: b.source, stage: "brainstorming",
+            priority, author: isQa ? `QA · ${author}` : author, objective, payload: b.payload,
+            branchFrom: b.branchFrom ?? null
+          }
+        });
+      } catch (e) {
+        if ((e as { code?: string }).code === "P2002" && attempt < 2) continue;
+        throw e;
       }
-    });
+    }
     return reply.code(201).send(spec);
   });
   // branchFrom (SPEC-143): basis run BERIKUTNYA; `null` = kembali ke default project.
