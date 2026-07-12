@@ -7,14 +7,19 @@ const AUDIT_MS = 24 * 3_600_000;
 // Sapuan serial — puluhan VPS pun rampung jauh sebelum tick berikutnya, tanpa badai
 // ssh paralel. Gagal satu VPS tak menghentikan sisanya.
 export async function healthSweep(): Promise<void> {
-  for (const v of await prisma.vps.findMany()) await runHealth(v).catch(() => {});
+  // findMany di-guard: DB kedip / pool habis tak boleh jadi unhandled rejection (dipanggil
+  // lewat `void` di setInterval) yang menjatuhkan orchestrator (SPEC-197).
+  try { for (const v of await prisma.vps.findMany()) await runHealth(v).catch(() => {}); }
+  catch { /* skip sweep ini */ }
 }
 
 export async function auditSweep(now: () => number = Date.now): Promise<void> {
-  for (const v of await prisma.vps.findMany()) {
-    if (v.lastAuditAt && now() - v.lastAuditAt.getTime() < AUDIT_MS) continue;
-    await runAudit(v).catch(() => {});
-  }
+  try {
+    for (const v of await prisma.vps.findMany()) {
+      if (v.lastAuditAt && now() - v.lastAuditAt.getTime() < AUDIT_MS) continue;
+      await runAudit(v).catch(() => {});
+    }
+  } catch { /* skip sweep ini */ }
 }
 
 // Dipanggil server.ts saja — buildApp() bebas timer, test tak pernah menyentuh loop ini.
