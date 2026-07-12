@@ -33,12 +33,12 @@
 **Interfaces:**
 - Produces: `GET /api/specs?project&source&q&stage&priority&startable&page&limit` → `Paginated<Spec>`. Helper murni `filterSpecs(specs, {q,stage,priority,startable})` dan `paginate<T>(items, page?, limit?): Paginated<T>` (di specs.ts, tak diexport).
 
-- [ ] **Step 0: Verifikasi nomor ADR lintas branch**
+- [x] **Step 0: Verifikasi nomor ADR lintas branch**
 
 Run: `git for-each-ref --format='%(refname)' | xargs -I{} git ls-tree -r --name-only {} -- internal/docs/adr 2>/dev/null | grep -oE '00[0-9]{2}' | sort -u | tail -3`
 Kalau `0038` sudah dipakai di branch lain, pakai nomor bebas berikutnya dan sesuaikan nama file + judul di semua langkah.
 
-- [ ] **Step 1: Tulis test yang gagal — bentuk envelope + filter + paginasi + guard overlay**
+- [x] **Step 1: Tulis test yang gagal — bentuk envelope + filter + paginasi + guard overlay**
 
 Tambahkan di `server/test/specs.route.test.ts` (dalam `describe("specs routes", ...)`):
 
@@ -76,12 +76,12 @@ it("paginates: page/limit slice with full total", async () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastикan gagal**
+- [x] **Step 2: Jalankan test — pastикan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server test specs.route`
 Expected: FAIL — respons masih array polos (`b.items` undefined).
 
-- [ ] **Step 3: Tambah tipe `Paginated<T>` di shared**
+- [x] **Step 3: Tambah tipe `Paginated<T>` di shared**
 
 Di `shared/src/dto.ts` (paling atas, setelah import bila ada):
 
@@ -91,7 +91,7 @@ export type Paginated<T> = { items: T[]; total: number; page: number; pageSize: 
 
 Pastikan `shared/src/index.ts` sudah `export * from "./dto"` (atau tambahkan bila belum). Jalankan `pnpm --filter @hanoman/shared build` bila paket ini di-precompile.
 
-- [ ] **Step 4: Refactor handler `GET /specs` — extract overlay, tambah filter+paginate**
+- [x] **Step 4: Refactor handler `GET /specs` — extract overlay, tambah filter+paginate**
 
 Di `server/src/routes/specs.ts`, ganti handler `app.get("/specs", ...)` (baris 39-70) sehingga overlay/write-through/notifikasi tetap identik tapi jalan atas set penuh, lalu filter+paginate di memori:
 
@@ -151,18 +151,18 @@ app.get("/specs", async (req) => {
 
 Catatan: komentar SPEC-168/173/180/197 yang ada di blok overlay dipertahankan (jangan dihapus, tempel ulang di posisi yang sama).
 
-- [ ] **Step 5: Migrasi 2 assertion array yang lama ke `.items`**
+- [x] **Step 5: Migrasi 2 assertion array yang lama ke `.items`**
 
 Di `server/test/specs.route.test.ts`:
 - Baris ~56: `res.json().every(...)` → `res.json().items.every(...)`.
 - Baris ~148-149: `after.json().find((s:any)=>s.id==="SPEC-200")` → `after.json().items.find((s:any)=>s.id==="SPEC-200")`.
 
-- [ ] **Step 6: Jalankan test — pastikan hijau**
+- [x] **Step 6: Jalankan test — pastikan hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server test specs.route`
 Expected: PASS (semua, termasuk yang lama).
 
-- [ ] **Step 7: Guard overlay off-page — test bahwa spec di luar halaman tetap maju + bernotif**
+- [x] **Step 7: Guard overlay off-page — test bahwa spec di luar halaman tetap maju + bernotif**
 
 Blok ini membuktikan fitur tersembunyi tak tersenggol. Tambahkan test yang: (a) buat sesi live yang memajukan sebuah spec ke `done` lewat phase-file (pola sama dgn test overlay yang sudah ada di file ini — cari `sessionPhasesBySpec`/`getSession`/`recordCompletion` di `specs.route.test.ts` dan `session-phases.test.ts` untuk fixture-nya), (b) minta `?page=1&limit=1` sehingga spec itu ada di luar potongan, (c) assert stage-nya di DB tetap ter-write-through ke `done`.
 
@@ -179,7 +179,7 @@ it("advances + persists off-page specs (overlay runs over full set even when pag
 
 Bila menyusun sesi live di test terlalu berat, minimal assert lewat unit: panggil handler dua kali (limit besar vs limit=1) dan bandingkan efek DB identik. Yang penting: **write-through tak bergantung pada `page`/`limit`.**
 
-- [ ] **Step 8: Update docs API contract + tulis ADR-0038**
+- [x] **Step 8: Update docs API contract + tulis ADR-0038**
 
 `internal/docs/architecture/api-contract.md` baris 40, ganti jadi:
 
@@ -196,7 +196,7 @@ Tulis `internal/docs/adr/0038-paginasi-di-response-layer.md` (ikuti format ADR l
 
 Tambahkan baris index ADR bila ada `internal/docs/adr/README.md` atau daftar indeks (cek & update dalam commit yang sama).
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add shared/src/dto.ts shared/src/index.ts server/src/routes/specs.ts server/test/specs.route.test.ts internal/docs/architecture/api-contract.md internal/docs/adr/0038-paginasi-di-response-layer.md

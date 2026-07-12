@@ -2,6 +2,9 @@ import { z } from "zod";
 import { zProject, zBriefPayload, zQaPayload } from "./entities";
 import { zProjectKind, zSpecSource, zPriority, zStage } from "./enums";
 
+// SPEC-198 · amplop daftar via API: search/filter/paginasi dilakukan server-side.
+export type Paginated<T> = { items: T[]; total: number; page: number; pageSize: number };
+
 export const zCreateProject = z.object({
   name: z.string().min(1), kind: zProjectKind, repoDir: z.string().optional(),
   desc: z.string().default("") });

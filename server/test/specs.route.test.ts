@@ -1,9 +1,18 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, vi } from "vitest";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { buildApp } from "../src/app";
-import { killAll, getSession } from "../src/services/pty";
+import { killAll, getSession, sessionPhasesBySpec } from "../src/services/pty";
+import { prisma } from "../src/db";
 import { resetDb, makeProject, makeSpec, makeRepoWithBranches, makeTempRepo, makeRepoWithWorktree, makeRepoWithSpecCommits, makeRepoWithSpecBranch } from "./factory";
+
+// SPEC-198 · overlay stage-live baca tmux nyata; di test tak ada pane. Mock hanya
+// sessionPhasesBySpec (sisanya asli) — default Map kosong = perilaku identik dgn env test
+// tanpa sesi. Satu test memakainya untuk membuktikan write-through jalan atas SET PENUH.
+vi.mock("../src/services/pty", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../src/services/pty")>();
+  return { ...actual, sessionPhasesBySpec: vi.fn(() => new Map()) };
+});
 
 const FAKE_CLAUDE = fileURLToPath(new URL("./fixtures/fake-claude.sh", import.meta.url));
 const app = buildApp({ requireAuth: false });
@@ -53,7 +62,56 @@ beforeAll(async () => {
 describe("specs routes", () => {
   it("filters by project", async () => {
     const res = await app.inject({ url: "/api/specs?project=p1" });
-    expect(res.json().every((s: any) => s.projectId === "p1")).toBe(true);
+    expect(res.json().items.every((s: any) => s.projectId === "p1")).toBe(true);
+  });
+  // SPEC-198 · envelope + filter + paginasi (di layer response, atas stage live).
+  it("returns a pagination envelope", async () => {
+    const res = await app.inject({ url: "/api/specs?project=p1" });
+    const b = res.json();
+    expect(Array.isArray(b.items)).toBe(true);
+    expect(typeof b.total).toBe("number");
+    expect(b.page).toBe(1);
+    expect(b.items.every((s: any) => s.projectId === "p1")).toBe(true);
+  });
+  it("filters by q over id+title+objective (case-insensitive)", async () => {
+    const b = (await app.inject({ url: "/api/specs?project=p1&q=SPEC-142" })).json();
+    expect(b.items.some((s: any) => s.id === "SPEC-142")).toBe(true);
+    expect(b.items.every((s: any) => s.id === "SPEC-142")).toBe(true);
+  });
+  it("filters by stage and priority", async () => {
+    const planned = (await app.inject({ url: "/api/specs?project=p1&stage=planned" })).json();
+    expect(planned.items.length).toBeGreaterThan(0);
+    expect(planned.items.every((s: any) => s.stage === "planned")).toBe(true);
+  });
+  it("startable excludes done", async () => {
+    const b = (await app.inject({ url: "/api/specs?project=p1&startable=true" })).json();
+    expect(b.items.every((s: any) => s.stage !== "done")).toBe(true);
+  });
+  it("paginates: page/limit slice with full total", async () => {
+    const all = (await app.inject({ url: "/api/specs?project=p1" })).json();
+    expect(all.total).toBeGreaterThan(2);
+    const p1 = (await app.inject({ url: "/api/specs?project=p1&page=1&limit=2" })).json();
+    expect(p1.items.length).toBe(2);
+    expect(p1.total).toBe(all.total);
+    expect(p1.pageSize).toBe(2);
+    const p2 = (await app.inject({ url: "/api/specs?project=p1&page=2&limit=2" })).json();
+    expect(p2.items.map((s: any) => s.id)).not.toEqual(p1.items.map((s: any) => s.id));
+  });
+  // Fitur tersembunyi: overlay + write-through jalan atas SET PENUH, tak diciutkan paginasi.
+  // Spec yang stage live-nya maju TETAP ter-persist walau ada di luar halaman.
+  it("advances + persists off-page specs even when paginated (overlay over full set)", async () => {
+    await makeProject({ id: "ppage", repoDir: makeTempRepo({}) });
+    await makeSpec({ id: "SPEC-501", projectId: "ppage", stage: "brainstorming" });
+    await makeSpec({ id: "SPEC-500", projectId: "ppage", stage: "brainstorming" });
+    // Sesi live (mock) memajukan SPEC-500 brainstorming → planned. stageForRun tak menggerbang
+    // stage non-`done` dgn plan, jadi cwd palsu cukup.
+    vi.mocked(sessionPhasesBySpec).mockReturnValueOnce(
+      new Map([["SPEC-500", { phases: [{ name: "Plan", state: "done" }], cwd: "/tmp/none" }]]) as any);
+    // id desc → SPEC-501 di halaman 1; limit=1 menaruh SPEC-500 DI LUAR halaman.
+    const res = await app.inject({ url: "/api/specs?project=ppage&page=1&limit=1" });
+    expect(res.json().items.some((s: any) => s.id === "SPEC-500")).toBe(false);
+    const row = await prisma.spec.findUnique({ where: { id: "SPEC-500" } });
+    expect(row?.stage).toBe("planned"); // write-through jalan walau item di luar halaman
   });
   it("creates a brief spec with next id", async () => {
     const res = await app.inject({
@@ -146,7 +204,7 @@ describe("specs routes", () => {
       "docs/superpowers/specs/2026-07-11-x-spec-200-design.md",
     ]);
     const after = await app.inject({ url: "/api/specs?project=p2" });
-    expect(after.json().find((s: any) => s.id === "SPEC-200").stage).toBe("done");
+    expect(after.json().items.find((s: any) => s.id === "SPEC-200").stage).toBe("done");
     const { existsSync } = await import("node:fs");
     const { join } = await import("node:path");
     expect(existsSync(join(artifactRepo, "docs/superpowers/plans/2026-07-11-x-spec-200.md"))).toBe(true);

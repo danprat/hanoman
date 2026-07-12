@@ -37,7 +37,12 @@ DELETE /projects/:id      # 409 bila ada sesi tmux aktif milik project; cascade 
 
 ## Backlog / specs
 ```
-GET  /specs?project=&source=          # menurunkan stage live dari phase-file sesi; write-through persist + buat notifikasi `done`
+GET  /specs?project=&source=&q=&stage=&priority=&startable=&page=&limit=
+#   -> { items: Spec[], total, page, pageSize }. SELALU envelope (SPEC-198).
+#   Overlay stage-live dari phase-file + write-through CAS + notifikasi `done` jalan atas SET PENUH
+#   (scope project/source). Search/filter (q atas id+title+objective, stage, priority, startable=live≠done)
+#   & paginasi diterapkan DI MEMORI SETELAH overlay — filter stage cocok ke stage LIVE, bukan DB.
+#   Tanpa page/limit → seluruh item terfilter (page 1, pageSize=total). Lihat ADR-0038.
 POST /specs               { project, source, ...payload, branchFrom? }  -> SPEC-n
 #   404 bila project tak dikenal; 400 bila branchFrom tak ada di refs/heads repo project.
 PATCH /specs/:id          { branchFrom?: string|null, stage?, confirmDelete? }   -> Spec

@@ -35,38 +35,67 @@ function deriveSpecFields(source: string, payload: any, manualPriority: string) 
   return { priority, objective };
 }
 
+// SPEC-198 · search/filter di layer response, DITERAPKAN SETELAH overlay stage-live —
+// jadi filter `stage`/`startable` mencocokkan stage live, bukan stage DB yang basi.
+function filterSpecs<T extends { id: string; title: string; objective: string; stage: string; priority: string }>(
+  specs: T[], f: { q?: string; stage?: string; priority?: string; startable?: string },
+): T[] {
+  const needle = (f.q ?? "").trim().toLowerCase();
+  return specs.filter((s) =>
+    (!f.stage || s.stage === f.stage) &&
+    (!f.priority || s.priority === f.priority) &&
+    (f.startable !== "true" || s.stage !== "done") &&
+    (needle === "" || `${s.id} ${s.title} ${s.objective}`.toLowerCase().includes(needle)));
+}
+// Paginasi murni. Tanpa limit → seluruh item (page 1, pageSize=total) — dipakai full-fetch App,
+// board, dan poll. Overlay/write-through tetap jalan atas set penuh; ini hanya memotong RESPONS.
+function paginate<T>(items: T[], page?: string, limit?: string) {
+  const total = items.length;
+  const pageSize = limit ? Math.max(1, Math.floor(+limit) || 1) : total;
+  const p = page ? Math.max(1, Math.floor(+page) || 1) : 1;
+  const start = (p - 1) * pageSize;
+  return { items: pageSize ? items.slice(start, start + pageSize) : items, total, page: p, pageSize };
+}
+
 export default async function (app: FastifyInstance) {
   app.get("/specs", async (req) => {
-    const { project, source } = req.query as { project?: string; source?: string };
+    const { project, source, q, stage, priority, startable, page, limit } =
+      req.query as { project?: string; source?: string; q?: string; stage?: string;
+        priority?: string; startable?: string; page?: string; limit?: string };
     const specs = await prisma.spec.findMany({ where: { projectId: project, source }, orderBy: { id: "desc" } });
+    // === overlay stage-live + write-through + notifikasi — ATAS SET PENUH (scope project/source).
+    // Paginasi/filter TAK boleh menciutkan set ini: spec off-page tetap maju stage & bernotif. ===
     // Stage live: selama sesi hidup, stage diturunkan dari berkas fase sesi (SPEC-168). Hanya
     // maju (ADR-0008).
     const live = sessionPhasesBySpec();
-    if (live.size === 0) return specs;
-    const advanced: { id: string; from: Stage; stage: Stage }[] = [];
-    const doneNow: { specId: string; title: string; projectId: string | null }[] = [];
-    const out = specs.map((s) => {
-      const entry = live.get(s.id);
-      if (!entry) return s;
-      // stageForRun menahan `done` bila plan di worktree (entry.cwd) masih `- [ ]` (SPEC-173).
-      const next = stageForRun(entry.phases, entry.cwd, s.id);
-      if (!next || STAGES.indexOf(next) <= STAGES.indexOf(s.stage as Stage)) return s;
-      advanced.push({ id: s.id, from: s.stage as Stage, stage: next });
-      if (next === "done") doneNow.push({ specId: s.id, title: s.title, projectId: s.projectId });
-      return { ...s, stage: next };
-    });
-    // Write-through pada kemajuan: tulis balik supaya stage selamat kalau sesi mati tanpa DELETE
-    // (reboot, tmux tewas, berkas fase terhapus). Forward-only sudah dijamin guard di atas.
-    // ponytail: read bisa balapan dengan read lain yang lebih maju; nilai persist eventually-
-    // consistent (poll berikutnya menyembuhkannya ≤3s) — respons ke klien selalu dari turunan.
-    // CAS (SPEC-197): advance bersyarat `stage = from` yang dibaca — revert konkuren (PATCH mundur
-    // + hapus docs) tak boleh ter-overwrite maju lagi. count 0 = stage sudah bergeser, biarkan.
-    if (advanced.length)
-      await Promise.all(advanced.map((a) =>
-        prisma.spec.updateMany({ where: { id: a.id, stage: a.from }, data: { stage: a.stage } }).catch(() => { })));
-    // SPEC-180 · notif dibuat sesudah persist stage; recordCompletion idempoten (specId unik).
-    await Promise.all(doneNow.map((d) => recordCompletion(d.specId, d.title, d.projectId)));
-    return out;
+    let overlaid = specs;
+    if (live.size > 0) {
+      const advanced: { id: string; from: Stage; stage: Stage }[] = [];
+      const doneNow: { specId: string; title: string; projectId: string | null }[] = [];
+      overlaid = specs.map((s) => {
+        const entry = live.get(s.id);
+        if (!entry) return s;
+        // stageForRun menahan `done` bila plan di worktree (entry.cwd) masih `- [ ]` (SPEC-173).
+        const next = stageForRun(entry.phases, entry.cwd, s.id);
+        if (!next || STAGES.indexOf(next) <= STAGES.indexOf(s.stage as Stage)) return s;
+        advanced.push({ id: s.id, from: s.stage as Stage, stage: next });
+        if (next === "done") doneNow.push({ specId: s.id, title: s.title, projectId: s.projectId });
+        return { ...s, stage: next };
+      });
+      // Write-through pada kemajuan: tulis balik supaya stage selamat kalau sesi mati tanpa DELETE
+      // (reboot, tmux tewas, berkas fase terhapus). Forward-only sudah dijamin guard di atas.
+      // ponytail: read bisa balapan dengan read lain yang lebih maju; nilai persist eventually-
+      // consistent (poll berikutnya menyembuhkannya ≤3s) — respons ke klien selalu dari turunan.
+      // CAS (SPEC-197): advance bersyarat `stage = from` yang dibaca — revert konkuren (PATCH mundur
+      // + hapus docs) tak boleh ter-overwrite maju lagi. count 0 = stage sudah bergeser, biarkan.
+      if (advanced.length)
+        await Promise.all(advanced.map((a) =>
+          prisma.spec.updateMany({ where: { id: a.id, stage: a.from }, data: { stage: a.stage } }).catch(() => { })));
+      // SPEC-180 · notif dibuat sesudah persist stage; recordCompletion idempoten (specId unik).
+      await Promise.all(doneNow.map((d) => recordCompletion(d.specId, d.title, d.projectId)));
+    }
+    // === filter + paginasi di layer response (atas stage live) — SPEC-198 ===
+    return paginate(filterSpecs(overlaid, { q, stage, priority, startable }), page, limit);
   });
   app.post("/specs", async (req, reply) => {
     const parsed = zCreateSpec.safeParse(req.body);

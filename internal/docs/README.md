@@ -24,6 +24,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 
 ## adr
 > Nomor unik & imutable. ADR usang tidak dihapus — ditandai statusnya di bawah dan di header masing-masing.
+- [0038 — Paginasi/filter daftar di response layer, overlay atas set penuh](adr/0038-paginasi-di-response-layer.md)
 - [0034 — IDE Visual boleh memutasi working tree, digerbang sesi + force](adr/0034-ide-mutasi-working-tree-utama.md)
 - [0036 — Notifikasi human decision dari hook Claude](adr/0036-notifikasi-human-decision.md)
 - [0035 — Sesi menembus batas fase tanpa berhenti kecuali butuh keputusan manusia](adr/0035-sesi-lanjut-fase-tanpa-berhenti-kecuali-keputusan.md)

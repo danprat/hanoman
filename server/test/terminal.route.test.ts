@@ -349,7 +349,7 @@ describe("GET /specs · stage live dari sesi", () => {
     app.inject({ method: "POST", url: "/api/terminal/sessions", payload: { spec, flow } });
   const stageOf = async (id: string) => {
     const res = await app.inject({ url: "/api/specs" });
-    return (res.json() as { id: string; stage: string }[]).find((s) => s.id === id)?.stage;
+    return (res.json().items as { id: string; stage: string }[]).find((s) => s.id === id)?.stage;
   };
 
   it("menurunkan stage dari berkas fase selama sesi hidup, lalu mempersistnya (write-through)", async () => {
