@@ -30,7 +30,10 @@ const PUBLIC = new Set([
 // requireAuth default true: prod (server.ts) selalu tergerbang. Test route yang tak
 // menguji auth mem-build dgn { requireAuth: false } untuk melewati gate.
 export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {}): FastifyInstance {
-  const app = Fastify({ logger: false });
+  // trustProxy: deploy resmi bind 127.0.0.1 di belakang reverse proxy (server.ts), jadi req.ip
+  // default = IP proxy untuk SEMUA request. trustProxy membuat req.ip membaca X-Forwarded-For →
+  // throttle login (services/auth.ts) jadi per-klien, bukan satu bucket global (SPEC-197).
+  const app = Fastify({ logger: false, trustProxy: true });
   // POST tanpa body masih boleh membawa content-type JSON; parser bawaan Fastify menjawab
   // 400 untuk body kosong. Perlakukan kosong sebagai undefined, sementara body sungguhan
   // tetap diparse.

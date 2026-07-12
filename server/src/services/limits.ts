@@ -83,6 +83,9 @@ async function fetchUsage(): Promise<LimitsDTO> {
   try {
     const res = await fetch(USAGE_URL, {
       headers: { authorization: `Bearer ${token}`, "anthropic-beta": "oauth-2025-04-20" },
+      // SPEC-197 · tanpa timeout, endpoint yang menggantung menahan request ~300s dan poll 60s
+      // menumpuk koneksi. AbortError ditangkap catch di bawah → fallback (stale/unavailable).
+      signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) return fallback();
     const dto: LimitsDTO = { status: "ok", windows: mapWindows(await res.json()), fetchedAt: nowIso() };
