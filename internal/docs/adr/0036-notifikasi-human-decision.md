@@ -46,3 +46,13 @@ masih hidup, kalau tidak Backlog item-nya. Nada decision default `alert`, beda d
   keputusan" dari "tool jalan senyap"; rapuh seperti sentinel yang ditolak ADR-0020/0022.
 - **Filter notification_type lebih halus dari grep**: tak sepadan; grep substring cukup dan
   bebas dependency.
+
+## Pembaruan SPEC-196
+
+- State decision kini juga **disurface ke grid terminal**: `listSessions()` mengisi `decision`
+  (`!exited && marker terisi`, cek `markerFilled` yang sama dgn `scanDecisions`), dirender sebagai
+  pill `awaiting` "Menunggu keputusan" di `Cell`. Additif pada respons `GET /terminal/sessions`,
+  tanpa perubahan skema. `TerminalScreen` mem-poll list ~8s (guard signature) agar transisinya live.
+- **Notifikasi OS lintas tab**: `done` & `decision` juga menembak `new Notification` (Web Notifications
+  API) saat `document.hidden`, sehingga notifikasi sampai meski user pindah tab. Toast in-app tetap
+  untuk tab yang fokus (hindari double).
