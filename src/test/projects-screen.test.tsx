@@ -14,7 +14,7 @@ const P = (over: Record<string, unknown> = {}) => ({
   docStatus: "ok", coverage: 90, createdAt: "", backlog: 3, topStage: "execute",
   session: { status: "idle", phase: "", flow: "feature" }, activity: "", commit: "", ...over,
 });
-const envelope = (items: unknown[]) => ({ items, total: items.length, page: 1, pageSize: 20 });
+const envelope = (items: unknown[]): any => ({ items, total: items.length, page: 1, pageSize: 20 });
 beforeEach(() => { vi.mocked(api.listProjects).mockReset(); });
 
 describe("ProjectsScreen via API (SPEC-198)", () => {

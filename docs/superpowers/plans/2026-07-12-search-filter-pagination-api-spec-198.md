@@ -675,21 +675,21 @@ git commit -m "feat(web/terminal): picker backlog startable via API (SPEC-198)"
 - Modify: `src/src/ds/kit.tsx` (hapus `usePaged`), `src/src/ds/index.ts` (hapus export `usePaged`)
 - Verifikasi: seluruh suite + boot server + curl.
 
-- [ ] **Step 1: Pastikan `usePaged` tak dipakai lagi**
+- [x] **Step 1: Pastikan `usePaged` tak dipakai lagi**
 
 Run: `grep -rn "usePaged" src/`
 Expected: hanya definisi + export tersisa (0 pemakaian di screens). Bila ada pemakaian tersisa, migrasikan dulu.
 
-- [ ] **Step 2: Hapus `usePaged` + export**
+- [x] **Step 2: Hapus `usePaged` + export**
 
 Hapus fungsi `usePaged` di `src/src/ds/kit.tsx:134-144` dan namanya dari `export {...}` di `src/src/ds/index.ts:8`.
 
-- [ ] **Step 3: Jalankan SELURUH suite frontend + server**
+- [x] **Step 3: Jalankan SELURUH suite frontend + server**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/web test && env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server test`
 Expected: PASS semua. (Bila server test throw P2022, jalankan `prisma migrate deploy` ke `hanoman_test` dulu.)
 
-- [ ] **Step 4: Real API smoke (per CLAUDE.md — boot + curl, JANGAN cuma unit)**
+- [x] **Step 4: Real API smoke (per CLAUDE.md — boot + curl, JANGAN cuma unit)**
 
 Boot server terhadap DB throwaway termigrasi (ikuti pola memory "Live smoke: dedicated DB" — jangan pakai `hanoman_test`, jangan port 8787). Seed ≥1 project + beberapa spec, lalu:
 
@@ -702,7 +702,7 @@ curl -s "http://127.0.0.1:<port>/api/projects?q=<name>&page=1&limit=2" | jq '{to
 
 Expected: envelope valid; `total` konsisten; `page=2` beda item dari `page=1`; `startable` tak memuat `done`. Bila ada isu, perbaiki sampai hijau sebelum menutup task.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/ds/kit.tsx src/src/ds/index.ts

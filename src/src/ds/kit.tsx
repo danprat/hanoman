@@ -141,17 +141,6 @@ export function serverPage(total: number, page: number, pageSize: number) {
   return { page: p, pageCount, from, to };
 }
 
-export function usePaged<T>(items: T[], pageSize: number, resetKey?: unknown) {
-  const [page, setPage] = React.useState(1);
-  React.useEffect(() => { setPage(1); }, [resetKey, items.length]);
-  const total = items.length;
-  const pageCount = Math.max(1, Math.ceil(total / pageSize));
-  const p = Math.min(page, pageCount);
-  const from = total === 0 ? 0 : (p - 1) * pageSize + 1;
-  const to = Math.min(total, p * pageSize);
-  const pageItems = items.slice((p - 1) * pageSize, p * pageSize);
-  return { pageItems, page: p, setPage, pageCount, total, from, to };
-}
 
 function PagerBtn({ children, onClick, disabled, active, aria }:
   { children?: React.ReactNode; onClick?: () => void; disabled?: boolean; active?: boolean; aria?: string }) {

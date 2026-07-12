@@ -10,7 +10,7 @@ vi.mock("../src/api/client", () => ({
 import { BacklogScreen } from "../src/screens/BacklogScreen";
 import { api } from "../src/api/client";
 
-const envelope = (items: unknown[] = []) => ({ items, total: items.length, page: 1, pageSize: 20 });
+const envelope = (items: unknown[] = []): any => ({ items, total: items.length, page: 1, pageSize: 20 });
 beforeEach(() => { vi.mocked(api.listSpecs).mockReset(); vi.mocked(api.listSpecs).mockResolvedValue(envelope()); });
 const lastParams = () => vi.mocked(api.listSpecs).mock.calls.at(-1)![0];
 
