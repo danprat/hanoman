@@ -12,6 +12,7 @@ const listTerminals = vi.fn();
 const createTerminal = vi.fn();
 const deleteTerminal = vi.fn();
 const startSession = vi.fn();
+const listSpecs = vi.fn();   // SPEC-198 · picker startable via API
 vi.mock("../src/api/client", () => ({
   ApiError: class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } },
   api: {
@@ -20,6 +21,7 @@ vi.mock("../src/api/client", () => ({
     deleteTerminal: (...a: unknown[]) => deleteTerminal(...a),
     listBranches: vi.fn(async () => ({ branches: [], remotes: [] })),
     startSession: (...a: unknown[]) => startSession(...a),
+    listSpecs: (...a: unknown[]) => listSpecs(...a),
   },
 }));
 
@@ -39,7 +41,7 @@ const backlog: Spec[] = [
 beforeEach(() => {
   localStorage.clear();
   listTerminals.mockReset(); createTerminal.mockReset(); deleteTerminal.mockReset();
-  startSession.mockReset();
+  startSession.mockReset(); listSpecs.mockReset();
   deleteTerminal.mockResolvedValue(undefined);
 });
 
@@ -201,34 +203,32 @@ describe("TerminalScreen (Ambil backlog)", () => {
     expect(screen.queryByText("Fitur A")).toBeNull();          // sudah aktif
   });
 
-  it("cari memfilter daftar backlog", async () => {
+  // SPEC-198 · filter picker kini via API (startable). Test memverifikasi PARAM yang dikirim.
+  it("cari mengirim q ke API (startable, debounced)", async () => {
     listTerminals.mockResolvedValue([]);
     render(<TerminalScreen projects={projects} backlog={backlog} />);
     await screen.findByText("Belum ada sesi terminal");
     fireEvent.click(screen.getByRole("button", { name: "Ambil backlog" }));
     fireEvent.change(await screen.findByLabelText("Cari backlog"), { target: { value: "bug" } });
-    expect(screen.getByText("Bug B")).toBeInTheDocument();
-    expect(screen.queryByText("Fitur A")).toBeNull();
+    await waitFor(() => expect(listSpecs.mock.calls.at(-1)?.[0]).toMatchObject({ startable: true, q: "bug" }));
   });
 
-  it("filter stage memangkas daftar backlog", async () => {
+  it("filter stage mengirim stage ke API (startable)", async () => {
     listTerminals.mockResolvedValue([]);
     render(<TerminalScreen projects={projects} backlog={backlog} />);
     await screen.findByText("Belum ada sesi terminal");
     fireEvent.click(screen.getByRole("button", { name: "Ambil backlog" }));
     fireEvent.change(await screen.findByLabelText("Filter stage"), { target: { value: "planned" } });
-    expect(screen.getByText("Bug B")).toBeInTheDocument();     // SPEC-101 stage planned
-    expect(screen.queryByText("Fitur A")).toBeNull();          // SPEC-100 stage brainstorming
+    await waitFor(() => expect(listSpecs.mock.calls.at(-1)?.[0]).toMatchObject({ startable: true, stage: "planned" }));
   });
 
-  it("filter prioritas memangkas daftar backlog", async () => {
+  it("filter prioritas mengirim priority ke API (startable)", async () => {
     listTerminals.mockResolvedValue([]);
     render(<TerminalScreen projects={projects} backlog={backlog} />);
     await screen.findByText("Belum ada sesi terminal");
     fireEvent.click(screen.getByRole("button", { name: "Ambil backlog" }));
     fireEvent.change(await screen.findByLabelText("Filter prioritas"), { target: { value: "tinggi" } });
-    expect(screen.getByText("Fitur A")).toBeInTheDocument();   // SPEC-100 prioritas tinggi
-    expect(screen.queryByText("Bug B")).toBeNull();            // SPEC-101 prioritas sedang
+    await waitFor(() => expect(listSpecs.mock.calls.at(-1)?.[0]).toMatchObject({ startable: true, priority: "tinggi" }));
   });
 
   it("memilih spec memanggil startSession (flow qa) & menaruh sesinya di grid", async () => {

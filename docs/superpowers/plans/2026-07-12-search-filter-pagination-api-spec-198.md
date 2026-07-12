@@ -616,16 +616,16 @@ git commit -m "feat(web/projects): search+paginasi baris via API, StatStrip teta
 **Interfaces:**
 - Consumes: `api.listSpecs({ startable: true, q, stage, priority })` → `Paginated<Spec>`. `activeSpecIds` (dari sesi) tetap dipakai untuk exclusi client-side spec yang sesinya aktif.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Di `src/test/terminal-screen.test.tsx`: saat modal "Ambil backlog" dibuka, `api.listSpecs` dipanggil dgn `{ startable: true, ... }` dan hasil `items` yang dirender (mock balik envelope). Assert baris = `items` minus yang aktif.
 
-- [ ] **Step 2: Jalankan — gagal**
+- [x] **Step 2: Jalankan — gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/web test terminal-screen`
 Expected: FAIL.
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 `BacklogPicker` (baris 239-249): ganti prop `specs` dari daftar penuh menjadi self-fetch:
 
@@ -655,12 +655,12 @@ function BacklogPicker({ activeIds, error, onPick, onClose }: {
 
 Sesuaikan call-site (`<BacklogPicker specs={startable} .../>` baris ~230): kirim `activeIds={activeSpecIds}` alih-alih `specs`. `startable` derivasi lama (baris 101) tak lagi perlu — hapus bila tak dipakai di tempat lain.
 
-- [ ] **Step 4: Jalankan — hijau**
+- [x] **Step 4: Jalankan — hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/web test terminal-screen`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/TerminalScreen.tsx src/test/terminal-screen.test.tsx

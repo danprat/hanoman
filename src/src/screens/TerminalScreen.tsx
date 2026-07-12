@@ -227,7 +227,7 @@ export function TerminalScreen({ projects, backlog = [], focusSession, onOpenRev
       )}
 
       {picking && (
-        <BacklogPicker specs={startable} error={pickError}
+        <BacklogPicker seed={startable} activeIds={activeSpecIds} error={pickError}
           onPick={(s) => void pickBacklog(s)} onClose={() => setPicking(false)} />
       )}
     </div>
@@ -236,17 +236,28 @@ export function TerminalScreen({ projects, backlog = [], focusSession, onOpenRev
 
 // SPEC-179 · picker backlog dari Terminal. Daftar padat + cari; klik baris = ambil.
 // Filter search/stage/prioritas mencermin halaman Backlog (SPEC-178) supaya konsisten.
-function BacklogPicker({ specs, error, onPick, onClose }: {
-  specs: Spec[]; error: string | null; onPick: (s: Spec) => void; onClose: () => void;
+function BacklogPicker({ seed, activeIds, error, onPick, onClose }: {
+  seed: Spec[]; activeIds: Set<string>; error: string | null; onPick: (s: Spec) => void; onClose: () => void;
 }) {
   const [q, setQ] = React.useState("");
   const [stageFilter, setStageFilter] = React.useState("all");
   const [prioFilter, setPrioFilter] = React.useState("all");
-  const needle = q.trim().toLowerCase();
-  const shown = specs.filter((s) =>
-    (stageFilter === "all" || s.stage === stageFilter) &&
-    (prioFilter === "all" || s.priority === prioFilter) &&
-    (needle === "" || `${s.id} ${s.title} ${s.objective}`.toLowerCase().includes(needle)));
+  // SPEC-198 · search/filter startable via API. Seed dari prop (render instan + tahan mock parsial),
+  // lalu refetch dari server. Exclusi sesi aktif tetap di klien (state sesi, bukan filter/paginasi).
+  const [items, setItems] = React.useState<Spec[]>(seed);
+  const [dq, setDq] = React.useState("");
+  React.useEffect(() => { const t = setTimeout(() => setDq(q.trim()), 250); return () => clearTimeout(t); }, [q]);
+  React.useEffect(() => {
+    let alive = true;
+    const p = api.listSpecs?.({
+      startable: true, q: dq || undefined,
+      stage: stageFilter === "all" ? undefined : stageFilter,
+      priority: prioFilter === "all" ? undefined : prioFilter,
+    });
+    p?.then((r) => { if (alive) setItems(r.items); }).catch(() => { });
+    return () => { alive = false; };
+  }, [dq, stageFilter, prioFilter]);
+  const shown = items.filter((s) => !activeIds.has(s.id));
   return (
     <Modal open title="Ambil backlog" icon="inbox" onClose={onClose} width={760}>
       {error && (
