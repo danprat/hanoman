@@ -1,0 +1,58 @@
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import WebSocket from "ws";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { AddressInfo } from "node:net";
+import { buildApp } from "../src/app";
+import { prisma } from "../src/db";
+import { resetDb } from "./factory";
+import { killAll } from "../src/services/pty";
+
+const app = buildApp({ requireAuth: false });
+let origin = "";
+const waitFor = async (ok: () => boolean, ms = 5000) => {
+  const deadline = Date.now() + ms;
+  while (!ok()) { if (Date.now() > deadline) throw new Error("timeout"); await new Promise((r) => setTimeout(r, 20)); }
+};
+function connect() {
+  const ws = new WebSocket(`ws://${origin}/api/events/ws`);
+  const frames: { t: string; [k: string]: unknown }[] = [];
+  ws.on("message", (raw: Buffer) => frames.push(JSON.parse(raw.toString())));
+  const opened = new Promise<void>((res, rej) => { ws.on("open", () => res()); ws.on("error", rej); });
+  return { ws, frames, opened };
+}
+
+beforeAll(async () => {
+  process.env.CLAUDE_CONFIG_DIR = mkdtempSync(join(tmpdir(), "hanoman-cfg-")); // getLimits → unavailable, tanpa jaringan
+  process.env.HANOMAN_EVENTS_TICK_MS = "50";
+  killAll(); await resetDb();
+  await app.listen({ port: 0, host: "127.0.0.1" });
+  origin = `127.0.0.1:${(app.server.address() as AddressInfo).port}`;
+});
+afterAll(async () => { await app.close(); });
+
+describe("events WS route", () => {
+  it("kirim snapshot penuh saat connect", async () => {
+    const c = connect();
+    await c.opened;
+    await waitFor(() => c.frames.some((f) => f.t === "notifications"));
+    expect(c.frames.some((f) => f.t === "sessions")).toBe(true);
+    expect(c.frames.some((f) => f.t === "specs")).toBe(true);
+    expect(c.frames.some((f) => f.t === "limits")).toBe(true);
+    expect(c.frames.some((f) => f.t === "vps")).toBe(true);
+    c.ws.close();
+  });
+
+  it("mendorong frame notifications saat baris baru lahir", async () => {
+    const c = connect();
+    await c.opened;
+    await waitFor(() => c.frames.some((f) => f.t === "notifications"));
+    const before = c.frames.filter((f) => f.t === "notifications").length;
+    await prisma.notification.create({ data: { specId: "SPEC-9", title: "z", projectId: "p1" } });
+    await waitFor(() => c.frames.filter((f) => f.t === "notifications").length > before);
+    const nf = c.frames.filter((f) => f.t === "notifications").at(-1) as unknown as { items: unknown[] };
+    expect(nf.items.length).toBe(1);
+    c.ws.close();
+  });
+});

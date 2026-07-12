@@ -27,6 +27,7 @@ export const paths = {
   terminalSession: (id: string) => `${API}/terminal/sessions/${id}`,
   terminalPhases: (id: string) => `${API}/terminal/sessions/${id}/phases`,
   terminalWs: (id: string) => `${API}/terminal/sessions/${id}/ws`,
+  eventsWs: `${API}/events/ws`,   // SPEC-199 · WebSocket siar dashboard (global, bukan per-sesi)
   vps: `${API}/vps`,
   vpsOne: (id: string) => `${API}/vps/${id}`,
   vpsAudit: (id: string) => `${API}/vps/${id}/audit`,

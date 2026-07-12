@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { zProject, zBriefPayload, zQaPayload } from "./entities";
+import type { Spec, Notification } from "./entities";
 import { zProjectKind, zSpecSource, zPriority, zStage } from "./enums";
 
 // SPEC-198 · amplop daftar via API: search/filter/paginasi dilakukan server-side.
@@ -129,3 +130,19 @@ export type LimitsDTO = {
   windows: LimitWindow[];
   fetchedAt: string | null;  // ISO waktu fetch sukses terakhir; null bila belum pernah
 };
+
+// SPEC-199 · bentuk sesi di wire (cermin services/pty.ts SessionInfo & client TerminalSession).
+export type SessionDTO = {
+  id: string; projectId: string; specId?: string; flow?: string; cwd: string;
+  exited: boolean; decision: boolean;
+};
+
+// SPEC-199 · frame siar dashboard (server → klien), lewat GET /events/ws (ADR-0039). Read-only
+// feed: tak ada frame klien → server. Per-grup, bukan snapshot monolitik — perubahan satu grup
+// tak mengirim ulang yang lain.
+export type EventMsg =
+  | { t: "specs"; specs: Spec[] }
+  | { t: "sessions"; sessions: SessionDTO[] }
+  | { t: "notifications"; items: Notification[]; unread: number }
+  | { t: "limits"; limits: LimitsDTO }
+  | { t: "vps"; vps: VpsView[] };

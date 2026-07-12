@@ -13,10 +13,10 @@ import { artifactsToRemove } from "../services/stage-artifacts";
 import { deleteDoc } from "../services/docs";
 import { listSpecDocs, resolveDir } from "../services/spec-docs";
 import { readDocFile } from "../services/scan";
-import { sessionPhasesBySpec } from "../services/pty";
-import { stageForRun } from "../services/session-phases";
-import { recordCompletion } from "../services/notifications";
 import { paginate } from "../services/paginate";
+// SPEC-199 · overlay stage-live + write-through + notifikasi kini di liveSpecs (dipakai juga hub
+// siar WS) supaya push & pull tak drift. Rute tinggal filter+paginasi (SPEC-198) di atasnya.
+import { liveSpecs } from "../services/live-specs";
 
 // SPEC-143: daftar yang mengisi dropdown adalah daftar yang menjaga gerbang — tak ada validator
 // terpisah yang bisa ikut basi. Branch karangan ditolak di sini, bukan beberapa menit kemudian
@@ -54,39 +54,11 @@ export default async function (app: FastifyInstance) {
     const { project, source, q, stage, priority, startable, page, limit } =
       req.query as { project?: string; source?: string; q?: string; stage?: string;
         priority?: string; startable?: string; page?: string; limit?: string };
-    const specs = await prisma.spec.findMany({ where: { projectId: project, source }, orderBy: { id: "desc" } });
-    // === overlay stage-live + write-through + notifikasi — ATAS SET PENUH (scope project/source).
-    // Paginasi/filter TAK boleh menciutkan set ini: spec off-page tetap maju stage & bernotif. ===
-    // Stage live: selama sesi hidup, stage diturunkan dari berkas fase sesi (SPEC-168). Hanya
-    // maju (ADR-0008).
-    const live = sessionPhasesBySpec();
-    let overlaid = specs;
-    if (live.size > 0) {
-      const advanced: { id: string; from: Stage; stage: Stage }[] = [];
-      const doneNow: { specId: string; title: string; projectId: string | null }[] = [];
-      overlaid = specs.map((s) => {
-        const entry = live.get(s.id);
-        if (!entry) return s;
-        // stageForRun menahan `done` bila plan di worktree (entry.cwd) masih `- [ ]` (SPEC-173).
-        const next = stageForRun(entry.phases, entry.cwd, s.id);
-        if (!next || STAGES.indexOf(next) <= STAGES.indexOf(s.stage as Stage)) return s;
-        advanced.push({ id: s.id, from: s.stage as Stage, stage: next });
-        if (next === "done") doneNow.push({ specId: s.id, title: s.title, projectId: s.projectId });
-        return { ...s, stage: next };
-      });
-      // Write-through pada kemajuan: tulis balik supaya stage selamat kalau sesi mati tanpa DELETE
-      // (reboot, tmux tewas, berkas fase terhapus). Forward-only sudah dijamin guard di atas.
-      // ponytail: read bisa balapan dengan read lain yang lebih maju; nilai persist eventually-
-      // consistent (poll berikutnya menyembuhkannya ≤3s) — respons ke klien selalu dari turunan.
-      // CAS (SPEC-197): advance bersyarat `stage = from` yang dibaca — revert konkuren (PATCH mundur
-      // + hapus docs) tak boleh ter-overwrite maju lagi. count 0 = stage sudah bergeser, biarkan.
-      if (advanced.length)
-        await Promise.all(advanced.map((a) =>
-          prisma.spec.updateMany({ where: { id: a.id, stage: a.from }, data: { stage: a.stage } }).catch(() => { })));
-      // SPEC-180 · notif dibuat sesudah persist stage; recordCompletion idempoten (specId unik).
-      await Promise.all(doneNow.map((d) => recordCompletion(d.specId, d.title, d.projectId)));
-    }
-    // === filter + paginasi di layer response (atas stage live) — SPEC-198 ===
+    // Overlay stage-live + write-through + notifikasi atas SET PENUH (scope project/source) —
+    // sekarang di liveSpecs, dibagi dengan hub siar WS (SPEC-199) supaya push & pull tak drift.
+    // Filter/paginasi DITERAPKAN SETELAH overlay (SPEC-198): filter `stage`/`startable` mencocokkan
+    // stage live, bukan DB basi; spec off-page tetap maju stage & bernotif karena overlay lebih dulu.
+    const overlaid = await liveSpecs({ project, source });
     return paginate(filterSpecs(overlaid, { q, stage, priority, startable }), page, limit);
   });
   app.post("/specs", async (req, reply) => {

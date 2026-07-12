@@ -4,6 +4,7 @@
 import React from "react";
 import { Button, Modal, Field, Input, StateBlock, StatusPill, Icon } from "../ds";
 import { api } from "../api/client";
+import { subscribe } from "../api/events";
 import type { VpsView, VpsCheck } from "@hanoman/shared";
 
 // reachable = healthcheck terakhir sukses dalam 2× interval 5 menit (SPEC-164 §4).
@@ -95,10 +96,11 @@ export function VpsScreen({ onToast, onGotoTerminal }:
     api.listVps().then((l) => { setList(l); setStatus("ready"); })
       .catch(() => setStatus("error"));
   }, []);
+  // SPEC-199 · daftar VPS didorong lewat WS siar (grup "vps"), bukan poll 30s. `load()` awal
+  // tetap untuk paint pertama; snapshot penuh saat connect menyusul.
   React.useEffect(() => {
     load();
-    const t = setInterval(() => { if (!document.hidden) load(); }, 30_000); // segar tanpa klik; skip tab hidden (SPEC-197)
-    return () => clearInterval(t);
+    return subscribe((m) => { if (m.t === "vps") { setList(m.vps); setStatus("ready"); } });
   }, [load]);
 
   async function run(label: string, id: string, fn: () => Promise<unknown>, okMsg: string) {

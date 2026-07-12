@@ -1,8 +1,10 @@
 # API contract
 
-REST + **WebSocket (terminal)** + **HTTP polling**. Semua di bawah `/api`. Tidak ada SSE, tidak ada
-`/runs`, `/triggers`, maupun `/webhooks` — dicabut bersama runner headless (ADR-0024). Dashboard
-memantau lewat polling (projects/backlog/notifications/limits/vps) dan satu WebSocket per terminal.
+REST + **WebSocket (terminal + events)** + HTTP GET (initial load). Semua di bawah `/api`. Tidak
+ada SSE, tidak ada `/runs`, `/triggers`, maupun `/webhooks` — dicabut bersama runner headless
+(ADR-0024). Data real-time dashboard (backlog/sesi/notifikasi/limits/vps) **didorong** lewat satu
+WebSocket siar `GET /events/ws` (SPEC-199, ADR-0039) — bukan lagi polling. Terminal PTY punya
+WebSocket per-sesi tersendiri. Endpoint HTTP GET tiap sumber tetap ada untuk paint pertama.
 
 > **Auth (SPEC-169, ADR-0028):** semua endpoint butuh sesi valid (cookie `hn_session`) — gate
 > `onRequest` membalas **401** tanpa sesi. Publik tanpa sesi hanya: `GET /health`,
@@ -137,6 +139,18 @@ GET    /terminal/sessions/:id/ws     # WebSocket; close 4004 bila sesi tak ada
 > PTY menjalankan `claude --dangerously-skip-permissions` di worktree/`repoDir`, di dalam **tmux**
 > (socket `-L hanoman`) sehingga sesi hidup melewati restart API (ADR-0016); scrollback 256 KB terakhir
 > di-replay saat klien reconnect. RCE by design — server bind `127.0.0.1` secara default, lihat ADR-0014.
+
+## Events (SPEC-199 · ADR-0039)
+```
+GET    /events/ws                    # WebSocket siar dashboard (global). Auth = gate /api (cookie).
+#   server->klien (per-grup, saat berubah; snapshot penuh saat connect):
+#     { t:"specs", specs } · { t:"sessions", sessions } · { t:"notifications", items, unread }
+#     { t:"limits", limits } · { t:"vps", vps }
+#   klien->server: — (read-only feed; frame masuk diabaikan)
+```
+
+> Satu loop server (cadence per-grup, dedup signature) menggantikan N-klien × poll. Endpoint HTTP
+> GET tiap sumber tetap ada untuk paint pertama.
 
 ## VPS (SPEC-164 · ADR-0025)
 ```

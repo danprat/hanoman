@@ -24,6 +24,11 @@ vi.mock("../src/api/client", () => ({
     listSpecs: (...a: unknown[]) => listSpecs(...a),
   },
 }));
+// SPEC-199 · daftar sesi kini didorong lewat WS siar; tangkap handler subscribe untuk mempush frame.
+const ev = vi.hoisted(() => ({ handler: undefined as ((m: unknown) => void) | undefined }));
+vi.mock("../src/api/events", () => ({
+  subscribe: (fn: (m: unknown) => void) => { ev.handler = fn; return () => { ev.handler = undefined; }; },
+}));
 
 const projects = [{ id: "p1", name: "hanoman" }];
 const LKEY = "hanoman.terminal.layout";
@@ -164,21 +169,17 @@ describe("TerminalScreen (grid)", () => {
     expect(screen.queryByText("Selesai")).toBeNull();
   });
 
-  it("poll menyegarkan state decision live (SPEC-196)", async () => {
-    vi.useFakeTimers();
-    try {
-      localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["poll1111"] }));
-      listTerminals
-        .mockResolvedValueOnce([{ id: "poll1111", projectId: "p1", cwd: "/repo", exited: false, decision: false }])
-        .mockResolvedValue([{ id: "poll1111", projectId: "p1", cwd: "/repo", exited: false, decision: true }]);
-      render(<TerminalScreen projects={projects} />);
-      await act(async () => { await vi.advanceTimersByTimeAsync(0); });      // fetch mount
-      expect(screen.queryByText("Menunggu keputusan")).toBeNull();
-      await act(async () => { await vi.advanceTimersByTimeAsync(8000); });   // satu tick poll
-      expect(screen.getByText("Menunggu keputusan")).toBeInTheDocument();
-    } finally {
-      vi.useRealTimers();
-    }
+  it("frame WS sessions menyegarkan state decision live (SPEC-196/199)", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["poll1111"] }));
+    listTerminals.mockResolvedValue([{ id: "poll1111", projectId: "p1", cwd: "/repo", exited: false, decision: false }]);
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByTestId("pane");
+    expect(screen.queryByText("Menunggu keputusan")).toBeNull();
+    // Push frame sessions dengan decision:true — persis yang server siarkan.
+    await act(async () => {
+      ev.handler?.({ t: "sessions", sessions: [{ id: "poll1111", projectId: "p1", cwd: "/repo", exited: false, decision: true }] });
+    });
+    expect(screen.getByText("Menunggu keputusan")).toBeInTheDocument();
   });
 });
 

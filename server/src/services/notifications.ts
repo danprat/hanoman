@@ -44,3 +44,13 @@ export async function scanDecisions(read: () => DecisionSession[] = liveDecision
     });
   }
 }
+
+// SPEC-199 · cermin GET /notifications: scan marker dulu, lalu daftar + hitungan unread.
+// Dipakai route HTTP dan hub siar (services/events.ts). Tipe di-infer (baris Prisma, tanggal
+// Date) — sama seperti route lain; JSON serialize Date→string sesuai wire type shared.
+export async function notificationsFeed() {
+  await scanDecisions();
+  const items = await prisma.notification.findMany({ orderBy: { createdAt: "desc" }, take: 50 });
+  const unread = await prisma.notification.count({ where: { readAt: null } });
+  return { items, unread };
+}
