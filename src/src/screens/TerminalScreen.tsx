@@ -28,6 +28,23 @@ export function TerminalScreen({ projects, backlog = [], focusSession, onOpenRev
     api.listTerminals().then(setSessions).catch(() => setSessions([])).finally(() => setLoaded(true));
   }, []);
 
+  // SPEC-196 · `exited` datang lewat WS, tapi "menunggu keputusan" hanya diketahui server
+  // (marker). Poll ringan menyegarkan keduanya. tmux = source of truth, jadi respons list
+  // menggantikan state; guard signature `id:exited:decision` agar tak men-thrash efek
+  // rekonsiliasi/simpan tiap tick. ponytail: sesi optimistik dari openNew/pickBacklog sudah
+  // hidup di tmux saat POST resolve, jadi replace tak menjatuhkannya.
+  React.useEffect(() => {
+    if (!loaded) return;
+    const sig = (xs: TerminalSession[]) =>
+      xs.map((s) => `${s.id}:${s.exited ? 1 : 0}:${s.decision ? 1 : 0}`).sort().join("|");
+    const t = setInterval(() => {
+      api.listTerminals()
+        .then((fresh) => setSessions((prev) => (sig(prev) === sig(fresh) ? prev : fresh)))
+        .catch(() => {});
+    }, 8000);
+    return () => clearInterval(t);
+  }, [loaded]);
+
   // Sesi hidup di tmux dan selamat dari restart server (ADR-0016): workspace ter-load bisa
   // menunjuk sesi yang masih hidup (disambung ulang) atau yang sudah di-kill (dikosongkan).
   // Ditahan sampai `loaded`: sebelum listTerminals() resolve, `sessions` masih [] dan

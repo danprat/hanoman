@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Spec } from "@hanoman/shared";
 import { TerminalScreen, PhaseStrip } from "../src/screens/TerminalScreen";
@@ -160,6 +160,23 @@ describe("TerminalScreen (grid)", () => {
     await screen.findByTestId("pane");
     expect(screen.queryByText("Menunggu keputusan")).toBeNull();
     expect(screen.queryByText("Selesai")).toBeNull();
+  });
+
+  it("poll menyegarkan state decision live (SPEC-196)", async () => {
+    vi.useFakeTimers();
+    try {
+      localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["poll1111"] }));
+      listTerminals
+        .mockResolvedValueOnce([{ id: "poll1111", projectId: "p1", cwd: "/repo", exited: false, decision: false }])
+        .mockResolvedValue([{ id: "poll1111", projectId: "p1", cwd: "/repo", exited: false, decision: true }]);
+      render(<TerminalScreen projects={projects} />);
+      await act(async () => { await vi.advanceTimersByTimeAsync(0); });      // fetch mount
+      expect(screen.queryByText("Menunggu keputusan")).toBeNull();
+      await act(async () => { await vi.advanceTimersByTimeAsync(8000); });   // satu tick poll
+      expect(screen.getByText("Menunggu keputusan")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
