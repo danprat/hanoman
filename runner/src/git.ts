@@ -34,7 +34,15 @@ export const realGit: GitOps = {
     git(repo, ["worktree", "add", "--detach", path, base]);
     return base;
   },
-  removeWorktree: (repo, path) => { git(repo, ["worktree", "remove", "--force", path]); },
+  // Best-effort (cermin addWorktree reclaim): worktree bisa sudah dipangkas/dihapus di tengah run
+  // (mis. sesi sibling menyelesaikan kerja yang sama). `git worktree remove` telanjang akan throw
+  // `fatal: not a working tree` → membuat DELETE /terminal/sessions balas 500. remove+prune+rm
+  // semuanya toleran, jadi penutupan sesi selalu 204 dan registrasi worktree tak stale (SPEC-197).
+  removeWorktree: (repo, path) => {
+    tryGit(repo, ["worktree", "remove", "--force", path]);
+    tryGit(repo, ["worktree", "prune"]);
+    rmSync(isAbsolute(path) ? path : resolve(repo, path), { recursive: true, force: true });
+  },
   // Dibaca di worktree sesi (bukan repo utama) tepat sebelum removeWorktree: HEAD-nya =
   // ujung range diff review sesudah item selesai (SPEC-176, ADR-0030).
   headSha: (worktree) => git(worktree, ["rev-parse", "HEAD"]).trim(),

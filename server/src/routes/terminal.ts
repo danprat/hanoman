@@ -61,7 +61,15 @@ export default async function (app: FastifyInstance) {
       // baseSha = commit detach worktree; disimpan agar review backlog done men-diff
       // baseSha..headSha, bukan grep pesan commit (SPEC-176, ADR-0030). Overwrite tiap sesi:
       // range review = perubahan sesi ini.
-      const baseSha = realGit.addWorktree(repoDir, `${repoDir}/.worktrees/${id}`, spec.branchFrom ?? "main");
+      // SPEC-197 · fallback "HEAD" (bukan "main"): repo target belum tentu punya branch bernama
+      // main (default bisa master/develop). addWorktree throw bila revisi tak resolve / worktree
+      // ter-lock → 422 jelas, bukan 500 stderr git mentah (cermin jalur reverse di bawah).
+      let baseSha: string;
+      try {
+        baseSha = realGit.addWorktree(repoDir, `${repoDir}/.worktrees/${id}`, spec.branchFrom ?? "HEAD");
+      } catch (e) {
+        return reply.code(422).send({ error: `gagal membuat worktree: ${(e as Error).message}` });
+      }
       await prisma.spec.update({ where: { id: spec.id }, data: { baseSha, headSha: null } });
       // SPEC-172 · spec yang keburu `done` di-reopen untuk melanjutkan (lanjut di Execute,
       // tak mengulang pipeline). Deteksi dari stage — satu-satunya jalur yang men-start spec

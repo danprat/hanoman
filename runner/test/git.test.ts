@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mkdtempSync, writeFileSync, existsSync } from "node:fs";
+import { mkdtempSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -92,5 +92,16 @@ describe("git worktree ops", () => {
     const { repo } = seedRepo();
     const wt = join(repo, ".worktrees", "spec-hantu");
     expect(() => realGit.addWorktree(repo, wt, "tidak-ada")).toThrow(/tidak-ada/);
+  });
+
+  // SPEC-197 · worktree bisa lenyap di tengah run (dipangkas sesi sibling). removeWorktree harus
+  // toleran — DELETE /terminal/sessions tak boleh 500 hanya karena pohonnya sudah tak ada.
+  it("removeWorktree pada path yang sudah hilang tak throw", () => {
+    const { repo } = seedRepo();
+    const wt = join(repo, ".worktrees", "spec-lenyap");
+    realGit.addWorktree(repo, wt, "main");
+    rmSync(wt, { recursive: true, force: true });     // pohonnya raib, registrasi git masih stale
+    expect(() => realGit.removeWorktree(repo, wt)).not.toThrow();
+    expect(() => realGit.removeWorktree(repo, wt)).not.toThrow(); // dobel-panggil pun aman
   });
 });
