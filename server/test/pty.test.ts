@@ -114,16 +114,17 @@ describe("pty service", () => {
     expect(listSessions()).toHaveLength(1);
   });
 
-  // `--dangerously-skip-permissions` melewati prompt izin, bukan sistem hook. Tanpa
-  // `--settings` sesi PTY berjalan tanpa gerbang sama sekali (ADR-0010).
-  it("always registers the PreToolUse guard hook (ADR-0010)", async () => {
+  // Guardrail deny PreToolUse dicabut (SPEC-197, ADR-0037): sesi tetap membawa `--settings`
+  // (untuk marker keputusan SPEC-184) tapi TAK ada lagi hook deny `hook pretooluse`.
+  it("tidak lagi mendaftarkan guard hook PreToolUse (ADR-0037)", async () => {
     process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
     const s = createSession("p1", process.cwd());
     await waitFor(() => exited(s.id));
     const c = fakeClient();
     attach(s.id, c);
     expect(allData(c)).toContain("--settings");
-    expect(allData(c)).toContain("hook pretooluse");
+    expect(allData(c)).not.toContain("hook pretooluse");
+    expect(allData(c)).not.toContain("PreToolUse");
   });
 
   it("sesi backlog membawa specId + flow, dan id-nya diturunkan dari spec", () => {

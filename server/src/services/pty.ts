@@ -237,9 +237,12 @@ function end(id: string, code: number): void {
 
 // Fase yang dilaporkan agen (SPEC-162). Frame hanya lahir saat isinya berubah — kalau tidak,
 // tiap tick poll akan membanjiri klien dengan daftar fase yang sama persis.
-function pollPhases(id: string, a: Attachment): void {
-  const phases = sessionPhases(id);
-  if (!phases) return;
+// Terima Pane yang sudah dipegang loop poll (punya flow+phaseFile): baca berkas fase langsung
+// tanpa sessionPhases→getSession→listPanes lagi. SPEC-197: menghindari 1+K spawn `tmux list-panes`
+// sinkron per tick 500ms saat K terminal terbuka.
+function pollPhases(p: Pane, a: Attachment): void {
+  if (!p.flow || !p.phaseFile) return;
+  const phases = readPhases(p.phaseFile, p.flow);
   const json = JSON.stringify(phases);
   if (json === a.lastPhases) return;
   a.lastPhases = json;
@@ -258,7 +261,7 @@ function startPoll(): void {
       const p = live.get(id);
       if (!p) end(id, 0);            // sesinya dibunuh dari luar
       else if (p.exited) end(id, p.code);
-      else pollPhases(id, attached.get(id)!);
+      else pollPhases(p, attached.get(id)!);
     }
     if (attached.size === 0 && poll) { clearInterval(poll); poll = undefined; }
   }, POLL_MS);
