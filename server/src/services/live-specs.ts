@@ -1,0 +1,37 @@
+import type { Stage } from "@hanoman/shared";
+import { prisma } from "../db";
+import { sessionPhasesBySpec } from "./pty";
+import { stageForRun } from "./session-phases";
+import { STAGES } from "./stage-machine";
+import { recordCompletion } from "./notifications";
+
+// SPEC-199 · dulu inline di GET /specs; kini dipakai route HTTP DAN hub siar (services/events.ts)
+// supaya push WS dan pull HTTP tak pernah drift. Stage live diturunkan dari berkas fase sesi
+// (SPEC-168), hanya maju (ADR-0008), write-through CAS (SPEC-197).
+export async function liveSpecs(filter: { project?: string; source?: string } = {}) {
+  const specs = await prisma.spec.findMany({
+    where: { projectId: filter.project, source: filter.source }, orderBy: { id: "desc" },
+  });
+  const live = sessionPhasesBySpec();
+  if (live.size === 0) return specs;
+  const advanced: { id: string; from: Stage; stage: Stage }[] = [];
+  const doneNow: { specId: string; title: string; projectId: string | null }[] = [];
+  const out = specs.map((s) => {
+    const entry = live.get(s.id);
+    if (!entry) return s;
+    // stageForRun menahan `done` bila plan di worktree (entry.cwd) masih `- [ ]` (SPEC-173).
+    const next = stageForRun(entry.phases, entry.cwd, s.id);
+    if (!next || STAGES.indexOf(next) <= STAGES.indexOf(s.stage as Stage)) return s;
+    advanced.push({ id: s.id, from: s.stage as Stage, stage: next });
+    if (next === "done") doneNow.push({ specId: s.id, title: s.title, projectId: s.projectId });
+    return { ...s, stage: next };
+  });
+  // Write-through pada kemajuan (forward-only dijamin guard di atas). CAS `stage = from`: revert
+  // konkuren (PATCH mundur + hapus docs) tak boleh ter-overwrite maju lagi (SPEC-197).
+  if (advanced.length)
+    await Promise.all(advanced.map((a) =>
+      prisma.spec.updateMany({ where: { id: a.id, stage: a.from }, data: { stage: a.stage } }).catch(() => { })));
+  // SPEC-180 · notif dibuat sesudah persist stage; recordCompletion idempoten (key unik).
+  await Promise.all(doneNow.map((d) => recordCompletion(d.specId, d.title, d.projectId)));
+  return out;
+}
