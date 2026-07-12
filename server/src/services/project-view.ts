@@ -2,7 +2,8 @@ import { prisma } from "../db";
 import { STAGES } from "./stage-machine";
 import { scanRepoDocs } from "./scan";
 import { docStatusFor } from "./coverage";
-import { listSessions, sessionPhases } from "./pty";
+import { sessionPhases, type SessionInfo } from "./pty";
+import type { Project } from "@prisma/client";
 import type { ProjectView } from "@hanoman/shared";
 
 const IDLE = { status: "idle" as const, phase: null as string | null, flow: null as string | null };
@@ -10,8 +11,10 @@ const IDLE = { status: "idle" as const, phase: null as string | null, flow: null
 // Sesi tmux adalah satu-satunya sumber kebenaran soal pekerjaan yang sedang berjalan
 // (ADR-0016). Tak ada baris DB yang bisa basi saat prosesnya mati. Sesi project biasa
 // (tanpa specId) tidak dihitung: itu terminal, bukan pekerjaan atas backlog item.
-function sessionOf(projectId: string) {
-  const s = listSessions().find((x) => x.projectId === projectId && x.specId && !x.exited);
+// SPEC-197 · snapshot `sessions` dioper dari pemanggil (satu listSessions per request),
+// bukan re-scan tmux per project.
+function sessionOf(projectId: string, sessions: SessionInfo[]) {
+  const s = sessions.find((x) => x.projectId === projectId && x.specId && !x.exited);
   if (!s) return { session: IDLE, commit: "belum ada commit" };
   const phase = sessionPhases(s.id)?.find((p) => p.state === "active")?.name ?? null;
   return {
@@ -20,15 +23,16 @@ function sessionOf(projectId: string) {
   };
 }
 
-export async function toProjectView(projectId: string): Promise<ProjectView> {
-  const p = await prisma.project.findUniqueOrThrow({ where: { id: projectId } });
-  const specs = await prisma.spec.findMany({ where: { projectId } });
+// SPEC-197 · terima baris project + snapshot sesi dari pemanggil: buang N+1 findUniqueOrThrow
+// (baris sudah ada di GET /projects) dan re-scan tmux per project.
+export async function toProjectView(p: Project, sessions: SessionInfo[]): Promise<ProjectView> {
+  const specs = await prisma.spec.findMany({ where: { projectId: p.id } });
   // Coverage adalah nilai turunan, bukan state tersimpan (ADR-0018). `p` sudah di-fetch,
   // jadi tak ada query tambahan. repoDir null / bukan git repo -> 0 -> "broken", persis
   // nilai yang dulu di-hardcode saat create.
   const { coverage } = await scanRepoDocs(p.repoDir);
   const open = specs.filter((s) => s.stage !== "done");
-  const { session, commit } = sessionOf(projectId);
+  const { session, commit } = sessionOf(p.id, sessions);
   const topStage = open.length
     ? open.map((s) => s.stage).sort((a, b) => STAGES.indexOf(b as any) - STAGES.indexOf(a as any))[0]!
     : "spec";
