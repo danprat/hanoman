@@ -301,7 +301,7 @@ git commit -m "feat(projects): envelope + q + paginasi via API (SPEC-198)"
   - `SpecListParams = { project?; source?; q?; stage?; priority?; startable?: boolean; page?: number; limit?: number }`
   - `ProjectListParams = { q?: string; page?: number; limit?: number }`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Di `src/test/client.test.ts`, tambah:
 
@@ -331,12 +331,12 @@ it("listProjects returns envelope", async () => {
 
 (Jika `client.test.ts` sudah punya assertion `listProjects` lama yang mengharap `/api/projects` polos, sesuaikan: tanpa params `listProjects()` harus tetap menghasilkan `/api/projects` tanpa `?`.)
 
-- [ ] **Step 2: Jalankan — gagal**
+- [x] **Step 2: Jalankan — gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/web test client`
 Expected: FAIL — `listSpecs` belum terima objek params / masih return array.
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 Di `src/src/api/client.ts`, tambah import `Paginated` dari `@hanoman/shared`, lalu:
 
@@ -361,12 +361,12 @@ listProjects: (params: ProjectListParams = {}) => j<Paginated<ProjectView>>(path
 listSpecs: (params: SpecListParams = {}) => j<Paginated<Spec>>(paths.specs + qs(params)),
 ```
 
-- [ ] **Step 4: Jalankan — hijau**
+- [x] **Step 4: Jalankan — hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/web test client`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/api/client.ts src/test/client.test.ts

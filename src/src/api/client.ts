@@ -1,4 +1,4 @@
-import { paths, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type AuthStatus, type UserView, type LimitsDTO } from "@hanoman/shared";
+import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type AuthStatus, type UserView, type LimitsDTO } from "@hanoman/shared";
 export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 export type Flow = "feature" | "qa" | "scaffold" | "reverse";
 export type Phase = { name: string; state: "done" | "skipped" | "active" | "pending" };
@@ -36,15 +36,27 @@ async function j<T>(url: string, init?: RequestInit): Promise<T> {
   return res.status === 204 ? (undefined as T) : res.json();
 }
 const body = (b: unknown) => ({ body: JSON.stringify(b) });
+// SPEC-198 · bangun query-string; buang undefined/"" (caller memetakan sentinel "all" → undefined).
+const qs = (params: Record<string, string | number | boolean | undefined>) => {
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== "") p.set(k, String(v));
+  const s = p.toString();
+  return s ? "?" + s : "";
+};
+export type SpecListParams = {
+  project?: string; source?: string; q?: string; stage?: string; priority?: string;
+  startable?: boolean; page?: number; limit?: number;
+};
+export type ProjectListParams = { q?: string; page?: number; limit?: number };
 export const api = {
-  listProjects: () => j<ProjectView[]>(paths.projects),
+  listProjects: (params: ProjectListParams = {}) => j<Paginated<ProjectView>>(paths.projects + qs(params)),
   getProject: (id: string) => j<ProjectView>(paths.project(id)),
   createProject: (b: unknown) => j<ProjectView>(paths.projects, { method: "POST", ...body(b) }),
   deleteProject: (id: string) => j<void>(paths.project(id), { method: "DELETE" }),
   // SPEC-146 · hanya label. `id` tak pernah berubah, jadi respons selalu punya `id` yang sama.
   updateProject: (id: string, b: { name?: string; desc?: string }) =>
     j<ProjectView>(paths.project(id), { method: "PATCH", ...body(b) }),
-  listSpecs: (q = "") => j<Spec[]>(paths.specs + q),
+  listSpecs: (params: SpecListParams = {}) => j<Paginated<Spec>>(paths.specs + qs(params)),
   createSpec: (b: unknown) => j<Spec>(paths.specs, { method: "POST", ...body(b) }),
   deleteSpec: (id: string) => j<void>(paths.spec(id), { method: "DELETE" }),
   // SPEC-143 · branch sumber worktree milik backlog item. `null` = default project (main).
