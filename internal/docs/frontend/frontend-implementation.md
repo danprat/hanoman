@@ -235,6 +235,11 @@ bersandar pada notifikasi yang **dibuat server-side** (`GET /notifications`) —
   Baseline = `createdAt` terbesar saat mount (mount pertama **tidak** men-toast riwayat lama);
   notifikasi lebih baru → `showToast` + `playNotifySound`, digerbang setting `notifyDone`/`notifySound`.
   Helper murni `newSince`/`maxAt` diuji terpisah.
+- **Notifikasi OS lintas tab (SPEC-196):** toast in-app hanya terlihat di tab hanoman yang fokus.
+  Saat `document.hidden` (user pindah tab) dan izin `Notification` sudah granted, `notifyOS` menembak
+  `new Notification(msg, { tag: id })` (Web Notifications API native) untuk `done` **dan** `decision`,
+  sehingga notifikasi tetap sampai di level OS. Izin diminta pada gestur user pertama (membonceng
+  listener unlock audio). Klik notifikasi OS → `window.focus()` + redirect ke sesi (`onOpen`).
 - **`NotificationBell`** (`.../NotificationBell.tsx`) dirender di topbar `Shell` (konsumsi context,
   nol prop-threading ke ~9 call-site `<Shell>`; nilai context default aman untuk test tanpa provider):
   tombol lonceng + badge unread (`--clay-500`), dropdown daftar (`SPEC-x · judul`, "selesai · Xm lalu",

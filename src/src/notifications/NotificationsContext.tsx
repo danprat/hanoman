@@ -23,6 +23,18 @@ export function toastFor(n: Notification, p: NotifyPrefs): ToastPlan {
            sound: p.notifySound as NotifySound, enabled: p.notifyDone };
 }
 
+// SPEC-196 · toast in-app hanya terlihat di tab yang fokus. Web Notifications API (native)
+// muncul di level OS lepas dari tab mana yang aktif — supaya notifikasi tetap sampai saat user
+// pindah tab. Hanya menembak saat document.hidden (tab fokus sudah dilayani toast → hindari
+// double) dan izin granted. tag = id → OS mendedup bila poll mengulang notif yang sama.
+function notifyOS(msg: string, n: Notification, onOpen?: (n: Notification) => void): void {
+  if (!("Notification" in window) || window.Notification.permission !== "granted" || !document.hidden) return;
+  try {
+    const notif = new window.Notification(msg, { tag: n.id });
+    notif.onclick = () => { window.focus(); onOpen?.(n); notif.close(); };
+  } catch { /* sebagian browser melempar bila dipanggil tanpa service worker; abaikan */ }
+}
+
 type Ctx = { items: Notification[]; unread: number; markAllRead: () => void; clear: () => void; onOpen?: (n: Notification) => void };
 // Nilai default aman: komponen yang merender <Shell> tanpa provider (mis. test) tak error.
 // Di-export agar test bell bisa membungkus dengan value palsu (Task 6).
@@ -53,15 +65,20 @@ export function NotificationsProvider({ showToast, onOpen, children }: { showToa
     const latest = fresh[0]; // items terbaru dulu (server orderBy desc)
     if (latest) {
       const t = toastFor(latest, prefs.current);
-      if (t.enabled) { showToast(t.msg, t.tone, t.icon); playNotifySound(t.sound); }
+      if (t.enabled) { showToast(t.msg, t.tone, t.icon); playNotifySound(t.sound); notifyOS(t.msg, latest, onOpen); }
     }
-  }, [showToast]);
+  }, [showToast, onOpen]);
 
   React.useEffect(() => {
     void tick();
     const t = setInterval(() => { void tick(); }, POLL_MS);
     // SPEC-192 · autoplay diblokir sampai user berinteraksi; unlock audio pada gestur pertama.
-    const unlock = () => { unlockNotifySound(); window.removeEventListener("pointerdown", unlock); window.removeEventListener("keydown", unlock); };
+    const unlock = () => {
+      unlockNotifySound();
+      // SPEC-196 · requestPermission butuh gestur user; bonceng gestur unlock audio yang sama.
+      if ("Notification" in window && window.Notification.permission === "default") void window.Notification.requestPermission();
+      window.removeEventListener("pointerdown", unlock); window.removeEventListener("keydown", unlock);
+    };
     window.addEventListener("pointerdown", unlock, { once: true });
     window.addEventListener("keydown", unlock, { once: true });
     return () => { clearInterval(t); window.removeEventListener("pointerdown", unlock); window.removeEventListener("keydown", unlock); };
