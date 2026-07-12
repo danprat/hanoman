@@ -42,9 +42,11 @@ export function linkedSetFrom(
 ): Set<string> {
   const inCorpus = new Set(docs);
   const seen = new Set<string>();
+  // SPEC-197 · index pointer, bukan queue.shift() (O(n) tiap langkah → O(n²) total).
   const queue = [indexRel];
-  while (queue.length) {
-    const cur = queue.shift()!;
+  let i = 0;
+  while (i < queue.length) {
+    const cur = queue[i++]!;
     if (seen.has(cur)) continue;
     seen.add(cur);
     const md = read(cur);

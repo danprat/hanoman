@@ -13,7 +13,11 @@ for (let i = 0; i < 6; i++) {
     for (const line of readFileSync(file, "utf8").split("\n")) {
       const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
       if (m && m[1] && process.env[m[1]] === undefined) {
-        process.env[m[1]] = m[2]!.trim().replace(/^["']|["']$/g, "");
+        let val = m[2]!.trim();
+        // SPEC-197 · lucuti komentar inline ` # ...` hanya untuk nilai TAK dikutip (nilai dikutip
+        // boleh memuat #; `#` tanpa spasi di depannya — mis. url#frag — juga dipertahankan).
+        if (!/^["']/.test(val)) val = val.replace(/\s+#.*$/, "").trim();
+        process.env[m[1]] = val.replace(/^["']|["']$/g, "");
       }
     }
     break;

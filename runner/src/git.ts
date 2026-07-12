@@ -4,7 +4,7 @@ import { isAbsolute, resolve } from "node:path";
 import type { GitOps } from "./types";
 function git(cwd: string, args: string[]) {
   const r = spawnSync("git", args, { cwd, encoding: "utf8" });
-  if (r.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${r.stderr || r.stdout}`);
+  if (r.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${r.stderr || r.stdout || r.error?.message || "gagal spawn"}`);
   return r.stdout;
 }
 const tryGit = (cwd: string, args: string[]) => { spawnSync("git", args, { cwd, encoding: "utf8" }); };

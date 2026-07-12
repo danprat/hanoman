@@ -97,7 +97,7 @@ export function VpsScreen({ onToast, onGotoTerminal }:
   }, []);
   React.useEffect(() => {
     load();
-    const t = setInterval(load, 30_000); // status reachable/hardened tetap segar tanpa klik
+    const t = setInterval(() => { if (!document.hidden) load(); }, 30_000); // segar tanpa klik; skip tab hidden (SPEC-197)
     return () => clearInterval(t);
   }, [load]);
 

@@ -439,8 +439,12 @@ function Board({ specs, activeSpecs, onStart, onOpenRun, onOpenReview, onOpenDet
   }) {
   const [drag, setDrag] = React.useState<{ spec: Spec; from: string } | null>(null);
   const [over, setOver] = React.useState<string | null>(null);
-  const byCol = new Map<string, Spec[]>(COLUMNS.map((c) => [c.key, []]));
-  for (const s of specs) byCol.get(specColumn(s, activeSpecs?.has(s.id)))?.push(s);
+  // SPEC-197 · di-memo: Board re-render tiap drag (setOver), tak perlu bangun ulang Map tiap kali.
+  const byCol = React.useMemo(() => {
+    const m = new Map<string, Spec[]>(COLUMNS.map((c) => [c.key, []]));
+    for (const s of specs) m.get(specColumn(s, activeSpecs?.has(s.id)))?.push(s);
+    return m;
+  }, [specs, activeSpecs]);
 
   const drop = (to: string) => {
     if (drag && canDrop(drag.from, to) && onStart) onStart(drag.spec);
