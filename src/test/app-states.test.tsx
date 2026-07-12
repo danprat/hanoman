@@ -4,13 +4,13 @@ import { describe, it, expect, vi } from "vitest";
 let failNext = true;
 const projects = vi.fn(async () => {
   if (failNext) throw new Error("boom");
-  return [];
+  return { items: [], total: 0, page: 1, pageSize: 20 };
 });
 vi.mock("../src/api/client", () => ({
   api: {
     authStatus: vi.fn(async () => ({ needsSetup: false, user: { id: "u1", email: "a@b.co", createdAt: "" } })),
     listProjects: (...a: unknown[]) => projects(...(a as [])),
-    listSpecs: vi.fn(async () => []), listTerminals: vi.fn(async () => []),
+    listSpecs: vi.fn(async () => ({ items: [], total: 0, page: 1, pageSize: 20 })), listTerminals: vi.fn(async () => []),
     getSettings: vi.fn(async () => ({})),
     listNotifications: vi.fn(async () => ({ items: [], unread: 0 })), // SPEC-180 · provider poll
   },

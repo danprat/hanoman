@@ -11,8 +11,8 @@ const PROJECT = {
 vi.mock("../src/api/client", () => ({
   api: {
     authStatus: vi.fn(async () => ({ needsSetup: false, user: { id: "u1", email: "a@b.co", createdAt: "" } })),
-    listProjects: vi.fn(async () => [PROJECT]),
-    listSpecs: vi.fn(async () => []),
+    listProjects: vi.fn(async () => ({ items: [PROJECT], total: 1, page: 1, pageSize: 20 })),
+    listSpecs: vi.fn(async () => ({ items: [], total: 0, page: 1, pageSize: 20 })),
     listTerminals: vi.fn(async () => []),
     getSettings: vi.fn(async () => ({})),
     updateProject: vi.fn(async (_id: string, b: { name?: string }) => ({ ...PROJECT, ...b })),

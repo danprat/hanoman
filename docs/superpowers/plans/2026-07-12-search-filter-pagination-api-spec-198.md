@@ -385,7 +385,7 @@ git commit -m "feat(web/api): listSpecs/listProjects terima params + return Pagi
 - Consumes: `api.listSpecs()`, `api.listProjects()` sekarang balik `Paginated`.
 - Produces: `dataVersion: number` (dinaikkan tiap `backlog`/`sessions` berubah) — dipakai Task 5 & 6 sebagai sinyal refetch. Prop baru untuk layar: `dataVersion`.
 
-- [ ] **Step 1: Update mock test ke envelope (test dulu)**
+- [x] **Step 1: Update mock test ke envelope (test dulu)**
 
 Ubah tiga file test agar mock list balik envelope:
 - `app-flows.test.tsx:9`: `listSpecs: vi.fn(async () => ({ items: [], total: 0, page: 1, pageSize: 20 }))`.
@@ -393,12 +393,12 @@ Ubah tiga file test agar mock list balik envelope:
 - `app-states.test.tsx:13`: `listSpecs: vi.fn(async () => ({ items: [], total: 0, page: 1, pageSize: 20 }))`; dan `projects(...)` (baris 12) harus balikkan envelope — sesuaikan helper `projects` agar `items`-nya array project.
 - `project-detail.test.tsx:14-15`: `listProjects` → `{ items: [PROJECT], total: 1, page: 1, pageSize: 20 }`, `listSpecs` → `{ items: [], total: 0, page: 1, pageSize: 20 }`.
 
-- [ ] **Step 2: Jalankan — gagal**
+- [x] **Step 2: Jalankan — gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/web test app-flows app-states project-detail`
 Expected: FAIL — App masih `setBacklog(s)` dgn `s` = envelope (bukan array) → render pecah.
 
-- [ ] **Step 3: Buka `.items` di `load()` + poll, tambah `dataVersion`**
+- [x] **Step 3: Buka `.items` di `load()` + poll, tambah `dataVersion`**
 
 Di `src/src/App.tsx`:
 
@@ -432,12 +432,12 @@ Promise.all([api.listSpecs(), api.listTerminals()])
   })
 ```
 
-- [ ] **Step 4: Jalankan — hijau**
+- [x] **Step 4: Jalankan — hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/web test app-flows app-states project-detail`
 Expected: PASS. (App sekarang jalan identik seperti sebelumnya, tapi atas envelope. Layar belum self-fetch — masih terima array penuh via props.)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/App.tsx src/test/app-flows.test.tsx src/test/app-states.test.tsx src/test/project-detail.test.tsx

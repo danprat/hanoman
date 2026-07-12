@@ -267,6 +267,9 @@ export default function App() {
   const [section, setSection] = React.useState("overview");
   const [projects, setProjects] = React.useState<ProjectView[]>([]);
   const [backlog, setBacklog] = React.useState<Spec[]>([]);
+  // SPEC-198 · dinaikkan tiap backlog/sessions berubah (load + poll). Layar daftar yang
+  // self-fetch (Backlog, Projects) me-refetch saat ini berubah — tanpa poll ganda.
+  const [dataVersion, setDataVersion] = React.useState(0);
   // Pekerjaan yang berjalan adalah sesi tmux, bukan baris Run (SPEC-162).
   const [sessions, setSessions] = React.useState<TerminalSession[]>([]);
   const [projectId, setProjectId] = React.useState("");
@@ -290,8 +293,9 @@ export default function App() {
     setStatus("loading");
     Promise.all([api.listProjects(), api.listSpecs(), api.listTerminals()])
       .then(([p, s, t]) => {
-        setProjects(p); setBacklog(s); setSessions(t);
-        setProjectId((cur) => cur || p[0]?.id || "");
+        setProjects(p.items); setBacklog(s.items); setSessions(t);
+        setProjectId((cur) => cur || p.items[0]?.id || "");
+        setDataVersion((v) => v + 1);
         setStatus("ready");
       })
       .catch((e) => {
@@ -324,13 +328,15 @@ export default function App() {
       if (document.hidden) return;
       Promise.all([api.listSpecs(), api.listTerminals()])
         .then(([s, t]) => {
+          const items = s.items;
           const sig = JSON.stringify({
-            s: s.map((x) => [x.id, x.stage]),
+            s: items.map((x) => [x.id, x.stage]),
             t: t.map((x) => [x.id, x.exited, x.decision]),
           });
           if (sig === pollSigRef.current) return; // identik → jangan sentuh state (bail-out re-render)
           pollSigRef.current = sig;
-          setBacklog(s); setSessions(t);
+          setBacklog(items); setSessions(t);
+          setDataVersion((v) => v + 1);
         })
         .catch(() => {});
     }, 3000);

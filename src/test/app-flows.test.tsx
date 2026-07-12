@@ -3,10 +3,10 @@ import { describe, it, expect, vi } from "vitest";
 vi.mock("../src/api/client", () => ({
   api: {
     authStatus: vi.fn(async () => ({ needsSetup: false, user: { id: "u1", email: "a@b.co", createdAt: "" } })),
-    listProjects: vi.fn(async () => [{ id: "arta", name: "arta", desc: "", kind: "existing", stack: "Go",
+    listProjects: vi.fn(async () => ({ items: [{ id: "arta", name: "arta", desc: "", kind: "existing", stack: "Go",
       docStatus: "ok", coverage: 94, createdAt: "", backlog: 2, topStage: "execute",
-      session: { status: "running", phase: "Execute", flow: "feature" }, activity: "x", commit: "y" }]),
-    listSpecs: vi.fn(async () => []), listTerminals: vi.fn(async () => []),
+      session: { status: "running", phase: "Execute", flow: "feature" }, activity: "x", commit: "y" }], total: 1, page: 1, pageSize: 20 })),
+    listSpecs: vi.fn(async () => ({ items: [], total: 0, page: 1, pageSize: 20 })), listTerminals: vi.fn(async () => []),
     getSettings: vi.fn(async () => ({})), startSession: vi.fn(), deleteSpec: vi.fn(), createSpec: vi.fn(),
     listNotifications: vi.fn(async () => ({ items: [], unread: 0 })), // SPEC-180 · provider poll
   },
