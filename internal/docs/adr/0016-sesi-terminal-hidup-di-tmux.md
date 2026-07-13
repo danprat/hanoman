@@ -29,6 +29,11 @@ di atas node-pty; byte-nya tetap mengalir apa adanya ke `xterm.js` lewat WebSock
   di atas file sesi yang sama.
 - **Prefix tmux dimatikan** dan status bar disembunyikan: tmux di sini adalah detail
   implementasi, bukan tmux yang dipakai pengguna. `C-b` harus sampai ke claude.
+- **Mouse mode dinyalakan** (`mouse on`, SPEC-209): tmux mengaktifkan mouse-reporting di
+  terminal klien, jadi wheel di `xterm.js` diteruskan ke tmux dan masuk copy-mode —
+  pengguna bisa scroll atas/bawah menyusuri riwayat pane, yang selama ini terperangkap di
+  tmux tanpa jalan keluar (lihat konsekuensi di bawah). `history-limit` dinaikkan ke 50000
+  baris agar run panjang tak terpotong.
 
 ## Konsekuensi
 - **tmux jadi prasyarat runtime** (`brew install tmux`). Bila hilang, `createSession`
@@ -47,7 +52,9 @@ di atas node-pty; byte-nya tetap mengalir apa adanya ke `xterm.js` lewat WebSock
   yang pertama menyalakannya. Mengubah `.env` menuntut `tmux -L hanoman kill-server`.
 - Riwayat di atas layar tidak ikut pindah saat browser refresh: klien baru digambar ulang
   oleh tmux sebatas layar yang terlihat. Scrollback in-memory hanya melayani klien kedua
-  pada attachment yang sama.
+  pada attachment yang sama. **Riwayat itu tetap ada di scrollback pane tmux** — sejak
+  SPEC-209 `mouse on` membuatnya bisa di-scroll dari browser (wheel → copy-mode), bukan
+  cuma lewat `capture-pane` saat pane mati.
 - ADR-0014 tetap berlaku untuk sisanya: endpoint ini RCE secara desain, `server.ts` bind ke
   `127.0.0.1`, dan `node-pty` masih butuh exec bit di `spawn-helper`.
 

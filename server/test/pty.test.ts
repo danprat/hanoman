@@ -167,6 +167,18 @@ describe("pty service", () => {
     expect(phaseFrames(c).length).toBe(count);
   });
 
+  // SPEC-209 · riwayat claude hidup di scrollback pane tmux, tapi klien hanya menerima layar
+  // yang terlihat (ADR-0016) — tak ada jalan scroll ke atas. `mouse on` membuat tmux mengabari
+  // klien mengaktifkan mouse-reporting (DECSET 1000/1006); xterm.js lalu meneruskan wheel ke
+  // tmux → copy-mode → scroll riwayat. Bukti fix sampai ke klien: urutan enable itu ada di aliran.
+  it("mengaktifkan mouse tmux agar browser bisa scroll riwayat pane (SPEC-209)", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const s = createSession("p1", process.cwd());
+    const c = fakeClient();
+    attach(s.id, c);
+    await waitFor(() => allData(c).includes("\x1b[?1000h"));
+  });
+
   it("sesi project (tanpa spec) tak punya fase", () => {
     process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
     const s = createSession("p1", repoDir);

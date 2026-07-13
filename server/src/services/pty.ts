@@ -163,6 +163,13 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
     "set-option", "-g", "status", "off", ";",
     // Prefix mati: tmux di sini adalah detail implementasi, dan C-b harus sampai ke claude.
     "set-option", "-g", "prefix", "None", ";",
+    // SPEC-209 · riwayat claude hidup di scrollback pane tmux; klien hanya menerima layar
+    // yang terlihat (ADR-0016). `mouse on` membuat tmux mengaktifkan mouse-reporting di terminal
+    // klien, jadi wheel di xterm.js diteruskan → tmux → copy-mode → scroll riwayat ke atas/bawah.
+    // history-limit dinaikkan dari default 2000 agar run panjang tak terpotong (capture pane mati
+    // sudah baca -2000). ponytail: 50000 baris/pane; turunkan bila memori sesi berhari-hari mepet.
+    "set-option", "-g", "mouse", "on", ";",
+    "set-option", "-g", "history-limit", "50000", ";",
     "set-option", "-g", "default-terminal", "screen-256color", ";",
     "new-session", "-d", "-s", name(id), "-c", cwd, cmd, ";",
     "set-option", "-t", name(id), "@hanoman_project", projectId, ";",
