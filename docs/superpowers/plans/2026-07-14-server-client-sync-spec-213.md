@@ -270,9 +270,9 @@ export async function revokeDeviceToken(id: string) {
 - `declare module "fastify" { interface FastifyRequest { device?: { id: string; userId: string } } }`
 - shared: `zIssueDeviceToken = z.object({ name: z.string().min(1) })`, tipe `DeviceTokenView = { id, name, createdAt, lastSeenAt, revokedAt }`.
 
-- [ ] **Step 1: Failing test** `server/test/device-auth.test.ts`: build app kecil dengan route ber-preHandler `requireDeviceToken` yang balikkan `req.device`; assert 401 tanpa header, 200 + userId dengan `Authorization: Bearer <token>`, 401 setelah revoke. (Pakai `issueDeviceToken` untuk seed.)
-- [ ] **Step 2:** Run → FAIL.
-- [ ] **Step 3:** Implement `server/src/services/device-auth.ts`:
+- [x] **Step 1: Failing test** `server/test/device-auth.test.ts`: build app kecil dengan route ber-preHandler `requireDeviceToken` yang balikkan `req.device`; assert 401 tanpa header, 200 + userId dengan `Authorization: Bearer <token>`, 401 setelah revoke. (Pakai `issueDeviceToken` untuk seed.)
+- [x] **Step 2:** Run → FAIL.
+- [x] **Step 3:** Implement `server/src/services/device-auth.ts`:
 ```ts
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { verifyDeviceToken } from "./device-token";
@@ -288,8 +288,8 @@ export async function requireDeviceToken(req: FastifyRequest, reply: FastifyRepl
 }
 ```
   Tambah ke `shared/src/dto.ts`: `export const zIssueDeviceToken = z.object({ name: z.string().min(1) });`. Tambah ke `shared/src/entities.ts`: tipe `DeviceTokenView`.
-- [ ] **Step 4:** Run → PASS; `pnpm -r typecheck` PASS.
-- [ ] **Step 5: Commit** `git commit -am "feat(server): requireDeviceToken preHandler + shared DTO (SPEC-213)"`
+- [x] **Step 4:** Run → PASS; `pnpm -r typecheck` PASS.
+- [x] **Step 5: Commit** `git commit -am "feat(server): requireDeviceToken preHandler + shared DTO (SPEC-213)"`
 
 ### Task 1.3: Routes `/api/device-tokens` (cookie-authed) + register
 

@@ -6,8 +6,12 @@ import { zProjectKind, zSpecSource, zPriority, zStage } from "./enums";
 // SPEC-198 · amplop daftar via API: search/filter/paginasi dilakukan server-side.
 export type Paginated<T> = { items: T[]; total: number; page: number; pageSize: number };
 
+// SPEC-213 · terbitkan device token (nama device untuk pengenal manusia).
+export const zIssueDeviceToken = z.object({ name: z.string().min(1) });
+
 export const zCreateProject = z.object({
   name: z.string().min(1), kind: zProjectKind, repoDir: z.string().optional(),
+  gitRemote: z.string().optional(),
   desc: z.string().default("") });
 // SPEC-146: hanya label tampilan. `id` memikul kunci asing Spec; `kind`,
 // `repoDir` dan `stack` menentukan tempat sesi/scan/terminal hidup. Body

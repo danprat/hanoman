@@ -64,3 +64,10 @@ export const zDocFile = z.object({
   projectId: z.string(), path: z.string(), category: z.string(),
   content: z.string(), linked: z.boolean(), root: z.boolean() });
 export type DocFile = z.infer<typeof zDocFile>;
+
+// SPEC-213 · ADR-0044 · view device token (tanpa tokenHash / plaintext). Tanggal = string ISO.
+export const zDeviceTokenView = z.object({
+  id: z.string(), name: z.string(), createdAt: z.string(),
+  lastSeenAt: z.string().nullable(), revokedAt: z.string().nullable(),
+});
+export type DeviceTokenView = z.infer<typeof zDeviceTokenView>;
