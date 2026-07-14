@@ -61,7 +61,7 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
         const token = req.cookies?.[COOKIE_NAME];
         const user = token ? await lookupSession(token) : null;
         if (user) req.user = user;
-        const path = req.url.split("?")[0];
+        const path = req.url.split("?")[0] ?? req.url;
         if (PUBLIC.has(`${req.method} ${path}`)) return;
         // SPEC-213 · ADR-0044/0046 · surface sync mesin-ke-mesin di-bypass gate cookie; tiap
         // route /api/sync di-enforce device token (Bearer / ?token= pada upgrade WS) sendiri.
