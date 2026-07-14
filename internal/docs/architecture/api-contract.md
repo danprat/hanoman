@@ -161,7 +161,7 @@ GET    /events/ws                    # WebSocket siar dashboard (global). Auth =
 > Satu loop server (cadence per-grup, dedup signature) menggantikan N-klien × poll. Endpoint HTTP
 > GET tiap sumber tetap ada untuk paint pertama.
 
-## VPS (SPEC-164 · ADR-0025)
+## VPS (SPEC-164 · ADR-0025 · SPEC-211/ADR-0042)
 ```
 GET    /vps                          # [{ id, name, host, port, user, keyPath, lastSeenAt,
                                      #    health, lastAuditAt, audit, hardened }]
@@ -177,6 +177,8 @@ POST   /vps/:id/harden               # 200 { transcript, audit, hardened } · 40
                                      # 502 { error, transcript[, verify] } bila ssh gagal
                                      # atau verifikasi koneksi pasca-harden gagal
 POST   /vps/:id/session              # 201 { id } — sesi claude tmux berkonteks VPS (cwd $HOME) · 404
+POST   /vps/:id/test                  # 200 { ok, out } — ssh `true` key-only, transien · 404
+POST   /vps/:id/console               # 201 { id } — shell ssh MENTAH di tmux hanoman (ADR-0042) · 404
 ```
 
 > Audit/healthcheck/harden = script bash deterministik (`server/scripts/vps/*.sh`) dikirim

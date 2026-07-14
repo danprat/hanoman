@@ -36,6 +36,7 @@ Turunan terukur dari `entrypoints/prd.md`.
 ## 7. VPS
 - Daftar VPS + audit/harden (script bash deterministik, `sudo -n bash -s` lewat ssh); `hardened` = semua check kritis pass.
 - Buka sesi `claude` berkonteks VPS (cwd `$HOME`). Bootstrap key sekali pakai dari password (dibuang setelah dipasang).
+- Test connection (`ssh true` key-only, transien) & Open Console (shell ssh mentah di tmux hanoman, ADR-0042) per VPS (SPEC-211).
 
 ## 8. Settings
 - **Model & effort** satu per sesi, default opus · effort x-high; manusia bisa `/model` di terminal.
