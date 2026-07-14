@@ -13,13 +13,14 @@ import type { ProjectVM } from "./types";
 export type PrdBriefForm = { title: string; context: string; outcome: string; constraints?: string };
 export type PrdPrefill = { project: string; title: string; context: string; outcome: string; prdPath: string };
 
-function NewPrdModal({ onClose, onCreate }:
-  { onClose: () => void; onCreate: (brief: PrdBriefForm) => void }) {
+function NewPrdModal({ projects, defaultProject, onClose, onCreate }:
+  { projects: ProjectVM[]; defaultProject: string; onClose: () => void; onCreate: (project: string, brief: PrdBriefForm) => void }) {
+  const [project, setProject] = React.useState(defaultProject || projects[0]?.id || "");
   const [f, setF] = React.useState({ title: "", context: "", outcome: "", constraints: "" });
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<any>) => setF((s) => ({ ...s, [k]: e.target.value }));
   const submit = () => {
-    if (!f.title.trim()) return;
-    onCreate({ title: f.title.trim(), context: f.context, outcome: f.outcome, constraints: f.constraints || undefined });
+    if (!f.title.trim() || !project) return;
+    onCreate(project, { title: f.title.trim(), context: f.context, outcome: f.outcome, constraints: f.constraints || undefined });
   };
   return (
     <Modal open onClose={onClose} icon="scroll-text" eyebrow="PM → hanoman" title="PRD baru"
@@ -30,6 +31,11 @@ function NewPrdModal({ onClose, onCreate }:
       <div style={{ fontSize: 12, color: "var(--text-subtle)", marginBottom: 12, lineHeight: 1.5 }}>
         hanoman membuka sesi brainstorm interaktif di terminal, lalu menulis dokumen PRD ke <code>docs/prd/</code>.
       </div>
+      <Field label="Project" hint="Tujuan penulisan docs/prd/ — pilih di sini, tak perlu memfilter daftar dulu">
+        <Select aria-label="Project untuk PRD baru" value={project}
+          onChange={(e) => setProject(e.target.value)} style={{ width: "100%" }}
+          options={projects.map((p) => ({ value: p.id, label: p.name }))} />
+      </Field>
       <Field label="Judul">
         <Input value={f.title} onChange={set("title")} placeholder="mis. Jadwal Invoice Berulang" style={{ width: "100%" }} />
       </Field>
@@ -143,8 +149,7 @@ export function PrdScreen({ projects, projectFilter, onProjectFilter, onNewPrd, 
       <div style={{ ...FIXED_ROW_STYLE, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18 }}>
         <Select size="sm" value={projectFilter} aria-label="Project"
           onChange={(e) => onProjectFilter(e.target.value)} options={selOpts} />
-        <Button size="sm" leftIcon="plus" disabled={all}
-          title={all ? "Pilih satu project untuk membuat PRD" : undefined}
+        <Button size="sm" leftIcon="plus"
           onClick={() => setCreating(true)}>PRD baru</Button>
       </div>
       <div style={{ flex: "1 1 auto", minHeight: 0, display: "flex", gap: 16 }}>
@@ -155,7 +160,7 @@ export function PrdScreen({ projects, projectFilter, onProjectFilter, onNewPrd, 
           {items.length === 0 ? (
             <StateBlock kind="empty" icon="scroll-text" title="Belum ada PRD"
               hint="Buat PRD dari brief + brainstorm; hanoman menulisnya ke docs/prd/ lalu bisa di-take jadi backlog."
-              action={activeProject ? () => setCreating(true) : undefined} actionLabel="PRD baru" />
+              action={() => setCreating(true)} actionLabel="PRD baru" />
           ) : groups.map((g) => (
             <div key={g.projectId} style={{ marginBottom: 10 }}>
               {all && (
@@ -182,8 +187,9 @@ export function PrdScreen({ projects, projectFilter, onProjectFilter, onNewPrd, 
           )}
         </section>
       </div>
-      {creating && <NewPrdModal onClose={() => setCreating(false)}
-        onCreate={(brief) => { setCreating(false); onNewPrd(activeProject, brief); }} />}
+      {creating && <NewPrdModal projects={projects} defaultProject={activeProject}
+        onClose={() => setCreating(false)}
+        onCreate={(project, brief) => { setCreating(false); onNewPrd(project, brief); }} />}
     </div>
   );
 }

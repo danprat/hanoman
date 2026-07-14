@@ -43,15 +43,32 @@ describe("PrdScreen", () => {
     }));
   });
 
-  it("New PRD memanggil onNewPrd dengan brief", async () => {
+  it("New PRD: modal punya Select project (default = filter aktif), kirim project itu ke onNewPrd", async () => {
     const onNew = vi.fn();
     render(<PrdScreen projects={projects} projectFilter="p1" onProjectFilter={() => {}} onNewPrd={onNew} onTakeToBacklog={() => {}} />);
     await waitFor(() => expect(screen.getByText("Jadwal Invoice")).toBeTruthy()); // daftar termuat → hanya tombol header
     fireEvent.click(screen.getByRole("button", { name: /prd baru/i }));
+    const projectSel = await screen.findByLabelText("Project untuk PRD baru");
+    expect((projectSel as HTMLSelectElement).value).toBe("p1"); // default ikut filter aktif
     const title = await screen.findByPlaceholderText(/Jadwal Invoice Berulang/i);
     fireEvent.change(title, { target: { value: "Fitur Baru" } });
     fireEvent.click(screen.getByRole("button", { name: /brainstorm prd/i }));
     expect(onNew).toHaveBeenCalledWith("p1", expect.objectContaining({ title: "Fitur Baru" }));
+  });
+
+  it("mode 'Semua project': tombol PRD baru aktif; pilih project di modal tanpa filter list dulu", async () => {
+    const onNew = vi.fn();
+    render(<PrdScreen projects={projects} projectFilter="all" onProjectFilter={() => {}} onNewPrd={onNew} onTakeToBacklog={() => {}} />);
+    await waitFor(() => expect(api.listAllPrds).toHaveBeenCalled());
+    const btn = screen.getByRole("button", { name: /prd baru/i });
+    expect((btn as HTMLButtonElement).disabled).toBe(false); // tak lagi digate filter "Semua project"
+    fireEvent.click(btn);
+    const projectSel = await screen.findByLabelText("Project untuk PRD baru");
+    fireEvent.change(projectSel, { target: { value: "p2" } }); // pilih project di dalam modal
+    const title = await screen.findByPlaceholderText(/Jadwal Invoice Berulang/i);
+    fireEvent.change(title, { target: { value: "Fitur Lintas" } });
+    fireEvent.click(screen.getByRole("button", { name: /brainstorm prd/i }));
+    expect(onNew).toHaveBeenCalledWith("p2", expect.objectContaining({ title: "Fitur Lintas" }));
   });
 
   it("mode 'Semua project' melist PRD lintas-project dikelompokkan per project", async () => {
