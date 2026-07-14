@@ -399,16 +399,16 @@ export default async function (app: FastifyInstance) {
 - `applyPush(entity, id, baseVersion, data, deviceId?): Promise<{ ok:true; version:number } | { ok:false; conflict:true; server: {version,data}|null }>` — insert bila absen; update bila `baseVersion===current`; else conflict. Setiap accept: `version = base+1`, tulis row `SyncLog`.
 - `pull(sinceCursor: string, limit=500): Promise<{ cursor:string; records: {entity,recordId,version,data}[] }>` — SyncLog `seq > since`.
 
-- [ ] **Step 1: Failing test** (single test DB; entity `spec` di project seed):
+- [x] **Step 1: Failing test** (single test DB; entity `spec` di project seed):
   - insert (baseVersion 0, id baru) → `{ok:true,version:1}`; snapshot balik version 1.
   - push stale (baseVersion 0 lagi) → `{ok:false, conflict:true, server:{version:1}}` (AC-12) dan DB tak berubah.
   - push fresh (baseVersion 1) → `{ok:true,version:2}`.
   - `pull("0")` → memuat record terakhir dengan cursor = seq; `pull(cursor)` → kosong (idempoten, AC-15).
   - snapshot spec TIDAK memuat field never-sync; snapshot vps TIDAK memuat `keyPath`.
-- [ ] **Step 2:** Run → FAIL.
-- [ ] **Step 3:** Implement `sync.ts`. Peta entity→Prisma delegate + whitelist kolom per entity (spec: id,projectId,title,source,stage,priority,author,objective,payload,branchFrom,baseSha,headSha,version; project: id,name,desc,kind,stack,gitRemote,version — TANPA repoDir; vps: id,name,host,port,user,health,audit,hardened,lastSeenAt,lastAuditAt,version — TANPA keyPath; sessionResult: semua whitelist). `applyPush` transaksi: baca current version → cek → upsert data + `version` → `syncLog.create`. `pull` baca SyncLog `where seq > BigInt(since) orderBy seq asc take limit`, cursor = `String(last.seq)`.
-- [ ] **Step 4:** Run → PASS.
-- [ ] **Step 5: Commit** `git commit -am "feat(server): sync service apply/pull/version + changefeed (SPEC-213 AC-9..15)"`
+- [x] **Step 2:** Run → FAIL.
+- [x] **Step 3:** Implement `sync.ts`. Peta entity→Prisma delegate + whitelist kolom per entity (spec: id,projectId,title,source,stage,priority,author,objective,payload,branchFrom,baseSha,headSha,version; project: id,name,desc,kind,stack,gitRemote,version — TANPA repoDir; vps: id,name,host,port,user,health,audit,hardened,lastSeenAt,lastAuditAt,version — TANPA keyPath; sessionResult: semua whitelist). `applyPush` transaksi: baca current version → cek → upsert data + `version` → `syncLog.create`. `pull` baca SyncLog `where seq > BigInt(since) orderBy seq asc take limit`, cursor = `String(last.seq)`.
+- [x] **Step 4:** Run → PASS.
+- [x] **Step 5: Commit** `git commit -am "feat(server): sync service apply/pull/version + changefeed (SPEC-213 AC-9..15)"`
 
 ### Task 3.2: Routes `/api/sync/pull` + `/api/sync/push` (device-token) + author attribution
 
