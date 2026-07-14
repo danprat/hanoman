@@ -575,10 +575,10 @@ export default async function (app: FastifyInstance) {
 - Modify: `src/` api client bila perlu.
 - Test: (opsional) komponen; minimal typecheck + smoke.
 
-- [ ] **Step 1:** Tambah UI kelola device token (list + create menampilkan token sekali + revoke) dan panel activity log (baca session-results, filter project, tombol purge).
-- [ ] **Step 2:** `pnpm --filter ./src build` → sukses; `pnpm -r typecheck` PASS.
-- [ ] **Step 3:** Smoke browser via CDP (memori "browser-smoke-via-cdp") atau manual: token muncul sekali, list & revoke jalan.
-- [ ] **Step 4: Commit** `git commit -am "feat(web): kelola device token + panel activity log (SPEC-213)"`
+- [x] **Step 1:** Tambah UI kelola device token (list + create menampilkan token sekali + revoke) dan panel activity log (baca session-results, filter project, tombol purge).
+- [x] **Step 2:** `pnpm --filter ./src build` → sukses; `pnpm -r typecheck` PASS.
+- [x] **Step 3:** Smoke browser via CDP (memori "browser-smoke-via-cdp") atau manual: token muncul sekali, list & revoke jalan.
+- [x] **Step 4: Commit** `git commit -am "feat(web): kelola device token + panel activity log (SPEC-213)"`
 
 ---
 

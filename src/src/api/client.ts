@@ -1,4 +1,4 @@
-import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc } from "@hanoman/shared";
+import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView } from "@hanoman/shared";
 export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd";
 // SPEC-210 · dokumen PRD project (freshest-wins: worktree sesi prd hidup > repoDir). Tipe di @hanoman/shared.
@@ -143,5 +143,14 @@ export const api = {
   deleteUser: (id: string) => j<void>(paths.authUser(id), { method: "DELETE" }),
   changePassword: (b: { currentPassword: string; newPassword: string }) =>
     j<{ user: UserView }>(paths.authChangePassword, { method: "POST", ...body(b) }),
+  // SPEC-213 · device token (identitas mesin) — token plaintext hanya balik di create (sekali).
+  listDeviceTokens: () => j<DeviceTokenView[]>(paths.deviceTokens),
+  createDeviceToken: (b: { name: string }) =>
+    j<{ id: string; name: string; token: string }>(paths.deviceTokens, { method: "POST", ...body(b) }),
+  revokeDeviceToken: (id: string) => j<void>(paths.deviceToken(id), { method: "DELETE" }),
+  // SPEC-213 · activity log (ringkasan hasil sesi)
+  listSessionResults: (projectId?: string) => j<SessionResultView[]>(paths.sessionResults(projectId)),
+  purgeSessionResults: (projectId: string, before?: string) =>
+    j<{ purged: number }>(`${paths.sessionResults(projectId)}${before ? `&before=${encodeURIComponent(before)}` : ""}`, { method: "DELETE" }),
 };
 

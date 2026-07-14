@@ -47,4 +47,9 @@ export const paths = {
   authUsers: `${API}/auth/users`,
   authUser: (id: string) => `${API}/auth/users/${id}`,
   authChangePassword: `${API}/auth/change-password`,
+  // SPEC-213 · device token + activity log
+  deviceTokens: `${API}/device-tokens`,
+  deviceToken: (id: string) => `${API}/device-tokens/${id}`,
+  sessionResults: (projectId?: string) =>
+    `${API}/session-results${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ""}`,
 } as const;

@@ -3,7 +3,7 @@
 import React from "react";
 import { Card, Switch, Select, Button, Input, Field, Icon, StateBlock } from "../ds";
 import { api, ApiError } from "../api/client";
-import type { Setting, UserView } from "@hanoman/shared";
+import type { Setting, UserView, DeviceTokenView, SessionResultView } from "@hanoman/shared";
 import type { ShowToast } from "../ds";
 import { playNotifySound, type NotifySound } from "../notifications/sound";
 
@@ -144,11 +144,106 @@ function UsersPanel({ me, onToast }: { me: UserView; onToast?: ShowToast }) {
   );
 }
 
+// SPEC-213 · Perangkat: device token per-device untuk auth sync ke hub. Token plaintext hanya
+// ditampilkan SEKALI saat dibuat (server simpan hash). Revoke = cabut satu device, yang lain aman.
+function DeviceTokensPanel({ onToast }: { onToast?: ShowToast }) {
+  const [tokens, setTokens] = React.useState<DeviceTokenView[] | null>(null);
+  const [name, setName] = React.useState("");
+  const [fresh, setFresh] = React.useState<{ name: string; token: string } | null>(null);
+  const [busy, setBusy] = React.useState(false);
+  const load = React.useCallback(() => { api.listDeviceTokens().then(setTokens).catch(() => setTokens([])); }, []);
+  React.useEffect(() => { load(); }, [load]);
+  async function create() {
+    if (name.trim().length < 1 || busy) return;
+    setBusy(true);
+    try {
+      const t = await api.createDeviceToken({ name: name.trim() });
+      setFresh({ name: t.name, token: t.token }); setName(""); load();
+      onToast?.("Token perangkat dibuat — salin sekarang", "ok", "key-round");
+    } catch { onToast?.("Gagal membuat token", "err", "x-circle"); }
+    finally { setBusy(false); }
+  }
+  async function revoke(t: DeviceTokenView) {
+    if (!window.confirm(`Cabut token "${t.name}"? Perangkat itu tak bisa sync lagi.`)) return;
+    try { await api.revokeDeviceToken(t.id); load(); onToast?.("Token dicabut", "warn", "trash-2"); }
+    catch { onToast?.("Gagal mencabut token", "err", "x-circle"); }
+  }
+  const active = (tokens ?? []).filter((t) => !t.revokedAt);
+  return (
+    <Card eyebrow="perangkat" title="Device tokens">
+      <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.5 }}>
+        Token per-perangkat untuk menyinkronkan instance lokal ke hub (Bearer). Tempel di
+        <code style={{ margin: "0 4px" }}>SYNC_DEVICE_TOKEN</code> pada instance client. Plaintext hanya tampil sekali.
+      </div>
+      {fresh && (
+        <div style={{ padding: 12, marginBottom: 12, border: "1px solid var(--brass-300)", borderRadius: "var(--radius-sm)", background: "var(--brass-100)" }}>
+          <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>Token untuk “{fresh.name}” — salin sekarang, tak akan ditampilkan lagi:</div>
+          <code style={{ display: "block", wordBreak: "break-all", fontSize: 12 }}>{fresh.token}</code>
+          <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+            <Button size="sm" leftIcon="copy" onClick={() => { void navigator.clipboard?.writeText(fresh.token); onToast?.("Disalin", "ok", "copy"); }}>Salin</Button>
+            <Button size="sm" variant="ghost" onClick={() => setFresh(null)}>Tutup</Button>
+          </div>
+        </div>
+      )}
+      {tokens === null ? <StateBlock kind="loading" compact title="Memuat token…" />
+        : active.length === 0 ? <div style={{ fontSize: 13, color: "var(--text-subtle)", padding: "8px 0" }}>Belum ada token perangkat.</div>
+        : active.map((t, i) => (
+          <SettingRow key={t.id} title={t.name} last={i === active.length - 1}
+            desc={"dibuat " + new Date(t.createdAt).toLocaleDateString("id-ID") + (t.lastSeenAt ? " · terlihat " + new Date(t.lastSeenAt).toLocaleString("id-ID") : " · belum dipakai")}>
+            <Button size="sm" variant="ghost" leftIcon="trash-2" onClick={() => revoke(t)}>Cabut</Button>
+          </SettingRow>
+        ))}
+      <div style={{ paddingTop: 14, display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "end" }}>
+        <Field label="Nama perangkat"><Input value={name} placeholder="laptop-dena"
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)} style={{ width: "100%" }} /></Field>
+        <Button size="sm" leftIcon="plus" disabled={name.trim().length < 1 || busy} onClick={create} style={{ marginBottom: 14 }}>Buat token</Button>
+      </div>
+    </Card>
+  );
+}
+
+// SPEC-213 · Aktivitas: activity log ringkasan hasil sesi (append-only, disync dari semua device).
+function ActivityPanel({ onToast }: { onToast?: ShowToast }) {
+  const [projectId, setProjectId] = React.useState("");
+  const [rows, setRows] = React.useState<SessionResultView[] | null>(null);
+  const load = React.useCallback(() => { api.listSessionResults(projectId || undefined).then(setRows).catch(() => setRows([])); }, [projectId]);
+  React.useEffect(() => { load(); }, [load]);
+  async function purge() {
+    if (!projectId) { onToast?.("Isi project id untuk purge", "warn", "alert-triangle"); return; }
+    if (!window.confirm(`Purge activity log project "${projectId}"?`)) return;
+    try { const r = await api.purgeSessionResults(projectId); load(); onToast?.(`${r.purged} entri dihapus`, "warn", "trash-2"); }
+    catch { onToast?.("Gagal purge", "err", "x-circle"); }
+  }
+  return (
+    <Card eyebrow="aktivitas" title="Activity log">
+      <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.5 }}>
+        Ringkasan hasil sesi lintas device (transisi stage, commit, PR) — append-only. Filter per project.
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "end", marginBottom: 12 }}>
+        <Field label="Project id (opsional)"><Input value={projectId} placeholder="semua project"
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProjectId(e.target.value)} style={{ width: "100%" }} /></Field>
+        <Button size="sm" variant="ghost" leftIcon="trash-2" disabled={!projectId} onClick={purge} style={{ marginBottom: 14 }}>Purge</Button>
+      </div>
+      {rows === null ? <StateBlock kind="loading" compact title="Memuat aktivitas…" />
+        : rows.length === 0 ? <div style={{ fontSize: 13, color: "var(--text-subtle)", padding: "8px 0" }}>Belum ada aktivitas.</div>
+        : rows.map((r, i) => (
+          <SettingRow key={r.id} last={i === rows.length - 1}
+            title={`${r.specId ?? r.projectId}${r.oldStage && r.newStage ? ` · ${r.oldStage} → ${r.newStage}` : ""}`}
+            desc={[r.status, r.commitSha ? r.commitSha.slice(0, 8) : null, r.branch, r.author, new Date(r.createdAt).toLocaleString("id-ID")].filter(Boolean).join(" · ")}>
+            {r.prUrl && <a href={r.prUrl} target="_blank" rel="noreferrer"><Button size="sm" variant="ghost" leftIcon="external-link">PR</Button></a>}
+          </SettingRow>
+        ))}
+    </Card>
+  );
+}
+
 // Grup navigasi settings — sidebar kiri. Akun & Users tak bergantung GET /settings; umum/model/
 // sesi bergantung dan menampilkan loading/error-nya sendiri.
 const S_SECTIONS = [
   { key: "akun", label: "Akun", icon: "user-round" },
   { key: "users", label: "Users", icon: "users" },
+  { key: "perangkat", label: "Perangkat", icon: "key-round" },   // SPEC-213 · device tokens
+  { key: "aktivitas", label: "Aktivitas", icon: "activity" },    // SPEC-213 · activity log
   { key: "umum", label: "Umum", icon: "sliders-horizontal" },
   { key: "model", label: "Model sesi", icon: "cpu" },
   { key: "sesi", label: "Sesi", icon: "bell" },
@@ -254,6 +349,8 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
 
   const content = tab === "akun" ? <AccountPanel me={me} onLoggedOut={onLoggedOut} onToast={onToast} />
     : tab === "users" ? <UsersPanel me={me} onToast={onToast} />
+    : tab === "perangkat" ? <DeviceTokensPanel onToast={onToast} />
+    : tab === "aktivitas" ? <ActivityPanel onToast={onToast} />
     : prefs();
 
   return (
