@@ -4,6 +4,7 @@ import { zTerminalSession, type Stage } from "@hanoman/shared";
 import { realGit, startPrompt, continuePrompt, startProjectPrompt, startPrdPrompt, type Flow } from "@hanoman/runner";
 import { phaseFilePath, decisionFilePath, readPhases, stageForRun } from "../services/session-phases";
 import { sessionModel } from "../services/settings";
+import { resolveRepoDir } from "../services/local-binding";
 import { recordCompletion } from "../services/notifications";
 import { STAGES } from "../services/stage-machine";
 import {
@@ -49,8 +50,10 @@ export default async function (app: FastifyInstance) {
         where: { id: parsed.data.spec }, include: { project: true },
       });
       if (!spec) return reply.code(404).send({ error: "spec not found" });
-      const { repoDir } = spec.project;
-      if (!repoDir) return reply.code(400).send({ error: `project "${spec.projectId}" belum punya repoDir` });
+      // SPEC-213 · binding lokal per-device menang atas Project.repoDir (AC-8). Tanpa checkout
+      // lokal → blokir + minta bind/clone dulu; kode status 400 dipertahankan (parity).
+      const repoDir = await resolveRepoDir(spec.projectId);
+      if (!repoDir) return reply.code(400).send({ error: `project "${spec.projectId}" belum di-bind ke checkout lokal`, needsBind: true });
 
       const id = spec.id.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
       // Sesi yang sudah hidup: JANGAN bangun ulang worktree-nya — di dalamnya ada pekerjaan
@@ -92,10 +95,12 @@ export default async function (app: FastifyInstance) {
 
     const project = await prisma.project.findUnique({ where: { id: parsed.data.project } });
     if (!project) return reply.code(404).send({ error: "project not found" });
-    if (!project.repoDir) {
-      // 422 saat ber-flow (SPEC-166): body-nya sah, keadaan project-nya yang belum siap.
+    // SPEC-213 · binding lokal per-device menang atas Project.repoDir (AC-8). Kode status
+    // dipertahankan (flow → 422, non-flow → 400) untuk parity; `needsBind` memberi sinyal UI.
+    const repoDir = await resolveRepoDir(project.id);
+    if (!repoDir) {
       return reply.code(parsed.data.flow ? 422 : 400)
-        .send({ error: `project "${project.id}" belum punya repoDir` });
+        .send({ error: `project "${project.id}" belum di-bind ke checkout lokal`, needsBind: true });
     }
 
     // SPEC-166 · sesi reverse: worktree + prompt standar docs, tanpa Spec. Id deterministik
@@ -108,14 +113,14 @@ export default async function (app: FastifyInstance) {
       const { model, effort } = await sessionModel();
       try {
         // HEAD, bukan "main": repo target bukan milik hanoman — default branch-nya bebas.
-        realGit.addWorktree(project.repoDir, `${project.repoDir}/.worktrees/${id}`, "HEAD");
+        realGit.addWorktree(repoDir, `${repoDir}/.worktrees/${id}`, "HEAD");
       } catch (e) {
         return reply.code(422).send({ error: `gagal membuat worktree: ${(e as Error).message}` });
       }
-      const s = createSession(project.id, `${project.repoDir}/.worktrees/${id}`, {
+      const s = createSession(project.id, `${repoDir}/.worktrees/${id}`, {
         id, flow: "reverse", model, effort,
-        phaseFile: phaseFilePath(project.repoDir, id),
-        decisionFile: decisionFilePath(project.repoDir, id),
+        phaseFile: phaseFilePath(repoDir, id),
+        decisionFile: decisionFilePath(repoDir, id),
         prompt: startProjectPrompt("reverse", {
           id: project.id, name: project.name, desc: project.desc, stack: project.stack,
         }, "reverse-docs"),
@@ -138,14 +143,14 @@ export default async function (app: FastifyInstance) {
       const { model, effort } = await sessionModel();
       try {
         // HEAD, bukan "main": repo target bukan milik hanoman — default branch-nya bebas.
-        realGit.addWorktree(project.repoDir, `${project.repoDir}/.worktrees/${id}`, "HEAD");
+        realGit.addWorktree(repoDir, `${repoDir}/.worktrees/${id}`, "HEAD");
       } catch (e) {
         return reply.code(422).send({ error: `gagal membuat worktree: ${(e as Error).message}` });
       }
-      const s = createSession(project.id, `${project.repoDir}/.worktrees/${id}`, {
+      const s = createSession(project.id, `${repoDir}/.worktrees/${id}`, {
         id, flow: "prd", model, effort,
-        phaseFile: phaseFilePath(project.repoDir, id),
-        decisionFile: decisionFilePath(project.repoDir, id),
+        phaseFile: phaseFilePath(repoDir, id),
+        decisionFile: decisionFilePath(repoDir, id),
         prompt: startPrdPrompt(
           { id: project.id, name: project.name, desc: project.desc, stack: project.stack },
           brief, `prd/${slug}`),
@@ -153,7 +158,7 @@ export default async function (app: FastifyInstance) {
       return reply.code(201).send({ id: s.id });
     }
 
-    const s = createSession(project.id, project.repoDir);
+    const s = createSession(project.id, repoDir);
     return reply.code(201).send({ id: s.id });
   });
 
@@ -174,11 +179,13 @@ export default async function (app: FastifyInstance) {
     // worktree-nya sendiri di `.worktrees/*` — keduanya harus dibersihkan. Hanya yang ber-spec-flow
     // menggerakkan stage. Terminal biasa (cwd = repoDir) tak tersentuh.
     if (s.flow || s.cwd.includes("/.worktrees/")) {
-      const project = await prisma.project.findUnique({ where: { id: s.projectId } });
-      if (project?.repoDir) {
+      // SPEC-213 · pakai binding lokal (menang atas Project.repoDir) agar worktree sesi ter-bind
+      // pada project murni-metadata tetap dibersihkan.
+      const repoDir = await resolveRepoDir(s.projectId);
+      if (repoDir) {
         // Bacaan terakhir sebelum worktree-nya lenyap: sesudah ini berkas fasenya tak berarti lagi.
         if (s.specId) {
-          if (s.flow) await advanceStage(s.specId, project.repoDir, id, s.flow, s.cwd);
+          if (s.flow) await advanceStage(s.specId, repoDir, id, s.flow, s.cwd);
           // HEAD worktree = ujung range review sesudah item selesai (SPEC-176, ADR-0030).
           // Dibaca sebelum removeWorktree; gagal-diam agar tak memblok penutupan sesi.
           try {
@@ -187,7 +194,7 @@ export default async function (app: FastifyInstance) {
           } catch { /* HEAD tak resolve — biarkan headSha apa adanya */ }
         }
         killSession(id);
-        realGit.removeWorktree(project.repoDir, s.cwd);
+        realGit.removeWorktree(repoDir, s.cwd);
         return reply.code(204).send();
       }
     }

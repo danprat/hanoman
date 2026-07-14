@@ -377,11 +377,11 @@ export default async function (app: FastifyInstance) {
 - Modify: `server/src/routes/ide.ts` — `repoDir` resolver pakai `resolveRepoDir` (binding menang).
 - Test: `server/test/spawn-guard.test.ts`
 
-- [ ] **Step 1: Failing test:** project tanpa repoDir & tanpa binding → POST spawn/terminal → 409 `needsBind:true` (AC-8); setelah PUT binding → tak lagi 409 karena repoDir.
-- [ ] **Step 2:** Run → FAIL.
-- [ ] **Step 3:** Ganti sumber repoDir di jalur spawn/ide ke `resolveRepoDir`. Pertahankan pesan lama untuk kompat.
-- [ ] **Step 4:** Run → PASS; jalankan `terminal.route.test.ts`/`ide.route.test.ts` lama → tetap hijau (parity).
-- [ ] **Step 5: Commit** `git commit -am "feat(server): spawn guard pakai binding lokal, prompt bind (SPEC-213 AC-8)"`
+- [x] **Step 1: Failing test:** project tanpa repoDir & tanpa binding → POST spawn/terminal → 409 `needsBind:true` (AC-8); setelah PUT binding → tak lagi 409 karena repoDir.
+- [x] **Step 2:** Run → FAIL.
+- [x] **Step 3:** Ganti sumber repoDir di jalur spawn/ide ke `resolveRepoDir`. Pertahankan pesan lama untuk kompat.
+- [x] **Step 4:** Run → PASS; jalankan `terminal.route.test.ts`/`ide.route.test.ts` lama → tetap hijau (parity).
+- [x] **Step 5: Commit** `git commit -am "feat(server): spawn guard pakai binding lokal, prompt bind (SPEC-213 AC-8)"`
 
 ---
 

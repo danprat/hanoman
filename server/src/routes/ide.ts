@@ -1,14 +1,17 @@
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../db";
+import { resolveRepoDir } from "../services/local-binding";
 import { listSessions } from "../services/pty";
 import {
   listRepoTree, readRepoFile, writeRepoFile, listGraph, commitDetail, runGitOp, validateGitOp, type GitOp,
 } from "../services/git-ide";
 
-// undefined = project tak ada (→404); null = ada tapi tanpa repoDir; string = repoDir.
+// undefined = project tak ada (→404); null = ada tapi tanpa checkout lokal; string = repoDir.
+// SPEC-213 · binding lokal per-device menang atas Project.repoDir (AC-6).
 async function repoOf(id: string): Promise<string | null | undefined> {
   const p = await prisma.project.findUnique({ where: { id } });
-  return p ? p.repoDir : undefined;
+  if (!p) return undefined;
+  return (await resolveRepoDir(id)) ?? null;
 }
 const activeSessions = (id: string) => listSessions().filter((s) => s.projectId === id && !s.exited).length;
 
