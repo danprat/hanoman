@@ -1,4 +1,4 @@
-import type { Flow, SpecBrief, ProjectBrief } from "./types";
+import type { Flow, SpecBrief, ProjectBrief, PrdBrief } from "./types";
 import { REVERSE_STANDARD } from "./reverse-standard";
 
 export const PIPELINES: Record<Flow, readonly string[]> = {
@@ -6,6 +6,7 @@ export const PIPELINES: Record<Flow, readonly string[]> = {
   qa: ["Audit", "Spec", "Plan", "Execute"],
   scaffold: ["Brainstorm", "Objective", "Doc index"],
   reverse: ["Scan", "Docs teknis", "Wawancara", "Konvensi & index", "Serah terima"],
+  prd: ["Brainstorm", "PRD"],
 };
 
 // SPEC-187 · ADR-0035 — sesi spec-flow menggerakkan dirinya sendiri melewati seluruh fase
@@ -147,4 +148,31 @@ export function startProjectPrompt(flow: Flow, project: ProjectBrief, branchTo: 
     `Project ${project.id} · ${project.name}\nDeskripsi: ${project.desc || "—"}\nStack: ${project.stack || "—"}`,
     `=== STANDAR DOCS ===\n${REVERSE_STANDARD}`,
   ].join("\n\n");
+}
+
+// SPEC-210 · sesi prd: PM/PO menyusun SATU dokumen PRD dari brief + brainstorm interaktif.
+// Project-level (tanpa Spec), meniru startProjectPrompt. Keluaran HANYA dokumen — tak menulis
+// kode fitur. Brainstorm interaktif (satu pertanyaan per giliran; PM menonton terminal), lalu
+// tulis PRD terstruktur, commit, push ke branch prd/<slug>; manusia yang merge. Tak membawa
+// AUTONOMY_CLAUSE: seperti Wawancara reverse, brainstorm PRD memang berjalan bergiliran dgn PM.
+export function startPrdPrompt(project: ProjectBrief, brief: PrdBrief, branchTo: string): string {
+  const slug = branchTo.slice(branchTo.lastIndexOf("/") + 1);
+  return [
+    `hanoman prd. Kamu memandu PM/PO menyusun SATU dokumen PRD untuk project ini dari brief + `
+      + `brainstorm. Keluaranmu HANYA dokumen PRD — JANGAN menulis kode fitur.`,
+    phaseInstruction(PIPELINES.prd),
+    `- Brainstorm: pandu PM secara interaktif. Ajukan SATU pertanyaan per giliran ke manusia di `
+      + `terminal ini, tunggu jawabannya, perdalam brief sampai jelas (masalah, pengguna, scope, `
+      + `metrik sukses). Jangan mengarang; topik yang PM belum jawab tandai sebagai open question.`,
+    `- PRD: tulis dokumen ke \`docs/prd/${slug}.md\`. Awali dengan heading \`# <judul PRD>\`, lalu `
+      + `bagian: Ringkasan · Masalah & konteks · Persona/pengguna · Goals & non-goals · Scope `
+      + `(in/out) · User stories · Acceptance criteria (gaya EARS) · Metrik sukses · Open questions. `
+      + `Isi lengkap dan spesifik dari hasil brainstorm, bukan kerangka kosong.`,
+    skillInstruction(PIPELINES.prd),
+    `Setelah PRD ditulis: commit, lalu \`git push origin HEAD:refs/heads/${branchTo}\`. Bila remote `
+      + `origin tidak ada, lewati push dan catat itu di terminal — jangan gagal diam-diam. Worktree `
+      + `ini detached HEAD — memang disengaja. Manusia yang me-review lalu merge branch ${branchTo}.`,
+    `Project ${project.id} · ${project.name}\nBrief — Judul: ${brief.title}\nKonteks: ${brief.context}\n`
+      + `Outcome: ${brief.outcome}${brief.constraints ? `\nBatasan: ${brief.constraints}` : ""}`,
+  ].filter(Boolean).join("\n\n");
 }

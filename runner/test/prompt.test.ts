@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { PIPELINES, startPrompt, startProjectPrompt, continuePrompt } from "../src/prompt";
+import { PIPELINES, startPrompt, startProjectPrompt, continuePrompt, startPrdPrompt } from "../src/prompt";
 
 const spec = { id: "SPEC-162", title: "Sesi interaktif", source: "brief",
   priority: "high", objective: "Ganti runOne dengan tmux" };
@@ -185,5 +185,48 @@ describe("startProjectPrompt", () => {
   // SPEC-187 · ADR-0035: reverse dikecualikan — Wawancara memang interaktif, satu tanya per giliran.
   it("reverse: TIDAK membawa klausa otonomi", () => {
     expect(startProjectPrompt("reverse", project, "reverse-docs")).not.toContain("tanpa berhenti di batas antar-fase");
+  });
+});
+
+// SPEC-210 · sesi prd project-level: PM menyusun dokumen PRD dari brief + brainstorm interaktif.
+describe("startPrdPrompt", () => {
+  const project = { id: "acme", name: "Acme", desc: "d", stack: "ts" };
+  const brief = { title: "Jadwal Invoice Berulang", context: "PM butuh penjadwalan", outcome: "invoice terjadwal" };
+
+  it("memuat fase Brainstorm lalu PRD, berurutan, dengan instruksi phase file", () => {
+    const p = startPrdPrompt(project, brief, "prd/jadwal-invoice-berulang");
+    expect(PIPELINES.prd).toEqual(["Brainstorm", "PRD"]);
+    expect(p).toContain("Brainstorm → PRD"); // urutan fase di phaseInstruction
+    expect(p).toContain("$HANOMAN_PHASE_FILE");
+  });
+
+  it("menyuruh tulis dokumen ke docs/prd/<slug>.md", () => {
+    const p = startPrdPrompt(project, brief, "prd/jadwal-invoice-berulang");
+    expect(p).toContain("docs/prd/jadwal-invoice-berulang.md");
+  });
+
+  it("menyisipkan brief + identitas project, tanpa 'undefined'", () => {
+    const p = startPrdPrompt(project, brief, "prd/x");
+    expect(p).toContain("Jadwal Invoice Berulang");
+    expect(p).toContain("PM butuh penjadwalan");
+    expect(p).toContain("acme");
+    expect(p).not.toContain("undefined");
+  });
+
+  it("invoke skill brainstorming + push ke branchTo, keluaran HANYA dokumen PRD", () => {
+    const p = startPrdPrompt(project, brief, "prd/x");
+    expect(p).toContain("superpowers:brainstorming");
+    expect(p).toContain("refs/heads/prd/x");
+    expect(p).toContain("git push");
+    expect(p).toContain("HANYA dokumen PRD");
+  });
+
+  it("brainstorm interaktif satu pertanyaan per giliran (PM menonton terminal)", () => {
+    const p = startPrdPrompt(project, brief, "prd/x");
+    expect(p).toContain("SATU pertanyaan");
+  });
+
+  it("tanpa klausa penyelesaian plan (tak ada fase Plan+Execute)", () => {
+    expect(startPrdPrompt(project, brief, "prd/x")).not.toContain("Execute BELUM selesai");
   });
 });
