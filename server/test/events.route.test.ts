@@ -37,11 +37,11 @@ describe("events WS route", () => {
   it("kirim snapshot penuh saat connect", async () => {
     const c = connect();
     await c.opened;
-    await waitFor(() => c.frames.some((f) => f.t === "notifications"));
-    expect(c.frames.some((f) => f.t === "sessions")).toBe(true);
-    expect(c.frames.some((f) => f.t === "specs")).toBe(true);
-    expect(c.frames.some((f) => f.t === "limits")).toBe(true);
-    expect(c.frames.some((f) => f.t === "vps")).toBe(true);
+    const has = (t: string) => c.frames.some((f) => f.t === t);
+    // Snapshot attach mengirim tiap grup berurutan; tunggu SEMUA tiba (jangan hanya notifications —
+    // limits/vps/update datang sesudahnya, jadi cek dini itu balapan). SPEC-214 menambah "update".
+    await waitFor(() => ["sessions", "specs", "notifications", "limits", "vps", "update"].every(has));
+    expect(has("update")).toBe(true);
     c.ws.close();
   });
 
