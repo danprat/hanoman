@@ -53,3 +53,11 @@ di depannya.
 curl -s localhost:8788/api/health                                        # {"ok":true}
 docker compose exec -T db psql -U hanoman -d hanoman_prod -tAc 'select count(*) from "Spec"'
 ```
+
+## Update (SPEC-214)
+
+`pnpm build` menanam `server/dist/build-info.json` (SHA commit). Server membandingkannya dengan checkout
+HEAD dan `origin/<branch>` (fetch ter-gate `HANOMAN_UPDATE_FETCH=1`, otomatis menyala di boot server),
+lalu menampilkan **badge "Update"** di topbar saat ada versi baru — dengan perintah
+`git pull --ff-only && pnpm build && pnpm prod` untuk disalin. Deteksi saja: server tak pull/build/
+restart sendiri (ADR-0043). Terapkan update dengan menjalankan perintah itu (matikan instance lama dulu).

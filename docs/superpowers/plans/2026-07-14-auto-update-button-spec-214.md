@@ -876,7 +876,7 @@ git commit -m "feat(web): UpdateBadge di topbar + frontend docs (SPEC-214)"
 - Modify: `internal/docs/README.md` (link ADR)
 - Modify: `internal/docs/operations/production.md` (build-stamp + badge)
 
-- [ ] **Step 1: Buat `internal/docs/adr/0043-auto-update-deteksi-read-only.md`**
+- [x] **Step 1: Buat `internal/docs/adr/0043-auto-update-deteksi-read-only.md`**
 
 ```markdown
 # ADR-0043 — Auto-update: deteksi versi read-only, tanpa self-mutation
@@ -905,13 +905,13 @@ versi = git commit SHA. Brief SPEC-214: sediakan tombol update saat versi beruba
 - Tak ada perubahan skema; tak menghidupkan queue/scheduler/webhook (ADR-0024).
 ```
 
-- [ ] **Step 2: Link di `internal/docs/README.md`** — di daftar `## adr`, tambah baris paling atas:
+- [x] **Step 2: Link di `internal/docs/README.md`** — di daftar `## adr`, tambah baris paling atas:
 
 ```markdown
 - [0043 — Auto-update: deteksi versi read-only, tanpa self-mutation](adr/0043-auto-update-deteksi-read-only.md)
 ```
 
-- [ ] **Step 3: Catat di `internal/docs/operations/production.md`** — tambah bagian di akhir:
+- [x] **Step 3: Catat di `internal/docs/operations/production.md`** — tambah bagian di akhir:
 
 ```markdown
 ## Update (SPEC-214)
@@ -923,12 +923,12 @@ lalu menampilkan **badge "Update"** di topbar saat ada versi baru — dengan per
 restart sendiri (ADR-0043). Terapkan update dengan menjalankan perintah itu (matikan instance lama dulu).
 ```
 
-- [ ] **Step 4: Verifikasi link (dep-free coverage check)**
+- [x] **Step 4: Verifikasi link (dep-free coverage check)**
 
 Run: `node --experimental-strip-types shared/src/coverage.ts 2>/dev/null || echo "coverage skrip manual — cek README memuat 0043"`
 Expected: tak ada error; `grep -c 0043 internal/docs/README.md` ≥ 1.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/docs/adr/0043-auto-update-deteksi-read-only.md internal/docs/README.md internal/docs/operations/production.md
