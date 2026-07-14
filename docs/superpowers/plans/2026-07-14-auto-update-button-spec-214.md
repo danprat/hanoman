@@ -42,7 +42,7 @@
 **Interfaces:**
 - Produces: `UpdateStatus`, `UpdateReason`, `UpdateRemoteStatus`, `UpdateCommit`, dan varian `{ t: "update"; update: UpdateStatus }` pada `EventMsg`.
 
-- [ ] **Step 1: Tulis test gagal** — `shared/test/update-dto.test.ts`
+- [x] **Step 1: Tulis test gagal** — `shared/test/update-dto.test.ts`
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -70,12 +70,12 @@ describe("UpdateStatus DTO", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `pnpm --filter ./shared exec vitest run test/update-dto.test.ts`
 Expected: FAIL (tipe `UpdateStatus` belum ada — error kompilasi/import).
 
-- [ ] **Step 3: Tambah tipe di `shared/src/dto.ts`** (tepat setelah `export type LimitsDTO = {...};`)
+- [x] **Step 3: Tambah tipe di `shared/src/dto.ts`** (tepat setelah `export type LimitsDTO = {...};`)
 
 ```ts
 // SPEC-214 · status auto-update. "version" hanoman = git commit SHA (tak ada field version).
@@ -103,12 +103,12 @@ Lalu tambahkan varian ke union `EventMsg` (baris terakhir union, setelah `| { t:
 
 (Pindahkan `;` penutup lama ke baris `update` bila union sebelumnya diakhiri `;`.)
 
-- [ ] **Step 4: Jalankan test, pastikan lulus**
+- [x] **Step 4: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./shared exec vitest run test/update-dto.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add shared/src/dto.ts shared/test/update-dto.test.ts
