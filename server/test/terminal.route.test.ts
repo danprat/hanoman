@@ -343,6 +343,57 @@ describe("terminal routes · sesi reverse", () => {
   });
 });
 
+// SPEC-210: sesi prd — PM menyusun dokumen PRD dari brief + brainstorm; project-level, tanpa Spec.
+describe("terminal routes · sesi prd", () => {
+  const start = (project: string, brief?: unknown) =>
+    app.inject({ method: "POST", url: "/api/terminal/sessions",
+      payload: { project, flow: "prd", ...(brief === undefined ? {} : { brief }) } });
+  const brief = { title: "Jadwal Invoice", context: "c", outcome: "o" };
+
+  it("POST { project, flow: prd, brief } → worktree + sesi ber-id prd-<slug>", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const res = await start("p1", brief);
+    expect(res.statusCode).toBe(201);
+    expect(res.json().id).toBe("prd-jadwal-invoice");
+    expect(existsSync(join(repoDir, ".worktrees", "prd-jadwal-invoice"))).toBe(true);
+    const s = listSessions().find((x) => x.id === "prd-jadwal-invoice")!;
+    expect(s.flow).toBe("prd");
+    expect(s.cwd).toContain(join(".worktrees", "prd-jadwal-invoice"));
+    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/prd-jadwal-invoice" });
+  });
+
+  it("POST prd tanpa brief → 400", async () => {
+    expect((await start("p1")).statusCode).toBe(400);
+  });
+
+  it("POST prd judul kosong → 400 (slug kosong)", async () => {
+    expect((await start("p1", { title: "", context: "c", outcome: "o" })).statusCode).toBe(400);
+  });
+
+  it("project tanpa repoDir + prd → 422", async () => {
+    expect((await start("p2", brief)).statusCode).toBe(422);
+  });
+
+  it("DELETE membuang worktree sesi prd — meski tanpa spec", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    await start("p1", brief);
+    expect((await app.inject({ method: "DELETE", url: "/api/terminal/sessions/prd-jadwal-invoice" })).statusCode).toBe(204);
+    expect(existsSync(join(repoDir, ".worktrees", "prd-jadwal-invoice"))).toBe(false);
+  });
+
+  it("prompt sesi prd memuat instruksi PRD (docs/prd + brainstorming)", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+    const res = await start("p1", brief);
+    expect(res.statusCode).toBe(201);
+    const c = connect("prd-jadwal-invoice");
+    await c.opened;
+    await waitFor(() => c.frames.some((f) => f.t === "exit"));
+    expect(c.data()).toContain("docs/prd/jadwal-invoice.md");
+    c.ws.close();
+    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/prd-jadwal-invoice" });
+  });
+});
+
 // SPEC-168: backlog menurunkan stage sesi yang hidup — real time, tanpa menunggu DELETE.
 describe("GET /specs · stage live dari sesi", () => {
   const start = (spec: string, flow = "feature") =>

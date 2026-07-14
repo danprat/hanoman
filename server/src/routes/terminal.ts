@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../db";
 import { zTerminalSession, type Stage } from "@hanoman/shared";
-import { realGit, startPrompt, continuePrompt, startProjectPrompt, type Flow } from "@hanoman/runner";
+import { realGit, startPrompt, continuePrompt, startProjectPrompt, startPrdPrompt, type Flow } from "@hanoman/runner";
 import { phaseFilePath, decisionFilePath, readPhases, stageForRun } from "../services/session-phases";
 import { sessionModel } from "../services/settings";
 import { recordCompletion } from "../services/notifications";
@@ -119,6 +119,36 @@ export default async function (app: FastifyInstance) {
         prompt: startProjectPrompt("reverse", {
           id: project.id, name: project.name, desc: project.desc, stack: project.stack,
         }, "reverse-docs"),
+      });
+      return reply.code(201).send({ id: s.id });
+    }
+
+    // SPEC-210 · sesi prd project-level: PM menyusun dokumen PRD dari brief + brainstorm. Meniru
+    // reverse (worktree isolasi, push ke branch prd/<slug>, manusia merge). Tanpa Spec: DELETE
+    // session tak menggerakkan stage (dijaga `if (s.specId)`), worktree tetap dibersihkan.
+    if (parsed.data.flow === "prd") {
+      const { brief } = parsed.data;
+      const slug = brief.title.toLowerCase().trim()
+        .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+      if (!slug) return reply.code(400).send({ error: "judul PRD kosong" });
+      const id = `prd-${slug}`;
+      const live = getSession(id);
+      if (live) return reply.code(201).send({ id: live.id });
+
+      const { model, effort } = await sessionModel();
+      try {
+        // HEAD, bukan "main": repo target bukan milik hanoman — default branch-nya bebas.
+        realGit.addWorktree(project.repoDir, `${project.repoDir}/.worktrees/${id}`, "HEAD");
+      } catch (e) {
+        return reply.code(422).send({ error: `gagal membuat worktree: ${(e as Error).message}` });
+      }
+      const s = createSession(project.id, `${project.repoDir}/.worktrees/${id}`, {
+        id, flow: "prd", model, effort,
+        phaseFile: phaseFilePath(project.repoDir, id),
+        decisionFile: decisionFilePath(project.repoDir, id),
+        prompt: startPrdPrompt(
+          { id: project.id, name: project.name, desc: project.desc, stack: project.stack },
+          brief, `prd/${slug}`),
       });
       return reply.code(201).send({ id: s.id });
     }
