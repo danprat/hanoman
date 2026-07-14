@@ -236,7 +236,7 @@ git commit -m "feat(server): composeUpdate — logika deteksi update murni (SPEC
 - Produces: `export async function getUpdateStatus(): Promise<UpdateStatus>` dan `export function _resetUpdateCache(): void`.
 - Seam: baca root dari `process.env.HANOMAN_REPO_ROOT ?? process.cwd()`; fetch hanya bila `process.env.HANOMAN_UPDATE_FETCH === "1"`.
 
-- [ ] **Step 1: Tulis test gagal** — `server/test/update.service.test.ts`
+- [x] **Step 1: Tulis test gagal** — `server/test/update.service.test.ts`
 
 ```ts
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
@@ -283,12 +283,12 @@ describe("getUpdateStatus", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `pnpm --filter ./server exec vitest run test/update.service.test.ts`
 Expected: FAIL ("getUpdateStatus is not exported").
 
-- [ ] **Step 3: Tambah git+cache+build-info ke `server/src/services/update.ts`** (di bawah `composeUpdate`)
+- [x] **Step 3: Tambah git+cache+build-info ke `server/src/services/update.ts`** (di bawah `composeUpdate`)
 
 ```ts
 import { execFile } from "node:child_process";
@@ -378,12 +378,12 @@ export function _resetUpdateCache(): void { cached = null; lastFetchAt = 0; }
 
 Catatan: import `UpdateRemoteStatus`/`UpdateCommit` sudah ada dari Task 2 (baris import teratas file). Pastikan keduanya termuat di daftar import `@hanoman/shared`.
 
-- [ ] **Step 4: Jalankan test, pastikan lulus**
+- [x] **Step 4: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./server exec vitest run test/update.service.test.ts`
 Expected: PASS (3 kasus)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/update.ts server/test/update.service.test.ts
