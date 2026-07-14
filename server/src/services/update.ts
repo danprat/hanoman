@@ -106,7 +106,7 @@ async function compute(): Promise<UpdateStatus> {
       if (behind > 0) {
         const log = await git(root, ["log", "--format=%h%x09%s", "-n", String(COMMIT_CAP), `HEAD..${ref}`]);
         newCommits = log ? log.split("\n").map((l) => {
-          const [sha, ...rest] = l.split("\t"); return { sha, subject: rest.join("\t") };
+          const [sha = "", ...rest] = l.split("\t"); return { sha, subject: rest.join("\t") };
         }) : [];
       }
     } catch { remoteStatus = "unavailable"; behind = 0; newCommits = []; fetchedAt = null; }
