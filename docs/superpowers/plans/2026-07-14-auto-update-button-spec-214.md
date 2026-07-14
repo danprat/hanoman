@@ -127,7 +127,7 @@ git commit -m "feat(shared): UpdateStatus DTO + varian EventMsg update (SPEC-214
 - Consumes: `UpdateStatus`, `UpdateReason`, `UpdateRemoteStatus`, `UpdateCommit` dari `@hanoman/shared`.
 - Produces: `export function composeUpdate(x: UpdateInputs): UpdateStatus` dan `export type UpdateInputs`.
 
-- [ ] **Step 1: Tulis test gagal** — `server/test/update.test.ts`
+- [x] **Step 1: Tulis test gagal** — `server/test/update.test.ts`
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -168,12 +168,12 @@ describe("composeUpdate", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `pnpm --filter ./server exec vitest run test/update.test.ts`
 Expected: FAIL ("composeUpdate is not a function" / modul tak ada).
 
-- [ ] **Step 3: Buat `server/src/services/update.ts` dengan fungsi murni**
+- [x] **Step 3: Buat `server/src/services/update.ts` dengan fungsi murni**
 
 ```ts
 import type { UpdateStatus, UpdateReason, UpdateRemoteStatus, UpdateCommit } from "@hanoman/shared";
@@ -212,12 +212,12 @@ export function composeUpdate(x: UpdateInputs): UpdateStatus {
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan lulus**
+- [x] **Step 4: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./server exec vitest run test/update.test.ts`
 Expected: PASS (6 kasus)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/update.ts server/test/update.test.ts
