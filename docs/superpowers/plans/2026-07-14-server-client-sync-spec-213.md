@@ -440,11 +440,11 @@ export default async function (app: FastifyInstance) {
 
 **Interfaces (Produces):** `attachSync(client)`, `detachSync(client)`, `broadcastSyncLog({entity,recordId,version,data})`.
 
-- [ ] **Step 1: Failing test:** buka WS `/api/sync/ws?token=<deviceToken>` (auth via query pada upgrade — cookie tak ada di server-to-server), lakukan `applyPush` → klien WS terima frame `{t:"sync",entity,recordId,version,data}` < 1 dtk. Tanpa token → upgrade ditolak (close/401).
-- [ ] **Step 2:** Run → FAIL.
-- [ ] **Step 3:** Implement `sync-hub.ts` (pola `events.ts`: Set klien, broadcast JSON). Di route WS handler, verifikasi `req.query.token` via `verifyDeviceToken`; gagal → `socket.close()`. `applyPush` memanggil `broadcastSyncLog`.
-- [ ] **Step 4:** Run → PASS.
-- [ ] **Step 5: Commit** `git commit -am "feat(server): WS /sync/ws siar changefeed token-authed (SPEC-213 AC-16)"`
+- [x] **Step 1: Failing test:** buka WS `/api/sync/ws?token=<deviceToken>` (auth via query pada upgrade — cookie tak ada di server-to-server), lakukan `applyPush` → klien WS terima frame `{t:"sync",entity,recordId,version,data}` < 1 dtk. Tanpa token → upgrade ditolak (close/401).
+- [x] **Step 2:** Run → FAIL.
+- [x] **Step 3:** Implement `sync-hub.ts` (pola `events.ts`: Set klien, broadcast JSON). Di route WS handler, verifikasi `req.query.token` via `verifyDeviceToken`; gagal → `socket.close()`. `applyPush` memanggil `broadcastSyncLog`.
+- [x] **Step 4:** Run → PASS.
+- [x] **Step 5: Commit** `git commit -am "feat(server): WS /sync/ws siar changefeed token-authed (SPEC-213 AC-16)"`
 
 ### Task 4.2: Outbox lokal — enqueue di mutation sites
 
