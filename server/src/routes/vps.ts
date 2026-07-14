@@ -8,6 +8,7 @@ import { runAudit, scriptPath } from "../services/vps-audit";
 import { bootstrapKey } from "../services/vps-bootstrap";
 import { createSession } from "../services/pty";
 import { sessionModel } from "../services/settings";
+import { enqueueOutbox } from "../services/outbox";
 
 // Audit (dan nanti harden/session) = eksekusi remote via SSH dengan key milik mesin ini.
 // Tanpa auth — pagarnya bind 127.0.0.1 di server.ts, sama seperti /api/terminal
@@ -26,7 +27,9 @@ export default async function (app: FastifyInstance) {
       if (!bs.ok) return reply.code(502).send({ error: "bootstrap key gagal lewat ssh", out: bs.out });
       data.keyPath = bs.keyPath;
     }
-    return reply.code(201).send(await prisma.vps.create({ data }));
+    const created = await prisma.vps.create({ data });
+    await enqueueOutbox("vps", created.id); // SPEC-213 · antre push sync (tanpa keyPath)
+    return reply.code(201).send(created);
   });
 
   app.patch("/vps/:id", async (req, reply) => {
@@ -44,7 +47,9 @@ export default async function (app: FastifyInstance) {
       if (!bs.ok) return reply.code(502).send({ error: "bootstrap key gagal lewat ssh", out: bs.out });
       data.keyPath = bs.keyPath;
     }
-    return prisma.vps.update({ where: { id }, data });
+    const updated = await prisma.vps.update({ where: { id }, data });
+    await enqueueOutbox("vps", id); // SPEC-213 · antre push sync
+    return updated;
   });
 
   app.delete("/vps/:id", async (req, reply) => {

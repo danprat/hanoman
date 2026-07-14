@@ -5,6 +5,7 @@ import type { VpsCheck, VpsHealth } from "@hanoman/shared";
 import { prisma } from "../db";
 import { repoRoot } from "../runner/deps";
 import { sshExec, type SshTarget } from "./vps-ssh";
+import { enqueueOutbox } from "./outbox";
 
 // Check kritis (SPEC-164 §3): semuanya pass → hardened. warn tak menghalangi.
 export const CRITICAL = [
@@ -55,6 +56,7 @@ export async function runAudit(v: VpsRow):
   const hardened = isHardened(audit);
   await prisma.vps.update({ where: { id: v.id }, data: {
     audit: audit as unknown as Prisma.InputJsonValue, lastAuditAt: new Date(), hardened } });
+  await enqueueOutbox("vps", v.id); // SPEC-213 · hasil audit ikut disync
   return { ok: true, audit, hardened };
 }
 
@@ -64,5 +66,6 @@ export async function runHealth(v: VpsRow): Promise<boolean> {
   if (r.code !== 0 || !health) return false;
   await prisma.vps.update({ where: { id: v.id }, data: {
     health: health as unknown as Prisma.InputJsonValue, lastSeenAt: new Date() } });
+  await enqueueOutbox("vps", v.id); // SPEC-213 · health ikut disync
   return true;
 }

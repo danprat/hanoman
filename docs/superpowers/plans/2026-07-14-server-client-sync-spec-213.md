@@ -525,11 +525,11 @@ export default async function (app: FastifyInstance) {
 - Modify: `server/src/services/vps-monitor.ts` / vps update sites — `enqueueOutbox("vps", id)` sesudah update health/audit.
 - Test: `server/test/vps-sync.test.ts`
 
-- [ ] **Step 1: Failing test:** update vps health → outbox memuat vps; `snapshot("vps",id)` TIDAK memuat `keyPath` (AC-29); `applyPush` vps update version.
-- [ ] **Step 2:** Run → FAIL.
-- [ ] **Step 3:** Sisipkan enqueue di vps update sites; pastikan whitelist vps di `sync.ts` sudah exclude keyPath (Task 3.1).
-- [ ] **Step 4:** Run → PASS.
-- [ ] **Step 5: Commit** `git commit -am "feat(server): Vps ikut sync tanpa keyPath (SPEC-213 AC-26/29)"`
+- [x] **Step 1: Failing test:** update vps health → outbox memuat vps; `snapshot("vps",id)` TIDAK memuat `keyPath` (AC-29); `applyPush` vps update version.
+- [x] **Step 2:** Run → FAIL.
+- [x] **Step 3:** Sisipkan enqueue di vps update sites; pastikan whitelist vps di `sync.ts` sudah exclude keyPath (Task 3.1).
+- [x] **Step 4:** Run → PASS.
+- [x] **Step 5: Commit** `git commit -am "feat(server): Vps ikut sync tanpa keyPath (SPEC-213 AC-26/29)"`
 
 ### Task 6.2: Gating aksi SSH pada key lokal
 
