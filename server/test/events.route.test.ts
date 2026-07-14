@@ -25,6 +25,7 @@ function connect() {
 
 beforeAll(async () => {
   process.env.CLAUDE_CONFIG_DIR = mkdtempSync(join(tmpdir(), "hanoman-cfg-")); // getLimits → unavailable, tanpa jaringan
+  process.env.HANOMAN_REPO_ROOT = process.env.CLAUDE_CONFIG_DIR;  // getUpdateStatus fail-safe, tanpa jaringan
   process.env.HANOMAN_EVENTS_TICK_MS = "50";
   killAll(); await resetDb();
   await app.listen({ port: 0, host: "127.0.0.1" });

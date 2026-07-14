@@ -505,7 +505,7 @@ git commit -m "feat(server): GET /api/update + api-contract (SPEC-214)"
 - Consumes: `getUpdateStatus` dari `services/update`.
 - Produces: frame `{ t: "update", update: UpdateStatus }` pada attach + tiap 300 tick (dedup signature).
 
-- [ ] **Step 1: Perbarui test** — `server/test/events.test.ts`
+- [x] **Step 1: Perbarui test** — `server/test/events.test.ts`
 
 Di `beforeEach`, setelah baris `process.env.CLAUDE_CONFIG_DIR = mkdtempSync(...)`, tambah:
 
@@ -522,12 +522,12 @@ Di test "mengirim snapshot semua grup ke klien saat attach", tambah assert:
     expect(groups(c).has("update")).toBe(true);
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `pnpm --filter ./server exec vitest run test/events.test.ts`
 Expected: FAIL (`groups(c).has("update")` false — grup belum ada).
 
-- [ ] **Step 3a: Tambah grup di `server/src/services/events.ts`**
+- [x] **Step 3a: Tambah grup di `server/src/services/events.ts`**
 
 Import di atas (bersama import service lain): `import { getUpdateStatus } from "./update";`
 Tambah entri di akhir array `GROUPS` (setelah baris `limits`):
@@ -538,7 +538,7 @@ Tambah entri di akhir array `GROUPS` (setelah baris `limits`):
   { everyTicks: 300, last: "", build: async () => ({ t: "update", update: await getUpdateStatus() }) },
 ```
 
-- [ ] **Step 3b: Set flag fetch di `server/src/server.ts`** — tambah setelah baris import (sebelum `const app = buildApp();`):
+- [x] **Step 3b: Set flag fetch di `server/src/server.ts`** — tambah setelah baris import (sebelum `const app = buildApp();`):
 
 ```ts
 // SPEC-214 · aktifkan git fetch untuk deteksi update hanya di boot server nyata. Test meng-import
@@ -546,18 +546,18 @@ Tambah entri di akhir array `GROUPS` (setelah baris `limits`):
 process.env.HANOMAN_UPDATE_FETCH ??= "1";
 ```
 
-- [ ] **Step 3c: Netralkan jaringan di `server/test/events.route.test.ts`** — di `beforeAll`, setelah baris `process.env.CLAUDE_CONFIG_DIR = mkdtempSync(...)`, tambah:
+- [x] **Step 3c: Netralkan jaringan di `server/test/events.route.test.ts`** — di `beforeAll`, setelah baris `process.env.CLAUDE_CONFIG_DIR = mkdtempSync(...)`, tambah:
 
 ```ts
   process.env.HANOMAN_REPO_ROOT = process.env.CLAUDE_CONFIG_DIR;  // getUpdateStatus fail-safe, tanpa jaringan
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan lulus**
+- [x] **Step 4: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./server exec vitest run test/events.test.ts test/events.route.test.ts`
 Expected: PASS (termasuk assert `has("update")`).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/events.ts server/src/server.ts server/test/events.test.ts server/test/events.route.test.ts
