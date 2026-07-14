@@ -45,7 +45,7 @@
 
 **Interfaces (Produces):** model `DeviceToken`, `SessionResult`, `SyncLog`, `LocalBinding`, `SyncOutbox`, `SyncState`; kolom `Project.gitRemote?`, `version`/`updatedAt` di `Project`/`Spec`/`Vps`/`SessionResult`.
 
-- [ ] **Step 1:** Tambahkan ke `schema.prisma`:
+- [x] **Step 1:** Tambahkan ke `schema.prisma`:
 
 ```prisma
 model DeviceToken {
@@ -114,7 +114,7 @@ model SyncState {
 
   Lalu tambah ke `model User`: `deviceTokens DeviceToken[]`. Tambah ke `Project`: `gitRemote String?`, `version Int @default(0)`, `updatedAt DateTime @default(now())`. Tambah ke `Spec`: `version Int @default(0)`, `updatedAt DateTime @default(now())`. Tambah ke `Vps`: `version Int @default(0)`, `updatedAt DateTime @default(now())`.
 
-- [ ] **Step 2:** Tulis `migration.sql` tangan (jangan `migrate dev` — reset risk):
+- [x] **Step 2:** Tulis `migration.sql` tangan (jangan `migrate dev` — reset risk):
 
 ```sql
 -- SPEC-213 · sync server-client
@@ -170,7 +170,7 @@ CREATE TABLE "SyncState" ("id" INTEGER NOT NULL DEFAULT 1, "cursor" TEXT NOT NUL
   CONSTRAINT "SyncState_pkey" PRIMARY KEY ("id"));
 ```
 
-- [ ] **Step 3:** Apply ke kedua DB + generate client:
+- [x] **Step 3:** Apply ke kedua DB + generate client:
 ```bash
 cd server
 env DATABASE_URL="postgresql://hanoman:hanoman@localhost:5432/hanoman" npx prisma migrate deploy
@@ -178,8 +178,8 @@ env DATABASE_URL="postgresql://hanoman:hanoman@localhost:5432/hanoman_test" npx 
 npx prisma generate
 ```
 Expected: "migration(s) applied" pada keduanya; generate sukses.
-- [ ] **Step 4:** `pnpm -r typecheck` → PASS (skema baru dikenali).
-- [ ] **Step 5: Commit** `git add server/prisma && git commit -m "feat(server): skema sync — DeviceToken/SessionResult/SyncLog + version stamps (SPEC-213)"`
+- [x] **Step 4:** `pnpm -r typecheck` → PASS (skema baru dikenali).
+- [x] **Step 5: Commit** `git add server/prisma && git commit -m "feat(server): skema sync — DeviceToken/SessionResult/SyncLog + version stamps (SPEC-213)"`
 
 ---
 

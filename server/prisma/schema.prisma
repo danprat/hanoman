@@ -13,8 +13,11 @@ model Project {
   desc      String
   kind      String
   repoDir   String?
+  gitRemote String?  // SPEC-213 · git remote resmi untuk clone di client; repoDir tetap LOCAL-only, tak disync
   stack     String   @default("")
   createdAt DateTime @default(now())
+  version   Int      @default(0) // SPEC-213 · version-stamp sync (ADR-0045)
+  updatedAt DateTime @default(now())
   specs     Spec[]
 }
 
@@ -31,6 +34,8 @@ model Spec {
   branchFrom String? // SPEC-143 · branch sumber worktree; null = default project (main)
   baseSha    String? // SPEC-176 · ADR-0030 · commit detach worktree sesi (nilai balik addWorktree)
   headSha    String? // SPEC-176 · ADR-0030 · commit HEAD worktree di akhir sesi (sebelum removeWorktree)
+  version    Int      @default(0) // SPEC-213 · version-stamp sync (ADR-0045)
+  updatedAt  DateTime @default(now())
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
@@ -61,6 +66,7 @@ model User {
   passwordHash String
   createdAt    DateTime  @default(now())
   sessions     Session[]
+  deviceTokens DeviceToken[]
 }
 
 // SPEC-169 · sesi opaque revocable. id = sha256(token); token asli hanya ada di cookie httpOnly.
@@ -87,4 +93,73 @@ model Vps {
   lastAuditAt DateTime?
   audit       Json?     // VpsCheck[] — [{ check, status, detail }]
   hardened    Boolean   @default(false) // derived: semua check kritis pass
+  version     Int       @default(0) // SPEC-213 · version-stamp sync (ADR-0045)
+  updatedAt   DateTime  @default(now())
+}
+
+// SPEC-213 · ADR-0044 · identitas mesin per-device. tokenHash = sha256(token); plaintext
+// hanya ditampilkan sekali saat diterbitkan. Terikat ke user → atribusi author. Revoke = set revokedAt.
+model DeviceToken {
+  id         String    @id @default(cuid())
+  userId     String
+  name       String
+  tokenHash  String    @unique
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime?
+  revokedAt  DateTime?
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// SPEC-213 · ADR-0047 · ringkasan hasil sesi (activity log). Append-only; whitelist field.
+model SessionResult {
+  id        String   @id
+  projectId String
+  specId    String?
+  oldStage  String?
+  newStage  String?
+  commitSha String?
+  branch    String?
+  prUrl     String?
+  status    String
+  deviceId  String?
+  author    String?
+  version   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+}
+
+// SPEC-213 · ADR-0045 · change-feed server-authoritative. seq = kursor global sync.
+model SyncLog {
+  seq       BigInt   @id @default(autoincrement())
+  entity    String
+  recordId  String
+  version   Int
+  data      Json
+  deviceId  String?
+  createdAt DateTime @default(now())
+
+  @@index([entity, recordId])
+}
+
+// SPEC-213 · LOCAL-ONLY (tak pernah disync): map projectId → repoDir per-device (AC-6/7).
+model LocalBinding {
+  projectId String   @id
+  repoDir   String
+  createdAt DateTime @default(now())
+}
+
+// SPEC-213 · LOCAL-ONLY: antre write lokal untuk push saat online (AC-17/18).
+model SyncOutbox {
+  id        String   @id @default(cuid())
+  entity    String
+  recordId  String
+  createdAt DateTime @default(now())
+
+  @@unique([entity, recordId])
+}
+
+// SPEC-213 · LOCAL-ONLY: kursor pull terakhir (singleton).
+model SyncState {
+  id     Int    @id @default(1)
+  cursor String @default("0")
 }
