@@ -1,0 +1,70 @@
+import { describe, it, expect, beforeEach, afterAll } from "vitest";
+import { buildApp } from "../src/app";
+import { prisma } from "../src/db";
+import { issueDeviceToken } from "../src/services/device-token";
+import { pull } from "../src/services/sync";
+import { enqueueOutbox, listOutbox } from "../src/services/outbox";
+import { syncOnce, getCursor, setCursor, type Transport } from "../src/services/sync-client";
+
+const app = buildApp();
+const clean = async () => {
+  await prisma.syncLog.deleteMany(); await prisma.syncOutbox.deleteMany(); await prisma.syncState.deleteMany();
+  await prisma.spec.deleteMany(); await prisma.project.deleteMany();
+  await prisma.deviceToken.deleteMany(); await prisma.session.deleteMany(); await prisma.user.deleteMany();
+};
+beforeEach(clean); afterAll(clean);
+
+async function realTransport(): Promise<Transport> {
+  const u = await prisma.user.create({ data: { email: "d@d.co", passwordHash: "x:y" } });
+  const t = await issueDeviceToken(u.id, "laptop");
+  return async (method, path, body) => {
+    const res = await app.inject({ method, url: path, headers: { authorization: `Bearer ${t.token}` }, ...(body ? { payload: body } : {}) });
+    return { status: res.statusCode, body: res.json() };
+  };
+}
+const specData = (over: Record<string, unknown> = {}) => ({
+  projectId: "p1", title: "t", source: "brief", stage: "planned", priority: "sedang", author: "a", objective: "o", ...over,
+});
+
+describe("sync-client syncOnce (SPEC-213 AC-18/19)", () => {
+  it("drains outbox: pushes local record to hub", async () => {
+    const transport = await realTransport();
+    await prisma.project.create({ data: { id: "p1", name: "p1", desc: "d", kind: "existing", repoDir: null } });
+    await prisma.spec.create({ data: { id: "SPEC-1", ...specData() } });
+    await enqueueOutbox("spec", "SPEC-1");
+
+    const res = await syncOnce(transport);
+    expect(res.pushed).toBe(1);
+    expect((await pull("0")).records.map((r) => r.recordId)).toContain("SPEC-1");
+    expect(await listOutbox()).toHaveLength(0);
+  });
+
+  it("pulls new hub records + advances cursor; idempotent second run", async () => {
+    const transport = await realTransport();
+    await prisma.project.create({ data: { id: "p1", name: "p1", desc: "d", kind: "existing", repoDir: null } });
+    // simulasikan hub sudah punya record: push via transport (ber-token), lalu reset kursor lokal.
+    await transport("POST", "/api/sync/push", { records: [{ entity: "spec", id: "SPEC-2", baseVersion: 0, data: specData() }] });
+    await setCursor("0");
+
+    const first = await syncOnce(transport);
+    expect(first.pulled).toBeGreaterThanOrEqual(1);
+    expect(Number(await getCursor())).toBeGreaterThan(0);
+    const second = await syncOnce(transport);
+    expect(second.pulled).toBe(0);
+  });
+
+  it("conflict: stale push kept in outbox, local record uncorrupted (AC-19)", async () => {
+    await prisma.project.create({ data: { id: "p1", name: "p1", desc: "d", kind: "existing", repoDir: null } });
+    await prisma.spec.create({ data: { id: "SPEC-3", version: 1, ...specData({ title: "local" }) } });
+    await enqueueOutbox("spec", "SPEC-3");
+    // stub transport: pull kosong, push balas conflict
+    const stub: Transport = async (method) => {
+      if (method === "GET") return { status: 200, body: { cursor: "0", records: [] } };
+      return { status: 200, body: { results: [{ id: "SPEC-3", ok: false, conflict: true, server: { version: 5, data: specData({ title: "server" }) } }] } };
+    };
+    const res = await syncOnce(stub);
+    expect(res.conflicts).toBe(1);
+    expect(await listOutbox()).toHaveLength(1); // tetap di outbox
+    expect((await prisma.spec.findUnique({ where: { id: "SPEC-3" } }))?.title).toBe("local"); // tak korup
+  });
+});

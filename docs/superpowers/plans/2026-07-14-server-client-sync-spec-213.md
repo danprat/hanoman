@@ -472,15 +472,15 @@ export default async function (app: FastifyInstance) {
 - `applyRemote(entity, recordId, version, data)` — upsert record lokal ke `version`/data server (server-authoritative), TANPA menulis SyncLog/outbox.
 - `startSyncClient()` — jadwalkan `syncOnce` + WS listener + reconnect backoff.
 
-- [ ] **Step 1: Failing test** (satu proses, hub = `buildApp` inject; "client" = fungsi yang panggil hub lewat `app.inject` sebagai transport — suntik transport agar tak perlu socket nyata):
+- [x] **Step 1: Failing test** (satu proses, hub = `buildApp` inject; "client" = fungsi yang panggil hub lewat `app.inject` sebagai transport — suntik transport agar tak perlu socket nyata):
   - Seed outbox lokal 1 spec (belum di hub). `syncOnce` → pushed=1; hub `pull` memuat spec itu.
   - Simulasi record baru di hub → `syncOnce` → pulled≥1; record ada di DB lokal via `applyRemote`; cursor maju; run kedua pulled=0 (idempoten, AC-18/15).
   - Konflik: outbox record baseVersion basi → conflicts=1, outbox TETAP ada (tak hilang), DB lokal tak korup (AC-19).
-- [ ] **Step 2:** Run → FAIL.
-- [ ] **Step 3:** Implement `sync-client.ts` dengan transport injectable `(method,path,body,token)=>Promise<res>` (default `fetch(base+path)`, test pakai `app.inject`). `applyRemote` reuse peta entity `sync.ts` (ekspor helper `upsertLocal`). `startSyncClient` pakai WS `ws://`/`wss://` + backoff; on message → `applyRemote` + cursor; on reconnect → `syncOnce`.
-- [ ] **Step 4:** Run → PASS.
-- [ ] **Step 5:** `server.ts`: `if (env.SYNC_SERVER_URL && env.SYNC_DEVICE_TOKEN) startSyncClient();`
-- [ ] **Step 6: Commit** `git commit -am "feat(server): sync-client pull-before-push drain + WS reconnect (SPEC-213 AC-18/19)"`
+- [x] **Step 2:** Run → FAIL.
+- [x] **Step 3:** Implement `sync-client.ts` dengan transport injectable `(method,path,body,token)=>Promise<res>` (default `fetch(base+path)`, test pakai `app.inject`). `applyRemote` reuse peta entity `sync.ts` (ekspor helper `upsertLocal`). `startSyncClient` pakai WS `ws://`/`wss://` + backoff; on message → `applyRemote` + cursor; on reconnect → `syncOnce`.
+- [x] **Step 4:** Run → PASS.
+- [x] **Step 5:** `server.ts`: `if (env.SYNC_SERVER_URL && env.SYNC_DEVICE_TOKEN) startSyncClient();`
+- [x] **Step 6: Commit** `git commit -am "feat(server): sync-client pull-before-push drain + WS reconnect (SPEC-213 AC-18/19)"`
 
 ---
 

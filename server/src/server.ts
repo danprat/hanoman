@@ -1,6 +1,7 @@
 import { buildApp } from "./app";
 import { prisma } from "./db";
 import { startVpsMonitor } from "./services/vps-monitor";
+import { startSyncClient } from "./services/sync-client";
 const app = buildApp();
 const port = Number(process.env.PORT ?? 8787);
 // Localhost secara default. Sejak SPEC-169 hanoman punya auth (gate 401 di semua /api,
@@ -26,4 +27,12 @@ process.on("SIGINT", () => void shutdown("SIGINT"));
 app.listen({ port, host }).then(() => {
   console.log(`hanoman api ${host}:${port}`);
   startVpsMonitor(); // healthcheck 5 menit + audit harian (SPEC-164)
+  // SPEC-213 · peran CLIENT: instance ini menyinkron ke hub remote bila dikonfigurasi.
+  // Tanpa SYNC_SERVER_URL → peran HUB murni (perilaku lama, backward-compatible).
+  const syncBase = process.env.SYNC_SERVER_URL;
+  const syncToken = process.env.SYNC_DEVICE_TOKEN;
+  if (syncBase && syncToken) {
+    console.log(`sync client → ${syncBase}`);
+    void startSyncClient(syncBase, syncToken);
+  }
 }).catch((err) => { console.error("listen gagal:", err); process.exit(1); });
