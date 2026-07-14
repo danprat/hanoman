@@ -15,6 +15,9 @@ export const paths = {
   limits: `${API}/limits`,
   docs: (id: string) => `${API}/projects/${id}/docs`,
   docFile: (id: string, path: string) => `${API}/projects/${id}/docs/${path}`,
+  // SPEC-210 · dokumen PRD project (freshest-wins: worktree sesi prd hidup > repoDir)
+  prds: (id: string) => `${API}/projects/${id}/prds`,
+  prdFile: (id: string, path: string) => `${API}/projects/${id}/prds/${path}`,
   // SPEC-182 · IDE Visual
   ideTree: (id: string, ref = "") => `${API}/projects/${id}/tree${ref ? `?ref=${encodeURIComponent(ref)}` : ""}`,
   ideFile: (id: string, path?: string, ref = "") =>

@@ -58,13 +58,25 @@ export const zProjectView = zProject.extend({
   activity: z.string(), commit: z.string() });
 export type ProjectView = z.infer<typeof zProjectView>;
 
-export const zFlow = z.enum(["feature", "qa", "scaffold", "reverse"]);
+export const zFlow = z.enum(["feature", "qa", "scaffold", "reverse", "prd"]);
+
+// SPEC-210 · brief awal PRD (sesi prd project-level, tanpa Spec). Disisipkan ke prompt sesi.
+export const zPrdBrief = z.object({
+  title: z.string().min(1),
+  context: z.string(),
+  outcome: z.string(),
+  constraints: z.string().optional(),
+});
+export type PrdBrief = z.infer<typeof zPrdBrief>;
+
 // Sesi terminal dibuka untuk sebuah project (repoDir-nya, terminal biasa) atau untuk sebuah
 // backlog item — yang terakhir lahir di worktree-nya sendiri, dengan prompt awal (SPEC-162).
 export const zTerminalSession = z.union([
   // flow opsional (SPEC-166): "reverse" = sesi project-level di worktree-nya sendiri,
   // menyusun Source of Truth dari kode. Tanpa flow = terminal biasa di repoDir.
   z.object({ project: z.string(), flow: z.literal("reverse").optional() }),
+  // SPEC-210 · sesi prd project-level di worktree sendiri; menghasilkan dokumen PRD dari brief.
+  z.object({ project: z.string(), flow: z.literal("prd"), brief: zPrdBrief }),
   z.object({ spec: z.string(), flow: zFlow }),
 ]);
 
