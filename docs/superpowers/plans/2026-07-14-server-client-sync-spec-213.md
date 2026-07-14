@@ -552,9 +552,9 @@ export default async function (app: FastifyInstance) {
 **Files:**
 - Test: `server/test/sync-exclusions.test.ts`
 
-- [ ] **Step 1: Failing/verifikasi test:** `SYNCED` tidak memuat `setting`/`notification`/`deviceToken`/`localBinding`; `snapshot("setting",..)` tak ada (entity tak dikenal → null/throw ditangani). Mutasi Setting TIDAK menulis outbox (AC-30).
-- [ ] **Step 2:** Run → PASS (bila sudah benar) atau perbaiki bila enqueue bocor.
-- [ ] **Step 3: Commit** `git commit -am "test: preferensi lokal tak tersync (SPEC-213 AC-30)"`
+- [x] **Step 1: Failing/verifikasi test:** `SYNCED` tidak memuat `setting`/`notification`/`deviceToken`/`localBinding`; `snapshot("setting",..)` tak ada (entity tak dikenal → null/throw ditangani). Mutasi Setting TIDAK menulis outbox (AC-30).
+- [x] **Step 2:** Run → PASS (bila sudah benar) atau perbaiki bila enqueue bocor.
+- [x] **Step 3: Commit** `git commit -am "test: preferensi lokal tak tersync (SPEC-213 AC-30)"`
 
 ### Task 7.2: Parity — snapshot endpoint & suite penuh hijau
 
