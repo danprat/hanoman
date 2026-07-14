@@ -7,6 +7,7 @@ import { sessionModel } from "../services/settings";
 import { prisma } from "../db";
 import { specReview, reviewFile, worktreeDir, specCommitRange, specReviewRange, reviewFileRange, shaResolvable } from "../services/spec-review";
 import { nextSpecId } from "../services/id";
+import { enqueueOutbox } from "../services/outbox";
 import { listRepoBranches } from "../services/branches";
 import { STAGES } from "../services/stage-machine";
 import { artifactsToRemove } from "../services/stage-artifacts";
@@ -95,6 +96,7 @@ export default async function (app: FastifyInstance) {
         throw e;
       }
     }
+    if (spec) await enqueueOutbox("spec", spec.id); // SPEC-213 · antre push sync
     return reply.code(201).send(spec);
   });
   // branchFrom (SPEC-143): basis run BERIKUTNYA; `null` = kembali ke default project.
@@ -136,7 +138,9 @@ export default async function (app: FastifyInstance) {
       data.priority = priority;
       data.objective = objective;
     }
-    return prisma.spec.update({ where: { id }, data });
+    const updated = await prisma.spec.update({ where: { id }, data });
+    await enqueueOutbox("spec", id); // SPEC-213 · antre push sync
+    return updated;
   });
   // SPEC-170 · dokumen sebuah backlog item (audit/objective/spec/plan/brainstorm).
   // Sumber freshest-wins ada di resolveDir: worktree sesi hidup > repoDir.

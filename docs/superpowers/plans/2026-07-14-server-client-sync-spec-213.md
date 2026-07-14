@@ -453,11 +453,11 @@ export default async function (app: FastifyInstance) {
 - Modify: `server/src/routes/projects.ts`, `server/src/routes/specs.ts` (create/patch/stage), `server/src/services/vps-*` (update), `SessionResult` create — panggil `enqueueOutbox` sesudah write lokal.
 - Test: `server/test/outbox.test.ts`
 
-- [ ] **Step 1: Failing test:** create project → `listOutbox()` memuat `{entity:"project",recordId:id}`; patch spec → outbox memuat spec; `clearOutbox` menghapus; unique (entity,recordId) tak duplikat.
-- [ ] **Step 2:** Run → FAIL.
-- [ ] **Step 3:** Implement `outbox.ts` (upsert unique). Sisipkan `enqueueOutbox` di mutation sites (bungkus agar tak melempar bila tabel absen — best-effort).
-- [ ] **Step 4:** Run → PASS; test lama projects/specs tetap hijau.
-- [ ] **Step 5: Commit** `git commit -am "feat(server): outbox lokal enqueue di mutation sites (SPEC-213 AC-17)"`
+- [x] **Step 1: Failing test:** create project → `listOutbox()` memuat `{entity:"project",recordId:id}`; patch spec → outbox memuat spec; `clearOutbox` menghapus; unique (entity,recordId) tak duplikat.
+- [x] **Step 2:** Run → FAIL.
+- [x] **Step 3:** Implement `outbox.ts` (upsert unique). Sisipkan `enqueueOutbox` di mutation sites (bungkus agar tak melempar bila tabel absen — best-effort).
+- [x] **Step 4:** Run → PASS; test lama projects/specs tetap hijau.
+- [x] **Step 5: Commit** `git commit -am "feat(server): outbox lokal enqueue di mutation sites (SPEC-213 AC-17)"`
 
 ### Task 4.3: Sync-client — pull-before-push drain + WS + reconnect
 

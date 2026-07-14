@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { zCreateProject, zUpdateProject } from "@hanoman/shared";
 import { prisma } from "../db";
 import { toProjectView } from "../services/project-view";
+import { enqueueOutbox } from "../services/outbox";
 import { listRepoBranches, listRepoRemoteBranches } from "../services/branches";
 import { listSessions } from "../services/pty";
 import { paginate } from "../services/paginate";
@@ -41,6 +42,7 @@ export default async function (app: FastifyInstance) {
         gitRemote: b.gitRemote ?? null, stack: ""
       }
     });
+    await enqueueOutbox("project", created.id); // SPEC-213 · antre push sync
     return reply.code(201).send(await toProjectView(created, listSessions()));
   });
   // Rename tak menyentuh `id`, jadi tak ada gate run aktif seperti DELETE. Cermin
@@ -51,6 +53,7 @@ export default async function (app: FastifyInstance) {
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
     if (!(await prisma.project.findUnique({ where: { id } }))) return reply.code(404).send({ error: "not found" });
     const updated = await prisma.project.update({ where: { id }, data: parsed.data });
+    await enqueueOutbox("project", id); // SPEC-213 · antre push sync
     return toProjectView(updated, listSessions());
   });
   app.delete("/projects/:id", async (req, reply) => {
