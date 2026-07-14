@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { readFileSync, existsSync, rmSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { sshExec } from "../src/services/vps-ssh";
+import { sshExec, consoleArgv } from "../src/services/vps-ssh";
 
 const FAKE_SSH = fileURLToPath(new URL("./fixtures/fake-ssh.sh", import.meta.url));
 const T = { host: "203.0.113.10", port: 22, user: "deploy" };
@@ -62,5 +62,18 @@ describe("sshExec mode password (SPEC-165)", () => {
   it("password tak pernah muncul di argv", async () => {
     await sshExec(T, "true", { password: "s3cret" });
     expect(readFileSync(log, "utf8")).not.toContain("s3cret");
+  });
+});
+
+describe("consoleArgv (SPEC-211)", () => {
+  it("argv ssh interaktif dengan -t, port, dan user@host", () => {
+    const a = consoleArgv({ host: "203.0.113.9", port: 2222, user: "deploy", keyPath: null });
+    expect(a).toContain("-t");
+    expect(a).toEqual(expect.arrayContaining(["-p", "2222", "deploy@203.0.113.9"]));
+    expect(a).not.toContain("-i");
+  });
+  it("menyisipkan -i keyPath saat ada", () => {
+    const a = consoleArgv({ host: "h", port: 22, user: "root", keyPath: "/k/id_ed25519" });
+    expect(a).toEqual(expect.arrayContaining(["-i", "/k/id_ed25519"]));
   });
 });

@@ -4,10 +4,22 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 // Test menunjuk HANOMAN_SSH_BIN ke fixture — pola HANOMAN_CLAUDE_BIN di pty.ts.
-const sshBin = () => process.env.HANOMAN_SSH_BIN ?? "ssh";
+export const sshBin = () => process.env.HANOMAN_SSH_BIN ?? "ssh";
 
 export type SshTarget = { host: string; port: number; user: string; keyPath?: string | null };
 export type SshResult = { code: number; out: string };
+
+// SPEC-211 · argv `ssh` interaktif untuk Open Console. `-t` memaksa tty remote; koneksi
+// dibungkus tmux hanoman (createSession) supaya reattach dari browser (ADR-0042). accept-new
+// sama dengan sshExec. host/user/port sudah divalidasi zod; keyPath path milik server.
+export function consoleArgv(t: SshTarget): string[] {
+  return [
+    sshBin(), "-t", "-p", String(t.port),
+    "-o", "StrictHostKeyChecking=accept-new",
+    ...(t.keyPath ? ["-i", t.keyPath] : []),
+    `${t.user}@${t.host}`,
+  ];
+}
 
 // Skrip yang dipanggil ssh untuk menanyakan password. Isinya tak memuat rahasia —
 // password mengalir lewat environment, bukan lewat berkas maupun argv.
