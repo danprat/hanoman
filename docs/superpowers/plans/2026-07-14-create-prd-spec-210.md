@@ -30,7 +30,7 @@
 **Interfaces:**
 - Produces: `zFlow` enum kini memuat `"prd"`. `zPrdBrief = { title: string; context: string; outcome: string; constraints?: string }`. `zTerminalSession` union member baru `{ project: string; flow: "prd"; brief: PrdBrief }`. `paths.prds(id)` → `/api/projects/:id/prds`, `paths.prdFile(id, path)` → `/api/projects/:id/prds/<path>`.
 
-- [ ] **Step 1: Tulis test parse (gagal)**
+- [x] **Step 1: Tulis test parse (gagal)**
 
 Buat `shared/test/dto.test.ts` (jika belum ada; kalau ada, tambahkan blok):
 
@@ -53,12 +53,12 @@ describe("zTerminalSession — varian prd", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/shared test`
 Expected: FAIL (prd belum di enum / brief belum ada).
 
-- [ ] **Step 3: Ubah `shared/src/dto.ts`**
+- [x] **Step 3: Ubah `shared/src/dto.ts`**
 
 Ganti baris `export const zFlow = z.enum(["feature", "qa", "scaffold", "reverse"]);` jadi:
 
@@ -86,7 +86,7 @@ export const zTerminalSession = z.union([
 ]);
 ```
 
-- [ ] **Step 4: Ubah `shared/src/api.ts`**
+- [x] **Step 4: Ubah `shared/src/api.ts`**
 
 Setelah baris `docFile: (id, path) => ...` tambahkan:
 
@@ -96,12 +96,12 @@ Setelah baris `docFile: (id, path) => ...` tambahkan:
   prdFile: (id: string, path: string) => `${API}/projects/${id}/prds/${path}`,
 ```
 
-- [ ] **Step 5: Jalankan test, pastikan hijau**
+- [x] **Step 5: Jalankan test, pastikan hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/shared test`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add shared/src/dto.ts shared/src/api.ts shared/test/dto.test.ts
@@ -121,7 +121,7 @@ git commit -m "feat(shared): flow prd + zPrdBrief + terminal session varian + pa
 - Consumes: `ProjectBrief` (ada), `PIPELINES`, `phaseInstruction`, `skillInstruction` (ada di prompt.ts).
 - Produces: `type PrdBrief = { title: string; context: string; outcome: string; constraints?: string }`. `startPrdPrompt(project: ProjectBrief, brief: PrdBrief, branchTo: string): string`. `PIPELINES.prd = ["Brainstorm", "PRD"]`.
 
-- [ ] **Step 1: Tulis test (gagal)**
+- [x] **Step 1: Tulis test (gagal)**
 
 Tambah ke `runner/test/prompt.test.ts`:
 
@@ -159,12 +159,12 @@ describe("startPrdPrompt", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/runner test`
 Expected: FAIL (`startPrdPrompt` tak ada).
 
-- [ ] **Step 3: `runner/src/types.ts` — tambah flow + tipe**
+- [x] **Step 3: `runner/src/types.ts` — tambah flow + tipe**
 
 Ganti baris `Flow`:
 
@@ -179,7 +179,7 @@ Tambah setelah `ProjectBrief`:
 export type PrdBrief = { title: string; context: string; outcome: string; constraints?: string };
 ```
 
-- [ ] **Step 4: `runner/src/prompt.ts` — pipeline + prompt**
+- [x] **Step 4: `runner/src/prompt.ts` — pipeline + prompt**
 
 Tambah entri ke `PIPELINES` (dalam objek `PIPELINES`):
 
@@ -220,12 +220,12 @@ export function startPrdPrompt(project: ProjectBrief, brief: PrdBrief, branchTo:
 }
 ```
 
-- [ ] **Step 5: Jalankan test, pastikan hijau**
+- [x] **Step 5: Jalankan test, pastikan hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/runner test`
 Expected: PASS (semua test prompt, termasuk yang lama).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add runner/src/types.ts runner/src/prompt.ts runner/test/prompt.test.ts
@@ -245,7 +245,7 @@ git commit -m "feat(runner): flow prd + startPrdPrompt (SPEC-210)"
 - Consumes: `listRepoDocs`, `readDocFile` dari `services/scan`; `listSessions` dari `services/pty`; `prisma`.
 - Produces: `type PrdDoc = { slug: string; name: string; path: string; title: string; live: boolean }`. `listPrds(projectId, sessions?): Promise<PrdDoc[]>`. `readPrd(projectId, path, sessions?): Promise<string | null>`. Endpoint `GET /projects/:id/prds` → `{ items: PrdDoc[] }`, `GET /projects/:id/prds/*` → `{ path, content }` | 404.
 
-- [ ] **Step 1: Tulis test (gagal)**
+- [x] **Step 1: Tulis test (gagal)**
 
 Buat `server/test/project-prds.test.ts`:
 
@@ -292,12 +292,12 @@ describe("project-prds (freshest-wins worktree sesi hidup)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run project-prds --no-file-parallelism`
 Expected: FAIL (module belum ada).
 
-- [ ] **Step 3: Buat `server/src/services/project-prds.ts`**
+- [x] **Step 3: Buat `server/src/services/project-prds.ts`**
 
 ```ts
 import { prisma } from "../db";
@@ -356,7 +356,7 @@ export async function readPrd(
 }
 ```
 
-- [ ] **Step 4: Tambah endpoint ke `server/src/routes/docs.ts`**
+- [x] **Step 4: Tambah endpoint ke `server/src/routes/docs.ts`**
 
 Ganti import teratas + tambah 2 route sebelum `}` penutup fungsi:
 
@@ -377,12 +377,12 @@ import { listPrds, readPrd } from "../services/project-prds";
   });
 ```
 
-- [ ] **Step 5: Jalankan test (service + route), pastikan hijau**
+- [x] **Step 5: Jalankan test (service + route), pastikan hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run project-prds --no-file-parallelism`
 Expected: PASS.
 
-- [ ] **Step 6: Tambah test route ke `server/test/docs.route.test.ts`**
+- [x] **Step 6: Tambah test route ke `server/test/docs.route.test.ts`**
 
 Tambahkan blok (repo `beforeEach` sudah ada `dir`; PRD file perlu ditambahkan — tulis langsung ke dir):
 
@@ -409,7 +409,7 @@ describe("prds routes (SPEC-210)", () => {
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run docs.route --no-file-parallelism`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/services/project-prds.ts server/src/routes/docs.ts server/test/project-prds.test.ts server/test/docs.route.test.ts
@@ -428,7 +428,7 @@ git commit -m "feat(server): endpoint daftar & preview PRD freshest-wins (SPEC-2
 - Consumes: `startPrdPrompt` (Task 2), `zTerminalSession` varian prd (Task 1), `realGit.addWorktree`, `createSession`, `getSession`, `phaseFilePath`, `decisionFilePath`, `sessionModel`.
 - Produces: `POST /terminal/sessions {project, flow:"prd", brief}` → 201 `{ id }` (id `prd-<slug>`), 404 project, 422 worktree gagal, 400 slug kosong.
 
-- [ ] **Step 1: Tulis test (gagal)**
+- [x] **Step 1: Tulis test (gagal)**
 
 Tambah ke `server/test/terminal.route.test.ts` (repo `repoDir` sudah git-init + fake-claude di beforeAll; ikuti pola test reverse yang ada):
 
@@ -456,12 +456,12 @@ it("POST prd tanpa brief → 400", async () => {
 
 > Catatan: `beforeAll` file ini meng-`killAll()` lalu bikin repoDir baru + `makeProject({id:"p1"})`. Pastikan project `p1` sudah repoDir git valid (ikuti setup yang ada). Fake-claude membuat sesi hidup tanpa `claude` asli.
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run terminal.route --no-file-parallelism`
 Expected: FAIL (cabang prd belum ada → jatuh ke fallback terminal biasa, id bukan `prd-...`).
 
-- [ ] **Step 3: Ubah `server/src/routes/terminal.ts`**
+- [x] **Step 3: Ubah `server/src/routes/terminal.ts`**
 
 Tambah import: ubah baris runner import jadi
 `import { realGit, startPrompt, continuePrompt, startProjectPrompt, startPrdPrompt, type Flow } from "@hanoman/runner";`
@@ -498,12 +498,12 @@ Sisipkan cabang **setelah** blok `if (parsed.data.flow === "reverse") { … }` d
     }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan hijau**
+- [x] **Step 4: Jalankan test, pastikan hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run terminal.route --no-file-parallelism`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/routes/terminal.ts server/test/terminal.route.test.ts
@@ -525,7 +525,7 @@ git commit -m "feat(server): cabang sesi prd di POST /terminal/sessions (SPEC-21
 - Consumes: `api.listPrds(projectId)`, `api.getPrd(projectId, path)`, `api.startPrd(project, brief)`, `MarkdownView` dari `../ds`, `NewSpecModal` (App).
 - Produces: `PrdDoc = { slug; name; path; title; live }`. `PrdScreen` props `{ projects, projectFilter, onProjectFilter, onNewPrd(project, brief), onTakeToBacklog(prefill) }`. `NewSpecModal` prop opsional `prefill?: { project?; title?; context?; outcome?; prdPath? }`.
 
-- [ ] **Step 1: `src/src/api/client.ts` — metode PRD**
+- [x] **Step 1: `src/src/api/client.ts` — metode PRD**
 
 Tambah tipe + metode (dekat `reverseDocs`):
 
@@ -540,7 +540,7 @@ export type PrdDoc = { slug: string; name: string; path: string; title: string; 
     j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, flow: "prd", brief }) }),
 ```
 
-- [ ] **Step 2: `src/src/ds/shell.tsx` — nav item**
+- [x] **Step 2: `src/src/ds/shell.tsx` — nav item**
 
 Sisipkan di `HN_NAV` setelah `backlog` (PRD di hulu backlog):
 
@@ -548,7 +548,7 @@ Sisipkan di `HN_NAV` setelah `backlog` (PRD di hulu backlog):
   { key: "prd", label: "PRD", icon: "scroll-text" },
 ```
 
-- [ ] **Step 3: Tulis test (gagal) — `src/test/prd-screen.test.tsx`**
+- [x] **Step 3: Tulis test (gagal) — `src/test/prd-screen.test.tsx`**
 
 Ikuti pola `src/test/backlog-board.test.tsx` (render + mock `api`). Mock `api.listPrds` → dua PRD; `api.getPrd` → markdown; assert daftar tampil, klik buka preview, tombol "Take ke backlog" memanggil `onTakeToBacklog` dengan prefill (title + prdPath).
 
@@ -584,12 +584,12 @@ describe("PrdScreen", () => {
 });
 ```
 
-- [ ] **Step 4: Jalankan, pastikan gagal**
+- [x] **Step 4: Jalankan, pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter hanoman-web test -- prd-screen`
 Expected: FAIL (`PrdScreen` belum ada).
 
-- [ ] **Step 5: Buat `src/src/screens/PrdScreen.tsx`**
+- [x] **Step 5: Buat `src/src/screens/PrdScreen.tsx`**
 
 ```tsx
 /* PrdScreen — dokumen PRD per project (SPEC-210). Daftar docs/prd/*.md (freshest-wins),
@@ -700,7 +700,7 @@ export function PrdScreen({ projects, projectFilter, onProjectFilter, onNewPrd, 
 
 > Sebelum menulis, buka `src/src/ds/index` (barrel) dan pastikan `MarkdownView`, `StateBlock` (dengan `kind="loading"`), `LIST_SCREEN_STYLE`, `LIST_SCROLL_STYLE`, `FIXED_ROW_STYLE` benar-benar diekspor; kalau nama beda, sesuaikan. `Icon name="scroll-text"` — verifikasi ikon ada di set DS; kalau tidak, pakai `file-text`.
 
-- [ ] **Step 6: `src/src/App.tsx` — wiring**
+- [x] **Step 6: `src/src/App.tsx` — wiring**
 
 (a) Import: `import { PrdScreen, type PrdPrefill } from "./screens/PrdScreen";`
 
@@ -761,12 +761,12 @@ async function startPrd(project: string, brief: { title: string; context: string
 
 > Ikuti struktur `body`/`section` yang persis ada di App.tsx (apakah pakai `if/else if` yang me-`return`, atau merakit `body`). Sesuaikan agar konsisten — JANGAN mengarang struktur; baca dulu blok section sekitarnya.
 
-- [ ] **Step 7: Jalankan test, pastikan hijau**
+- [x] **Step 7: Jalankan test, pastikan hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter hanoman-web test -- prd-screen`
 Expected: PASS. Lalu jalankan seluruh suite web: `env -u NODE_ENV -u DATABASE_URL pnpm --filter hanoman-web test` — pastikan tak ada regресi (App/nav).
 
-- [ ] **Step 8: Typecheck + commit**
+- [x] **Step 8: Typecheck + commit**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm -w exec tsc -b` (atau perintah build repo). Perbaiki error tipe.
 
@@ -789,7 +789,7 @@ git commit -m "feat(web): layar PRD — daftar, buat, preview, take ke backlog (
 
 **Interfaces:** dokumentasi — tak ada kontrak kode.
 
-- [ ] **Step 1: Tulis ADR-0041**
+- [x] **Step 1: Tulis ADR-0041**
 
 `internal/docs/adr/0041-prd-sebagai-dokumen-flow-project-level.md`:
 
@@ -816,7 +816,7 @@ membuat `Spec` (source brief) ter-prefill dari PRD, dengan `payload.prd` menaut 
   di daftar sampai merge). Upgrade path: daftar juga branch `prd/*`.
 ```
 
-- [ ] **Step 2: Index-kan di `internal/docs/README.md`**
+- [x] **Step 2: Index-kan di `internal/docs/README.md`**
 
 Di bagian `## adr`, tambahkan baris paling atas daftar ADR:
 
@@ -824,19 +824,19 @@ Di bagian `## adr`, tambahkan baris paling atas daftar ADR:
 - [0041 — PRD adalah dokumen + flow project-level, bukan entitas DB](adr/0041-prd-sebagai-dokumen-flow-project-level.md)
 ```
 
-- [ ] **Step 3: `data-model.md`** — pada bagian flow/Spec `source`, tambah catatan: flow sesi kini `feature | qa | scaffold | reverse | prd`; PRD hidup sebagai `docs/prd/*.md` (tak dipersist, ADR-0011/0041), bukan kolom.
+- [x] **Step 3: `data-model.md`** — pada bagian flow/Spec `source`, tambah catatan: flow sesi kini `feature | qa | scaffold | reverse | prd`; PRD hidup sebagai `docs/prd/*.md` (tak dipersist, ADR-0011/0041), bukan kolom.
 
-- [ ] **Step 4: `api-contract.md`** — dokumentasikan `GET /projects/:id/prds`, `GET /projects/:id/prds/*`, dan varian `POST /terminal/sessions { project, flow:"prd", brief }`.
+- [x] **Step 4: `api-contract.md`** — dokumentasikan `GET /projects/:id/prds`, `GET /projects/:id/prds/*`, dan varian `POST /terminal/sessions { project, flow:"prd", brief }`.
 
-- [ ] **Step 5: Kapabilitas produk** — di `entrypoints/prd.md`, `requirements/prd.md`, `product/blueprint.md`: tambahkan kapabilitas "**PRD** — PM/PO menulis brief + brainstorm → dokumen PRD (`docs/prd/`), preview untuk review, take ke backlog." Sisipkan di daftar kapabilitas.
+- [x] **Step 5: Kapabilitas produk** — di `entrypoints/prd.md`, `requirements/prd.md`, `product/blueprint.md`: tambahkan kapabilitas "**PRD** — PM/PO menulis brief + brainstorm → dokumen PRD (`docs/prd/`), preview untuk review, take ke backlog." Sisipkan di daftar kapabilitas.
 
-- [ ] **Step 6: `frontend-implementation.md`** — tambah entri layar **PRD** (nav): daftar PRD per project, New PRD (sesi prd), preview MarkdownView, take ke backlog (prefill NewSpecModal).
+- [x] **Step 6: `frontend-implementation.md`** — tambah entri layar **PRD** (nav): daftar PRD per project, New PRD (sesi prd), preview MarkdownView, take ke backlog (prefill NewSpecModal).
 
-- [ ] **Step 7: Verifikasi index & coverage**
+- [x] **Step 7: Verifikasi index & coverage**
 
 Run: `env -u NODE_ENV -u DATABASE_URL node --experimental-strip-types shared/src/coverage.ts` bila ada harness; kalau tidak, cukup pastikan setiap file baru ter-link dari `internal/docs/README.md` (grep manual).
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add internal/docs
@@ -849,10 +849,10 @@ git commit -m "docs(sot): ADR-0041 PRD + api-contract/data-model/kapabilitas/fro
 
 **Files:** tak ada — verifikasi runtime.
 
-- [ ] **Step 1: Boot server terhadap DB throwaway ter-migrate** (jangan hanoman_test — bisa di-truncate sibling; lihat memory live-smoke-dedicated-db). Migrate `deploy` DB smoke, set DATABASE_URL/PORT khusus, jalankan `node server/dist/server.js` (build dulu).
-- [ ] **Step 2: Seed satu project ber-repoDir git valid** (project from-scratch atau existing dengan repo).
-- [ ] **Step 3:** `curl -XPOST /api/terminal/sessions -d '{"project":"<id>","flow":"prd","brief":{"title":"Smoke PRD","context":"c","outcome":"o"}}'` → 201 `{id:"prd-smoke-prd"}`. Cek `.worktrees/prd-smoke-prd` ada.
-- [ ] **Step 4:** Di worktree itu tulis `docs/prd/smoke-prd.md` (`# Smoke PRD`), lalu `curl /api/projects/<id>/prds` → memuat slug `smoke-prd`, `live:true`. `curl /api/projects/<id>/prds/docs/prd/smoke-prd.md` → 200 konten.
-- [ ] **Step 5:** `curl -XPOST /api/specs -d '{"project":"<id>","source":"brief","title":"Smoke PRD","priority":"sedang","payload":{"context":"Dari PRD: docs/prd/smoke-prd.md","outcome":"o","prd":"docs/prd/smoke-prd.md"}}'` → 201; `GET /api/specs` memuatnya.
-- [ ] **Step 6:** `curl -XDELETE /api/terminal/sessions/prd-smoke-prd` → 204; worktree dibersihkan.
-- [ ] **Step 7:** Bila ada error → fix sampai hijau sebelum tulis `Execute done`. Ceklis semua `- [ ]` di plan ini.
+- [x] **Step 1: Boot server terhadap DB throwaway ter-migrate** (jangan hanoman_test — bisa di-truncate sibling; lihat memory live-smoke-dedicated-db). Migrate `deploy` DB smoke, set DATABASE_URL/PORT khusus, jalankan `node server/dist/server.js` (build dulu).
+- [x] **Step 2: Seed satu project ber-repoDir git valid** (project from-scratch atau existing dengan repo).
+- [x] **Step 3:** `curl -XPOST /api/terminal/sessions -d '{"project":"<id>","flow":"prd","brief":{"title":"Smoke PRD","context":"c","outcome":"o"}}'` → 201 `{id:"prd-smoke-prd"}`. Cek `.worktrees/prd-smoke-prd` ada.
+- [x] **Step 4:** Di worktree itu tulis `docs/prd/smoke-prd.md` (`# Smoke PRD`), lalu `curl /api/projects/<id>/prds` → memuat slug `smoke-prd`, `live:true`. `curl /api/projects/<id>/prds/docs/prd/smoke-prd.md` → 200 konten.
+- [x] **Step 5:** `curl -XPOST /api/specs -d '{"project":"<id>","source":"brief","title":"Smoke PRD","priority":"sedang","payload":{"context":"Dari PRD: docs/prd/smoke-prd.md","outcome":"o","prd":"docs/prd/smoke-prd.md"}}'` → 201; `GET /api/specs` memuatnya.
+- [x] **Step 6:** `curl -XDELETE /api/terminal/sessions/prd-smoke-prd` → 204; worktree dibersihkan.
+- [x] **Step 7:** Bila ada error → fix sampai hijau sebelum tulis `Execute done`. Ceklis semua `- [ ]` di plan ini.
