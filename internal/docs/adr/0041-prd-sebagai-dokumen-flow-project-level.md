@@ -20,7 +20,9 @@ Konsisten dengan [ADR-0011](0011-docs-realtime-filesystem.md) (docs = filesystem
 - **Preview:** `GET /projects/:id/prds` + `/prds/*` membaca **freshest-wins** — worktree sesi `prd`
   hidup untuk project ini menang atas `repoDir` (pola [SPEC-170]). Preview ter-render lewat `MarkdownView`.
 - **Take ke backlog:** tombol di preview PRD membuka `NewSpecModal` (kind `brief`) ter-*prefill* dari
-  PRD; submit → `Spec` biasa lewat `POST /specs`, dengan `payload.prd` menaut balik ke path PRD.
+  PRD; submit → `Spec` biasa lewat `POST /specs`. Tautan balik ke PRD dibawa **teks Konteks** brief
+  ("Dari PRD: <path>"), bukan field payload terpisah — `zBriefPayload` strip key tak dikenal dan tak
+  ada yang mengonsumsinya (YAGNI).
 
 ## Konsekuensi
 - Tak ada migration / skema baru. Tak ada auto-merge branch PRD, tak ada auto-split PRD → banyak spec

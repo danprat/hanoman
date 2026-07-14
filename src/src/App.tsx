@@ -491,9 +491,9 @@ export default function App() {
     const isQa = f.kind === "qa";
     const payload = isQa
       ? { severity: f.severity, steps: f.steps, expected: f.expected, actual: f.actual, env: f.env }
-      // SPEC-210 · saat brief lahir dari "Take ke backlog", tautkan balik ke PRD-nya di payload.
-      : { context: f.context, outcome: f.outcome, constraints: f.constraints, priority: f.priority,
-          ...(specPrefill?.prdPath ? { prd: specPrefill.prdPath } : {}) };
+      // Brief dari "Take ke backlog" menaut PRD lewat teks Konteks ("Dari PRD: …"), bukan field
+      // payload terpisah — zBriefPayload strip key tak dikenal, dan tak ada yang mengonsumsinya.
+      : { context: f.context, outcome: f.outcome, constraints: f.constraints, priority: f.priority };
     try {
       const created = await api.createSpec({ project: f.project, source: f.kind, title: f.title.trim(),
         priority: f.priority, payload, branchFrom: f.branchFrom || undefined });

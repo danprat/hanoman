@@ -86,7 +86,7 @@ GET    /projects/:id/prds/*path         # SPEC-210 · isi PRD; 404 bila path buk
 
 > **PRD (SPEC-210 · ADR-0041):** PRD = dokumen `docs/prd/<slug>.md` (bukan entitas DB). List/baca
 > **freshest-wins**: worktree sesi `prd` hidup untuk project ini > `repoDir` (pola SPEC-170). Dibuat
-> lewat sesi `flow:"prd"` (lihat Terminal), di-take ke backlog lewat `POST /specs` (payload `prd` menaut PRD).
+> lewat sesi `flow:"prd"` (lihat Terminal), di-take ke backlog lewat `POST /specs` (tautan PRD di teks Konteks brief).
 
 > Docs dibaca/ditulis **live dari `Project.repoDir`** (tanpa salinan DB — ADR-0011). Korpus **browse** =
 > semua `**/*.md` via `git ls-files`. `GET /docs` re-scan tiap panggilan, begitu pula `GET /projects`

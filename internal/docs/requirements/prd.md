@@ -16,7 +16,7 @@ Turunan terukur dari `entrypoints/prd.md`.
 - **Create**: "PRD baru" membuka sesi `flow:"prd"` (project-level, worktree isolasi); brainstorm satu
   pertanyaan per giliran, lalu tulis PRD terstruktur, push branch `prd/<slug>`, manusia merge.
 - **Preview**: daftar PRD per project (freshest-wins: worktree sesi hidup > repoDir), render markdown untuk review.
-- **Take ke backlog**: satu klik → `NewSpecModal` (brief) ter-prefill dari PRD; `payload.prd` menaut PRD.
+- **Take ke backlog**: satu klik → `NewSpecModal` (brief) ter-prefill dari PRD; tautan PRD di teks Konteks.
 
 ## 4. Backlog
 - Spec dari brief/QA, badge sumber & prioritas, stage bar lifecycle.

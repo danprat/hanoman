@@ -82,7 +82,8 @@ PRD **bukan entitas DB** — ia dokumen `docs/prd/<slug>.md` di repo project (ko
 Dibuat oleh **flow sesi `prd`** (project-level, tanpa `Spec`; pipeline `Brainstorm → PRD`), meniru
 `reverse`: worktree isolasi, brainstorm interaktif, push ke branch `prd/<slug>`, manusia merge.
 List/preview **freshest-wins** (worktree sesi `prd` hidup > `repoDir`). "Take ke backlog" membuat
-`Spec` (source `brief`) ter-prefill dari PRD, `payload.prd` menaut path PRD. Set flow sesi kini:
+`Spec` (source `brief`) ter-prefill dari PRD; tautan balik dibawa teks Konteks brief ("Dari PRD: <path>"),
+bukan field payload (zBriefPayload strip key tak dikenal). Set flow sesi kini:
 `feature | qa | scaffold | reverse | prd`.
 
 ## Docs sebagai konvensi, bukan lagi gerbang
