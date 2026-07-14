@@ -19,6 +19,7 @@ import events from "./routes/events";
 import deviceTokens from "./routes/device-tokens";
 import bindings from "./routes/bindings";
 import sync from "./routes/sync";
+import sessionResults from "./routes/session-results";
 import authRoutes from "./routes/auth";
 import { COOKIE_NAME, lookupSession } from "./services/auth";
 import { detachAll } from "./services/pty";
@@ -85,6 +86,7 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
     await api.register(deviceTokens);
     await api.register(bindings);
     await api.register(sync);
+    await api.register(sessionResults);
   }, { prefix: "/api" });
 
   // Prod: serve the built dashboard from one process; SPA-fallback to

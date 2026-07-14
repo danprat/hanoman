@@ -509,11 +509,11 @@ export default async function (app: FastifyInstance) {
 
 **Interfaces (Produces):** `GET /api/session-results?projectId=&limit=` → `SessionResult[]` (desc createdAt); `DELETE /api/session-results?projectId=&before=<ISO>` → `{ purged:n }` (append-only kecuali purge manual, AC-22).
 
-- [ ] **Step 1: Failing test:** seed 3 result (2 lama, 1 baru) → GET filter projectId; DELETE `before` menghapus yang lama saja, balik `{purged:2}`; tanpa cookie → 401.
-- [ ] **Step 2:** Run → FAIL.
-- [ ] **Step 3:** Implement route + register.
-- [ ] **Step 4:** Run → PASS; live curl.
-- [ ] **Step 5: Commit** `git commit -am "feat(server): routes session-results read + purge (SPEC-213 AC-22)"`
+- [x] **Step 1: Failing test:** seed 3 result (2 lama, 1 baru) → GET filter projectId; DELETE `before` menghapus yang lama saja, balik `{purged:2}`; tanpa cookie → 401.
+- [x] **Step 2:** Run → FAIL.
+- [x] **Step 3:** Implement route + register.
+- [x] **Step 4:** Run → PASS; live curl.
+- [x] **Step 5: Commit** `git commit -am "feat(server): routes session-results read + purge (SPEC-213 AC-22)"`
 
 ---
 
