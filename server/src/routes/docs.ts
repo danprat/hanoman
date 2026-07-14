@@ -1,9 +1,21 @@
 import type { FastifyInstance } from "fastify";
 import { zDocFileContent } from "@hanoman/shared";
 import { docIndex, readDoc, writeDoc, deleteDoc } from "../services/docs";
+import { listPrds, readPrd } from "../services/project-prds";
 
 export default async function (app: FastifyInstance) {
   app.get("/projects/:id/docs", async (req) => docIndex((req.params as { id: string }).id));
+
+  // SPEC-210 · daftar & preview dokumen PRD (freshest-wins: worktree sesi prd hidup > repoDir).
+  app.get("/projects/:id/prds", async (req) =>
+    ({ items: await listPrds((req.params as { id: string }).id) }));
+
+  app.get("/projects/:id/prds/*", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const path = (req.params as Record<string, string>)["*"] ?? "";
+    const content = await readPrd(id, path);
+    return content === null ? reply.code(404).send({ error: "not found" }) : { path, content };
+  });
 
   app.get("/projects/:id/docs/*", async (req, reply) => {
     const { id } = req.params as { id: string };
