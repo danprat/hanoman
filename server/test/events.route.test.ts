@@ -36,11 +36,12 @@ describe("events WS route", () => {
   it("kirim snapshot penuh saat connect", async () => {
     const c = connect();
     await c.opened;
-    await waitFor(() => c.frames.some((f) => f.t === "notifications"));
-    expect(c.frames.some((f) => f.t === "sessions")).toBe(true);
-    expect(c.frames.some((f) => f.t === "specs")).toBe(true);
-    expect(c.frames.some((f) => f.t === "limits")).toBe(true);
-    expect(c.frames.some((f) => f.t === "vps")).toBe(true);
+    // Snapshot attach mengirim tiap grup berurutan (sessions→specs→notifications→vps→limits);
+    // pengiriman WS async, jadi tunggu SEMUA jenis frame tiba, bukan hanya `notifications`
+    // (limits/vps datang belakangan → race di bawah beban suite penuh).
+    const want = ["sessions", "specs", "notifications", "vps", "limits"];
+    await waitFor(() => want.every((t) => c.frames.some((f) => f.t === t)));
+    for (const t of want) expect(c.frames.some((f) => f.t === t)).toBe(true);
     c.ws.close();
   });
 

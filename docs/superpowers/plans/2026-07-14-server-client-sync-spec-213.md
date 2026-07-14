@@ -1,6 +1,6 @@
 # Server & Client Side — Hub Data + Instance Lokal Sinkron (SPEC-213) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans (inline) atau superpowers:subagent-driven-development untuk mengeksekusi task-demi-task. Step pakai checkbox (`- [ ]`).
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans (inline) atau superpowers:subagent-driven-development untuk mengeksekusi task-demi-task. Step pakai kotak centang markdown.
 
 **Goal:** Menjadikan satu instance hanoman sebagai hub data agregat (server) yang bisa disinkronkan dua-arah dengan instance lokal penuh (client) di tiap device, tanpa mengurangi satu fitur pun.
 
