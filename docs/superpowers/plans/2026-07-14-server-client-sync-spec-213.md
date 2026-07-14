@@ -198,7 +198,7 @@ Expected: "migration(s) applied" pada keduanya; generate sukses.
 - `verifyDeviceToken(token: string): Promise<{ id: string; userId: string } | null>` (null bila revoked/absent; update `lastSeenAt`)
 - `revokeDeviceToken(id: string): Promise<boolean>`
 
-- [ ] **Step 1: Failing test** `server/test/device-token.service.test.ts`:
+- [x] **Step 1: Failing test** `server/test/device-token.service.test.ts`:
 ```ts
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { prisma } from "../src/db";
@@ -228,8 +228,8 @@ describe("device-token service", () => {
   it("unknown token → null", async () => { expect(await verifyDeviceToken("nope")).toBeNull(); });
 });
 ```
-- [ ] **Step 2:** Run → FAIL (module belum ada). `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test device-token.service`
-- [ ] **Step 3:** Implement `server/src/services/device-token.ts`:
+- [x] **Step 2:** Run → FAIL (module belum ada). `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test device-token.service`
+- [x] **Step 3:** Implement `server/src/services/device-token.ts`:
 ```ts
 import { randomBytes, createHash } from "node:crypto";
 import { prisma } from "../db";
@@ -255,8 +255,8 @@ export async function revokeDeviceToken(id: string) {
   return true;
 }
 ```
-- [ ] **Step 4:** Run → PASS.
-- [ ] **Step 5: Commit** `git add server/src/services/device-token.ts server/test/device-token.service.test.ts && git commit -m "feat(server): service device-token issue/verify/revoke (SPEC-213)"`
+- [x] **Step 4:** Run → PASS.
+- [x] **Step 5: Commit** `git add server/src/services/device-token.ts server/test/device-token.service.test.ts && git commit -m "feat(server): service device-token issue/verify/revoke (SPEC-213)"`
 
 ### Task 1.2: Middleware `requireDeviceToken` + shared DTO
 
