@@ -8,9 +8,13 @@ const VPS = {
 };
 // vi.mock di-hoist ke atas berkas — factory-nya TIDAK boleh merujuk `const` biasa.
 // vi.hoisted menaikkan mock fn-nya bersama vi.mock, jadi test bisa memeriksanya.
-const { updateVps } = vi.hoisted(() => ({ updateVps: vi.fn() }));
+const { updateVps, testVps, vpsConsole } = vi.hoisted(() => ({
+  updateVps: vi.fn(),
+  testVps: vi.fn(async () => ({ ok: true, out: "" })),
+  vpsConsole: vi.fn(async () => ({ id: "vpsc-v1" })),
+}));
 vi.mock("../src/api/client", () => ({
-  api: { listVps: vi.fn(async () => [VPS]), updateVps },
+  api: { listVps: vi.fn(async () => [VPS]), updateVps, testVps, vpsConsole },
   ApiError: class extends Error {},
 }));
 import { VpsScreen, isReachable, hardenedLabel, vpsFormToBody } from "../src/screens/VpsScreen";
@@ -31,6 +35,20 @@ describe("VpsScreen (SPEC-164)", () => {
     render(<VpsScreen onToast={() => {}} onGotoTerminal={() => {}} />);
     expect(await screen.findByText("web-1")).toBeTruthy();
     expect(screen.getByText("deploy@203.0.113.10")).toBeTruthy();
+  });
+  it("tombol Console memanggil api.vpsConsole lalu pindah ke terminal (SPEC-211)", async () => {
+    const onGotoTerminal = vi.fn();
+    render(<VpsScreen onToast={() => {}} onGotoTerminal={onGotoTerminal} />);
+    await screen.findByText("web-1");
+    fireEvent.click(screen.getByRole("button", { name: /console/i }));
+    await vi.waitFor(() => expect(vpsConsole).toHaveBeenCalledWith("v1"));
+    await vi.waitFor(() => expect(onGotoTerminal).toHaveBeenCalled());
+  });
+  it("tombol Test memanggil api.testVps (SPEC-211)", async () => {
+    render(<VpsScreen onToast={() => {}} onGotoTerminal={() => {}} />);
+    await screen.findByText("web-1");
+    fireEvent.click(screen.getByRole("button", { name: /^test$/i }));
+    await vi.waitFor(() => expect(testVps).toHaveBeenCalledWith("v1"));
   });
 });
 

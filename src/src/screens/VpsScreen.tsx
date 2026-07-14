@@ -120,6 +120,13 @@ export function VpsScreen({ onToast, onGotoTerminal }:
   }
   const session = (v: VpsView) =>
     run("sesi", v.id, async () => { await api.vpsSession(v.id); onGotoTerminal(); }, `${v.name} · sesi Claude dibuka`);
+  // SPEC-211 · test connection (transien, tak sentuh state) & open console (shell ssh di tmux).
+  const testConn = (v: VpsView) => run("test", v.id, async () => {
+    const r = await api.testVps(v.id);
+    if (!r.ok) throw new Error(r.out);
+  }, `${v.name} · koneksi ok`);
+  const openConsole = (v: VpsView) =>
+    run("console", v.id, async () => { await api.vpsConsole(v.id); onGotoTerminal(); }, `${v.name} · console dibuka`);
   async function remove(v: VpsView) {
     if (!window.confirm(`Hapus registrasi VPS "${v.name}"? Server-nya sendiri tak disentuh.`)) return;
     await api.deleteVps(v.id).then(load).catch(() => onToast("Gagal hapus", "err", "x-circle"));
@@ -178,6 +185,10 @@ export function VpsScreen({ onToast, onGotoTerminal }:
               <StatusPill size="sm" status={isReachable(v) ? "ok" : "broken"}>
                 {isReachable(v) ? "reachable" : "unreachable"}</StatusPill>
               <StatusPill size="sm" status={h.status}>{h.label}</StatusPill>
+              <Button size="sm" variant="ghost" leftIcon="plug-zap" loading={busy === `test:${v.id}`}
+                onClick={(e: React.MouseEvent) => { e.stopPropagation(); void testConn(v); }}>Test</Button>
+              <Button size="sm" variant="ghost" leftIcon="terminal-square" loading={busy === `console:${v.id}`}
+                onClick={(e: React.MouseEvent) => { e.stopPropagation(); void openConsole(v); }}>Console</Button>
               <Button size="sm" variant="secondary" leftIcon="radar" loading={busy === `audit:${v.id}`}
                 onClick={(e: React.MouseEvent) => { e.stopPropagation(); void audit(v); }}>Audit</Button>
               <Button size="sm" leftIcon="shield" loading={busy === `harden:${v.id}`}
