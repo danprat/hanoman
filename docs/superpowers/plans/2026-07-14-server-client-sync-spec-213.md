@@ -537,11 +537,11 @@ export default async function (app: FastifyInstance) {
 - Modify: `server/src/routes/vps.ts` — sebelum aksi SSH (test/audit/harden/console) cek `keyPath` ada di mesin ini (`fs.existsSync`); absen → 409 `{ error:"key VPS tidak ada di mesin ini", keyMissing:true }` (AC-28).
 - Test: `server/test/vps-key-gate.test.ts`
 
-- [ ] **Step 1: Failing test:** vps dengan `keyPath` menunjuk file tak-ada → POST audit → 409 `keyMissing:true`; keyPath ada (file temp) → tak 409 karena gate ini.
-- [ ] **Step 2:** Run → FAIL.
-- [ ] **Step 3:** Tambah cek `existsSync(keyPath)` di jalur aksi SSH.
-- [ ] **Step 4:** Run → PASS; test vps lama tetap hijau.
-- [ ] **Step 5: Commit** `git commit -am "feat(server): gate aksi SSH VPS pada key lokal (SPEC-213 AC-27/28)"`
+- [x] **Step 1: Failing test:** vps dengan `keyPath` menunjuk file tak-ada → POST audit → 409 `keyMissing:true`; keyPath ada (file temp) → tak 409 karena gate ini.
+- [x] **Step 2:** Run → FAIL.
+- [x] **Step 3:** Tambah cek `existsSync(keyPath)` di jalur aksi SSH.
+- [x] **Step 4:** Run → PASS; test vps lama tetap hijau.
+- [x] **Step 5: Commit** `git commit -am "feat(server): gate aksi SSH VPS pada key lokal (SPEC-213 AC-27/28)"`
 
 ---
 

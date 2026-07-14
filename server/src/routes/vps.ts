@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { prisma } from "../db";
 import { zCreateVps, zPatchVps, type VpsCheck } from "@hanoman/shared";
@@ -13,6 +13,13 @@ import { enqueueOutbox } from "../services/outbox";
 // Audit (dan nanti harden/session) = eksekusi remote via SSH dengan key milik mesin ini.
 // Tanpa auth — pagarnya bind 127.0.0.1 di server.ts, sama seperti /api/terminal
 // (lihat komentar routes/terminal.ts). Bila HOST dibuka, gembok route ini bersamanya.
+// SPEC-213 · ADR-0044 · gate aksi SSH pada keberadaan key di mesin INI (AC-28). keyPath diset
+// tapi berkasnya tak ada → key hilang. keyPath null = andalkan key default ssh (jangan blok —
+// perilaku lama hub). keyPath TIDAK PERNAH disync (AC-29), jadi ini murni keputusan per-mesin.
+function keyMissing(v: { keyPath: string | null }): boolean {
+  return !!v.keyPath && !existsSync(v.keyPath);
+}
+
 export default async function (app: FastifyInstance) {
   app.get("/vps", async () => prisma.vps.findMany({ orderBy: { createdAt: "asc" } }));
 
@@ -62,6 +69,7 @@ export default async function (app: FastifyInstance) {
   app.post("/vps/:id/audit", async (req, reply) => {
     const v = await prisma.vps.findUnique({ where: { id: (req.params as { id: string }).id } });
     if (!v) return reply.code(404).send({ error: "not found" });
+    if (keyMissing(v)) return reply.code(409).send({ error: "key VPS tidak ada di mesin ini", keyMissing: true });
     const r = await runAudit(v);
     if (!r.ok) return reply.code(502).send({ error: "audit gagal lewat ssh", out: r.out });
     return { audit: r.audit, hardened: r.hardened };
@@ -73,6 +81,7 @@ export default async function (app: FastifyInstance) {
   app.post("/vps/:id/harden", async (req, reply) => {
     const v = await prisma.vps.findUnique({ where: { id: (req.params as { id: string }).id } });
     if (!v) return reply.code(404).send({ error: "not found" });
+    if (keyMissing(v)) return reply.code(409).send({ error: "key VPS tidak ada di mesin ini", keyMissing: true });
     // SSH_USER menentukan PermitRootLogin no vs prohibit-password; user/port sudah
     // divalidasi zod (trust boundary di zCreateVps), aman dirangkai ke perintah.
     const r = await sshExec(v, `sudo -n env SSH_PORT=${v.port} SSH_USER=${v.user} bash -s`,
@@ -93,6 +102,7 @@ export default async function (app: FastifyInstance) {
   app.post("/vps/:id/test", async (req, reply) => {
     const v = await prisma.vps.findUnique({ where: { id: (req.params as { id: string }).id } });
     if (!v) return reply.code(404).send({ error: "not found" });
+    if (keyMissing(v)) return reply.code(409).send({ error: "key VPS tidak ada di mesin ini", keyMissing: true });
     const r = await sshExec(v, "true", { timeoutMs: 15_000 });
     return { ok: r.code === 0, out: r.out };
   });
@@ -102,6 +112,7 @@ export default async function (app: FastifyInstance) {
   app.post("/vps/:id/console", async (req, reply) => {
     const v = await prisma.vps.findUnique({ where: { id: (req.params as { id: string }).id } });
     if (!v) return reply.code(404).send({ error: "not found" });
+    if (keyMissing(v)) return reply.code(409).send({ error: "key VPS tidak ada di mesin ini", keyMissing: true });
     const s = createSession(`vps-console:${v.id}`, homedir(), { id: `vpsc-${v.id}`, command: consoleArgv(v) });
     return reply.code(201).send({ id: s.id });
   });
@@ -111,6 +122,7 @@ export default async function (app: FastifyInstance) {
   app.post("/vps/:id/session", async (req, reply) => {
     const v = await prisma.vps.findUnique({ where: { id: (req.params as { id: string }).id } });
     if (!v) return reply.code(404).send({ error: "not found" });
+    if (keyMissing(v)) return reply.code(409).send({ error: "key VPS tidak ada di mesin ini", keyMissing: true });
     const checks = (v.audit as VpsCheck[] | null) ?? [];
     const { model, effort } = await sessionModel();
     const s = createSession(`vps:${v.id}`, homedir(), {
