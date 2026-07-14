@@ -18,6 +18,7 @@ import limits from "./routes/limits";
 import events from "./routes/events";
 import deviceTokens from "./routes/device-tokens";
 import bindings from "./routes/bindings";
+import sync from "./routes/sync";
 import authRoutes from "./routes/auth";
 import { COOKIE_NAME, lookupSession } from "./services/auth";
 import { detachAll } from "./services/pty";
@@ -62,6 +63,9 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
         if (user) req.user = user;
         const path = req.url.split("?")[0];
         if (PUBLIC.has(`${req.method} ${path}`)) return;
+        // SPEC-213 · ADR-0044/0046 · surface sync mesin-ke-mesin di-bypass gate cookie; tiap
+        // route /api/sync di-enforce device token (Bearer / ?token= pada upgrade WS) sendiri.
+        if (path.startsWith("/api/sync")) return;
         if (!user) return reply.code(401).send({ error: "unauthorized" });
       });
     }
@@ -80,6 +84,7 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
     await api.register(events);
     await api.register(deviceTokens);
     await api.register(bindings);
+    await api.register(sync);
   }, { prefix: "/api" });
 
   // Prod: serve the built dashboard from one process; SPA-fallback to

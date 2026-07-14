@@ -1,0 +1,51 @@
+import { describe, it, expect, beforeEach, afterAll } from "vitest";
+import { buildApp } from "../src/app";
+import { prisma } from "../src/db";
+import { issueDeviceToken } from "../src/services/device-token";
+
+// Gate cookie aktif (default) — surface /api/sync di-bypass gate cookie, di-enforce device token.
+const app = buildApp();
+const clean = async () => {
+  await prisma.syncLog.deleteMany(); await prisma.spec.deleteMany(); await prisma.project.deleteMany();
+  await prisma.deviceToken.deleteMany(); await prisma.session.deleteMany(); await prisma.user.deleteMany();
+};
+beforeEach(clean); afterAll(clean);
+
+async function tokenFor(email = "dev@x.co") {
+  const u = await prisma.user.create({ data: { email, passwordHash: "x:y" } });
+  const t = await issueDeviceToken(u.id, "laptop");
+  return { auth: { authorization: `Bearer ${t.token}` }, user: u };
+}
+const specRec = (id: string, baseVersion: number, over: Record<string, unknown> = {}) => ({
+  entity: "spec", id, baseVersion,
+  data: { projectId: "p1", title: "t", source: "brief", stage: "planned", priority: "sedang", author: "", objective: "o", ...over },
+});
+
+describe("sync routes /pull /push (SPEC-213)", () => {
+  it("401 without Bearer device token (AC-2)", async () => {
+    expect((await app.inject({ method: "GET", url: "/api/sync/pull?since=0" })).statusCode).toBe(401);
+    expect((await app.inject({ method: "POST", url: "/api/sync/push", payload: { records: [] } })).statusCode).toBe(401);
+  });
+
+  it("push insert then pull returns it; author attributed to token user (AC-4/11)", async () => {
+    const { auth, user } = await tokenFor();
+    await prisma.project.create({ data: { id: "p1", name: "p1", desc: "d", kind: "existing", repoDir: null } });
+    const push = await app.inject({ method: "POST", url: "/api/sync/push", headers: auth, payload: { records: [specRec("SPEC-1", 0)] } });
+    expect(push.statusCode).toBe(200);
+    expect(push.json().results[0]).toMatchObject({ id: "SPEC-1", ok: true, version: 1 });
+    // author kosong → diisi email user token
+    expect((await prisma.spec.findUnique({ where: { id: "SPEC-1" } }))?.author).toBe(user.email);
+
+    const pull = await app.inject({ method: "GET", url: "/api/sync/pull?since=0", headers: auth });
+    expect(pull.json().records.map((r: { recordId: string }) => r.recordId)).toContain("SPEC-1");
+  });
+
+  it("stale push returns conflict with server snapshot for diff (AC-13)", async () => {
+    const { auth } = await tokenFor();
+    await prisma.project.create({ data: { id: "p1", name: "p1", desc: "d", kind: "existing", repoDir: null } });
+    await app.inject({ method: "POST", url: "/api/sync/push", headers: auth, payload: { records: [specRec("SPEC-1", 0)] } });
+    const stale = await app.inject({ method: "POST", url: "/api/sync/push", headers: auth, payload: { records: [specRec("SPEC-1", 0, { title: "HIJACK" })] } });
+    expect(stale.json().results[0]).toMatchObject({ id: "SPEC-1", ok: false, conflict: true });
+    expect(stale.json().results[0].server.version).toBe(1);
+  });
+});

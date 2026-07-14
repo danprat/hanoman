@@ -419,12 +419,12 @@ export default async function (app: FastifyInstance) {
 
 **Interfaces (Produces):** `GET /api/sync/pull?since=` (Bearer) → `{cursor,records}`; `POST /api/sync/push` (Bearer) body `{ records:[{entity,id,baseVersion,data}] }` → `{ results:[{id, ok, version?, conflict?, server?}] }`. Author record di-set dari `deviceToken.userId` bila kosong (AC-4).
 
-- [ ] **Step 1:** Di `app.ts` PUBLIC-bypass cookie gate untuk prefix `/api/sync` (ubah gate: `if (path.startsWith("/api/sync")) return;`), lalu route pakai preHandler `requireDeviceToken`.
-- [ ] **Step 2: Failing test:** tanpa Bearer → 401; dengan Bearer: push insert → `ok`, pull memuatnya; push stale → `conflict:true, server` (AC-13 diff = server data). Author kosong terisi user token.
-- [ ] **Step 3:** Run → FAIL.
-- [ ] **Step 4:** Implement route (loop records → `applyPush`), preHandler device token; set `author` dari lookup user email bila entity punya `author` & kosong.
-- [ ] **Step 5:** Run → PASS; live curl push+pull dengan token.
-- [ ] **Step 6: Commit** `git commit -am "feat(server): routes /sync/pull|push device-token + author attrib (SPEC-213)"`
+- [x] **Step 1:** Di `app.ts` PUBLIC-bypass cookie gate untuk prefix `/api/sync` (ubah gate: `if (path.startsWith("/api/sync")) return;`), lalu route pakai preHandler `requireDeviceToken`.
+- [x] **Step 2: Failing test:** tanpa Bearer → 401; dengan Bearer: push insert → `ok`, pull memuatnya; push stale → `conflict:true, server` (AC-13 diff = server data). Author kosong terisi user token.
+- [x] **Step 3:** Run → FAIL.
+- [x] **Step 4:** Implement route (loop records → `applyPush`), preHandler device token; set `author` dari lookup user email bila entity punya `author` & kosong.
+- [x] **Step 5:** Run → PASS; live curl push+pull dengan token.
+- [x] **Step 6: Commit** `git commit -am "feat(server): routes /sync/pull|push device-token + author attrib (SPEC-213)"`
 
 ---
 
