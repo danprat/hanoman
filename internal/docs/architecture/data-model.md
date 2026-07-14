@@ -77,6 +77,14 @@ Docs bukan entitas DB. Tabel `DocFile` sudah di-drop (ADR-0011). Docs dibaca **l
 - coverage = % direktori (berskor, di bawah `docsDir`) yang seluruh Markdown-nya reachable dari index.
   **Tidak dipersist**: `toProjectView` menghitungnya dari `Project.repoDir` setiap kali project dibaca (ADR-0018).
 
+## PRD (SPEC-210 · [ADR-0041](../adr/0041-prd-sebagai-dokumen-flow-project-level.md))
+PRD **bukan entitas DB** — ia dokumen `docs/prd/<slug>.md` di repo project (konsisten ADR-0011).
+Dibuat oleh **flow sesi `prd`** (project-level, tanpa `Spec`; pipeline `Brainstorm → PRD`), meniru
+`reverse`: worktree isolasi, brainstorm interaktif, push ke branch `prd/<slug>`, manusia merge.
+List/preview **freshest-wins** (worktree sesi `prd` hidup > `repoDir`). "Take ke backlog" membuat
+`Spec` (source `brief`) ter-prefill dari PRD, `payload.prd` menaut path PRD. Set flow sesi kini:
+`feature | qa | scaffold | reverse | prd`.
+
 ## Docs sebagai konvensi, bukan lagi gerbang
 Fase Execute **tidak** lagi diverifikasi terhadap DocIndex sebelum jalan — guardrail Source of
 Truth dicabut (SPEC-160/ADR-0023, supersedes ADR-0001). `internal/docs/**` tetap Source of Truth

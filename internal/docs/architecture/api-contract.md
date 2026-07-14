@@ -80,7 +80,13 @@ GET    /projects/:id/docs               # index + coverage + tree kategori, live
 GET    /projects/:id/docs/*path         # isi file .md asli (raw, dari disk)
 PUT    /projects/:id/docs/*path         { content }   # tulis file .md asli; 400 kalau path keluar repo / bukan .md
 DELETE /projects/:id/docs/*path         # hapus file .md asli di disk; 204 sukses, 404 tak ada, 400 guard
+GET    /projects/:id/prds               # SPEC-210 · { items:[{slug,name,path,title,live}] } dokumen docs/prd/*.md
+GET    /projects/:id/prds/*path         # SPEC-210 · isi PRD; 404 bila path bukan docs/prd/*.md
 ```
+
+> **PRD (SPEC-210 · ADR-0041):** PRD = dokumen `docs/prd/<slug>.md` (bukan entitas DB). List/baca
+> **freshest-wins**: worktree sesi `prd` hidup untuk project ini > `repoDir` (pola SPEC-170). Dibuat
+> lewat sesi `flow:"prd"` (lihat Terminal), di-take ke backlog lewat `POST /specs` (payload `prd` menaut PRD).
 
 > Docs dibaca/ditulis **live dari `Project.repoDir`** (tanpa salinan DB — ADR-0011). Korpus **browse** =
 > semua `**/*.md` via `git ls-files`. `GET /docs` re-scan tiap panggilan, begitu pula `GET /projects`
@@ -130,6 +136,8 @@ POST   /terminal/sessions  {project, flow?} # 201 { id } · 404 project · 400 t
 #     saja, continuePrompt) alih-alih pipeline penuh — reopen backlog yang keburu selesai.
 #   flow "reverse" (SPEC-166, ADR-0026): sesi project-level di worktree .worktrees/reverse-<project>
 #   dengan prompt standar docs; 422 bila repoDir kosong atau worktree gagal dibuat
+#   {project, flow:"prd", brief} (SPEC-210, ADR-0041): sesi project-level di .worktrees/prd-<slug>;
+#     brainstorm interaktif → dokumen docs/prd/<slug>.md, push branch prd/<slug>; 400 judul kosong, 422 worktree
 GET    /terminal/sessions/:id/phases # fase yang sudah dilaporkan sesi (dari $HANOMAN_PHASE_FILE) → stage live
 DELETE /terminal/sessions/:id        # 204 · 404; menutup sesi: majukan stage, simpan headSha, removeWorktree
 GET    /terminal/sessions/:id/ws     # WebSocket; close 4004 bila sesi tak ada
