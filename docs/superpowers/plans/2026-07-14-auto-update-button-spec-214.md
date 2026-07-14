@@ -730,7 +730,7 @@ git commit -m "feat(web): store useUpdate + helper headline/label (SPEC-214)"
 - Consumes: `useUpdate`, `updateHeadline`, `updateBadgeLabel` dari `../api/update`; `Icon` dari `../ds/icon`.
 - Produces: `export function UpdateBadge()`.
 
-- [ ] **Step 1: Tulis test gagal** — `src/test/update-indicator.test.tsx`
+- [x] **Step 1: Tulis test gagal** — `src/test/update-indicator.test.tsx`
 
 ```tsx
 import { render, screen, fireEvent } from "@testing-library/react";
@@ -772,12 +772,12 @@ describe("UpdateBadge", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `pnpm --filter ./src exec vitest run test/update-indicator.test.tsx`
 Expected: FAIL (modul `../src/screens/UpdateIndicator` tak ada).
 
-- [ ] **Step 3a: Buat `src/src/screens/UpdateIndicator.tsx`**
+- [x] **Step 3a: Buat `src/src/screens/UpdateIndicator.tsx`**
 
 ```tsx
 import React from "react";
@@ -836,7 +836,7 @@ export function UpdateBadge() {
 }
 ```
 
-- [ ] **Step 3b: Render di `src/src/ds/shell.tsx`** — tambah import di atas (dekat `import { LimitBadge } ...`):
+- [x] **Step 3b: Render di `src/src/ds/shell.tsx`** — tambah import di atas (dekat `import { LimitBadge } ...`):
 
 ```ts
 import { UpdateBadge } from "../screens/UpdateIndicator";
@@ -849,18 +849,18 @@ dan render sebelum `<NotificationBell />` di topbar:
           <NotificationBell />
 ```
 
-- [ ] **Step 3c: Update `internal/docs/frontend/frontend-implementation.md`** — tambah satu baris di daftar komponen topbar (cari penyebutan `LimitBadge`/topbar), sisipkan:
+- [x] **Step 3c: Update `internal/docs/frontend/frontend-implementation.md`** — tambah satu baris di daftar komponen topbar (cari penyebutan `LimitBadge`/topbar), sisipkan:
 
 ```markdown
 - `UpdateBadge` (`screens/UpdateIndicator.tsx`) — pill topbar "Update", muncul hanya saat `useUpdate().updateAvailable`; popover memuat perintah update + tombol Salin + daftar commit. Read-only (SPEC-214, ADR-0043).
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan lulus**
+- [x] **Step 4: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./src exec vitest run test/update-indicator.test.tsx`
 Expected: PASS (2 kasus)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/UpdateIndicator.tsx src/src/ds/shell.tsx src/test/update-indicator.test.tsx internal/docs/frontend/frontend-implementation.md

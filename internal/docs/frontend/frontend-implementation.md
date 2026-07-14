@@ -254,6 +254,10 @@ bersandar pada notifikasi yang **dibuat server-side** (`GET /notifications`) —
   tombol lonceng + badge unread (`--clay-500`), dropdown daftar (`SPEC-x · judul`, "selesai · Xm lalu",
   dot unread). Membuka dropdown = `POST /notifications/read` (unread → 0). Tombol "Bersihkan" =
   `DELETE /notifications`.
+- **`UpdateBadge`** (`screens/UpdateIndicator.tsx`) — pill topbar "Update", muncul **hanya** saat
+  `useUpdate().updateAvailable` (store WS grup `update`, pola `useLimits`). Klik → popover: heading per
+  reason (local/remote/both), perintah update dalam blok mono + tombol **Salin**, daftar commit baru,
+  baris `terpasang <sha> · tersedia <sha>`. Read-only: server tak pull/build/restart (SPEC-214, ADR-0043).
 - **Sound**: WAV bundled di `src/public/sounds/notify-<kind>.wav`, dibangkitkan
   `scripts/gen-notify-sounds.mjs` (deterministik, in-repo). `playNotifySound(kind)` (`.../sound.ts`)
   memakai **satu** elemen `Audio` yang dipakai ulang; `unlockNotifySound()` meng-unlock elemen itu
