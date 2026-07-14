@@ -1,10 +1,11 @@
+import type { PrdDoc } from "@hanoman/shared";
 import { prisma } from "../db";
 import { listRepoDocs, readDocFile } from "./scan";
 import { listSessions } from "./pty";
 
 // SPEC-210 · PRD adalah dokumen docs/prd/<slug>.md (bukan entitas DB, ADR-0011/0041). List/baca
 // freshest-wins: worktree sesi prd hidup untuk project ini > repoDir (pola spec-docs.ts).
-export type PrdDoc = { slug: string; name: string; path: string; title: string; live: boolean };
+export type { PrdDoc };
 
 const PRD_DIR = "docs/prd/";
 const isPrd = (rel: string) => rel.startsWith(PRD_DIR) && rel.endsWith(".md");
@@ -35,16 +36,30 @@ export async function listPrds(
 ): Promise<PrdDoc[]> {
   const { dir, live } = await resolveDir(projectId, sessions);
   if (!dir) return [];
+  const project = await prisma.project.findUnique({ where: { id: projectId }, select: { name: true } });
+  const projectName = project?.name ?? projectId;
   return (await listRepoDocs(dir))
     .filter(isPrd)
     .map((rel) => {
       const slug = slugOf(rel);
       return {
         slug, name: rel.slice(rel.lastIndexOf("/") + 1), path: rel,
-        title: titleOf(readDocFile(dir, rel), slug), live,
+        title: titleOf(readDocFile(dir, rel), slug), live, projectId, projectName,
       };
     })
     .sort((a, b) => a.slug.localeCompare(b.slug));
+}
+
+// perbaikan SPEC-210 · daftar PRD LINTAS-project (filter "Semua project"): iterasi tiap project
+// (pola projects.ts) lalu concat listPrds-nya. Project tanpa repoDir → [] (tak menyumbang).
+export async function listAllPrds(
+  sessions: ReturnType<typeof listSessions> = listSessions(),
+): Promise<PrdDoc[]> {
+  const projects = await prisma.project.findMany({
+    orderBy: { createdAt: "desc" }, select: { id: true },
+  });
+  const nested = await Promise.all(projects.map((p) => listPrds(p.id, sessions)));
+  return nested.flat();
 }
 
 export async function readPrd(

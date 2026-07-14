@@ -59,3 +59,19 @@ describe("prds routes", () => {
     expect(res.statusCode).toBe(404);
   });
 });
+
+// perbaikan SPEC-210 · daftar PRD lintas-project (filter "Semua project")
+describe("prds all route", () => {
+  it("GET /api/prds menggabungkan PRD dari semua project", async () => {
+    mkdirSync(join(dir, "docs/prd"), { recursive: true });
+    writeFileSync(join(dir, "docs/prd/x.md"), "# PRD X");
+    const d2 = makeTempRepo({ "docs/prd/y.md": "# PRD Y" });
+    await makeProject({ id: "p2", name: "Proyek B", repoDir: d2 });
+    const res = await app.inject({ url: "/api/prds" });
+    expect(res.statusCode).toBe(200);
+    const items = res.json().items as Array<{ slug: string; projectId: string; projectName: string }>;
+    expect(items.map((i) => i.slug).sort()).toEqual(["x", "y"]);
+    expect(items.find((i) => i.slug === "y")!.projectName).toBe("Proyek B");
+    expect(items.find((i) => i.slug === "x")!.projectId).toBe("p1");
+  });
+});

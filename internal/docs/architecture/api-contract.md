@@ -80,13 +80,17 @@ GET    /projects/:id/docs               # index + coverage + tree kategori, live
 GET    /projects/:id/docs/*path         # isi file .md asli (raw, dari disk)
 PUT    /projects/:id/docs/*path         { content }   # tulis file .md asli; 400 kalau path keluar repo / bukan .md
 DELETE /projects/:id/docs/*path         # hapus file .md asli di disk; 204 sukses, 404 tak ada, 400 guard
-GET    /projects/:id/prds               # SPEC-210 · { items:[{slug,name,path,title,live}] } dokumen docs/prd/*.md
+GET    /prds                            # SPEC-210 · { items:[PrdDoc] } daftar PRD LINTAS-project (filter "Semua project")
+GET    /projects/:id/prds               # SPEC-210 · { items:[PrdDoc] } dokumen docs/prd/*.md project itu
 GET    /projects/:id/prds/*path         # SPEC-210 · isi PRD; 404 bila path bukan docs/prd/*.md
 ```
 
-> **PRD (SPEC-210 · ADR-0041):** PRD = dokumen `docs/prd/<slug>.md` (bukan entitas DB). List/baca
-> **freshest-wins**: worktree sesi `prd` hidup untuk project ini > `repoDir` (pola SPEC-170). Dibuat
-> lewat sesi `flow:"prd"` (lihat Terminal), di-take ke backlog lewat `POST /specs` (tautan PRD di teks Konteks brief).
+> **PRD (SPEC-210 · ADR-0041):** PRD = dokumen `docs/prd/<slug>.md` (bukan entitas DB). `PrdDoc` =
+> `{slug,name,path,title,live,projectId,projectName}` (`projectId`/`projectName` menyertai tiap item agar
+> view lintas-project mengelompokkan & membuka PRD ke project asalnya). List/baca **freshest-wins**:
+> worktree sesi `prd` hidup untuk project ini > `repoDir` (pola SPEC-170). `GET /prds` mengiterasi semua
+> project (project tanpa `repoDir` menyumbang `[]`). Dibuat lewat sesi `flow:"prd"` (lihat Terminal),
+> di-take ke backlog lewat `POST /specs` (tautan PRD di teks Konteks brief).
 
 > Docs dibaca/ditulis **live dari `Project.repoDir`** (tanpa salinan DB — ADR-0011). Korpus **browse** =
 > semua `**/*.md` via `git ls-files`. `GET /docs` re-scan tiap panggilan, begitu pula `GET /projects`

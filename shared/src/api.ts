@@ -17,6 +17,7 @@ export const paths = {
   docFile: (id: string, path: string) => `${API}/projects/${id}/docs/${path}`,
   // SPEC-210 · dokumen PRD project (freshest-wins: worktree sesi prd hidup > repoDir)
   prds: (id: string) => `${API}/projects/${id}/prds`,
+  allPrds: `${API}/prds`, // perbaikan SPEC-210 · daftar PRD lintas-project (filter "Semua project")
   prdFile: (id: string, path: string) => `${API}/projects/${id}/prds/${path}`,
   // SPEC-182 · IDE Visual
   ideTree: (id: string, ref = "") => `${API}/projects/${id}/tree${ref ? `?ref=${encodeURIComponent(ref)}` : ""}`,

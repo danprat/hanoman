@@ -1,8 +1,8 @@
-import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type AuthStatus, type UserView, type LimitsDTO } from "@hanoman/shared";
+import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc } from "@hanoman/shared";
 export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd";
-// SPEC-210 · dokumen PRD project (freshest-wins: worktree sesi prd hidup > repoDir)
-export type PrdDoc = { slug: string; name: string; path: string; title: string; live: boolean };
+// SPEC-210 · dokumen PRD project (freshest-wins: worktree sesi prd hidup > repoDir). Tipe di @hanoman/shared.
+export type { PrdDoc };
 export type Phase = { name: string; state: "done" | "skipped" | "active" | "pending" };
 export type TerminalSession = {
   id: string; projectId: string; specId?: string; flow?: Flow; cwd: string; exited: boolean;
@@ -108,6 +108,8 @@ export const api = {
     j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, flow: "reverse" }) }),
   // SPEC-210 · dokumen PRD. listPrds/getPrd baca freshest-wins; startPrd buka sesi prd.
   listPrds: (project: string) => j<{ items: PrdDoc[] }>(paths.prds(project)),
+  // perbaikan SPEC-210 · daftar PRD lintas-project (filter "Semua project").
+  listAllPrds: () => j<{ items: PrdDoc[] }>(paths.allPrds),
   getPrd: (project: string, path: string) =>
     j<{ path: string; content: string }>(paths.prdFile(project, path)),
   startPrd: (project: string, brief: { title: string; context: string; outcome: string; constraints?: string }) =>

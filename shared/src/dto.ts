@@ -69,6 +69,19 @@ export const zPrdBrief = z.object({
 });
 export type PrdBrief = z.infer<typeof zPrdBrief>;
 
+// SPEC-210 · item daftar PRD (dokumen docs/prd/*.md). projectId/projectName menyertai tiap item
+// agar view lintas-project ("Semua project") bisa mengelompokkan & membuka PRD ke project asalnya.
+export const zPrdDoc = z.object({
+  slug: z.string(),
+  name: z.string(),
+  path: z.string(),
+  title: z.string(),
+  live: z.boolean(),
+  projectId: z.string(),
+  projectName: z.string(),
+});
+export type PrdDoc = z.infer<typeof zPrdDoc>;
+
 // Sesi terminal dibuka untuk sebuah project (repoDir-nya, terminal biasa) atau untuk sebuah
 // backlog item — yang terakhir lahir di worktree-nya sendiri, dengan prompt awal (SPEC-162).
 export const zTerminalSession = z.union([

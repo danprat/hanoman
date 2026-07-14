@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { resetDb, makeProject, makeTempRepo } from "./factory";
-import { listPrds, readPrd } from "../src/services/project-prds";
+import { listPrds, readPrd, listAllPrds } from "../src/services/project-prds";
 
 let dir: string;
 beforeEach(async () => {
@@ -22,6 +22,8 @@ describe("project-prds (repoDir)", () => {
     expect(inv.path).toBe("docs/prd/jadwal-invoice.md");
     expect(inv.name).toBe("jadwal-invoice.md");
     expect(inv.live).toBe(false);
+    expect(inv.projectId).toBe("p1");
+    expect(inv.projectName).toBe("p1");
   });
   it("judul fallback ke slug bila tanpa heading", async () => {
     const d = makeTempRepo({ "docs/prd/tanpa-heading.md": "isi tanpa judul" });
@@ -36,6 +38,25 @@ describe("project-prds (repoDir)", () => {
   it("[] untuk project tanpa repoDir", async () => {
     await makeProject({ id: "p3", repoDir: null });
     expect(await listPrds("p3", [])).toEqual([]);
+  });
+});
+
+describe("listAllPrds (lintas-project)", () => {
+  it("menggabungkan PRD dari semua project dengan projectId/projectName", async () => {
+    // p1 sudah di-seed di beforeEach (2 PRD, name default "p1")
+    const d2 = makeTempRepo({ "docs/prd/auth.md": "# Auth Device" });
+    await makeProject({ id: "p2", name: "Proyek B", repoDir: d2 });
+    const items = await listAllPrds([]);
+    expect(items.map((i) => i.slug).sort()).toEqual(["auth", "jadwal-invoice", "notifikasi"]);
+    const auth = items.find((i) => i.slug === "auth")!;
+    expect(auth.projectId).toBe("p2");
+    expect(auth.projectName).toBe("Proyek B");
+    expect(items.find((i) => i.slug === "jadwal-invoice")!.projectId).toBe("p1");
+  });
+  it("project tanpa repoDir tak menyumbang PRD", async () => {
+    await makeProject({ id: "p3", name: "Kosong", repoDir: null });
+    const items = await listAllPrds([]);
+    expect(items.some((i) => i.projectId === "p3")).toBe(false);
   });
 });
 

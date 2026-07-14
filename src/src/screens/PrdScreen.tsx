@@ -1,10 +1,11 @@
-/* PrdScreen — dokumen PRD per project (SPEC-210). Daftar docs/prd/*.md (freshest-wins),
-   preview MarkdownView, buat PRD baru (sesi prd interaktif), take PRD → backlog (prefill
-   NewSpecModal di App). PRD adalah dokumen, bukan entitas DB (ADR-0011/0041). */
+/* PrdScreen — dokumen PRD (SPEC-210 + perbaikan lintas-project). Two-pane: sidebar kiri daftar
+   docs/prd/*.md (freshest-wins) yang bisa diklik, pane kanan preview MarkdownView inline + take ke
+   backlog. Filter project punya opsi "Semua project" → listAllPrds() lintas-project, dikelompokkan
+   per project. PRD adalah dokumen, bukan entitas DB (ADR-0011/0041). */
 import React from "react";
 import {
-  Card, Badge, Button, Select, Modal, Field, Input, HnTextarea, StateBlock, MarkdownView, Icon,
-  LIST_SCREEN_STYLE, LIST_SCROLL_STYLE, FIXED_ROW_STYLE,
+  Badge, Button, Select, Modal, Field, Input, HnTextarea, StateBlock, MarkdownView, Icon,
+  LIST_SCREEN_STYLE, FIXED_ROW_STYLE,
 } from "../ds";
 import { api, type PrdDoc } from "../api/client";
 import type { ProjectVM } from "./types";
@@ -45,28 +46,67 @@ function NewPrdModal({ onClose, onCreate }:
   );
 }
 
-function PrdPreview({ project, prd, onClose, onTake }:
-  { project: string; prd: PrdDoc; onClose: () => void; onTake: (p: PrdPrefill) => void }) {
+// Preview inline (pane kanan) — baca isi PRD ke project asalnya, take ke backlog.
+function PrdPreviewPane({ prd, projectId, onTake }:
+  { prd: PrdDoc; projectId: string; onTake: (p: PrdPrefill) => void }) {
   const [content, setContent] = React.useState<string | null>(null);
   React.useEffect(() => {
     let alive = true;
-    api.getPrd(project, prd.path)
+    setContent(null);
+    api.getPrd(projectId, prd.path)
       .then((r) => { if (alive) setContent(r.content); })
       .catch(() => { if (alive) setContent(""); });
     return () => { alive = false; };
-  }, [project, prd.path]);
+  }, [projectId, prd.path]);
   return (
-    <Modal open onClose={onClose} icon="scroll-text" eyebrow={prd.path} title={prd.title}
-      footer={<>
-        <Button variant="ghost" size="sm" onClick={onClose}>Tutup</Button>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
+        <div style={{ minWidth: 0 }}>
+          <div className="hn-eyebrow" style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)", marginBottom: 4 }}>{prd.path}</div>
+          <div style={{ fontFamily: "var(--font-sans)", fontSize: 18, fontWeight: 700, color: "var(--text-strong)" }}>{prd.title}</div>
+        </div>
         <Button size="sm" leftIcon="list-checks"
-          onClick={() => onTake({ project, title: prd.title, context: `Dari PRD: ${prd.path}`, outcome: "", prdPath: prd.path })}>
+          onClick={() => onTake({ project: projectId, title: prd.title, context: `Dari PRD: ${prd.path}`, outcome: "", prdPath: prd.path })}>
           Take ke backlog
         </Button>
-      </>}>
-      {content === null ? <StateBlock kind="loading" title="Memuat PRD…" />
-        : <MarkdownView text={content} name={prd.name} />}
-    </Modal>
+      </div>
+      <div style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
+        {content === null ? <StateBlock kind="loading" title="Memuat PRD…" />
+          : <MarkdownView text={content} name={prd.name} />}
+      </div>
+    </div>
+  );
+}
+
+type PrdGroup = { projectId: string; projectName: string; items: PrdDoc[] };
+function groupByProject(items: PrdDoc[]): PrdGroup[] {
+  const order: string[] = [];
+  const map = new Map<string, PrdGroup>();
+  for (const it of items) {
+    let g = map.get(it.projectId);
+    if (!g) { g = { projectId: it.projectId, projectName: it.projectName, items: [] }; map.set(it.projectId, g); order.push(it.projectId); }
+    g.items.push(it);
+  }
+  return order.map((id) => map.get(id)!);
+}
+
+function PrdSidebarItem({ prd, active, onSelect }:
+  { prd: PrdDoc; active: boolean; onSelect: () => void }) {
+  const [hover, setHover] = React.useState(false);
+  return (
+    <button onClick={onSelect} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+      style={{
+        display: "block", width: "100%", textAlign: "left", cursor: "pointer",
+        border: "none", borderRadius: "var(--radius-sm)", padding: "8px 10px", marginBottom: 2,
+        background: active ? "var(--brass-100)" : hover ? "var(--bone-200)" : "transparent",
+      }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 3, flexWrap: "wrap" }}>
+        <Icon name="scroll-text" size={13} color={active ? "var(--brass-700)" : "var(--brass-500)"} />
+        <span style={{ fontFamily: "var(--font-sans)", fontSize: 14, fontWeight: 600, color: active ? "var(--brass-700)" : "var(--text-strong)" }}>{prd.title}</span>
+        {prd.live && <Badge tone="brass" size="sm">draft hidup</Badge>}
+      </div>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-subtle)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{prd.path}</div>
+    </button>
   );
 }
 
@@ -79,48 +119,71 @@ export function PrdScreen({ projects, projectFilter, onProjectFilter, onNewPrd, 
   const [items, setItems] = React.useState<PrdDoc[]>([]);
   const [sel, setSel] = React.useState<PrdDoc | null>(null);
   const [creating, setCreating] = React.useState(false);
-  // Filter "all" → project pertama: PRD selalu berkonteks satu project (docs/prd/ hidup di repo-nya).
-  const proj = projectFilter === "all" ? (projects[0]?.id ?? "") : projectFilter;
+  const all = projectFilter === "all";
+  const activeProject = all ? "" : projectFilter; // project target untuk "PRD baru" (perlu satu project)
+
+  // Ganti project → buang seleksi. Refresh data (dataVersion) tak membuang seleksi agar preview stabil.
+  React.useEffect(() => { setSel(null); }, [projectFilter]);
+
   React.useEffect(() => {
-    if (!proj) { setItems([]); return; }
     let alive = true;
-    api.listPrds(proj).then((r) => { if (alive) setItems(r.items); }).catch(() => { if (alive) setItems([]); });
+    const load = all ? api.listAllPrds()
+      : activeProject ? api.listPrds(activeProject)
+      : Promise.resolve({ items: [] as PrdDoc[] });
+    load.then((r) => { if (alive) setItems(r.items); }).catch(() => { if (alive) setItems([]); });
     return () => { alive = false; };
-  }, [proj, dataVersion]);
+  }, [projectFilter, dataVersion]);
+
+  const groups = groupByProject(items);
+  const selProject = sel ? (sel.projectId || activeProject) : "";
+  const selOpts = [{ value: "all", label: "Semua project" }].concat(projects.map((p) => ({ value: p.id, label: p.name })));
+
   return (
     <div style={LIST_SCREEN_STYLE}>
       <div style={{ ...FIXED_ROW_STYLE, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18 }}>
-        <Select size="sm" value={proj} aria-label="Project"
-          onChange={(e) => onProjectFilter(e.target.value)}
-          options={projects.map((p) => ({ value: p.id, label: p.name }))} />
-        <Button size="sm" leftIcon="plus" disabled={!proj} onClick={() => setCreating(true)}>PRD baru</Button>
+        <Select size="sm" value={projectFilter} aria-label="Project"
+          onChange={(e) => onProjectFilter(e.target.value)} options={selOpts} />
+        <Button size="sm" leftIcon="plus" disabled={all}
+          title={all ? "Pilih satu project untuk membuat PRD" : undefined}
+          onClick={() => setCreating(true)}>PRD baru</Button>
       </div>
-      {items.length === 0 ? (
-        <StateBlock kind="empty" icon="scroll-text" title="Belum ada PRD"
-          hint="Buat PRD dari brief + brainstorm; hanoman menulisnya ke docs/prd/ lalu bisa di-take jadi backlog."
-          action={proj ? () => setCreating(true) : undefined} actionLabel="PRD baru" />
-      ) : (
-        <div style={{ ...LIST_SCROLL_STYLE, display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))" }}>
-          {items.map((p) => (
-            <Card key={p.path} padding={16}>
-              <button onClick={() => setSel(p)} style={{
-                border: "none", background: "transparent", padding: 0, textAlign: "left", cursor: "pointer", width: "100%",
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
-                  <Icon name="scroll-text" size={15} color="var(--brass-500)" />
-                  <span style={{ fontFamily: "var(--font-sans)", fontSize: 15, fontWeight: 600, color: "var(--text-strong)" }}>{p.title}</span>
-                  {p.live && <Badge tone="brass" size="sm">draft hidup</Badge>}
-                </div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)" }}>{p.path}</div>
-              </button>
-            </Card>
+      <div style={{ flex: "1 1 auto", minHeight: 0, display: "flex", gap: 16 }}>
+        <aside aria-label="Daftar PRD" style={{
+          flex: "0 0 264px", minHeight: 0, overflowY: "auto",
+          borderRight: "1px solid var(--border-hair)", paddingRight: 12,
+        }}>
+          {items.length === 0 ? (
+            <StateBlock kind="empty" icon="scroll-text" title="Belum ada PRD"
+              hint="Buat PRD dari brief + brainstorm; hanoman menulisnya ke docs/prd/ lalu bisa di-take jadi backlog."
+              action={activeProject ? () => setCreating(true) : undefined} actionLabel="PRD baru" />
+          ) : groups.map((g) => (
+            <div key={g.projectId} style={{ marginBottom: 10 }}>
+              {all && (
+                <div className="hn-eyebrow" style={{
+                  fontFamily: "var(--font-sans)", fontSize: 11, fontWeight: 600, letterSpacing: 0.3,
+                  textTransform: "uppercase", color: "var(--text-subtle)", padding: "6px 10px 4px",
+                }}>{g.projectName}</div>
+              )}
+              {g.items.map((p) => (
+                <PrdSidebarItem key={`${p.projectId}:${p.path}`} prd={p}
+                  active={sel?.path === p.path && sel?.projectId === p.projectId}
+                  onSelect={() => setSel(p)} />
+              ))}
+            </div>
           ))}
-        </div>
-      )}
-      {sel && <PrdPreview project={proj} prd={sel} onClose={() => setSel(null)}
-        onTake={(pf) => { setSel(null); onTakeToBacklog(pf); }} />}
+        </aside>
+        <section style={{ flex: "1 1 auto", minHeight: 0 }}>
+          {sel ? (
+            <PrdPreviewPane prd={sel} projectId={selProject}
+              onTake={(pf) => onTakeToBacklog(pf)} />
+          ) : (
+            <StateBlock kind="empty" icon="scroll-text" title="Pilih PRD"
+              hint="Klik dokumen di daftar kiri untuk melihat isinya, lalu take ke backlog." />
+          )}
+        </section>
+      </div>
       {creating && <NewPrdModal onClose={() => setCreating(false)}
-        onCreate={(brief) => { setCreating(false); onNewPrd(proj, brief); }} />}
+        onCreate={(brief) => { setCreating(false); onNewPrd(activeProject, brief); }} />}
     </div>
   );
 }
