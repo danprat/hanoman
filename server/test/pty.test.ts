@@ -52,6 +52,16 @@ describe("pty service", () => {
     expect(c.wasClosed()).toBe(true);
   });
 
+  // SPEC-211 · Open Console memasok argv sendiri (mis. `ssh -t …`) — shell mentah, bukan claude.
+  it("command opt menjalankan perintah non-claude, tanpa flag claude", async () => {
+    const s = createSession("con1", process.cwd(), { command: ["/bin/echo", "halo-console"] });
+    await waitFor(() => exited(s.id));
+    const c = fakeClient();
+    attach(s.id, c);
+    expect(allData(c)).toContain("halo-console");
+    expect(allData(c)).not.toContain("--dangerously-skip-permissions");
+  });
+
   // `remain-on-exit` menahan pane yang sudah mati: output terakhir sesi yang gagal masih
   // terbaca setelah refresh, dan kode keluarnya yang asli — bukan kode klien tmux.
   it("keeps a dead session listed, carrying its real exit code", async () => {

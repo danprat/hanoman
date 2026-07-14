@@ -120,7 +120,7 @@ export const getSession = (id: string): Pane | undefined => listPanes().find((p)
 
 export type CreateOpts = {
   id?: string; specId?: string; flow?: Flow; prompt?: string; phaseFile?: string;
-  decisionFile?: string; model?: string; effort?: string;
+  decisionFile?: string; model?: string; effort?: string; command?: string[];
 };
 
 export function createSession(projectId: string, cwd: string, opts: CreateOpts = {}): SessionInfo {
@@ -135,14 +135,17 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
   // `--dangerously-skip-permissions` melewati prompt izin, bukan sistem hook. Sejak ADR-0037
   // tak ada lagi hook deny — `--settings` di sini hanya memasang marker keputusan (SPEC-184),
   // digabung dengan settings pengguna. Agen dipercaya penuh; isolasi murni lewat worktree.
-  const argv = [
+  // Console VPS (SPEC-211) memasok argv sendiri (mis. `ssh -t …`): shell mentah, bukan
+  // claude — `--dangerously-skip-permissions`/`--settings` hanya relevan untuk claude.
+  const parts = opts.command ?? [
     claudeBin(),
     ...(opts.prompt ? [opts.prompt] : []),
     ...(opts.model ? ["--model", opts.model] : []),
     ...(opts.effort ? ["--effort", opts.effort] : []),
     "--dangerously-skip-permissions",
     "--settings", JSON.stringify(guardSettings(opts.decisionFile)),
-  ].map(sq).join(" ");
+  ];
+  const argv = parts.map(sq).join(" ");
 
   // Env di depan perintah, bukan `new-session -e`: tmux menyerahkan sisa argv-nya ke shell,
   // jadi penugasan env bekerja di semua versi tmux sementara `-e` baru ada sejak 3.0.
