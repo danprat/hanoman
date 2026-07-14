@@ -15,6 +15,7 @@ import { OverviewScreen } from "./screens/OverviewScreen";
 import { ProjectsScreen } from "./screens/ProjectsScreen";
 import { ProjectDetailScreen } from "./screens/ProjectDetailScreen";
 import { BacklogScreen } from "./screens/BacklogScreen";
+import { PrdScreen, type PrdPrefill, type PrdBriefForm } from "./screens/PrdScreen";
 import { TerminalScreen } from "./screens/TerminalScreen";
 import { IdeScreen } from "./screens/IdeScreen";
 import { VpsScreen } from "./screens/VpsScreen";
@@ -28,12 +29,17 @@ const PRIORITY = [{ value: "tinggi", label: "Tinggi" }, { value: "sedang", label
 type SpecForm = { kind: string; project: string; title: string; context: string; outcome: string; constraints: string;
   priority: string; severity: string; steps: string; expected: string; actual: string; env: string; branchFrom: string };
 
-function NewSpecModal({ open, onClose, projects, defaultProject, onCreate }:
-  { open: boolean; onClose: () => void; projects: ProjectVM[]; defaultProject: string; onCreate: (f: SpecForm) => void }) {
-  const blank: SpecForm = { kind: "brief", project: defaultProject, title: "", context: "", outcome: "", constraints: "",
+function NewSpecModal({ open, onClose, projects, defaultProject, onCreate, prefill }:
+  { open: boolean; onClose: () => void; projects: ProjectVM[]; defaultProject: string; onCreate: (f: SpecForm) => void;
+    // SPEC-210 · seed dari "Take ke backlog" sebuah PRD (selalu kind brief).
+    prefill?: { project?: string; title?: string; context?: string; outcome?: string; prdPath?: string } }) {
+  const blank: SpecForm = { kind: "brief", project: prefill?.project || defaultProject, title: prefill?.title ?? "",
+    context: prefill?.context ?? "", outcome: prefill?.outcome ?? "", constraints: "",
     priority: "sedang", severity: "major", steps: "", expected: "", actual: "", env: "", branchFrom: "" };
   const [f, setF] = React.useState<SpecForm>(blank);
-  React.useEffect(() => { if (open) setF({ ...blank, project: defaultProject }); }, [open, defaultProject]);
+  React.useEffect(() => {
+    if (open) setF({ ...blank, project: prefill?.project || defaultProject });
+  }, [open, defaultProject, prefill]);
   const [branches, setBranches] = React.useState<string[]>([]);
   React.useEffect(() => {
     if (!open || !f.project) { setBranches([]); return; }
@@ -283,6 +289,8 @@ export default function App() {
   const [focusSession, setFocusSession] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState("");
   const [modal, setModal] = React.useState<string | null>(null);
+  // SPEC-210 · prefill NewSpecModal saat "Take ke backlog" dari sebuah PRD.
+  const [specPrefill, setSpecPrefill] = React.useState<PrdPrefill | null>(null);
   const [toast, showToast] = useToast();
   const [status, setStatus] = React.useState<"loading" | "ready" | "error">("loading");
   // SPEC-169 · gate auth. null = belum tahu (splash). Sesi kedaluwarsa (401) → balik ke Login.
@@ -424,6 +432,20 @@ export default function App() {
     }
   }
 
+  // SPEC-210 · buka sesi prd project-level (brainstorm interaktif → dokumen PRD), lalu ke Terminal.
+  async function startPrd(project: string, brief: PrdBriefForm) {
+    try {
+      const { id } = await api.startPrd(project, brief);
+      setSection("terminal");
+      showToast(`PRD · sesi ${id} dimulai`, "info", "scroll-text");
+    } catch (e) {
+      const noRepo = e instanceof ApiError && (e.status === 422 || e.status === 400);
+      showToast("gagal mulai PRD" + (noRepo ? " · project belum punya repoDir" : ""), "warn", "x-circle");
+    }
+  }
+  // SPEC-210 · take PRD → backlog: prefill NewSpecModal (brief) dari PRD, buka modal-nya.
+  function takeToBacklog(pf: PrdPrefill) { setSpecPrefill(pf); setModal("brief"); }
+
   // SPEC-143. Hanya menentukan basis run BERIKUTNYA; run yang sudah jalan diubah dari layar Runs.
   async function editBranch(spec: Spec, branchFrom: string | null) {
     try {
@@ -469,12 +491,14 @@ export default function App() {
     const isQa = f.kind === "qa";
     const payload = isQa
       ? { severity: f.severity, steps: f.steps, expected: f.expected, actual: f.actual, env: f.env }
-      : { context: f.context, outcome: f.outcome, constraints: f.constraints, priority: f.priority };
+      // SPEC-210 · saat brief lahir dari "Take ke backlog", tautkan balik ke PRD-nya di payload.
+      : { context: f.context, outcome: f.outcome, constraints: f.constraints, priority: f.priority,
+          ...(specPrefill?.prdPath ? { prd: specPrefill.prdPath } : {}) };
     try {
       const created = await api.createSpec({ project: f.project, source: f.kind, title: f.title.trim(),
         priority: f.priority, payload, branchFrom: f.branchFrom || undefined });
       setBacklog((b) => [created, ...b]);
-      setModal(null); setSection("backlog");
+      setModal(null); setSpecPrefill(null); setSection("backlog");
       showToast(created.id + (isQa ? " difilekan · masuk audit" : " dibuat · masuk brainstorm"), "ok", isQa ? "bug" : "lightbulb");
     } catch { showToast("Gagal membuat spec", "err", "x-circle"); }
   }
@@ -539,6 +563,18 @@ export default function App() {
           onDelete={deleteSpec} onOpenRun={() => setSection("terminal")} onOpenReview={openReview}
           onEditBranch={editBranch} onRevertStage={revertStage} onIntegrate={integrateSpec} onEditSpec={editSpec}
           projectFilter={projectFilter} onProjectFilter={setProjectFilter} dataVersion={dataVersion} />)}
+      </Shell>
+    );
+  } else if (section === "prd") {
+    // SPEC-210 · PRD: PM/PO menulis brief + brainstorm → dokumen PRD (docs/prd/), preview, take ke backlog.
+    screen = (
+      <Shell active="prd" title="PRD" breadcrumb="brief → brainstorm → dokumen" onNavigate={setSection}>
+        {gate(projectsView.length === 0
+          ? <StateBlock kind="empty" icon="box" title="Belum ada project"
+              hint="PRD butuh project dengan repoDir untuk menulis docs/prd/."
+              action={() => setModal("project")} actionLabel="Project baru" />
+          : <PrdScreen projects={projectsView} projectFilter={projectFilter} onProjectFilter={setProjectFilter}
+              onNewPrd={startPrd} onTakeToBacklog={takeToBacklog} dataVersion={dataVersion} />)}
       </Shell>
     );
   } else if (section === "terminal") {
@@ -612,7 +648,9 @@ export default function App() {
   return (
     <NotificationsProvider showToast={showToast} onOpen={openNotification}>
       {screen}
-      <NewSpecModal open={modal === "brief"} onClose={() => setModal(null)} projects={projectsView} defaultProject={proj ? proj.id : ""} onCreate={createSpec} />
+      <NewSpecModal open={modal === "brief"} onClose={() => { setModal(null); setSpecPrefill(null); }}
+        projects={projectsView} defaultProject={proj ? proj.id : ""} onCreate={createSpec}
+        prefill={specPrefill ?? undefined} />
       <NewProjectModal open={modal === "project"} onClose={() => setModal(null)} onCreate={createProject} />
       <EditProjectModal open={modal === "project-edit"} project={proj} onClose={() => setModal(null)} onSave={updateProject} />
       <Toast toast={toast} />

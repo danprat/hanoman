@@ -15,6 +15,7 @@ type NavItem = { key: string; label: string; icon: string };
 const HN_NAV: NavItem[] = [
   { key: "overview", label: "Overview", icon: "layout-dashboard" },
   { key: "projects", label: "Projects", icon: "layout-grid" },
+  { key: "prd", label: "PRD", icon: "scroll-text" },
   { key: "backlog", label: "Backlog", icon: "list-checks" },
   { key: "terminal", label: "Terminal", icon: "terminal" },
   { key: "ide", label: "IDE", icon: "code-2" },

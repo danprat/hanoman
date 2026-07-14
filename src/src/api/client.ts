@@ -1,6 +1,8 @@
 import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type AuthStatus, type UserView, type LimitsDTO } from "@hanoman/shared";
 export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
-export type Flow = "feature" | "qa" | "scaffold" | "reverse";
+export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd";
+// SPEC-210 · dokumen PRD project (freshest-wins: worktree sesi prd hidup > repoDir)
+export type PrdDoc = { slug: string; name: string; path: string; title: string; live: boolean };
 export type Phase = { name: string; state: "done" | "skipped" | "active" | "pending" };
 export type TerminalSession = {
   id: string; projectId: string; specId?: string; flow?: Flow; cwd: string; exited: boolean;
@@ -104,6 +106,12 @@ export const api = {
   // SPEC-166 · reverse: sesi project-level menyusun Source of Truth dari kode, di worktree-nya.
   reverseDocs: (project: string) =>
     j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, flow: "reverse" }) }),
+  // SPEC-210 · dokumen PRD. listPrds/getPrd baca freshest-wins; startPrd buka sesi prd.
+  listPrds: (project: string) => j<{ items: PrdDoc[] }>(paths.prds(project)),
+  getPrd: (project: string, path: string) =>
+    j<{ path: string; content: string }>(paths.prdFile(project, path)),
+  startPrd: (project: string, brief: { title: string; context: string; outcome: string; constraints?: string }) =>
+    j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, flow: "prd", brief }) }),
   deleteTerminal: (id: string) => j<void>(paths.terminalSession(id), { method: "DELETE" }),
   // SPEC-164 · modul VPS
   listVps: () => j<VpsView[]>(paths.vps),
