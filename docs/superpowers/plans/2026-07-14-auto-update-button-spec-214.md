@@ -941,22 +941,22 @@ git commit -m "docs(sot): ADR-0043 auto-update read-only + operations (SPEC-214)
 
 **Files:** (tak ada perubahan kode; hanya verifikasi + centang checklist plan)
 
-- [ ] **Step 1: Typecheck seluruh workspace**
+- [x] **Step 1: Typecheck seluruh workspace**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm -r typecheck`
 Expected: 0 error.
 
-- [ ] **Step 2: Seluruh test suite (repo pola no-file-parallelism)**
+- [x] **Step 2: Seluruh test suite (repo pola no-file-parallelism)**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm test`
 Expected: semua hijau; tak ada jaringan tak terduga; tak ada regresi events.
 
-- [ ] **Step 3: Build + verifikasi stamp**
+- [x] **Step 3: Build + verifikasi stamp**
 
 Run: `pnpm build && cat server/dist/build-info.json`
 Expected: `{ "sha": "<7-hex>", "builtAt": ... }`, `sha` = `git rev-parse --short HEAD`.
 
-- [ ] **Step 4: Smoke server nyata (DB throwaway; jangan port 8787/8788 & jangan hanoman_test)**
+- [x] **Step 4: Smoke server nyata (DB throwaway; jangan port 8787/8788 & jangan hanoman_test)**
 
 Boot server ter-build di port bebas terhadap DB migrasi throwaway (pola memory "live-smoke dedicated DB"),
 lalu:
@@ -965,9 +965,9 @@ curl -s localhost:<port>/api/update | node -e "let s='';process.stdin.on('data',
 ```
 Expected: JSON `UpdateStatus` valid (200). Karena boot dari `server/dist` ter-stamp: `currentSha` = SHA build. Bila di branch dengan origin + `HANOMAN_UPDATE_FETCH=1`: `remote.status` mungkin `ok`. Fail-safe bila git tak tersedia.
 
-- [ ] **Step 5: Centang semua kotak plan + commit penutup dokumen plan**
+- [x] **Step 5: Centang semua kotak plan + commit penutup dokumen plan**
 
-Setelah semua `- [ ]` → `- [x]`:
+Setelah semua `- [x]` → `- [x]`:
 ```bash
 git add docs/superpowers/plans/2026-07-14-auto-update-button-spec-214.md
 git commit -m "docs(plan): ceklis SPEC-214 (Execute selesai + smoke hijau)"
