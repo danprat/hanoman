@@ -24,6 +24,11 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 
 ## adr
 > Nomor unik & imutable. ADR usang tidak dihapus — ditandai statusnya di bawah dan di header masing-masing.
+- [0047 — Ringkasan hasil sesi = SessionResult append-only, whitelist, purge manual](adr/0047-activity-log-session-result.md)
+- [0046 — Kanal WebSocket sync terpisah, token-authed pada upgrade](adr/0046-kanal-ws-sync-terpisah.md)
+- [0045 — Sync record via SyncLog change-feed + version-stamp optimistic concurrency](adr/0045-skema-sync-synclog-version-stamp.md)
+- [0044 — Identitas mesin lewat device token per-device (hash-at-rest, revocable)](adr/0044-device-token-machine-identity.md)
+- [0043 — Sync server↔client = server-to-server, peran ditentukan konfigurasi](adr/0043-sync-arsitektur-hub-client-server-to-server.md)
 - [0042 — Open Console = ssh mentah di tmux hanoman lokal, bukan tmux remote](adr/0042-vps-console-ssh-tmux-lokal.md)
 - [0041 — PRD adalah dokumen + flow project-level, bukan entitas DB](adr/0041-prd-sebagai-dokumen-flow-project-level.md)
 - [0040 — Jalur cepat qa dielicit lewat prompt, diputuskan agen](adr/0040-jalur-cepat-qa-dielicit-prompt.md) — **supersedes mekanisme 0020**

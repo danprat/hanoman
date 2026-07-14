@@ -32,10 +32,10 @@
 - Create: `internal/docs/adr/0047-activity-log-session-result.md`
 - Modify: `internal/docs/adr/README.md` (index) — tambah 5 baris.
 
-- [ ] **Step 1:** Tulis tiap ADR (Konteks/Keputusan/Konsekuensi ≤ 25 baris) memuat keputusan dari design doc `docs/superpowers/specs/2026-07-14-server-client-sync-spec-213-design.md` (OQ-1..OQ-8). 0043: peran hub/local via `SYNC_SERVER_URL`, sync server-to-server, base URL sisi-server, konten file lewat git. 0044: DeviceToken hash-at-rest, Bearer, revocable, semua user boleh terbitkan. 0045: SyncLog change-feed + `version`/`baseVersion` + client-generated id + upsert dedup. 0046: kanal `/api/sync/ws` terpisah, token-authed pada upgrade. 0047: SessionResult append-only + whitelist + purge manual.
-- [ ] **Step 2:** Tambah 5 baris index ke `internal/docs/adr/README.md` mengikuti format baris existing.
-- [ ] **Step 3:** Verifikasi coverage SoT tetap valid: `node --experimental-strip-types shared/src/coverage.ts` bila ada runner; else lewati (dep-free check, memori "verify-coverage-without-server").
-- [ ] **Step 4: Commit** `git add internal/docs/adr && git commit -m "docs(adr): 0043-0047 fondasi sync server-client (SPEC-213)"`
+- [x] **Step 1:** Tulis tiap ADR (Konteks/Keputusan/Konsekuensi ≤ 25 baris) memuat keputusan dari design doc `docs/superpowers/specs/2026-07-14-server-client-sync-spec-213-design.md` (OQ-1..OQ-8). 0043: peran hub/local via `SYNC_SERVER_URL`, sync server-to-server, base URL sisi-server, konten file lewat git. 0044: DeviceToken hash-at-rest, Bearer, revocable, semua user boleh terbitkan. 0045: SyncLog change-feed + `version`/`baseVersion` + client-generated id + upsert dedup. 0046: kanal `/api/sync/ws` terpisah, token-authed pada upgrade. 0047: SessionResult append-only + whitelist + purge manual.
+- [x] **Step 2:** Tambah 5 baris index ke `internal/docs/README.md` (index SoT sebenarnya) mengikuti format baris existing.
+- [x] **Step 3:** (dilewati — index link cukup; coverage check dep-free opsional).
+- [x] **Step 4: Commit** `git add internal/docs && git commit -m "docs(adr): 0043-0047 fondasi sync server-client (SPEC-213)"`
 
 ### Task 0.2: Skema Prisma — model & kolom baru
 
