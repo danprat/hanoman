@@ -104,7 +104,9 @@ export async function startSyncClient(base: string, token: string): Promise<void
 
   await tick();               // drain awal + pull awal
   void connectWs();           // realtime
-  timer = setInterval(() => { void tick(); }, 15_000); // fallback: outbox yang lahir saat WS putus
+  // Fallback tick: drain outbox yang lahir saat WS putus. Prod 15s; smoke/test bisa turunkan.
+  const tickMs = Number(process.env.SYNC_TICK_MS) || 15_000;
+  timer = setInterval(() => { void tick(); }, tickMs);
   timer.unref?.();
 }
 
