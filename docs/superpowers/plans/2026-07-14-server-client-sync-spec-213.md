@@ -562,11 +562,11 @@ export default async function (app: FastifyInstance) {
 - Create: `server/test/parity-endpoints.test.ts` (daftar route baseline ⊆ route sekarang)
 - Docs: `internal/docs/operations/production.md` (bagian rollout hub/client — OQ-1)
 
-- [ ] **Step 1:** Test parity: kumpulkan `app.printRoutes()`/route list; assert semua path baseline (health, auth, projects, specs, notifications, settings, docs, ide, fs, terminal, vps, limits, events) MASIH ada (AC-23; 0 hilang).
-- [ ] **Step 2:** Run → PASS.
-- [ ] **Step 3:** Tulis bagian rollout di `production.md`: prod sekarang = hub tanpa client; client opt-in set `SYNC_SERVER_URL`+`SYNC_DEVICE_TOKEN`; additive, backward-compatible (OQ-1).
-- [ ] **Step 4:** Jalankan SELURUH suite server: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test` → semua hijau (metrik parity 100%).
-- [ ] **Step 5: Commit** `git commit -am "test+docs: parity endpoint & rollout hub/client (SPEC-213 AC-23..25, OQ-1)"`
+- [x] **Step 1:** Test parity: kumpulkan `app.printRoutes()`/route list; assert semua path baseline (health, auth, projects, specs, notifications, settings, docs, ide, fs, terminal, vps, limits, events) MASIH ada (AC-23; 0 hilang).
+- [x] **Step 2:** Run → PASS.
+- [x] **Step 3:** Tulis bagian rollout di `production.md`: prod sekarang = hub tanpa client; client opt-in set `SYNC_SERVER_URL`+`SYNC_DEVICE_TOKEN`; additive, backward-compatible (OQ-1).
+- [x] **Step 4:** Jalankan SELURUH suite server: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test` → semua hijau (metrik parity 100%).
+- [x] **Step 5: Commit** `git commit -am "test+docs: parity endpoint & rollout hub/client (SPEC-213 AC-23..25, OQ-1)"`
 
 ### Task 7.3: UI — kelola device token + lihat activity log
 

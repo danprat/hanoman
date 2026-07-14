@@ -53,3 +53,31 @@ di depannya.
 curl -s localhost:8788/api/health                                        # {"ok":true}
 docker compose exec -T db psql -U hanoman -d hanoman_prod -tAc 'select count(*) from "Spec"'
 ```
+
+## Rollout hub + client (SPEC-213, ADR-0043)
+
+SPEC-213 menambah peran **hub** dan **client** secara **additif** — prod single-host yang ada
+sekarang **tetap jalan tanpa perubahan**: tanpa `SYNC_SERVER_URL` ia adalah **hub murni**
+(perilaku lama). Tak ada migrasi wajib selain `prisma migrate deploy` (kolom/tabel baru semua
+additive dengan default aman).
+
+Peran ditentukan env, bukan binari berbeda:
+
+| var | efek |
+|---|---|
+| *(tak diset)* | **Hub**: menerima push, melayani `GET /api/sync/pull`, menyiarkan `GET /api/sync/ws`. |
+| `SYNC_SERVER_URL=https://hub.example` | **Client**: instance ini menyinkron (server-to-server) ke hub itu. |
+| `SYNC_DEVICE_TOKEN=<token>` | Device token (Bearer) untuk auth sync/WS. Wajib bila `SYNC_SERVER_URL` diset. |
+| `SYNC_TICK_MS` | Opsional; interval drain fallback outbox (default 15000). |
+
+Langkah pairing device client:
+
+1. Di **hub**, login lalu terbitkan token: `POST /api/device-tokens {"name":"laptop-dev"}` →
+   salin `token` (ditampilkan **sekali**).
+2. Di **client**, set `SYNC_SERVER_URL` + `SYNC_DEVICE_TOKEN`, boot. Log menampilkan `sync client → <url>`.
+3. Client menarik state hub (pull-before-push), lalu mem-push write lokalnya. Bind project ke
+   checkout lokal (`PUT /api/projects/:id/binding` atau `POST /api/projects/:id/clone`) sebelum
+   menjalankan sesi Claude — `repoDir`/binding **tak pernah** disync (per-mesin).
+
+Kehilangan device = cabut satu token di hub (`DELETE /api/device-tokens/:id`); device lain tak
+terpengaruh. TLS via reverse proxy (ADR-0028) wajib untuk melindungi token dari internet publik.
