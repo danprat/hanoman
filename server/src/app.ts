@@ -17,6 +17,7 @@ import vps from "./routes/vps";
 import limits from "./routes/limits";
 import events from "./routes/events";
 import deviceTokens from "./routes/device-tokens";
+import bindings from "./routes/bindings";
 import authRoutes from "./routes/auth";
 import { COOKIE_NAME, lookupSession } from "./services/auth";
 import { detachAll } from "./services/pty";
@@ -78,6 +79,7 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
     await api.register(limits);
     await api.register(events);
     await api.register(deviceTokens);
+    await api.register(bindings);
   }, { prefix: "/api" });
 
   // Prod: serve the built dashboard from one process; SPA-fallback to

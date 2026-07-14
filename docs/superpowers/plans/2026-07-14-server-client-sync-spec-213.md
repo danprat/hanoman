@@ -364,11 +364,11 @@ export default async function (app: FastifyInstance) {
 - `resolveRepoDir(projectId): Promise<string | null>` — **binding lokal menang**; fallback `Project.repoDir` (untuk hub yang punya checkout sendiri).
 - Routes: `GET /api/projects/:id/binding` → `{ repoDir: string|null }`; `PUT /api/projects/:id/binding` body `{ repoDir }` → 200; `POST /api/projects/:id/clone` body `{ dir }` → clone `gitRemote` ke `dir`, set binding, 201/409.
 
-- [ ] **Step 1: Failing test:** buat project server tanpa repoDir; PUT binding `{repoDir:"/tmp/x"}` → GET binding `{repoDir:"/tmp/x"}`; `resolveRepoDir` balik `/tmp/x`. Clone: project dengan `gitRemote` = path repo lokal hasil `makeRepoWithBranches` → POST clone ke dir sementara → 201 + binding terisi + dir berisi `.git`.
-- [ ] **Step 2:** Run → FAIL.
-- [ ] **Step 3:** Implement service (Prisma `localBinding`) + route; clone via `spawnSync("git",["clone",gitRemote,dir])`. `resolveRepoDir` = binding ?? project.repoDir.
-- [ ] **Step 4:** Run → PASS.
-- [ ] **Step 5: Commit** `git commit -am "feat(server): LocalBinding bind/clone lokal per-device (SPEC-213 AC-6/7)"`
+- [x] **Step 1: Failing test:** buat project server tanpa repoDir; PUT binding `{repoDir:"/tmp/x"}` → GET binding `{repoDir:"/tmp/x"}`; `resolveRepoDir` balik `/tmp/x`. Clone: project dengan `gitRemote` = path repo lokal hasil `makeRepoWithBranches` → POST clone ke dir sementara → 201 + binding terisi + dir berisi `.git`.
+- [x] **Step 2:** Run → FAIL.
+- [x] **Step 3:** Implement service (Prisma `localBinding`) + route; clone via `spawnSync("git",["clone",gitRemote,dir])`. `resolveRepoDir` = binding ?? project.repoDir.
+- [x] **Step 4:** Run → PASS.
+- [x] **Step 5: Commit** `git commit -am "feat(server): LocalBinding bind/clone lokal per-device (SPEC-213 AC-6/7)"`
 
 ### Task 2.3: Guard spawn pakai resolveRepoDir + prompt bind
 
