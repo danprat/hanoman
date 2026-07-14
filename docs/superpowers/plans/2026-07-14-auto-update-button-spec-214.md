@@ -404,7 +404,7 @@ git commit -m "feat(server): getUpdateStatus — git lokal + fetch ter-gate + ca
 - Consumes: `getUpdateStatus`, `_resetUpdateCache` dari `services/update`.
 - Produces: `GET /api/update -> UpdateStatus`.
 
-- [ ] **Step 1: Tulis test gagal** — `server/test/update.route.test.ts`
+- [x] **Step 1: Tulis test gagal** — `server/test/update.route.test.ts`
 
 ```ts
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
@@ -436,12 +436,12 @@ describe("GET /api/update", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `pnpm --filter ./server exec vitest run test/update.route.test.ts`
 Expected: FAIL (route 404 → statusCode bukan 200).
 
-- [ ] **Step 3a: Buat `server/src/routes/update.ts`**
+- [x] **Step 3a: Buat `server/src/routes/update.ts`**
 
 ```ts
 import type { FastifyInstance } from "fastify";
@@ -454,7 +454,7 @@ export default async function update(app: FastifyInstance) {
 }
 ```
 
-- [ ] **Step 3b: Daftarkan di `server/src/app.ts`** — tambah import bersama route lain:
+- [x] **Step 3b: Daftarkan di `server/src/app.ts`** — tambah import bersama route lain:
 
 ```ts
 import update from "./routes/update";
@@ -466,7 +466,7 @@ dan register setelah `await api.register(limits);`:
     await api.register(update);
 ```
 
-- [ ] **Step 3c: Update `internal/docs/architecture/api-contract.md`** — tambah blok baru setelah bagian Limits (cari `GET /limits`), sisipkan:
+- [x] **Step 3c: Update `internal/docs/architecture/api-contract.md`** — tambah blok baru setelah bagian Limits (cari `GET /limits`), sisipkan:
 
 ```markdown
 ## Update (auto-update, SPEC-214)
@@ -479,12 +479,12 @@ GET  /update   -> UpdateStatus   # status versi; read-only (server TAK pernah pu
 Realtime: grup WS siar `update` (di samping specs/sessions/notifications/limits/vps) — lihat `GET /events/ws`.
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan lulus**
+- [x] **Step 4: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./server exec vitest run test/update.route.test.ts`
 Expected: PASS (2 kasus)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/routes/update.ts server/src/app.ts server/test/update.route.test.ts internal/docs/architecture/api-contract.md

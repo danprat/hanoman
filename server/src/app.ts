@@ -15,6 +15,7 @@ import fs from "./routes/fs";
 import terminal from "./routes/terminal";
 import vps from "./routes/vps";
 import limits from "./routes/limits";
+import update from "./routes/update";
 import events from "./routes/events";
 import authRoutes from "./routes/auth";
 import { COOKIE_NAME, lookupSession } from "./services/auth";
@@ -75,6 +76,7 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
     await api.register(terminal);
     await api.register(vps);
     await api.register(limits);
+    await api.register(update);
     await api.register(events);
   }, { prefix: "/api" });
 
