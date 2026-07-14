@@ -128,6 +128,9 @@ export const api = {
   hardenVps: (id: string) => j<{ transcript: string; audit: VpsCheck[] | null; hardened: boolean }>(
     paths.vpsHarden(id), { method: "POST" }),
   vpsSession: (id: string) => j<{ id: string }>(paths.vpsSession(id), { method: "POST" }),
+  // SPEC-211 · test connection + open console
+  testVps: (id: string) => j<{ ok: boolean; out: string }>(paths.vpsTest(id), { method: "POST" }),
+  vpsConsole: (id: string) => j<{ id: string }>(paths.vpsConsole(id), { method: "POST" }),
   // SPEC-169 · auth. Cookie sesi ikut otomatis (same-origin). 401 dari mana pun → App balik ke Login.
   authStatus: () => j<AuthStatus>(paths.authStatus),
   setup: (b: { email: string; password: string }) => j<{ user: UserView }>(paths.authSetup, { method: "POST", ...body(b) }),

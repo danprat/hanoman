@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { prisma } from "../db";
 import { zCreateVps, zPatchVps, type VpsCheck } from "@hanoman/shared";
-import { sshExec } from "../services/vps-ssh";
+import { sshExec, consoleArgv } from "../services/vps-ssh";
 import { runAudit, scriptPath } from "../services/vps-audit";
 import { bootstrapKey } from "../services/vps-bootstrap";
 import { createSession } from "../services/pty";
@@ -81,6 +81,24 @@ export default async function (app: FastifyInstance) {
     }
     const audit = await runAudit(v);
     return { transcript: r.out, audit: audit.ok ? audit.audit : null, hardened: audit.ok && audit.hardened };
+  });
+
+  // SPEC-211 · test connection — cek ssh key-only berhasil sekarang. Transien, tak sentuh DB.
+  // Gagal koneksi bukan error HTTP: 200 { ok:false, out } supaya UI bisa menampilkan transcript.
+  app.post("/vps/:id/test", async (req, reply) => {
+    const v = await prisma.vps.findUnique({ where: { id: (req.params as { id: string }).id } });
+    if (!v) return reply.code(404).send({ error: "not found" });
+    const r = await sshExec(v, "true", { timeoutMs: 15_000 });
+    return { ok: r.code === 0, out: r.out };
+  });
+
+  // SPEC-211 · Open Console — shell ssh MENTAH (bukan claude) di dalam tmux hanoman (ADR-0042).
+  // id deterministik: tekan Console dua kali menyambung, bukan menumpuk sesi ssh.
+  app.post("/vps/:id/console", async (req, reply) => {
+    const v = await prisma.vps.findUnique({ where: { id: (req.params as { id: string }).id } });
+    if (!v) return reply.code(404).send({ error: "not found" });
+    const s = createSession(`vps-console:${v.id}`, homedir(), { id: `vpsc-${v.id}`, command: consoleArgv(v) });
+    return reply.code(201).send({ id: s.id });
   });
 
   // Escape hatch (SPEC-164 §6): kasus yang script tak tangani dikerjakan Claude interaktif.

@@ -36,6 +36,8 @@ export const paths = {
   vpsAudit: (id: string) => `${API}/vps/${id}/audit`,
   vpsHarden: (id: string) => `${API}/vps/${id}/harden`,
   vpsSession: (id: string) => `${API}/vps/${id}/session`,
+  vpsTest: (id: string) => `${API}/vps/${id}/test`,
+  vpsConsole: (id: string) => `${API}/vps/${id}/console`,
   // SPEC-169 · auth
   authStatus: `${API}/auth/status`,
   authSetup: `${API}/auth/setup`,

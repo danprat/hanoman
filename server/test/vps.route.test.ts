@@ -108,6 +108,39 @@ describe("sesi claude vps (SPEC-164)", () => {
   });
 });
 
+describe("test connection & console (SPEC-211)", () => {
+  it("test connection sukses → { ok: true }", async () => {
+    const v = await makeVps({ name: "t1", host: "198.51.100.31" });
+    const res = await app.inject({ method: "POST", url: `/api/vps/${v.id}/test` });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().ok).toBe(true);
+  });
+  it("test connection gagal → { ok: false } dengan transcript, tetap 200", async () => {
+    process.env.FAKE_SSH_MODE = "unreachable";
+    const v = await makeVps({ name: "t2", host: "198.51.100.32" });
+    const res = await app.inject({ method: "POST", url: `/api/vps/${v.id}/test` });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().ok).toBe(false);
+    expect(res.json().out).toContain("Connection refused");
+  });
+  it("test vps tak dikenal → 404", async () => {
+    expect((await app.inject({ method: "POST", url: "/api/vps/hantu/test" })).statusCode).toBe(404);
+  });
+  it("console membuka sesi tmux label vps-console:<id>", async () => {
+    process.env.HANOMAN_SSH_BIN = FAKE_SSH; // console men-spawn `ssh` (fixture tetap hidup baca stdin)
+    const v = await makeVps({ name: "c1", host: "198.51.100.33" });
+    const res = await app.inject({ method: "POST", url: `/api/vps/${v.id}/console` });
+    expect(res.statusCode).toBe(201);
+    const s = getSession(res.json().id);
+    expect(s?.projectId).toBe(`vps-console:${v.id}`);
+    expect(res.json().id).toBe(`vpsc-${v.id}`);
+    killAll();
+  });
+  it("console vps tak dikenal → 404", async () => {
+    expect((await app.inject({ method: "POST", url: "/api/vps/hantu/console" })).statusCode).toBe(404);
+  });
+});
+
 describe("bootstrap lewat password (SPEC-165)", () => {
   let dir: string;
   beforeEach(() => { dir = mkdtempSync(join(tmpdir(), "hanoman-route-key-")); process.env.HANOMAN_SSH_KEY_DIR = dir; });
