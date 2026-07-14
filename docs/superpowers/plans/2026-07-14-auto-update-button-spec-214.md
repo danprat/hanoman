@@ -630,7 +630,7 @@ git commit -m "build: stamp build-info.json dengan SHA saat build (SPEC-214)"
 - Consumes: `subscribe` dari `./events`; `UpdateStatus` dari `@hanoman/shared`.
 - Produces: `useUpdate(): UpdateStatus`, `updateHeadline(u): string`, `updateBadgeLabel(u): string`.
 
-- [ ] **Step 1: Tulis test gagal** — `src/test/update.test.ts`
+- [x] **Step 1: Tulis test gagal** — `src/test/update.test.ts`
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -658,12 +658,12 @@ describe("updateBadgeLabel", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `pnpm --filter ./src exec vitest run test/update.test.ts`
 Expected: FAIL (modul `../src/api/update` tak ada).
 
-- [ ] **Step 3: Buat `src/src/api/update.ts`**
+- [x] **Step 3: Buat `src/src/api/update.ts`**
 
 ```ts
 import { useSyncExternalStore } from "react";
@@ -704,12 +704,12 @@ export function updateBadgeLabel(u: UpdateStatus): string {
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan lulus**
+- [x] **Step 4: Jalankan test, pastikan lulus**
 
 Run: `pnpm --filter ./src exec vitest run test/update.test.ts`
 Expected: PASS (6 kasus)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/api/update.ts src/test/update.test.ts
