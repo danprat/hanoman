@@ -300,9 +300,9 @@ export async function requireDeviceToken(req: FastifyRequest, reply: FastifyRepl
 
 **Interfaces (Produces):** `POST /api/device-tokens` → `{ id, name, token }` (201, token sekali); `GET /api/device-tokens` → `DeviceTokenView[]`; `DELETE /api/device-tokens/:id` → 204/404.
 
-- [ ] **Step 1: Failing test** (build `buildApp()` gated, login flow spt `auth-routes.test.ts`): setup user → cookie; POST issue → 201 punya `token`; GET list → 1 item TANPA `token`/`tokenHash`; DELETE → 204; GET list item `revokedAt` != null. Tanpa cookie → 401.
-- [ ] **Step 2:** Run → FAIL.
-- [ ] **Step 3:** Implement route (cookie gate warisan scope `/api`; pakai `req.user`):
+- [x] **Step 1: Failing test** (build `buildApp()` gated, login flow spt `auth-routes.test.ts`): setup user → cookie; POST issue → 201 punya `token`; GET list → 1 item TANPA `token`/`tokenHash`; DELETE → 204; GET list item `revokedAt` != null. Tanpa cookie → 401.
+- [x] **Step 2:** Run → FAIL.
+- [x] **Step 3:** Implement route (cookie gate warisan scope `/api`; pakai `req.user`):
 ```ts
 import type { FastifyInstance } from "fastify";
 import { zIssueDeviceToken } from "@hanoman/shared";
@@ -328,9 +328,9 @@ export default async function (app: FastifyInstance) {
 }
 ```
   Register di `app.ts`: import + `await api.register(deviceTokens);`.
-- [ ] **Step 4:** Run → PASS.
-- [ ] **Step 5: Live curl** boot server (lihat "Live smoke" di bawah), setup user, `curl -X POST .../api/device-tokens -d '{"name":"laptop"}'` → dapat token; GET list tanpa token field.
-- [ ] **Step 6: Commit** `git commit -am "feat(server): routes /device-tokens issue/list/revoke (SPEC-213)"`
+- [x] **Step 4:** Run → PASS.
+- [x] **Step 5: Live curl** boot server (lihat "Live smoke" di bawah), setup user, `curl -X POST .../api/device-tokens -d '{"name":"laptop"}'` → dapat token; GET list tanpa token field.
+- [x] **Step 6: Commit** `git commit -am "feat(server): routes /device-tokens issue/list/revoke (SPEC-213)"`
 
 ---
 
