@@ -5,6 +5,7 @@ import { realGit, startPrompt, continuePrompt, startProjectPrompt, startPrdPromp
 import { phaseFilePath, decisionFilePath, readPhases, stageForRun } from "../services/session-phases";
 import { sessionModel } from "../services/settings";
 import { resolveRepoDir } from "../services/local-binding";
+import { recordSessionResult } from "../services/session-result";
 import { recordCompletion } from "../services/notifications";
 import { STAGES } from "../services/stage-machine";
 import {
@@ -32,6 +33,14 @@ async function advanceStage(
   // (PATCH /specs mundur + hapus artefak docs) tak boleh ter-overwrite maju lagi.
   const { count } = await prisma.spec.updateMany({ where: { id: specId, stage: spec.stage }, data: { stage: next } });
   if (count === 0) return; // stage berubah di bawah kita → jangan lanjut ke recordCompletion
+  // SPEC-213 · ADR-0047 · catat ringkasan hasil (activity log) untuk transisi stage ini —
+  // whitelist field saja, tanpa transkrip/kredensial (AC-20/21). Best-effort: jangan blok sesi.
+  let commitSha: string | null = null;
+  try { commitSha = realGit.headSha(worktree); } catch { /* worktree lenyap */ }
+  await recordSessionResult({
+    projectId: spec.projectId, specId, oldStage: spec.stage, newStage: next,
+    commitSha, branch: `hanoman/${sessionId}`, status: next === "done" ? "done" : "progress",
+  }).catch(() => { /* activity log opsional */ });
   // SPEC-180 · transisi masuk `done` (guard di atas menjamin stage lama < done).
   if (next === "done") await recordCompletion(specId, spec.title, spec.projectId);
 }

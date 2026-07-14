@@ -494,11 +494,11 @@ export default async function (app: FastifyInstance) {
 - Modify: `shared/src/dto.ts` (`zSessionResult` whitelist)
 - Test: `server/test/session-result.test.ts`
 
-- [ ] **Step 1: Failing test:** `recordSessionResult({projectId,specId,oldStage,newStage,commitSha,branch,prUrl,status,deviceId,author})` → row tersimpan hanya field whitelist; input berisi field liar (`transcript`,`token`) → TIDAK tersimpan (AC-21). Outbox memuat sessionResult.
-- [ ] **Step 2:** Run → FAIL.
-- [ ] **Step 3:** Implement service: pilih hanya field whitelist eksplisit; id = cuid; create; `enqueueOutbox("sessionResult", id)`. `zSessionResult` di shared.
-- [ ] **Step 4:** Run → PASS.
-- [ ] **Step 5: Commit** `git commit -am "feat(server): SessionResult whitelist + push via outbox (SPEC-213 AC-20/21)"`
+- [x] **Step 1: Failing test:** `recordSessionResult({projectId,specId,oldStage,newStage,commitSha,branch,prUrl,status,deviceId,author})` → row tersimpan hanya field whitelist; input berisi field liar (`transcript`,`token`) → TIDAK tersimpan (AC-21). Outbox memuat sessionResult.
+- [x] **Step 2:** Run → FAIL.
+- [x] **Step 3:** Implement service: pilih hanya field whitelist eksplisit; id = cuid; create; `enqueueOutbox("sessionResult", id)`. `zSessionResult` di shared.
+- [x] **Step 4:** Run → PASS.
+- [x] **Step 5: Commit** `git commit -am "feat(server): SessionResult whitelist + push via outbox (SPEC-213 AC-20/21)"`
 
 ### Task 5.2: Routes read + purge activity log + register
 

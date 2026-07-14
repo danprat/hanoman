@@ -9,6 +9,16 @@ export type Paginated<T> = { items: T[]; total: number; page: number; pageSize: 
 // SPEC-213 · terbitkan device token (nama device untuk pengenal manusia).
 export const zIssueDeviceToken = z.object({ name: z.string().min(1) });
 
+// SPEC-213 · ADR-0047 · ringkasan hasil sesi (activity log). Whitelist field — tanpa transkrip/kredensial.
+export const zSessionResult = z.object({
+  id: z.string(), projectId: z.string(), specId: z.string().nullable(),
+  oldStage: z.string().nullable(), newStage: z.string().nullable(),
+  commitSha: z.string().nullable(), branch: z.string().nullable(), prUrl: z.string().nullable(),
+  status: z.string(), deviceId: z.string().nullable(), author: z.string().nullable(),
+  createdAt: z.string(),
+});
+export type SessionResultView = z.infer<typeof zSessionResult>;
+
 export const zCreateProject = z.object({
   name: z.string().min(1), kind: zProjectKind, repoDir: z.string().optional(),
   gitRemote: z.string().optional(),
