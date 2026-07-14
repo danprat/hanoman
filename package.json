@@ -13,7 +13,7 @@
     "prod:api": "set -a && . ./.env.production && set +a && node server/dist/server.js",
     "preprod": "pnpm prod:setup",
     "prod": "pnpm prod:api",
-    "build": "pnpm --filter ./src build && pnpm --filter ./server build",
+    "build": "pnpm --filter ./src build && pnpm --filter ./server build && node scripts/stamp-build.mjs",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run --no-file-parallelism"
   },

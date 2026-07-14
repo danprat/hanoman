@@ -575,7 +575,7 @@ git commit -m "feat(server): grup WS siar update + fetch ter-gate di boot (SPEC-
 **Interfaces:**
 - Produces: `server/dist/build-info.json` = `{ sha, builtAt }`, dibaca `runningBuildSha()` di Task 3.
 
-- [ ] **Step 1: Buat `scripts/stamp-build.mjs`**
+- [x] **Step 1: Buat `scripts/stamp-build.mjs`**
 
 ```js
 // SPEC-214 · tanam SHA build ke server/dist/build-info.json supaya server tahu commit mana yang
@@ -595,7 +595,7 @@ writeFileSync(out, JSON.stringify({ sha, builtAt: new Date().toISOString() }, nu
 console.log(`stamped build-info.json · ${sha}`);
 ```
 
-- [ ] **Step 2: Ubah script `build` di root `package.json`**
+- [x] **Step 2: Ubah script `build` di root `package.json`**
 
 Dari:
 ```json
@@ -606,12 +606,12 @@ Menjadi:
     "build": "pnpm --filter ./src build && pnpm --filter ./server build && node scripts/stamp-build.mjs",
 ```
 
-- [ ] **Step 3: Verifikasi nyata (bukan unit test) — jalankan build & cek berkas**
+- [x] **Step 3: Verifikasi nyata (bukan unit test) — jalankan build & cek berkas**
 
 Run: `pnpm build && node -e "console.log(require('fs').readFileSync('server/dist/build-info.json','utf8'))"`
 Expected: JSON `{ "sha": "<7-hex>", "builtAt": "<ISO>" }` tercetak; `sha` cocok dengan `git rev-parse --short HEAD`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add scripts/stamp-build.mjs package.json
