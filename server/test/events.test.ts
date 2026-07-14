@@ -7,6 +7,7 @@ import { prisma } from "../src/db";
 import { resetDb } from "./factory";
 import { killAll } from "../src/services/pty";
 import { _resetLimitsCache } from "../src/services/limits";
+import { _resetUpdateCache } from "../src/services/update";
 
 // Klien perekam frame (lihat pty.test.ts) — cukup untuk menguji kontrak siar tanpa WS nyata.
 function fakeClient() {
@@ -19,12 +20,14 @@ beforeEach(async () => {
   // getLimits() jangan menyentuh keychain/jaringan di test: CLAUDE_CONFIG_DIR kosong → token null
   // → fallback "unavailable" seketika (tanpa prompt, tanpa fetch 5s).
   process.env.CLAUDE_CONFIG_DIR = mkdtempSync(join(tmpdir(), "hanoman-cfg-"));
+  process.env.HANOMAN_REPO_ROOT = process.env.CLAUDE_CONFIG_DIR;  // non-repo → getUpdateStatus fail-safe, tanpa jaringan
   _resetLimitsCache();
+  _resetUpdateCache();
   killAll();
   await resetDb();
   __reset();
 });
-afterEach(() => { __reset(); });
+afterEach(() => { __reset(); delete process.env.HANOMAN_REPO_ROOT; _resetUpdateCache(); });
 
 describe("events hub", () => {
   it("mengirim snapshot semua grup ke klien saat attach", async () => {
@@ -36,6 +39,7 @@ describe("events hub", () => {
     expect(groups(c).has("notifications")).toBe(true);
     expect(groups(c).has("limits")).toBe(true);
     expect(groups(c).has("vps")).toBe(true);
+    expect(groups(c).has("update")).toBe(true);
     const nf = c.frames.find((f) => f.t === "notifications");
     expect(nf).toMatchObject({ unread: 0 });
     detach(c);

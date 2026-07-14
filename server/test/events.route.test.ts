@@ -25,6 +25,7 @@ function connect() {
 
 beforeAll(async () => {
   process.env.CLAUDE_CONFIG_DIR = mkdtempSync(join(tmpdir(), "hanoman-cfg-")); // getLimits → unavailable, tanpa jaringan
+  process.env.HANOMAN_REPO_ROOT = process.env.CLAUDE_CONFIG_DIR;  // getUpdateStatus fail-safe, tanpa jaringan
   process.env.HANOMAN_EVENTS_TICK_MS = "50";
   killAll(); await resetDb();
   await app.listen({ port: 0, host: "127.0.0.1" });
@@ -36,10 +37,10 @@ describe("events WS route", () => {
   it("kirim snapshot penuh saat connect", async () => {
     const c = connect();
     await c.opened;
-    // Snapshot attach mengirim tiap grup berurutan (sessions→specs→notifications→vps→limits);
+    // Snapshot attach mengirim tiap grup berurutan (sessions→specs→notifications→vps→limits→update);
     // pengiriman WS async, jadi tunggu SEMUA jenis frame tiba, bukan hanya `notifications`
-    // (limits/vps datang belakangan → race di bawah beban suite penuh).
-    const want = ["sessions", "specs", "notifications", "vps", "limits"];
+    // (limits/vps/update datang belakangan → race di bawah beban suite penuh). SPEC-214 menambah "update".
+    const want = ["sessions", "specs", "notifications", "vps", "limits", "update"];
     await waitFor(() => want.every((t) => c.frames.some((f) => f.t === t)));
     for (const t of want) expect(c.frames.some((f) => f.t === t)).toBe(true);
     c.ws.close();

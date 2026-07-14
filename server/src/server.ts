@@ -2,6 +2,11 @@ import { buildApp } from "./app";
 import { prisma } from "./db";
 import { startVpsMonitor } from "./services/vps-monitor";
 import { startSyncClient } from "./services/sync-client";
+
+// SPEC-214 · aktifkan git fetch untuk deteksi update hanya di boot server nyata. Test meng-import
+// buildApp dari app.ts (tak pernah memuat server.ts), jadi test tak pernah menyentuh jaringan.
+process.env.HANOMAN_UPDATE_FETCH ??= "1";
+
 const app = buildApp();
 const port = Number(process.env.PORT ?? 8787);
 // Localhost secara default. Sejak SPEC-169 hanoman punya auth (gate 401 di semua /api,

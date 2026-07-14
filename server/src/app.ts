@@ -15,6 +15,7 @@ import fs from "./routes/fs";
 import terminal from "./routes/terminal";
 import vps from "./routes/vps";
 import limits from "./routes/limits";
+import update from "./routes/update";
 import events from "./routes/events";
 import deviceTokens from "./routes/device-tokens";
 import bindings from "./routes/bindings";
@@ -82,6 +83,7 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
     await api.register(terminal);
     await api.register(vps);
     await api.register(limits);
+    await api.register(update);
     await api.register(events);
     await api.register(deviceTokens);
     await api.register(bindings);

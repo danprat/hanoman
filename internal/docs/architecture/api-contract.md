@@ -127,6 +127,10 @@ GET      /notifications                 # { items:Notification[] (≤50 terbaru 
 POST     /notifications/read            # 204; tandai semua unread jadi terbaca
 DELETE   /notifications                 # 204; clear semua
 GET      /limits                        # { …usage } dari OAuth usage API Anthropic (cache 30s, stale/unavailable fallback) — SPEC-181/ADR-0024
+GET      /update                        # UpdateStatus — status auto-update; read-only (server TAK pull/build/restart, ADR-0048). SPEC-214
+#   UpdateStatus = { currentSha, checkoutSha, branch|null, local:{stale}, remote:{status:"ok"|"unavailable",behind,fetchedAt},
+#                    updateAvailable, reason:"local"|"remote"|"both"|null, command, newCommits:{sha,subject}[] }
+#   updateAvailable = build ter-stamp ≠ checkout HEAD (local) ATAU origin di depan (remote, setelah git fetch ter-gate HANOMAN_UPDATE_FETCH=1)
 GET      /fs/browse?path=               # directory picker sisi server (untuk memilih repoDir project)
 GET      /health                        # publik; liveness
 ```
@@ -158,7 +162,7 @@ GET    /terminal/sessions/:id/ws     # WebSocket; close 4004 bila sesi tak ada
 GET    /events/ws                    # WebSocket siar dashboard (global). Auth = gate /api (cookie).
 #   server->klien (per-grup, saat berubah; snapshot penuh saat connect):
 #     { t:"specs", specs } · { t:"sessions", sessions } · { t:"notifications", items, unread }
-#     { t:"limits", limits } · { t:"vps", vps }
+#     { t:"limits", limits } · { t:"vps", vps } · { t:"update", update } (SPEC-214, tiap 300s)
 #   klien->server: — (read-only feed; frame masuk diabaikan)
 ```
 

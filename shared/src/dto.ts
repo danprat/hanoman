@@ -171,6 +171,22 @@ export type LimitsDTO = {
   fetchedAt: string | null;  // ISO waktu fetch sukses terakhir; null bila belum pernah
 };
 
+// SPEC-214 · status auto-update. "version" hanoman = git commit SHA (tak ada field version).
+export type UpdateReason = "local" | "remote" | "both" | null;
+export type UpdateRemoteStatus = "ok" | "unavailable";  // unavailable = tanpa upstream / fetch gagal / bukan repo git
+export type UpdateCommit = { sha: string; subject: string };
+export type UpdateStatus = {
+  currentSha: string;         // short SHA build yang jalan (fallback checkoutSha bila belum ter-stamp / dev)
+  checkoutSha: string;        // short SHA HEAD working tree sekarang
+  branch: string | null;      // branch aktif; null bila detached HEAD
+  local: { stale: boolean };  // runningBuildSha ≠ checkoutSha → perlu rebuild/restart
+  remote: { status: UpdateRemoteStatus; behind: number; fetchedAt: string | null };
+  updateAvailable: boolean;   // local.stale || remote.behind > 0
+  reason: UpdateReason;
+  command: string;            // panduan operator; "" bila up-to-date
+  newCommits: UpdateCommit[]; // commit origin-ahead (≤ 20)
+};
+
 // SPEC-199 · bentuk sesi di wire (cermin services/pty.ts SessionInfo & client TerminalSession).
 export type SessionDTO = {
   id: string; projectId: string; specId?: string; flow?: string; cwd: string;
@@ -185,4 +201,5 @@ export type EventMsg =
   | { t: "sessions"; sessions: SessionDTO[] }
   | { t: "notifications"; items: Notification[]; unread: number }
   | { t: "limits"; limits: LimitsDTO }
-  | { t: "vps"; vps: VpsView[] };
+  | { t: "vps"; vps: VpsView[] }
+  | { t: "update"; update: UpdateStatus };

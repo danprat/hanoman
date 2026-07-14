@@ -6,6 +6,7 @@ import { Input } from "./components/forms";
 import { Mark } from "./marks";
 import { NotificationBell } from "../notifications/NotificationBell";
 import { LimitBadge } from "../screens/LimitIndicator";
+import { UpdateBadge } from "../screens/UpdateIndicator";
 
 // Setiap key WAJIB punya cabang `section === …` di App.tsx. Bila tidak, `screen` tetap
 // null dan App merender kosong — sidebar ikut hilang, pengguna terjebak sampai reload.
@@ -125,6 +126,8 @@ export function Shell({ active, title, breadcrumb, actions, showSearch = false, 
               onChange={onSearchChange ? (e: React.ChangeEvent<HTMLInputElement>) => onSearchChange(e.target.value) : undefined}
               readOnly={!onSearchChange} />
           )}
+          {/* Muncul hanya saat ada versi baru; self-fetch via useUpdate (SPEC-214). */}
+          <UpdateBadge />
           <NotificationBell />
           {/* Selalu tampil di semua layar; self-fetch via useLimits — 9 call-site <Shell> tak berubah. */}
           <LimitBadge />

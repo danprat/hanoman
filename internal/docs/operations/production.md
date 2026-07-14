@@ -81,3 +81,11 @@ Langkah pairing device client:
 
 Kehilangan device = cabut satu token di hub (`DELETE /api/device-tokens/:id`); device lain tak
 terpengaruh. TLS via reverse proxy (ADR-0028) wajib untuk melindungi token dari internet publik.
+
+## Update (SPEC-214)
+
+`pnpm build` menanam `server/dist/build-info.json` (SHA commit). Server membandingkannya dengan checkout
+HEAD dan `origin/<branch>` (fetch ter-gate `HANOMAN_UPDATE_FETCH=1`, otomatis menyala di boot server),
+lalu menampilkan **badge "Update"** di topbar saat ada versi baru — dengan perintah
+`git pull --ff-only && pnpm build && pnpm prod` untuk disalin. Deteksi saja: server tak pull/build/
+restart sendiri (ADR-0048). Terapkan update dengan menjalankan perintah itu (matikan instance lama dulu).
