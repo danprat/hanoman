@@ -1,6 +1,6 @@
 # VPS Test Connection & Open Console (SPEC-211) — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Tambah dua aksi per-VPS — *test connection* (cek ssh key-only) dan *open console* (shell ssh mentah di dalam tmux hanoman).
 
@@ -29,7 +29,7 @@
 **Interfaces:**
 - Produces: `CreateOpts.command?: string[]` — bila diisi, `createSession` menjalankan argv ini (di-`sq()`) alih-alih membangun argv claude; tanpa `--dangerously-skip-permissions`/`--settings`/prompt/model/effort.
 
-- [ ] **Step 1: Tulis test yang gagal** — di `server/test/pty.test.ts`, dalam `describe("pty service", …)`:
+- [x] **Step 1: Tulis test yang gagal** — di `server/test/pty.test.ts`, dalam `describe("pty service", …)`:
 
 ```ts
 it("command opt menjalankan perintah non-claude, tanpa flag claude", async () => {
@@ -42,12 +42,12 @@ it("command opt menjalankan perintah non-claude, tanpa flag claude", async () =>
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test pty.test.ts -t "command opt"`
 Expected: FAIL (opt `command` belum ada → argv claude tetap terpakai, output memuat `--dangerously-skip-permissions`).
 
-- [ ] **Step 3: Implementasi minimal** — di `server/src/services/pty.ts`:
+- [x] **Step 3: Implementasi minimal** — di `server/src/services/pty.ts`:
 
 Tambah field di `CreateOpts`:
 ```ts
@@ -72,12 +72,12 @@ Di `createSession`, ganti blok pembangunan `argv` jadi bercabang:
   const argv = parts.map(sq).join(" ");
 ```
 
-- [ ] **Step 4: Jalankan, pastikan hijau**
+- [x] **Step 4: Jalankan, pastikan hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test pty.test.ts`
 Expected: PASS (semua test pty, termasuk yang baru).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/pty.ts server/test/pty.test.ts
@@ -96,7 +96,7 @@ git commit -m "feat(server): CreateOpts.command — spawn perintah non-claude di
 - Consumes: `SshTarget` (sudah ada).
 - Produces: `consoleArgv(t: SshTarget): string[]` → `[ssh, "-t", "-p", <port>, "-o","StrictHostKeyChecking=accept-new", (…"-i",keyPath), "<user>@<host>"]`. Binary lewat `sshBin()` supaya test bisa mengarahkannya ke fixture.
 
-- [ ] **Step 1: Tulis test yang gagal** — di `server/test/vps-ssh.test.ts`:
+- [x] **Step 1: Tulis test yang gagal** — di `server/test/vps-ssh.test.ts`:
 
 ```ts
 import { consoleArgv } from "../src/services/vps-ssh";
@@ -115,12 +115,12 @@ describe("consoleArgv (SPEC-211)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test vps-ssh.test.ts -t consoleArgv`
 Expected: FAIL ("consoleArgv is not a function" / import undefined).
 
-- [ ] **Step 3: Implementasi minimal** — di `server/src/services/vps-ssh.ts`:
+- [x] **Step 3: Implementasi minimal** — di `server/src/services/vps-ssh.ts`:
 
 Ubah `const sshBin` jadi `export const sshBin`, lalu tambah:
 ```ts
@@ -137,12 +137,12 @@ export function consoleArgv(t: SshTarget): string[] {
 }
 ```
 
-- [ ] **Step 4: Jalankan, pastikan hijau**
+- [x] **Step 4: Jalankan, pastikan hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test vps-ssh.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/vps-ssh.ts server/test/vps-ssh.test.ts
@@ -166,7 +166,7 @@ git commit -m "feat(server): consoleArgv — argv ssh interaktif untuk Open Cons
   - `POST /vps/:id/console` → `201 { id: string }` · `404`. Sesi id `vpsc-<id>`, `projectId="vps-console:<id>"`.
   - `paths.vpsTest(id)`, `paths.vpsConsole(id)`; `api.testVps(id)`, `api.vpsConsole(id)`.
 
-- [ ] **Step 1: Tulis test yang gagal** — di `server/test/vps.route.test.ts`, tambah describe baru (setelah `describe("sesi claude vps …")`):
+- [x] **Step 1: Tulis test yang gagal** — di `server/test/vps.route.test.ts`, tambah describe baru (setelah `describe("sesi claude vps …")`):
 
 ```ts
 describe("test connection & console (SPEC-211)", () => {
@@ -203,12 +203,12 @@ describe("test connection & console (SPEC-211)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test vps.route.test.ts -t "SPEC-211"`
 Expected: FAIL (route 404 dari Fastify untuk path tak terdaftar → statusCode 404 di semua, assertion `ok`/`id` gagal).
 
-- [ ] **Step 3: Implementasi** — di `shared/src/api.ts`, tambah setelah `vpsSession`:
+- [x] **Step 3: Implementasi** — di `shared/src/api.ts`, tambah setelah `vpsSession`:
 ```ts
   vpsTest: (id: string) => `${API}/vps/${id}/test`,
   vpsConsole: (id: string) => `${API}/vps/${id}/console`,
@@ -240,12 +240,12 @@ Di `src/src/api/client.ts`, tambah setelah `vpsSession`:
   vpsConsole: (id: string) => j<{ id: string }>(paths.vpsConsole(id), { method: "POST" }),
 ```
 
-- [ ] **Step 4: Jalankan, pastikan hijau**
+- [x] **Step 4: Jalankan, pastikan hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test vps.route.test.ts`
 Expected: PASS (semua VPS route, termasuk SPEC-211).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/routes/vps.ts shared/src/api.ts src/src/api/client.ts server/test/vps.route.test.ts
@@ -263,7 +263,7 @@ git commit -m "feat(server): POST /vps/:id/test & /console — test connection +
 **Interfaces:**
 - Consumes: `api.testVps`, `api.vpsConsole` (Task 3), `onGotoTerminal`, `onToast`.
 
-- [ ] **Step 1: Tulis test yang gagal** — di `src/test/vps-screen.test.tsx`, tambahkan `testVps`/`vpsConsole` ke `vi.hoisted` + mock, dan test render tombol:
+- [x] **Step 1: Tulis test yang gagal** — di `src/test/vps-screen.test.tsx`, tambahkan `testVps`/`vpsConsole` ke `vi.hoisted` + mock, dan test render tombol:
 
 Ubah baris hoisted+mock:
 ```ts
@@ -294,12 +294,12 @@ it("tombol Test memanggil api.testVps", async () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src test vps-screen.test.tsx -t "Console\|Test"`
 Expected: FAIL (tombol belum ada → `getByRole` throw).
 
-- [ ] **Step 3: Implementasi** — di `src/src/screens/VpsScreen.tsx`, dalam `VpsScreen`, tambah handler setelah `const session = …`:
+- [x] **Step 3: Implementasi** — di `src/src/screens/VpsScreen.tsx`, dalam `VpsScreen`, tambah handler setelah `const session = …`:
 ```ts
   const testConn = (v: VpsView) => run("test", v.id, async () => {
     const r = await api.testVps(v.id);
@@ -317,12 +317,12 @@ Di baris aksi per-VPS, tambah dua tombol sebelum tombol Audit:
                 onClick={(e: React.MouseEvent) => { e.stopPropagation(); void openConsole(v); }}>Console</Button>
 ```
 
-- [ ] **Step 4: Jalankan, pastikan hijau**
+- [x] **Step 4: Jalankan, pastikan hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src test vps-screen.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/VpsScreen.tsx src/test/vps-screen.test.tsx
@@ -340,7 +340,7 @@ git commit -m "feat(web): tombol Test connection & Open Console di VpsScreen (SP
 - Modify: `internal/docs/requirements/prd.md` (§7 VPS)
 - Modify: `internal/docs/frontend/frontend-implementation.md` (baris 5, deskripsi VPS)
 
-- [ ] **Step 1: Tulis ADR-0042** — `internal/docs/adr/0042-vps-console-ssh-tmux-lokal.md`:
+- [x] **Step 1: Tulis ADR-0042** — `internal/docs/adr/0042-vps-console-ssh-tmux-lokal.md`:
 
 ```markdown
 # ADR-0042 — Open Console = ssh mentah di tmux hanoman lokal (bukan tmux remote)
@@ -374,12 +374,12 @@ Bagian yang sama (SPEC-211): `POST /vps/:id/test` = `sshExec(v,"true")`, cek key
 berhasil sekarang; transien, tak menyentuh DB.
 ```
 
-- [ ] **Step 2: Tambah baris index adr** — di `internal/docs/README.md`, di bawah `## adr`, sebelum baris `0041`:
+- [x] **Step 2: Tambah baris index adr** — di `internal/docs/README.md`, di bawah `## adr`, sebelum baris `0041`:
 ```markdown
 - [0042 — Open Console = ssh mentah di tmux hanoman lokal, bukan tmux remote](adr/0042-vps-console-ssh-tmux-lokal.md)
 ```
 
-- [ ] **Step 3: Update api-contract** — di `internal/docs/architecture/api-contract.md`, seksi VPS, ganti judul dan tambah dua baris setelah `POST /vps/:id/session`:
+- [x] **Step 3: Update api-contract** — di `internal/docs/architecture/api-contract.md`, seksi VPS, ganti judul dan tambah dua baris setelah `POST /vps/:id/session`:
 ```
 ## VPS (SPEC-164 · ADR-0025 · SPEC-211/ADR-0042)
 ```
@@ -388,19 +388,19 @@ POST   /vps/:id/test                 # 200 { ok, out } — ssh `true` key-only, 
 POST   /vps/:id/console              # 201 { id } — shell ssh MENTAH di tmux hanoman (ADR-0042) · 404
 ```
 
-- [ ] **Step 4: Update prd.md** — di `internal/docs/requirements/prd.md`, §7 VPS, tambah baris setelah baris "Buka sesi `claude`…":
+- [x] **Step 4: Update prd.md** — di `internal/docs/requirements/prd.md`, §7 VPS, tambah baris setelah baris "Buka sesi `claude`…":
 ```markdown
 - Test connection (`ssh true` key-only, transien) & Open Console (shell ssh mentah di tmux hanoman, ADR-0042) per VPS (SPEC-211).
 ```
 
-- [ ] **Step 5: Update frontend-implementation.md** — di baris 5, ganti `VPS (daftar + audit/harden + buka sesi)` jadi `VPS (daftar + audit/harden + Test connection + Open Console shell ssh + buka sesi Claude, SPEC-211)`.
+- [x] **Step 5: Update frontend-implementation.md** — di baris 5, ganti `VPS (daftar + audit/harden + buka sesi)` jadi `VPS (daftar + audit/harden + Test connection + Open Console shell ssh + buka sesi Claude, SPEC-211)`.
 
-- [ ] **Step 6: Verifikasi coverage docs tetap hijau (tanpa boot server)**
+- [x] **Step 6: Verifikasi coverage docs tetap hijau (tanpa boot server)**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./shared test coverage 2>/dev/null || node --experimental-strip-types shared/src/coverage.ts 2>/dev/null || echo "cek manual: semua doc tertaut di index"`
 Expected: tak ada doc yatim (ADR-0042 tertaut di README).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add internal/docs/adr/0042-vps-console-ssh-tmux-lokal.md internal/docs/README.md internal/docs/architecture/api-contract.md internal/docs/requirements/prd.md internal/docs/frontend/frontend-implementation.md
@@ -413,9 +413,9 @@ git commit -m "docs(sot): ADR-0042 Open Console + api-contract/prd/frontend (SPE
 
 **Files:** none (verifikasi).
 
-- [ ] **Step 1: Boot server terhadap DB throwaway ter-migrate** (bukan hanoman_test — sibling test bisa truncate; lihat memory live-smoke). Buat DB sekali, `migrate deploy`, boot di port non-8787.
+- [x] **Step 1: Boot server terhadap DB throwaway ter-migrate** (bukan hanoman_test — sibling test bisa truncate; lihat memory live-smoke). Buat DB sekali, `migrate deploy`, boot di port non-8787.
 
-- [ ] **Step 2: Daftarkan VPS dummy lalu curl `/test` & `/console`:**
+- [x] **Step 2: Daftarkan VPS dummy lalu curl `/test` & `/console`:**
 ```bash
 # ganti PORT sesuai boot; VPS dummy tak perlu reachable untuk membuktikan bentuk response
 curl -s -XPOST localhost:PORT/api/vps -H 'content-type: application/json' \
@@ -426,9 +426,9 @@ curl -s localhost:PORT/api/terminal/sessions | grep vps-console   # sesi console
 ```
 Expected: `/test` balas `{ ok, out }` (ok=false untuk host palsu, itu benar), `/console` balas `{ id: "vpsc-…" }`, sesi muncul di daftar terminal. Bersihkan: hapus VPS + `tmux -L hanoman kill-server` bila perlu.
 
-- [ ] **Step 3: Centang semua kotak plan, commit ceklis.**
+- [x] **Step 3: Centang semua kotak plan, commit ceklis.**
 
-- [ ] **Step 4: Verifikasi seluruh suite hijau**
+- [x] **Step 4: Verifikasi seluruh suite hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm -r test`
 Expected: PASS (server pakai `--no-file-parallelism` bila diperlukan; lihat memory prisma-generate).
