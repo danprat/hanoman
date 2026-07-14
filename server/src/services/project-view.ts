@@ -38,6 +38,7 @@ export async function toProjectView(p: Project, sessions: SessionInfo[]): Promis
     : "spec";
   return {
     id: p.id, name: p.name, desc: p.desc, kind: p.kind as any, repoDir: p.repoDir,
+    gitRemote: p.gitRemote ?? null,
     stack: p.stack, docStatus: docStatusFor(coverage), coverage, createdAt: p.createdAt.toISOString(),
     backlog: open.length, topStage,
     session,

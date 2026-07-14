@@ -19,6 +19,7 @@ export const zCreateProject = z.object({
 export const zUpdateProject = z.object({
   name: z.string().min(1).optional(),
   desc: z.string().optional(),
+  gitRemote: z.string().optional(),   // SPEC-213 · set git remote resmi project
 });
 export const zCreateSpec = z.object({
   project: z.string(), source: zSpecSource, title: z.string().min(1),

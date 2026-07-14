@@ -344,11 +344,11 @@ export default async function (app: FastifyInstance) {
 - Modify: `server/src/services/project-view.ts` (sertakan gitRemote di view)
 - Test: `server/test/projects.route.test.ts` (tambah kasus)
 
-- [ ] **Step 1: Failing test:** POST `/api/projects` `{ name:"hub-only", kind:"app", gitRemote:"https://github.com/x/y.git" }` (tanpa repoDir) → 201, view punya `repoDir:null` & `gitRemote` terisi; GET list memuatnya tanpa error (AC-5).
-- [ ] **Step 2:** Run → FAIL.
-- [ ] **Step 3:** Tambah `gitRemote: z.string().optional()` ke `zCreateProject` & `zUpdateProject`; `gitRemote: z.string().nullable().optional()` ke `zProject`. Di `projects.ts` create: `gitRemote: b.gitRemote ?? null`. Di `project-view.ts` sertakan `gitRemote`.
-- [ ] **Step 4:** Run → PASS.
-- [ ] **Step 5: Commit** `git commit -am "feat: project tanpa path + gitRemote di server (SPEC-213 AC-5)"`
+- [x] **Step 1: Failing test:** POST `/api/projects` `{ name:"hub-only", kind:"app", gitRemote:"https://github.com/x/y.git" }` (tanpa repoDir) → 201, view punya `repoDir:null` & `gitRemote` terisi; GET list memuatnya tanpa error (AC-5).
+- [x] **Step 2:** Run → FAIL.
+- [x] **Step 3:** Tambah `gitRemote: z.string().optional()` ke `zCreateProject` & `zUpdateProject`; `gitRemote: z.string().nullable().optional()` ke `zProject`. Di `projects.ts` create: `gitRemote: b.gitRemote ?? null`. Di `project-view.ts` sertakan `gitRemote`.
+- [x] **Step 4:** Run → PASS.
+- [x] **Step 5: Commit** `git commit -am "feat: project tanpa path + gitRemote di server (SPEC-213 AC-5)"`
 
 ### Task 2.2: LocalBinding service + routes (bind/clone/list, LOCAL-only)
 

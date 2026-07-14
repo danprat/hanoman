@@ -38,7 +38,7 @@ export default async function (app: FastifyInstance) {
     const created = await prisma.project.create({
       data: {
         id, name: id, desc: b.desc || "project baru", kind: b.kind, repoDir: b.repoDir ?? null,
-        stack: ""
+        gitRemote: b.gitRemote ?? null, stack: ""
       }
     });
     return reply.code(201).send(await toProjectView(created, listSessions()));
