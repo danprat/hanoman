@@ -3,7 +3,7 @@
 import React from "react";
 import { Card, Switch, Select, Button, Input, Field, Icon, StateBlock } from "../ds";
 import { api, ApiError } from "../api/client";
-import type { Setting, UserView, DeviceTokenView, SessionResultView } from "@hanoman/shared";
+import type { Setting, UserView, DeviceTokenView, SessionResultView, ConfigResponse, ConfigEntryView } from "@hanoman/shared";
 import type { ShowToast } from "../ds";
 import { playNotifySound, type NotifySound } from "../notifications/sound";
 
@@ -237,6 +237,85 @@ function ActivityPanel({ onToast }: { onToast?: ShowToast }) {
   );
 }
 
+// SPEC-215 · atur env non-bootstrap via Settings. Secret: mask + "Ganti"; bootstrap read-only.
+const GROUP_LABEL: Record<string, string> = {
+  sync: "Sync", claude: "Claude", vps: "VPS", runtime: "Runtime", bootstrap: "Bootstrap (read-only)",
+};
+function ConfigPanel({ onToast }: { onToast?: ShowToast }) {
+  const [data, setData] = React.useState<ConfigResponse | null>(null);
+  const [drafts, setDrafts] = React.useState<Record<string, string>>({});
+  const load = React.useCallback(() => { api.getConfig().then(setData).catch(() => setData(null)); }, []);
+  React.useEffect(() => { load(); }, [load]);
+  if (!data) return <StateBlock kind="loading" title="Memuat konfigurasi…" />;
+
+  const clearDraft = (key: string) => setDrafts((d) => { const n = { ...d }; delete n[key]; return n; });
+  const save = async (e: ConfigEntryView) => {
+    const v = drafts[e.key] ?? "";
+    try { await api.putConfig(e.key, v); clearDraft(e.key); load();
+      onToast?.(`${e.label} disimpan`, "ok", "check-circle-2"); }
+    catch { onToast?.(`Gagal menyimpan ${e.label}`, "err", "x-circle"); }
+  };
+  const reset = async (e: ConfigEntryView) => {
+    try { await api.deleteConfig(e.key); clearDraft(e.key); load(); onToast?.(`${e.label} direset`, "warn", "rotate-ccw"); }
+    catch { onToast?.("Gagal reset", "err", "x-circle"); }
+  };
+
+  const groups = [...new Set(data.entries.map((e) => e.group))];
+  return (
+    <>
+      {groups.map((g) => (
+        <Card key={g} eyebrow={g} title={GROUP_LABEL[g] ?? g}>
+          {g === "sync" && (
+            <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 8 }}>
+              {data.sync.running ? (data.sync.connected ? "● Tersambung ke hub" : "◐ Sync aktif, menyambung…") : "○ Tidak sync (HUB murni)"}
+            </div>
+          )}
+          {data.entries.filter((e) => e.group === g).map((e) => (
+            <SettingRow key={e.key} title={e.label} desc={e.help}>
+              <ConfigField entry={e} draft={drafts[e.key]}
+                onDraft={(v) => setDrafts((d) => ({ ...d, [e.key]: v }))}
+                onSave={() => save(e)} onReset={() => reset(e)} />
+            </SettingRow>
+          ))}
+        </Card>
+      ))}
+    </>
+  );
+}
+
+function ConfigField({ entry, draft, onDraft, onSave, onReset }: {
+  entry: ConfigEntryView; draft?: string; onDraft: (v: string) => void; onSave: () => void; onReset: () => void;
+}) {
+  const badge = <span style={{ fontSize: 10.5, fontFamily: "var(--font-mono)", color: "var(--text-subtle)", marginRight: 8 }}>{entry.source} · {entry.apply}</span>;
+  if (!entry.editable) { // bootstrap read-only
+    return <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{badge}
+      <code style={{ fontSize: 12 }}>{entry.masked ?? entry.value ?? "—"}</code></div>;
+  }
+  if (entry.kind === "secret") {
+    return <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{badge}
+      {entry.hasValue && draft === undefined
+        ? <><code style={{ fontSize: 12 }}>{entry.masked}</code>
+            <Button size="sm" variant="ghost" leftIcon="pencil" onClick={() => onDraft("")}>Ganti</Button>
+            <Button size="sm" variant="ghost" leftIcon="trash-2" onClick={onReset}>Hapus</Button></>
+        : <><Input aria-label={entry.label} type="password" placeholder={entry.hasValue ? "biarkan kosong = pertahankan" : "tempel token…"}
+              value={draft ?? ""} onChange={(ev: React.ChangeEvent<HTMLInputElement>) => onDraft(ev.target.value)} style={{ width: 240 }} />
+            <Button size="sm" leftIcon="save" onClick={onSave}>Simpan</Button></>}
+    </div>;
+  }
+  if (entry.kind === "bool") {
+    const on = (draft ?? entry.value) === "1";
+    return <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{badge}
+      <Switch checked={on} onChange={(v: boolean) => { onDraft(v ? "1" : "0"); }} />
+      {draft !== undefined && <Button size="sm" leftIcon="save" onClick={onSave}>Simpan</Button>}</div>;
+  }
+  // url | int | string | path
+  return <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{badge}
+    <Input aria-label={entry.label} type={entry.kind === "int" ? "number" : "text"}
+      value={draft ?? entry.value ?? ""} onChange={(ev: React.ChangeEvent<HTMLInputElement>) => onDraft(ev.target.value)} style={{ width: 240 }} />
+    <Button size="sm" leftIcon="save" onClick={onSave}>Simpan</Button>
+    {entry.source === "db" && <Button size="sm" variant="ghost" leftIcon="rotate-ccw" onClick={onReset}>Reset</Button>}</div>;
+}
+
 // Grup navigasi settings — sidebar kiri. Akun & Users tak bergantung GET /settings; umum/model/
 // sesi bergantung dan menampilkan loading/error-nya sendiri.
 const S_SECTIONS = [
@@ -244,6 +323,7 @@ const S_SECTIONS = [
   { key: "users", label: "Users", icon: "users" },
   { key: "perangkat", label: "Perangkat", icon: "key-round" },   // SPEC-213 · device tokens
   { key: "aktivitas", label: "Aktivitas", icon: "activity" },    // SPEC-213 · activity log
+  { key: "konfigurasi", label: "Konfigurasi", icon: "sliders" }, // SPEC-215 · env runtime
   { key: "umum", label: "Umum", icon: "sliders-horizontal" },
   { key: "model", label: "Model sesi", icon: "cpu" },
   { key: "sesi", label: "Sesi", icon: "bell" },
@@ -351,6 +431,7 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
     : tab === "users" ? <UsersPanel me={me} onToast={onToast} />
     : tab === "perangkat" ? <DeviceTokensPanel onToast={onToast} />
     : tab === "aktivitas" ? <ActivityPanel onToast={onToast} />
+    : tab === "konfigurasi" ? <ConfigPanel onToast={onToast} />
     : prefs();
 
   return (
