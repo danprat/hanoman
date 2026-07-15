@@ -37,7 +37,7 @@ Menambah sub-toggle "Dari folder lokal / Clone dari URL git" di tab Existing pad
   - `type ProjectForm = { kind: string; mode: "local" | "clone"; name: string; desc: string; dir: string; gitRemote: string; objective: string }`
   - `NewProjectModal` submit clone mode berlabel teks **"Clone → reverse-engineer docs"**; sub-toggle berlabel **"Dari folder lokal"** dan **"Clone dari URL git"**; field URL berplaceholder **"https://github.com/org/repo.git"**.
 
-- [ ] **Step 1: Tulis failing test** — `src/test/new-project-clone.test.tsx`
+- [x] **Step 1: Tulis failing test** — `src/test/new-project-clone.test.tsx`
 
 ```tsx
 import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
@@ -87,12 +87,12 @@ describe("create existing via clone (SPEC-218)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan gagal**
+- [x] **Step 2: Jalankan test — pastikan gagal**
 
 Run: `pnpm --filter ./src exec vitest run test/new-project-clone.test.tsx`
 Expected: FAIL — sub-toggle "Clone dari URL git" belum ada (`findByText` timeout) / `cloneProject` tak terpanggil.
 
-- [ ] **Step 3: Perbarui `type ProjectForm`** (baris 189)
+- [x] **Step 3: Perbarui `type ProjectForm`** (baris 189)
 
 Ganti:
 ```tsx
@@ -103,7 +103,7 @@ menjadi:
 type ProjectForm = { kind: string; mode: "local" | "clone"; name: string; desc: string; dir: string; gitRemote: string; objective: string };
 ```
 
-- [ ] **Step 4: Ganti `NewProjectModal`** (seluruh fungsi, baris 190-249)
+- [x] **Step 4: Ganti `NewProjectModal`** (seluruh fungsi, baris 190-249)
 
 ```tsx
 function NewProjectModal({ open, onClose, onCreate }:
@@ -191,7 +191,7 @@ function NewProjectModal({ open, onClose, onCreate }:
 }
 ```
 
-- [ ] **Step 5: Ganti handler `createProject`** (baris 379-388)
+- [x] **Step 5: Ganti handler `createProject`** (baris 379-388)
 
 ```tsx
   async function createProject(f: ProjectForm) {
@@ -228,17 +228,17 @@ function NewProjectModal({ open, onClose, onCreate }:
   }
 ```
 
-- [ ] **Step 6: Jalankan test — pastikan lulus**
+- [x] **Step 6: Jalankan test — pastikan lulus**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/new-project-clone.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 7: Typecheck**
+- [x] **Step 7: Typecheck**
 
 Run: `pnpm --filter ./src typecheck`
 Expected: exit 0 (tak ada error tipe dari field `mode`/`gitRemote` baru).
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/src/App.tsx src/test/new-project-clone.test.tsx
@@ -262,7 +262,7 @@ Menambah field `gitRemote` di `EditProjectModal`, meneruskannya di handler `upda
 - Consumes: `api.updateProject(id, { name?; desc?; gitRemote?; repoDir? }) => Promise<ProjectView>` (sudah ada), `ProjectVM.gitRemote: string | null` (dari `ProjectView`).
 - Produces: `EditProjectModal` `onSave` payload = `{ name: string; desc: string; dir: string; gitRemote: string }`; field Git remote berplaceholder **"https://github.com/org/repo.git"**; `ProjectDetailScreen` merender Meta label **"Git remote"**.
 
-- [ ] **Step 1: Tulis failing test** — `src/test/edit-project-gitremote.test.tsx`
+- [x] **Step 1: Tulis failing test** — `src/test/edit-project-gitremote.test.tsx`
 
 ```tsx
 import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
@@ -314,12 +314,12 @@ describe("edit project git remote (SPEC-218)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan gagal**
+- [x] **Step 2: Jalankan test — pastikan gagal**
 
 Run: `pnpm --filter ./src exec vitest run test/edit-project-gitremote.test.tsx`
 Expected: FAIL — field "Git remote" belum ada (`findByPlaceholderText` timeout).
 
-- [ ] **Step 3: Perbarui `EditProjectModal`** (baris 251-282)
+- [x] **Step 3: Perbarui `EditProjectModal`** (baris 251-282)
 
 Ubah signature `onSave` dan state agar memuat `gitRemote`, lalu tambah field. Ganti baris 251-258 (deklarasi + state + effect):
 ```tsx
@@ -340,7 +340,7 @@ Lalu tambahkan field baru tepat setelah field "Path (mesin ini)" (setelah baris 
       </Field>
 ```
 
-- [ ] **Step 4: Perbarui handler `updateProject`** (baris 363-377)
+- [x] **Step 4: Perbarui handler `updateProject`** (baris 363-377)
 
 Ganti signature dan tambahkan `gitRemote` ke payload PATCH:
 ```tsx
@@ -362,12 +362,12 @@ Ganti signature dan tambahkan `gitRemote` ke payload PATCH:
   }
 ```
 
-- [ ] **Step 5: Jalankan test edit — pastikan lulus**
+- [x] **Step 5: Jalankan test edit — pastikan lulus**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/edit-project-gitremote.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 6: Tulis failing test tampilan detail** — tambahkan ke `src/test/edit-project-gitremote.test.tsx` (di dalam `describe`)
+- [x] **Step 6: Tulis failing test tampilan detail** — tambahkan ke `src/test/edit-project-gitremote.test.tsx` (di dalam `describe`)
 
 ```tsx
   it("detail project menampilkan gitRemote", async () => {
@@ -383,12 +383,12 @@ Expected: PASS.
   });
 ```
 
-- [ ] **Step 7: Jalankan — pastikan gagal** (label "Git remote" belum dirender di detail)
+- [x] **Step 7: Jalankan — pastikan gagal** (label "Git remote" belum dirender di detail)
 
 Run: `pnpm --filter ./src exec vitest run test/edit-project-gitremote.test.tsx -t "menampilkan gitRemote"`
 Expected: FAIL.
 
-- [ ] **Step 8: Tambah Meta gitRemote di `ProjectDetailScreen.tsx`** (grid baris 60-66)
+- [x] **Step 8: Tambah Meta gitRemote di `ProjectDetailScreen.tsx`** (grid baris 60-66)
 
 Sisipkan Meta baru tepat setelah Meta "Repo" (setelah baris 63):
 ```tsx
@@ -397,17 +397,17 @@ Sisipkan Meta baru tepat setelah Meta "Repo" (setelah baris 63):
 ```
 (Grid `repeat(4, 1fr)` kini memuat 5 Meta — item ke-5 membungkus ke baris berikut; ini oke secara visual.)
 
-- [ ] **Step 9: Jalankan seluruh test file — pastikan lulus**
+- [x] **Step 9: Jalankan seluruh test file — pastikan lulus**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/edit-project-gitremote.test.tsx`
 Expected: PASS (2 test).
 
-- [ ] **Step 10: Typecheck**
+- [x] **Step 10: Typecheck**
 
 Run: `pnpm --filter ./src typecheck`
 Expected: exit 0.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add src/src/App.tsx src/src/screens/ProjectDetailScreen.tsx src/test/edit-project-gitremote.test.tsx
@@ -426,7 +426,7 @@ Membuktikan alur create→clone→bind dan PATCH gitRemote bekerja terhadap serv
 - Create (throwaway, di scratchpad): `/private/tmp/claude-501/-Users-denameidina-Documents-Nafanesia-hanoman/afbaf933-0d68-4ab9-a0c7-da12c40965cb/scratchpad/boot-smoke.ts`
 - No product code changes.
 
-- [ ] **Step 1: Siapkan repo sumber throwaway + folder tujuan**
+- [x] **Step 1: Siapkan repo sumber throwaway + folder tujuan**
 
 ```bash
 SP=/private/tmp/claude-501/-Users-denameidina-Documents-Nafanesia-hanoman/afbaf933-0d68-4ab9-a0c7-da12c40965cb/scratchpad
@@ -439,7 +439,7 @@ git -C "$SP/src-repo" -c user.email=t@t -c user.name=t commit -qm init
 echo "src repo siap: $SP/src-repo"
 ```
 
-- [ ] **Step 2: Siapkan DB throwaway + migrate**
+- [x] **Step 2: Siapkan DB throwaway + migrate**
 
 ```bash
 docker exec hanoman-db-1 psql -U hanoman -d postgres -c 'DROP DATABASE IF EXISTS spec218_smoke' 2>/dev/null || true
@@ -449,7 +449,7 @@ env -u NODE_ENV DATABASE_URL='postgresql://hanoman:hanoman@localhost:5432/spec21
 ```
 Expected: "All migrations have been applied".
 
-- [ ] **Step 3: Tulis boot script auth-off** — `scratchpad/boot-smoke.ts`
+- [x] **Step 3: Tulis boot script auth-off** — `scratchpad/boot-smoke.ts`
 
 ```ts
 import { buildApp } from "../../../../server/src/app";
@@ -458,7 +458,7 @@ app.listen({ port: 8799, host: "127.0.0.1" }).then(() => console.log("smoke up :
 ```
 (Path relatif dari scratchpad ke `server/src/app.ts`; sesuaikan bila struktur berbeda — `buildApp` diekspor di `server/src/app.ts:39`.)
 
-- [ ] **Step 4: Boot server smoke (background)**
+- [x] **Step 4: Boot server smoke (background)**
 
 ```bash
 SP=/private/tmp/claude-501/-Users-denameidina-Documents-Nafanesia-hanoman/afbaf933-0d68-4ab9-a0c7-da12c40965cb/scratchpad
@@ -467,7 +467,7 @@ env -u NODE_ENV DATABASE_URL='postgresql://hanoman:hanoman@localhost:5432/spec21
 ```
 Jalankan sebagai background process. Tunggu log "smoke up :8799". (Port 8799 sengaja bukan 8787 — memori: dev sesi lain di 8787.)
 
-- [ ] **Step 5: curl create (gitRemote) → clone → binding**
+- [x] **Step 5: curl create (gitRemote) → clone → binding**
 
 ```bash
 SP=/private/tmp/claude-501/-Users-denameidina-Documents-Nafanesia-hanoman/afbaf933-0d68-4ab9-a0c7-da12c40965cb/scratchpad
@@ -482,7 +482,7 @@ curl -sS localhost:8799/api/projects/demo/binding
 ```
 Expected: create → 201 dgn `"gitRemote":"file://…/src-repo"`, `"repoDir":null`; clone → 201 `{"repoDir":".../clone-target"}`; binding → `{"repoDir":".../clone-target"}`; dan `ls "$SP/clone-target/README.md"` ada (clone benar-benar terjadi).
 
-- [ ] **Step 6: curl PATCH gitRemote (edit) + kosongkan**
+- [x] **Step 6: curl PATCH gitRemote (edit) + kosongkan**
 
 ```bash
 curl -sS -X PATCH localhost:8799/api/projects/demo -H 'content-type: application/json' \
@@ -494,20 +494,20 @@ curl -sS -o /dev/null -w "%{http_code}\n" -X POST localhost:8799/api/projects/de
 ```
 Expected: PATCH → 200 dgn gitRemote baru; setelah dikosongkan, clone → `409` (`"tidak punya gitRemote untuk clone"`) — membuktikan `""` = kosong. **AC-6/AC-8**.
 
-- [ ] **Step 7: Bersihkan**
+- [x] **Step 7: Bersihkan**
 
 ```bash
 # hentikan proses smoke (background), lalu:
 docker exec hanoman-db-1 psql -U hanoman -d postgres -c 'DROP DATABASE IF EXISTS spec218_smoke'
 ```
 
-- [ ] **Step 8: Regresi test web penuh + centang plan**
+- [x] **Step 8: Regresi test web penuh + centang plan**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src test`
 Expected: seluruh test web PASS (termasuk `project-detail.test.tsx`, `client-binding.test.ts` lama tak regres).
 Lalu centang seluruh `- [ ]` → `- [x]` di plan ini.
 
-- [ ] **Step 9: Commit dokumentasi plan**
+- [x] **Step 9: Commit dokumentasi plan**
 
 ```bash
 git add docs/superpowers/plans/2026-07-15-clone-repo-git-sync-spec-218.md
