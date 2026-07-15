@@ -76,6 +76,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 ## operations
 - [roadmap](operations/roadmap.md) · [gtm](operations/gtm.md) · [agent-documentation-workflow](operations/agent-documentation-workflow.md)
 - [production](operations/production.md) — menjalankan instance prod di samping dev (database + port terpisah)
+- [deploy-vps](operations/deploy-vps.md) — deploy single-host ke VPS publik di belakang reverse proxy TLS
 
 ## security
 - [security-standard](security/security-standard.md)

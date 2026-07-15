@@ -1,6 +1,13 @@
 node_modules
 dist
-.env
-.env.production
+# Semua file env berisi rahasia (mis. .env, .env.production, .env.deploy, .env.local)
+# tak pernah ter-commit. Repo ini publik/open-source — credential (token, host VPS,
+# kredensial DB) hanya hidup di file env gitignored di mesin/VPS. Template *.example
+# yang aman tetap ter-track.
+.env*
+!.env*.example
+# override compose per-host (mis. port DB berbeda saat 5432 terpakai) — bukan default repo
+docker-compose.override.yml
+docker-compose.override.yaml
 .worktrees
 *.tsbuildinfo
