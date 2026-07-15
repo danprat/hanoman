@@ -52,4 +52,21 @@ export const paths = {
   deviceToken: (id: string) => `${API}/device-tokens/${id}`,
   sessionResults: (projectId?: string) =>
     `${API}/session-results${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ""}`,
+  // SPEC-215 · config runtime
+  config: `${API}/config`,
+  configKey: (key: string) => `${API}/config/${encodeURIComponent(key)}`,
 } as const;
+
+// SPEC-215 · view config untuk UI. Secret: tanpa `value`, pakai `masked` + `hasValue`.
+export type ConfigEntryView = {
+  key: string; group: string; label: string; help?: string;
+  kind: import("./config-registry").ConfigKind;
+  apply: import("./config-registry").ApplyMode;
+  category: import("./config-registry").ConfigCategory;
+  min?: number; max?: number;
+  editable: boolean; source: "db" | "env" | "default";
+  value?: string | null;        // non-secret
+  masked?: string | null;       // secret & bootstrap secret
+  hasValue?: boolean;           // secret: apakah ada nilai efektif
+};
+export type ConfigResponse = { entries: ConfigEntryView[]; sync: { running: boolean; connected: boolean } };

@@ -1,0 +1,54 @@
+import type { FastifyInstance } from "fastify";
+import { CONFIG_REGISTRY, configEntry, parseConfigValue, maskSecret, type ConfigEntry, type ConfigEntryView } from "@hanoman/shared";
+import { effectiveStr, rawDbValue, sourceOf, setConfig, clearConfig } from "../config";
+import { applyConfigSideEffect } from "../services/config-apply";
+import { syncStatus } from "../services/sync-client";
+
+// SPEC-215 · ADR-0049 · kelola config runtime dari dashboard (cookie-authed). Secret & connection
+// string tak pernah balik plaintext — hanya masked + hasValue. Bootstrap read-only.
+const isSecret = (e: ConfigEntry) => e.kind === "secret";
+
+function view(e: ConfigEntry): ConfigEntryView {
+  const eff = effectiveStr(e.key);
+  const base = {
+    key: e.key, group: e.group, label: e.label, help: e.help, kind: e.kind,
+    apply: e.apply, category: e.category, min: e.min, max: e.max,
+    editable: e.category !== "bootstrap", source: sourceOf(e.key),
+  };
+  if (isSecret(e)) return { ...base, masked: eff ? maskSecret(eff) : null, hasValue: eff !== undefined };
+  return { ...base, value: eff ?? null };
+}
+
+export default async function (app: FastifyInstance) {
+  app.get("/config", async () => ({
+    entries: CONFIG_REGISTRY.map(view), sync: syncStatus(),
+  }));
+
+  app.put("/config", async (req, reply) => {
+    const b = req.body as { key?: string; value?: string };
+    const entry = b?.key ? configEntry(b.key) : undefined;
+    if (!entry) return reply.code(400).send({ error: "key tak dikenal" });
+    if (entry.category === "bootstrap") return reply.code(400).send({ error: "bootstrap read-only" });
+    const raw = b.value ?? "";
+    // secret dengan value kosong = pertahankan yang lama (no-op DB).
+    if (isSecret(entry) && raw.trim() === "") {
+      if (rawDbValue(entry.key) === undefined) return reply.code(400).send({ error: "tak boleh kosong" });
+      return view(entry);
+    }
+    const parsed = parseConfigValue(entry, raw);
+    if (!parsed.ok) return reply.code(400).send({ error: parsed.error });
+    await setConfig(entry.key, parsed.value);
+    await applyConfigSideEffect(entry.key);
+    return view(entry);
+  });
+
+  app.delete("/config/:key", async (req, reply) => {
+    const { key } = req.params as { key: string };
+    const entry = configEntry(key);
+    if (!entry) return reply.code(400).send({ error: "key tak dikenal" });
+    if (entry.category === "bootstrap") return reply.code(400).send({ error: "bootstrap read-only" });
+    await clearConfig(key);
+    await applyConfigSideEffect(key);
+    return reply.code(204).send();
+  });
+}
