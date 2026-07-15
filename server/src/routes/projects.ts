@@ -4,6 +4,7 @@ import { prisma } from "../db";
 import { toProjectView } from "../services/project-view";
 import { enqueueOutbox } from "../services/outbox";
 import { listRepoBranches, listRepoRemoteBranches } from "../services/branches";
+import { resolveRepoDir } from "../services/local-binding";
 import { listSessions } from "../services/pty";
 import { paginate } from "../services/paginate";
 
@@ -73,6 +74,8 @@ export default async function (app: FastifyInstance) {
     const { id } = req.params as { id: string };
     const p = await prisma.project.findUnique({ where: { id } });
     if (!p) return reply.code(404).send({ error: "not found" });
-    return { branches: await listRepoBranches(p.repoDir), remotes: await listRepoRemoteBranches(p.repoDir) };
+    // SPEC-217 · path efektif (binding lokal per-mesin ?? Project.repoDir).
+    const repoDir = await resolveRepoDir(id);
+    return { branches: await listRepoBranches(repoDir), remotes: await listRepoRemoteBranches(repoDir) };
   });
 }
