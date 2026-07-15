@@ -22,7 +22,6 @@ describe("id", () => {
     await makeProject({ id: "p1" });
     await makeSpec({ id: "SPEC-142", projectId: "p1" });
   });
-  afterEach(() => { delete process.env.RUN_ID_FLOOR; });
   afterEach(() => { for (const d of trash.splice(0)) rmSync(d, { recursive: true, force: true }); });
   it("next spec id is one past the max", async () => expect(await nextSpecId()).toBe("SPEC-143"));
 

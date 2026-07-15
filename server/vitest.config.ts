@@ -24,19 +24,6 @@ try {
   process.env.DATABASE_URL = test;
 }
 
-// Redis: cerita yang sama. `enqueueRun` menaruh job BullMQ sungguhan, dan worker dev
-// mendengarkan REDIS_URL yang asli — sebuah test yang enqueue (POST /runs, `resume` di
-// terminal) menyerahkan run NYATA untuk dieksekusi, lengkap dengan worktree dan proses
-// `claude`. Pakai index database Redis tersendiri; menolak jalan kalau sama dengan yang asli.
-{
-  const real = process.env.REDIS_URL ?? "redis://localhost:6379";
-  const url = new URL(real);
-  url.pathname = "/1";
-  const test = process.env.TEST_REDIS_URL ?? url.toString();
-  if (test === real) throw new Error("vitest: refusing to run — test Redis would equal the real REDIS_URL");
-  process.env.REDIS_URL = test;
-}
-
 // Sesi terminal hidup di tmux server, dan `killAll()` membunuh server itu seluruhnya.
 // Socket terpisah supaya test tidak pernah menyentuh sesi hanoman (atau tmux) yang nyata.
 process.env.HANOMAN_TMUX_SOCKET = "hanoman-test";
@@ -47,9 +34,9 @@ export default defineConfig({
     // Every server test file re-seeds the same Postgres DB in beforeAll; running
     // files in parallel would race on deleteMany/createMany. Force sequential.
     fileParallelism: false,
-    // `.worktrees/**` holds transient/orphaned hanoman run checkouts — full repo
-    // copies whose test files would collide on the shared DB + Redis queue. Never
-    // let the parent suite scan them.
+    // `.worktrees/**` holds transient/orphaned hanoman checkouts — full repo
+    // copies whose test files would collide on the shared DB. Never let the
+    // parent suite scan them.
     exclude: [...configDefaults.exclude, "**/.worktrees/**"],
   },
 });
