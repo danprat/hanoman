@@ -5,6 +5,7 @@ import { notificationsFeed } from "./notifications";
 import { getLimits } from "./limits";
 import { getUpdateStatus } from "./update";
 import { prisma } from "../db";
+import { effectiveInt } from "../config";
 
 // SPEC-199 · satu WebSocket siar untuk seluruh data real-time dashboard (ADR-0039). Meniru
 // pola siar services/pty.ts: satu Set klien, satu loop ref-counted, frame lahir hanya saat
@@ -16,8 +17,8 @@ import { prisma } from "../db";
 type WireMsg = { t: string; [k: string]: unknown };
 
 const clients = new Set<Client>();
-// Test menurunkan tick agar cepat; prod 1s. Loop cuma jalan saat ada klien.
-const TICK_MS = Number(process.env.HANOMAN_EVENTS_TICK_MS) || 1000;
+// SPEC-215 · dibaca per-pakai (cfg live). Test menurunkan tick agar cepat; prod 1s. Loop cuma jalan saat ada klien.
+const tickMs = () => effectiveInt("HANOMAN_EVENTS_TICK_MS") ?? 1000;
 
 type Group = { everyTicks: number; last: string; build: () => Promise<WireMsg> };
 // everyTicks = recompute tiap N detik: board 1s, notif 3s, vps 15s, limits 30s (cache 30s service).
@@ -62,7 +63,7 @@ export async function __tick(): Promise<void> {
 
 function startLoop(): void {
   if (timer) return;
-  timer = setInterval(() => { void __tick(); }, TICK_MS);
+  timer = setInterval(() => { void __tick(); }, tickMs());
   timer.unref();
 }
 function stopLoop(): void {

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { UpdateStatus, UpdateReason, UpdateRemoteStatus, UpdateCommit } from "@hanoman/shared";
+import { effectiveStr, effectiveBool } from "../config";
 
 export type UpdateInputs = {
   runningBuildSha: string | null;
@@ -48,7 +49,7 @@ let cached: { at: number; value: UpdateStatus } | null = null;
 let lastFetchAt = 0;
 
 // Seam test: HANOMAN_REPO_ROOT menunjuk repo lain (atau non-repo → fail-safe).
-function repoRoot(): string { return process.env.HANOMAN_REPO_ROOT ?? process.cwd(); }
+function repoRoot(): string { return effectiveStr("HANOMAN_REPO_ROOT") ?? process.cwd(); }
 
 // SHA build yang sedang jalan: server/dist/build-info.json (ditanam scripts/stamp-build.mjs).
 // Server di-bundle esbuild → import.meta.url = server/dist/server.js, jadi file bersebelahan.
@@ -67,7 +68,7 @@ async function git(root: string, args: string[]): Promise<string> {
 
 // Jaringan HANYA di sini, dan hanya bila opt-in (server.ts menyalakan di boot nyata; test tak pernah).
 async function maybeFetch(root: string, branch: string): Promise<void> {
-  if (process.env.HANOMAN_UPDATE_FETCH !== "1") return;
+  if (!effectiveBool("HANOMAN_UPDATE_FETCH")) return;
   if (Date.now() - lastFetchAt < FETCH_TTL_MS) return;
   lastFetchAt = Date.now();
   try { await exec("git", ["fetch", "origin", branch, "--quiet"], { cwd: root, timeout: 15_000, ...GIT }); }

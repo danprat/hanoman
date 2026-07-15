@@ -2,9 +2,10 @@ import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { effectiveStr } from "../config";
 
 // Test menunjuk HANOMAN_SSH_BIN ke fixture — pola HANOMAN_CLAUDE_BIN di pty.ts.
-export const sshBin = () => process.env.HANOMAN_SSH_BIN ?? "ssh";
+export const sshBin = () => effectiveStr("HANOMAN_SSH_BIN") ?? "ssh";
 
 export type SshTarget = { host: string; port: number; user: string; keyPath?: string | null };
 export type SshResult = { code: number; out: string };

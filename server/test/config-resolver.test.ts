@@ -27,9 +27,11 @@ describe("config resolver (DB → env → default)", () => {
     delete process.env.SYNC_TICK_MS;
   });
   it("effectiveBool", async () => {
+    delete process.env.HANOMAN_UPDATE_FETCH; // vitest.config memaksa "0"; uji default registry
     expect(cfg.effectiveBool("HANOMAN_UPDATE_FETCH")).toBe(true); // default "1"
     await cfg.setConfig("HANOMAN_UPDATE_FETCH", "0");
     expect(cfg.effectiveBool("HANOMAN_UPDATE_FETCH")).toBe(false);
+    process.env.HANOMAN_UPDATE_FETCH = "0"; // pulihkan paksaan test
   });
   it("effectiveStr tanpa default → undefined", () => {
     expect(cfg.effectiveStr("SYNC_SERVER_URL")).toBeUndefined();

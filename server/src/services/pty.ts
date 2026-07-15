@@ -5,6 +5,7 @@ import { mkdirSync, statSync } from "node:fs";
 import { dirname } from "node:path";
 import { guardSettings, type Flow } from "@hanoman/runner";
 import { readPhases, type Phase } from "./session-phases";
+import { effectiveStr } from "../config";
 
 // Sesi hidup di dalam tmux server, bukan di proses API (ADR-0016). Restart `pnpm dev`
 // tidak lagi membunuh claude yang sedang bekerja, dan refresh browser hanya menyambung
@@ -13,7 +14,7 @@ import { readPhases, type Phase } from "./session-phases";
 // Socket sendiri (`-L`) memisahkan hanoman dari tmux milik pengguna — `killAll` di test
 // tidak boleh menyentuh sesi kerja siapa pun. `-f /dev/null` membuang ~/.tmux.conf yang
 // bisa menyalakan status bar atau mengubah prefix, dan merusak TUI claude.
-const socket = () => process.env.HANOMAN_TMUX_SOCKET ?? "hanoman";
+const socket = () => effectiveStr("HANOMAN_TMUX_SOCKET") ?? "hanoman";
 const PREFIX = "hanoman-";
 
 // Cukup untuk mengembalikan satu layar penuh plus riwayat, tanpa menahan memori tak
@@ -48,7 +49,7 @@ type Attachment = { pty: IPty; scrollback: string; clients: Set<Client>; lastPha
 const attached = new Map<string, Attachment>();
 
 // Variabel yang sama yang dipakai runner/src/claude-cli.ts.
-const claudeBin = () => process.env.HANOMAN_CLAUDE_BIN ?? "claude";
+const claudeBin = () => effectiveStr("HANOMAN_CLAUDE_BIN") ?? "claude";
 
 const frame = (f: Frame): string => JSON.stringify(f);
 const name = (id: string): string => PREFIX + id;

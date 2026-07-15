@@ -27,6 +27,9 @@ try {
 // Sesi terminal hidup di tmux server, dan `killAll()` membunuh server itu seluruhnya.
 // Socket terpisah supaya test tidak pernah menyentuh sesi hanoman (atau tmux) yang nyata.
 process.env.HANOMAN_TMUX_SOCKET = "hanoman-test";
+// SPEC-215 · deteksi update kini dibaca via resolver config (default registry "1"). Test tak boleh
+// menyentuh jaringan → paksa OFF di sini (dulu tergantung server.ts yang tak dimuat test).
+process.env.HANOMAN_UPDATE_FETCH = "0";
 
 export default defineConfig({
   test: {

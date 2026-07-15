@@ -2,10 +2,11 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { effectiveStr } from "../config";
 
 // Identitas hanoman sendiri, bukan ~/.ssh milik pengguna: akses hanoman bisa dicabut
 // per-mesin (hapus satu baris di authorized_keys) tanpa menyentuh key pribadi.
-export const keyDir = (): string => process.env.HANOMAN_SSH_KEY_DIR ?? join(homedir(), ".hanoman");
+export const keyDir = (): string => effectiveStr("HANOMAN_SSH_KEY_DIR") ?? join(homedir(), ".hanoman");
 
 export type HanomanKey = { privPath: string; pubPath: string; pub: string };
 

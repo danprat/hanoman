@@ -2,10 +2,9 @@ import { buildApp } from "./app";
 import { prisma } from "./db";
 import { startVpsMonitor } from "./services/vps-monitor";
 
-// SPEC-214 · aktifkan git fetch untuk deteksi update hanya di boot server nyata. Test meng-import
-// buildApp dari app.ts (tak pernah memuat server.ts), jadi test tak pernah menyentuh jaringan.
-process.env.HANOMAN_UPDATE_FETCH ??= "1";
-
+// SPEC-215 · deteksi update default ON (registry HANOMAN_UPDATE_FETCH="1"), dibaca via resolver
+// di services/update.ts. Test memuat buildApp dari app.ts (tak pernah server.ts) dan vitest.config
+// memaksa "0" → tak pernah menyentuh jaringan.
 const app = buildApp();
 const port = Number(process.env.PORT ?? 8787);
 // Localhost secara default. Sejak SPEC-169 hanoman punya auth (gate 401 di semua /api,

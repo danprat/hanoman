@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { LimitsDTO, LimitWindow, LimitSeverity } from "@hanoman/shared";
+import { effectiveStr } from "../config";
 
 // Sumber limit realtime = endpoint OAuth yang sama dengan `/usage` Claude Code. hanoman tidak
 // memparse output terminal claude (ADR-0024): ia membaca token hidup Claude Code dan memanggil
@@ -23,13 +24,13 @@ const humanize = (k: string) => k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.t
 const nowIso = () => new Date().toISOString();
 
 function credsFile(): string {
-  return join(process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), ".claude"), ".credentials.json");
+  return join(effectiveStr("CLAUDE_CONFIG_DIR") ?? join(homedir(), ".claude"), ".credentials.json");
 }
 
 // Keychain dulu (macOS tanpa CLAUDE_CONFIG_DIR eksplisit — di mesin dev berkasnya kedaluwarsa,
 // token hidup ada di Keychain), lalu berkas (Linux/prod, atau CLAUDE_CONFIG_DIR di-set = seam test).
 function readAccessToken(): string | null {
-  if (process.platform === "darwin" && !process.env.CLAUDE_CONFIG_DIR) {
+  if (process.platform === "darwin" && !effectiveStr("CLAUDE_CONFIG_DIR")) {
     try {
       const blob = execFileSync(
         "security", ["find-generic-password", "-s", "Claude Code-credentials", "-w"],
