@@ -9,6 +9,7 @@ import { api, ApiError, type TerminalSession } from "./api/client";
 import { subscribe } from "./api/events";
 import type { ProjectView, Spec, AuthStatus, UserView, Notification } from "@hanoman/shared";
 import { AuthScreen } from "./screens/AuthScreen";
+import { AuthProvider } from "./auth/AuthContext";
 import type { ProjectVM } from "./screens/types";
 import { branchOptions } from "./screens/branch";
 import { OverviewScreen } from "./screens/OverviewScreen";
@@ -646,14 +647,16 @@ export default function App() {
   }
 
   return (
-    <NotificationsProvider showToast={showToast} onOpen={openNotification}>
-      {screen}
-      <NewSpecModal open={modal === "brief"} onClose={() => { setModal(null); setSpecPrefill(null); }}
-        projects={projectsView} defaultProject={proj ? proj.id : ""} onCreate={createSpec}
-        prefill={specPrefill ?? undefined} />
-      <NewProjectModal open={modal === "project"} onClose={() => setModal(null)} onCreate={createProject} />
-      <EditProjectModal open={modal === "project-edit"} project={proj} onClose={() => setModal(null)} onSave={updateProject} />
-      <Toast toast={toast} />
-    </NotificationsProvider>
+    <AuthProvider user={me} onLoggedOut={onLoggedOut}>
+      <NotificationsProvider showToast={showToast} onOpen={openNotification}>
+        {screen}
+        <NewSpecModal open={modal === "brief"} onClose={() => { setModal(null); setSpecPrefill(null); }}
+          projects={projectsView} defaultProject={proj ? proj.id : ""} onCreate={createSpec}
+          prefill={specPrefill ?? undefined} />
+        <NewProjectModal open={modal === "project"} onClose={() => setModal(null)} onCreate={createProject} />
+        <EditProjectModal open={modal === "project-edit"} project={proj} onClose={() => setModal(null)} onSave={updateProject} />
+        <Toast toast={toast} />
+      </NotificationsProvider>
+    </AuthProvider>
   );
 }

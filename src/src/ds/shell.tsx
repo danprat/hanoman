@@ -7,6 +7,7 @@ import { Mark } from "./marks";
 import { NotificationBell } from "../notifications/NotificationBell";
 import { LimitBadge } from "../screens/LimitIndicator";
 import { UpdateBadge } from "../screens/UpdateIndicator";
+import { AccountMenu } from "../auth/AccountMenu";
 
 // Setiap key WAJIB punya cabang `section === …` di App.tsx. Bila tidak, `screen` tetap
 // null dan App merender kosong — sidebar ikut hilang, pengguna terjebak sampai reload.
@@ -132,6 +133,9 @@ export function Shell({ active, title, breadcrumb, actions, showSearch = false, 
           {/* Selalu tampil di semua layar; self-fetch via useLimits — 9 call-site <Shell> tak berubah. */}
           <LimitBadge />
           {actions}
+          {/* SPEC-216 · akun + logout, anchor kanan-jauh. Konsumsi AuthContext (default aman:
+              user null → tak merender), jadi 9 call-site <Shell> tetap tanpa prop baru. */}
+          <AccountMenu />
         </header>
 
         {/* Content. `minHeight: 100%` (bukan `height`), supaya layar yang isinya lebih
