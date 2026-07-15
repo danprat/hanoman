@@ -272,12 +272,13 @@ function NewProjectModal({ open, onClose, onCreate }:
 }
 
 function EditProjectModal({ open, project, onClose, onSave }:
-  { open: boolean; project?: ProjectVM; onClose: () => void; onSave: (f: { name: string; desc: string; dir: string }) => void }) {
+  { open: boolean; project?: ProjectVM; onClose: () => void; onSave: (f: { name: string; desc: string; dir: string; gitRemote: string }) => void }) {
   // SPEC-217 · `dir` = override path per-mesin (LocalBinding). Diisi dari binding project;
   // kosong = pakai path default project. Tak disync antar-mesin.
-  const [f, setF] = React.useState({ name: "", desc: "", dir: "" });
+  // SPEC-218 · `gitRemote` = remote resmi (disync) agar device lain bisa clone.
+  const [f, setF] = React.useState({ name: "", desc: "", dir: "", gitRemote: "" });
   React.useEffect(() => {
-    if (open && project) setF({ name: project.name, desc: project.desc, dir: project.binding ?? "" });
+    if (open && project) setF({ name: project.name, desc: project.desc, dir: project.binding ?? "", gitRemote: project.gitRemote ?? "" });
   }, [open, project]);
   const canSubmit = !!f.name.trim();
   return (
@@ -299,6 +300,11 @@ function EditProjectModal({ open, project, onClose, onSave }:
       <Field label="Path (mesin ini)" hint="opsional · disimpan lokal, tak disync · kosongkan = pakai default">
         <Input value={f.dir} onChange={(e: React.ChangeEvent<any>) => setF((s) => ({ ...s, dir: e.target.value }))}
           leftIcon="folder" mono placeholder="/path/ke/repo (mesin ini)" style={{ width: "100%" }} />
+      </Field>
+      {/* SPEC-218 · remote resmi (disync) — device lain bisa clone project ini. */}
+      <Field label="Git remote" hint="opsional · remote resmi agar device lain bisa clone project ini · disync antar-device">
+        <Input value={f.gitRemote} onChange={(e: React.ChangeEvent<any>) => setF((s) => ({ ...s, gitRemote: e.target.value }))}
+          leftIcon="git-branch" mono placeholder="https://github.com/org/repo.git" style={{ width: "100%" }} />
       </Field>
     </Modal>
   );
@@ -383,16 +389,17 @@ export default function App() {
     setSection(t.section);
   }, [sessions]);
 
-  async function updateProject(f: { name: string; desc: string; dir: string }) {
+  async function updateProject(f: { name: string; desc: string; dir: string; gitRemote: string }) {
     if (!proj) return;
     try {
-      await api.updateProject(proj.id, { name: f.name.trim(), desc: f.desc.trim() });
+      // SPEC-218 · gitRemote disync; "" = kosongkan (endpoint clone cek `!gitRemote`, falsy).
+      await api.updateProject(proj.id, { name: f.name.trim(), desc: f.desc.trim(), gitRemote: f.gitRemote.trim() });
       // SPEC-217 · path per-mesin lewat binding (tak disync). Set bila berubah; kosong = hapus override.
       const dir = f.dir.trim();
       if (dir !== (proj.binding ?? "")) {
         if (dir) await api.putBinding(proj.id, dir); else await api.deleteBinding(proj.id);
       }
-      const fresh = await api.getProject(proj.id);   // view segar (binding + coverage terbarui)
+      const fresh = await api.getProject(proj.id);   // view segar (binding + gitRemote + coverage terbarui)
       setProjects((list) => list.map((x) => (x.id === fresh.id ? fresh : x)));
       setModal(null);
       showToast("Project " + fresh.name + " diperbarui", "ok", "box");

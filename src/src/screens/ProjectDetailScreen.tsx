@@ -61,6 +61,8 @@ export function ProjectDetailScreen({ p, onEdit, onGotoDocs, onGotoTerminal, onG
           <Meta label="ID" value={p.id} mono />
           {/* SPEC-217 · path EFEKTIF (binding per-mesin ?? default project). Label menandai override. */}
           <Meta label={p.binding ? "Repo · mesin ini" : "Repo"} value={(p.binding ?? p.repoDir) || "—"} mono />
+          {/* SPEC-218 · remote resmi untuk clone di device lain (— bila belum diset). */}
+          <Meta label="Git remote" value={p.gitRemote || "—"} mono />
           <Meta label="Stack" value={p.stack || "—"} />
           <Meta label="Backlog terbuka" value={`${p.backlog} · ${p.topStage}`} />
         </div>
