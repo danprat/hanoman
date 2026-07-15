@@ -258,6 +258,14 @@ bersandar pada notifikasi yang **dibuat server-side** (`GET /notifications`) —
   `useUpdate().updateAvailable` (store WS grup `update`, pola `useLimits`). Klik → popover: heading per
   reason (local/remote/both), perintah update dalam blok mono + tombol **Salin**, daftar commit baru,
   baris `terpasang <sha> · tersedia <sha>`. Read-only: server tak pull/build/restart (SPEC-214, ADR-0048).
+- **`AccountMenu`** (`auth/AccountMenu.tsx`) — widget topbar `Shell` paling kanan (SPEC-216): tombol
+  avatar (inisial huruf pertama email, lingkaran brass) yang membuka popover berisi email pengguna +
+  tombol **Keluar**. Konsumsi `AuthContext` (`auth/AuthContext.tsx`, provider `AuthProvider` di `App`,
+  pola sama `NotificationBell`) — **nol prop-threading** ke ~9 call-site `<Shell>`; nilai context default
+  aman (`user: null` → tak merender apa-apa) sehingga `<Shell>` tanpa provider (mis. test) tak error.
+  **Keluar** memanggil `POST /auth/logout` lalu balik ke Login (`onLoggedOut`); walau jaringan gagal,
+  state klien tetap dibersihkan (`catch`+`finally`). Tombol logout **sekunder** tetap ada di
+  Settings → Akun.
 - **Sound**: WAV bundled di `src/public/sounds/notify-<kind>.wav`, dibangkitkan
   `scripts/gen-notify-sounds.mjs` (deterministik, in-repo). `playNotifySound(kind)` (`.../sound.ts`)
   memakai **satu** elemen `Audio` yang dipakai ulang; `unlockNotifySound()` meng-unlock elemen itu
