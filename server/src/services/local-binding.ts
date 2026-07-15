@@ -16,6 +16,11 @@ export async function setBinding(projectId: string, repoDir: string): Promise<vo
   });
 }
 
+// SPEC-217 · hapus override per-mesin → resolveRepoDir jatuh kembali ke Project.repoDir.
+export async function clearBinding(projectId: string): Promise<void> {
+  await prisma.localBinding.deleteMany({ where: { projectId } });
+}
+
 // Sumber repoDir efektif untuk spawn/scan/ide: binding lokal dulu, lalu Project.repoDir.
 export async function resolveRepoDir(projectId: string): Promise<string | null> {
   const bound = await getBinding(projectId);
