@@ -18,6 +18,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 
 ## research
 - [market-sizing](research/market-sizing.md) · [competitor-analysis](research/competitor-analysis.md) · [moat](research/moat.md)
+- [audit SPEC-217 — path project optional](research/audit-spec-217-path-project-optional.md) — binding per-client SPEC-213 hanya setengah tersambung (spawn/IDE saja), tanpa UI & tak editable
 
 ## architecture
 - [stack](architecture/stack.md) · [data-model](architecture/data-model.md) · [api-contract](architecture/api-contract.md) · [nfr](architecture/nfr.md)

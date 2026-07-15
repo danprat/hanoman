@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { spawnSync } from "node:child_process";
 import { z } from "zod";
 import { prisma } from "../db";
-import { getBinding, setBinding } from "../services/local-binding";
+import { getBinding, setBinding, clearBinding } from "../services/local-binding";
 
 // SPEC-213 · ADR-0043 · bind/clone project server ke checkout lokal (per-device, LOCAL-only).
 const zBind = z.object({ repoDir: z.string().min(1) });
@@ -22,6 +22,14 @@ export default async function (app: FastifyInstance) {
     if (!(await prisma.project.findUnique({ where: { id } }))) return reply.code(404).send({ error: "not found" });
     await setBinding(id, p.data.repoDir);
     return { repoDir: p.data.repoDir };
+  });
+
+  // SPEC-217 · hapus override per-mesin → path efektif jatuh kembali ke Project.repoDir.
+  app.delete("/projects/:id/binding", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (!(await prisma.project.findUnique({ where: { id } }))) return reply.code(404).send({ error: "not found" });
+    await clearBinding(id);
+    return reply.code(204).send();
   });
 
   app.post("/projects/:id/clone", async (req, reply) => {

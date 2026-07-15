@@ -13,6 +13,7 @@ import { STAGES } from "../services/stage-machine";
 import { artifactsToRemove } from "../services/stage-artifacts";
 import { deleteDoc } from "../services/docs";
 import { listSpecDocs, resolveDir } from "../services/spec-docs";
+import { resolveRepoDir } from "../services/local-binding";
 import { readDocFile } from "../services/scan";
 import { paginate } from "../services/paginate";
 // SPEC-199 · overlay stage-live + write-through + notifikasi kini di liveSpecs (dipakai juga hub
@@ -70,14 +71,15 @@ export default async function (app: FastifyInstance) {
     // project tak dikenal kini 404 jujur, bukan pelanggaran foreign-key.
     const project = await prisma.project.findUnique({ where: { id: b.project } });
     if (!project) return reply.code(404).send({ error: `project "${b.project}" tidak ada` });
-    if (b.branchFrom && await branchUnknown(project.repoDir, b.branchFrom))
+    // SPEC-217 · path efektif (binding lokal per-mesin ?? Project.repoDir) untuk validasi branch & id.
+    const repoDir = await resolveRepoDir(b.project);
+    if (b.branchFrom && await branchUnknown(repoDir, b.branchFrom))
       return reply.code(400).send({ error: `branch "${b.branchFrom}" tidak ada di repo project` });
     const isQa = b.source === "qa";
     const { priority, objective } = deriveSpecFields(b.source, b.payload, b.priority);
     // Author = user yang login (req.user diisi gate auth; dijamin ada di prod, fallback hanya
     // untuk test requireAuth:false). Prefix `QA ·` tetap menandai spec dari alur QA.
     const author = req.user?.email ?? "system";
-    const repoDir = project.repoDir;
     // SPEC-197 · nextSpecId menurunkan id dari max saat ini (TOCTOU): dua POST /specs konkuren bisa
     // menghitung id yang sama → unique violation P2002. Retry hitung ulang id (maks 3x) — bukan 500.
     let spec: Awaited<ReturnType<typeof prisma.spec.create>> | null = null;
@@ -115,8 +117,8 @@ export default async function (app: FastifyInstance) {
     if (editingContent && (spec.stage !== "brainstorming" || spec.baseSha !== null))
       return reply.code(409).send({ error: "backlog item sudah dimulai — tak bisa diedit" });
     if (branchFrom) {
-      const project = await prisma.project.findUnique({ where: { id: spec.projectId } });
-      if (await branchUnknown(project?.repoDir ?? null, branchFrom))
+      // SPEC-217 · validasi branch di path efektif (binding lokal per-mesin ?? Project.repoDir).
+      if (await branchUnknown(await resolveRepoDir(spec.projectId), branchFrom))
         return reply.code(400).send({ error: `branch "${branchFrom}" tidak ada di repo project` });
     }
     if (stage !== undefined) {
@@ -170,8 +172,10 @@ export default async function (app: FastifyInstance) {
     const spec = await prisma.spec.findUnique({ where: { id }, include: { project: true } });
     if (!spec) return reply.code(404).send({ error: "not found" });
     if (spec.stage !== "done") return reply.code(409).send({ error: "hanya backlog item yang sudah done bisa di-rebase/merge" });
-    if (!spec.project.repoDir) return reply.code(409).send({ error: "project belum punya repoDir" });
-    const r = await integrate(spec.project.repoDir, spec.id, parsed.data.op, parsed.data.target);
+    // SPEC-217 · path efektif (binding lokal per-mesin ?? Project.repoDir).
+    const repoDir = await resolveRepoDir(spec.projectId);
+    if (!repoDir) return reply.code(409).send({ error: "project belum punya repoDir" });
+    const r = await integrate(repoDir, spec.id, parsed.data.op, parsed.data.target);
     if (r.status === "error") return reply.code(r.code).send({ error: r.error });
     if (r.status === "clean") return { status: "clean", detail: r.detail };
     // conflict → sesi claude interaktif di worktree yang tertinggal (never touch main working tree).
@@ -212,22 +216,26 @@ export default async function (app: FastifyInstance) {
     const { id } = req.params as { id: string };
     const spec = await specWithProject(id);
     if (!spec) return reply.code(404).send({ error: "not found" });
-    if (!spec.project.repoDir) return reply.code(409).send({ error: "project belum punya repoDir" });
-    const r = await resolveReview(spec.project.repoDir, spec);
+    // SPEC-217 · path efektif (binding lokal per-mesin ?? Project.repoDir).
+    const repoDir = await resolveRepoDir(spec.projectId);
+    if (!repoDir) return reply.code(409).send({ error: "project belum punya repoDir" });
+    const r = await resolveReview(repoDir, spec);
     if (!r) return reply.code(409).send({ error: "belum ada worktree atau commit untuk di-review — jalankan/lanjutkan sesi backlog dulu" });
-    return r.wt ? specReview(spec.project.repoDir, id, spec.branchFrom)
-      : specReviewRange(spec.project.repoDir, r.base, r.head);
+    return r.wt ? specReview(repoDir, id, spec.branchFrom)
+      : specReviewRange(repoDir, r.base, r.head);
   });
   app.get("/specs/:id/review/*", async (req, reply) => {
     const { id } = req.params as { id: string };
     const path = (req.params as Record<string, string>)["*"] ?? "";
     const spec = await specWithProject(id);
     if (!spec) return reply.code(404).send({ error: "not found" });
-    if (!spec.project.repoDir) return reply.code(409).send({ error: "project belum punya repoDir" });
-    const r = await resolveReview(spec.project.repoDir, spec);
+    // SPEC-217 · path efektif (binding lokal per-mesin ?? Project.repoDir).
+    const repoDir = await resolveRepoDir(spec.projectId);
+    if (!repoDir) return reply.code(409).send({ error: "project belum punya repoDir" });
+    const r = await resolveReview(repoDir, spec);
     if (!r) return reply.code(409).send({ error: "belum ada worktree atau commit" });
-    const rf = r.wt ? await reviewFile(spec.project.repoDir, id, spec.branchFrom, path)
-      : await reviewFileRange(spec.project.repoDir, r.base, r.head, path);
+    const rf = r.wt ? await reviewFile(repoDir, id, spec.branchFrom, path)
+      : await reviewFileRange(repoDir, r.base, r.head, path);
     return rf === null ? reply.code(404).send({ error: "not found" }) : rf;
   });
 }

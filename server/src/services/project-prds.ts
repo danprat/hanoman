@@ -1,6 +1,7 @@
 import type { PrdDoc } from "@hanoman/shared";
 import { prisma } from "../db";
 import { listRepoDocs, readDocFile } from "./scan";
+import { resolveRepoDir } from "./local-binding";
 import { listSessions } from "./pty";
 
 // SPEC-210 · PRD adalah dokumen docs/prd/<slug>.md (bukan entitas DB, ADR-0011/0041). List/baca
@@ -25,10 +26,8 @@ async function resolveDir(
 ): Promise<{ dir: string | null; live: boolean }> {
   const live = sessions.find((s) => s.projectId === projectId && s.flow === "prd" && !s.exited && s.cwd);
   if (live) return { dir: live.cwd, live: true };
-  const project = await prisma.project.findUnique({
-    where: { id: projectId }, select: { repoDir: true },
-  });
-  return { dir: project?.repoDir ?? null, live: false };
+  // SPEC-217 · path efektif (binding lokal per-mesin ?? Project.repoDir).
+  return { dir: await resolveRepoDir(projectId), live: false };
 }
 
 export async function listPrds(

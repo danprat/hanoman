@@ -30,6 +30,7 @@ export const zUpdateProject = z.object({
   name: z.string().min(1).optional(),
   desc: z.string().optional(),
   gitRemote: z.string().optional(),   // SPEC-213 · set git remote resmi project
+  repoDir: z.string().nullable().optional(),   // SPEC-217 · path default/server editable (null = kosongkan)
 });
 export const zCreateSpec = z.object({
   project: z.string(), source: zSpecSource, title: z.string().min(1),
@@ -69,6 +70,7 @@ export const zSessionSummary = z.object({
   flow: z.string().nullable(),
 });
 export const zProjectView = zProject.extend({
+  binding: z.string().nullable(),   // SPEC-217 · override repoDir per-mesin (null = pakai Project.repoDir)
   backlog: z.number().int(), topStage: z.string(), session: zSessionSummary,
   activity: z.string(), commit: z.string() });
 export type ProjectView = z.infer<typeof zProjectView>;

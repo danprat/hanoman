@@ -57,8 +57,16 @@ export const api = {
   createProject: (b: unknown) => j<ProjectView>(paths.projects, { method: "POST", ...body(b) }),
   deleteProject: (id: string) => j<void>(paths.project(id), { method: "DELETE" }),
   // SPEC-146 · hanya label. `id` tak pernah berubah, jadi respons selalu punya `id` yang sama.
-  updateProject: (id: string, b: { name?: string; desc?: string }) =>
+  // SPEC-217 · `repoDir` = path default/server editable (null = kosongkan).
+  updateProject: (id: string, b: { name?: string; desc?: string; gitRemote?: string; repoDir?: string | null }) =>
     j<ProjectView>(paths.project(id), { method: "PATCH", ...body(b) }),
+  // SPEC-217 · path per-mesin (LocalBinding, tak disync). put/delete = set/kosongkan override.
+  getBinding: (id: string) => j<{ repoDir: string | null }>(paths.binding(id)),
+  putBinding: (id: string, repoDir: string) =>
+    j<{ repoDir: string }>(paths.binding(id), { method: "PUT", ...body({ repoDir }) }),
+  deleteBinding: (id: string) => j<void>(paths.binding(id), { method: "DELETE" }),
+  cloneProject: (id: string, dir: string) =>
+    j<{ repoDir: string }>(paths.clone(id), { method: "POST", ...body({ dir }) }),
   listSpecs: (params: SpecListParams = {}) => j<Paginated<Spec>>(paths.specs + qs(params)),
   createSpec: (b: unknown) => j<Spec>(paths.specs, { method: "POST", ...body(b) }),
   deleteSpec: (id: string) => j<void>(paths.spec(id), { method: "DELETE" }),

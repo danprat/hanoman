@@ -9,7 +9,11 @@ interaktif (ADR-0024; migrasi `drop_run_trigger_github`). Enum stage/source/prio
 - `id` (slug) — **kekal**. Kunci asing `Spec` (`onDelete: Cascade`); tidak ada endpoint rename.
 - `name`, `desc` — label tampilan; dapat diubah lewat `PATCH /projects/:id` (SPEC-146) dan boleh
   menyimpang dari `id`. Tak ada jalur git/worktree/filesystem yang membacanya.
-- `kind` ("from-scratch" | "existing"), `repoDir?` (absolut; sumber worktree & docs), `stack` (default "")
+- `kind` ("from-scratch" | "existing"), `repoDir?` (absolut, OPSIONAL; path default/server, editable via
+  `PATCH /projects/:id` — SPEC-217; **tak disync**), `stack` (default "")
+- **`LocalBinding`** (`projectId → repoDir`, per-mesin, **LOCAL-ONLY tak disync**): override path. `resolveRepoDir`
+  = `binding ?? Project.repoDir` (null-safe), dipakai SELURUH jalur baca (spawn/IDE/coverage/branches/specs/docs).
+  Editable via `PUT /projects/:id/binding`, dikosongkan via `DELETE` (SPEC-213/217).
 - `createdAt`
 - `docStatus` ("ok" | "drift" | "broken") + `coverage` (0–100) **bukan kolom** — diturunkan dari disk tiap `toProjectView` (ADR-0018).
 
@@ -71,11 +75,12 @@ ada di database.
 - `hardened` (default false) — derived: semua check kritis pass pada audit terakhir
 
 ## Docs (Source of Truth) — TIDAK dipersist
-Docs bukan entitas DB. Tabel `DocFile` sudah di-drop (ADR-0011). Docs dibaca **live dari
-`Project.repoDir`**: korpus = semua `**/*.md` via `git ls-files`, dikelompokkan per direktori,
-`linked` = reachable dari root index (`internal/docs/README.md`) lewat graf link Markdown.
+Docs bukan entitas DB. Tabel `DocFile` sudah di-drop (ADR-0011). Docs dibaca **live dari path
+efektif** (`resolveRepoDir` = binding per-mesin ?? `Project.repoDir` — SPEC-217): korpus = semua
+`**/*.md` via `git ls-files`, dikelompokkan per direktori, `linked` = reachable dari root index
+(`internal/docs/README.md`) lewat graf link Markdown.
 - coverage = % direktori (berskor, di bawah `docsDir`) yang seluruh Markdown-nya reachable dari index.
-  **Tidak dipersist**: `toProjectView` menghitungnya dari `Project.repoDir` setiap kali project dibaca (ADR-0018).
+  **Tidak dipersist**: `toProjectView` menghitungnya dari path efektif setiap kali project dibaca (ADR-0018).
 
 ## PRD (SPEC-210 · [ADR-0041](../adr/0041-prd-sebagai-dokumen-flow-project-level.md))
 PRD **bukan entitas DB** — ia dokumen `docs/prd/<slug>.md` di repo project (konsisten ADR-0011).

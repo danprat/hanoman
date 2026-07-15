@@ -3,6 +3,9 @@ export const paths = {
   projects: `${API}/projects`,
   project: (id: string) => `${API}/projects/${id}`,
   branches: (id: string) => `${API}/projects/${id}/branches`,
+  // SPEC-217 · path per-mesin (LocalBinding, tak disync) + clone dari gitRemote
+  binding: (id: string) => `${API}/projects/${id}/binding`,
+  clone: (id: string) => `${API}/projects/${id}/clone`,
   specs: `${API}/specs`,
   spec: (id: string) => `${API}/specs/${id}`,
   specDocs: (id: string) => `${API}/specs/${id}/docs`,

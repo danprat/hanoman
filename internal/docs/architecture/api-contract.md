@@ -27,15 +27,25 @@ POST /auth/change-password { currentPassword, newPassword }  # 200 + cookie baru
 ```
 GET  /projects?q=&page=&limit=      # -> { items: ProjectView[], total, page, pageSize } (SPEC-198)
 #   q menyaring name+desc+stack; tanpa page/limit → seluruh item. coverage/docStatus tetap live-scan tiap panggil.
-POST /projects            { name, kind, repoDir?, desc }
-GET  /projects/:id
-PATCH /projects/:id       { name?, desc? }   # 200 view; 400 name kosong; 404 tak ada.
+POST /projects            { name, kind, repoDir?, desc, gitRemote? }   # repoDir OPSIONAL (SPEC-217)
+GET  /projects/:id        # view memuat `repoDir` (default project) + `binding` (override per-mesin | null)
+PATCH /projects/:id       { name?, desc?, gitRemote?, repoDir? }   # 200 view; 400 name kosong; 404 tak ada.
 #   `id` tak pernah berubah (kunci asing spec) — tak ada endpoint rename.
-GET  /projects/:id/branches  -> { branches: string[], remotes: string[] }   # branches=refs/heads, remotes=refs/remotes/origin (tanpa prefix origin/, tanpa HEAD); [] bila tanpa repo. 404 project tak ada. remotes memasok target rebase/merge (SPEC-175).
+#   SPEC-217 · `repoDir` (path default/server) kini editable; `null` mengosongkan.
+GET  /projects/:id/branches  -> { branches: string[], remotes: string[] }   # dari path EFEKTIF (resolveRepoDir). [] bila tanpa repo. 404 project tak ada. remotes memasok target rebase/merge (SPEC-175).
 DELETE /projects/:id      # 409 bila ada sesi tmux aktif milik project; cascade ke spec.
 #   Worktree on-disk di <repoDir>/.worktrees/ tidak ikut dibersihkan.
+
+# SPEC-213/217 · path per-mesin (LocalBinding, LOCAL-ONLY — TAK PERNAH disync). Menang atas Project.repoDir.
+GET    /projects/:id/binding  -> { repoDir: string | null }   # nilai override mesin ini
+PUT    /projects/:id/binding  { repoDir }   # 200 { repoDir }; set override; 400 kosong; 404 project.
+DELETE /projects/:id/binding  # 204 · kosongkan override → path efektif jatuh ke Project.repoDir (SPEC-217). 404 project.
+POST   /projects/:id/clone    { dir }   # 201 { repoDir } · git clone gitRemote→dir lalu set binding; 409 tanpa gitRemote / clone gagal.
 ```
 
+> **Path efektif** project = `resolveRepoDir(projectId)` = **binding per-mesin ?? `Project.repoDir`** (null-safe).
+> Dipakai SELURUH jalur baca — spawn/terminal, IDE, coverage/docStatus, branches, buat/review/integrate spec,
+> docs, PRD, spec-docs, stage-artifacts (SPEC-217). `Project.repoDir` & `LocalBinding` sama-sama **tak disync**.
 > Coverage/docStatus di-scan **live** tiap `GET /projects` (ADR-0018) — tak ada cache, tak ada `POST /scan`.
 
 ## Backlog / specs

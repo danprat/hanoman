@@ -16,7 +16,14 @@ export async function setBinding(projectId: string, repoDir: string): Promise<vo
   });
 }
 
-// Sumber repoDir efektif untuk spawn/scan/ide: binding lokal dulu, lalu Project.repoDir.
+// SPEC-217 · hapus override per-mesin → resolveRepoDir jatuh kembali ke Project.repoDir.
+export async function clearBinding(projectId: string): Promise<void> {
+  await prisma.localBinding.deleteMany({ where: { projectId } });
+}
+
+// Sumber repoDir EFEKTIF untuk SEMUA jalur baca (spawn/terminal, IDE, coverage, branches, buat/
+// review/integrate spec, docs, PRD, spec-docs, stage-artifacts — SPEC-217): binding lokal dulu,
+// lalu Project.repoDir. Null-safe: pemanggil menangani null (4xx bersih / daftar kosong).
 export async function resolveRepoDir(projectId: string): Promise<string | null> {
   const bound = await getBinding(projectId);
   if (bound) return bound;

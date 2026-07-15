@@ -1,6 +1,7 @@
 import { prisma } from "../db";
 import { STAGES } from "./stage-machine";
 import { scanRepoDocs } from "./scan";
+import { getBinding, resolveRepoDir } from "./local-binding";
 import { docStatusFor } from "./coverage";
 import { sessionPhases, type SessionInfo } from "./pty";
 import type { Project } from "@prisma/client";
@@ -27,10 +28,13 @@ function sessionOf(projectId: string, sessions: SessionInfo[]) {
 // (baris sudah ada di GET /projects) dan re-scan tmux per project.
 export async function toProjectView(p: Project, sessions: SessionInfo[]): Promise<ProjectView> {
   const specs = await prisma.spec.findMany({ where: { projectId: p.id } });
-  // Coverage adalah nilai turunan, bukan state tersimpan (ADR-0018). `p` sudah di-fetch,
-  // jadi tak ada query tambahan. repoDir null / bukan git repo -> 0 -> "broken", persis
-  // nilai yang dulu di-hardcode saat create.
-  const { coverage } = await scanRepoDocs(p.repoDir);
+  // Coverage adalah nilai turunan, bukan state tersimpan (ADR-0018). SPEC-217 · pindai path
+  // EFEKTIF (binding lokal per-mesin ?? Project.repoDir), bukan repoDir mentah — agar dashboard
+  // menghormati checkout lokal. null / bukan git repo -> 0 -> "broken".
+  const { coverage } = await scanRepoDocs(await resolveRepoDir(p.id));
+  // SPEC-217 · override repoDir per-mesin (null = pakai Project.repoDir) — biar UI tahu apakah
+  // path efektif berasal dari checkout lokal atau default project.
+  const binding = await getBinding(p.id);
   const open = specs.filter((s) => s.stage !== "done");
   const { session, commit } = sessionOf(p.id, sessions);
   const topStage = open.length
@@ -38,6 +42,7 @@ export async function toProjectView(p: Project, sessions: SessionInfo[]): Promis
     : "spec";
   return {
     id: p.id, name: p.name, desc: p.desc, kind: p.kind as any, repoDir: p.repoDir,
+    binding,
     gitRemote: p.gitRemote ?? null,
     stack: p.stack, docStatus: docStatusFor(coverage), coverage, createdAt: p.createdAt.toISOString(),
     backlog: open.length, topStage,

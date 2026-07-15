@@ -1,9 +1,9 @@
-import { prisma } from "../db";
+import { resolveRepoDir } from "./local-binding";
 import { scanRepoDocs, readDocFile, writeDocFile, deleteDocFile } from "./scan";
 
+// SPEC-217 · path efektif = binding lokal per-mesin ?? Project.repoDir (bukan repoDir mentah).
 async function repoDirOf(projectId: string): Promise<string | null> {
-  const p = await prisma.project.findUnique({ where: { id: projectId } });
-  return p?.repoDir ?? null;
+  return resolveRepoDir(projectId);
 }
 
 export async function docIndex(projectId: string) {
