@@ -1,6 +1,7 @@
 import { prisma } from "../db";
 import { STAGES } from "./stage-machine";
 import { scanRepoDocs } from "./scan";
+import { resolveRepoDir } from "./local-binding";
 import { docStatusFor } from "./coverage";
 import { sessionPhases, type SessionInfo } from "./pty";
 import type { Project } from "@prisma/client";
@@ -27,10 +28,10 @@ function sessionOf(projectId: string, sessions: SessionInfo[]) {
 // (baris sudah ada di GET /projects) dan re-scan tmux per project.
 export async function toProjectView(p: Project, sessions: SessionInfo[]): Promise<ProjectView> {
   const specs = await prisma.spec.findMany({ where: { projectId: p.id } });
-  // Coverage adalah nilai turunan, bukan state tersimpan (ADR-0018). `p` sudah di-fetch,
-  // jadi tak ada query tambahan. repoDir null / bukan git repo -> 0 -> "broken", persis
-  // nilai yang dulu di-hardcode saat create.
-  const { coverage } = await scanRepoDocs(p.repoDir);
+  // Coverage adalah nilai turunan, bukan state tersimpan (ADR-0018). SPEC-217 · pindai path
+  // EFEKTIF (binding lokal per-mesin ?? Project.repoDir), bukan repoDir mentah — agar dashboard
+  // menghormati checkout lokal. null / bukan git repo -> 0 -> "broken".
+  const { coverage } = await scanRepoDocs(await resolveRepoDir(p.id));
   const open = specs.filter((s) => s.stage !== "done");
   const { session, commit } = sessionOf(p.id, sessions);
   const topStage = open.length

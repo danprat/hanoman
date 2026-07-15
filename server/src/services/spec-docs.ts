@@ -1,5 +1,6 @@
 import { prisma } from "../db";
 import { listRepoDocs } from "./scan";
+import { resolveRepoDir } from "./local-binding";
 import { listSessions } from "./pty";
 
 export type DocKind = "audit" | "spec" | "plan" | "objective" | "brainstorm" | "other";
@@ -28,10 +29,9 @@ export async function resolveDir(
 ): Promise<string | null> {
   const live = sessions.find((s) => s.specId === specId && !s.exited && s.cwd);
   if (live) return live.cwd;
-  const spec = await prisma.spec.findUnique({
-    where: { id: specId }, select: { project: { select: { repoDir: true } } },
-  });
-  return spec?.project.repoDir ?? null;
+  // SPEC-217 · path efektif project (binding lokal per-mesin ?? Project.repoDir).
+  const spec = await prisma.spec.findUnique({ where: { id: specId }, select: { projectId: true } });
+  return spec ? resolveRepoDir(spec.projectId) : null;
 }
 
 export async function listSpecDocs(

@@ -1,6 +1,6 @@
 import type { Stage } from "@hanoman/shared";
-import { prisma } from "../db";
 import { listRepoDocs } from "./scan";
+import { resolveRepoDir } from "./local-binding";
 import { STAGES } from "./stage-machine";
 
 // Konvensi penamaan superpowers docs by spec-id adalah satu-satunya pemetaan fase→berkas
@@ -23,10 +23,11 @@ export async function artifactsToRemove(
     .map((s) => ARTIFACT_DIR[s])
     .filter((d): d is string => !!d);
   if (!dirs.length) return [];
-  const project = await prisma.project.findUnique({ where: { id: projectId }, select: { repoDir: true } });
-  if (!project?.repoDir) return [];
+  // SPEC-217 · path efektif (binding lokal per-mesin ?? Project.repoDir).
+  const repoDir = await resolveRepoDir(projectId);
+  if (!repoDir) return [];
   const id = specId.toLowerCase();
   const re = new RegExp(`(^|[^a-z0-9])${id}([^0-9]|$)`);
-  const files = await listRepoDocs(project.repoDir);
+  const files = await listRepoDocs(repoDir);
   return files.filter((f) => dirs.some((d) => f.startsWith(d)) && re.test(f.toLowerCase()));
 }
