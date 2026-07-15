@@ -1,0 +1,30 @@
+import { describe, it, expect } from "vitest";
+import { CONFIG_REGISTRY, configEntry, parseConfigValue, maskSecret } from "@hanoman/shared";
+
+describe("config-registry", () => {
+  it("key unik", () => {
+    const keys = CONFIG_REGISTRY.map((e) => e.key);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+  it("parse int honor min", () => {
+    const e = configEntry("SYNC_TICK_MS")!;
+    expect(parseConfigValue(e, "500")).toEqual({ ok: false, error: "min 1000" });
+    expect(parseConfigValue(e, "2000")).toEqual({ ok: true, value: "2000" });
+    expect(parseConfigValue(e, "abc")).toEqual({ ok: false, error: "harus bilangan bulat" });
+  });
+  it("parse url http(s)", () => {
+    const e = configEntry("SYNC_SERVER_URL")!;
+    expect(parseConfigValue(e, "https://h.co").ok).toBe(true);
+    expect(parseConfigValue(e, "ftp://h.co").ok).toBe(false);
+    expect(parseConfigValue(e, "bukan url").ok).toBe(false);
+  });
+  it("parse bool normalisasi", () => {
+    const e = configEntry("HANOMAN_UPDATE_FETCH")!;
+    expect(parseConfigValue(e, "true")).toEqual({ ok: true, value: "1" });
+    expect(parseConfigValue(e, "0")).toEqual({ ok: true, value: "0" });
+  });
+  it("mask last-4", () => {
+    expect(maskSecret("abcdefgh")).toBe("••••efgh");
+    expect(maskSecret("ab")).toBe("••••");
+  });
+});
