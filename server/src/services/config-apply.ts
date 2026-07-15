@@ -1,0 +1,33 @@
+import { configEntry, CONFIG_REGISTRY } from "@hanoman/shared";
+import { rawDbValue } from "../config";
+import { applySyncConfig } from "./sync-client";
+
+// SPEC-215 · ADR-0049 · orkestrasi side-effect saat config berubah / boot.
+const SYNC_KEYS = new Set(["SYNC_SERVER_URL", "SYNC_DEVICE_TOKEN", "SYNC_TICK_MS"]);
+
+// Snapshot nilai env ASLI untuk kunci warisan, diambil sebelum mirror pertama. Tanpa ini,
+// effective value membaca process.env yang sudah kita timpa → clear tak pernah bisa memulihkan.
+const ORIGINAL_ENV = new Map<string, string | undefined>();
+function ensureSnapshot(key: string): void {
+  if (!ORIGINAL_ENV.has(key)) ORIGINAL_ENV.set(key, process.env[key]);
+}
+
+// Mirror override DB → process.env agar proses claude baru mewarisinya; tanpa override DB,
+// pulihkan nilai env asli (atau hapus bila memang tak pernah ada).
+function mirrorInheritEnv(key: string): void {
+  ensureSnapshot(key);
+  const v = rawDbValue(key) ?? ORIGINAL_ENV.get(key);
+  if (v === undefined) delete process.env[key]; else process.env[key] = v;
+}
+
+// Dispatch side-effect untuk satu key yang berubah (set/clear).
+export async function applyConfigSideEffect(key: string): Promise<void> {
+  if (SYNC_KEYS.has(key)) { await applySyncConfig(); return; }
+  if (configEntry(key)?.inheritEnv) mirrorInheritEnv(key);
+}
+
+// Dipanggil saat boot server: mirror semua kredensial warisan + init sync client.
+export async function applyConfigOnBoot(): Promise<void> {
+  for (const e of CONFIG_REGISTRY) if (e.inheritEnv) mirrorInheritEnv(e.key);
+  await applySyncConfig();
+}

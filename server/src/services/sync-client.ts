@@ -1,6 +1,7 @@
 import { prisma } from "../db";
 import { pull as _pull, snapshot, upsertLocal, isEntity } from "./sync";
 import { listOutbox, clearOutbox } from "./outbox";
+import { effectiveStr, effectiveInt } from "../config";
 
 // SPEC-213 · ADR-0043 · sisi CLIENT: instance lokal menyinkron (server-to-server) ke hub.
 // Disiplin pull-before-push (AC-18): tarik dulu (server-authoritative), lalu push antre lokal.
@@ -75,11 +76,18 @@ export function fetchTransport(base: string, token: string): Transport {
 
 let timer: NodeJS.Timeout | undefined;
 let ws: import("ws").WebSocket | undefined;
+let started = false;
+
+// SPEC-215 · status sync client aktif (indikator UI di GET /api/config).
+export function syncStatus(): { running: boolean; connected: boolean } {
+  return { running: started, connected: ws?.readyState === 1 /* OPEN */ };
+}
 
 // Jalankan client sync: syncOnce awal + WS siar (apply + drain saat frame) + reconnect backoff +
 // tick fallback berkala (drain outbox yang lahir saat offline). Dipanggil dari server.ts bila
 // SYNC_SERVER_URL + SYNC_DEVICE_TOKEN di-set.
-export async function startSyncClient(base: string, token: string): Promise<void> {
+export async function startSyncClient(base: string, token: string, tickMs?: number): Promise<void> {
+  started = true;
   const transport = fetchTransport(base, token);
   const tick = async () => { try { await syncOnce(transport); } catch { /* offline — coba lagi nanti */ } };
 
@@ -105,13 +113,22 @@ export async function startSyncClient(base: string, token: string): Promise<void
   await tick();               // drain awal + pull awal
   void connectWs();           // realtime
   // Fallback tick: drain outbox yang lahir saat WS putus. Prod 15s; smoke/test bisa turunkan.
-  const tickMs = Number(process.env.SYNC_TICK_MS) || 15_000;
-  timer = setInterval(() => { void tick(); }, tickMs);
+  const ms = tickMs && tickMs > 0 ? tickMs : 15_000;
+  timer = setInterval(() => { void tick(); }, ms);
   timer.unref?.();
 }
 
 export function stopSyncClient(): void {
+  started = false;
   if (timer) { clearInterval(timer); timer = undefined; }
   try { ws?.close(); } catch { /* noop */ }
   ws = undefined;
+}
+
+// SPEC-215 · re-init live saat config sync berubah. Kosong → hanya stop (jadi HUB murni).
+export async function applySyncConfig(): Promise<void> {
+  stopSyncClient();
+  const base = effectiveStr("SYNC_SERVER_URL");
+  const token = effectiveStr("SYNC_DEVICE_TOKEN");
+  if (base && token) await startSyncClient(base, token, effectiveInt("SYNC_TICK_MS"));
 }
