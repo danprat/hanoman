@@ -1,6 +1,9 @@
 # ADR-0043 — Sync server↔client = server-to-server, peran ditentukan konfigurasi
 
 Status: diterima · SPEC-213 · 2026-07-14
+> Catatan: keputusan "base URL & device token = env-only sisi-server" (OQ-4) **sebagian
+> digantikan** oleh ADR-0049 (SPEC-215) — knob sync kini dapat diatur runtime via Settings
+> (override DB → env → default). Env tetap fallback bootstrap; peran hub/client tak berubah.
 
 ## Konteks
 hanoman monolit satu-host. PRD "Server & Client Side" ingin satu instance jadi hub data

@@ -70,6 +70,10 @@ Peran ditentukan env, bukan binari berbeda:
 | `SYNC_DEVICE_TOKEN=<token>` | Device token (Bearer) untuk auth sync/WS. Wajib bila `SYNC_SERVER_URL` diset. |
 | `SYNC_TICK_MS` | Opsional; interval drain fallback outbox (default 15000). |
 
+> **SPEC-215 (ADR-0049):** ketiga knob di atas kini juga dapat diatur runtime dari dashboard →
+> **Settings → Konfigurasi** (override DB menang atas env; menyimpan device token dari client
+> menyambungkan sync **live** tanpa restart). Env tetap berlaku sebagai fallback bootstrap.
+
 Langkah pairing device client:
 
 1. Di **hub**, login lalu terbitkan token: `POST /api/device-tokens {"name":"laptop-dev"}` →
