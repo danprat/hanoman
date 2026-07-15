@@ -31,7 +31,7 @@
 **Interfaces:**
 - Produces: tabel `RuntimeConfig(key PK, value, updatedAt)`; klien Prisma `prisma.runtimeConfig`.
 
-- [ ] **Step 1: Tulis ADR-0049**
+- [x] **Step 1: Tulis ADR-0049**
 
 Buat `internal/docs/adr/0049-config-runtime-store-registry.md`:
 
@@ -60,7 +60,7 @@ Pembacaan `process.env.*` non-bootstrap yang tersebar dipindah ke `cfg.*`. Kunci
 `RuntimeConfig` per-mesin, tak ikut sync (konsisten AC-30).
 ```
 
-- [ ] **Step 2: Tambah model ke schema.prisma**
+- [x] **Step 2: Tambah model ke schema.prisma**
 
 Di `server/prisma/schema.prisma`, tepat setelah blok `model SyncState { … }`:
 
@@ -73,7 +73,7 @@ model RuntimeConfig {
 }
 ```
 
-- [ ] **Step 3: Tulis migration SQL tangan**
+- [x] **Step 3: Tulis migration SQL tangan**
 
 Buat `server/prisma/migrations/20260715120000_spec215_runtime_config/migration.sql`:
 
@@ -87,7 +87,7 @@ CREATE TABLE "RuntimeConfig" (
 );
 ```
 
-- [ ] **Step 4: Apply migration ke DB dev + test, lalu generate**
+- [x] **Step 4: Apply migration ke DB dev + test, lalu generate**
 
 Run (dev DB `hanoman`):
 ```bash
@@ -109,7 +109,7 @@ docker exec hanoman-db-1 psql -U hanoman -d hanoman_test -c '\d "RuntimeConfig"'
 ```
 Expected: kolom `key/value/updatedAt`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/docs/adr/0049-config-runtime-store-registry.md server/prisma/schema.prisma server/prisma/migrations/20260715120000_spec215_runtime_config
@@ -136,7 +136,7 @@ git commit -m "feat(db): RuntimeConfig store + ADR-0049 (SPEC-215)"
   - `parseConfigValue(entry, raw): { ok: true; value: string } | { ok: false; error: string }`
   - `maskSecret(v: string): string`
 
-- [ ] **Step 1: Tulis registry + helper**
+- [x] **Step 1: Tulis registry + helper**
 
 Buat `shared/src/config-registry.ts`:
 
@@ -222,7 +222,7 @@ export function parseConfigValue(
 }
 ```
 
-- [ ] **Step 2: Re-export dari index**
+- [x] **Step 2: Re-export dari index**
 
 Di `shared/src/index.ts`, tambahkan baris (ikuti gaya re-export yang ada):
 
@@ -230,7 +230,7 @@ Di `shared/src/index.ts`, tambahkan baris (ikuti gaya re-export yang ada):
 export * from "./config-registry";
 ```
 
-- [ ] **Step 3: Tulis test integritas registry**
+- [x] **Step 3: Tulis test integritas registry**
 
 Buat `server/test/config-registry.test.ts`:
 
@@ -267,12 +267,12 @@ describe("config-registry", () => {
 });
 ```
 
-- [ ] **Step 4: Jalankan test**
+- [x] **Step 4: Jalankan test**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- config-registry`
 Expected: PASS semua.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add shared/src/config-registry.ts shared/src/index.ts server/test/config-registry.test.ts
@@ -299,7 +299,7 @@ git commit -m "feat(shared): registry config runtime + validasi (SPEC-215)"
   - `setConfig(key: string, value: string): Promise<void>` (tulis DB + cache)
   - `clearConfig(key: string): Promise<void>` (hapus DB + cache)
 
-- [ ] **Step 1: Tulis test resolver (gagal dulu)**
+- [x] **Step 1: Tulis test resolver (gagal dulu)**
 
 Buat `server/test/config-resolver.test.ts`:
 
@@ -344,12 +344,12 @@ describe("config resolver (DB → env → default)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — verifikasi gagal**
+- [x] **Step 2: Jalankan — verifikasi gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- config-resolver`
 Expected: FAIL (module `../src/config` belum ada).
 
-- [ ] **Step 3: Implement resolver**
+- [x] **Step 3: Implement resolver**
 
 Buat `server/src/config.ts`:
 
@@ -395,12 +395,12 @@ export async function clearConfig(key: string): Promise<void> {
 }
 ```
 
-- [ ] **Step 4: Jalankan — verifikasi lulus**
+- [x] **Step 4: Jalankan — verifikasi lulus**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- config-resolver`
 Expected: PASS semua.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/config.ts server/test/config-resolver.test.ts
@@ -425,7 +425,7 @@ git commit -m "feat(server): resolver config DB->env->default (SPEC-215)"
   - `applyConfigSideEffect(key: string): Promise<void>` (config-apply.ts)
   - `applyConfigOnBoot(): Promise<void>` (config-apply.ts)
 
-- [ ] **Step 1: Tambah tickMs arg + status + applySyncConfig ke sync-client.ts**
+- [x] **Step 1: Tambah tickMs arg + status + applySyncConfig ke sync-client.ts**
 
 Di `server/src/services/sync-client.ts`, ganti deklarasi state & `startSyncClient`/`stopSyncClient`, dan tambah fungsi baru. Ubah baris `let timer…`/`let ws…` menjadi:
 
@@ -483,7 +483,7 @@ export async function applySyncConfig(): Promise<void> {
 }
 ```
 
-- [ ] **Step 2: Buat config-apply.ts**
+- [x] **Step 2: Buat config-apply.ts**
 
 Buat `server/src/services/config-apply.ts`:
 
@@ -514,7 +514,7 @@ export async function applyConfigOnBoot(): Promise<void> {
 }
 ```
 
-- [ ] **Step 3: Ubah server.ts boot pakai resolver**
+- [x] **Step 3: Ubah server.ts boot pakai resolver**
 
 Di `server/src/server.ts`: hapus baris `process.env.HANOMAN_UPDATE_FETCH ??= "1";` (default sudah dari registry) **JANGAN dulu** — biarkan sampai Task 7 mengganti pembacanya. Ganti blok boot sync (baris 35-42) menjadi:
 
@@ -527,7 +527,7 @@ Di `server/src/server.ts`: hapus baris `process.env.HANOMAN_UPDATE_FETCH ??= "1"
 ```
 Hapus `import { startSyncClient } from "./services/sync-client";` bila tak lagi dipakai di server.ts (applyConfigOnBoot yang memanggilnya). Verifikasi tak ada referensi `startSyncClient` tersisa di server.ts.
 
-- [ ] **Step 4: Tulis test config-apply (sync re-init)**
+- [x] **Step 4: Tulis test config-apply (sync re-init)**
 
 Buat `server/test/config-apply.test.ts`:
 
@@ -563,14 +563,14 @@ describe("config side-effects", () => {
 });
 ```
 
-- [ ] **Step 5: Jalankan test + typecheck**
+- [x] **Step 5: Jalankan test + typecheck**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- config-apply`
 Expected: PASS.
 Run: `env -u NODE_ENV pnpm --filter ./server exec tsc --noEmit`
 Expected: 0 error (khususnya server.ts tak lagi referensi `startSyncClient` yang di-drop).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/services/sync-client.ts server/src/services/config-apply.ts server/src/server.ts server/test/config-apply.test.ts
@@ -594,7 +594,7 @@ git commit -m "feat(server): sync re-init live + boot pakai resolver config (SPE
   - `type ConfigEntryView = { key; group; label; help?; kind; apply; category; editable; source: "db"|"env"|"default"; value?: string | null; masked?: string | null; hasValue?: boolean }`
   - `type ConfigResponse = { entries: ConfigEntryView[]; sync: { running: boolean; connected: boolean } }`
 
-- [ ] **Step 1: Tambah paths + tipe di shared/src/api.ts**
+- [x] **Step 1: Tambah paths + tipe di shared/src/api.ts**
 
 Di `shared/src/api.ts`, dalam objek `paths` (setelah baris `deviceToken:`):
 
@@ -622,7 +622,7 @@ export type ConfigEntryView = {
 export type ConfigResponse = { entries: ConfigEntryView[]; sync: { running: boolean; connected: boolean } };
 ```
 
-- [ ] **Step 2: Tulis test route (gagal dulu)**
+- [x] **Step 2: Tulis test route (gagal dulu)**
 
 Buat `server/test/config.route.test.ts`:
 
@@ -702,12 +702,12 @@ describe("config routes", () => {
 });
 ```
 
-- [ ] **Step 3: Jalankan — verifikasi gagal**
+- [x] **Step 3: Jalankan — verifikasi gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- config.route`
 Expected: FAIL (route belum ada / 404).
 
-- [ ] **Step 4: Implement route**
+- [x] **Step 4: Implement route**
 
 Buat `server/src/routes/config.ts`:
 
@@ -769,7 +769,7 @@ export default async function (app: FastifyInstance) {
 }
 ```
 
-- [ ] **Step 5: Register route di app.ts**
+- [x] **Step 5: Register route di app.ts**
 
 Di `server/src/app.ts`: tambah import setelah baris 23 (`import authRoutes …`) — atau dekat `sessionResults`:
 
@@ -782,14 +782,14 @@ Dan register di dalam blok `{ prefix: "/api" }` (setelah `await api.register(ses
     await api.register(config);
 ```
 
-- [ ] **Step 6: Jalankan test + typecheck**
+- [x] **Step 6: Jalankan test + typecheck**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- config.route`
 Expected: PASS semua.
 Run: `env -u NODE_ENV pnpm --filter ./server exec tsc --noEmit`
 Expected: 0 error.
 
-- [ ] **Step 7: Boot server + curl (per CLAUDE.md)**
+- [x] **Step 7: Boot server + curl (per CLAUDE.md)**
 
 Boot di DB throwaway (memori: jangan pakai hanoman_test untuk smoke; port bukan 8787). Contoh:
 ```bash
@@ -802,7 +802,7 @@ curl -s http://127.0.0.1:8899/api/config | head   # → {"error":"unauthorized"}
 ```
 Expected: 401 JSON (membuktikan route terpasang di bawah gate). Hentikan server setelah verifikasi.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add shared/src/api.ts server/src/routes/config.ts server/src/app.ts server/test/config.route.test.ts
@@ -822,7 +822,7 @@ git commit -m "feat(server): API GET/PUT/DELETE /api/config (SPEC-215)"
 - Consumes: `paths.config/configKey`, `ConfigResponse`, `ConfigEntryView` (Task 5); registry helper `maskSecret` bila perlu.
 - Produces: `api.getConfig()`, `api.putConfig(key, value)`, `api.deleteConfig(key)`.
 
-- [ ] **Step 1: Tambah metode api client**
+- [x] **Step 1: Tambah metode api client**
 
 Di `src/src/api/client.ts`, tambah `ConfigResponse, ConfigEntryView` ke import `@hanoman/shared` di baris 1, lalu tambah di objek `api` (dekat `putSettings`):
 
@@ -833,7 +833,7 @@ Di `src/src/api/client.ts`, tambah `ConfigResponse, ConfigEntryView` ke import `
   deleteConfig: (key: string) => j<void>(paths.configKey(key), { method: "DELETE" }),
 ```
 
-- [ ] **Step 2: Tulis test komponen (gagal dulu)**
+- [x] **Step 2: Tulis test komponen (gagal dulu)**
 
 Buat `src/test/config-panel.test.tsx`:
 
@@ -883,12 +883,12 @@ describe("ConfigPanel (tab Konfigurasi)", () => {
 
 > Catatan: sesuaikan `getByLabelText`/label & tombol dengan markup final; test ini mendikte kontrak minimal (render per grup, bootstrap read-only, secret masked, Simpan→putConfig). Cek satu file test SettingsScreen lain (mis. `src/test/settings-nav.test.tsx`) untuk pola render/props yang benar sebelum menulis.
 
-- [ ] **Step 3: Jalankan — verifikasi gagal**
+- [x] **Step 3: Jalankan — verifikasi gagal**
 
 Run: `pnpm --filter ./src test -- config-panel`
 Expected: FAIL (tab "Konfigurasi" belum ada).
 
-- [ ] **Step 4: Tambah entri tab + komponen ConfigPanel**
+- [x] **Step 4: Tambah entri tab + komponen ConfigPanel**
 
 Di `src/src/screens/SettingsScreen.tsx`:
 
@@ -985,17 +985,17 @@ function ConfigField({ entry, draft, onDraft, onSave, onReset }: {
     : tab === "konfigurasi" ? <ConfigPanel onToast={onToast} />
 ```
 
-- [ ] **Step 5: Jalankan test web**
+- [x] **Step 5: Jalankan test web**
 
 Run: `pnpm --filter ./src test -- config-panel`
 Expected: PASS. (Sesuaikan markup/label bila assertion meleset — cek `Input`/`Switch`/`Button` di `src/src/ds`.)
 
-- [ ] **Step 6: Typecheck web**
+- [x] **Step 6: Typecheck web**
 
 Run: `pnpm --filter ./src exec tsc --noEmit`
 Expected: 0 error.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/src/api/client.ts src/src/screens/SettingsScreen.tsx src/test/config-panel.test.tsx
@@ -1020,7 +1020,7 @@ git commit -m "feat(web): tab Konfigurasi — atur env runtime dari Settings (SP
 
 > Semua situs baca sudah **point-of-use** (fungsi/getter), jadi swap ke `cfg.*` otomatis live. `SYNC_TICK_MS` & `SYNC_SERVER_URL/TOKEN` sudah lewat resolver di Task 4 — tak diulang di sini.
 
-- [ ] **Step 1: events.ts — TICK_MS live**
+- [x] **Step 1: events.ts — TICK_MS live**
 
 Ganti baris 20 `const TICK_MS = Number(process.env.HANOMAN_EVENTS_TICK_MS) || 1000;` dan pemakaiannya. Tambah import `import { effectiveInt } from "../config";`. Ubah pembaca interval agar membaca per-pakai:
 ```ts
@@ -1028,7 +1028,7 @@ const tickMs = () => effectiveInt("HANOMAN_EVENTS_TICK_MS") ?? 1000;
 ```
 Ganti setiap pemakaian `TICK_MS` menjadi `tickMs()`. Cari referensi: `grep -n "TICK_MS" server/src/services/events.ts`.
 
-- [ ] **Step 2: pty.ts — socket + claudeBin live**
+- [x] **Step 2: pty.ts — socket + claudeBin live**
 
 Tambah `import { effectiveStr } from "../config";`. Ganti:
 ```ts
@@ -1036,7 +1036,7 @@ const socket = () => effectiveStr("HANOMAN_TMUX_SOCKET") ?? "hanoman";
 const claudeBin = () => effectiveStr("HANOMAN_CLAUDE_BIN") ?? "claude";
 ```
 
-- [ ] **Step 3: limits.ts — CLAUDE_CONFIG_DIR**
+- [x] **Step 3: limits.ts — CLAUDE_CONFIG_DIR**
 
 Tambah `import { effectiveStr } from "../config";`. Ganti baris 26 & 32 pembacaan `process.env.CLAUDE_CONFIG_DIR` → `effectiveStr("CLAUDE_CONFIG_DIR")`. Contoh baris 26:
 ```ts
@@ -1047,7 +1047,7 @@ dan baris 32:
   if (process.platform === "darwin" && !effectiveStr("CLAUDE_CONFIG_DIR")) {
 ```
 
-- [ ] **Step 4: vps-key.ts & vps-ssh.ts**
+- [x] **Step 4: vps-key.ts & vps-ssh.ts**
 
 `vps-key.ts` tambah import + ganti baris 8:
 ```ts
@@ -1058,7 +1058,7 @@ export const keyDir = (): string => effectiveStr("HANOMAN_SSH_KEY_DIR") ?? join(
 export const sshBin = () => effectiveStr("HANOMAN_SSH_BIN") ?? "ssh";
 ```
 
-- [ ] **Step 5: update.ts — repoRoot + update-fetch**
+- [x] **Step 5: update.ts — repoRoot + update-fetch**
 
 Tambah `import { effectiveStr, effectiveBool } from "../config";`. Ganti baris 51 & 70:
 ```ts
@@ -1068,18 +1068,18 @@ function repoRoot(): string { return effectiveStr("HANOMAN_REPO_ROOT") ?? proces
   if (!effectiveBool("HANOMAN_UPDATE_FETCH")) return;
 ```
 
-- [ ] **Step 6: server.ts — hapus default env HANOMAN_UPDATE_FETCH**
+- [x] **Step 6: server.ts — hapus default env HANOMAN_UPDATE_FETCH**
 
 Hapus baris 8 `process.env.HANOMAN_UPDATE_FETCH ??= "1";` (default "1" kini dari registry via `effectiveBool`).
 
-- [ ] **Step 7: Typecheck + suite server penuh (parity — tak ada regresi)**
+- [x] **Step 7: Typecheck + suite server penuh (parity — tak ada regresi)**
 
 Run: `env -u NODE_ENV pnpm --filter ./server exec tsc --noEmit`
 Expected: 0 error.
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- --no-file-parallelism`
 Expected: seluruh suite server hijau (termasuk events/pty/limits/vps/update yang tersentuh).
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/src/services/events.ts server/src/services/pty.ts server/src/services/limits.ts server/src/services/vps-key.ts server/src/services/vps-ssh.ts server/src/services/update.ts server/src/server.ts
@@ -1096,7 +1096,7 @@ git commit -m "refactor(server): baca env non-bootstrap via resolver config (SPE
 - Modify: `internal/docs/specs/2026-07-14-server-client-sync-spec-213-design.md` (catatan OQ-4 sebagian digantikan)
 - Modify: `internal/docs/operations/production.md` (bila menyebut SYNC_* env; tambah catatan Settings) — cek keberadaan dulu.
 
-- [ ] **Step 1: Update .env.example**
+- [x] **Step 1: Update .env.example**
 
 Di blok "Peran sync CLIENT" dan knob opsional, tambah catatan singkat pada tiap knob non-bootstrap, mis. di atas `# SYNC_SERVER_URL=`:
 ```
@@ -1105,11 +1105,11 @@ Di blok "Peran sync CLIENT" dan knob opsional, tambah catatan singkat pada tiap 
 # PORT, HOST, NODE_ENV) tetap env-only.
 ```
 
-- [ ] **Step 2: Update .env.production.example**
+- [x] **Step 2: Update .env.production.example**
 
 Tambah satu baris catatan serupa di header (setelah paragraf pembuka) menyebut Settings → Konfigurasi untuk knob non-bootstrap.
 
-- [ ] **Step 3: Catatan di spec SPEC-213**
+- [x] **Step 3: Catatan di spec SPEC-213**
 
 Di `internal/docs/specs/2026-07-14-server-client-sync-spec-213-design.md`, pada baris tabel OQ-4, tambahkan catatan inline:
 ```
@@ -1117,17 +1117,17 @@ Di `internal/docs/specs/2026-07-14-server-client-sync-spec-213-design.md`, pada 
 > via Settings (override DB → env → default). Env tetap fallback bootstrap.
 ```
 
-- [ ] **Step 4: Cek operations doc**
+- [x] **Step 4: Cek operations doc**
 
 Run: `grep -rn "SYNC_SERVER_URL\|SYNC_DEVICE_TOKEN" internal/docs/operations 2>/dev/null`
 Bila ada penyebutan, tambah kalimat: "Sejak SPEC-215 knob ini juga dapat diatur dari Settings → Konfigurasi (override DB menang)." Bila tak ada, lewati langkah ini.
 
-- [ ] **Step 5: Verifikasi build web + server (deliverable bisa dijalankan)**
+- [x] **Step 5: Verifikasi build web + server (deliverable bisa dijalankan)**
 
 Run: `pnpm --filter ./src build && pnpm --filter ./server build`
 Expected: keduanya sukses (memastikan tipe shared/registry ikut ter-build).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add .env.example .env.production.example internal/docs
