@@ -186,26 +186,35 @@ function FolderPicker({ open, onClose, onPick, start }:
   );
 }
 
-type ProjectForm = { kind: string; name: string; desc: string; dir: string; objective: string };
+type ProjectForm = { kind: string; mode: "local" | "clone"; name: string; desc: string; dir: string; gitRemote: string; objective: string };
 function NewProjectModal({ open, onClose, onCreate }:
-  { open: boolean; onClose: () => void; onCreate: (f: ProjectForm) => void }) {
-  const blank: ProjectForm = { kind: "from-scratch", name: "", desc: "", dir: "", objective: "" };
+  { open: boolean; onClose: () => void; onCreate: (f: ProjectForm) => void | Promise<void> }) {
+  const blank: ProjectForm = { kind: "from-scratch", mode: "local", name: "", desc: "", dir: "", gitRemote: "", objective: "" };
   const [f, setF] = React.useState<ProjectForm>(blank);
-  React.useEffect(() => { if (open) setF(blank); }, [open]);
+  const [busy, setBusy] = React.useState(false);
+  React.useEffect(() => { if (open) { setF(blank); setBusy(false); } }, [open]);
   const set = (k: keyof ProjectForm) => (e: React.ChangeEvent<any>) => setF((s) => ({ ...s, [k]: e.target.value }));
   const scratch = f.kind === "from-scratch";
-  // SPEC-217 · path project opsional: existing cukup punya nama ATAU dir (path bisa di-set/diedit
-  // belakangan per-mesin lewat binding). Path tak lagi wajib untuk membuat project.
-  const canSubmit = !!f.name.trim() || (!scratch && !!f.dir.trim());
-  const submit = () => { if (!canSubmit) return; onCreate(f); };
+  const clone = !scratch && f.mode === "clone";
+  // SPEC-217/218 · path opsional (mode lokal): nama ATAU dir. Mode clone: URL + folder tujuan wajib.
+  const canSubmit = scratch ? !!f.name.trim()
+    : clone ? (!!f.gitRemote.trim() && !!f.dir.trim())
+    : (!!f.name.trim() || !!f.dir.trim());
+  const submit = async () => {
+    if (!canSubmit || busy) return;
+    setBusy(true);
+    try { await onCreate(f); } finally { setBusy(false); }
+  };
   const [picker, setPicker] = React.useState(false);
+  const submitLabel = scratch ? "Buat → brainstorm objective"
+    : clone ? (busy ? "Meng-clone…" : "Clone → reverse-engineer docs")
+    : "Tambah → reverse-engineer docs";
   return (
     <Modal open={open} onClose={onClose} icon="box" eyebrow="workspace" title="Project baru"
       footer={<>
-        <Button variant="ghost" size="sm" onClick={onClose}>Batal</Button>
-        <Button size="sm" leftIcon={scratch ? "messages-square" : "radar"} onClick={submit}>
-          {scratch ? "Buat → brainstorm objective" : "Tambah → reverse-engineer docs"}
-        </Button>
+        <Button variant="ghost" size="sm" onClick={onClose} disabled={busy}>Batal</Button>
+        <Button size="sm" leftIcon={scratch ? "messages-square" : clone ? "git-branch" : "radar"}
+          onClick={submit} disabled={!canSubmit || busy}>{submitLabel}</Button>
       </>}>
       <div style={{ marginBottom: 16 }}>
         <Tabs variant="pill" value={f.kind} onChange={(v) => setF((s) => ({ ...s, kind: v }))} tabs={[
@@ -231,7 +240,21 @@ function NewProjectModal({ open, onClose, onCreate }:
         </>
       ) : (
         <>
-          <Field label="Direktori" hint="opsional · path checkout lokal (bisa diedit belakangan per-mesin)">
+          {/* SPEC-218 · dua cara menambah existing: folder lokal, atau clone dari URL git. */}
+          <div style={{ marginBottom: 12 }}>
+            <Tabs variant="pill" value={f.mode} onChange={(v) => setF((s) => ({ ...s, mode: v as "local" | "clone" }))} tabs={[
+              { value: "local", label: "Dari folder lokal", icon: "folder" },
+              { value: "clone", label: "Clone dari URL git", icon: "git-branch" },
+            ]} />
+          </div>
+          {clone ? (
+            <Field label="URL repository" hint="GitHub/GitLab · https atau ssh">
+              <Input value={f.gitRemote} onChange={set("gitRemote")} leftIcon="git-branch" mono
+                placeholder="https://github.com/org/repo.git" style={{ width: "100%" }} />
+            </Field>
+          ) : null}
+          <Field label={clone ? "Folder tujuan clone" : "Direktori"}
+            hint={clone ? "path lokal tempat repo di-clone (mesin ini)" : "opsional · path checkout lokal (bisa diedit belakangan per-mesin)"}>
             <div style={{ display: "flex", gap: 8 }}>
               <Input value={f.dir} onChange={set("dir")} leftIcon="folder" mono placeholder="/path/ke/repo" style={{ flex: 1 }} />
               <Button size="sm" variant="secondary" leftIcon="folder-open" onClick={() => setPicker(true)}>Pilih folder</Button>
@@ -378,13 +401,35 @@ export default function App() {
 
   async function createProject(f: ProjectForm) {
     const scratch = f.kind === "from-scratch";
-    const name = f.name.trim() || (f.dir.split("/").filter(Boolean).pop() || "repo");
+    const clone = !scratch && f.mode === "clone";
+    // SPEC-218 · mode clone: turunkan nama dari basename URL bila user tak isi (buang .git & host).
+    const fromUrl = f.gitRemote.trim().replace(/\.git$/, "").split(/[/:]/).filter(Boolean).pop() || "repo";
+    const name = f.name.trim() || (clone ? fromUrl : (f.dir.split("/").filter(Boolean).pop() || "repo"));
+    let created;
     try {
-      const created = await api.createProject({ name, kind: f.kind, repoDir: scratch ? undefined : f.dir, desc: f.desc.trim() });
-      setProjects((list) => [created, ...list]);
-      setProjectId(created.id); setModal(null); setSection("docs");
-      showToast("Project " + created.id + " dibuat · " + (scratch ? "mulai brainstorm objective" : "reverse-engineer docs"), "ok", "box");
-    } catch { showToast("Gagal membuat project", "err", "x-circle"); }
+      created = await api.createProject({
+        name, kind: f.kind, desc: f.desc.trim(),
+        repoDir: scratch || clone ? undefined : f.dir,
+        gitRemote: clone ? f.gitRemote.trim() : undefined,
+      });
+    } catch { showToast("Gagal membuat project", "err", "x-circle"); return; }
+    // SPEC-218 · project sudah ada; clone di jalur terpisah agar gagal-clone tak menghapus project
+    // (remote tersimpan → bisa clone ulang dari Edit). AC-8.
+    if (clone) {
+      try {
+        await api.cloneProject(created.id, f.dir.trim());
+        created = await api.getProject(created.id);   // binding hasil clone
+      } catch (e) {
+        const detail = e instanceof ApiError ? ` · ${e.message}` : "";
+        setProjects((list) => [created!, ...list]);
+        setProjectId(created.id); setModal(null); setSection("project");
+        showToast(`Project ${created.id} dibuat, tapi clone gagal${detail} · clone ulang dari Edit`, "warn", "git-branch");
+        return;
+      }
+    }
+    setProjects((list) => [created!, ...list]);
+    setProjectId(created.id); setModal(null); setSection("docs");
+    showToast("Project " + created.id + " dibuat · " + (scratch ? "mulai brainstorm objective" : "reverse-engineer docs"), "ok", "box");
   }
 
   // Cascade di DB ikut menghapus spec project ini — cermin state lokalnya.
