@@ -163,3 +163,10 @@ model SyncState {
   id     Int    @id @default(1)
   cursor String @default("0")
 }
+
+// SPEC-215 · ADR-0049 · LOCAL-ONLY: override config runtime (env → DB). Tak pernah disync.
+model RuntimeConfig {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
