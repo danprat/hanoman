@@ -59,7 +59,8 @@ export function ProjectDetailScreen({ p, onEdit, onGotoDocs, onGotoTerminal, onG
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginTop: 20 }}>
           <Meta label="ID" value={p.id} mono />
-          <Meta label="Repo" value={p.repoDir || "—"} mono />
+          {/* SPEC-217 · path EFEKTIF (binding per-mesin ?? default project). Label menandai override. */}
+          <Meta label={p.binding ? "Repo · mesin ini" : "Repo"} value={(p.binding ?? p.repoDir) || "—"} mono />
           <Meta label="Stack" value={p.stack || "—"} />
           <Meta label="Backlog terbuka" value={`${p.backlog} · ${p.topStage}`} />
         </div>

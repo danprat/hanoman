@@ -193,7 +193,9 @@ function NewProjectModal({ open, onClose, onCreate }:
   React.useEffect(() => { if (open) setF(blank); }, [open]);
   const set = (k: keyof ProjectForm) => (e: React.ChangeEvent<any>) => setF((s) => ({ ...s, [k]: e.target.value }));
   const scratch = f.kind === "from-scratch";
-  const canSubmit = scratch ? !!f.name.trim() : !!f.dir.trim();
+  // SPEC-217 · path project opsional: existing cukup punya nama ATAU dir (path bisa di-set/diedit
+  // belakangan per-mesin lewat binding). Path tak lagi wajib untuk membuat project.
+  const canSubmit = !!f.name.trim() || (!scratch && !!f.dir.trim());
   const submit = () => { if (!canSubmit) return; onCreate(f); };
   const [picker, setPicker] = React.useState(false);
   return (
@@ -228,7 +230,7 @@ function NewProjectModal({ open, onClose, onCreate }:
         </>
       ) : (
         <>
-          <Field label="Direktori" hint="pilih folder codebase yang akan dipantau">
+          <Field label="Direktori" hint="opsional · path checkout lokal (bisa diedit belakangan per-mesin)">
             <div style={{ display: "flex", gap: 8 }}>
               <Input value={f.dir} onChange={set("dir")} leftIcon="folder" mono placeholder="/path/ke/repo" style={{ flex: 1 }} />
               <Button size="sm" variant="secondary" leftIcon="folder-open" onClick={() => setPicker(true)}>Pilih folder</Button>
@@ -246,9 +248,13 @@ function NewProjectModal({ open, onClose, onCreate }:
 }
 
 function EditProjectModal({ open, project, onClose, onSave }:
-  { open: boolean; project?: ProjectVM; onClose: () => void; onSave: (f: { name: string; desc: string }) => void }) {
-  const [f, setF] = React.useState({ name: "", desc: "" });
-  React.useEffect(() => { if (open && project) setF({ name: project.name, desc: project.desc }); }, [open, project]);
+  { open: boolean; project?: ProjectVM; onClose: () => void; onSave: (f: { name: string; desc: string; dir: string }) => void }) {
+  // SPEC-217 · `dir` = override path per-mesin (LocalBinding). Diisi dari binding project;
+  // kosong = pakai path default project. Tak disync antar-mesin.
+  const [f, setF] = React.useState({ name: "", desc: "", dir: "" });
+  React.useEffect(() => {
+    if (open && project) setF({ name: project.name, desc: project.desc, dir: project.binding ?? "" });
+  }, [open, project]);
   const canSubmit = !!f.name.trim();
   return (
     <Modal open={open} onClose={onClose} icon="pencil" eyebrow={project ? project.id : "project"}
@@ -265,6 +271,10 @@ function EditProjectModal({ open, project, onClose, onSave }:
       <Field label="Deskripsi">
         <Input value={f.desc} onChange={(e: React.ChangeEvent<any>) => setF((s) => ({ ...s, desc: e.target.value }))}
           style={{ width: "100%" }} />
+      </Field>
+      <Field label="Path (mesin ini)" hint="opsional · disimpan lokal, tak disync · kosongkan = pakai default">
+        <Input value={f.dir} onChange={(e: React.ChangeEvent<any>) => setF((s) => ({ ...s, dir: e.target.value }))}
+          leftIcon="folder" mono placeholder="/path/ke/repo (mesin ini)" style={{ width: "100%" }} />
       </Field>
     </Modal>
   );
@@ -349,13 +359,19 @@ export default function App() {
     setSection(t.section);
   }, [sessions]);
 
-  async function updateProject(f: { name: string; desc: string }) {
+  async function updateProject(f: { name: string; desc: string; dir: string }) {
     if (!proj) return;
     try {
-      const updated = await api.updateProject(proj.id, { name: f.name.trim(), desc: f.desc.trim() });
-      setProjects((list) => list.map((x) => (x.id === updated.id ? updated : x)));
+      await api.updateProject(proj.id, { name: f.name.trim(), desc: f.desc.trim() });
+      // SPEC-217 · path per-mesin lewat binding (tak disync). Set bila berubah; kosong = hapus override.
+      const dir = f.dir.trim();
+      if (dir !== (proj.binding ?? "")) {
+        if (dir) await api.putBinding(proj.id, dir); else await api.deleteBinding(proj.id);
+      }
+      const fresh = await api.getProject(proj.id);   // view segar (binding + coverage terbarui)
+      setProjects((list) => list.map((x) => (x.id === fresh.id ? fresh : x)));
       setModal(null);
-      showToast("Project " + updated.name + " diperbarui", "ok", "box");
+      showToast("Project " + fresh.name + " diperbarui", "ok", "box");
     } catch { showToast("Gagal memperbarui project", "err", "x-circle"); }
   }
 
