@@ -1,0 +1,4 @@
+interface:
+  display_name: "hanoman"
+  short_description: "Panduan project hanoman — orchestrator + dashboard workflow docs-driven"
+  default_prompt: "Pakai skill hanoman untuk menyelaraskan keputusan produk, arsitektur (Fastify + Postgres/Prisma + node-pty/tmux + git worktree), sesi Claude Code interaktif, fase spec/plan/execute, keamanan, dan docs Source of Truth untuk project ini."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "hanoman-devops"
+  short_description: "Deploy & operasikan aplikasi hanoman di server (VPS single-host, prod, systemd, TLS, update, sync)"
+  default_prompt: "Pakai skill hanoman-devops untuk men-deploy atau mengoperasikan hanoman di server: VPS single-host di belakang reverse proxy TLS, prod di samping dev, systemd, Postgres Docker, prisma generate/migrate, update in-place, rollout sync hub/client, dan verifikasi — dengan menjaga instance live tak dirusak."
