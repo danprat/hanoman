@@ -49,7 +49,7 @@ export const SECTIONS: SectionMeta[];        // 16 seksi
 export const byId: (id: string) => CatalogItem | undefined;
 ```
 
-- [ ] **Step 1: Generator.** `server/scripts/gen-catalog.mjs` membaca `bzn_catalog.json` (path via argv, default `../../scratchpad/bzn_catalog.json`) → menulis `catalog.data.ts`:
+- [x] **Step 1: Generator.** `server/scripts/gen-catalog.mjs` membaca `bzn_catalog.json` (path via argv, default `../../scratchpad/bzn_catalog.json`) → menulis `catalog.data.ts`:
 ```js
 // gen-catalog.mjs — node server/scripts/gen-catalog.mjs <path-to-bzn_catalog.json>
 import { readFileSync, writeFileSync } from "node:fs";
@@ -68,7 +68,7 @@ console.log("wrote", items.length, "items", sections.length, "sections");
 ```
 Run: `mkdir -p server/src/vps/catalog && node server/scripts/gen-catalog.mjs "$SCRATCH/bzn_catalog.json"` → expect `wrote 232 items 16 sections`.
 
-- [ ] **Step 2: Overrides.** `overrides.ts` — mode/severity/probe/remediable per itemId + section-level appLayer:
+- [x] **Step 2: Overrides.** `overrides.ts` — mode/severity/probe/remediable per itemId + section-level appLayer:
 ```ts
 import type { Mode, Severity } from "./catalog";
 export const APP_LAYER_SECTIONS = new Set(["aapanel", "webserver", "database", "ssl"]);
@@ -104,7 +104,7 @@ export const OVERRIDES: Record<string, Ov> = {
 };
 ```
 
-- [ ] **Step 3: catalog.ts.** Bangun `CATALOG` dari `RAW_ITEMS` + overrides, default mode `INFO`, severity dari level:
+- [x] **Step 3: catalog.ts.** Bangun `CATALOG` dari `RAW_ITEMS` + overrides, default mode `INFO`, severity dari level:
 ```ts
 import { RAW_ITEMS, RAW_SECTIONS } from "./catalog.data";
 import { OVERRIDES, APP_LAYER_SECTIONS } from "./overrides";
@@ -128,7 +128,7 @@ const _map = new Map(CATALOG.map((c) => [c.id, c]));
 export const byId = (id: string): CatalogItem | undefined => _map.get(id);
 ```
 
-- [ ] **Step 4: Test katalog.** `catalog.test.ts`:
+- [x] **Step 4: Test katalog.** `catalog.test.ts`:
 ```ts
 import { describe, it, expect } from "vitest";
 import { CATALOG, SECTIONS, byId } from "./catalog";
@@ -162,7 +162,7 @@ describe("catalog", () => {
 ```
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism server/src/vps/catalog` → PASS.
 
-- [ ] **Step 5: Commit.** `git add server/scripts/gen-catalog.mjs server/src/vps/catalog && git commit -m "feat(vps): katalog kepatuhan 232 item + mode/severity (SPEC-220 AC-1/2/16)"`
+- [x] **Step 5: Commit.** `git add server/scripts/gen-catalog.mjs server/src/vps/catalog && git commit -m "feat(vps): katalog kepatuhan 232 item + mode/severity (SPEC-220 AC-1/2/16)"`
 
 ### Task 2: Model Prisma + migration + regenerate
 
@@ -172,7 +172,7 @@ Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism serv
 
 **Interfaces (Produces):** tabel `VpsAuditSnapshot`, `VpsItemState`; `prisma.vpsAuditSnapshot`, `prisma.vpsItemState`.
 
-- [ ] **Step 1:** Tambah ke `schema.prisma` (dalam blok `model Vps { … }` tambah back-relations, lalu 2 model baru):
+- [x] **Step 1:** Tambah ke `schema.prisma` (dalam blok `model Vps { … }` tambah back-relations, lalu 2 model baru):
 ```prisma
 // di model Vps, sebelum penutup:
   snapshots  VpsAuditSnapshot[]
@@ -204,7 +204,7 @@ model VpsItemState {
 }
 ```
 
-- [ ] **Step 2:** Tulis `migration.sql` (hand-written, additive):
+- [x] **Step 2:** Tulis `migration.sql` (hand-written, additive):
 ```sql
 CREATE TABLE "VpsAuditSnapshot" (
   "id" TEXT NOT NULL, "vpsId" TEXT NOT NULL,
@@ -229,7 +229,7 @@ ALTER TABLE "VpsItemState" ADD CONSTRAINT "VpsItemState_vpsId_fkey"
   FOREIGN KEY ("vpsId") REFERENCES "Vps"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ```
 
-- [ ] **Step 3: Apply per DB + generate.**
+- [x] **Step 3: Apply per DB + generate.**
 ```bash
 cd server
 DATABASE_URL="postgresql://hanoman:hanoman@localhost:5432/hanoman" pnpm exec prisma migrate deploy
@@ -238,13 +238,13 @@ pnpm exec prisma generate
 ```
 (Sesuaikan kredensial/port dgn `.env`/docker; DB di Docker — lihat `docker compose exec -T db …` bila perlu.) Expected: `migrate deploy` sukses di dua DB.
 
-- [ ] **Step 4:** Smoke Prisma client:
+- [x] **Step 4:** Smoke Prisma client:
 ```bash
 node -e "const{PrismaClient}=require('@prisma/client');const p=new PrismaClient();p.vpsItemState.count().then(n=>{console.log('itemState rows',n);return p.vpsAuditSnapshot.count()}).then(n=>console.log('snapshot rows',n)).finally(()=>p.\$disconnect())"
 ```
 Expected: `itemState rows 0` / `snapshot rows 0` (bukan error P2021 tabel hilang).
 
-- [ ] **Step 5: Commit.** `git add server/prisma/schema.prisma server/prisma/migrations && git commit -m "feat(vps): model VpsAuditSnapshot + VpsItemState + migration (SPEC-220 AC-5/24)"`
+- [x] **Step 5: Commit.** `git add server/prisma/schema.prisma server/prisma/migrations && git commit -m "feat(vps): model VpsAuditSnapshot + VpsItemState + migration (SPEC-220 AC-5/24)"`
 
 ### Task 3: ADR-0050 + docs
 
@@ -253,11 +253,11 @@ Expected: `itemState rows 0` / `snapshot rows 0` (bukan error P2021 tabel hilang
 - Create: `internal/docs/architecture/vps-compliance.md`
 - Modify: `internal/docs/architecture/data-model.md`, `internal/docs/architecture/api-contract.md`, `internal/docs/README.md`
 
-- [ ] **Step 1:** Tulis `0050-vps-compliance-katalog-scoring.md` — status diterima · SPEC-220. Konteks: PRD hardening checklist; Keputusan: (1) katalog 232 item di git (generated, bukan DB, AC-2); (2) dua model baru `VpsAuditSnapshot` (append-only, fondasi drift Fase 3) + `VpsItemState` (N/A/attest + jejak pelaku); (3) taksonomi mode AUTO/AUDIT/INFO + severity; (4) scoring `(pass+attested)/applicable` equal-weight v1, N/A keluar denominator; (5) dry-run sebagai pengaman pengganti rollback (Non-goal v1); (6) item berisiko-lockout tetap non-AUTO (AC-16). Meng-extend ADR-0025.
-- [ ] **Step 2:** `vps-compliance.md` — jelaskan katalog (`server/src/vps/catalog/`), regenerasi via `gen-catalog.mjs`, mode/severity, probe→`CHECK <itemId>`, scoring, endpoint ringkas, alur remediasi dry-run.
-- [ ] **Step 3:** Tambah dua model ke `data-model.md`; tambah endpoint baru ke `api-contract.md`.
-- [ ] **Step 4:** Link di `README.md`: baris ADR-0050 (di bagian adr) + `vps-compliance` (di architecture).
-- [ ] **Step 5: Commit.** `git add internal/docs && git commit -m "docs(vps): ADR-0050 + vps-compliance + data-model/api-contract (SPEC-220)"`
+- [x] **Step 1:** Tulis `0050-vps-compliance-katalog-scoring.md` — status diterima · SPEC-220. Konteks: PRD hardening checklist; Keputusan: (1) katalog 232 item di git (generated, bukan DB, AC-2); (2) dua model baru `VpsAuditSnapshot` (append-only, fondasi drift Fase 3) + `VpsItemState` (N/A/attest + jejak pelaku); (3) taksonomi mode AUTO/AUDIT/INFO + severity; (4) scoring `(pass+attested)/applicable` equal-weight v1, N/A keluar denominator; (5) dry-run sebagai pengaman pengganti rollback (Non-goal v1); (6) item berisiko-lockout tetap non-AUTO (AC-16). Meng-extend ADR-0025.
+- [x] **Step 2:** `vps-compliance.md` — jelaskan katalog (`server/src/vps/catalog/`), regenerasi via `gen-catalog.mjs`, mode/severity, probe→`CHECK <itemId>`, scoring, endpoint ringkas, alur remediasi dry-run.
+- [x] **Step 3:** Tambah dua model ke `data-model.md`; tambah endpoint baru ke `api-contract.md`.
+- [x] **Step 4:** Link di `README.md`: baris ADR-0050 (di bagian adr) + `vps-compliance` (di architecture).
+- [x] **Step 5: Commit.** `git add internal/docs && git commit -m "docs(vps): ADR-0050 + vps-compliance + data-model/api-contract (SPEC-220)"`
 
 ---
 
@@ -280,7 +280,7 @@ export function scoreCompliance(
 ```
 Aturan: applicable = item TIDAK `na`. Terpenuhi = `pass` ATAU (`INFO` & `attested`). `na` → status "na", keluar denominator. Item probe tanpa hasil → "unknown" (tak terpenuhi). Skor = round((terpenuhi/applicable)*100). bySection sama per seksi. Item probe-status menang atas default; INFO tanpa attest = tak terpenuhi.
 
-- [ ] **Step 1: Test** `scoring.test.ts`:
+- [x] **Step 1: Test** `scoring.test.ts`:
 ```ts
 import { describe, it, expect } from "vitest";
 import { scoreCompliance } from "./scoring";
@@ -302,10 +302,10 @@ describe("scoreCompliance (AC-6)", () => {
   });
 });
 ```
-- [ ] **Step 2: Run (fail).** `env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism server/src/vps/scoring` → FAIL (module not found).
-- [ ] **Step 3: Implement** `scoring.ts` (iterasi `CATALOG`, terapkan aturan di atas). Import `CATALOG` dari `./catalog/catalog`.
-- [ ] **Step 4: Run (pass).**
-- [ ] **Step 5: Commit.** `git commit -m "feat(vps): scoring kepatuhan (pass+attested)/applicable (SPEC-220 AC-6)"`
+- [x] **Step 2: Run (fail).** `env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism server/src/vps/scoring` → FAIL (module not found).
+- [x] **Step 3: Implement** `scoring.ts` (iterasi `CATALOG`, terapkan aturan di atas). Import `CATALOG` dari `./catalog/catalog`.
+- [x] **Step 4: Run (pass).**
+- [x] **Step 5: Commit.** `git commit -m "feat(vps): scoring kepatuhan (pass+attested)/applicable (SPEC-220 AC-6)"`
 
 ### Task 5: Perluas audit.sh + mapping katalog
 
@@ -314,7 +314,7 @@ describe("scoreCompliance (AC-6)", () => {
 - Modify: `server/src/services/vps-audit.ts` (map ke katalog, simpan snapshot, hitung skor)
 - Modify: `server/src/services/vps-audit.test.ts` (atau buat bila belum ada)
 
-- [ ] **Step 1:** Di `audit.sh`, setelah blok legacy, tambah emit item-id untuk item ber-probe. Contoh (memakai `sshd_opt`, `sysctl`, dsb yang sudah/akan ada):
+- [x] **Step 1:** Di `audit.sh`, setelah blok legacy, tambah emit item-id untuk item ber-probe. Contoh (memakai `sshd_opt`, `sysctl`, dsb yang sudah/akan ada):
 ```bash
 # --- SPEC-220: CHECK per itemId katalog (item ber-probe) ---
 # firewall aktif → fw-b1
@@ -342,7 +342,7 @@ sctl() { sysctl -n "$1" 2>/dev/null; }
 ```
 (Legacy CHECK lines tetap ada — parseAudit tetap menampung keduanya; `isHardened` legacy tak berubah.)
 
-- [ ] **Step 2:** Di `vps-audit.ts`, tambah `mapToCatalog`:
+- [x] **Step 2:** Di `vps-audit.ts`, tambah `mapToCatalog`:
 ```ts
 import { CATALOG, byId } from "../vps/catalog/catalog";
 import { scoreCompliance } from "../vps/scoring";
@@ -358,9 +358,9 @@ export function mapToCatalog(checks: VpsCheck[]): Record<string, "pass"|"fail"|"
 ```
 Lalu di `runAudit`: setelah legacy update, ambil `itemStates` (`prisma.vpsItemState.findMany({where:{vpsId}})`), hitung `scoreCompliance(mapToCatalog(audit), states)`, buat `VpsAuditSnapshot`. Tetap set `Vps.audit/hardened/lastAuditAt` (kompat).
 
-- [ ] **Step 3: Test** `vps-audit.test.ts` — perluas `parseAudit` menerima `na` (ubah regex `(pass|fail|warn|na)`), `mapToCatalog` mengabaikan itemId asing (AC-3), dan `unknown` bukan pass (AC-7). Unit, tanpa DB.
-- [ ] **Step 4:** Ubah `zVpsCheck` status enum + `parseAudit` regex jadi menyertakan `"na"`; sesuaikan tipe. Run test PASS.
-- [ ] **Step 5: Commit.** `git commit -m "feat(vps): audit emit CHECK <itemId> + map katalog + snapshot skor (SPEC-220 AC-3/4/5/7)"`
+- [x] **Step 3: Test** `vps-audit.test.ts` — perluas `parseAudit` menerima `na` (ubah regex `(pass|fail|warn|na)`), `mapToCatalog` mengabaikan itemId asing (AC-3), dan `unknown` bukan pass (AC-7). Unit, tanpa DB.
+- [x] **Step 4:** Ubah `zVpsCheck` status enum + `parseAudit` regex jadi menyertakan `"na"`; sesuaikan tipe. Run test PASS.
+- [x] **Step 5: Commit.** `git commit -m "feat(vps): audit emit CHECK <itemId> + map katalog + snapshot skor (SPEC-220 AC-3/4/5/7)"`
 
 ### Task 6: Endpoint audit (snapshot) + GET checklist
 
@@ -377,11 +377,11 @@ export type ChecklistView = { vpsId: string; scoreTotal: number; scoreBySection:
   lastAuditAt: string | null };
 ```
 
-- [ ] **Step 1: Test** `vps-checklist.test.ts`: `POST /vps/:id/audit` (dgn sshExec di-mock) menyimpan `VpsAuditSnapshot` & mengembalikan skor; `GET /vps/:id/checklist` mengembalikan 232 item + skor. Pakai pola test route existing (buildApp + inject; DB test).
-- [ ] **Step 2: Run (fail).**
-- [ ] **Step 3:** Implement `GET /vps/:id/checklist` (gabung CATALOG + snapshot terakhir + itemStates). Ubah `POST /vps/:id/audit` mengembalikan `{ audit, hardened, scoreTotal, scoreBySection }`.
-- [ ] **Step 4: Run (pass).**
-- [ ] **Step 5: Live curl.** Boot server (DB throwaway ter-migrate, port bukan 8787). Daftarkan VPS dummy, `GET /api/vps/:id/checklist` → 200 dgn 232 item. Commit `git commit -m "feat(vps): GET checklist + audit kembalikan skor (SPEC-220 AC-9)"`
+- [x] **Step 1: Test** `vps-checklist.test.ts`: `POST /vps/:id/audit` (dgn sshExec di-mock) menyimpan `VpsAuditSnapshot` & mengembalikan skor; `GET /vps/:id/checklist` mengembalikan 232 item + skor. Pakai pola test route existing (buildApp + inject; DB test).
+- [x] **Step 2: Run (fail).**
+- [x] **Step 3:** Implement `GET /vps/:id/checklist` (gabung CATALOG + snapshot terakhir + itemStates). Ubah `POST /vps/:id/audit` mengembalikan `{ audit, hardened, scoreTotal, scoreBySection }`.
+- [x] **Step 4: Run (pass).**
+- [x] **Step 5: Live curl.** Boot server (DB throwaway ter-migrate, port bukan 8787). Daftarkan VPS dummy, `GET /api/vps/:id/checklist` → 200 dgn 232 item. Commit `git commit -m "feat(vps): GET checklist + audit kembalikan skor (SPEC-220 AC-9)"`
 
 ---
 
