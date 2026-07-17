@@ -25,6 +25,16 @@ export function parseAudit(out: string): VpsCheck[] {
   });
 }
 
+// SPEC-221 · deteksi stack app-layer (advisory): baris `STACK <section> <present|absent> <detail>`.
+export function parseStack(out: string): Record<string, { present: boolean; detail: string }> {
+  const d: Record<string, { present: boolean; detail: string }> = {};
+  for (const line of out.split("\n")) {
+    const m = line.match(/^STACK (\S+) (present|absent)(?: (.*))?$/);
+    if (m) d[m[1]!] = { present: m[2] === "present", detail: (m[3] ?? "").trim() };
+  }
+  return d;
+}
+
 // SPEC-220 · petakan baris CHECK → status per itemId katalog untuk scoring.
 // itemId di luar katalog (nama legacy spt sudo_ok, atau typo) diabaikan aman (AC-3).
 // probe `na` → `unknown` (bukan pass, AC-7): applicability sebenarnya ditandai human, bukan probe (v1).
@@ -88,6 +98,7 @@ export async function runAudit(v: VpsRow): Promise<AuditOk | { ok: false; out: s
   const scored = scoreCompliance(probe, states);
   const results: Record<string, { status: string; detail: string }> = {};
   for (const c of audit) if (byId(c.check)) results[c.check] = { status: c.status, detail: c.detail };
+  const detected = parseStack(r.out); // SPEC-221 · deteksi stack app-layer (advisory)
 
   // SPEC-221 · snapshot SEBELUMNYA (untuk diff drift) diambil sebelum snapshot baru dibuat.
   const prevSnap = await prisma.vpsAuditSnapshot.findFirst({
@@ -100,6 +111,7 @@ export async function runAudit(v: VpsRow): Promise<AuditOk | { ok: false; out: s
     results: results as unknown as Prisma.InputJsonValue,
     scoreTotal: scored.total,
     scoreBySection: scored.bySection as unknown as Prisma.InputJsonValue,
+    detected: detected as unknown as Prisma.InputJsonValue,
   } });
 
   // SPEC-221 · drift = item yang tadinya pass kini fail/warn → Notification agregat (AC-19).

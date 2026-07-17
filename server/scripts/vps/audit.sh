@@ -3,6 +3,7 @@
 # Output per baris: CHECK <nama> <pass|fail|warn> <detail…> — diparsing server/src/services/vps-audit.ts.
 set -u
 emit() { echo "CHECK $1 $2 ${3:-}"; }
+emit_stack() { echo "STACK $1 $2 ${3:-}"; }  # SPEC-221 · deteksi stack app-layer (advisory)
 
 # Script sampai sini artinya ssh+bash hidup; yang diverifikasi tinggal root/sudo.
 if [ "$(id -u)" = 0 ]; then emit sudo_ok pass root
@@ -133,3 +134,25 @@ sctl() { sysctl -n "$1" 2>/dev/null; }
 [ "$(sctl net.ipv4.conf.all.rp_filter)" = 1 ] && emit ker-b5 pass || emit ker-b5 fail "rp_filter off"
 [ "$(sctl kernel.randomize_va_space)" = 2 ] && emit ker-i4 pass || emit ker-i4 fail "ASLR != 2"
 [ "$(sctl fs.suid_dumpable)" = 0 ] && emit ker-i6 pass || emit ker-i6 fail "suid_dumpable != 0"
+
+# =============== SPEC-221 · deteksi stack app-layer (advisory) ===============
+# STACK <section> <present|absent> <detail>. `absent` BUKAN bukti pasti — layanan bisa jalan
+# di Docker yang tak terdeteksi probe bare-metal; karena itu jadi SARAN N/A, bukan auto-exclude.
+has_cmd() { command -v "$1" >/dev/null 2>&1; }
+# aaPanel
+{ [ -d /www/server/panel ] || has_cmd bt; } && emit_stack aapanel present "aaPanel terdeteksi" \
+  || emit_stack aapanel absent "tak ada /www/server/panel"
+# web server
+if has_cmd nginx || has_cmd apache2 || has_cmd httpd \
+   || pgrep -x nginx >/dev/null 2>&1 || pgrep -x apache2 >/dev/null 2>&1 || pgrep -x httpd >/dev/null 2>&1; then
+  emit_stack webserver present "nginx/apache terdeteksi"
+else emit_stack webserver absent "tak ada nginx/apache (cek Docker manual)"; fi
+# database
+if has_cmd mysql || has_cmd mariadb || has_cmd psql \
+   || pgrep -x mysqld >/dev/null 2>&1 || pgrep -x postgres >/dev/null 2>&1 \
+   || ss -tlnH 2>/dev/null | grep -qE ':(3306|5432)\b'; then
+  emit_stack database present "db terdeteksi"
+else emit_stack database absent "tak ada mysql/postgres (cek Docker manual)"; fi
+# ssl/tls
+if has_cmd certbot || [ -d /etc/letsencrypt/live ]; then emit_stack ssl present "certbot/letsencrypt"
+else emit_stack ssl absent "tak ada certbot"; fi

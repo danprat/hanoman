@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { parseAudit, isHardened, parseHealth, CRITICAL, mapToCatalog, scriptPath } from "../src/services/vps-audit";
+import { parseAudit, isHardened, parseHealth, CRITICAL, mapToCatalog, parseStack, scriptPath } from "../src/services/vps-audit";
 import { CATALOG } from "../src/vps/catalog/catalog";
 
 const PASS_ALL = [
@@ -63,5 +63,17 @@ describe("mapping katalog (SPEC-220)", () => {
     const sh = readFileSync(scriptPath("audit.sh"), "utf8");
     const missing = CATALOG.filter((c) => c.probe).map((c) => c.id).filter((id) => !sh.includes(id));
     expect(missing).toEqual([]);
+  });
+});
+
+describe("parseStack (SPEC-221)", () => {
+  it("parse STACK present/absent, abaikan noise", () => {
+    const d = parseStack("STACK webserver absent tak ada\nSTACK database present db\nnoise line\n");
+    expect(d.webserver).toEqual({ present: false, detail: "tak ada" });
+    expect(d.database).toEqual({ present: true, detail: "db" });
+    expect(d.noise).toBeUndefined();
+  });
+  it("output tanpa STACK → objek kosong", () => {
+    expect(parseStack("CHECK fw-b1 pass\n")).toEqual({});
   });
 });

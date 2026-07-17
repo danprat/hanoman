@@ -65,6 +65,9 @@ if [[ "$input" == *"hanoman-audit"* ]]; then
   echo "CHECK fw-b1 pass"; echo "CHECK ids-b1 pass"; echo "CHECK ker-b1 pass"
   if [ "${FAKE_SSH_MODE:-}" = "audit-fail" ]; then echo "CHECK ssh-b3 fail PasswordAuthentication yes"
   else echo "CHECK ssh-b3 pass"; fi
+  # SPEC-221 · deteksi stack app-layer (advisory)
+  echo "STACK webserver absent tak ada nginx/apache"; echo "STACK database present postgres"
+  echo "STACK aapanel absent"; echo "STACK ssl absent"
   exit 0
 fi
 exit 0   # perintah lain (mis. verify `true`)
