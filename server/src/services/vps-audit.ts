@@ -8,6 +8,8 @@ import { sshExec, type SshTarget } from "./vps-ssh";
 import { enqueueOutbox } from "./outbox";
 import { byId } from "../vps/catalog/catalog";
 import { scoreCompliance, type ProbeStatus } from "../vps/scoring";
+import { computeDrift, type DriftItem } from "../vps/drift";
+import { recordDrift } from "./notifications";
 
 // Check kritis (SPEC-164 §3): semuanya pass → hardened. warn tak menghalangi.
 export const CRITICAL = [
@@ -63,6 +65,7 @@ export const scriptPath = (f: string): string => join(repoRoot(), "server", "scr
 export type AuditOk = {
   ok: true; audit: VpsCheck[]; hardened: boolean;
   scoreTotal: number; scoreBySection: Record<string, number>;
+  drift: DriftItem[]; // SPEC-221 · item yang regresi sejak audit sebelumnya (AC-19)
 };
 
 // SPEC-220 · kumpulkan keputusan human (N/A, attest) per item untuk scoring.
@@ -86,16 +89,29 @@ export async function runAudit(v: VpsRow): Promise<AuditOk | { ok: false; out: s
   const results: Record<string, { status: string; detail: string }> = {};
   for (const c of audit) if (byId(c.check)) results[c.check] = { status: c.status, detail: c.detail };
 
+  // SPEC-221 · snapshot SEBELUMNYA (untuk diff drift) diambil sebelum snapshot baru dibuat.
+  const prevSnap = await prisma.vpsAuditSnapshot.findFirst({
+    where: { vpsId: v.id }, orderBy: { createdAt: "desc" } });
+
   await prisma.vps.update({ where: { id: v.id }, data: {
     audit: audit as unknown as Prisma.InputJsonValue, lastAuditAt: new Date(), hardened } });
-  await prisma.vpsAuditSnapshot.create({ data: {
+  const snap = await prisma.vpsAuditSnapshot.create({ data: {
     vpsId: v.id,
     results: results as unknown as Prisma.InputJsonValue,
     scoreTotal: scored.total,
     scoreBySection: scored.bySection as unknown as Prisma.InputJsonValue,
   } });
+
+  // SPEC-221 · drift = item yang tadinya pass kini fail/warn → Notification agregat (AC-19).
+  const prevResults = (prevSnap?.results ?? {}) as Record<string, { status: string }>;
+  const drift = computeDrift(prevResults, results);
+  if (drift.length) {
+    const row = await prisma.vps.findUnique({ where: { id: v.id }, select: { name: true } });
+    await recordDrift(v.id, row?.name ?? v.id, drift, snap.id);
+  }
+
   await enqueueOutbox("vps", v.id); // SPEC-213 · hasil audit ikut disync
-  return { ok: true, audit, hardened, scoreTotal: scored.total, scoreBySection: scored.bySection };
+  return { ok: true, audit, hardened, scoreTotal: scored.total, scoreBySection: scored.bySection, drift };
 }
 
 export async function runHealth(v: VpsRow): Promise<boolean> {
