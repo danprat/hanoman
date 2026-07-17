@@ -108,6 +108,7 @@ model VpsAuditSnapshot {
   results        Json
   scoreTotal     Float
   scoreBySection Json
+  detected       Json?    // SPEC-221 · { [section]: { present, detail } } — deteksi stack app-layer (advisory)
   vps            Vps      @relation(fields: [vpsId], references: [id], onDelete: Cascade)
 
   @@index([vpsId, createdAt])
