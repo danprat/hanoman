@@ -295,11 +295,11 @@ it("seksi app-layer stack absent → suggestion applicable false", async () => {
 
 **Interfaces (Produces):** `POST /vps/:id/items/na-bulk { itemIds: string[], na: boolean, reason?: string }` → 200 `{ ok, count }`. Bila ada itemId asing dalam batch → **400** (tolak seluruh batch, jangan sebagian).
 
-- [ ] **Step 1: Test**: bulk N/A 3 item → checklist ketiganya `na:true`; batch berisi itemId asing → 400 & tak ada yang berubah; batch kosong → 400.
-- [ ] **Step 2: Run (fail).**
-- [ ] **Step 3: Implement**: `zMarkNaBulk = z.object({ itemIds: z.array(z.string()).min(1).max(64), na: z.boolean(), reason: z.string().max(500).optional() })`. Handler: validasi semua `byId` (asing → 400), lalu `prisma.$transaction` upsert tiap item (`vpsId_itemId`), `actorEmail` dari `req.user`. Return `{ ok:true, count }`.
-- [ ] **Step 4: Run (pass) + live curl.**
-- [ ] **Step 5: Commit.** `git commit -m "feat(vps): endpoint na-bulk untuk tandai seksi N/A (SPEC-221)"`
+- [x] **Step 1: Test**: bulk N/A 3 item → checklist ketiganya `na:true`; batch berisi itemId asing → 400 & tak ada yang berubah; batch kosong → 400.
+- [x] **Step 2: Run (fail).**
+- [x] **Step 3: Implement**: `zMarkNaBulk = z.object({ itemIds: z.array(z.string()).min(1).max(64), na: z.boolean(), reason: z.string().max(500).optional() })`. Handler: validasi semua `byId` (asing → 400), lalu `prisma.$transaction` upsert tiap item (`vpsId_itemId`), `actorEmail` dari `req.user`. Return `{ ok:true, count }`.
+- [x] **Step 4: Run (pass) + live curl.**
+- [x] **Step 5: Commit.** `git commit -m "feat(vps): endpoint na-bulk untuk tandai seksi N/A (SPEC-221)"`
 
 ### Task 8: UI — penanda drift + banner saran + bulk N/A
 
@@ -307,25 +307,25 @@ it("seksi app-layer stack absent → suggestion applicable false", async () => {
 - Modify: `src/src/screens/VpsChecklist.tsx`, `src/src/api/client.ts`, `shared/src/api.ts` (path `vpsItemNaBulk`)
 - Modify: `src/test/vps-checklist.test.tsx`
 
-- [ ] **Step 1: Test** (viewport-aware): item `drifted:true` menampilkan penanda drift (mis. badge "drift"); seksi dengan `suggestion.applicable:false` menampilkan banner + tombol "Tandai seksi N/A" yang memanggil `api.markNaBulk(vpsId, itemIds, true, ...)`.
-- [ ] **Step 2: Run (fail).**
-- [ ] **Step 3: Implement**:
+- [x] **Step 1: Test** (viewport-aware): item `drifted:true` menampilkan penanda drift (mis. badge "drift"); seksi dengan `suggestion.applicable:false` menampilkan banner + tombol "Tandai seksi N/A" yang memanggil `api.markNaBulk(vpsId, itemIds, true, ...)`.
+- [x] **Step 2: Run (fail).**
+- [x] **Step 3: Implement**:
   - `shared/src/api.ts`: `vpsItemNaBulk: (id) => ${API}/vps/${id}/items/na-bulk`.
   - `client.ts`: `markNaBulk: (id, itemIds, na, reason?) => j<{ok;count}>(paths.vpsItemNaBulk(id), {method:"POST", ...body({itemIds,na,reason})})`.
   - `VpsChecklist.tsx`: (a) item `drifted` → badge "drift" (warna clay) di ItemRow; (b) ringkasan drift di header ("N item drift sejak audit sebelumnya") bila ada; (c) seksi app-layer dengan `suggestion?.applicable===false` → banner lembut + tombol "Tandai seksi N/A" → `api.markNaBulk(vpsId, s.items.map(i=>i.id), true, "app-layer: stack tak terdeteksi")` lalu reload.
-- [ ] **Step 4: Run (pass).**
-- [ ] **Step 5: Commit.** `git commit -m "feat(vps): UI penanda drift + banner saran app-layer + bulk N/A (SPEC-221 AC-19)"`
+- [x] **Step 4: Run (pass).**
+- [x] **Step 5: Commit.** `git commit -m "feat(vps): UI penanda drift + banner saran app-layer + bulk N/A (SPEC-221 AC-19)"`
 
 ---
 
 ## Verifikasi akhir (sebelum selesai)
 
-- [ ] Semua box `- [x]`.
-- [ ] `env -u NODE_ENV -u DATABASE_URL pnpm test` hijau (semua paket).
-- [ ] Typecheck 5 paket bersih.
-- [ ] Live end-to-end: audit → audit-2 (drift muncul di response + Notification feed) → checklist (`drifted`/`suggestion`) → na-bulk (seksi jadi N/A) — semua sesuai kontrak.
-- [ ] Docs tersentuh diperbarui + ter-link di `internal/docs/README.md`.
-- [ ] Diff bersih; siap push.
+- [x] Semua box `- [x]`.
+- [x] `env -u NODE_ENV -u DATABASE_URL pnpm test` hijau (semua paket).
+- [x] Typecheck 5 paket bersih.
+- [x] Live end-to-end: audit → audit-2 (drift muncul di response + Notification feed) → checklist (`drifted`/`suggestion`) → na-bulk (seksi jadi N/A) — semua sesuai kontrak.
+- [x] Docs tersentuh diperbarui + ter-link di `internal/docs/README.md`.
+- [x] Diff bersih; siap push.
 
 ## Coverage spec → task
 
