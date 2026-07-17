@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { readFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { prisma } from "../db";
-import { zCreateVps, zPatchVps, zMarkNa, zAttest, zRemediate, type VpsCheck } from "@hanoman/shared";
+import { zCreateVps, zPatchVps, zMarkNa, zMarkNaBulk, zAttest, zRemediate, type VpsCheck } from "@hanoman/shared";
 import { byId } from "../vps/catalog/catalog";
 import { remediate } from "../services/vps-remediate";
 import { sshExec, consoleArgv } from "../services/vps-ssh";
@@ -100,6 +100,24 @@ export default async function (app: FastifyInstance) {
       update: { na: p.data.na, naReason: p.data.reason ?? null, actorEmail, updatedAt: new Date() },
     });
     return { ok: true };
+  });
+
+  // SPEC-221 · tandai N/A banyak item sekaligus (untuk "tandai seksi N/A" app-layer advisory).
+  // itemId asing DALAM batch → tolak SELURUH batch (400), jangan sebagian.
+  app.post("/vps/:id/items/na-bulk", async (req, reply) => {
+    const v = await prisma.vps.findUnique({ where: { id: (req.params as { id: string }).id } });
+    if (!v) return reply.code(404).send({ error: "not found" });
+    const p = zMarkNaBulk.safeParse(req.body);
+    if (!p.success) return reply.code(400).send({ error: "invalid body" });
+    const unknown = p.data.itemIds.filter((id) => !byId(id));
+    if (unknown.length) return reply.code(400).send({ error: `item tidak dikenal: ${unknown.join(", ")}` });
+    const actorEmail = req.user?.email ?? null;
+    await prisma.$transaction(p.data.itemIds.map((itemId) => prisma.vpsItemState.upsert({
+      where: { vpsId_itemId: { vpsId: v.id, itemId } },
+      create: { vpsId: v.id, itemId, na: p.data.na, naReason: p.data.reason ?? null, actorEmail },
+      update: { na: p.data.na, naReason: p.data.reason ?? null, actorEmail, updatedAt: new Date() },
+    })));
+    return { ok: true, count: p.data.itemIds.length };
   });
 
   // SPEC-220 · attest item INFO (AC-11) — dihitung terpenuhi, jejak pelaku. Non-INFO ditolak.

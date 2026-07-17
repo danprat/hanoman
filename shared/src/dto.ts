@@ -180,6 +180,9 @@ export type ChecklistView = {
 
 // SPEC-220 · body request untuk aksi item & remediasi
 export const zMarkNa = z.object({ na: z.boolean(), reason: z.string().max(500).optional() });
+// SPEC-221 · tandai N/A banyak item sekaligus (untuk "tandai seksi N/A" advisory app-layer)
+export const zMarkNaBulk = z.object({
+  itemIds: z.array(z.string()).min(1).max(64), na: z.boolean(), reason: z.string().max(500).optional() });
 export const zAttest = z.object({ note: z.string().max(500).optional() });
 export const zRemediate = z.object({ items: z.array(z.string()).min(1).max(64) });
 
