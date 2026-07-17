@@ -394,11 +394,11 @@ export type ChecklistView = { vpsId: string; scoreTotal: number; scoreBySection:
 - Modify: `shared/src/dto.ts` (`zMarkNa`, `zAttest`)
 - Create: `server/src/routes/vps-item-state.test.ts`
 
-- [ ] **Step 1: Test:** `POST /vps/:id/items/:itemId/na {na, reason}` upsert `VpsItemState`, item keluar denominator (skor naik). `POST …/attest {note}` set attested + `actorEmail` dari `req.user`. itemId asing → 404. Verifikasi jejak pelaku tersimpan.
-- [ ] **Step 2: Run (fail).**
-- [ ] **Step 3:** Implement dua handler (validasi itemId via `byId`, `prisma.vpsItemState.upsert` by `@@unique([vpsId,itemId])`, `actorEmail` dari sesi auth `req.user?.email`).
-- [ ] **Step 4: Run (pass).**
-- [ ] **Step 5: Live curl + commit** `git commit -m "feat(vps): mark N/A + attest INFO dgn jejak pelaku (SPEC-220 AC-10/11)"`
+- [x] **Step 1: Test:** `POST /vps/:id/items/:itemId/na {na, reason}` upsert `VpsItemState`, item keluar denominator (skor naik). `POST …/attest {note}` set attested + `actorEmail` dari `req.user`. itemId asing → 404. Verifikasi jejak pelaku tersimpan.
+- [x] **Step 2: Run (fail).**
+- [x] **Step 3:** Implement dua handler (validasi itemId via `byId`, `prisma.vpsItemState.upsert` by `@@unique([vpsId,itemId])`, `actorEmail` dari sesi auth `req.user?.email`).
+- [x] **Step 4: Run (pass).**
+- [x] **Step 5: Live curl + commit** `git commit -m "feat(vps): mark N/A + attest INFO dgn jejak pelaku (SPEC-220 AC-10/11)"`
 
 ### Task 8: Checklist UI
 
@@ -407,11 +407,11 @@ export type ChecklistView = { vpsId: string; scoreTotal: number; scoreBySection:
 - Modify: `src/src/api/client.ts` (fungsi baru: `vpsChecklist`, `markNa`, `attestItem`)
 - Modify: `src/test/vps-screen.test.tsx`
 
-- [ ] **Step 1: Test** (viewport-aware, lihat memory): render checklist per-seksi + skor total; filter mode/status/severity; klik N/A → panggil `api.markNa`; tombol Attest muncul hanya utk item INFO.
-- [ ] **Step 2: Run (fail).**
-- [ ] **Step 3:** Implement: detail pane VPS → checklist. Header skor total + per-seksi (bar `--brass`/`--leaf`). Baris item: ikon status, judul, badge mode+severity, tombol N/A (semua), Attest (INFO). Filter bar (seksi/mode/status/severity). Ikuti design system (bone paper, brass). Muat via `api.vpsChecklist(id)`.
-- [ ] **Step 4: Run (pass).**
-- [ ] **Step 5: Commit** `git commit -m "feat(vps): checklist UI per-seksi + skor + filter + N/A/attest (SPEC-220 AC-9/12)"`
+- [x] **Step 1: Test** (viewport-aware, lihat memory): render checklist per-seksi + skor total; filter mode/status/severity; klik N/A → panggil `api.markNa`; tombol Attest muncul hanya utk item INFO.
+- [x] **Step 2: Run (fail).**
+- [x] **Step 3:** Implement: detail pane VPS → checklist. Header skor total + per-seksi (bar `--brass`/`--leaf`). Baris item: ikon status, judul, badge mode+severity, tombol N/A (semua), Attest (INFO). Filter bar (seksi/mode/status/severity). Ikuti design system (bone paper, brass). Muat via `api.vpsChecklist(id)`.
+- [x] **Step 4: Run (pass).**
+- [x] **Step 5: Commit** `git commit -m "feat(vps): checklist UI per-seksi + skor + filter + N/A/attest (SPEC-220 AC-9/12)"`
 
 ---
 
