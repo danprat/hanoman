@@ -6,7 +6,7 @@ import { Button, Modal, Field, Input, StateBlock, StatusPill, Icon } from "../ds
 import { api } from "../api/client";
 import { subscribe } from "../api/events";
 import type { VpsView } from "@hanoman/shared";
-import { VpsChecklist } from "./VpsChecklist";
+import { VpsChecklistModal, ScoreBar, Badge } from "./VpsChecklist";
 
 // reachable = healthcheck terakhir sukses dalam 2× interval 5 menit (SPEC-164 §4).
 export const isReachable = (v: VpsView, now: number = Date.now()): boolean =>
@@ -79,6 +79,8 @@ export function VpsScreen({ onToast, onGotoTerminal }:
   const [busy, setBusy] = React.useState<string | null>(null); // "<aksi>:<id>"
   // null = tertutup · "new" = daftar · VpsView = edit
   const [modal, setModal] = React.useState<null | "new" | VpsView>(null);
+  const [checklistOpen, setChecklistOpen] = React.useState(false);
+  const [summary, setSummary] = React.useState<{ scoreTotal: number; driftCount: number } | null>(null);
 
   const load = React.useCallback(() => {
     api.listVps().then((l) => { setList(l); setStatus("ready"); })
@@ -90,6 +92,19 @@ export function VpsScreen({ onToast, onGotoTerminal }:
     load();
     return subscribe((m) => { if (m.t === "vps") { setList(m.vps); setStatus("ready"); } });
   }, [load]);
+
+  // Ringkasan skor kepatuhan untuk VPS terpilih (di panel inline). Modal memuat detail penuh sendiri.
+  const loadSummary = React.useCallback((id: string) => {
+    api.vpsChecklist(id)
+      .then((v) => setSummary({
+        scoreTotal: v.scoreTotal,
+        driftCount: v.sections.reduce((a, s) => a + s.items.filter((i) => i.drifted).length, 0) }))
+      .catch(() => setSummary(null));
+  }, []);
+  React.useEffect(() => {
+    if (!sel) { setSummary(null); return; }
+    setSummary(null); loadSummary(sel);
+  }, [sel, loadSummary]);
 
   async function run(label: string, id: string, fn: () => Promise<unknown>, okMsg: string) {
     setBusy(`${label}:${id}`);
@@ -200,9 +215,21 @@ export function VpsScreen({ onToast, onGotoTerminal }:
               : "Belum pernah diaudit"}
             {selected.health && ` · disk ${selected.health.disk} · mem ${selected.health.mem} · load ${selected.health.load}`}
           </div>
-          {/* SPEC-220 · checklist kepatuhan 232 item + skor + N/A/attest. Dimuat sendiri per vpsId. */}
-          <VpsChecklist vpsId={selected.id} onToast={onToast} />
+          {summary && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{summary.scoreTotal}%</span>
+              <div style={{ flex: 1 }}><ScoreBar score={summary.scoreTotal} /></div>
+              {summary.driftCount > 0 && <Badge text={`${summary.driftCount} drift`} color="var(--clay-600)" />}
+            </div>
+          )}
+          {/* SPEC-220/221 · detail checklist penuh (232 item, collapse/expand, search) di modal. */}
+          <Button size="sm" leftIcon="clipboard-list" onClick={() => setChecklistOpen(true)}>Checklist</Button>
         </div>
+      )}
+      {checklistOpen && selected && (
+        <VpsChecklistModal vpsId={selected.id} vpsName={selected.name}
+          onClose={() => { setChecklistOpen(false); loadSummary(selected.id); }}
+          onToast={onToast} />
       )}
       <VpsModal open={modal === "new"} title="Daftarkan VPS" submitLabel="Daftarkan"
         initial={BLANK} onClose={() => setModal(null)} onSubmit={create} />

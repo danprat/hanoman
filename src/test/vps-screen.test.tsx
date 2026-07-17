@@ -8,13 +8,20 @@ const VPS = {
 };
 // vi.mock di-hoist ke atas berkas — factory-nya TIDAK boleh merujuk `const` biasa.
 // vi.hoisted menaikkan mock fn-nya bersama vi.mock, jadi test bisa memeriksanya.
-const { updateVps, testVps, vpsConsole } = vi.hoisted(() => ({
+const { updateVps, testVps, vpsConsole, vpsChecklist } = vi.hoisted(() => ({
   updateVps: vi.fn(),
   testVps: vi.fn(async () => ({ ok: true, out: "" })),
   vpsConsole: vi.fn(async () => ({ id: "vpsc-v1" })),
+  vpsChecklist: vi.fn(async () => ({
+    vpsId: "v1", scoreTotal: 77, lastAuditAt: null, scoreBySection: { ssh: 77 },
+    sections: [{ id: "ssh", title: "SSH", icon: "🔑", score: 77, items: [
+      { id: "ssh-b2", section: "ssh", sectionTitle: "SSH", level: "Basic", title: "Nonaktifkan login root",
+        mode: "AUDIT", severity: "high", probe: true, remediable: false, appLayer: false,
+        status: "fail", na: false, attested: false, drifted: false, actorEmail: null, naReason: null, attestNote: null }] }],
+  })),
 }));
 vi.mock("../src/api/client", () => ({
-  api: { listVps: vi.fn(async () => [VPS]), updateVps, testVps, vpsConsole },
+  api: { listVps: vi.fn(async () => [VPS]), updateVps, testVps, vpsConsole, vpsChecklist },
   ApiError: class extends Error {},
 }));
 import { VpsScreen, isReachable, hardenedLabel, vpsFormToBody } from "../src/screens/VpsScreen";
@@ -49,6 +56,13 @@ describe("VpsScreen (SPEC-164)", () => {
     await screen.findByText("web-1");
     fireEvent.click(screen.getByRole("button", { name: /^test$/i }));
     await vi.waitFor(() => expect(testVps).toHaveBeenCalledWith("v1"));
+  });
+  it("tombol Checklist membuka modal detail (UI 2026-07-17)", async () => {
+    render(<VpsScreen onToast={() => {}} onGotoTerminal={() => {}} />);
+    fireEvent.click(await screen.findByText("web-1")); // pilih baris → ringkasan muncul
+    fireEvent.click(await screen.findByRole("button", { name: /checklist/i }));
+    expect(await screen.findByTestId("score-total")).toBeTruthy(); // modal termuat
+    await vi.waitFor(() => expect(vpsChecklist).toHaveBeenCalledWith("v1"));
   });
 });
 
