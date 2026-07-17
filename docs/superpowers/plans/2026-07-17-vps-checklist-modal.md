@@ -43,7 +43,7 @@
   - `export function Badge({ text, color }: { text: string; color: string })`.
   - Header seksi `data-testid={`section-${id}`}` (tombol, `aria-expanded`); item `data-testid={`item-${id}`}`; search `aria-label="cari item"`; skor total `data-testid="score-total"`; drift `data-testid="drift-summary"`; saran `data-testid={`suggestion-${id}`}`; preview `data-testid="remediate-preview"`.
 
-- [ ] **Step 1: Tulis test yang gagal** — ganti seluruh isi `src/test/vps-checklist.test.tsx`:
+- [x] **Step 1: Tulis test yang gagal** — ganti seluruh isi `src/test/vps-checklist.test.tsx`:
 
 ```tsx
 import { render, screen, fireEvent, within } from "@testing-library/react";
@@ -209,12 +209,12 @@ describe("VpsChecklistModal (SPEC-220/221 · UI modal)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan GAGAL**
+- [x] **Step 2: Jalankan test — pastikan GAGAL**
 
 Run: `pnpm --filter ./src test -- --run test/vps-checklist.test.tsx`
 Expected: FAIL — `VpsChecklistModal` belum diekspor (import error) / testid `section-*` belum ada.
 
-- [ ] **Step 3: Tulis ulang komponen** — ganti seluruh isi `src/src/screens/VpsChecklist.tsx`:
+- [x] **Step 3: Tulis ulang komponen** — ganti seluruh isi `src/src/screens/VpsChecklist.tsx`:
 
 ```tsx
 /* VpsChecklistModal — modal detail checklist kepatuhan per-VPS (SPEC-220/221 · UI modal 2026-07-17).
@@ -507,17 +507,17 @@ export function VpsChecklistModal({ vpsId, vpsName, onClose, onToast }:
 }
 ```
 
-- [ ] **Step 4: Jalankan test — pastikan LULUS**
+- [x] **Step 4: Jalankan test — pastikan LULUS**
 
 Run: `pnpm --filter ./src test -- --run test/vps-checklist.test.tsx`
 Expected: PASS (13 test).
 
-- [ ] **Step 5: Typecheck**
+- [x] **Step 5: Typecheck**
 
 Run: `pnpm --filter ./src exec tsc --noEmit`
 Expected: tak ada error di `VpsChecklist.tsx`. (Error `VpsScreen.tsx` soal import `VpsChecklist` yang hilang **diperbaiki di Task 2** — abaikan sementara bila muncul.)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/src/screens/VpsChecklist.tsx src/test/vps-checklist.test.tsx
@@ -536,7 +536,7 @@ git commit -m "feat(vps): checklist jadi modal + seksi collapse/expand + search 
 - Consumes (dari Task 1): `VpsChecklistModal`, `ScoreBar`, `Badge` dari `./VpsChecklist`; `api.vpsChecklist(id): Promise<ChecklistView>`.
 - Produces: perilaku UI — panel ringkasan + tombol "Checklist" membuka `<Modal>` (score-total tampil).
 
-- [ ] **Step 1: Tulis test yang gagal** — tambahkan test + perluas mock di `src/test/vps-screen.test.tsx`.
+- [x] **Step 1: Tulis test yang gagal** — tambahkan test + perluas mock di `src/test/vps-screen.test.tsx`.
 
 Ganti blok `vi.hoisted`/`vi.mock` (baris 11-19) menjadi:
 
@@ -571,25 +571,25 @@ Tambahkan test ini di dalam `describe("VpsScreen (SPEC-164)", …)` (sebelum pen
   });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan GAGAL**
+- [x] **Step 2: Jalankan test — pastikan GAGAL**
 
 Run: `pnpm --filter ./src test -- --run test/vps-screen.test.tsx`
 Expected: FAIL — tombol "Checklist" belum ada / `api.vpsChecklist` belum dipakai VpsScreen.
 
-- [ ] **Step 3: Ubah import** — `src/src/screens/VpsScreen.tsx` baris 9:
+- [x] **Step 3: Ubah import** — `src/src/screens/VpsScreen.tsx` baris 9:
 
 ```tsx
 import { VpsChecklistModal, ScoreBar, Badge } from "./VpsChecklist";
 ```
 
-- [ ] **Step 4: Tambah state** — sisipkan setelah baris 81 (`const [modal, setModal] = …`):
+- [x] **Step 4: Tambah state** — sisipkan setelah baris 81 (`const [modal, setModal] = …`):
 
 ```tsx
   const [checklistOpen, setChecklistOpen] = React.useState(false);
   const [summary, setSummary] = React.useState<{ scoreTotal: number; driftCount: number } | null>(null);
 ```
 
-- [ ] **Step 5: Tambah loadSummary + effect** — sisipkan setelah efek `subscribe` (setelah baris 92, blok `React.useEffect(() => { load(); return subscribe(…); }, [load]);`):
+- [x] **Step 5: Tambah loadSummary + effect** — sisipkan setelah efek `subscribe` (setelah baris 92, blok `React.useEffect(() => { load(); return subscribe(…); }, [load]);`):
 
 ```tsx
   // Ringkasan skor kepatuhan untuk VPS terpilih (di panel inline). Modal memuat detail penuh sendiri.
@@ -606,7 +606,7 @@ import { VpsChecklistModal, ScoreBar, Badge } from "./VpsChecklist";
   }, [sel, loadSummary]);
 ```
 
-- [ ] **Step 6: Ganti panel inline** — ganti blok `{selected && ( … )}` (baris 194-206) menjadi:
+- [x] **Step 6: Ganti panel inline** — ganti blok `{selected && ( … )}` (baris 194-206) menjadi:
 
 ```tsx
       {selected && (
@@ -635,21 +635,21 @@ import { VpsChecklistModal, ScoreBar, Badge } from "./VpsChecklist";
       )}
 ```
 
-- [ ] **Step 7: Jalankan test — pastikan LULUS**
+- [x] **Step 7: Jalankan test — pastikan LULUS**
 
 Run: `pnpm --filter ./src test -- --run test/vps-screen.test.tsx`
 Expected: PASS (semua test lama + test Checklist baru).
 
-- [ ] **Step 8: Typecheck + seluruh test frontend**
+- [x] **Step 8: Typecheck + seluruh test frontend**
 
 Run: `pnpm --filter ./src exec tsc --noEmit && pnpm --filter ./src test -- --run`
 Expected: tsc bersih; semua test `src/` hijau.
 
-- [ ] **Step 9: Verifikasi manual di app** (bukan cuma test)
+- [x] **Step 9: Verifikasi manual di app** (bukan cuma test)
 
 Boot ulang server prod-lokal (memuat dist baru): `pnpm --filter ./src build` lalu (bila mengetes lewat server) restart server; atau `pnpm --filter ./src dev` dan buka VPS screen → pilih VPS → klik **Checklist** → modal terbuka, seksi collapsed default, expand/collapse jalan, search & filter jalan, N/A/Attest/Preview jalan. Tutup lewat Esc/backdrop.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add src/src/screens/VpsScreen.tsx src/test/vps-screen.test.tsx
