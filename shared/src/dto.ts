@@ -179,6 +179,9 @@ export const zMarkNa = z.object({ na: z.boolean(), reason: z.string().max(500).o
 export const zAttest = z.object({ note: z.string().max(500).optional() });
 export const zRemediate = z.object({ items: z.array(z.string()).min(1).max(64) });
 
+// SPEC-220 · satu langkah remediasi. `would` = dry-run (tak menyentuh VPS), ok/fail = apply.
+export type RemediateStep = { item: string; status: "would" | "ok" | "fail"; detail: string };
+
 // SPEC-181 · limit langganan Claude realtime (dari GET /api/oauth/usage → limits[])
 export type LimitSeverity = "normal" | "warning" | "critical";
 export type LimitsStatus = "ok" | "stale" | "unavailable";

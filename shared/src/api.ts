@@ -42,6 +42,12 @@ export const paths = {
   vpsSession: (id: string) => `${API}/vps/${id}/session`,
   vpsTest: (id: string) => `${API}/vps/${id}/test`,
   vpsConsole: (id: string) => `${API}/vps/${id}/console`,
+  // SPEC-220 · kepatuhan checklist
+  vpsChecklist: (id: string) => `${API}/vps/${id}/checklist`,
+  vpsItemNa: (id: string, itemId: string) => `${API}/vps/${id}/items/${itemId}/na`,
+  vpsItemAttest: (id: string, itemId: string) => `${API}/vps/${id}/items/${itemId}/attest`,
+  vpsRemediatePreview: (id: string) => `${API}/vps/${id}/remediate/preview`,
+  vpsRemediate: (id: string) => `${API}/vps/${id}/remediate`,
   // SPEC-169 · auth
   authStatus: `${API}/auth/status`,
   authSetup: `${API}/auth/setup`,

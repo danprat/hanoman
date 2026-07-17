@@ -5,7 +5,8 @@ import React from "react";
 import { Button, Modal, Field, Input, StateBlock, StatusPill, Icon } from "../ds";
 import { api } from "../api/client";
 import { subscribe } from "../api/events";
-import type { VpsView, VpsCheck } from "@hanoman/shared";
+import type { VpsView } from "@hanoman/shared";
+import { VpsChecklist } from "./VpsChecklist";
 
 // reachable = healthcheck terakhir sukses dalam 2× interval 5 menit (SPEC-164 §4).
 export const isReachable = (v: VpsView, now: number = Date.now()): boolean =>
@@ -19,19 +20,6 @@ const HARDENED_PILL = {
   belum: { status: "broken", label: "belum hardened" },
   unknown: { status: "idle", label: "belum diaudit" },
 } as const;
-
-const CHECK_ICON = { pass: "check", fail: "x", warn: "alert-triangle", na: "minus" } as const;
-const CHECK_COLOR = { pass: "var(--leaf-600)", fail: "var(--clay-600)", warn: "var(--amber-600)", na: "var(--text-subtle)" } as const;
-function CheckRow({ c }: { c: VpsCheck }) {
-  return (
-    <div style={{ display: "flex", gap: 8, alignItems: "baseline", padding: "4px 0",
-      borderBottom: "1px solid var(--border-hair)", fontSize: 13 }}>
-      <Icon name={CHECK_ICON[c.status]} size={14} color={CHECK_COLOR[c.status]} />
-      <span style={{ fontFamily: "var(--font-mono)" }}>{c.check}</span>
-      <span style={{ color: "var(--text-subtle)", fontSize: 12 }}>{c.detail}</span>
-    </div>
-  );
-}
 
 export type VpsForm = { name: string; host: string; user: string; port: string; keyPath: string; password: string };
 
@@ -212,9 +200,8 @@ export function VpsScreen({ onToast, onGotoTerminal }:
               : "Belum pernah diaudit"}
             {selected.health && ` · disk ${selected.health.disk} · mem ${selected.health.mem} · load ${selected.health.load}`}
           </div>
-          {(selected.audit ?? []).map((c) => <CheckRow key={c.check} c={c} />)}
-          {!selected.audit && <StateBlock kind="empty" compact icon="radar" title="Belum ada hasil audit"
-            hint="Jalankan Audit untuk melihat status per check." />}
+          {/* SPEC-220 · checklist kepatuhan 232 item + skor + N/A/attest. Dimuat sendiri per vpsId. */}
+          <VpsChecklist vpsId={selected.id} onToast={onToast} />
         </div>
       )}
       <VpsModal open={modal === "new"} title="Daftarkan VPS" submitLabel="Daftarkan"

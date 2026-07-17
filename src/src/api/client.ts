@@ -1,4 +1,4 @@
-import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type ConfigResponse, type ConfigEntryView } from "@hanoman/shared";
+import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type ConfigResponse, type ConfigEntryView } from "@hanoman/shared";
 export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd";
 // SPEC-210 · dokumen PRD project (freshest-wins: worktree sesi prd hidup > repoDir). Tipe di @hanoman/shared.
@@ -138,7 +138,18 @@ export const api = {
   }) =>
     j<VpsView>(paths.vpsOne(id), { method: "PATCH", ...body(b) }),
   deleteVps: (id: string) => j<void>(paths.vpsOne(id), { method: "DELETE" }),
-  auditVps: (id: string) => j<{ audit: VpsCheck[]; hardened: boolean }>(paths.vpsAudit(id), { method: "POST" }),
+  auditVps: (id: string) => j<{ audit: VpsCheck[]; hardened: boolean; scoreTotal: number; scoreBySection: Record<string, number> }>(paths.vpsAudit(id), { method: "POST" }),
+  // SPEC-220 · kepatuhan checklist
+  vpsChecklist: (id: string) => j<ChecklistView>(paths.vpsChecklist(id)),
+  markNa: (id: string, itemId: string, na: boolean, reason?: string) =>
+    j<{ ok: boolean }>(paths.vpsItemNa(id, itemId), { method: "POST", ...body({ na, reason }) }),
+  attestItem: (id: string, itemId: string, note?: string) =>
+    j<{ ok: boolean }>(paths.vpsItemAttest(id, itemId), { method: "POST", ...body({ note }) }),
+  remediatePreview: (id: string, items: string[]) =>
+    j<{ steps: RemediateStep[] }>(paths.vpsRemediatePreview(id), { method: "POST", ...body({ items }) }),
+  remediate: (id: string, items: string[]) =>
+    j<{ steps: RemediateStep[]; audit: VpsCheck[] | null; scoreTotal: number; scoreBySection: Record<string, number> }>(
+      paths.vpsRemediate(id), { method: "POST", ...body({ items }) }),
   hardenVps: (id: string) => j<{ transcript: string; audit: VpsCheck[] | null; hardened: boolean }>(
     paths.vpsHarden(id), { method: "POST" }),
   vpsSession: (id: string) => j<{ id: string }>(paths.vpsSession(id), { method: "POST" }),
