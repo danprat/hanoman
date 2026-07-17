@@ -2,7 +2,8 @@ import type { FastifyInstance } from "fastify";
 import { readFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { prisma } from "../db";
-import { zCreateVps, zPatchVps, type VpsCheck } from "@hanoman/shared";
+import { zCreateVps, zPatchVps, zMarkNa, zAttest, type VpsCheck } from "@hanoman/shared";
+import { byId } from "../vps/catalog/catalog";
 import { sshExec, consoleArgv } from "../services/vps-ssh";
 import { runAudit, scriptPath } from "../services/vps-audit";
 import { buildChecklist } from "../vps/checklist";
@@ -81,6 +82,42 @@ export default async function (app: FastifyInstance) {
     const v = await prisma.vps.findUnique({ where: { id: (req.params as { id: string }).id } });
     if (!v) return reply.code(404).send({ error: "not found" });
     return buildChecklist(v.id);
+  });
+
+  // SPEC-220 · tandai/lepas N/A (AC-10) — item keluar dari denominator skor, jejak pelaku dari sesi auth.
+  app.post("/vps/:id/items/:itemId/na", async (req, reply) => {
+    const { id, itemId } = req.params as { id: string; itemId: string };
+    const v = await prisma.vps.findUnique({ where: { id } });
+    if (!v) return reply.code(404).send({ error: "not found" });
+    if (!byId(itemId)) return reply.code(404).send({ error: "item tidak dikenal di katalog" });
+    const p = zMarkNa.safeParse(req.body);
+    if (!p.success) return reply.code(400).send({ error: "invalid body" });
+    const actorEmail = req.user?.email ?? null;
+    await prisma.vpsItemState.upsert({
+      where: { vpsId_itemId: { vpsId: id, itemId } },
+      create: { vpsId: id, itemId, na: p.data.na, naReason: p.data.reason ?? null, actorEmail },
+      update: { na: p.data.na, naReason: p.data.reason ?? null, actorEmail, updatedAt: new Date() },
+    });
+    return { ok: true };
+  });
+
+  // SPEC-220 · attest item INFO (AC-11) — dihitung terpenuhi, jejak pelaku. Non-INFO ditolak.
+  app.post("/vps/:id/items/:itemId/attest", async (req, reply) => {
+    const { id, itemId } = req.params as { id: string; itemId: string };
+    const v = await prisma.vps.findUnique({ where: { id } });
+    if (!v) return reply.code(404).send({ error: "not found" });
+    const item = byId(itemId);
+    if (!item) return reply.code(404).send({ error: "item tidak dikenal di katalog" });
+    if (item.mode !== "INFO") return reply.code(400).send({ error: "hanya item INFO yang bisa di-attest" });
+    const p = zAttest.safeParse(req.body);
+    if (!p.success) return reply.code(400).send({ error: "invalid body" });
+    const actorEmail = req.user?.email ?? null;
+    await prisma.vpsItemState.upsert({
+      where: { vpsId_itemId: { vpsId: id, itemId } },
+      create: { vpsId: id, itemId, attested: true, attestNote: p.data.note ?? null, actorEmail },
+      update: { attested: true, attestNote: p.data.note ?? null, actorEmail, updatedAt: new Date() },
+    });
+    return { ok: true };
   });
 
   // Harden TIDAK PERNAH terjadwal — hanya dari tombol (SPEC-164 §5). Urutan anti-lockout:
