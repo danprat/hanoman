@@ -58,6 +58,7 @@ describe("schemas", () => {
   it("project view adds derived fields", () => {
     const v = zProjectView.parse({ id: "a", name: "a", desc: "", kind: "existing", docStatus: "ok",
       coverage: 94, createdAt: new Date().toISOString(), stack: "Go", backlog: 6, topStage: "execute",
+      binding: null,   // SPEC-217 · field wajib (nullable) — sebelumnya terlewat, bikin test merah
       session: { status: "running", phase: "Execute", flow: "feature" }, activity: "x", commit: "y" });
     expect(v.backlog).toBe(6);
   });
