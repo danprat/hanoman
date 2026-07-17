@@ -56,7 +56,24 @@ hanya untuk `AUTO`. Item berisiko-lockout (`ssh-b1/b2/b3`, `usr-b2`, …) **tak 
 
 Lihat [api-contract.md](api-contract.md#vps) bagian VPS. Semua di bawah gate auth + bind 127.0.0.1.
 
-## Di luar cakupan (Fase 3)
+## Drift (Fase 3 · SPEC-221 · [ADR-0051](../adr/0051-vps-fase3-drift-applicability.md))
 
-Deteksi drift + Notification (AC-19), auto-deteksi applicability app-layer (aaPanel/web/DB/SSL). Snapshot
-append-only menyiapkan datanya.
+Tiap audit, `runAudit` mem-diff `results` snapshot **sebelumnya** vs **baru** (`computeDrift`,
+`server/src/vps/drift.ts`): item `pass` → `fail`/`warn` = **drift** (regresi postur). `pass → unknown`
+sengaja **bukan** drift (transien). Bila ada drift, satu **Notification agregat** `type: "drift"` dibuat
+(`recordDrift`, dedup `key: drift:<vpsId>:<snapshotId>`), muncul di feed notifikasi. `buildChecklist`
+menandai item `drifted` (derived dari diff 2 snapshot terakhir) untuk penanda di UI. **Tanpa cron** —
+drift dihitung saat audit dipicu manual/on-view.
+
+## Applicability app-layer (advisory · Fase 3)
+
+`audit.sh` mendeteksi stack terpasang → `STACK <section> <present|absent>`, disimpan di
+`VpsAuditSnapshot.detected`. `buildChecklist` menurunkan `suggestion` per-seksi app-layer: bila stack tak
+terdeteksi → **saran** "kemungkinan N/A". UI: banner + tombol **"Tandai seksi N/A"** (bulk via
+`POST /vps/:id/items/na-bulk`). **Skor tak berubah** sampai manusia menandai N/A — deteksi best-effort
+(host dockerized bisa menjalankan web/DB di container yang tak terlihat), jadi advisory, bukan auto-exclude.
+
+## Di luar cakupan (pasca Fase 3)
+
+Auto-deteksi applicability yang mengintip Docker, drift per-severity, kebijakan kedaluwarsa attestasi/N-A
+(PRD open questions) — butuh ADR sendiri.

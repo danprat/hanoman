@@ -190,7 +190,8 @@ POST   /vps  {name,host,user,port?,keyPath?,password?}  # 201 · 400 host/user c
 PATCH  /vps/:id                      # parsial · 200 · 400 body cacat · 404
                                      # `password` = bootstrap ulang → 502 bila gagal
 DELETE /vps/:id                      # 204 · 404 (registrasi saja; server-nya tak disentuh)
-POST   /vps/:id/audit                # 200 { audit, hardened, scoreTotal, scoreBySection } · 404 · 502
+POST   /vps/:id/audit                # 200 { audit, hardened, scoreTotal, scoreBySection, drift[] } · 404 · 502
+                                     # drift (SPEC-221) = item pass→fail/warn sejak snapshot lalu → Notification
 POST   /vps/:id/harden               # 200 { transcript, audit, hardened } · 404
                                      # 502 { error, transcript[, verify] } bila ssh gagal
                                      # atau verifikasi koneksi pasca-harden gagal
@@ -199,10 +200,12 @@ POST   /vps/:id/test                  # 200 { ok, out } — ssh `true` key-only,
 POST   /vps/:id/console               # 201 { id } — shell ssh MENTAH di tmux hanoman (ADR-0042) · 404
 # --- Kepatuhan / checklist 232 item (SPEC-220 · ADR-0050) ---
 GET    /vps/:id/checklist            # 200 { vpsId, scoreTotal, scoreBySection, lastAuditAt,
-                                     #   sections:[{ id,title,icon,score, items:[CatalogItem +
-                                     #   status,na,attested,actorEmail,naReason,attestNote] }] } · 404
+                                     #   sections:[{ id,title,icon,score, suggestion?, items:[CatalogItem +
+                                     #   status,na,attested,drifted,actorEmail,naReason,attestNote] }] } · 404
+                                     # drifted (SPEC-221) = regresi sejak snapshot lalu; suggestion = saran N/A app-layer
 POST   /vps/:id/items/:itemId/na     # 200 { ok } {na,reason?} — tandai/lepas N/A + jejak pelaku · 404 itemId asing
 POST   /vps/:id/items/:itemId/attest # 200 { ok } {note?} — attest item INFO + jejak pelaku · 404
+POST   /vps/:id/items/na-bulk        # 200 { ok, count } {itemIds[],na,reason?} — tandai N/A banyak item · 400 id asing (SPEC-221)
 POST   /vps/:id/remediate/preview    # 200 { steps:[{item,status:would,detail}] } {items[]} — dry-run · 404 · 502
 POST   /vps/:id/remediate            # 200 { steps, audit, scoreTotal, scoreBySection } {items[]}
                                      #   — apply item AUTO idempoten → verifikasi koneksi → re-audit · 404 · 502
