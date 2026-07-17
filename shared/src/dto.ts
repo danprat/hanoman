@@ -156,6 +156,29 @@ export type VpsView = {
   lastAuditAt: string | null; audit: VpsCheck[] | null; hardened: boolean;
 };
 
+// SPEC-220 · checklist kepatuhan (katalog 232 item + status per VPS). Server menghidrasi penuh
+// (frontend tak mengimpor katalog server). Lihat internal/docs/architecture/vps-compliance.md.
+export type VpsItemStatus = "pass" | "fail" | "warn" | "na" | "unknown";
+export type VpsMode = "AUTO" | "AUDIT" | "INFO";
+export type VpsSeverity = "critical" | "high" | "medium" | "low";
+export type ChecklistItem = {
+  id: string; section: string; sectionTitle: string; level: string; title: string; code?: string;
+  mode: VpsMode; severity: VpsSeverity; probe: boolean; remediable: boolean; appLayer: boolean;
+  status: VpsItemStatus; na: boolean; attested: boolean;
+  actorEmail: string | null; naReason: string | null; attestNote: string | null;
+};
+export type ChecklistSection = {
+  id: string; title: string; icon: string; score: number; items: ChecklistItem[] };
+export type ChecklistView = {
+  vpsId: string; scoreTotal: number; scoreBySection: Record<string, number>;
+  lastAuditAt: string | null; sections: ChecklistSection[];
+};
+
+// SPEC-220 · body request untuk aksi item & remediasi
+export const zMarkNa = z.object({ na: z.boolean(), reason: z.string().max(500).optional() });
+export const zAttest = z.object({ note: z.string().max(500).optional() });
+export const zRemediate = z.object({ items: z.array(z.string()).min(1).max(64) });
+
 // SPEC-181 · limit langganan Claude realtime (dari GET /api/oauth/usage → limits[])
 export type LimitSeverity = "normal" | "warning" | "critical";
 export type LimitsStatus = "ok" | "stale" | "unavailable";

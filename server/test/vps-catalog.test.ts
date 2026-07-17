@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { CATALOG, SECTIONS, byId } from "./catalog";
+import { CATALOG, SECTIONS, byId } from "../src/vps/catalog/catalog";
 
 describe("catalog kepatuhan VPS (SPEC-220)", () => {
   it("memuat 232 item / 16 seksi (AC-1)", () => {

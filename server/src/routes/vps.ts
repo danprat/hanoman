@@ -5,6 +5,7 @@ import { prisma } from "../db";
 import { zCreateVps, zPatchVps, type VpsCheck } from "@hanoman/shared";
 import { sshExec, consoleArgv } from "../services/vps-ssh";
 import { runAudit, scriptPath } from "../services/vps-audit";
+import { buildChecklist } from "../vps/checklist";
 import { bootstrapKey } from "../services/vps-bootstrap";
 import { createSession } from "../services/pty";
 import { sessionModel } from "../services/settings";
@@ -72,7 +73,14 @@ export default async function (app: FastifyInstance) {
     if (keyMissing(v)) return reply.code(409).send({ error: "key VPS tidak ada di mesin ini", keyMissing: true });
     const r = await runAudit(v);
     if (!r.ok) return reply.code(502).send({ error: "audit gagal lewat ssh", out: r.out });
-    return { audit: r.audit, hardened: r.hardened };
+    return { audit: r.audit, hardened: r.hardened, scoreTotal: r.scoreTotal, scoreBySection: r.scoreBySection };
+  });
+
+  // SPEC-220 · checklist kepatuhan 232 item + status + skor per-seksi/total (AC-9).
+  app.get("/vps/:id/checklist", async (req, reply) => {
+    const v = await prisma.vps.findUnique({ where: { id: (req.params as { id: string }).id } });
+    if (!v) return reply.code(404).send({ error: "not found" });
+    return buildChecklist(v.id);
   });
 
   // Harden TIDAK PERNAH terjadwal — hanya dari tombol (SPEC-164 §5). Urutan anti-lockout:

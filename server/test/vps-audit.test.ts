@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { parseAudit, isHardened, parseHealth, CRITICAL } from "../src/services/vps-audit";
+import { readFileSync } from "node:fs";
+import { parseAudit, isHardened, parseHealth, CRITICAL, mapToCatalog, scriptPath } from "../src/services/vps-audit";
+import { CATALOG } from "../src/vps/catalog/catalog";
 
 const PASS_ALL = [
   "CHECK sudo_ok pass root", "CHECK os_supported pass ubuntu 24.04",
@@ -32,5 +34,34 @@ describe("parser audit (SPEC-164)", () => {
     const h = parseHealth("HEALTH uptime up 3 days\nHEALTH disk 42%\nHEALTH mem 512/2048MB\nHEALTH load 0.1 0.2 0.3\n");
     expect(h).toEqual({ uptime: "up 3 days", disk: "42%", mem: "512/2048MB", load: "0.1 0.2 0.3" });
     expect(parseHealth("motd sampah\n")).toBeNull();
+  });
+});
+
+describe("mapping katalog (SPEC-220)", () => {
+  it("parse baris CHECK itemId termasuk status na", () => {
+    const checks = parseAudit("CHECK fw-b1 pass\nCHECK ssh-b3 fail x\nCHECK fw-i4 na tak ada IPv6\n");
+    expect(checks.find((c) => c.check === "fw-b1")?.status).toBe("pass");
+    expect(checks.find((c) => c.check === "fw-i4")?.status).toBe("na");
+  });
+  it("itemId asing/legacy diabaikan aman (AC-3), tidak crash", () => {
+    const m = mapToCatalog([
+      { check: "sudo_ok", status: "pass", detail: "" },   // legacy → bukan katalog
+      { check: "tidak-ada", status: "pass", detail: "" },  // asing
+      { check: "fw-b1", status: "pass", detail: "" },       // katalog
+    ]);
+    expect(m["sudo_ok"]).toBeUndefined();
+    expect(m["tidak-ada"]).toBeUndefined();
+    expect(m["fw-b1"]).toBe("pass");
+  });
+  it("probe fail tetap fail — tak pernah dianggap pass (AC-7)", () => {
+    expect(mapToCatalog([{ check: "ssh-b3", status: "fail", detail: "" }])["ssh-b3"]).toBe("fail");
+  });
+  it("probe status na → unknown (bukan pass)", () => {
+    expect(mapToCatalog([{ check: "fw-i4", status: "na", detail: "" }])["fw-i4"]).toBe("unknown");
+  });
+  it("setiap item probe:true punya emitter di audit.sh (tak ada probe-mati)", () => {
+    const sh = readFileSync(scriptPath("audit.sh"), "utf8");
+    const missing = CATALOG.filter((c) => c.probe).map((c) => c.id).filter((id) => !sh.includes(id));
+    expect(missing).toEqual([]);
   });
 });

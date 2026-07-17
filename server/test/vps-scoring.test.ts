@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { scoreCompliance } from "./scoring";
-import type { CatalogItem } from "./catalog/catalog";
+import { scoreCompliance } from "../src/vps/scoring";
+import type { CatalogItem } from "../src/vps/catalog/catalog";
 
 // Katalog kecil suntikan → matematika skor bisa diuji persis, lepas dari 232 item nyata.
 const item = (id: string, section: string, mode: CatalogItem["mode"]): CatalogItem => ({

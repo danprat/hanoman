@@ -52,6 +52,11 @@ if [[ "$input" == *"hanoman-audit"* ]]; then
   echo "CHECK firewall pass ufw active"; echo "CHECK fail2ban pass aktif"
   echo "CHECK auto_updates pass unattended-upgrades"
   echo "CHECK ntp pass aktif"; echo "CHECK open_ports warn port publik tak terdaftar: 5432"
-  echo "CHECK pending_updates pass"; exit 0
+  echo "CHECK pending_updates pass"
+  # SPEC-220 · baris CHECK <itemId> katalog (untuk snapshot + scoring)
+  echo "CHECK fw-b1 pass"; echo "CHECK ids-b1 pass"; echo "CHECK ker-b1 pass"
+  if [ "${FAKE_SSH_MODE:-}" = "audit-fail" ]; then echo "CHECK ssh-b3 fail PasswordAuthentication yes"
+  else echo "CHECK ssh-b3 pass"; fi
+  exit 0
 fi
 exit 0   # perintah lain (mis. verify `true`)
