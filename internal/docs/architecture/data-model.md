@@ -74,6 +74,15 @@ ada di database.
 - `lastAuditAt?`, `audit?` (Json `VpsCheck[]` — `[{ check, status, detail }]`)
 - `hardened` (default false) — derived: semua check kritis pass pada audit terakhir
 
+### VpsAuditSnapshot / VpsItemState (SPEC-220 · [ADR-0050](../adr/0050-vps-compliance-katalog-scoring.md))
+Kerangka kepatuhan checklist 232 item (katalog di git, lihat [vps-compliance.md](vps-compliance.md)).
+- **`VpsAuditSnapshot`** — hasil satu audit kepatuhan (**append-only**, fondasi drift Fase 3):
+  `id`, `vpsId`→Vps (cascade), `createdAt`, `results` (Json `{ [itemId]: { status, detail } }`),
+  `scoreTotal` (Float 0..100), `scoreBySection` (Json `{ [section]: number }`). Index `(vpsId, createdAt)`.
+- **`VpsItemState`** — keputusan human durable per item: `na`/`naReason` (keluar denominator skor),
+  `attested`/`attestNote` (item `INFO`), `actorEmail` (jejak pelaku dari sesi auth), `updatedAt`.
+  Unik `(vpsId, itemId)`, `vpsId`→Vps (cascade).
+
 ## Docs (Source of Truth) — TIDAK dipersist
 Docs bukan entitas DB. Tabel `DocFile` sudah di-drop (ADR-0011). Docs dibaca **live dari path
 efektif** (`resolveRepoDir` = binding per-mesin ?? `Project.repoDir` — SPEC-217): korpus = semua
