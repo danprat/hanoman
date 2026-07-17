@@ -20,8 +20,8 @@ const HARDENED_PILL = {
   unknown: { status: "idle", label: "belum diaudit" },
 } as const;
 
-const CHECK_ICON = { pass: "check", fail: "x", warn: "alert-triangle" } as const;
-const CHECK_COLOR = { pass: "var(--leaf-600)", fail: "var(--clay-600)", warn: "var(--amber-600)" } as const;
+const CHECK_ICON = { pass: "check", fail: "x", warn: "alert-triangle", na: "minus" } as const;
+const CHECK_COLOR = { pass: "var(--leaf-600)", fail: "var(--clay-600)", warn: "var(--amber-600)", na: "var(--text-subtle)" } as const;
 function CheckRow({ c }: { c: VpsCheck }) {
   return (
     <div style={{ display: "flex", gap: 8, alignItems: "baseline", padding: "4px 0",

@@ -53,8 +53,8 @@ export function scoreCompliance(
   }
 
   const bySection: Record<string, number> = {};
-  for (const sec of Object.keys(secApplicable)) {
-    bySection[sec] = pct(secFulfilled[sec] ?? 0, secApplicable[sec]);
+  for (const [sec, applicable] of Object.entries(secApplicable)) {
+    bySection[sec] = pct(secFulfilled[sec] ?? 0, applicable);
   }
   return { total: pct(totFulfilled, totApplicable), bySection, status };
 }

@@ -83,3 +83,53 @@ else
 fi
 if [ "${N:-0}" -gt 0 ] 2>/dev/null; then emit pending_updates warn "$N security update tertunda"
 else emit pending_updates pass; fi
+
+# =====================================================================================
+# SPEC-220 · CHECK per itemId katalog (item ber-probe). itemId = kunci kanonik katalog
+# (server/src/vps/catalog). Diparsing mapToCatalog() → scoring. Legacy CHECK di atas tetap.
+# =====================================================================================
+
+# --- firewall aktif → fw-b1 (reuse deteksi FAM di atas)
+if [ "$FAM" = deb ]; then
+  ufw status 2>/dev/null | grep -q "Status: active" && emit fw-b1 pass || emit fw-b1 fail "ufw nonaktif"
+else
+  firewall-cmd --state 2>/dev/null | grep -q running && emit fw-b1 pass || emit fw-b1 fail "firewalld mati"
+fi
+# --- block ping/ICMP → fw-b3 (sysctl icmp_echo_ignore_all)
+[ "$(sysctl -n net.ipv4.icmp_echo_ignore_all 2>/dev/null)" = 1 ] && emit fw-b3 pass || emit fw-b3 fail "ICMP echo tidak diblok"
+# --- fail2ban → ids-b1
+systemctl is-active --quiet fail2ban 2>/dev/null && emit ids-b1 pass || emit ids-b1 fail "fail2ban nonaktif"
+# --- auto security update → sys-b1
+if [ "$FAM" = deb ]; then
+  grep -qs '"1"' /etc/apt/apt.conf.d/20auto-upgrades && emit sys-b1 pass || emit sys-b1 fail "unattended-upgrades belum aktif"
+else
+  systemctl is-enabled --quiet dnf-automatic.timer 2>/dev/null && emit sys-b1 pass || emit sys-b1 fail "dnf-automatic.timer nonaktif"
+fi
+
+# --- sshd (konfigurasi efektif via $SSHD_T / sshd_opt yang sudah didefinisikan di atas)
+if [ -n "$SSHD_T" ]; then
+  # ssh-b1 ganti port default
+  [ "$SSH_PORT" != 22 ] && emit ssh-b1 pass "port $SSH_PORT" || emit ssh-b1 fail "masih port 22"
+  # ssh-b2 disable root login
+  case "$(sshd_opt permitrootlogin)" in no|prohibit-password|without-password) emit ssh-b2 pass ;; *) emit ssh-b2 fail "PermitRootLogin $(sshd_opt permitrootlogin)" ;; esac
+  # ssh-b3 disable password auth
+  [ "$(sshd_opt passwordauthentication)" = no ] && emit ssh-b3 pass || emit ssh-b3 fail "PasswordAuthentication $(sshd_opt passwordauthentication)"
+  # ssh-i2 idle timeout (ClientAliveInterval > 0)
+  cai=$(sshd_opt clientaliveinterval); [ "${cai:-0}" -gt 0 ] 2>/dev/null && emit ssh-i2 pass "ClientAliveInterval $cai" || emit ssh-i2 fail "ClientAliveInterval 0"
+  # ssh-i3 X11 & TCP forwarding off
+  { [ "$(sshd_opt x11forwarding)" = no ] && [ "$(sshd_opt allowtcpforwarding)" = no ]; } && emit ssh-i3 pass || emit ssh-i3 fail "X11/TCP forwarding aktif"
+  # ssh-i5 MaxAuthTries <= 4
+  mat=$(sshd_opt maxauthtries); [ "${mat:-6}" -le 4 ] 2>/dev/null && emit ssh-i5 pass "MaxAuthTries $mat" || emit ssh-i5 fail "MaxAuthTries ${mat:-default}"
+else
+  for k in ssh-b1 ssh-b2 ssh-b3 ssh-i2 ssh-i3 ssh-i5; do emit "$k" fail "sshd -T tak terbaca"; done
+fi
+
+# --- kernel sysctl → ker-*
+sctl() { sysctl -n "$1" 2>/dev/null; }
+[ "$(sctl net.ipv4.ip_forward)" = 0 ] && emit ker-b1 pass || emit ker-b1 fail "ip_forward=$(sctl net.ipv4.ip_forward)"
+[ "$(sctl net.ipv4.tcp_syncookies)" = 1 ] && emit ker-b2 pass || emit ker-b2 fail "tcp_syncookies off"
+[ "$(sctl net.ipv4.conf.all.accept_source_route)" = 0 ] && emit ker-b3 pass || emit ker-b3 fail "source_route on"
+[ "$(sctl net.ipv4.conf.all.accept_redirects)" = 0 ] && emit ker-b4 pass || emit ker-b4 fail "icmp_redirects on"
+[ "$(sctl net.ipv4.conf.all.rp_filter)" = 1 ] && emit ker-b5 pass || emit ker-b5 fail "rp_filter off"
+[ "$(sctl kernel.randomize_va_space)" = 2 ] && emit ker-i4 pass || emit ker-i4 fail "ASLR != 2"
+[ "$(sctl fs.suid_dumpable)" = 0 ] && emit ker-i6 pass || emit ker-i6 fail "suid_dumpable != 0"

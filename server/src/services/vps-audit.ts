@@ -6,6 +6,8 @@ import { prisma } from "../db";
 import { repoRoot } from "../runner/deps";
 import { sshExec, type SshTarget } from "./vps-ssh";
 import { enqueueOutbox } from "./outbox";
+import { byId } from "../vps/catalog/catalog";
+import { scoreCompliance, type ProbeStatus } from "../vps/scoring";
 
 // Check kritis (SPEC-164 §3): semuanya pass → hardened. warn tak menghalangi.
 export const CRITICAL = [
@@ -16,9 +18,21 @@ export const CRITICAL = [
 // Baris di luar format (motd, banner, warning ssh) diabaikan diam-diam.
 export function parseAudit(out: string): VpsCheck[] {
   return out.split("\n").flatMap((line) => {
-    const m = line.match(/^CHECK (\S+) (pass|fail|warn)(?: (.*))?$/);
+    const m = line.match(/^CHECK (\S+) (pass|fail|warn|na)(?: (.*))?$/);
     return m ? [{ check: m[1]!, status: m[2] as VpsCheck["status"], detail: (m[3] ?? "").trim() }] : [];
   });
+}
+
+// SPEC-220 · petakan baris CHECK → status per itemId katalog untuk scoring.
+// itemId di luar katalog (nama legacy spt sudo_ok, atau typo) diabaikan aman (AC-3).
+// probe `na` → `unknown` (bukan pass, AC-7): applicability sebenarnya ditandai human, bukan probe (v1).
+export function mapToCatalog(checks: VpsCheck[]): Record<string, ProbeStatus> {
+  const out: Record<string, ProbeStatus> = {};
+  for (const c of checks) {
+    if (!byId(c.check)) continue;
+    out[c.check] = c.status === "na" ? "unknown" : c.status;
+  }
+  return out;
 }
 
 export const isHardened = (checks: VpsCheck[]): boolean =>
@@ -46,18 +60,42 @@ const target = (v: VpsRow): SshTarget => ({ host: v.host, port: v.port, user: v.
 // Dijangkar ke root workspace (pola deps.ts) — benar dari tsx (cwd server/) maupun dist.
 export const scriptPath = (f: string): string => join(repoRoot(), "server", "scripts", "vps", f);
 
-export async function runAudit(v: VpsRow):
-  Promise<{ ok: true; audit: VpsCheck[]; hardened: boolean } | { ok: false; out: string }> {
+export type AuditOk = {
+  ok: true; audit: VpsCheck[]; hardened: boolean;
+  scoreTotal: number; scoreBySection: Record<string, number>;
+};
+
+// SPEC-220 · kumpulkan keputusan human (N/A, attest) per item untuk scoring.
+async function itemStatesOf(vpsId: string): Promise<Record<string, { na?: boolean; attested?: boolean }>> {
+  const rows = await prisma.vpsItemState.findMany({ where: { vpsId } });
+  return Object.fromEntries(rows.map((s) => [s.itemId, { na: s.na, attested: s.attested }]));
+}
+
+export async function runAudit(v: VpsRow): Promise<AuditOk | { ok: false; out: string }> {
   const r = await sshExec(target(v), "sudo -n bash -s",
     { stdin: readFileSync(scriptPath("audit.sh"), "utf8"), timeoutMs: 60_000 });
   const audit = parseAudit(r.out);
   // ssh gagal ATAU output tanpa satu pun CHECK (sudo minta password, shell asing) = audit gagal.
   if (r.code !== 0 || audit.length === 0) return { ok: false, out: r.out };
   const hardened = isHardened(audit);
+
+  // SPEC-220 · petakan ke katalog, hitung skor pakai keputusan human terkini, simpan snapshot.
+  const probe = mapToCatalog(audit);
+  const states = await itemStatesOf(v.id);
+  const scored = scoreCompliance(probe, states);
+  const results: Record<string, { status: string; detail: string }> = {};
+  for (const c of audit) if (byId(c.check)) results[c.check] = { status: c.status, detail: c.detail };
+
   await prisma.vps.update({ where: { id: v.id }, data: {
     audit: audit as unknown as Prisma.InputJsonValue, lastAuditAt: new Date(), hardened } });
+  await prisma.vpsAuditSnapshot.create({ data: {
+    vpsId: v.id,
+    results: results as unknown as Prisma.InputJsonValue,
+    scoreTotal: scored.total,
+    scoreBySection: scored.bySection as unknown as Prisma.InputJsonValue,
+  } });
   await enqueueOutbox("vps", v.id); // SPEC-213 · hasil audit ikut disync
-  return { ok: true, audit, hardened };
+  return { ok: true, audit, hardened, scoreTotal: scored.total, scoreBySection: scored.bySection };
 }
 
 export async function runHealth(v: VpsRow): Promise<boolean> {

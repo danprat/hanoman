@@ -147,7 +147,7 @@ export type UserView = { id: string; email: string; createdAt: string };
 export type AuthStatus = { needsSetup: boolean; user: UserView | null };
 
 export const zVpsCheck = z.object({
-  check: z.string(), status: z.enum(["pass", "fail", "warn"]), detail: z.string() });
+  check: z.string(), status: z.enum(["pass", "fail", "warn", "na"]), detail: z.string() });
 export type VpsCheck = z.infer<typeof zVpsCheck>;
 export type VpsHealth = { uptime: string; disk: string; mem: string; load: string };
 export type VpsView = {

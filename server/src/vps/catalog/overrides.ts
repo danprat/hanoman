@@ -15,7 +15,7 @@ type Ov = { mode?: Mode; severity?: Severity; probe?: boolean; remediable?: bool
 export const OVERRIDES: Record<string, Ov> = {
   // --- firewall
   "fw-b1": { mode: "AUTO", severity: "critical", probe: true, remediable: true }, // enable ufw/firewalld default-deny
-  "fw-b3": { mode: "AUDIT", severity: "medium", probe: true },                    // block ICMP — manual
+  "fw-b3": { mode: "AUDIT", severity: "medium", probe: true },                    // block ICMP (probe icmp_echo_ignore_all) — remediasi manual
   // --- IDS / fail2ban
   "ids-b1": { mode: "AUTO", severity: "high", probe: true, remediable: true },    // fail2ban
   // --- system updates
@@ -33,10 +33,9 @@ export const OVERRIDES: Record<string, Ov> = {
   "ssh-i3": { mode: "AUTO", severity: "low", probe: true, remediable: true },     // disable X11/TCP forwarding
   "ssh-i5": { mode: "AUTO", severity: "medium", probe: true, remediable: true },  // MaxAuthTries
   // --- sshd berisiko-lockout: PROBE saja, remediasi manual (AC-16)
-  "ssh-b1": { mode: "AUDIT", severity: "high", probe: true },                     // ganti port SSH
+  "ssh-b1": { mode: "AUDIT", severity: "high", probe: true },                     // ganti port SSH (probe: port≠22)
   "ssh-b2": { mode: "AUDIT", severity: "critical", probe: true },                 // disable root login
   "ssh-b3": { mode: "AUDIT", severity: "critical", probe: true },                 // disable password login
-  // --- user berisiko/destruktif: PROBE saja
-  "usr-b2": { mode: "AUDIT", severity: "medium", probe: true },                   // hapus user tak terpakai
-  "usr-b3": { mode: "AUDIT", severity: "high", probe: true },                     // lock root, pakai sudo
+  // Catatan: item user berisiko (usr-b2 hapus user, usr-b3 lock root) tak diprobe reliabel lintas
+  // distro → dibiarkan default INFO (attestasi manual), bukan AUDIT-mati. Tetap non-AUTO (AC-16).
 };
