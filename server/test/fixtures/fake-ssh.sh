@@ -37,6 +37,14 @@ if [[ "$last" == *"HEALTH"* ]]; then
   echo "HEALTH uptime up 3 days"; echo "HEALTH disk 42%"
   echo "HEALTH mem 512/2048MB"; echo "HEALTH load 0.1 0.2 0.3"; exit 0
 fi
+# SPEC-220 · remediate.sh: emit STEP per item — would bila DRY_RUN=1 (preview), ok bila apply.
+if [[ "$input" == *"hanoman-remediate"* ]]; then
+  items=$(echo "$last" | sed -n 's/.*ITEMS=\([^ ]*\).*/\1/p')
+  mode=ok; [[ "$last" == *"DRY_RUN=1"* ]] && mode=would
+  IFS=',' read -ra arr <<< "$items"
+  for it in "${arr[@]}"; do echo "STEP $it $mode diterapkan(fake)"; done
+  exit 0
+fi
 if [[ "$input" == *"hanoman-harden"* ]]; then
   echo "STEP precheck ok deb ssh_port=22"; echo "STEP firewall ok ufw aktif"
   echo "STEP fail2ban ok"; echo "STEP auto_updates ok"; echo "STEP ssh ok"; echo "STEP ntp ok"; exit 0
