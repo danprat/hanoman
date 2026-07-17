@@ -2,9 +2,12 @@ import type { FastifyInstance } from "fastify";
 import { readFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { prisma } from "../db";
-import { zCreateVps, zPatchVps, type VpsCheck } from "@hanoman/shared";
+import { zCreateVps, zPatchVps, zMarkNa, zMarkNaBulk, zAttest, zRemediate, type VpsCheck } from "@hanoman/shared";
+import { byId } from "../vps/catalog/catalog";
+import { remediate } from "../services/vps-remediate";
 import { sshExec, consoleArgv } from "../services/vps-ssh";
 import { runAudit, scriptPath } from "../services/vps-audit";
+import { buildChecklist } from "../vps/checklist";
 import { bootstrapKey } from "../services/vps-bootstrap";
 import { createSession } from "../services/pty";
 import { sessionModel } from "../services/settings";
@@ -72,7 +75,114 @@ export default async function (app: FastifyInstance) {
     if (keyMissing(v)) return reply.code(409).send({ error: "key VPS tidak ada di mesin ini", keyMissing: true });
     const r = await runAudit(v);
     if (!r.ok) return reply.code(502).send({ error: "audit gagal lewat ssh", out: r.out });
-    return { audit: r.audit, hardened: r.hardened };
+    return { audit: r.audit, hardened: r.hardened, scoreTotal: r.scoreTotal, scoreBySection: r.scoreBySection, drift: r.drift };
+  });
+
+  // SPEC-220 · checklist kepatuhan 232 item + status + skor per-seksi/total (AC-9).
+  app.get("/vps/:id/checklist", async (req, reply) => {
+    const v = await prisma.vps.findUnique({ where: { id: (req.params as { id: string }).id } });
+    if (!v) return reply.code(404).send({ error: "not found" });
+    return buildChecklist(v.id);
+  });
+
+  // SPEC-220 · tandai/lepas N/A (AC-10) — item keluar dari denominator skor, jejak pelaku dari sesi auth.
+  app.post("/vps/:id/items/:itemId/na", async (req, reply) => {
+    const { id, itemId } = req.params as { id: string; itemId: string };
+    const v = await prisma.vps.findUnique({ where: { id } });
+    if (!v) return reply.code(404).send({ error: "not found" });
+    if (!byId(itemId)) return reply.code(404).send({ error: "item tidak dikenal di katalog" });
+    const p = zMarkNa.safeParse(req.body);
+    if (!p.success) return reply.code(400).send({ error: "invalid body" });
+    const actorEmail = req.user?.email ?? null;
+    await prisma.vpsItemState.upsert({
+      where: { vpsId_itemId: { vpsId: id, itemId } },
+      create: { vpsId: id, itemId, na: p.data.na, naReason: p.data.reason ?? null, actorEmail },
+      update: { na: p.data.na, naReason: p.data.reason ?? null, actorEmail, updatedAt: new Date() },
+    });
+    return { ok: true };
+  });
+
+  // SPEC-221 · tandai N/A banyak item sekaligus (untuk "tandai seksi N/A" app-layer advisory).
+  // itemId asing DALAM batch → tolak SELURUH batch (400), jangan sebagian.
+  app.post("/vps/:id/items/na-bulk", async (req, reply) => {
+    const v = await prisma.vps.findUnique({ where: { id: (req.params as { id: string }).id } });
+    if (!v) return reply.code(404).send({ error: "not found" });
+    const p = zMarkNaBulk.safeParse(req.body);
+    if (!p.success) return reply.code(400).send({ error: "invalid body" });
+    const unknown = p.data.itemIds.filter((id) => !byId(id));
+    if (unknown.length) return reply.code(400).send({ error: `item tidak dikenal: ${unknown.join(", ")}` });
+    const actorEmail = req.user?.email ?? null;
+    await prisma.$transaction(p.data.itemIds.map((itemId) => prisma.vpsItemState.upsert({
+      where: { vpsId_itemId: { vpsId: v.id, itemId } },
+      create: { vpsId: v.id, itemId, na: p.data.na, naReason: p.data.reason ?? null, actorEmail },
+      update: { na: p.data.na, naReason: p.data.reason ?? null, actorEmail, updatedAt: new Date() },
+    })));
+    return { ok: true, count: p.data.itemIds.length };
+  });
+
+  // SPEC-220 · attest item INFO (AC-11) — dihitung terpenuhi, jejak pelaku. Non-INFO ditolak.
+  app.post("/vps/:id/items/:itemId/attest", async (req, reply) => {
+    const { id, itemId } = req.params as { id: string; itemId: string };
+    const v = await prisma.vps.findUnique({ where: { id } });
+    if (!v) return reply.code(404).send({ error: "not found" });
+    const item = byId(itemId);
+    if (!item) return reply.code(404).send({ error: "item tidak dikenal di katalog" });
+    if (item.mode !== "INFO") return reply.code(400).send({ error: "hanya item INFO yang bisa di-attest" });
+    const p = zAttest.safeParse(req.body);
+    if (!p.success) return reply.code(400).send({ error: "invalid body" });
+    const actorEmail = req.user?.email ?? null;
+    await prisma.vpsItemState.upsert({
+      where: { vpsId_itemId: { vpsId: id, itemId } },
+      create: { vpsId: id, itemId, attested: true, attestNote: p.data.note ?? null, actorEmail },
+      update: { attested: true, attestNote: p.data.note ?? null, actorEmail, updatedAt: new Date() },
+    });
+    return { ok: true };
+  });
+
+  // SPEC-220 · validasi seleksi remediasi: semua item harus AUTO/remediable (AC-16).
+  function badRemediateItems(items: string[]): string | null {
+    for (const id of items) {
+      const it = byId(id);
+      if (!it) return `item tak dikenal di katalog: ${id}`;
+      if (!it.remediable) return `item bukan AUTO/remediable: ${id}`;
+    }
+    return null;
+  }
+
+  // SPEC-220 · preview dry-run remediasi (AC-13) — tak menyentuh VPS.
+  app.post("/vps/:id/remediate/preview", async (req, reply) => {
+    const v = await prisma.vps.findUnique({ where: { id: (req.params as { id: string }).id } });
+    if (!v) return reply.code(404).send({ error: "not found" });
+    if (keyMissing(v)) return reply.code(409).send({ error: "key VPS tidak ada di mesin ini", keyMissing: true });
+    const p = zRemediate.safeParse(req.body);
+    if (!p.success) return reply.code(400).send({ error: "invalid body" });
+    const bad = badRemediateItems(p.data.items);
+    if (bad) return reply.code(400).send({ error: bad });
+    const r = await remediate(v, p.data.items, true);
+    if (!r.ok) return reply.code(502).send({ error: "preview gagal lewat ssh", out: r.out });
+    return { steps: r.steps };
+  });
+
+  // SPEC-220 · apply remediasi item AUTO (AC-14) → verifikasi koneksi → re-audit (AC-17).
+  app.post("/vps/:id/remediate", async (req, reply) => {
+    const v = await prisma.vps.findUnique({ where: { id: (req.params as { id: string }).id } });
+    if (!v) return reply.code(404).send({ error: "not found" });
+    if (keyMissing(v)) return reply.code(409).send({ error: "key VPS tidak ada di mesin ini", keyMissing: true });
+    const p = zRemediate.safeParse(req.body);
+    if (!p.success) return reply.code(400).send({ error: "invalid body" });
+    const bad = badRemediateItems(p.data.items);
+    if (bad) return reply.code(400).send({ error: bad });
+    const r = await remediate(v, p.data.items, false);
+    if (!r.ok) return reply.code(502).send({ error: "remediasi gagal lewat ssh", transcript: r.out });
+    const verify = await sshExec(v, "true", { timeoutMs: 30_000 });
+    if (verify.code !== 0) {
+      return reply.code(502).send({
+        error: "verifikasi koneksi pasca-remediasi gagal — periksa akses ssh secara manual",
+        transcript: r.out, verify: verify.out });
+    }
+    const audit = await runAudit(v);
+    return { steps: r.steps, audit: audit.ok ? audit.audit : null,
+      scoreTotal: audit.ok ? audit.scoreTotal : null, scoreBySection: audit.ok ? audit.scoreBySection : null };
   });
 
   // Harden TIDAK PERNAH terjadwal — hanya dari tombol (SPEC-164 §5). Urutan anti-lockout:

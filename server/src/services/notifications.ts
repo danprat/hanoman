@@ -1,5 +1,20 @@
 import { prisma } from "../db";
 import { liveDecisions, markerFilled } from "./pty";
+import type { DriftItem } from "../vps/drift";
+
+// SPEC-221 · notifikasi drift kepatuhan VPS (AC-19). Satu notif AGREGAT per audit (bukan per item —
+// patuh "instrument panel yang tenang"). Dedup `key: drift:<vpsId>:<snapshotId>` idempoten: re-derive
+// snapshot yang sama tak dobel. Drift kosong = tak ada notif.
+export async function recordDrift(
+  vpsId: string, vpsName: string, drift: DriftItem[], snapshotId: string): Promise<void> {
+  if (drift.length === 0) return;
+  const ids = drift.map((d) => d.itemId);
+  const shown = ids.slice(0, 5).join(", ") + (ids.length > 5 ? `, +${ids.length - 5} lagi` : "");
+  const title = `Drift di "${vpsName}": ${drift.length} item regresi (${shown})`;
+  await prisma.notification.create({
+    data: { type: "drift", key: `drift:${vpsId}:${snapshotId}`, title, projectId: null },
+  }).catch(() => { /* P2002: sudah ada untuk snapshot ini */ });
+}
 
 // SPEC-180 · dipanggil tepat saat stage backlog masuk `done`. specId @unique membuat ini
 // idempoten: poll write-through 3s dan advanceStage yang balapan hanya menyisakan satu baris —

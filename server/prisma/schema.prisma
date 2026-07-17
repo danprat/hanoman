@@ -95,6 +95,40 @@ model Vps {
   hardened    Boolean   @default(false) // derived: semua check kritis pass
   version     Int       @default(0) // SPEC-213 · version-stamp sync (ADR-0045)
   updatedAt   DateTime  @default(now())
+  snapshots   VpsAuditSnapshot[] // SPEC-220 · riwayat audit kepatuhan
+  itemStates  VpsItemState[]     // SPEC-220 · keputusan human per item (N/A, attest)
+}
+
+// SPEC-220 · ADR-0050 · hasil satu audit kepatuhan (append-only, fondasi drift Fase 3).
+// results = { [itemId]: { status: pass|fail|warn|na|unknown, detail } } untuk item ber-probe.
+model VpsAuditSnapshot {
+  id             String   @id @default(cuid())
+  vpsId          String
+  createdAt      DateTime @default(now())
+  results        Json
+  scoreTotal     Float
+  scoreBySection Json
+  detected       Json?    // SPEC-221 · { [section]: { present, detail } } — deteksi stack app-layer (advisory)
+  vps            Vps      @relation(fields: [vpsId], references: [id], onDelete: Cascade)
+
+  @@index([vpsId, createdAt])
+}
+
+// SPEC-220 · ADR-0050 · keputusan human durable per item: N/A (keluar denominator skor)
+// dan attestasi INFO. actorEmail = jejak pelaku dari sesi auth.
+model VpsItemState {
+  id         String   @id @default(cuid())
+  vpsId      String
+  itemId     String
+  na         Boolean  @default(false)
+  naReason   String?
+  attested   Boolean  @default(false)
+  attestNote String?
+  actorEmail String?
+  updatedAt  DateTime @default(now())
+  vps        Vps      @relation(fields: [vpsId], references: [id], onDelete: Cascade)
+
+  @@unique([vpsId, itemId])
 }
 
 // SPEC-213 · ADR-0044 · identitas mesin per-device. tokenHash = sha256(token); plaintext

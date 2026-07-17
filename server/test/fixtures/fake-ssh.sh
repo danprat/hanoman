@@ -37,6 +37,14 @@ if [[ "$last" == *"HEALTH"* ]]; then
   echo "HEALTH uptime up 3 days"; echo "HEALTH disk 42%"
   echo "HEALTH mem 512/2048MB"; echo "HEALTH load 0.1 0.2 0.3"; exit 0
 fi
+# SPEC-220 · remediate.sh: emit STEP per item — would bila DRY_RUN=1 (preview), ok bila apply.
+if [[ "$input" == *"hanoman-remediate"* ]]; then
+  items=$(echo "$last" | sed -n 's/.*ITEMS=\([^ ]*\).*/\1/p')
+  mode=ok; [[ "$last" == *"DRY_RUN=1"* ]] && mode=would
+  IFS=',' read -ra arr <<< "$items"
+  for it in "${arr[@]}"; do echo "STEP $it $mode diterapkan(fake)"; done
+  exit 0
+fi
 if [[ "$input" == *"hanoman-harden"* ]]; then
   echo "STEP precheck ok deb ssh_port=22"; echo "STEP firewall ok ufw aktif"
   echo "STEP fail2ban ok"; echo "STEP auto_updates ok"; echo "STEP ssh ok"; echo "STEP ntp ok"; exit 0
@@ -52,6 +60,14 @@ if [[ "$input" == *"hanoman-audit"* ]]; then
   echo "CHECK firewall pass ufw active"; echo "CHECK fail2ban pass aktif"
   echo "CHECK auto_updates pass unattended-upgrades"
   echo "CHECK ntp pass aktif"; echo "CHECK open_ports warn port publik tak terdaftar: 5432"
-  echo "CHECK pending_updates pass"; exit 0
+  echo "CHECK pending_updates pass"
+  # SPEC-220 · baris CHECK <itemId> katalog (untuk snapshot + scoring)
+  echo "CHECK fw-b1 pass"; echo "CHECK ids-b1 pass"; echo "CHECK ker-b1 pass"
+  if [ "${FAKE_SSH_MODE:-}" = "audit-fail" ]; then echo "CHECK ssh-b3 fail PasswordAuthentication yes"
+  else echo "CHECK ssh-b3 pass"; fi
+  # SPEC-221 · deteksi stack app-layer (advisory)
+  echo "STACK webserver absent tak ada nginx/apache"; echo "STACK database present postgres"
+  echo "STACK aapanel absent"; echo "STACK ssl absent"
+  exit 0
 fi
 exit 0   # perintah lain (mis. verify `true`)

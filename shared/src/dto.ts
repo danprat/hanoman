@@ -147,7 +147,7 @@ export type UserView = { id: string; email: string; createdAt: string };
 export type AuthStatus = { needsSetup: boolean; user: UserView | null };
 
 export const zVpsCheck = z.object({
-  check: z.string(), status: z.enum(["pass", "fail", "warn"]), detail: z.string() });
+  check: z.string(), status: z.enum(["pass", "fail", "warn", "na"]), detail: z.string() });
 export type VpsCheck = z.infer<typeof zVpsCheck>;
 export type VpsHealth = { uptime: string; disk: string; mem: string; load: string };
 export type VpsView = {
@@ -155,6 +155,39 @@ export type VpsView = {
   createdAt: string; lastSeenAt: string | null; health: VpsHealth | null;
   lastAuditAt: string | null; audit: VpsCheck[] | null; hardened: boolean;
 };
+
+// SPEC-220 · checklist kepatuhan (katalog 232 item + status per VPS). Server menghidrasi penuh
+// (frontend tak mengimpor katalog server). Lihat internal/docs/architecture/vps-compliance.md.
+export type VpsItemStatus = "pass" | "fail" | "warn" | "na" | "unknown";
+export type VpsMode = "AUTO" | "AUDIT" | "INFO";
+export type VpsSeverity = "critical" | "high" | "medium" | "low";
+export type ChecklistItem = {
+  id: string; section: string; sectionTitle: string; level: string; title: string; code?: string;
+  mode: VpsMode; severity: VpsSeverity; probe: boolean; remediable: boolean; appLayer: boolean;
+  status: VpsItemStatus; na: boolean; attested: boolean;
+  drifted: boolean; // SPEC-221 · regresi pass→fail/warn sejak snapshot sebelumnya (AC-19)
+  actorEmail: string | null; naReason: string | null; attestNote: string | null;
+};
+// SPEC-221 · suggestion = saran applicability app-layer (advisory). applicable:false → sarankan N/A.
+export type ChecklistSuggestion = { applicable: boolean; detail: string };
+export type ChecklistSection = {
+  id: string; title: string; icon: string; score: number;
+  suggestion?: ChecklistSuggestion; items: ChecklistItem[] };
+export type ChecklistView = {
+  vpsId: string; scoreTotal: number; scoreBySection: Record<string, number>;
+  lastAuditAt: string | null; sections: ChecklistSection[];
+};
+
+// SPEC-220 · body request untuk aksi item & remediasi
+export const zMarkNa = z.object({ na: z.boolean(), reason: z.string().max(500).optional() });
+// SPEC-221 · tandai N/A banyak item sekaligus (untuk "tandai seksi N/A" advisory app-layer)
+export const zMarkNaBulk = z.object({
+  itemIds: z.array(z.string()).min(1).max(64), na: z.boolean(), reason: z.string().max(500).optional() });
+export const zAttest = z.object({ note: z.string().max(500).optional() });
+export const zRemediate = z.object({ items: z.array(z.string()).min(1).max(64) });
+
+// SPEC-220 · satu langkah remediasi. `would` = dry-run (tak menyentuh VPS), ok/fail = apply.
+export type RemediateStep = { item: string; status: "would" | "ok" | "fail"; detail: string };
 
 // SPEC-181 · limit langganan Claude realtime (dari GET /api/oauth/usage → limits[])
 export type LimitSeverity = "normal" | "warning" | "critical";
