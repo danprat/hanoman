@@ -32,16 +32,16 @@
 - Modify: `server/prisma/schema.prisma` (model `VpsAuditSnapshot`)
 - Create: `server/prisma/migrations/2026071710_spec221_stack_detected/migration.sql`
 
-- [ ] **Step 1:** Tambah field ke `model VpsAuditSnapshot` (setelah `scoreBySection Json`):
+- [x] **Step 1:** Tambah field ke `model VpsAuditSnapshot` (setelah `scoreBySection Json`):
 ```prisma
   detected       Json?    // SPEC-221 · { [section]: { present: bool, detail } } — deteksi stack app-layer (advisory)
 ```
-- [ ] **Step 2:** Tulis `migration.sql`:
+- [x] **Step 2:** Tulis `migration.sql`:
 ```sql
 -- SPEC-221 · ADR-0051 · deteksi stack app-layer (advisory) di snapshot (additive).
 ALTER TABLE "VpsAuditSnapshot" ADD COLUMN "detected" JSONB;
 ```
-- [ ] **Step 3: Apply per DB + generate.**
+- [x] **Step 3: Apply per DB + generate.**
 ```bash
 cd server
 DATABASE_URL="postgresql://hanoman:hanoman@localhost:5432/hanoman" pnpm exec prisma migrate deploy
@@ -49,8 +49,8 @@ DATABASE_URL="postgresql://hanoman:hanoman@localhost:5432/hanoman_test" pnpm exe
 pnpm exec prisma generate
 ```
 Expected: `migrate deploy` sukses di dua DB.
-- [ ] **Step 4:** Smoke: `docker exec hanoman-db-1 psql -U hanoman -d hanoman -tAc "SELECT column_name FROM information_schema.columns WHERE table_name='VpsAuditSnapshot' AND column_name='detected'"` → `detected`.
-- [ ] **Step 5: Commit.** `git add server/prisma && git commit -m "feat(vps): kolom VpsAuditSnapshot.detected + migration (SPEC-221 AC-24)"`
+- [x] **Step 4:** Smoke: `docker exec hanoman-db-1 psql -U hanoman -d hanoman -tAc "SELECT column_name FROM information_schema.columns WHERE table_name='VpsAuditSnapshot' AND column_name='detected'"` → `detected`.
+- [x] **Step 5: Commit.** `git add server/prisma && git commit -m "feat(vps): kolom VpsAuditSnapshot.detected + migration (SPEC-221 AC-24)"`
 
 ### Task 2: Fungsi murni computeDrift
 
@@ -66,7 +66,7 @@ export function computeDrift(
 ```
 Aturan: untuk tiap itemId yang ADA di `prev` DAN `curr`, drift bila `prev.status === "pass"` DAN `curr.status ∈ {"fail","warn"}`. Selain itu bukan drift (termasuk `pass→unknown`, item baru, `pass→pass`).
 
-- [ ] **Step 1: Test** `vps-drift.test.ts`:
+- [x] **Step 1: Test** `vps-drift.test.ts`:
 ```ts
 import { describe, it, expect } from "vitest";
 import { computeDrift } from "../src/vps/drift";
@@ -88,8 +88,8 @@ describe("computeDrift (SPEC-221 AC-19)", () => {
   });
 });
 ```
-- [ ] **Step 2: Run (fail).** `env -u NODE_ENV pnpm vitest run --no-file-parallelism server/test/vps-drift.test.ts` → FAIL (module missing).
-- [ ] **Step 3: Implement** `drift.ts`:
+- [x] **Step 2: Run (fail).** `env -u NODE_ENV pnpm vitest run --no-file-parallelism server/test/vps-drift.test.ts` → FAIL (module missing).
+- [x] **Step 3: Implement** `drift.ts`:
 ```ts
 export type DriftItem = { itemId: string; from: string; to: string };
 const REGRESS = new Set(["fail", "warn"]);
@@ -104,8 +104,8 @@ export function computeDrift(
   return out;
 }
 ```
-- [ ] **Step 4: Run (pass).**
-- [ ] **Step 5: Commit.** `git commit -m "feat(vps): computeDrift pass->fail/warn (SPEC-221 AC-19)"`
+- [x] **Step 4: Run (pass).**
+- [x] **Step 5: Commit.** `git commit -m "feat(vps): computeDrift pass->fail/warn (SPEC-221 AC-19)"`
 
 ### Task 3: recordDrift Notification + integrasi runAudit
 
@@ -118,7 +118,7 @@ export function computeDrift(
 - `recordDrift(vpsId: string, vpsName: string, drift: DriftItem[], snapshotId: string): Promise<void>` — buat 1 Notification agregat, dedup `key: "drift:<vpsId>:<snapshotId>"`.
 - `AuditOk` tambah `drift: DriftItem[]`.
 
-- [ ] **Step 1: Test** `vps-drift-notify.test.ts` (pakai DB test + factory):
+- [x] **Step 1: Test** `vps-drift-notify.test.ts` (pakai DB test + factory):
 ```ts
 import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import { prisma } from "../src/db";
@@ -143,8 +143,8 @@ describe("recordDrift (SPEC-221 AC-19)", () => {
   });
 });
 ```
-- [ ] **Step 2: Run (fail).**
-- [ ] **Step 3: Implement `recordDrift`** di `notifications.ts`:
+- [x] **Step 2: Run (fail).**
+- [x] **Step 3: Implement `recordDrift`** di `notifications.ts`:
 ```ts
 import type { DriftItem } from "../vps/drift";
 export async function recordDrift(vpsId: string, vpsName: string, drift: DriftItem[], snapshotId: string): Promise<void> {
@@ -157,7 +157,7 @@ export async function recordDrift(vpsId: string, vpsName: string, drift: DriftIt
   }).catch(() => { /* P2002: sudah ada */ });
 }
 ```
-- [ ] **Step 4: Integrasi `runAudit`** (`vps-audit.ts`): sebelum membuat snapshot baru, ambil snapshot terakhir (prev); setelah membuat snapshot baru, `computeDrift(prev.results, results)` → `recordDrift(v.id, vName, drift, snap.id)`. `AuditOk` tambah `drift`. Butuh `name` VPS — perluas `VpsRow` dgn `name: string` ATAU query nama. **Pilih**: query nama sekali di runAudit (`prisma.vps.findUnique select name`) agar `VpsRow` tak berubah (dipakai monitor). Kode:
+- [x] **Step 4: Integrasi `runAudit`** (`vps-audit.ts`): sebelum membuat snapshot baru, ambil snapshot terakhir (prev); setelah membuat snapshot baru, `computeDrift(prev.results, results)` → `recordDrift(v.id, vName, drift, snap.id)`. `AuditOk` tambah `drift`. Butuh `name` VPS — perluas `VpsRow` dgn `name: string` ATAU query nama. **Pilih**: query nama sekali di runAudit (`prisma.vps.findUnique select name`) agar `VpsRow` tak berubah (dipakai monitor). Kode:
 ```ts
 // sebelum create snapshot:
 const prevSnap = await prisma.vpsAuditSnapshot.findFirst({ where: { vpsId: v.id }, orderBy: { createdAt: "desc" } });
@@ -171,7 +171,7 @@ if (drift.length) {
 return { ok: true, audit, hardened, scoreTotal: scored.total, scoreBySection: scored.bySection, drift };
 ```
 (`results` di sini = objek `{itemId:{status,detail}}` yang sudah dibangun; `computeDrift` hanya baca `.status`.)
-- [ ] **Step 5: Run (pass) + Commit.** Jalankan `vps-drift-notify.test.ts` + `vps.route.test.ts` (regresi runAudit). `git commit -m "feat(vps): drift di runAudit + Notification agregat (SPEC-221 AC-19)"`
+- [x] **Step 5: Run (pass) + Commit.** Jalankan `vps-drift-notify.test.ts` + `vps.route.test.ts` (regresi runAudit). `git commit -m "feat(vps): drift di runAudit + Notification agregat (SPEC-221 AC-19)"`
 
 ### Task 4: ADR-0051 + docs
 
@@ -179,11 +179,11 @@ return { ok: true, audit, hardened, scoreTotal: scored.total, scoreBySection: sc
 - Create: `internal/docs/adr/0051-vps-fase3-drift-applicability.md`
 - Modify: `internal/docs/architecture/vps-compliance.md`, `internal/docs/architecture/data-model.md`, `internal/docs/architecture/api-contract.md`, `internal/docs/README.md`
 
-- [ ] **Step 1:** Tulis ADR-0051 — status diterima · SPEC-221 · extends ADR-0050. Keputusan: (1) drift **derived** dari diff 2 snapshot terakhir (tanpa tabel), pass→{fail,warn}, bukan unknown; (2) Notification drift **agregat per-audit**, dedup per snapshot; (3) app-layer applicability **advisory** — deteksi stack disimpan `VpsAuditSnapshot.detected`, jadi saran N/A, **tak** auto-exclude skor (fleet dockerized rawan false-negative); (4) tanpa cron baru.
-- [ ] **Step 2:** `vps-compliance.md` — tambah bagian "Drift (Fase 3)" + "Applicability app-layer (advisory)".
-- [ ] **Step 3:** `data-model.md` — `VpsAuditSnapshot` tambah `detected?`.
-- [ ] **Step 4:** `api-contract.md` — `/audit` response `drift[]`; checklist item `drifted` + seksi `suggestion`; endpoint `na-bulk`.
-- [ ] **Step 5:** `README.md` — link ADR-0051. **Commit.** `git commit -m "docs(vps): ADR-0051 + Fase 3 di vps-compliance/data-model/api-contract (SPEC-221)"`
+- [x] **Step 1:** Tulis ADR-0051 — status diterima · SPEC-221 · extends ADR-0050. Keputusan: (1) drift **derived** dari diff 2 snapshot terakhir (tanpa tabel), pass→{fail,warn}, bukan unknown; (2) Notification drift **agregat per-audit**, dedup per snapshot; (3) app-layer applicability **advisory** — deteksi stack disimpan `VpsAuditSnapshot.detected`, jadi saran N/A, **tak** auto-exclude skor (fleet dockerized rawan false-negative); (4) tanpa cron baru.
+- [x] **Step 2:** `vps-compliance.md` — tambah bagian "Drift (Fase 3)" + "Applicability app-layer (advisory)".
+- [x] **Step 3:** `data-model.md` — `VpsAuditSnapshot` tambah `detected?`.
+- [x] **Step 4:** `api-contract.md` — `/audit` response `drift[]`; checklist item `drifted` + seksi `suggestion`; endpoint `na-bulk`.
+- [x] **Step 5:** `README.md` — link ADR-0051. **Commit.** `git commit -m "docs(vps): ADR-0051 + Fase 3 di vps-compliance/data-model/api-contract (SPEC-221)"`
 
 ---
 
