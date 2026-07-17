@@ -165,10 +165,14 @@ export type ChecklistItem = {
   id: string; section: string; sectionTitle: string; level: string; title: string; code?: string;
   mode: VpsMode; severity: VpsSeverity; probe: boolean; remediable: boolean; appLayer: boolean;
   status: VpsItemStatus; na: boolean; attested: boolean;
+  drifted: boolean; // SPEC-221 · regresi pass→fail/warn sejak snapshot sebelumnya (AC-19)
   actorEmail: string | null; naReason: string | null; attestNote: string | null;
 };
+// SPEC-221 · suggestion = saran applicability app-layer (advisory). applicable:false → sarankan N/A.
+export type ChecklistSuggestion = { applicable: boolean; detail: string };
 export type ChecklistSection = {
-  id: string; title: string; icon: string; score: number; items: ChecklistItem[] };
+  id: string; title: string; icon: string; score: number;
+  suggestion?: ChecklistSuggestion; items: ChecklistItem[] };
 export type ChecklistView = {
   vpsId: string; scoreTotal: number; scoreBySection: Record<string, number>;
   lastAuditAt: string | null; sections: ChecklistSection[];

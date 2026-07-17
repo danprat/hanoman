@@ -75,7 +75,7 @@ export default async function (app: FastifyInstance) {
     if (keyMissing(v)) return reply.code(409).send({ error: "key VPS tidak ada di mesin ini", keyMissing: true });
     const r = await runAudit(v);
     if (!r.ok) return reply.code(502).send({ error: "audit gagal lewat ssh", out: r.out });
-    return { audit: r.audit, hardened: r.hardened, scoreTotal: r.scoreTotal, scoreBySection: r.scoreBySection };
+    return { audit: r.audit, hardened: r.hardened, scoreTotal: r.scoreTotal, scoreBySection: r.scoreBySection, drift: r.drift };
   });
 
   // SPEC-220 · checklist kepatuhan 232 item + status + skor per-seksi/total (AC-9).
