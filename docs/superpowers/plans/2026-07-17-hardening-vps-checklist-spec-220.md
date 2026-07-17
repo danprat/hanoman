@@ -430,7 +430,7 @@ export function parseSteps(out: string): RemediateStep[];
 export async function remediate(v: VpsRow, items: string[], dryRun: boolean): Promise<{ ok: boolean; steps: RemediateStep[]; out: string }>;
 ```
 
-- [ ] **Step 1:** `remediate.sh` — env `ITEMS=<id,..>` + `DRY_RUN=1`. Untuk tiap item AUTO, fungsi terpisah; dry-run cetak `STEP <item> would <detail>`, apply cetak `STEP <item> <ok|fail>`. Item non-AUTO → `STEP <item> fail "bukan item AUTO"` (AC-16). Reuse anti-lockout: firewall allow SSH sebelum enable; sshd drop-in + `sshd -t` wajib pass sebelum reload, batal bila gagal (AC-15). Idempoten (AC-22). Contoh kerangka:
+- [x] **Step 1:** `remediate.sh` — env `ITEMS=<id,..>` + `DRY_RUN=1`. Untuk tiap item AUTO, fungsi terpisah; dry-run cetak `STEP <item> would <detail>`, apply cetak `STEP <item> <ok|fail>`. Item non-AUTO → `STEP <item> fail "bukan item AUTO"` (AC-16). Reuse anti-lockout: firewall allow SSH sebelum enable; sshd drop-in + `sshd -t` wajib pass sebelum reload, batal bila gagal (AC-15). Idempoten (AC-22). Contoh kerangka:
 ```bash
 #!/usr/bin/env bash
 set -u
@@ -449,10 +449,10 @@ done
 ```
 (Sysctl AUTO juga tulis ke `/etc/sysctl.d/99-hanoman.conf` agar persist + idempoten.)
 
-- [ ] **Step 2: Test** `vps-remediate.test.ts`: `parseSteps` parse `would|ok|fail`; dry-run tak menghasilkan `ok` (semua `would`, AC-13); item non-AUTO → `fail` (AC-16). Unit (mock sshExec).
-- [ ] **Step 3:** `vps-remediate.ts`: `remediate()` rangkai `sudo -n env ITEMS=.. DRY_RUN=.. bash -s < remediate.sh`, verifikasi koneksi baru pasca-apply (pola harden).
-- [ ] **Step 4: Run (pass).**
-- [ ] **Step 5: Commit** `git commit -m "feat(vps): remediate.sh dry-run + seleksi AUTO anti-lockout (SPEC-220 AC-13/15/16/22)"`
+- [x] **Step 2: Test** `vps-remediate.test.ts`: `parseSteps` parse `would|ok|fail`; dry-run tak menghasilkan `ok` (semua `would`, AC-13); item non-AUTO → `fail` (AC-16). Unit (mock sshExec).
+- [x] **Step 3:** `vps-remediate.ts`: `remediate()` rangkai `sudo -n env ITEMS=.. DRY_RUN=.. bash -s < remediate.sh`, verifikasi koneksi baru pasca-apply (pola harden).
+- [x] **Step 4: Run (pass).**
+- [x] **Step 5: Commit** `git commit -m "feat(vps): remediate.sh dry-run + seleksi AUTO anti-lockout (SPEC-220 AC-13/15/16/22)"`
 
 ### Task 10: Endpoint preview + apply + re-audit
 
@@ -460,32 +460,32 @@ done
 - Modify: `server/src/routes/vps.ts`, `shared/src/dto.ts` (`zRemediate`)
 - Create: `server/src/routes/vps-remediate.route.test.ts`
 
-- [ ] **Step 1: Test:** `POST /vps/:id/remediate/preview {items}` → steps `would`, TIDAK menyentuh DB/VPS (AC-13). `POST /vps/:id/remediate {items}` → apply + re-audit, kembalikan steps + skor baru (AC-14/17). item non-AUTO ditolak (AC-16). sshExec di-mock.
-- [ ] **Step 2: Run (fail).**
-- [ ] **Step 3:** Implement dua handler (validasi `items` semua `remediable` via katalog; preview = dryRun true; apply = dryRun false lalu `runAudit`). keyMissing guard seperti route lain.
-- [ ] **Step 4: Run (pass) + live curl** (mock/VPS dummy: preview 200 steps `would`).
-- [ ] **Step 5: Commit** `git commit -m "feat(vps): endpoint remediate preview+apply+re-audit (SPEC-220 AC-14/17)"`
+- [x] **Step 1: Test:** `POST /vps/:id/remediate/preview {items}` → steps `would`, TIDAK menyentuh DB/VPS (AC-13). `POST /vps/:id/remediate {items}` → apply + re-audit, kembalikan steps + skor baru (AC-14/17). item non-AUTO ditolak (AC-16). sshExec di-mock.
+- [x] **Step 2: Run (fail).**
+- [x] **Step 3:** Implement dua handler (validasi `items` semua `remediable` via katalog; preview = dryRun true; apply = dryRun false lalu `runAudit`). keyMissing guard seperti route lain.
+- [x] **Step 4: Run (pass) + live curl** (mock/VPS dummy: preview 200 steps `would`).
+- [x] **Step 5: Commit** `git commit -m "feat(vps): endpoint remediate preview+apply+re-audit (SPEC-220 AC-14/17)"`
 
 ### Task 11: UI remediasi (select → preview → apply)
 
 **Files:**
 - Modify: `src/src/screens/VpsScreen.tsx`, `src/src/api/client.ts`, `src/test/vps-screen.test.tsx`
 
-- [ ] **Step 1: Test:** checkbox muncul hanya utk item `AUTO`; pilih → tombol Preview → tampil steps `would`; Apply → panggil `api.remediate`.
-- [ ] **Step 2: Run (fail).**
-- [ ] **Step 3:** Implement multi-select item AUTO, panel Preview (list `would`), tombol Apply (confirm) → `api.remediate` → reload checklist. Non-AUTO tanpa checkbox.
-- [ ] **Step 4: Run (pass).**
-- [ ] **Step 5: Commit** `git commit -m "feat(vps): UI remediasi selektif AUTO (SPEC-220 AC-13/14)"`
+- [x] **Step 1: Test:** checkbox muncul hanya utk item `AUTO`; pilih → tombol Preview → tampil steps `would`; Apply → panggil `api.remediate`.
+- [x] **Step 2: Run (fail).**
+- [x] **Step 3:** Implement multi-select item AUTO, panel Preview (list `would`), tombol Apply (confirm) → `api.remediate` → reload checklist. Non-AUTO tanpa checkbox.
+- [x] **Step 4: Run (pass).**
+- [x] **Step 5: Commit** `git commit -m "feat(vps): UI remediasi selektif AUTO (SPEC-220 AC-13/14)"`
 
 ---
 
 ## Verifikasi akhir (sebelum `Execute done`)
 
-- [ ] Semua box di atas `- [x]`.
-- [ ] `env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism` hijau (server + web + shared).
-- [ ] Boot server nyata + curl: `GET /api/vps/:id/checklist`, `POST /api/vps/:id/items/:itemId/na`, `POST /api/vps/:id/remediate/preview` — semua sesuai kontrak.
-- [ ] Docs tersentuh diperbarui + ter-link di `internal/docs/README.md`.
-- [ ] Diff bersih di worktree; siap push `hanoman/spec-220`.
+- [x] Semua box di atas `- [x]`.
+- [x] `env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism` hijau (server + web + shared).
+- [x] Boot server nyata + curl: `GET /api/vps/:id/checklist`, `POST /api/vps/:id/items/:itemId/na`, `POST /api/vps/:id/remediate/preview` — semua sesuai kontrak.
+- [x] Docs tersentuh diperbarui + ter-link di `internal/docs/README.md`.
+- [x] Diff bersih di worktree; siap push `hanoman/spec-220`.
 
 ## Coverage spec → task
 
