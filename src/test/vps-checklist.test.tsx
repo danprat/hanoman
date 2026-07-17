@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, within } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ChecklistView, ChecklistItem } from "@hanoman/shared";
 
 const item = (over: Partial<ChecklistItem> & { id: string }): ChecklistItem => ({
@@ -41,64 +41,90 @@ vi.mock("../src/api/client", () => ({
   api: { vpsChecklist, markNa, attestItem, remediatePreview, remediate, markNaBulk },
   ApiError: class extends Error {},
 }));
-import { VpsChecklist } from "../src/screens/VpsChecklist";
+import { VpsChecklistModal } from "../src/screens/VpsChecklist";
 
-describe("VpsChecklist (SPEC-220)", () => {
+async function open() {
+  render(<VpsChecklistModal vpsId="v1" onClose={() => {}} onToast={() => {}} />);
+  await screen.findByTestId("score-total");
+}
+const expand = (id: string) => fireEvent.click(screen.getByTestId(`section-${id}`));
+
+describe("VpsChecklistModal (SPEC-220/221 · UI modal)", () => {
   beforeEach(() => { vpsChecklist.mockResolvedValue(VIEW); markNa.mockClear(); attestItem.mockClear(); markNaBulk.mockClear(); });
 
-  it("render skor total + seksi + item (AC-9)", async () => {
-    render(<VpsChecklist vpsId="v1" onToast={() => {}} />);
-    expect((await screen.findByTestId("score-total")).textContent).toBe("42%");
-    expect(screen.getAllByText("SSH Hardening").length).toBeGreaterThan(0); // header + opsi filter
+  it("default collapsed: item tersembunyi, header seksi tampil (AC-9)", async () => {
+    await open();
+    expect(screen.getByTestId("score-total").textContent).toBe("42%");
+    expect(screen.getByTestId("section-ssh")).toBeTruthy();
+    expect(screen.queryByText("Nonaktifkan login root")).toBeNull();
+    expand("ssh"); expand("firewall");
     expect(screen.getByText("Nonaktifkan login root")).toBeTruthy();
     expect(screen.getByText("Aktifkan UFW")).toBeTruthy();
   });
 
+  it("klik header expand lalu collapse", async () => {
+    await open();
+    expect(screen.queryByTestId("item-ssh-b2")).toBeNull();
+    expand("ssh");
+    expect(screen.getByTestId("item-ssh-b2")).toBeTruthy();
+    expand("ssh");
+    expect(screen.queryByTestId("item-ssh-b2")).toBeNull();
+  });
+
+  it("header collapsed menampilkan hitungan status + badge drift", async () => {
+    await open();
+    const header = screen.getByTestId("section-ssh");
+    expect(header.textContent).toMatch(/2 fail/);
+    expect(header.textContent).toMatch(/1 unknown/);
+    expect(within(header).getByText(/drift/i)).toBeTruthy();
+    expect(screen.getByTestId("section-firewall").textContent).toMatch(/semua pass/);
+  });
+
+  it("search memfilter + auto-expand; dikosongkan → collapse lagi", async () => {
+    await open();
+    const box = screen.getByLabelText("cari item");
+    fireEvent.change(box, { target: { value: "root" } });
+    expect(screen.getByText("Nonaktifkan login root")).toBeTruthy();       // ssh-b2 cocok, auto-expand
+    expect(screen.queryByText("Nonaktifkan password login")).toBeNull();   // ssh-b3 tak cocok
+    expect(screen.queryByText("Aktifkan UFW")).toBeNull();                 // seksi firewall tak tampil
+    fireEvent.change(box, { target: { value: "" } });
+    expect(screen.queryByText("Nonaktifkan login root")).toBeNull();       // collapse lagi
+  });
+
+  it("filter mode=INFO menyembunyikan non-INFO + auto-expand (AC-12)", async () => {
+    await open();
+    fireEvent.change(screen.getByLabelText("mode"), { target: { value: "INFO" } });
+    expect(screen.getByText("SSH Certificate Authority")).toBeTruthy(); // INFO tampil
+    expect(screen.queryByText("Nonaktifkan login root")).toBeNull();    // AUDIT tersembunyi
+  });
+
   it("tombol Attest hanya untuk item INFO (AC-11)", async () => {
-    render(<VpsChecklist vpsId="v1" onToast={() => {}} />);
-    await screen.findByTestId("score-total");
-    // ssh-a1 INFO → punya Attest; ssh-b2 AUDIT → tidak
-    const infoRow = screen.getByTestId("item-ssh-a1");
-    expect(within(infoRow).queryByRole("button", { name: /attest/i })).toBeTruthy();
-    const auditRow = screen.getByTestId("item-ssh-b2");
-    expect(within(auditRow).queryByRole("button", { name: /attest/i })).toBeNull();
+    await open(); expand("ssh");
+    expect(within(screen.getByTestId("item-ssh-a1")).queryByRole("button", { name: /attest/i })).toBeTruthy();
+    expect(within(screen.getByTestId("item-ssh-b2")).queryByRole("button", { name: /attest/i })).toBeNull();
   });
 
   it("klik N/A memanggil api.markNa (AC-10)", async () => {
-    render(<VpsChecklist vpsId="v1" onToast={() => {}} />);
-    await screen.findByTestId("score-total");
-    const row = screen.getByTestId("item-ssh-b2");
-    fireEvent.click(within(row).getByRole("button", { name: /^n\/a$/i }));
+    await open(); expand("ssh");
+    fireEvent.click(within(screen.getByTestId("item-ssh-b2")).getByRole("button", { name: /^n\/a$/i }));
     await vi.waitFor(() => expect(markNa).toHaveBeenCalledWith("v1", "ssh-b2", true, expect.any(String)));
   });
 
   it("klik Attest memanggil api.attestItem (AC-11)", async () => {
-    render(<VpsChecklist vpsId="v1" onToast={() => {}} />);
-    await screen.findByTestId("score-total");
-    const row = screen.getByTestId("item-ssh-a1");
-    fireEvent.click(within(row).getByRole("button", { name: /attest/i }));
+    await open(); expand("ssh");
+    fireEvent.click(within(screen.getByTestId("item-ssh-a1")).getByRole("button", { name: /attest/i }));
     await vi.waitFor(() => expect(attestItem).toHaveBeenCalledWith("v1", "ssh-a1"));
   });
 
-  it("filter mode=INFO menyembunyikan item non-INFO (AC-12)", async () => {
-    render(<VpsChecklist vpsId="v1" onToast={() => {}} />);
-    await screen.findByTestId("score-total");
-    fireEvent.change(screen.getByLabelText("mode"), { target: { value: "INFO" } });
-    expect(screen.queryByText("Nonaktifkan login root")).toBeNull(); // AUDIT tersembunyi
-    expect(screen.getByText("SSH Certificate Authority")).toBeTruthy(); // INFO tampil
-  });
-
   it("hanya item AUTO punya checkbox seleksi (AC-13)", async () => {
-    render(<VpsChecklist vpsId="v1" onToast={() => {}} />);
-    await screen.findByTestId("score-total");
-    expect(within(screen.getByTestId("item-fw-b1")).queryByRole("checkbox")).toBeTruthy();   // AUTO
-    expect(within(screen.getByTestId("item-ssh-b2")).queryByRole("checkbox")).toBeNull();    // AUDIT
-    expect(within(screen.getByTestId("item-ssh-a1")).queryByRole("checkbox")).toBeNull();    // INFO
+    await open(); expand("ssh"); expand("firewall");
+    expect(within(screen.getByTestId("item-fw-b1")).queryByRole("checkbox")).toBeTruthy();
+    expect(within(screen.getByTestId("item-ssh-b2")).queryByRole("checkbox")).toBeNull();
+    expect(within(screen.getByTestId("item-ssh-a1")).queryByRole("checkbox")).toBeNull();
   });
 
   it("pilih AUTO → Preview memanggil api.remediatePreview + tampil would (AC-13)", async () => {
-    render(<VpsChecklist vpsId="v1" onToast={() => {}} />);
-    await screen.findByTestId("score-total");
+    await open(); expand("firewall");
     fireEvent.click(within(screen.getByTestId("item-fw-b1")).getByRole("checkbox"));
     fireEvent.click(screen.getByRole("button", { name: /preview/i }));
     await vi.waitFor(() => expect(remediatePreview).toHaveBeenCalledWith("v1", ["fw-b1"]));
@@ -107,35 +133,29 @@ describe("VpsChecklist (SPEC-220)", () => {
 
   it("Apply memanggil api.remediate (AC-14)", async () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
-    render(<VpsChecklist vpsId="v1" onToast={() => {}} />);
-    await screen.findByTestId("score-total");
+    await open(); expand("firewall");
     fireEvent.click(within(screen.getByTestId("item-fw-b1")).getByRole("checkbox"));
     fireEvent.click(screen.getByRole("button", { name: /^apply/i }));
     await vi.waitFor(() => expect(remediate).toHaveBeenCalledWith("v1", ["fw-b1"]));
   });
 
-  // --- SPEC-221 Fase 3 ---
-  it("item drifted menampilkan penanda drift + ringkasan header (AC-19)", async () => {
-    render(<VpsChecklist vpsId="v1" onToast={() => {}} />);
-    await screen.findByTestId("score-total");
-    const drifted = screen.getByTestId("item-ssh-b3");
-    expect(within(drifted).getByText(/drift/i)).toBeTruthy();       // badge di baris item
-    expect(screen.getByTestId("drift-summary").textContent).toMatch(/1 item/); // ringkasan header
+  it("item drifted → badge drift di baris + ringkasan header (AC-19)", async () => {
+    await open();
+    expect(screen.getByTestId("drift-summary").textContent).toMatch(/1 item/);
+    expand("ssh");
+    expect(within(screen.getByTestId("item-ssh-b3")).getByText(/drift/i)).toBeTruthy();
   });
 
-  it("seksi app-layer stack absent → banner saran + tombol Tandai seksi N/A memanggil markNaBulk", async () => {
+  it("seksi app-layer stack absent → banner saran + Tandai seksi N/A memanggil markNaBulk", async () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
-    render(<VpsChecklist vpsId="v1" onToast={() => {}} />);
-    await screen.findByTestId("score-total");
+    await open(); expand("webserver");
     const banner = screen.getByTestId("suggestion-webserver");
-    expect(banner).toBeTruthy();
     fireEvent.click(within(banner).getByRole("button", { name: /tandai seksi n\/a/i }));
     await vi.waitFor(() => expect(markNaBulk).toHaveBeenCalledWith("v1", ["ws-b1"], true, expect.any(String)));
   });
 
   it("seksi non-app-layer TIDAK menampilkan banner saran", async () => {
-    render(<VpsChecklist vpsId="v1" onToast={() => {}} />);
-    await screen.findByTestId("score-total");
+    await open(); expand("ssh");
     expect(screen.queryByTestId("suggestion-ssh")).toBeNull();
   });
 });
