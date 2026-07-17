@@ -23,13 +23,15 @@ const VIEW: ChecklistView = {
   ],
 };
 
-const { vpsChecklist, markNa, attestItem } = vi.hoisted(() => ({
+const { vpsChecklist, markNa, attestItem, remediatePreview, remediate } = vi.hoisted(() => ({
   vpsChecklist: vi.fn(),
   markNa: vi.fn(async () => ({ ok: true })),
   attestItem: vi.fn(async () => ({ ok: true })),
+  remediatePreview: vi.fn(async () => ({ steps: [{ item: "fw-b1", status: "would", detail: "akan" }] })),
+  remediate: vi.fn(async () => ({ steps: [{ item: "fw-b1", status: "ok", detail: "" }], audit: null, scoreTotal: 5, scoreBySection: {} })),
 }));
 vi.mock("../src/api/client", () => ({
-  api: { vpsChecklist, markNa, attestItem },
+  api: { vpsChecklist, markNa, attestItem, remediatePreview, remediate },
   ApiError: class extends Error {},
 }));
 import { VpsChecklist } from "../src/screens/VpsChecklist";
@@ -77,5 +79,31 @@ describe("VpsChecklist (SPEC-220)", () => {
     fireEvent.change(screen.getByLabelText("mode"), { target: { value: "INFO" } });
     expect(screen.queryByText("Nonaktifkan login root")).toBeNull(); // AUDIT tersembunyi
     expect(screen.getByText("SSH Certificate Authority")).toBeTruthy(); // INFO tampil
+  });
+
+  it("hanya item AUTO punya checkbox seleksi (AC-13)", async () => {
+    render(<VpsChecklist vpsId="v1" onToast={() => {}} />);
+    await screen.findByTestId("score-total");
+    expect(within(screen.getByTestId("item-fw-b1")).queryByRole("checkbox")).toBeTruthy();   // AUTO
+    expect(within(screen.getByTestId("item-ssh-b2")).queryByRole("checkbox")).toBeNull();    // AUDIT
+    expect(within(screen.getByTestId("item-ssh-a1")).queryByRole("checkbox")).toBeNull();    // INFO
+  });
+
+  it("pilih AUTO → Preview memanggil api.remediatePreview + tampil would (AC-13)", async () => {
+    render(<VpsChecklist vpsId="v1" onToast={() => {}} />);
+    await screen.findByTestId("score-total");
+    fireEvent.click(within(screen.getByTestId("item-fw-b1")).getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: /preview/i }));
+    await vi.waitFor(() => expect(remediatePreview).toHaveBeenCalledWith("v1", ["fw-b1"]));
+    expect(within(await screen.findByTestId("remediate-preview")).getByText(/fw-b1/)).toBeTruthy();
+  });
+
+  it("Apply memanggil api.remediate (AC-14)", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<VpsChecklist vpsId="v1" onToast={() => {}} />);
+    await screen.findByTestId("score-total");
+    fireEvent.click(within(screen.getByTestId("item-fw-b1")).getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: /^apply/i }));
+    await vi.waitFor(() => expect(remediate).toHaveBeenCalledWith("v1", ["fw-b1"]));
   });
 });

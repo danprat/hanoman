@@ -4,7 +4,7 @@
 import React from "react";
 import { Button, StateBlock, Icon } from "../ds";
 import { api } from "../api/client";
-import type { ChecklistView, ChecklistItem, VpsItemStatus, VpsMode, VpsSeverity } from "@hanoman/shared";
+import type { ChecklistView, ChecklistItem, VpsItemStatus, VpsMode, VpsSeverity, RemediateStep } from "@hanoman/shared";
 
 const STATUS_ICON: Record<VpsItemStatus, string> = {
   pass: "check", fail: "x", warn: "alert-triangle", na: "minus", unknown: "circle" };
@@ -33,12 +33,17 @@ function ScoreBar({ score }: { score: number }) {
   );
 }
 
-function ItemRow({ item, busy, onNa, onAttest }: {
-  item: ChecklistItem; busy: boolean;
+function ItemRow({ item, busy, selected, onToggle, onNa, onAttest }: {
+  item: ChecklistItem; busy: boolean; selected: boolean;
+  onToggle: (item: ChecklistItem) => void;
   onNa: (item: ChecklistItem, na: boolean) => void; onAttest: (item: ChecklistItem) => void }) {
+  const selectable = item.mode === "AUTO" && !item.na;
   return (
     <div data-testid={`item-${item.id}`} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0",
       borderBottom: "1px solid var(--border-hair)", fontSize: 13, opacity: item.na ? 0.55 : 1 }}>
+      {selectable
+        ? <input type="checkbox" aria-label={`pilih ${item.id}`} checked={selected} onChange={() => onToggle(item)} />
+        : <span style={{ display: "inline-block", width: 13 }} />}
       <Icon name={STATUS_ICON[item.status]} size={14} color={STATUS_COLOR[item.status]} />
       <span style={{ flex: 1, minWidth: 0 }}>{item.title}</span>
       <Badge text={item.mode} color={MODE_COLOR[item.mode]} />
@@ -74,12 +79,33 @@ export function VpsChecklist({ vpsId, onToast }:
   const [status, setStatus] = React.useState<"loading" | "ready" | "error">("loading");
   const [filter, setFilter] = React.useState<Filter>(BLANK_FILTER);
   const [busy, setBusy] = React.useState<string | null>(null);
+  const [selected, setSelected] = React.useState<Set<string>>(new Set());
+  const [preview, setPreview] = React.useState<RemediateStep[] | null>(null);
+  const [action, setAction] = React.useState<"" | "preview" | "apply">("");
 
   const load = React.useCallback(() => {
     setStatus("loading");
     api.vpsChecklist(vpsId).then((v) => { setView(v); setStatus("ready"); }).catch(() => setStatus("error"));
   }, [vpsId]);
-  React.useEffect(() => { load(); }, [load]);
+  React.useEffect(() => { load(); setSelected(new Set()); setPreview(null); }, [load]);
+
+  const toggle = (item: ChecklistItem) => setSelected((s) => {
+    const n = new Set(s); n.has(item.id) ? n.delete(item.id) : n.add(item.id); return n; });
+  const clearSel = () => { setSelected(new Set()); setPreview(null); };
+
+  async function doPreview() {
+    setAction("preview");
+    try { setPreview((await api.remediatePreview(vpsId, [...selected])).steps); }
+    catch { onToast("Preview remediasi gagal", "err", "x-circle"); }
+    finally { setAction(""); }
+  }
+  async function doApply() {
+    if (!window.confirm(`Terapkan ${selected.size} item AUTO ke VPS ini?\nIdempoten & anti-lockout, lalu audit ulang.`)) return;
+    setAction("apply");
+    try { await api.remediate(vpsId, [...selected]); clearSel(); load(); onToast("Remediasi diterapkan · audit ulang", "ok", "shield"); }
+    catch { onToast("Remediasi gagal", "err", "x-circle"); }
+    finally { setAction(""); }
+  }
 
   async function act(item: ChecklistItem, fn: () => Promise<unknown>, msg: string) {
     setBusy(item.id);
@@ -126,6 +152,24 @@ export function VpsChecklist({ vpsId, onToast }:
         {(filter.section || filter.mode || filter.status || filter.severity) &&
           <Button size="sm" variant="ghost" onClick={() => setFilter(BLANK_FILTER)}>Reset</Button>}
       </div>
+      {selected.size > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, padding: "8px 10px",
+          background: "var(--bone-100)", border: "1px solid var(--brass-300)", borderRadius: "var(--radius-sm)" }}>
+          <span style={{ fontSize: 12, flex: 1 }}>{selected.size} item AUTO dipilih</span>
+          <Button size="sm" variant="secondary" leftIcon="eye" loading={action === "preview"} onClick={doPreview}>Preview</Button>
+          <Button size="sm" leftIcon="shield" loading={action === "apply"} onClick={doApply}>Apply</Button>
+          <Button size="sm" variant="ghost" onClick={clearSel}>Batal</Button>
+        </div>
+      )}
+      {preview && (
+        <div data-testid="remediate-preview" style={{ marginBottom: 12, padding: "8px 10px", fontSize: 12,
+          fontFamily: "var(--font-mono)", background: "var(--bone-50)", border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)" }}>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>Pratinjau (dry-run) — belum diterapkan:</div>
+          {preview.map((s) => (
+            <div key={s.item} style={{ color: "var(--text-subtle)" }}>{s.item} · {s.status} {s.detail}</div>
+          ))}
+        </div>
+      )}
       {sections.map((s) => s.items.length > 0 && (
         <div key={s.id} style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
@@ -134,7 +178,8 @@ export function VpsChecklist({ vpsId, onToast }:
             <ScoreBar score={s.score} />
           </div>
           {s.items.map((i) => (
-            <ItemRow key={i.id} item={i} busy={busy === i.id} onNa={onNa} onAttest={onAttest} />
+            <ItemRow key={i.id} item={i} busy={busy === i.id} selected={selected.has(i.id)}
+              onToggle={toggle} onNa={onNa} onAttest={onAttest} />
           ))}
         </div>
       ))}
