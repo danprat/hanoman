@@ -197,7 +197,7 @@ return { ok: true, audit, hardened, scoreTotal: scored.total, scoreBySection: sc
 - Modify: `server/test/vps-audit.test.ts` (test parseStack)
 - Modify: `server/test/fixtures/fake-ssh.sh` (emit STACK di cabang audit)
 
-- [ ] **Step 1:** Di `audit.sh`, setelah blok CHECK itemId, tambah deteksi stack app-layer:
+- [x] **Step 1:** Di `audit.sh`, setelah blok CHECK itemId, tambah deteksi stack app-layer:
 ```bash
 # =============================== SPEC-221 · deteksi stack app-layer (advisory) ===============================
 # STACK <section> <present|absent> <detail>. absent BUKAN bukti pasti (mis. layanan di Docker) — advisory.
@@ -214,7 +214,7 @@ if has_cmd mysql || has_cmd mariadb || has_cmd psql || pgrep -x mysqld >/dev/nul
 if has_cmd certbot || [ -d /etc/letsencrypt/live ]; then emit_stack ssl present "certbot/letsencrypt"; else emit_stack ssl absent "tak ada certbot"; fi
 ```
 Dan definisikan `emit_stack` di dekat `emit` (baris atas skrip): `emit_stack() { echo "STACK $1 $2 ${3:-}"; }`.
-- [ ] **Step 2: Test parseStack** di `vps-audit.test.ts` (tambah describe):
+- [x] **Step 2: Test parseStack** di `vps-audit.test.ts` (tambah describe):
 ```ts
 import { parseStack } from "../src/services/vps-audit";
 describe("parseStack (SPEC-221)", () => {
@@ -225,8 +225,8 @@ describe("parseStack (SPEC-221)", () => {
   });
 });
 ```
-- [ ] **Step 3: Run (fail).**
-- [ ] **Step 4: Implement `parseStack`** di `vps-audit.ts`:
+- [x] **Step 3: Run (fail).**
+- [x] **Step 4: Implement `parseStack`** di `vps-audit.ts`:
 ```ts
 export function parseStack(out: string): Record<string, { present: boolean; detail: string }> {
   const d: Record<string, { present: boolean; detail: string }> = {};
@@ -238,7 +238,7 @@ export function parseStack(out: string): Record<string, { present: boolean; deta
 }
 ```
 Lalu di `runAudit`: `const detected = parseStack(r.out);` dan simpan ke `prisma.vpsAuditSnapshot.create` data `detected: detected as unknown as Prisma.InputJsonValue`.
-- [ ] **Step 5:** Update `fake-ssh.sh` cabang audit — tambah beberapa baris STACK sebelum `exit 0`:
+- [x] **Step 5:** Update `fake-ssh.sh` cabang audit — tambah beberapa baris STACK sebelum `exit 0`:
 ```bash
   echo "STACK webserver absent tak ada nginx/apache"; echo "STACK database present postgres"
   echo "STACK aapanel absent"; echo "STACK ssl absent"
@@ -258,7 +258,7 @@ Jalankan `vps-audit.test.ts` + `bash -n audit.sh` → PASS. **Commit.** `git com
 // ChecklistSection += suggestion?: { applicable: boolean; detail: string }
 ```
 
-- [ ] **Step 1: Test** di `vps-checklist.route.test.ts` (tambah): audit 2× dengan status berubah → item `drifted:true`; seksi app-layer dengan `detected.absent` → `suggestion.applicable:false`. (Fixture fake-ssh: buat mode agar audit kedua men-fail item yang tadinya pass — pakai `FAKE_SSH_MODE=audit-fail` di audit kedua; item `ssh-b3` pass→fail.)
+- [x] **Step 1: Test** di `vps-checklist.route.test.ts` (tambah): audit 2× dengan status berubah → item `drifted:true`; seksi app-layer dengan `detected.absent` → `suggestion.applicable:false`. (Fixture fake-ssh: buat mode agar audit kedua men-fail item yang tadinya pass — pakai `FAKE_SSH_MODE=audit-fail` di audit kedua; item `ssh-b3` pass→fail.)
 ```ts
 it("audit kedua yang meregres → item drifted true (AC-19)", async () => {
   const v = await makeVps({ name: "dr1", host: "198.51.100.211" });
@@ -278,10 +278,10 @@ it("seksi app-layer stack absent → suggestion applicable false", async () => {
   expect(ws.suggestion.applicable).toBe(false);
 });
 ```
-- [ ] **Step 2: Run (fail).**
-- [ ] **Step 3: Implement** di `checklist.ts`: ambil **dua** snapshot terakhir (`findMany take:2 orderBy desc`); `computeDrift(prev.results, latest.results)` → set map `driftedIds`. Tiap item `drifted: driftedIds.has(c.id)`. Untuk tiap seksi app-layer (`SECTIONS` + katalog `appLayer`): `detected = latest.detected?.[sectionId]`; bila ada & `!present` → `suggestion: { applicable: false, detail }`. Tambah `drifted`/`suggestion` ke output. DTO shared diperbarui.
-- [ ] **Step 4: Run (pass) + live curl** (boot server, audit 2× dgn perubahan, cek `drifted`/`suggestion`).
-- [ ] **Step 5: Commit.** `git commit -m "feat(vps): checklist drifted + suggestion app-layer (SPEC-221 AC-19)"`
+- [x] **Step 2: Run (fail).**
+- [x] **Step 3: Implement** di `checklist.ts`: ambil **dua** snapshot terakhir (`findMany take:2 orderBy desc`); `computeDrift(prev.results, latest.results)` → set map `driftedIds`. Tiap item `drifted: driftedIds.has(c.id)`. Untuk tiap seksi app-layer (`SECTIONS` + katalog `appLayer`): `detected = latest.detected?.[sectionId]`; bila ada & `!present` → `suggestion: { applicable: false, detail }`. Tambah `drifted`/`suggestion` ke output. DTO shared diperbarui.
+- [x] **Step 4: Run (pass) + live curl** (boot server, audit 2× dgn perubahan, cek `drifted`/`suggestion`).
+- [x] **Step 5: Commit.** `git commit -m "feat(vps): checklist drifted + suggestion app-layer (SPEC-221 AC-19)"`
 
 ---
 
