@@ -143,6 +143,8 @@ export const api = {
   vpsChecklist: (id: string) => j<ChecklistView>(paths.vpsChecklist(id)),
   markNa: (id: string, itemId: string, na: boolean, reason?: string) =>
     j<{ ok: boolean }>(paths.vpsItemNa(id, itemId), { method: "POST", ...body({ na, reason }) }),
+  markNaBulk: (id: string, itemIds: string[], na: boolean, reason?: string) =>
+    j<{ ok: boolean; count: number }>(paths.vpsItemNaBulk(id), { method: "POST", ...body({ itemIds, na, reason }) }),
   attestItem: (id: string, itemId: string, note?: string) =>
     j<{ ok: boolean }>(paths.vpsItemAttest(id, itemId), { method: "POST", ...body({ note }) }),
   remediatePreview: (id: string, items: string[]) =>

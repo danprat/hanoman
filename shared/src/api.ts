@@ -45,6 +45,7 @@ export const paths = {
   // SPEC-220 · kepatuhan checklist
   vpsChecklist: (id: string) => `${API}/vps/${id}/checklist`,
   vpsItemNa: (id: string, itemId: string) => `${API}/vps/${id}/items/${itemId}/na`,
+  vpsItemNaBulk: (id: string) => `${API}/vps/${id}/items/na-bulk`,
   vpsItemAttest: (id: string, itemId: string) => `${API}/vps/${id}/items/${itemId}/attest`,
   vpsRemediatePreview: (id: string) => `${API}/vps/${id}/remediate/preview`,
   vpsRemediate: (id: string) => `${API}/vps/${id}/remediate`,

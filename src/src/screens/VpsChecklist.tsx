@@ -46,6 +46,7 @@ function ItemRow({ item, busy, selected, onToggle, onNa, onAttest }: {
         : <span style={{ display: "inline-block", width: 13 }} />}
       <Icon name={STATUS_ICON[item.status]} size={14} color={STATUS_COLOR[item.status]} />
       <span style={{ flex: 1, minWidth: 0 }}>{item.title}</span>
+      {item.drifted && <Badge text="drift" color="var(--clay-600)" />}
       <Badge text={item.mode} color={MODE_COLOR[item.mode]} />
       <Badge text={item.severity} color={SEV_COLOR[item.severity]} />
       {item.mode === "INFO" && !item.attested && (
@@ -119,6 +120,18 @@ export function VpsChecklist({ vpsId, onToast }:
   const onAttest = (item: ChecklistItem) =>
     act(item, () => api.attestItem(vpsId, item.id), `${item.id} di-attest`);
 
+  // SPEC-221 · tandai seluruh item satu seksi N/A (advisory app-layer). Manusia yang memicu.
+  async function onSectionNa(section: { id: string; title: string; items: ChecklistItem[] }) {
+    const ids = section.items.map((i) => i.id);
+    if (!window.confirm(`Tandai ${ids.length} item seksi "${section.title}" sebagai N/A?\nStack-nya tak terdeteksi — cek Docker manual bila ragu.`)) return;
+    setBusy(`section:${section.id}`);
+    try {
+      await api.markNaBulk(vpsId, ids, true, "app-layer: stack tak terdeteksi");
+      load(); onToast(`Seksi ${section.title} ditandai N/A`, "ok", "shield");
+    } catch { onToast("Gagal tandai seksi N/A", "err", "x-circle"); }
+    finally { setBusy(null); }
+  }
+
   if (status === "loading") return <StateBlock kind="loading" compact title="Memuat checklist…" />;
   if (status === "error" || !view) return <StateBlock kind="error" compact title="Gagal memuat checklist" action={load} />;
 
@@ -132,6 +145,8 @@ export function VpsChecklist({ vpsId, onToast }:
   const sections = view.sections
     .map((s) => ({ ...s, items: s.items.filter(match) }))
     .filter((s) => !filter.section || s.id === filter.section);
+  // SPEC-221 · jumlah item drift (dari set penuh, tak terpengaruh filter).
+  const driftCount = view.sections.reduce((a, s) => a + s.items.filter((i) => i.drifted).length, 0);
 
   return (
     <div>
@@ -140,6 +155,14 @@ export function VpsChecklist({ vpsId, onToast }:
         <div style={{ flex: 1 }}><ScoreBar score={view.scoreTotal} /></div>
         <span style={{ fontSize: 11, color: "var(--text-subtle)" }}>skor kepatuhan</span>
       </div>
+      {driftCount > 0 && (
+        <div data-testid="drift-summary" style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10,
+          padding: "6px 10px", fontSize: 12, color: "var(--clay-700)",
+          background: "var(--clay-50, var(--bone-100))", border: "1px solid var(--clay-600)", borderRadius: "var(--radius-sm)" }}>
+          <Icon name="alert-triangle" size={14} color="var(--clay-600)" />
+          {driftCount} item drift (regresi) sejak audit sebelumnya
+        </div>
+      )}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
         <Select label="seksi" value={filter.section} onChange={set("section")}
           options={view.sections.map((s) => [s.id, s.title])} />
@@ -177,6 +200,17 @@ export function VpsChecklist({ vpsId, onToast }:
             <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{s.title}</span>
             <ScoreBar score={s.score} />
           </div>
+          {/* SPEC-221 · saran applicability app-layer (advisory) — stack tak terdeteksi → sarankan N/A. */}
+          {s.suggestion && !s.suggestion.applicable && (
+            <div data-testid={`suggestion-${s.id}`} style={{ display: "flex", alignItems: "center", gap: 8,
+              marginBottom: 6, padding: "6px 10px", fontSize: 12, color: "var(--text-subtle)",
+              background: "var(--bone-50)", border: "1px dashed var(--border-hair)", borderRadius: "var(--radius-sm)" }}>
+              <Icon name="info" size={13} color="var(--brass-700)" />
+              <span style={{ flex: 1 }}>Stack tak terdeteksi ({s.suggestion.detail}) — kemungkinan N/A. Cek Docker manual bila ragu.</span>
+              <Button size="sm" variant="ghost" leftIcon="minus-circle" loading={busy === `section:${s.id}`}
+                onClick={() => onSectionNa(s)}>Tandai seksi N/A</Button>
+            </div>
+          )}
           {s.items.map((i) => (
             <ItemRow key={i.id} item={i} busy={busy === i.id} selected={selected.has(i.id)}
               onToggle={toggle} onNa={onNa} onAttest={onAttest} />
