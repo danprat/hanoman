@@ -8,7 +8,10 @@ Kontrak operasional untuk hanoman + Claude Code.
 - Prompt sesi memetakan fase → skill superpowers (SPEC-166): Brainstorm→brainstorming,
   Audit→systematic-debugging, Plan→writing-plans, Execute→executing-plans + TDD +
   verification-before-completion. Objective/Spec adalah keluaran brainstorming.
-- **From-scratch:** brainstorm → kunci objective → sesi **scaffold** menyusun seluruh doc index.
+- **From-scratch:** pilih folder → hanoman `git init` repo → sesi **scaffold** interaktif: brainstorm
+  (satu pertanyaan/giliran) → kunci objective → menyusun seluruh doc index dari ide, pakai STANDAR DOCS
+  yang sama dengan reverse (SPEC-222, ADR-0052). Tombol "Scaffold docs" di layar project + `autoScaffold`
+  (auto-start setelah buat project); hasil di branch `scaffold-docs`, manusia merge.
 - **Existing:** tombol **Reverse docs** di layar project — sesi interaktif menyusun docs dari codebase (SPEC-166, ADR-0026): Scan → Docs teknis → Wawancara → Konvensi & index → Serah terima, hasil di branch `reverse-docs`.
 - Guardrail Source of Truth dicabut (SPEC-160, ADR-0023) — lihat bagian di bawah.
 - Setiap sesi di worktree terpisah; commit di worktree, lalu integrasi (rebase/merge) ke target dipicu manual dari dashboard (SPEC-175/ADR-0031); perbarui docs yang tersentuh dalam commit yang sama.
