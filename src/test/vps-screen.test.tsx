@@ -57,11 +57,11 @@ describe("VpsScreen (SPEC-164)", () => {
     fireEvent.click(screen.getByRole("button", { name: /^test$/i }));
     await vi.waitFor(() => expect(testVps).toHaveBeenCalledWith("v1"));
   });
-  it("tombol Checklist membuka modal detail (UI 2026-07-17)", async () => {
+  it("klik baris VPS membuka modal detail+checklist langsung (UI 2026-07-18)", async () => {
     render(<VpsScreen onToast={() => {}} onGotoTerminal={() => {}} />);
-    fireEvent.click(await screen.findByText("web-1")); // pilih baris → ringkasan muncul
-    fireEvent.click(await screen.findByRole("button", { name: /checklist/i }));
+    fireEvent.click(await screen.findByText("web-1")); // klik baris → modal langsung terbuka
     expect(await screen.findByTestId("score-total")).toBeTruthy(); // modal termuat
+    expect(screen.getByTestId("vps-detail")).toBeTruthy();         // detail (bekas side panel) ikut di modal
     await vi.waitFor(() => expect(vpsChecklist).toHaveBeenCalledWith("v1"));
   });
 });

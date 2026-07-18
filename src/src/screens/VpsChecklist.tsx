@@ -4,7 +4,7 @@
 import React from "react";
 import { Button, Modal, StateBlock, Icon } from "../ds";
 import { api } from "../api/client";
-import type { ChecklistView, ChecklistSection, ChecklistItem, VpsItemStatus, VpsMode, VpsSeverity, RemediateStep } from "@hanoman/shared";
+import type { ChecklistView, ChecklistSection, ChecklistItem, VpsItemStatus, VpsMode, VpsSeverity, RemediateStep, VpsHealth } from "@hanoman/shared";
 
 const STATUS_ICON: Record<VpsItemStatus, string> = {
   pass: "check", fail: "x", warn: "alert-triangle", na: "minus", unknown: "circle" };
@@ -129,9 +129,9 @@ function SectionGroup({ section, items, expanded, onToggle, busy, selected, onTo
   );
 }
 
-export function VpsChecklistModal({ vpsId, vpsName, onClose, onToast }:
-  { vpsId: string; vpsName?: string; onClose: () => void;
-    onToast: (msg: string, kind?: string, icon?: string) => void }) {
+export function VpsChecklistModal({ vpsId, vpsName, lastAuditAt, health, onClose, onToast }:
+  { vpsId: string; vpsName?: string; lastAuditAt?: string | null; health?: VpsHealth | null;
+    onClose: () => void; onToast: (msg: string, kind?: string, icon?: string) => void }) {
   const [view, setView] = React.useState<ChecklistView | null>(null);
   const [status, setStatus] = React.useState<"loading" | "ready" | "error">("loading");
   const [filter, setFilter] = React.useState<Filter>(BLANK_FILTER);
@@ -282,6 +282,12 @@ export function VpsChecklistModal({ vpsId, vpsName, onClose, onToast }:
 
   return (
     <Modal open width={960} icon="clipboard-list" eyebrow={vpsName ?? "VPS"} title="Checklist kepatuhan" onClose={onClose}>
+      {/* Detail VPS (bekas side panel VpsScreen) — kini menyatu di modal ini. UI 2026-07-18. */}
+      <div data-testid="vps-detail" style={{ fontSize: 12, color: "var(--text-subtle)", marginBottom: 12,
+        paddingBottom: 10, borderBottom: "1px solid var(--border-hair)" }}>
+        {lastAuditAt ? `Audit terakhir ${new Date(lastAuditAt).toLocaleString()}` : "Belum pernah diaudit"}
+        {health && ` · disk ${health.disk} · mem ${health.mem} · load ${health.load}`}
+      </div>
       {body()}
     </Modal>
   );

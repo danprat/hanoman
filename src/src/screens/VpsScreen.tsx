@@ -6,7 +6,7 @@ import { Button, Modal, Field, Input, StateBlock, StatusPill, Icon } from "../ds
 import { api } from "../api/client";
 import { subscribe } from "../api/events";
 import type { VpsView } from "@hanoman/shared";
-import { VpsChecklistModal, ScoreBar, Badge } from "./VpsChecklist";
+import { VpsChecklistModal } from "./VpsChecklist";
 
 // reachable = healthcheck terakhir sukses dalam 2× interval 5 menit (SPEC-164 §4).
 export const isReachable = (v: VpsView, now: number = Date.now()): boolean =>
@@ -75,12 +75,12 @@ export function VpsScreen({ onToast, onGotoTerminal }:
   { onToast: (msg: string, kind?: string, icon?: string) => void; onGotoTerminal: () => void }) {
   const [list, setList] = React.useState<VpsView[]>([]);
   const [status, setStatus] = React.useState<"loading" | "ready" | "error">("loading");
-  const [sel, setSel] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState<string | null>(null); // "<aksi>:<id>"
   // null = tertutup · "new" = daftar · VpsView = edit
   const [modal, setModal] = React.useState<null | "new" | VpsView>(null);
-  const [checklistOpen, setChecklistOpen] = React.useState(false);
-  const [summary, setSummary] = React.useState<{ scoreTotal: number; driftCount: number } | null>(null);
+  // VPS yang detail+checklist-nya sedang dibuka di modal (null = tertutup). UI 2026-07-18 ·
+  // menggantikan side panel: klik baris membuka satu modal berisi seluruh detail + checklist.
+  const [detailVps, setDetailVps] = React.useState<VpsView | null>(null);
 
   const load = React.useCallback(() => {
     api.listVps().then((l) => { setList(l); setStatus("ready"); })
@@ -92,19 +92,6 @@ export function VpsScreen({ onToast, onGotoTerminal }:
     load();
     return subscribe((m) => { if (m.t === "vps") { setList(m.vps); setStatus("ready"); } });
   }, [load]);
-
-  // Ringkasan skor kepatuhan untuk VPS terpilih (di panel inline). Modal memuat detail penuh sendiri.
-  const loadSummary = React.useCallback((id: string) => {
-    api.vpsChecklist(id)
-      .then((v) => setSummary({
-        scoreTotal: v.scoreTotal,
-        driftCount: v.sections.reduce((a, s) => a + s.items.filter((i) => i.drifted).length, 0) }))
-      .catch(() => setSummary(null));
-  }, []);
-  React.useEffect(() => {
-    if (!sel) { setSummary(null); return; }
-    setSummary(null); loadSummary(sel);
-  }, [sel, loadSummary]);
 
   async function run(label: string, id: string, fn: () => Promise<unknown>, okMsg: string) {
     setBusy(`${label}:${id}`);
@@ -165,9 +152,8 @@ export function VpsScreen({ onToast, onGotoTerminal }:
     </>
   );
 
-  const selected = list.find((v) => v.id === sel);
   return (
-    <div style={{ display: "grid", gridTemplateColumns: selected ? "1.4fr 1fr" : "1fr", gap: 16 }}>
+    <div>
       <div>
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
           <Button size="sm" leftIcon="plus" onClick={() => setModal("new")}>Daftarkan VPS</Button>
@@ -175,10 +161,9 @@ export function VpsScreen({ onToast, onGotoTerminal }:
         {list.map((v) => {
           const h = HARDENED_PILL[hardenedLabel(v)];
           return (
-            <div key={v.id} onClick={() => setSel(v.id === sel ? null : v.id)}
+            <div key={v.id} onClick={() => setDetailVps(v)}
               style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", cursor: "pointer",
-                border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", marginBottom: 8,
-                background: v.id === sel ? "var(--bone-100)" : "transparent" }}>
+                border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", marginBottom: 8 }}>
               <Icon name="server" size={16} color="var(--brass-700)" />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{v.name}</div>
@@ -206,30 +191,11 @@ export function VpsScreen({ onToast, onGotoTerminal }:
           );
         })}
       </div>
-      {selected && (
-        <div style={{ border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", padding: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{selected.name}</div>
-          <div style={{ fontSize: 12, color: "var(--text-subtle)", marginBottom: 10 }}>
-            {selected.lastAuditAt
-              ? `Audit terakhir ${new Date(selected.lastAuditAt).toLocaleString()}`
-              : "Belum pernah diaudit"}
-            {selected.health && ` · disk ${selected.health.disk} · mem ${selected.health.mem} · load ${selected.health.load}`}
-          </div>
-          {summary && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <span style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{summary.scoreTotal}%</span>
-              <div style={{ flex: 1 }}><ScoreBar score={summary.scoreTotal} /></div>
-              {summary.driftCount > 0 && <Badge text={`${summary.driftCount} drift`} color="var(--clay-600)" />}
-            </div>
-          )}
-          {/* SPEC-220/221 · detail checklist penuh (232 item, collapse/expand, search) di modal. */}
-          <Button size="sm" leftIcon="clipboard-list" onClick={() => setChecklistOpen(true)}>Checklist</Button>
-        </div>
-      )}
-      {checklistOpen && selected && (
-        <VpsChecklistModal vpsId={selected.id} vpsName={selected.name}
-          onClose={() => { setChecklistOpen(false); loadSummary(selected.id); }}
-          onToast={onToast} />
+      {/* SPEC-220/221 · UI 2026-07-18 · klik baris → satu modal: detail VPS + checklist penuh. */}
+      {detailVps && (
+        <VpsChecklistModal vpsId={detailVps.id} vpsName={detailVps.name}
+          lastAuditAt={detailVps.lastAuditAt} health={detailVps.health}
+          onClose={() => { setDetailVps(null); load(); }} onToast={onToast} />
       )}
       <VpsModal open={modal === "new"} title="Daftarkan VPS" submitLabel="Daftarkan"
         initial={BLANK} onClose={() => setModal(null)} onSubmit={create} />

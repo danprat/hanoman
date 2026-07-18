@@ -158,4 +158,23 @@ describe("VpsChecklistModal (SPEC-220/221 · UI modal)", () => {
     await open(); expand("ssh");
     expect(screen.queryByTestId("suggestion-ssh")).toBeNull();
   });
+
+  // UI 2026-07-18 · detail VPS (bekas side panel) pindah ke dalam modal ini.
+  it("menampilkan detail VPS (last audit + health) di header modal", async () => {
+    render(<VpsChecklistModal vpsId="v1" vpsName="web-1"
+      lastAuditAt="2026-07-17T10:00:00Z" health={{ uptime: "3d", disk: "42%", mem: "1.2G", load: "0.30" }}
+      onClose={() => {}} onToast={() => {}} />);
+    const detail = await screen.findByTestId("vps-detail");
+    expect(detail.textContent).toMatch(/Audit terakhir/);
+    expect(detail.textContent).toMatch(/disk 42%/);
+    expect(detail.textContent).toMatch(/mem 1\.2G/);
+    expect(detail.textContent).toMatch(/load 0\.30/);
+  });
+
+  it("detail: 'Belum pernah diaudit' saat lastAuditAt null, tanpa health", async () => {
+    render(<VpsChecklistModal vpsId="v1" onClose={() => {}} onToast={() => {}} />);
+    const detail = await screen.findByTestId("vps-detail");
+    expect(detail.textContent).toMatch(/Belum pernah diaudit/);
+    expect(detail.textContent).not.toMatch(/disk/);
+  });
 });
