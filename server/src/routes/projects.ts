@@ -7,6 +7,7 @@ import { listRepoBranches, listRepoRemoteBranches } from "../services/branches";
 import { resolveRepoDir } from "../services/local-binding";
 import { listSessions } from "../services/pty";
 import { paginate } from "../services/paginate";
+import { realGit } from "@hanoman/runner";
 
 export default async function (app: FastifyInstance) {
   // SPEC-198 · envelope + filter q + paginasi via API. project-view dihitung penuh
@@ -37,6 +38,13 @@ export default async function (app: FastifyInstance) {
     const id = (b.name || b.repoDir?.split("/").pop() || "repo").trim().toLowerCase().replace(/\s+/g, "-");
     if (await prisma.project.findUnique({ where: { id } }))
       return reply.code(409).send({ error: `project "${id}" sudah ada` });
+    // SPEC-222 · project from-scratch butuh repo on-disk agar sesi scaffold bisa lahir (worktree
+    // berbasis HEAD). git-init di sini membuatnya langsung runnable. Gagal init → 400, jangan
+    // tinggalkan baris project setengah jadi. kind existing / tanpa repoDir tak tersentuh.
+    if (b.kind === "from-scratch" && b.repoDir) {
+      try { realGit.initRepo(b.repoDir); }
+      catch (e) { return reply.code(400).send({ error: `gagal git-init "${b.repoDir}": ${(e as Error).message}` }); }
+    }
     const created = await prisma.project.create({
       data: {
         id, name: id, desc: b.desc || "project baru", kind: b.kind, repoDir: b.repoDir ?? null,

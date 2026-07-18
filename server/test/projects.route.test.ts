@@ -4,6 +4,10 @@ import { prisma } from "../src/db";
 import { resetDb, makeProject, makeSpec, makeTempRepo, makeRepoWithBranches, makeRepoWithSpecBranch } from "./factory";
 import { createSession, killAll } from "../src/services/pty";
 import { fileURLToPath } from "node:url";
+import { mkdtempSync, existsSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 
 // /bin/cat mati seketika: --dangerously-skip-permissions ilegal baginya. Lihat pty.test.ts.
 const FAKE_CLAUDE = fileURLToPath(new URL("./fixtures/fake-claude.sh", import.meta.url));
@@ -39,6 +43,27 @@ describe("projects routes", () => {
     });
     expect(res.statusCode).toBe(201); expect(res.json().id).toBe("kirana");
   });
+  // SPEC-222 · from-scratch dengan direktori → hanoman git-init repo (siap scaffold).
+  it("git-inits a from-scratch project's chosen directory", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "scratch-"));
+    const res = await app.inject({
+      method: "POST", url: "/api/projects",
+      payload: { name: "kirana-init", kind: "from-scratch", desc: "marketplace", repoDir: dir },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(existsSync(join(dir, ".git"))).toBe(true);
+    expect(spawnSync("git", ["rev-parse", "HEAD"], { cwd: dir }).status).toBe(0); // HEAD resolves
+  });
+
+  it("does not git-init when from-scratch has no repoDir", async () => {
+    const res = await app.inject({
+      method: "POST", url: "/api/projects",
+      payload: { name: "kirana-nodir", kind: "from-scratch", desc: "idea only" },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().repoDir ?? null).toBeNull();
+  });
+
   it("409s on a duplicate project id (not 500)", async () => {
     const res = await app.inject({
       method: "POST", url: "/api/projects",

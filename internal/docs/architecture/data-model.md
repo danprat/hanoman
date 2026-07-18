@@ -11,6 +11,8 @@ interaktif (ADR-0024; migrasi `drop_run_trigger_github`). Enum stage/source/prio
   menyimpang dari `id`. Tak ada jalur git/worktree/filesystem yang membacanya.
 - `kind` ("from-scratch" | "existing"), `repoDir?` (absolut, OPSIONAL; path default/server, editable via
   `PATCH /projects/:id` — SPEC-217; **tak disync**), `stack` (default "")
+- Untuk `kind: "from-scratch"` dengan `repoDir` diisi, `POST /projects` meng-`git init` direktori itu
+  (+ commit awal) agar langsung runnable oleh sesi scaffold (SPEC-222/ADR-0052).
 - **`LocalBinding`** (`projectId → repoDir`, per-mesin, **LOCAL-ONLY tak disync**): override path. `resolveRepoDir`
   = `binding ?? Project.repoDir` (null-safe), dipakai SELURUH jalur baca (spawn/IDE/coverage/branches/specs/docs).
   Editable via `PUT /projects/:id/binding`, dikosongkan via `DELETE` (SPEC-213/217).
