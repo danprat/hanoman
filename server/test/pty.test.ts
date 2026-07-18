@@ -1,11 +1,11 @@
 import { describe, it, expect, afterEach, beforeEach } from "vitest";
 import { fileURLToPath } from "node:url";
-import { appendFileSync, mkdtempSync } from "node:fs";
+import { appendFileSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   createSession, getSession, listSessions, killSession, killAll, detachAll, attach, writeTo,
-  sessionPhases, markerFilled,
+  sessionPhases, markerFilled, promptFilePath,
 } from "../src/services/pty";
 import { phaseFilePath, type Phase } from "../src/services/session-phases";
 
@@ -157,6 +157,20 @@ describe("pty service", () => {
     expect(allData(c)).toContain("kerjakan ini");
     expect(allData(c)).toContain("--model claude-opus-4-8");
     expect(allData(c)).toContain("--effort xhigh");
+  });
+
+  // SPEC-223 · prompt scaffold/reverse (STANDAR DOCS) + ide panjang bisa >16KB; menaruhnya inline
+  // di command tmux memicu "tmux set-option gagal: command too long". Prompt harus lewat file yang
+  // dibaca `$(cat …)` saat sesi lahir — command tmux tetap pendek, claude tetap terima prompt penuh.
+  it("prompt sangat besar tak melebihi batas command tmux — ditulis ke file (SPEC-223)", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+    const big = "MULAI " + "x".repeat(60_000) + " SELESAI";
+    let s!: ReturnType<typeof createSession>;
+    expect(() => { s = createSession("p1", repoDir, { specId: "SPEC-BIG", flow: "feature", prompt: big }); })
+      .not.toThrow();
+    expect(getSession(s.id)).toBeTruthy();
+    // Prompt penuh diserahkan lewat file (dibaca $(cat) saat sesi lahir), bukan argv tmux.
+    expect(readFileSync(promptFilePath(s.id), "utf8")).toBe(big);
   });
 
   it("menyiarkan frame phase saat berkas fase berubah, sekali per perubahan", async () => {

@@ -1,4 +1,4 @@
-# Audit SPEC-223 — Scaffold gagal saat repo project baru belum ada di disk
+# Audit SPEC-223 — Scaffold project baru gagal (repo hilang + prompt kepanjangan) di disk
 
 Status: audit · SPEC-223 · sumber qa · prioritas tinggi · severity critical · 2026-07-18
 Metode: `superpowers:systematic-debugging` (root cause dulu, baru fix).
@@ -80,7 +80,41 @@ Init-saat-create tetap dipertahankan sebagai jalur cepat; scaffold kini **tak la
 padanya. Cabang `reverse`/`prd` **tidak** disentuh — keduanya beroperasi pada repo existing dan
 auto-init di sana justru menutupi kesalahan path.
 
+## Temuan #2 — `tmux set-option gagal: command too long` (severity critical)
+Setelah repo di-init, scaffold lolos worktree tapi **mati di pembuatan sesi**:
+```
+POST /api/terminal/sessions → 500 { "message": "tmux set-option gagal: command too long" }
+```
+
+### Root cause
+`createSession` (`server/src/services/pty.ts`) merangkai SATU invokasi tmux gabungan: 6
+`set-option -g` + `new-session -d -s <name> -c <cwd> <cmd>` + 2 `set-option`, di mana `<cmd>`
+memuat **seluruh argv claude — termasuk prompt awal**. tmux menyatukan argv jadi satu command
+dan membatasi panjangnya. Ambang terukur (probe): **command ≤16KB OK, ≥20KB → `command too
+long`** (status 1). Pesan menyebut `set-option` semata karena itu args[0] invokasi gabungan
+(`tmux ${args[0]} gagal` di `pty.ts:69`).
+
+Prompt scaffold/reverse memuat STANDAR DOCS (`REVERSE_STANDARD`, ~7KB) — dengan ide singkat
+prompt ≈7KB (aman), tetapi **ide/objective panjang mendorongnya menembus ~16KB**. Diukur:
+`startScaffoldPrompt` = 6997B (ide pendek); dengan ide ~50KB → prompt ~58KB ≫ ambang.
+
+### Reproduksi
+Test unit `pty.test.ts` "prompt sangat besar…" (prompt 60KB) → `createSession` melempar
+`tmux set-option gagal: command too long` (persis keluhan). Setelah fix → tak melempar +
+prompt penuh tertulis di berkas.
+
+### Perbaikan
+Prompt tak lagi inline di command tmux. Ditulis ke berkas (`promptFilePath(id)` di tmpdir) dan
+diserahkan lewat `"$(cat <file>)"`; `sh -c` yang menjalankan sesi meng-expand-nya saat lahir —
+command tmux tetap pendek, claude menerima prompt penuh via ARG_MAX (≫16KB). Berlaku untuk
+SEMUA flow ber-prompt (spec/reverse/prd/scaffold/vps). `opts.command` (VPS console) tak
+tersentuh. tmpdir (bukan turunan `cwd`) karena sesi VPS ber-`cwd` = homedir yang parent-nya tak
+writable. Detail di ADR-0016 (Konsekuensi). Isi berkas aman dari injeksi (command-substitution
+dikutip ganda, tak dipindai ulang).
+
 ## Referensi
 - [ADR-0052 — Scaffold flow: project from-scratch dari ide → SoT penuh](../adr/0052-scaffold-flow-from-ide.md)
+- [ADR-0016 — Sesi terminal hidup di tmux](../adr/0016-sesi-terminal-hidup-di-tmux.md) (Konsekuensi: prompt lewat berkas)
 - `server/src/routes/terminal.ts:142-162` (cabang scaffold) · `runner/src/git.ts:18,26,53`
-  (`resolveCommit`/`addWorktree`/`initRepo`)
+  (`resolveCommit`/`addWorktree`/`initRepo`) · `server/src/services/pty.ts` (`createSession`,
+  `promptFilePath`)

@@ -1,8 +1,9 @@
 import { spawn, type IPty } from "node-pty";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdirSync, statSync } from "node:fs";
+import { mkdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { tmpdir } from "node:os";
 import { guardSettings, type Flow } from "@hanoman/runner";
 import { readPhases, type Phase } from "./session-phases";
 import { effectiveStr } from "../config";
@@ -53,6 +54,10 @@ const claudeBin = () => effectiveStr("HANOMAN_CLAUDE_BIN") ?? "claude";
 
 const frame = (f: Frame): string => JSON.stringify(f);
 const name = (id: string): string => PREFIX + id;
+
+// SPEC-223 · berkas prompt awal sesi, dibaca `"$(cat …)"` saat sesi lahir (lihat createSession).
+// Di tmpdir: ephemeral, always-writable, tak bergantung cwd sesi. id sudah tersanitasi ([a-z0-9_-]).
+export const promptFilePath = (id: string): string => `${tmpdir()}/hanoman-prompts/${id}`;
 
 function tmux(...args: string[]): string {
   try {
@@ -138,15 +143,35 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
   // digabung dengan settings pengguna. Agen dipercaya penuh; isolasi murni lewat worktree.
   // Console VPS (SPEC-211) memasok argv sendiri (mis. `ssh -t …`): shell mentah, bukan
   // claude — `--dangerously-skip-permissions`/`--settings` hanya relevan untuk claude.
-  const parts = opts.command ?? [
-    claudeBin(),
-    ...(opts.prompt ? [opts.prompt] : []),
-    ...(opts.model ? ["--model", opts.model] : []),
-    ...(opts.effort ? ["--effort", opts.effort] : []),
-    "--dangerously-skip-permissions",
-    "--settings", JSON.stringify(guardSettings(opts.decisionFile)),
-  ];
-  const argv = parts.map(sq).join(" ");
+  // SPEC-223 · prompt bisa BESAR: scaffold/reverse memuat STANDAR DOCS (~7KB) dan ide/objective
+  // bisa panjang. tmux membatasi panjang SATU command (~16KB) — prompt inline menembusnya dan
+  // `new-session` mati dengan `command too long` (dilaporkan sebagai `tmux set-option gagal` karena
+  // set-option adalah args[0] invokasi gabungan). Tulis prompt ke file lalu serahkan lewat
+  // `"$(cat <file>)"`: sh -c yang menjalankan sesi meng-expand-nya saat lahir, jadi claude
+  // menerima prompt penuh via ARG_MAX (jauh > 16KB) sementara command tmux tetap pendek. Isi file
+  // TIDAK dipindai ulang oleh shell (hasil command-substitution dikutip ganda) → aman dari injeksi.
+  // Ditulis ke tmpdir (bukan turunan cwd): cwd bisa homedir (sesi VPS) yang tak boleh dikotori dan
+  // parent-nya tak selalu writable. Dibaca sekali saat lahir; OS yang membersihkan tmpdir.
+  let promptArg = "";
+  if (!opts.command && opts.prompt) {
+    const promptFile = promptFilePath(id);
+    mkdirSync(dirname(promptFile), { recursive: true });
+    writeFileSync(promptFile, opts.prompt);
+    promptArg = `"$(cat ${sq(promptFile)})"`;
+  }
+  let argv: string;
+  if (opts.command) {
+    argv = opts.command.map(sq).join(" ");
+  } else {
+    // Prompt (bila ada) = argumen positional pertama claude, TANPA sq (sudah dikutip ganda).
+    const flags = [
+      ...(opts.model ? ["--model", opts.model] : []),
+      ...(opts.effort ? ["--effort", opts.effort] : []),
+      "--dangerously-skip-permissions",
+      "--settings", JSON.stringify(guardSettings(opts.decisionFile)),
+    ].map(sq).join(" ");
+    argv = [sq(claudeBin()), promptArg, flags].filter(Boolean).join(" ");
+  }
 
   // Env di depan perintah, bukan `new-session -e`: tmux menyerahkan sisa argv-nya ke shell,
   // jadi penugasan env bekerja di semua versi tmux sementara `-e` baru ada sejak 3.0.

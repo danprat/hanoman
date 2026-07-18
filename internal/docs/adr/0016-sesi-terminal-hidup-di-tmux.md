@@ -44,6 +44,14 @@ di atas node-pty; byte-nya tetap mengalir apa adanya ke `xterm.js` lewat WebSock
 - tmux menyatukan sisa argv-nya jadi satu string lalu menyerahkannya ke shell. JSON
   `--settings` (ADR-0010) karena itu dikutip sendiri sebelum diserahkan; tanpa itu ia pecah
   di setiap spasi dan claude mati sebelum lahir.
+- **Prompt awal lewat berkas, bukan inline di argv** (SPEC-223). Karena tmux menyatukan argv
+  jadi SATU command dan membatasi panjangnya (~16KB), prompt besar menembusnya → `new-session`
+  mati dengan `command too long` (dilaporkan sebagai `tmux set-option gagal` sebab set-option
+  adalah args[0] invokasi gabungan). Ini menabrak scaffold/reverse yang memuat STANDAR DOCS
+  (~7KB) begitu ide/objective ikut panjang. Prompt karena itu ditulis ke berkas (tmpdir) dan
+  diserahkan lewat `"$(cat <file>)"`; shell meng-expand-nya saat sesi lahir, jadi command tmux
+  tetap pendek sementara claude tetap menerima prompt penuh via ARG_MAX (≫16KB). Isi berkas tak
+  dipindai ulang shell (hasil command-substitution dikutip ganda) → aman dari injeksi.
 - **Kematian pane di-poll**, bukan di-hook: satu `tmux list-panes` per 500ms untuk semua
   sesi yang sedang ditonton. Klien tmux tetap hidup ketika pane-nya mati, jadi `pty.onExit`
   bukan sinyal akhir sesi. Naikkan ke hook `pane-died` + `wait-for` kalau terminal yang
