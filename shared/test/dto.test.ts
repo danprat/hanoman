@@ -22,3 +22,16 @@ describe("zTerminalSession — varian prd", () => {
   });
   it("zFlow memuat prd", () => expect(zFlow.safeParse("prd").success).toBe(true));
 });
+
+// SPEC-222 · sesi scaffold project-level (from-scratch), tanpa brief — diseed dari Project.desc.
+describe("zTerminalSession — varian scaffold", () => {
+  it("menerima sesi scaffold project-level", () => {
+    expect(zTerminalSession.safeParse({ project: "p1", flow: "scaffold" }).success).toBe(true);
+  });
+  it("zFlow memuat scaffold", () => expect(zFlow.safeParse("scaffold").success).toBe(true));
+  it("varian reverse & prd tetap valid", () => {
+    expect(zTerminalSession.safeParse({ project: "p1", flow: "reverse" }).success).toBe(true);
+    expect(zTerminalSession.safeParse({ project: "p1", flow: "prd",
+      brief: { title: "x", context: "c", outcome: "o" } }).success).toBe(true);
+  });
+});

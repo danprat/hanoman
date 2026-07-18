@@ -107,6 +107,9 @@ export const zTerminalSession = z.union([
   z.object({ project: z.string(), flow: z.literal("reverse").optional() }),
   // SPEC-210 · sesi prd project-level di worktree sendiri; menghasilkan dokumen PRD dari brief.
   z.object({ project: z.string(), flow: z.literal("prd"), brief: zPrdBrief }),
+  // SPEC-222 · scaffold: sesi project-level from-scratch, menyusun SoT dari ide. Tanpa brief
+  // (diseed dari Project.desc), tanpa Spec — cermin reverse.
+  z.object({ project: z.string(), flow: z.literal("scaffold") }),
   z.object({ spec: z.string(), flow: zFlow }),
 ]);
 
