@@ -34,7 +34,7 @@ Makes a from-scratch directory a git repo with a HEAD commit, so `addWorktree(..
 - Produces: `realGit.initRepo(dir: string): void` — `git init -b main` if `dir` isn't a repo; one
   `--allow-empty` commit (identity `hanoman <hanoman@local>`) if no HEAD; creates `dir` if missing; idempotent.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `runner/test/git.test.ts` inside the top-level (new `describe`):
 
@@ -71,12 +71,12 @@ describe("git initRepo", () => {
 
 (`seedRepo`, `g`, `join`, `tmpdir`, `mkdtempSync`, `existsSync` are already imported/defined in this file.)
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `cd runner && npx vitest run test/git.test.ts -t "initRepo"`
 Expected: FAIL — `realGit.initRepo is not a function` / type error.
 
-- [ ] **Step 3: Add `initRepo` to the `GitOps` interface**
+- [x] **Step 3: Add `initRepo` to the `GitOps` interface**
 
 In `runner/src/types.ts`, inside `interface GitOps`, add after `headSha`:
 
@@ -86,7 +86,7 @@ In `runner/src/types.ts`, inside `interface GitOps`, add after `headSha`:
   initRepo(dir: string): void;
 ```
 
-- [ ] **Step 4: Implement `realGit.initRepo`**
+- [x] **Step 4: Implement `realGit.initRepo`**
 
 In `runner/src/git.ts`, update the `node:fs`/`node:path` imports and add the method.
 
@@ -117,12 +117,12 @@ Add to the `realGit` object, after `headSha`:
   },
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `cd runner && npx vitest run test/git.test.ts`
 Expected: PASS (all git tests, including the 3 new ones).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add runner/src/types.ts runner/src/git.ts runner/test/git.test.ts
@@ -143,7 +143,7 @@ The scaffold session prompt: interactive Brainstorm → Objective → Doc index,
 - Consumes: `ProjectBrief` (`{ id, name, desc, stack }`) from `runner/src/types.ts`; `REVERSE_STANDARD`; `PIPELINES.scaffold`.
 - Produces: `startScaffoldPrompt(project: ProjectBrief, branchTo: string): string`. Exported via `runner/src/index.ts` `export *`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `runner/test/prompt.test.ts`. First add `startScaffoldPrompt` to the import on line 2:
 ```ts
@@ -196,12 +196,12 @@ describe("startScaffoldPrompt", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `cd runner && npx vitest run test/prompt.test.ts -t "startScaffoldPrompt"`
 Expected: FAIL — `startScaffoldPrompt is not exported` / not a function.
 
-- [ ] **Step 3: Add `SCAFFOLD_PHASE_GUIDE` + `startScaffoldPrompt`**
+- [x] **Step 3: Add `SCAFFOLD_PHASE_GUIDE` + `startScaffoldPrompt`**
 
 In `runner/src/prompt.ts`, after the `startPrdPrompt` function (end of file), add:
 
@@ -247,12 +247,12 @@ Note: `skillInstruction(PIPELINES.scaffold)` maps the `Brainstorm` phase → `su
 clause because scaffold has no `Plan`+`Execute` phases. `REVERSE_STANDARD` is already imported at the
 top of this file (line 2).
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `cd runner && npx vitest run test/prompt.test.ts`
 Expected: PASS (all prompt tests, incl. the 6 new ones).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runner/src/prompt.ts runner/test/prompt.test.ts
@@ -272,7 +272,7 @@ Lets `POST /terminal/sessions {project, flow:"scaffold"}` validate.
 **Interfaces:**
 - Produces: `zTerminalSession` now accepts `{ project: string, flow: "scaffold" }`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `shared/test/dto.test.ts` a new describe:
 ```ts
@@ -290,12 +290,12 @@ describe("zTerminalSession — varian scaffold", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `cd shared && npx vitest run test/dto.test.ts -t "varian scaffold"`
 Expected: FAIL — `{project, flow:"scaffold"}` currently doesn't match any union member (`success` false).
 
-- [ ] **Step 3: Add the scaffold union member**
+- [x] **Step 3: Add the scaffold union member**
 
 In `shared/src/dto.ts`, in `zTerminalSession` (the `z.union([...])`), add a member BEFORE the `spec` member:
 ```ts
@@ -305,12 +305,12 @@ In `shared/src/dto.ts`, in `zTerminalSession` (the `z.union([...])`), add a memb
 ```
 So the union reads: reverse-or-plain member, prd member, scaffold member, spec member.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `cd shared && npx vitest run test/dto.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add shared/src/dto.ts shared/test/dto.test.ts
@@ -332,7 +332,7 @@ Spawns the project-level scaffold session, mirroring the reverse branch.
 - Consumes: `startScaffoldPrompt` (Task 2), `resolveRepoDir`, `realGit.addWorktree`, `createSession`, `sessionModel`.
 - Produces: `POST /terminal/sessions {project, flow:"scaffold"}` → 201 `{id:"scaffold-<project>"}`, worktree `.worktrees/scaffold-<project>`; 422 if no repoDir; second POST re-attaches.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `server/test/terminal.route.test.ts` a new describe (after the prd describe, ~line 395):
 ```ts
@@ -397,13 +397,13 @@ describe("terminal routes · sesi scaffold", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run test/terminal.route.test.ts -t "sesi scaffold"`
 Expected: FAIL — no scaffold branch, so `{project, flow:"scaffold"}` falls through to the plain-terminal
 path (id ≠ "scaffold-p1", flow undefined).
 
-- [ ] **Step 3: Add the scaffold route branch**
+- [x] **Step 3: Add the scaffold route branch**
 
 In `server/src/routes/terminal.ts`:
 
@@ -439,12 +439,12 @@ Add this branch AFTER the `reverse` branch (after its closing `}` at ~line 138) 
     }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run test/terminal.route.test.ts`
 Expected: PASS (all terminal route tests, incl. the 6 new scaffold ones).
 
-- [ ] **Step 5: Document the route in the API contract**
+- [x] **Step 5: Document the route in the API contract**
 
 In `internal/docs/architecture/api-contract.md`, in the `## Terminal` block under `POST /terminal/sessions`,
 add after the `flow "reverse"` line (~line 155):
@@ -453,7 +453,7 @@ add after the `flow "reverse"` line (~line 155):
 #     menyusun SoT penuh dari ide (Project.desc); 422 bila repoDir kosong / worktree gagal
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/routes/terminal.ts server/test/terminal.route.test.ts internal/docs/architecture/api-contract.md
@@ -476,7 +476,7 @@ Makes a from-scratch project runnable by initializing its repo at creation.
 - Produces: `POST /projects {kind:"from-scratch", repoDir}` → 201 with the dir now a git repo (HEAD resolves);
   400 if `initRepo` throws (no row created). `kind:"existing"` and from-scratch WITHOUT repoDir are unchanged.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `server/test/projects.route.test.ts` inside `describe("projects routes")`. First extend the top imports:
 ```ts
@@ -509,12 +509,12 @@ it("does not git-init when from-scratch has no repoDir", async () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run test/projects.route.test.ts -t "git-init"`
 Expected: FAIL — the chosen dir has no `.git` (route doesn't init yet).
 
-- [ ] **Step 3: Init the repo in the create route**
+- [x] **Step 3: Init the repo in the create route**
 
 In `server/src/routes/projects.ts`:
 
@@ -533,12 +533,12 @@ In the `POST /projects` handler, after the duplicate-id 409 check and BEFORE `pr
     }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run test/projects.route.test.ts`
 Expected: PASS (all projects route tests, incl. the 2 new ones).
 
-- [ ] **Step 5: Document git-init behavior**
+- [x] **Step 5: Document git-init behavior**
 
 In `internal/docs/architecture/api-contract.md`, `## Projects` block, extend the `POST /projects` line (~line 30):
 ```
@@ -551,7 +551,7 @@ In `internal/docs/architecture/data-model.md`, in the `## Project` section, appe
   (+ commit awal) agar langsung runnable oleh sesi scaffold (SPEC-222/ADR-0052).
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/routes/projects.ts server/test/projects.route.test.ts internal/docs/architecture/api-contract.md internal/docs/architecture/data-model.md
@@ -574,7 +574,7 @@ Wires the idea + folder into creation, the auto-scaffold trigger, and the manual
 - Produces: `api.scaffoldDocs(project: string) => Promise<{id:string}>`; a "Scaffold docs" Door shown when
   `kind === "from-scratch" && repoDir`.
 
-- [ ] **Step 1: Add the client method**
+- [x] **Step 1: Add the client method**
 
 In `src/src/api/client.ts`, after `reverseDocs` (~line 120), add:
 ```ts
@@ -583,7 +583,7 @@ In `src/src/api/client.ts`, after `reverseDocs` (~line 120), add:
     j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, flow: "scaffold" }) }),
 ```
 
-- [ ] **Step 2: Add the folder field to the from-scratch modal**
+- [x] **Step 2: Add the folder field to the from-scratch modal**
 
 In `src/src/App.tsx`, `NewProjectModal`:
 
@@ -617,7 +617,7 @@ Replace the from-scratch fields block (lines ~229-240, the `{scratch ? ( ... ) :
 (Leave the existing-codebase `) : ( ... )}` branch and the trailing `</Modal>` untouched. The `picker`
 state and `FolderPicker` component are already used by the existing branch.)
 
-- [ ] **Step 3: Send repoDir + idea, and auto-scaffold after create**
+- [x] **Step 3: Send repoDir + idea, and auto-scaffold after create**
 
 In `src/src/App.tsx`, `createProject` (line ~409), replace the create-call payload and the success tail.
 
@@ -654,7 +654,7 @@ Replace the success tail (lines ~437-439) with:
     showToast("Project " + created.id + " dibuat · reverse-engineer docs", "ok", "box");
 ```
 
-- [ ] **Step 4: Add the `scaffoldDocs` action + wire the Door**
+- [x] **Step 4: Add the `scaffoldDocs` action + wire the Door**
 
 In `src/src/App.tsx`, after the `reverseDocs` function (~line 502), add:
 ```ts
@@ -676,7 +676,7 @@ In the `section === "project"` block, add `onScaffold` next to `onReverse` (line
               onScaffold={proj.kind === "from-scratch" && proj.repoDir ? () => scaffoldDocs(proj) : undefined}
 ```
 
-- [ ] **Step 5: Add the Door to ProjectDetailScreen**
+- [x] **Step 5: Add the Door to ProjectDetailScreen**
 
 In `src/src/screens/ProjectDetailScreen.tsx`:
 
@@ -695,12 +695,12 @@ Add the scaffold Door after the reverse Door (line 80):
         {onScaffold && <Door icon="sparkles" title="Scaffold docs" hint="susun Source of Truth dari ide" onClick={onScaffold} />}
 ```
 
-- [ ] **Step 6: Typecheck the frontend**
+- [x] **Step 6: Typecheck the frontend**
 
 Run: `pnpm -C src exec tsc --noEmit` (or `pnpm build` from repo root if `src` has no standalone tsc script).
 Expected: no type errors.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/src/api/client.ts src/src/App.tsx src/src/screens/ProjectDetailScreen.tsx
@@ -713,13 +713,13 @@ git commit -m "feat(web): from-scratch folder field, Scaffold docs button + auto
 
 **Files:** none (verification only). Uses superpowers:verification-before-completion.
 
-- [ ] **Step 1: Run the full suite**
+- [x] **Step 1: Run the full suite**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm test`
 Expected: all green. If `hanoman_test` throws P2022, run its `prisma migrate deploy` first (no schema
 change here, so this should not occur).
 
-- [ ] **Step 2: Live-boot the server against a throwaway migrated DB and drive the flow**
+- [x] **Step 2: Live-boot the server against a throwaway migrated DB and drive the flow**
 
 Boot the server (dedicated DB, not `hanoman_test`), then:
 ```bash
@@ -736,11 +736,11 @@ test -d "$SCRATCH/.worktrees/scaffold-smoke-kirana" && echo "worktree OK"
 Expected: project 201 + `.git` present + HEAD resolves; session 201 + worktree present. Use the auth
 cookie / `requireAuth:false` harness as other live smokes do. Clean up: DELETE the session, `rm -rf $SCRATCH`.
 
-- [ ] **Step 3: Check every plan box is `- [x]`**
+- [x] **Step 3: Check every plan box is `- [x]`**
 
 Verify this file has no remaining `- [ ]`. Then the run may write `Execute done`.
 
-- [ ] **Step 4: Final commit if anything was fixed during verification**
+- [x] **Step 4: Final commit if anything was fixed during verification**
 
 ```bash
 git add -A && git commit -m "test(spec-222): full suite green + live scaffold smoke verified"
