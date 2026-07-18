@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { PIPELINES, startPrompt, startProjectPrompt, continuePrompt, startPrdPrompt } from "../src/prompt";
+import { PIPELINES, startPrompt, startProjectPrompt, continuePrompt, startPrdPrompt, startScaffoldPrompt } from "../src/prompt";
 
 const spec = { id: "SPEC-162", title: "Sesi interaktif", source: "brief",
   priority: "high", objective: "Ganti runOne dengan tmux" };
@@ -228,5 +228,52 @@ describe("startPrdPrompt", () => {
 
   it("tanpa klausa penyelesaian plan (tak ada fase Plan+Execute)", () => {
     expect(startPrdPrompt(project, brief, "prd/x")).not.toContain("Execute BELUM selesai");
+  });
+});
+
+// SPEC-222 · sesi scaffold project-level: dari ide → seluruh doc index. Reverse tanpa Scan.
+describe("startScaffoldPrompt", () => {
+  const project = { id: "kirana", name: "Kirana", desc: "marketplace jasa lokal", stack: "" };
+
+  it("memuat fase Brainstorm → Objective → Doc index berurutan + instruksi phase file", () => {
+    const p = startScaffoldPrompt(project, "scaffold-docs");
+    expect(PIPELINES.scaffold).toEqual(["Brainstorm", "Objective", "Doc index"]);
+    for (const ph of PIPELINES.scaffold) expect(p).toContain(ph);
+    expect(p.indexOf("Brainstorm")).toBeLessThan(p.indexOf("Doc index"));
+    expect(p).toContain("$HANOMAN_PHASE_FILE");
+  });
+
+  it("membawa STANDAR DOCS lengkap (kategori, ADR, EARS, index, hook)", () => {
+    const p = startScaffoldPrompt(project, "scaffold-docs");
+    for (const t of ["STANDAR DOCS", "internal/docs/", "ADR-NNNN", "Event-driven",
+      "ensure-docs-updated.py", "Reading Order"]) expect(p).toContain(t);
+  });
+
+  it("brainstorm interaktif satu pertanyaan per giliran, diseed dari ide, dilarang mengarang", () => {
+    const p = startScaffoldPrompt(project, "scaffold-docs");
+    expect(p).toContain("SATU pertanyaan");
+    expect(p).toContain("Jangan mengarang");
+    expect(p).toContain("marketplace jasa lokal"); // ide (desc) ikut menyeed
+  });
+
+  it("pipeline TANPA fase Scan (bukan reverse) dan prompt TANPA klausa otonomi", () => {
+    // Scan tak boleh jadi fase scaffold; kata "Scan" boleh muncul di STANDAR DOCS bawaan
+    // (petunjuk Stop hook), jadi asersi pada pipeline & baris fase, bukan seluruh string.
+    expect(PIPELINES.scaffold).not.toContain("Scan");
+    const p = startScaffoldPrompt(project, "scaffold-docs");
+    expect(p).toContain("Kerjakan fase berurutan: Brainstorm → Objective → Doc index");
+    expect(p).not.toContain("tanpa berhenti di batas antar-fase");
+  });
+
+  it("commit+push per fase ke branch scaffold-docs dengan fallback tanpa origin, tanpa 'undefined'", () => {
+    const p = startScaffoldPrompt(project, "scaffold-docs");
+    expect(p).toContain("refs/heads/scaffold-docs");
+    expect(p).toContain("origin tidak ada");
+    expect(p).toContain("Kirana");
+    expect(p).not.toContain("undefined");
+  });
+
+  it("tanpa klausa penyelesaian plan (tak ada fase Plan+Execute)", () => {
+    expect(startScaffoldPrompt(project, "scaffold-docs")).not.toContain("Execute BELUM selesai");
   });
 });

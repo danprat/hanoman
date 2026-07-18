@@ -176,3 +176,38 @@ export function startPrdPrompt(project: ProjectBrief, brief: PrdBrief, branchTo:
       + `Outcome: ${brief.outcome}${brief.constraints ? `\nBatasan: ${brief.constraints}` : ""}`,
   ].filter(Boolean).join("\n\n");
 }
+
+// SPEC-222 · panduan per fase scaffold (project-level, from-scratch). Reverse tanpa Scan:
+// tak ada kode untuk dipindai, jadi Brainstorm interaktif menggali ide jadi objective, lalu
+// Doc index menulis seluruh internal/docs/** dari ide+objective+jawaban. Brainstorm memang
+// bergiliran dengan manusia — karena itu SATU pertanyaan per giliran, tanpa AUTONOMY_CLAUSE.
+const SCAFFOLD_PHASE_GUIDE = [
+  "- Brainstorm: perdalam IDE project (di bawah) jadi masalah, pengguna, scope, dan metrik sukses. "
+    + "Ajukan SATU pertanyaan per giliran ke manusia di terminal ini, tunggu jawabannya. Jangan "
+    + "mengarang; topik yang belum dijawab tandai sebagai open question.",
+  "- Objective: kunci SATU MVP objective yang terukur dari hasil brainstorm, tulis ringkas di docs.",
+  "- Doc index: tulis SELURUH internal/docs/** dari ide+objective+jawaban, mengikuti STANDAR DOCS "
+    + "di bawah — entrypoints, product, business, requirements (+EARS dari perilaku yang diinginkan), "
+    + "research, architecture (stack/data-model/api-contract/nfr), adr awal (Status accepted), "
+    + "design-system/frontend bila ada UI, operations, security, plus README index bernomor + "
+    + "CLAUDE.md + AGENTS.md + Stop hook. Lengkap dan spesifik terhadap ide ini, BUKAN kerangka.",
+].join("\n");
+
+// SPEC-222 · sesi scaffold: dari ide → Source of Truth penuh untuk project from-scratch. Meniru
+// startProjectPrompt (reverse) tetapi diseed oleh ide (project.desc), tanpa fase Scan. Tanpa
+// AUTONOMY_CLAUSE: Brainstorm interaktif, manusia menjawab di terminal (seperti Wawancara reverse).
+export function startScaffoldPrompt(project: ProjectBrief, branchTo: string): string {
+  return [
+    `hanoman scaffold. Susun Source of Truth LENGKAP untuk project from-scratch ini di internal/docs/** `
+      + `DARI IDE-nya, mengikuti STANDAR DOCS di bagian bawah prompt ini. Belum ada kode — docs dulu.`,
+    phaseInstruction(PIPELINES.scaffold),
+    SCAFFOLD_PHASE_GUIDE,
+    `Setiap fase selesai: commit hasilnya, lalu \`git push origin HEAD:refs/heads/${branchTo}\` — `
+      + `push per fase, supaya pekerjaan tak hilang bila worktree lenyap. Bila remote origin tidak ada, `
+      + `lewati push dan catat itu di laporan akhir — jangan gagal diam-diam. Worktree ini `
+      + `detached HEAD — memang disengaja. Manusia yang me-review dan merge branch ${branchTo}.`,
+    skillInstruction(PIPELINES.scaffold),
+    `Project ${project.id} · ${project.name}\nIde awal: ${project.desc || "—"}\nStack: ${project.stack || "—"}`,
+    `=== STANDAR DOCS ===\n${REVERSE_STANDARD}`,
+  ].filter(Boolean).join("\n\n");
+}
