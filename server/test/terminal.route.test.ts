@@ -423,6 +423,21 @@ describe("terminal routes · sesi scaffold", () => {
     expect((await start("p2")).statusCode).toBe(422);
   });
 
+  // SPEC-223 · "project baru pasti kosongan": repoDir project from-scratch bisa BELUM ada di disk
+  // saat scaffold (project di-sync dari device lain, folder dipindah, atau create-time init tak
+  // jalan). Scaffold harus init repo on-demand (idempoten), bukan mati `spawnSync git ENOENT`.
+  it("repoDir belum ada di disk → scaffold init repo dulu, tetap 201", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const scratchDir = join(mkdtempSync(join(tmpdir(), "hanoman-scratch-")), "repo");
+    expect(existsSync(scratchDir)).toBe(false); // repoDir project baru: belum ada
+    await makeProject({ id: "p3-scratch", name: "p3-scratch", kind: "from-scratch", repoDir: scratchDir });
+    const res = await start("p3-scratch");
+    expect(res.statusCode).toBe(201);
+    expect(existsSync(join(scratchDir, ".git"))).toBe(true);          // repo di-init on-demand
+    expect(existsSync(join(scratchDir, ".worktrees", "scaffold-p3-scratch"))).toBe(true);
+    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/scaffold-p3-scratch" });
+  });
+
   it("GET phases memakai pipeline scaffold", async () => {
     process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
     await start("p1");

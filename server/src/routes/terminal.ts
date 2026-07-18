@@ -146,6 +146,12 @@ export default async function (app: FastifyInstance) {
 
       const { model, effort } = await sessionModel();
       try {
+        // SPEC-223 · "project baru pasti kosongan": repoDir bisa BELUM ada di disk saat scaffold
+        // (project di-sync dari device lain, folder dipindah/hapus, atau init-saat-create tak jalan).
+        // initRepo idempoten (mkdir + git init + commit seed bila belum ada HEAD) — jaring pengaman
+        // agar scaffold dari ide tak pernah mati `spawnSync git ENOENT`. Scaffold ⟺ from-scratch,
+        // jadi memiliki lifecycle repo kosong memang tugasnya (bukan mengasumsikannya, ADR-0052).
+        realGit.initRepo(repoDir);
         realGit.addWorktree(repoDir, `${repoDir}/.worktrees/${id}`, "HEAD");
       } catch (e) {
         return reply.code(422).send({ error: `gagal membuat worktree: ${(e as Error).message}` });
