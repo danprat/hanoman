@@ -394,6 +394,66 @@ describe("terminal routes · sesi prd", () => {
   });
 });
 
+// SPEC-222: scaffold menyusun Source of Truth dari ide — sesi project-level di worktree-nya.
+describe("terminal routes · sesi scaffold", () => {
+  const start = (project: string) =>
+    app.inject({ method: "POST", url: "/api/terminal/sessions", payload: { project, flow: "scaffold" } });
+
+  it("POST { project, flow: scaffold } membuat worktree + sesi ber-id deterministik", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const res = await start("p1");
+    expect(res.statusCode).toBe(201);
+    expect(res.json().id).toBe("scaffold-p1");
+    expect(existsSync(join(repoDir, ".worktrees", "scaffold-p1"))).toBe(true);
+    const s = listSessions().find((x) => x.id === "scaffold-p1")!;
+    expect(s.flow).toBe("scaffold");
+    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/scaffold-p1" });
+  });
+
+  it("POST kedua menyambung ke sesi yang sama (ADR-0015)", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const a = await start("p1");
+    const b = await start("p1");
+    expect(a.json().id).toBe(b.json().id);
+    expect(listSessions().filter((s) => s.id === "scaffold-p1")).toHaveLength(1);
+    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/scaffold-p1" });
+  });
+
+  it("project tanpa repoDir + flow → 422 (bukan 400)", async () => {
+    expect((await start("p2")).statusCode).toBe(422);
+  });
+
+  it("GET phases memakai pipeline scaffold", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    await start("p1");
+    appendFileSync(phaseFilePath(repoDir, "scaffold-p1"), "Brainstorm done\n");
+    const res = await app.inject({ url: "/api/terminal/sessions/scaffold-p1/phases" });
+    expect(res.json().flow).toBe("scaffold");
+    expect(res.json().phases[0]).toEqual({ name: "Brainstorm", state: "done" });
+    expect(res.json().phases[1]).toEqual({ name: "Objective", state: "active" });
+    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/scaffold-p1" });
+  });
+
+  it("DELETE membuang worktree sesi scaffold — meski tanpa spec", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    await start("p1");
+    expect((await app.inject({ method: "DELETE", url: "/api/terminal/sessions/scaffold-p1" })).statusCode).toBe(204);
+    expect(existsSync(join(repoDir, ".worktrees", "scaffold-p1"))).toBe(false);
+  });
+
+  it("prompt sesi scaffold memuat STANDAR DOCS", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+    const res = await start("p1");
+    expect(res.statusCode).toBe(201);
+    const c = connect("scaffold-p1");
+    await c.opened;
+    await waitFor(() => c.frames.some((f) => f.t === "exit"));
+    expect(c.data()).toContain("STANDAR DOCS");
+    c.ws.close();
+    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/scaffold-p1" });
+  });
+});
+
 // SPEC-168: backlog menurunkan stage sesi yang hidup — real time, tanpa menunggu DELETE.
 describe("GET /specs · stage live dari sesi", () => {
   const start = (spec: string, flow = "feature") =>

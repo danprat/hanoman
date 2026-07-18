@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../db";
 import { zTerminalSession, type Stage } from "@hanoman/shared";
-import { realGit, startPrompt, continuePrompt, startProjectPrompt, startPrdPrompt, type Flow } from "@hanoman/runner";
+import { realGit, startPrompt, continuePrompt, startProjectPrompt, startPrdPrompt, startScaffoldPrompt, type Flow } from "@hanoman/runner";
 import { phaseFilePath, decisionFilePath, readPhases, stageForRun } from "../services/session-phases";
 import { sessionModel } from "../services/settings";
 import { resolveRepoDir } from "../services/local-binding";
@@ -133,6 +133,30 @@ export default async function (app: FastifyInstance) {
         prompt: startProjectPrompt("reverse", {
           id: project.id, name: project.name, desc: project.desc, stack: project.stack,
         }, "reverse-docs"),
+      });
+      return reply.code(201).send({ id: s.id });
+    }
+
+    // SPEC-222 · sesi scaffold project-level: dari ide → Source of Truth penuh. Id deterministik
+    // dari project (Start kedua menyambung, ADR-0015). Cermin reverse; diseed dari project.desc.
+    if (parsed.data.flow === "scaffold") {
+      const id = `scaffold-${project.id.toLowerCase().replace(/[^a-z0-9_-]/g, "_")}`;
+      const live = getSession(id);
+      if (live) return reply.code(201).send({ id: live.id });
+
+      const { model, effort } = await sessionModel();
+      try {
+        realGit.addWorktree(repoDir, `${repoDir}/.worktrees/${id}`, "HEAD");
+      } catch (e) {
+        return reply.code(422).send({ error: `gagal membuat worktree: ${(e as Error).message}` });
+      }
+      const s = createSession(project.id, `${repoDir}/.worktrees/${id}`, {
+        id, flow: "scaffold", model, effort,
+        phaseFile: phaseFilePath(repoDir, id),
+        decisionFile: decisionFilePath(repoDir, id),
+        prompt: startScaffoldPrompt(
+          { id: project.id, name: project.name, desc: project.desc, stack: project.stack },
+          "scaffold-docs"),
       });
       return reply.code(201).send({ id: s.id });
     }
