@@ -118,6 +118,9 @@ export const api = {
   // SPEC-166 · reverse: sesi project-level menyusun Source of Truth dari kode, di worktree-nya.
   reverseDocs: (project: string) =>
     j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, flow: "reverse" }) }),
+  // SPEC-222 · scaffold: sesi project-level menyusun Source of Truth dari ide (from-scratch).
+  scaffoldDocs: (project: string) =>
+    j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, flow: "scaffold" }) }),
   // SPEC-210 · dokumen PRD. listPrds/getPrd baca freshest-wins; startPrd buka sesi prd.
   listPrds: (project: string) => j<{ items: PrdDoc[] }>(paths.prds(project)),
   // perbaikan SPEC-210 · daftar PRD lintas-project (filter "Semua project").

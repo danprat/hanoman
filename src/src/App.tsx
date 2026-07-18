@@ -197,7 +197,7 @@ function NewProjectModal({ open, onClose, onCreate }:
   const scratch = f.kind === "from-scratch";
   const clone = !scratch && f.mode === "clone";
   // SPEC-217/218 · path opsional (mode lokal): nama ATAU dir. Mode clone: URL + folder tujuan wajib.
-  const canSubmit = scratch ? !!f.name.trim()
+  const canSubmit = scratch ? (!!f.name.trim() && !!f.dir.trim())
     : clone ? (!!f.gitRemote.trim() && !!f.dir.trim())
     : (!!f.name.trim() || !!f.dir.trim());
   const submit = async () => {
@@ -231,10 +231,15 @@ function NewProjectModal({ open, onClose, onCreate }:
           <Field label="Nama project" hint="lowercase, tanpa spasi">
             <Input value={f.name} onChange={set("name")} placeholder="mis. kirana" style={{ width: "100%" }} />
           </Field>
-          <Field label="Deskripsi">
-            <Input value={f.desc} onChange={set("desc")} placeholder="mis. Marketplace jasa lokal" style={{ width: "100%" }} />
+          <Field label="Direktori" hint="folder tempat repo baru di-init (mesin ini)">
+            <div style={{ display: "flex", gap: 8 }}>
+              <Input value={f.dir} onChange={set("dir")} leftIcon="folder" mono placeholder="/path/ke/project-baru" style={{ flex: 1 }} />
+              <Button size="sm" variant="secondary" leftIcon="folder-open" onClick={() => setPicker(true)}>Pilih folder</Button>
+            </div>
           </Field>
-          <Field label="Ide awal" hint="opsional — bahan brainstorm objective">
+          <FolderPicker open={picker} onClose={() => setPicker(false)}
+            start={f.dir} onPick={(p) => setF((s) => ({ ...s, dir: p }))} />
+          <Field label="Ide awal" hint="bahan brainstorm objective → jadi deskripsi & seed scaffold">
             <HnTextarea value={f.objective} onChange={set("objective")} rows={2} placeholder="Tuang ide di sini…" />
           </Field>
         </>
@@ -415,8 +420,8 @@ export default function App() {
     let created;
     try {
       created = await api.createProject({
-        name, kind: f.kind, desc: f.desc.trim(),
-        repoDir: scratch || clone ? undefined : f.dir,
+        name, kind: f.kind, desc: scratch ? (f.objective.trim() || f.desc.trim()) : f.desc.trim(),
+        repoDir: scratch ? f.dir.trim() : (clone ? undefined : f.dir),
         gitRemote: clone ? f.gitRemote.trim() : undefined,
       });
     } catch { showToast("Gagal membuat project", "err", "x-circle"); return; }
@@ -435,8 +440,26 @@ export default function App() {
       }
     }
     setProjects((list) => [created!, ...list]);
-    setProjectId(created.id); setModal(null); setSection("docs");
-    showToast("Project " + created.id + " dibuat · " + (scratch ? "mulai brainstorm objective" : "reverse-engineer docs"), "ok", "box");
+    setModal(null);
+    // SPEC-222 · from-scratch: auto-start scaffold bila autoScaffold on (default), lalu ke Terminal;
+    // selain itu ke layar project tempat tombol "Scaffold docs" berada.
+    if (scratch) {
+      let auto = true;
+      try { auto = (await api.getSettings()).autoScaffold; } catch { /* default on */ }
+      if (auto) {
+        try {
+          const { id } = await api.scaffoldDocs(created.id);
+          setProjectId(created.id); setSection("terminal");
+          showToast(`Project ${created.id} dibuat · scaffold docs · sesi ${id} dimulai`, "ok", "sparkles");
+          return;
+        } catch { /* jatuh ke layar project di bawah */ }
+      }
+      setProjectId(created.id); setSection("project");
+      showToast(`Project ${created.id} dibuat · tekan "Scaffold docs" untuk menyusun SoT`, "ok", "box");
+      return;
+    }
+    setProjectId(created.id); setSection("docs");
+    showToast("Project " + created.id + " dibuat · reverse-engineer docs", "ok", "box");
   }
 
   // Cascade di DB ikut menghapus spec project ini — cermin state lokalnya.
@@ -498,6 +521,18 @@ export default function App() {
     } catch (e) {
       const noRepo = e instanceof ApiError && (e.status === 422 || e.status === 400);
       showToast(p.id + " · gagal mulai reverse" + (noRepo ? " · project belum punya repoDir" : ""), "warn", "x-circle");
+    }
+  }
+
+  // SPEC-222 · Scaffold docs: sesi interaktif menyusun Source of Truth dari ide (from-scratch).
+  async function scaffoldDocs(p: ProjectVM) {
+    try {
+      const { id } = await api.scaffoldDocs(p.id);
+      setSection("terminal");
+      showToast(p.id + " · scaffold docs · sesi " + id + " dimulai", "info", "sparkles");
+    } catch (e) {
+      const noRepo = e instanceof ApiError && (e.status === 422 || e.status === 400);
+      showToast(p.id + " · gagal mulai scaffold" + (noRepo ? " · project belum punya repoDir" : ""), "warn", "x-circle");
     }
   }
 
@@ -617,6 +652,7 @@ export default function App() {
               onGotoTerminal={() => { setProjectFilter(proj.id); setSection("terminal"); }}
               onGotoBacklog={() => { setProjectFilter(proj.id); setSection("backlog"); }}
               onReverse={proj.kind === "existing" && proj.repoDir ? () => reverseDocs(proj) : undefined}
+              onScaffold={proj.kind === "from-scratch" && proj.repoDir ? () => scaffoldDocs(proj) : undefined}
               onDelete={() => deleteProject(proj)} />
           : <StateBlock kind="empty" icon="box" title="Belum ada project"
               hint="Mulai dari nol atau tambahkan codebase yang sudah ada."
