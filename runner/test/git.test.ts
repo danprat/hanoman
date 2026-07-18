@@ -105,3 +105,30 @@ describe("git worktree ops", () => {
     expect(() => realGit.removeWorktree(repo, wt)).not.toThrow(); // dobel-panggil pun aman
   });
 });
+
+// SPEC-222 · project from-scratch lahir tanpa repo; scaffold butuh worktree berbasis HEAD.
+describe("git initRepo", () => {
+  it("membuat repo dengan satu HEAD commit di direktori kosong", () => {
+    const dir = mkdtempSync(join(tmpdir(), "init-"));
+    realGit.initRepo(dir);
+    expect(existsSync(join(dir, ".git"))).toBe(true);
+    expect(g(dir, "rev-parse", "HEAD").status).toBe(0);          // HEAD resolves
+    const wt = join(dir, ".worktrees", "scaffold-x");
+    expect(() => realGit.addWorktree(dir, wt, "HEAD")).not.toThrow();
+    realGit.removeWorktree(dir, wt);
+  });
+
+  it("membuat direktori bila belum ada", () => {
+    const parent = mkdtempSync(join(tmpdir(), "init-parent-"));
+    const dir = join(parent, "nested", "proj");
+    realGit.initRepo(dir);
+    expect(existsSync(join(dir, ".git"))).toBe(true);
+  });
+
+  it("idempoten: repo yang sudah punya commit tak berubah HEAD-nya", () => {
+    const { repo } = seedRepo();
+    const before = g(repo, "rev-parse", "HEAD").stdout.trim();
+    realGit.initRepo(repo);
+    expect(g(repo, "rev-parse", "HEAD").stdout.trim()).toBe(before); // no new commit
+  });
+});

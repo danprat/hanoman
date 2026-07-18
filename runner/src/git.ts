@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { rmSync } from "node:fs";
+import { rmSync, mkdirSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import type { GitOps } from "./types";
 function git(cwd: string, args: string[]) {
@@ -46,4 +46,17 @@ export const realGit: GitOps = {
   // Dibaca di worktree sesi (bukan repo utama) tepat sebelum removeWorktree: HEAD-nya =
   // ujung range diff review sesudah item selesai (SPEC-176, ADR-0030).
   headSha: (worktree) => git(worktree, ["rev-parse", "HEAD"]).trim(),
+  // SPEC-222 · project from-scratch lahir tanpa repo; scaffold butuh worktree berbasis HEAD.
+  // git init (bila belum repo) + satu commit --allow-empty (bila belum ada HEAD), identitas
+  // eksplisit agar tak gagal di mesin tanpa git identity global. Idempoten: repo dengan commit
+  // dibiarkan apa adanya.
+  initRepo: (dir) => {
+    mkdirSync(dir, { recursive: true });
+    const isRepo = spawnSync("git", ["rev-parse", "--is-inside-work-tree"], { cwd: dir, encoding: "utf8" });
+    if (isRepo.status !== 0) git(dir, ["init", "-q", "-b", "main"]);
+    const hasHead = spawnSync("git", ["rev-parse", "--verify", "HEAD"], { cwd: dir, encoding: "utf8" });
+    if (hasHead.status !== 0)
+      git(dir, ["-c", "user.email=hanoman@local", "-c", "user.name=hanoman",
+        "commit", "-qm", "init: hanoman scaffold", "--allow-empty"]);
+  },
 };

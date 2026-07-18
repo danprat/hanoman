@@ -21,4 +21,7 @@ export interface GitOps {
   removeWorktree(repo: string, path: string): void;
   /** HEAD worktree sekarang — dibaca sebelum removeWorktree untuk simpan headSha (SPEC-176). */
   headSha(worktree: string): string;
+  /** Menyiapkan repo siap-worktree untuk project from-scratch: git init + satu commit
+   *  bila belum ada HEAD. Idempoten; membuat direktori bila belum ada (SPEC-222). */
+  initRepo(dir: string): void;
 }
