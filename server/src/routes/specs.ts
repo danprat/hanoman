@@ -221,7 +221,7 @@ export default async function (app: FastifyInstance) {
     if (!repoDir) return reply.code(409).send({ error: "project belum punya repoDir" });
     const r = await resolveReview(repoDir, spec);
     if (!r) return reply.code(409).send({ error: "belum ada worktree atau commit untuk di-review — jalankan/lanjutkan sesi backlog dulu" });
-    return r.wt ? specReview(repoDir, id, spec.branchFrom)
+    return r.wt ? specReview(repoDir, id, spec.baseSha, spec.branchFrom)
       : specReviewRange(repoDir, r.base, r.head);
   });
   app.get("/specs/:id/review/*", async (req, reply) => {
@@ -234,7 +234,7 @@ export default async function (app: FastifyInstance) {
     if (!repoDir) return reply.code(409).send({ error: "project belum punya repoDir" });
     const r = await resolveReview(repoDir, spec);
     if (!r) return reply.code(409).send({ error: "belum ada worktree atau commit" });
-    const rf = r.wt ? await reviewFile(repoDir, id, spec.branchFrom, path)
+    const rf = r.wt ? await reviewFile(repoDir, id, spec.baseSha, spec.branchFrom, path)
       : await reviewFileRange(repoDir, r.base, r.head, path);
     return rf === null ? reply.code(404).send({ error: "not found" }) : rf;
   });

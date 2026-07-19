@@ -14,11 +14,11 @@ function repo() {
 
 describe("specReview", () => {
   it("all files = tracked ∪ untracked-tak-ignored, sorted", async () => {
-    const r = await specReview(repo(), SID, null);
+    const r = await specReview(repo(), SID, null, null);
     expect(r.files).toEqual(["b.bin", "keep.txt", "new file.md"]); // gone.txt terhapus
   });
   it("changed: modified +1/-0, deleted D, added A, biner, path berspasi utuh", async () => {
-    const r = await specReview(repo(), SID, null);
+    const r = await specReview(repo(), SID, null, null);
     const by = Object.fromEntries(r.changed.map((c) => [c.path, c]));
     expect(by["keep.txt"]).toMatchObject({ status: "M", add: 1, del: 0, binary: false });
     expect(by["gone.txt"]).toMatchObject({ status: "D" });
@@ -29,34 +29,55 @@ describe("specReview", () => {
     const dir = repo();
     const wt = `${dir}/.worktrees/spec-900`;
     const before = execFileSync("git", ["status", "--porcelain"], { cwd: wt, encoding: "utf8" });
-    await specReview(dir, SID, null);
+    await specReview(dir, SID, null, null);
     const after = execFileSync("git", ["status", "--porcelain"], { cwd: wt, encoding: "utf8" });
     expect(after).toBe(before);
   });
 });
 
+// SPEC-227 · regresi: repo yang default branch-nya BUKAN `main` (mis. `master`) bikin review
+// worktree hidup lempar `fatal: Not a valid object name main` → 500. Review harus menurunkan
+// basis dari baseSha/default repo yang benar-benar ada, tak pernah hardcode "main".
+describe("specReview basis tanpa branch main (SPEC-227)", () => {
+  const NOMAIN = "SPEC-227";
+  it("repo default `master`, baseSha & branchFrom null → tak lempar, changed terdeteksi", async () => {
+    const dir = makeRepoWithWorktree(NOMAIN,
+      { "keep.txt": "satu\n" }, { "keep.txt": "satu\ndua\n" }, { branch: "master" });
+    const r = await specReview(dir, NOMAIN, null, null);
+    expect(r.changed.find((c) => c.path === "keep.txt")).toMatchObject({ status: "M", add: 1, del: 0 });
+  });
+  it("baseSha (commit fork tersimpan) dipakai sebagai basis; repo tanpa main/master pun tak crash", async () => {
+    const dir = makeRepoWithWorktree(NOMAIN,
+      { "keep.txt": "satu\n" }, { "keep.txt": "satu\ndua\n" }, { branch: "develop" });
+    const baseSha = execFileSync("git", ["rev-parse", "develop"], { cwd: dir, encoding: "utf8" }).trim();
+    const r = await specReview(dir, NOMAIN, baseSha, null);
+    expect(r.base).toBe(baseSha);
+    expect(r.changed.find((c) => c.path === "keep.txt")).toMatchObject({ status: "M", add: 1 });
+  });
+});
+
 describe("reviewFile", () => {
   it("file di luar daftar → null (gerbang path)", async () => {
-    expect(await reviewFile(repo(), SID, null, "../../etc/passwd")).toBeNull();
+    expect(await reviewFile(repo(), SID, null, null, "../../etc/passwd")).toBeNull();
   });
   it("file changed: diff + content dari disk", async () => {
-    const rf = await reviewFile(repo(), SID, null, "keep.txt");
+    const rf = await reviewFile(repo(), SID, null, null, "keep.txt");
     expect(rf!.status).toBe("M");
     expect(rf!.diff).toContain("+dua");
     expect(rf!.content).toBe("satu\ndua\n");
   });
   it("file dihapus → content null", async () => {
-    const rf = await reviewFile(repo(), SID, null, "gone.txt");
+    const rf = await reviewFile(repo(), SID, null, null, "gone.txt");
     expect(rf!.status).toBe("D");
     expect(rf!.content).toBeNull();
   });
   it("file biner → binary true, tanpa diff/content", async () => {
-    const rf = await reviewFile(repo(), SID, null, "b.bin");
+    const rf = await reviewFile(repo(), SID, null, null, "b.bin");
     expect(rf).toMatchObject({ binary: true, diff: null, content: null });
   });
   it("file tak berubah tapi ada di project → content, diff kosong", async () => {
     const dir = makeRepoWithWorktree(SID, { "stay.txt": "tetap\n" }, {});
-    const rf = await reviewFile(dir, SID, null, "stay.txt");
+    const rf = await reviewFile(dir, SID, null, null, "stay.txt");
     expect(rf!.status).toBeNull();
     expect(rf!.diff).toBe("");
     expect(rf!.content).toBe("tetap\n");

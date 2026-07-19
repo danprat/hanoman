@@ -20,6 +20,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 - [market-sizing](research/market-sizing.md) · [competitor-analysis](research/competitor-analysis.md) · [moat](research/moat.md)
 - [audit SPEC-217 — path project optional](research/audit-spec-217-path-project-optional.md) — binding per-client SPEC-213 hanya setengah tersambung (spawn/IDE saja), tanpa UI & tak editable
 - [audit SPEC-223 — scaffold project baru gagal (2 bug)](research/audit-spec-223-scaffold-repo-missing.md) — (1) `spawnSync git ENOENT` = cwd/repoDir hilang → `initRepo` idempoten sebelum `addWorktree`; (2) `tmux … command too long` = prompt besar inline di command tmux → prompt lewat berkas + `"$(cat)"` (ADR-0016)
+- [audit SPEC-227 — review diff 500 `Not a valid object name main`](research/audit-spec-227-review-merge-base-main.md) — review worktree hidup hardcode fallback `main`; repo default `master`/`develop` → `git merge-base main HEAD` exit 128. Basis diff pakai `spec.baseSha` (fork tersimpan, SPEC-197/ADR-0030) lalu default repo yang benar-benar resolve, tak pernah literal "main"
 
 ## architecture
 - [stack](architecture/stack.md) · [data-model](architecture/data-model.md) · [api-contract](architecture/api-contract.md) · [nfr](architecture/nfr.md)

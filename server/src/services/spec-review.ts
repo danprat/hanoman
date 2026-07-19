@@ -47,9 +47,23 @@ export async function shaResolvable(repoDir: string, sha: string): Promise<boole
     .then(() => true).catch(() => false);
 }
 
-async function mergeBase(wt: string, branchFrom: string | null): Promise<string> {
-  // SPEC-197 · --end-of-options: branchFrom (dari DB) berbentuk `-` tak boleh ditelan sbg opsi.
-  const { stdout } = await exec("git", ["merge-base", "--end-of-options", branchFrom || "main", "HEAD"], { cwd: wt, ...GIT });
+// SPEC-197 · --end-of-options: rev bisa dari DB (baseSha/branchFrom) & berbentuk `-`; --verify
+// mendahului --end-of-options (urutan mengikat, cermin runner/src/git.ts). exit≠0 → tak resolve.
+async function revOk(wt: string, rev: string): Promise<boolean> {
+  return exec("git", ["rev-parse", "--verify", "-q", "--end-of-options", `${rev}^{commit}`], { cwd: wt, ...GIT })
+    .then(() => true).catch(() => false);
+}
+
+// SPEC-227 · basis diff worktree hidup, prioritas: baseSha (commit detach worktree, SPEC-176/
+// ADR-0030 — titik fork sesi yang tepat & selalu resolve) → branchFrom eksplisit → default repo
+// `main`/`master`. TAK PERNAH hardcode "main": repo target belum tentu punya branch itu (default
+// bisa master/develop), sama seperti fallback HEAD di terminal.ts (SPEC-197). HEAD = jaring
+// pengaman terakhir: merge-base(HEAD, HEAD) = HEAD → diff perubahan tak-commit, bukan 500.
+async function mergeBase(wt: string, baseSha: string | null, branchFrom: string | null): Promise<string> {
+  const candidates = [baseSha, branchFrom, "main", "master"].filter((c): c is string => !!c);
+  let base = "HEAD";
+  for (const c of candidates) if (await revOk(wt, c)) { base = c; break; }
+  const { stdout } = await exec("git", ["merge-base", "--end-of-options", base, "HEAD"], { cwd: wt, ...GIT });
   return stdout.trim();
 }
 
@@ -94,9 +108,9 @@ async function changedFiles(cwd: string, revs: string[], env?: NodeJS.ProcessEnv
   return [...map.values()].sort((a, b) => a.path.localeCompare(b.path));
 }
 
-export async function specReview(repoDir: string, specId: string, branchFrom: string | null): Promise<SpecReview> {
+export async function specReview(repoDir: string, specId: string, baseSha: string | null, branchFrom: string | null): Promise<SpecReview> {
   const wt = worktreeDir(repoDir, specId);
-  const base = await mergeBase(wt, branchFrom);
+  const base = await mergeBase(wt, baseSha, branchFrom);
   const files = await allFiles(wt);
   const changed = await withTempIndex(wt, (env) => changedFiles(wt, [base], env));
   return { base, files, changed };
@@ -159,10 +173,10 @@ export async function reviewFileRange(
 }
 
 export async function reviewFile(
-  repoDir: string, specId: string, branchFrom: string | null, path: string,
+  repoDir: string, specId: string, baseSha: string | null, branchFrom: string | null, path: string,
 ): Promise<ReviewFile | null> {
   const wt = worktreeDir(repoDir, specId);
-  const { base, files, changed } = await specReview(repoDir, specId, branchFrom);
+  const { base, files, changed } = await specReview(repoDir, specId, baseSha, branchFrom);
   const cf = changed.find((c) => c.path === path);
   if (!cf && !files.includes(path)) return null; // gerbang path → route 404
   if (cf?.binary) return { path, status: cf.status, binary: true, truncated: false, diff: null, content: null };

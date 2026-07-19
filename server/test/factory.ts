@@ -35,17 +35,20 @@ export function makeRepoWithBranches(...branches: string[]): string {
 // Repo dengan satu commit `main` (base) + worktree `.worktrees/<id>` detached di main,
 // lalu `changes` diterapkan di worktree TANPA commit (persis keadaan sesi yang bekerja).
 // value null = hapus file yang ada di base. Mengembalikan repoDir. (SPEC-171)
-export function makeRepoWithWorktree(specId: string, base: Record<string, string>, changes: Record<string, string | null>): string {
+// opts.branch (SPEC-227): nama branch default repo — default "main". Repo dunia nyata bisa
+// ber-default `master`/`develop`; review tak boleh hardcode "main".
+export function makeRepoWithWorktree(specId: string, base: Record<string, string>, changes: Record<string, string | null>, opts: { branch?: string } = {}): string {
+  const branch = opts.branch ?? "main";
   const dir = mkdtempSync(join(tmpdir(), "hanoman-wt-"));
   const g = (cwd: string, ...a: string[]) => spawnSync("git", a, { cwd, encoding: "utf8" });
   g(dir, "init", "-q"); g(dir, "config", "user.email", "t@t"); g(dir, "config", "user.name", "t");
   for (const [rel, content] of Object.entries(base)) {
     const abs = join(dir, rel); mkdirSync(dirname(abs), { recursive: true }); writeFileSync(abs, content);
   }
-  g(dir, "add", "-A"); g(dir, "commit", "-qm", "base"); g(dir, "branch", "-M", "main");
+  g(dir, "add", "-A"); g(dir, "commit", "-qm", "base"); g(dir, "branch", "-M", branch);
   const id = specId.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
   const wt = join(dir, ".worktrees", id);
-  g(dir, "worktree", "add", "--detach", "-q", wt, "main");
+  g(dir, "worktree", "add", "--detach", "-q", wt, branch);
   for (const [rel, content] of Object.entries(changes)) {
     const abs = join(wt, rel);
     if (content === null) { rmSync(abs, { force: true }); continue; }
