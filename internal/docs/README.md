@@ -21,6 +21,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 - [audit SPEC-217 — path project optional](research/audit-spec-217-path-project-optional.md) — binding per-client SPEC-213 hanya setengah tersambung (spawn/IDE saja), tanpa UI & tak editable
 - [audit SPEC-223 — scaffold project baru gagal (2 bug)](research/audit-spec-223-scaffold-repo-missing.md) — (1) `spawnSync git ENOENT` = cwd/repoDir hilang → `initRepo` idempoten sebelum `addWorktree`; (2) `tmux … command too long` = prompt besar inline di command tmux → prompt lewat berkas + `"$(cat)"` (ADR-0016)
 - [audit SPEC-227 — review diff 500 `Not a valid object name main`](research/audit-spec-227-review-merge-base-main.md) — review worktree hidup hardcode fallback `main`; repo default `master`/`develop` → `git merge-base main HEAD` exit 128. Basis diff pakai `spec.baseSha` (fork tersimpan, SPEC-197/ADR-0030) lalu default repo yang benar-benar resolve, tak pernah literal "main"
+- [audit SPEC-229 — merge via git graph selalu gagal (buntu tanpa sesi claude)](research/audit-spec-229-merge-git-graph-selalu-gagal.md) — jalur git graph (`runGitOp`) tak pernah warisi ADR-0031: konflik merusak working tree utama & "Force" gagal senyap, gerbang sesi aktif balas 409 di tiap merge. Fix: deterministik dulu, konflik/409 → sesi claude di worktree isolasi (pola integrate)
 
 ## architecture
 - [stack](architecture/stack.md) · [data-model](architecture/data-model.md) · [api-contract](architecture/api-contract.md) · [nfr](architecture/nfr.md)
@@ -28,6 +29,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 
 ## adr
 > Nomor unik & imutable. ADR usang tidak dihapus — ditandai statusnya di bawah dan di header masing-masing.
+- [0053 — Merge via git graph: deterministik di worktree isolasi, konflik → sesi claude (pola integrate)](adr/0053-git-graph-merge-worktree-isolasi-sesi-claude.md)
 - [0052 — Scaffold flow: project from-scratch dari ide → SoT penuh (git-init + startScaffoldPrompt)](adr/0052-scaffold-flow-from-ide.md)
 - [0051 — Kepatuhan VPS Fase 3: drift derived + Notification agregat, applicability app-layer advisory](adr/0051-vps-fase3-drift-applicability.md)
 - [0050 — Kepatuhan VPS: katalog 232 item di git + model state + scoring + remediasi dry-run](adr/0050-vps-compliance-katalog-scoring.md)

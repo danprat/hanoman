@@ -439,17 +439,17 @@ git commit -m "feat(git-graph): merge via jalur isolasi + sesi claude, dukung or
 
 **Files:** tak ada perubahan kode; hanya verifikasi. Bila ada yang merah → kembali ke Task terkait (systematic-debugging), jangan lanjut.
 
-- [ ] **Step 1: Suite server hijau**
+- [x] **Step 1: Suite server hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm -C server test -- --no-file-parallelism`
 Expected: semua PASS (fokus `integrate.test.ts`, `ide.route.test.ts`, `git-ide.test.ts` tetap hijau — `runGitOp` tak diubah).
 
-- [ ] **Step 2: Suite frontend + shared hijau + build**
+- [x] **Step 2: Suite frontend + shared hijau + build**
 
 Run: `pnpm -C shared build && pnpm -C src test -- --no-file-parallelism && pnpm -C src build`
 Expected: PASS + build bersih (kontrak path/tipe sinkron).
 
-- [ ] **Step 3: Smoke API nyata (boot server + curl)** — pakai DB throwaway ter-migrate (JANGAN hanoman_test; sibling test bisa truncate). Boot server di port bebas, buat project → repo dgn branch spec, panggil endpoint:
+- [x] **Step 3: Smoke API nyata (boot server + curl)** — pakai DB throwaway ter-migrate (JANGAN hanoman_test; sibling test bisa truncate). Boot server di port bebas, buat project → repo dgn branch spec, panggil endpoint:
 
 ```bash
 # repo uji dengan origin + branch hanoman/smoke (pola makeRepoWithSpecBranch), current=main
@@ -458,9 +458,9 @@ Expected: PASS + build bersih (kontrak path/tipe sinkron).
 ```
 Verifikasi: (a) clean → `git -C <repo> show main:work.txt` = work; working tree utama bersih. (b) conflict → response `status:conflict` + `.worktrees/merge-main` ADA + working tree utama `git status --porcelain` KOSONG (tak rusak). (c) source `origin/hanoman/smoke` juga clean.
 
-- [ ] **Step 4: Ceklis plan penuh** — pastikan semua `- [ ]` di file ini jadi `- [x]`. (hanoman menahan backlog `executing` selama masih ada `- [ ]`.)
+- [x] **Step 4: Ceklis plan penuh** — pastikan semua `- [ ]` di file ini jadi `- [x]`. (hanoman menahan backlog `executing` selama masih ada `- [ ]`.)
 
-- [ ] **Step 5: Commit final (bila ada perubahan doc/plan)**
+- [x] **Step 5: Commit final (bila ada perubahan doc/plan)**
 
 ```bash
 git add -A
