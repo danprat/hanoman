@@ -39,15 +39,17 @@ export function Toast({ toast }: { toast: ToastData | null }) {
   );
 }
 
-export function Modal({ open, title, eyebrow, icon, onClose, footer, width = 560, children }:
+export function Modal({ open, title, eyebrow, icon, onClose, footer, width = 560, closeOnEscape = true, children }:
   { open: boolean; title?: React.ReactNode; eyebrow?: React.ReactNode; icon?: string;
-    onClose?: () => void; footer?: React.ReactNode; width?: number; children?: React.ReactNode }) {
+    onClose?: () => void; footer?: React.ReactNode; width?: number; closeOnEscape?: boolean; children?: React.ReactNode }) {
+  // SPEC-232 · Escape adalah tombol tersibuk di TUI Claude Code; modal yang memuat terminal
+  // mengoper closeOnEscape={false} supaya Escape tetap milik terminal (keluar via × / backdrop).
   React.useEffect(() => {
-    if (!open) return;
+    if (!open || !closeOnEscape) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose && onClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, closeOnEscape]);
   if (!open) return null;
   return (
     <div onMouseDown={(e) => { if (e.target === e.currentTarget) onClose && onClose(); }} style={{
