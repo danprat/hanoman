@@ -128,6 +128,18 @@ describe("terminal routes", () => {
     const code = await new Promise<number>((res) => c.ws.on("close", (n: number) => res(n)));
     expect(code).toBe(4004);
   });
+
+  // SPEC-230 · sesi project-level (PRD) membawa branch integrasi; disimpan @hanoman_branch
+  // dan disurfacekan lewat listSessions/SessionDTO agar frontend & endpoint tahu apa yang di-merge.
+  it("createSession menyimpan branch dan mengembalikannya di listSessions", () => {
+    const wt = join(repoDir, ".worktrees", "prd-branchtest");
+    execFileSync("git", ["worktree", "add", "--detach", "-q", wt, "HEAD"], { cwd: repoDir });
+    const s = createSessionSvc("p1", wt, { id: "prd-branchtest", flow: "prd", branch: "prd/branchtest", command: ["/bin/sleep", "30"] });
+    const found = listSessions().find((x) => x.id === s.id);
+    expect(found?.branch).toBe("prd/branchtest");
+    killSession("prd-branchtest");
+    execFileSync("git", ["worktree", "remove", "--force", wt], { cwd: repoDir });
+  });
 });
 
 // SPEC-162: terminal membuka sesi claude interaktif untuk sebuah backlog item, di worktree-nya.
