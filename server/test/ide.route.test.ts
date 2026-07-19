@@ -109,4 +109,25 @@ describe("ide routes", () => {
     expect(b.branches).not.toContain("hanoman/del3");
     expect(b.remotes).not.toContain("hanoman/del3");
   });
+
+  it("POST /git/merge clean: merge branch spec ke current → 200 {status:clean} (SPEC-229)", async () => {
+    await makeProject({ id: "gm1", repoDir: makeRepoWithSpecBranch("gm").repoDir }); // current main + hanoman/gm
+    const r = await app.inject({ method: "POST", url: "/api/projects/gm1/git/merge", payload: { source: "hanoman/gm" } });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().status).toBe("clean");
+  });
+  it("POST /git/merge conflict: spawn sesi claude → 200 {status:conflict, sessionId} (SPEC-229)", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    await makeProject({ id: "gm2", repoDir: makeRepoWithSpecBranch("gm", {
+      base: { "f.txt": "b\n" }, work: { "f.txt": "w\n" }, mainAdvance: { "f.txt": "m\n" } }).repoDir });
+    const r = await app.inject({ method: "POST", url: "/api/projects/gm2/git/merge", payload: { source: "hanoman/gm" } });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().status).toBe("conflict");
+    expect(typeof r.json().sessionId).toBe("string");
+    killAll();
+  });
+  it("POST /git/merge source kosong → 400; project tanpa repoDir → 400 (SPEC-229)", async () => {
+    expect((await app.inject({ method: "POST", url: "/api/projects/gm1/git/merge", payload: {} })).statusCode).toBe(400);
+    expect((await app.inject({ method: "POST", url: "/api/projects/nodir/git/merge", payload: { source: "main" } })).statusCode).toBe(400);
+  });
 });

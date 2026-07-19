@@ -1,7 +1,10 @@
 import type { FastifyInstance } from "fastify";
+import { basename } from "node:path";
 import { prisma } from "../db";
 import { resolveRepoDir } from "../services/local-binding";
-import { listSessions } from "../services/pty";
+import { listSessions, createSession } from "../services/pty";
+import { sessionModel } from "../services/settings";
+import { mergeIntoCurrent } from "../services/integrate";
 import {
   listRepoTree, readRepoFile, writeRepoFile, listGraph, commitDetail, runGitOp, validateGitOp, type GitOp,
 } from "../services/git-ide";
@@ -74,5 +77,33 @@ export default async function (app: FastifyInstance) {
     }
     const r = await runGitOp(repoDir, op);
     return r.ok ? r : reply.code(409).send({ error: r.stderr || "operasi git gagal", ...r });
+  });
+
+  // SPEC-229 · merge via git graph (ADR-0053): deterministik di worktree isolasi (working tree utama
+  // tak pernah dirusak), konflik → spawn sesi claude di worktree itu. Tanpa gerbang sesi aktif —
+  // isolasi + ff-aman menggantikan alasan 409 lama. Bentuk response mirror POST /specs/:id/integrate.
+  app.post("/projects/:id/git/merge", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const repoDir = await repoOf(id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    if (!repoDir) return reply.code(400).send({ error: "project tidak punya repoDir" });
+    const b = req.body as { source?: unknown; ff?: unknown; deleteBranch?: unknown };
+    if (typeof b?.source !== "string" || !b.source) return reply.code(400).send({ error: "source wajib" });
+    if (b.ff !== undefined && b.ff !== "no-ff" && b.ff !== "ff-only") return reply.code(400).send({ error: "ff harus no-ff atau ff-only" });
+    if (b.deleteBranch !== undefined && !(typeof b.deleteBranch === "string" && b.deleteBranch)) return reply.code(400).send({ error: "deleteBranch harus string tak kosong" });
+    const r = await mergeIntoCurrent(repoDir, b.source, {
+      ff: b.ff as "no-ff" | "ff-only" | undefined, deleteBranch: b.deleteBranch as string | undefined });
+    if (r.status === "error") return reply.code(r.code).send({ error: r.error });
+    if (r.status === "clean") return { status: "clean", detail: r.detail };
+    // conflict → sesi claude interaktif di worktree yang tertinggal (never touch main working tree).
+    const { model, effort } = await sessionModel();
+    const prompt = [
+      `hanoman · selesaikan konflik merge \`${r.source}\` ke \`${r.target}\`.`,
+      `Kamu berada di worktree yang tertinggal di tengah merge dengan konflik. Resolve konflik pada file bertanda, jaga kedua sisi perubahan sesuai maksudnya.`,
+      r.finalize,
+      `Merge via git graph project ${id}.`,
+    ].join("\n\n");
+    const s = createSession(id, r.worktree, { id: basename(r.worktree), model, effort, prompt });
+    return { status: "conflict", sessionId: s.id };
   });
 }

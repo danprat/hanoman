@@ -193,7 +193,7 @@ git commit -m "feat(integrate): mergeIntoCurrent — merge git graph di worktree
 - Consumes: `mergeIntoCurrent` (Task 1); `createSession(projectId, cwd, { id, model, effort, prompt })` (pty.ts); `sessionModel()` → `{ model, effort }` (settings.ts).
 - Produces: `POST /projects/:id/git/merge` body `{ source: string; ff?: "no-ff"|"ff-only"; deleteBranch?: string }` → `200 { status:"clean", detail }` | `200 { status:"conflict", sessionId }` | `400`/`404`/`409 { error }`.
 
-- [ ] **Step 1: Tulis test yang gagal** — tambahkan di `server/test/ide.route.test.ts` di dalam `describe("ide routes", …)`:
+- [x] **Step 1: Tulis test yang gagal** — tambahkan di `server/test/ide.route.test.ts` di dalam `describe("ide routes", …)`:
 
 ```ts
 it("POST /git/merge clean: merge branch spec ke current → 200 {status:clean} (SPEC-229)", async () => {
@@ -220,12 +220,12 @@ it("POST /git/merge source kosong → 400; project tanpa repoDir → 400 (SPEC-2
 
 (Tambahkan `makeProject({ id: "gm1"/"gm2" })` di `beforeAll` bila lebih rapi; membuat inline di test juga sah karena `makeProject` idempoten per-id unik.)
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run test/ide.route.test.ts -t "git/merge"`
 Expected: FAIL — 404 (route belum ada).
 
-- [ ] **Step 3: Implementasi** — di `server/src/routes/ide.ts`:
+- [x] **Step 3: Implementasi** — di `server/src/routes/ide.ts`:
 
 Ubah import (baris 1-7) menjadi menambah:
 ```ts
@@ -267,12 +267,12 @@ Tambahkan route di dalam `export default async function (app)`, setelah handler 
   });
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run: `cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run test/ide.route.test.ts`
 Expected: PASS (kasus baru + semua kasus ide lama hijau).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/routes/ide.ts server/test/ide.route.test.ts
