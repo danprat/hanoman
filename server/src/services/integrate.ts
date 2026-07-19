@@ -150,3 +150,71 @@ function finalizeInstruction(op: IntegrateOp, f: Finalize): string {
     ? `Sesudah resolve konflik: \`git add -A && git commit --no-edit\`, lalu \`${push}\`.`
     : `Sesudah resolve tiap konflik: \`git add -A && git rebase --continue\` (ulangi sampai selesai), lalu \`${push}\`.`;
 }
+
+// SPEC-229 · merge via git graph (ADR-0053). Source arbitrer (branch, origin/<b>, atau sha) → branch
+// CURRENT working tree utama, dijalankan di worktree isolasi (pola integrate). Bersih → ff branch
+// current di owner tree; konflik → tinggalkan worktree untuk sesi claude. Working tree utama tak
+// pernah dirusak. Reuse helper integrate; tak menyentuh `integrate()` yang sudah teruji.
+export type GraphMergeResult =
+  | { status: "clean"; detail: string }
+  | { status: "conflict"; worktree: string; source: string; target: string; finalize: string }
+  | { status: "error"; code: number; error: string };
+
+// Coba source apa adanya (sha/ref penuh), lalu refs/heads/<s>, lalu refs/remotes/origin/<s>.
+async function resolveGraphSource(repoDir: string, source: string): Promise<string | null> {
+  for (const cand of [source, `refs/heads/${source}`, `refs/remotes/origin/${source}`])
+    if (await refExists(repoDir, cand)) return cand;
+  return null;
+}
+
+// Hapus branch yang baru di-merge (best-effort): local -D lalu origin --delete bila ada. Merge sudah
+// landed; kegagalan hapus TIDAK me-rollback (beda dari afterMergeDelete git-ide yang gagal-keras).
+async function deleteMergedBranch(repoDir: string, branch: string): Promise<void> {
+  await sh(repoDir, ["branch", "-D", "--end-of-options", branch]);
+  if (await refExists(repoDir, `refs/remotes/origin/${branch}`))
+    await sh(repoDir, ["push", "origin", "--delete", "--end-of-options", branch]);
+}
+
+export async function mergeIntoCurrent(
+  repoDir: string, source: string, opts: { ff?: "no-ff" | "ff-only"; deleteBranch?: string } = {},
+): Promise<GraphMergeResult> {
+  const current = await out(repoDir, ["rev-parse", "--abbrev-ref", "HEAD"]);
+  if (!current || current === "HEAD")
+    return { status: "error", code: 409, error: "HEAD detached — checkout sebuah branch dulu sebelum merge" };
+  const src = await resolveGraphSource(repoDir, source);
+  if (!src) return { status: "error", code: 400, error: `source "${source}" tak dikenal` };
+
+  await sh(repoDir, ["fetch", "origin"]); // best-effort; abaikan gagal/offline (timeout 60s)
+
+  const wt = join(repoDir, ".worktrees", `merge-${sanitize(current)}`);
+  await reclaim(repoDir, wt);
+
+  // base worktree = tip branch current; source → sha (cegah flag-injection, SPEC-197).
+  const baseSha = await out(repoDir, ["rev-parse", "--verify", "--end-of-options", `refs/heads/${current}^{commit}`]);
+  if (!(await ok(repoDir, ["worktree", "add", "--detach", "-q", wt, baseSha])))
+    return { status: "error", code: 500, error: "gagal membuat worktree merge" };
+  const srcSha = await out(repoDir, ["rev-parse", "--verify", "--end-of-options", `${src}^{commit}`]);
+
+  const cmd = ["merge", "--no-edit", ...(opts.ff ? [`--${opts.ff}`] : []), "--end-of-options", srcSha];
+  const run = await sh(wt, cmd);
+
+  // Finalisasi = ff branch current di owner (working tree utama). worktreeForBranch(current) = repoDir.
+  const finalize: Finalize = { kind: "branch-f", branch: current, checkout: await worktreeForBranch(repoDir, current) };
+
+  if (run.status === 0) {
+    const fin = await runFinalize(wt, repoDir, finalize);
+    if (fin.ok && opts.deleteBranch) await deleteMergedBranch(repoDir, opts.deleteBranch);
+    await sh(repoDir, ["worktree", "remove", "--force", wt]);
+    return fin.ok ? { status: "clean", detail: fin.detail } : { status: "error", code: 409, error: fin.error };
+  }
+
+  // non-zero: konflik NYATA (ada file unmerged) vs penolakan bersih (mis. --ff-only divergen).
+  const conflicted = (await out(wt, ["ls-files", "--unmerged"])).length > 0;
+  if (!conflicted) {
+    await sh(wt, ["merge", "--abort"]);                       // no-op bila tak ada state merge
+    await sh(repoDir, ["worktree", "remove", "--force", wt]);
+    return { status: "error", code: 409, error: run.stderr.trim() || "merge gagal — tak bisa fast-forward?" };
+  }
+  // konflik → tinggalkan worktree; route spawn sesi claude
+  return { status: "conflict", worktree: wt, source: src, target: `local:${current}`, finalize: finalizeInstruction("merge", finalize) };
+}

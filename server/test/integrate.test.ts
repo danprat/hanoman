@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { execFileSync } from "node:child_process";
 import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { integrate } from "../src/services/integrate";
+import { integrate, mergeIntoCurrent } from "../src/services/integrate";
 import { makeRepoWithSpecBranch } from "./factory";
 
 // isi file di sebuah ref: bare origin lewat --git-dir, repo biasa lewat -C.
@@ -76,6 +76,65 @@ describe("integrate — merge conflict", () => {
       expect(r.finalize).toContain("merge --ff-only");
       expect(r.finalize).not.toContain("git branch -f");
     }
+  });
+});
+
+describe("mergeIntoCurrent — git graph (SPEC-229)", () => {
+  const cur = (dir: string) => execFileSync("git", ["-C", dir, "rev-parse", "--abbrev-ref", "HEAD"], { encoding: "utf8" }).trim();
+  const fileAt = (dir: string, ref: string, path: string) => execFileSync("git", ["-C", dir, "show", `${ref}:${path}`], { encoding: "utf8" });
+  const porcelain = (dir: string) => execFileSync("git", ["-C", dir, "status", "--porcelain"], { encoding: "utf8" });
+
+  it("clean: merge branch spec (source lokal) ke main current → main maju di working tree utama", async () => {
+    const { repoDir } = makeRepoWithSpecBranch("SPEC-1"); // current = main; branch hanoman/spec-1 punya work.txt
+    const r = await mergeIntoCurrent(repoDir, "hanoman/spec-1");
+    expect(r.status).toBe("clean");
+    expect(cur(repoDir)).toBe("main");
+    expect(fileAt(repoDir, "main", "work.txt")).toBe("work\n");
+    expect(existsSync(`${repoDir}/.worktrees/merge-main`)).toBe(false);
+  });
+  it("clean: source origin/<b> didukung (merge remote branch)", async () => {
+    const { repoDir } = makeRepoWithSpecBranch("SPEC-1");
+    const r = await mergeIntoCurrent(repoDir, "origin/hanoman/spec-1");
+    expect(r.status).toBe("clean");
+    expect(fileAt(repoDir, "main", "work.txt")).toBe("work\n");
+  });
+  it("conflict: tinggalkan worktree + finalize, working tree utama TAK rusak", async () => {
+    const { repoDir } = makeRepoWithSpecBranch("SPEC-1", {
+      base: { "f.txt": "base\n" }, work: { "f.txt": "branch\n" }, mainAdvance: { "f.txt": "main\n" },
+    });
+    const r = await mergeIntoCurrent(repoDir, "hanoman/spec-1");
+    expect(r.status).toBe("conflict");
+    if (r.status === "conflict") {
+      expect(existsSync(r.worktree)).toBe(true);
+      expect(r.target).toBe("local:main");
+      expect(r.finalize).toContain("merge --ff-only"); // main ter-checkout → ff di owner
+    }
+    // working tree utama TAK mid-merge: tanpa MERGE_HEAD & tanpa file unmerged (UU). `.worktrees/`
+    // yang untracked itu justru worktree konflik terisolasi — memang seharusnya ada, bukan kerusakan.
+    expect(existsSync(`${repoDir}/.git/MERGE_HEAD`)).toBe(false);
+    expect(porcelain(repoDir).split("\n").some((l) => l.startsWith("U"))).toBe(false);
+  });
+  it("HEAD detached → error 409", async () => {
+    const { repoDir } = makeRepoWithSpecBranch("SPEC-1");
+    execFileSync("git", ["-C", repoDir, "checkout", "-q", "--detach"]);
+    expect(await mergeIntoCurrent(repoDir, "hanoman/spec-1")).toMatchObject({ status: "error", code: 409 });
+  });
+  it("source tak dikenal → error 400", async () => {
+    const { repoDir } = makeRepoWithSpecBranch("SPEC-1");
+    expect(await mergeIntoCurrent(repoDir, "ghost-branch")).toMatchObject({ status: "error", code: 400 });
+  });
+  it("ff-only divergen → error 409 (bukan conflict, worktree dibersihkan)", async () => {
+    const { repoDir } = makeRepoWithSpecBranch("SPEC-1", { mainAdvance: { "m.txt": "m\n" } }); // divergen non-konflik
+    const r = await mergeIntoCurrent(repoDir, "hanoman/spec-1", { ff: "ff-only" });
+    expect(r).toMatchObject({ status: "error", code: 409 });
+    expect(existsSync(`${repoDir}/.worktrees/merge-main`)).toBe(false);
+  });
+  it("deleteBranch: branch dihapus (local + origin) setelah merge bersih", async () => {
+    const { repoDir } = makeRepoWithSpecBranch("SPEC-1");
+    const r = await mergeIntoCurrent(repoDir, "hanoman/spec-1", { deleteBranch: "hanoman/spec-1" });
+    expect(r.status).toBe("clean");
+    expect(execFileSync("git", ["-C", repoDir, "branch", "--list", "hanoman/spec-1"], { encoding: "utf8" }).trim()).toBe("");
+    expect(execFileSync("git", ["-C", repoDir, "ls-remote", "origin", "hanoman/spec-1"], { encoding: "utf8" }).trim()).toBe("");
   });
 });
 
