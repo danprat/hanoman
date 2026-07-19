@@ -148,7 +148,8 @@ GET      /health                        # publik; liveness
 
 ## Terminal
 ```
-GET    /terminal/sessions            # [{ id, projectId, cwd, exited }]
+GET    /terminal/sessions            # [{ id, projectId, specId?, flow?, cwd, branch?, exited, decision }]
+#   branch? (SPEC-230): branch integrasi sesi project-level (PRD = prd/<slug>) — menyalakan review+merge di sel
 POST   /terminal/sessions  {project, flow?} # 201 { id } · 404 project · 400 tanpa repoDir
 #   {spec, flow} (SPEC-162): sesi backlog item di worktree .worktrees/<spec>, prompt pipeline penuh
 #   SPEC-172: bila Spec.stage === "done", sesi baru dibuka dengan prompt LANJUTAN (fase Execute
@@ -160,6 +161,12 @@ POST   /terminal/sessions  {project, flow?} # 201 { id } · 404 project · 400 t
 #   {project, flow:"prd", brief} (SPEC-210, ADR-0041): sesi project-level di .worktrees/prd-<slug>;
 #     brainstorm interaktif → dokumen docs/prd/<slug>.md, push branch prd/<slug>; 400 judul kosong, 422 worktree
 GET    /terminal/sessions/:id/phases # fase yang sudah dilaporkan sesi (dari $HANOMAN_PHASE_FILE) → stage live
+GET    /terminal/sessions/:id/review        # (SPEC-230, ADR-0054) diff worktree HIDUP sesi project-level (PRD);
+#   bentuk = /specs/:id/review; kunci worktree = id sesi; 409 bila worktree lenyap (sesi ditutup) — bukan 500
+GET    /terminal/sessions/:id/review/*path  # { path, status, binary, truncated, diff, content } · 404 · 409
+POST   /terminal/sessions/:id/integrate  { op:"merge"|"rebase", target:"local:<b>"|"origin:<b>" }
+#   (SPEC-230, ADR-0054) rebase/merge branch sesi (PRD prd/<slug>); { status:"clean", detail } |
+#   { status:"conflict", sessionId } (spawn sesi claude di worktree merge-<id>) | 400 op/target · 409 branch/sesi tanpa branch
 DELETE /terminal/sessions/:id        # 204 · 404; menutup sesi: majukan stage, simpan headSha, removeWorktree
 GET    /terminal/sessions/:id/ws     # WebSocket; close 4004 bila sesi tak ada
 #   server->klien: { t:"data", d } · { t:"phase", … } · { t:"exit", code }

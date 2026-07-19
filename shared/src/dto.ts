@@ -228,7 +228,7 @@ export type UpdateStatus = {
 // SPEC-199 · bentuk sesi di wire (cermin services/pty.ts SessionInfo & client TerminalSession).
 export type SessionDTO = {
   id: string; projectId: string; specId?: string; flow?: string; cwd: string;
-  exited: boolean; decision: boolean;
+  branch?: string; exited: boolean; decision: boolean;   // SPEC-230 · branch integrasi sesi (PRD: prd/<slug>)
 };
 
 // SPEC-199 · frame siar dashboard (server → klien), lewat GET /events/ws (ADR-0039). Read-only

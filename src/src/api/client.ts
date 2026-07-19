@@ -6,7 +6,7 @@ export type { PrdDoc };
 export type Phase = { name: string; state: "done" | "skipped" | "active" | "pending" };
 export type TerminalSession = {
   id: string; projectId: string; specId?: string; flow?: Flow; cwd: string; exited: boolean;
-  decision?: boolean;
+  branch?: string; decision?: boolean;   // SPEC-230 · branch integrasi sesi (PRD: prd/<slug>)
 };
 // SPEC-167 · respons dry-run PATCH /specs/:id saat revert akan menghapus artefak.
 export type RevertPending = { pending: true; stage: string; wouldDelete: string[] };
@@ -135,6 +135,12 @@ export const api = {
   startPrd: (project: string, brief: { title: string; context: string; outcome: string; constraints?: string }) =>
     j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, flow: "prd", brief }) }),
   deleteTerminal: (id: string) => j<void>(paths.terminalSession(id), { method: "DELETE" }),
+  // SPEC-230 · review + integrate ber-skop sesi (sesi project-level PRD, tanpa Spec).
+  sessionReview: (id: string) => j<SpecReview>(paths.sessionReview(id)),
+  sessionReviewFile: (id: string, path: string) => j<ReviewFile>(paths.sessionReviewFile(id, path)),
+  sessionIntegrate: (id: string, op: "merge" | "rebase", target: string) =>
+    j<{ status: "clean"; detail: string } | { status: "conflict"; sessionId: string }>(
+      paths.sessionIntegrate(id), { method: "POST", ...body({ op, target }) }),
   // SPEC-164 · modul VPS
   listVps: () => j<VpsView[]>(paths.vps),
   createVps: (b: { name: string; host: string; user: string; port?: number; keyPath?: string; password?: string }) =>

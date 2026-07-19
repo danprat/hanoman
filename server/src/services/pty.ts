@@ -40,7 +40,7 @@ export type Client = { send(msg: string): void; close(): void };
 
 export type SessionInfo = {
   id: string; projectId: string; specId?: string; flow?: Flow; cwd: string; exited: boolean;
-  decision: boolean;
+  branch?: string; decision: boolean;
 };
 type Pane = SessionInfo & { code: number; phaseFile?: string; decisionFile?: string };
 
@@ -87,7 +87,7 @@ const idFor = (specId?: string) =>
 const FMT = [
   "#{session_name}", "#{@hanoman_project}", "#{@hanoman_spec}", "#{@hanoman_flow}",
   "#{@hanoman_phase_file}", "#{@hanoman_cwd}", "#{pane_dead}", "#{pane_dead_status}",
-  "#{@hanoman_decision_file}",
+  "#{@hanoman_decision_file}", "#{@hanoman_branch}",
 ].join("\t");
 
 // Satu-satunya sumber kebenaran soal sesi adalah tmux server. Tidak ada map yang perlu
@@ -97,7 +97,7 @@ function listPanes(): Pane[] {
   try { out = tmux("list-panes", "-a", "-F", FMT); }
   catch { return []; } // tmux server belum jalan — belum ada sesi sama sekali
   return out.split("\n").filter(Boolean).flatMap((line) => {
-    const [n, projectId, specId, flow, phaseFile, cwd, dead, code, decisionFile] = line.split("\t");
+    const [n, projectId, specId, flow, phaseFile, cwd, dead, code, decisionFile, branch] = line.split("\t");
     if (!n?.startsWith(PREFIX)) return [];
     const exited = dead === "1";
     return [{
@@ -105,6 +105,8 @@ function listPanes(): Pane[] {
       flow: (flow || undefined) as Flow | undefined, phaseFile: phaseFile || undefined,
       cwd: cwd ?? "", exited, code: Number(code) || 0,
       decisionFile: decisionFile || undefined,
+      // SPEC-230 · branch integrasi sesi project-level (PRD: prd/<slug>). Kosong = tak ada.
+      branch: branch || undefined,
       // SPEC-196 · sesi hidup dengan marker keputusan terisi = menunggu manusia.
       decision: !exited && !!decisionFile && markerFilled(decisionFile),
     }];
@@ -112,8 +114,8 @@ function listPanes(): Pane[] {
 }
 
 export const listSessions = (): SessionInfo[] =>
-  listPanes().map(({ id, projectId, specId, flow, cwd, exited, decision }) => ({
-    id, projectId, specId, flow, cwd, exited, decision,
+  listPanes().map(({ id, projectId, specId, flow, cwd, exited, branch, decision }) => ({
+    id, projectId, specId, flow, cwd, exited, branch, decision,
   }));
 
 // SPEC-184 · sesi hidup yang punya marker keputusan — masukan scanDecisions().
@@ -125,7 +127,7 @@ export const liveDecisions = (): { id: string; specId?: string; projectId: strin
 export const getSession = (id: string): Pane | undefined => listPanes().find((p) => p.id === id);
 
 export type CreateOpts = {
-  id?: string; specId?: string; flow?: Flow; prompt?: string; phaseFile?: string;
+  id?: string; specId?: string; flow?: Flow; branch?: string; prompt?: string; phaseFile?: string;
   decisionFile?: string; model?: string; effort?: string; command?: string[];
 };
 
@@ -206,9 +208,11 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
   );
   if (opts.specId) tmux("set-option", "-t", name(id), "@hanoman_spec", opts.specId);
   if (opts.flow) tmux("set-option", "-t", name(id), "@hanoman_flow", opts.flow);
+  // SPEC-230 · branch integrasi sesi (mis. PRD prd/<slug>) → dipakai review/integrate ber-skop sesi.
+  if (opts.branch) tmux("set-option", "-t", name(id), "@hanoman_branch", opts.branch);
   if (opts.phaseFile) tmux("set-option", "-t", name(id), "@hanoman_phase_file", opts.phaseFile);
   if (opts.decisionFile) tmux("set-option", "-t", name(id), "@hanoman_decision_file", opts.decisionFile);
-  return { id, projectId, specId: opts.specId, flow: opts.flow, cwd, exited: false, decision: false };
+  return { id, projectId, specId: opts.specId, flow: opts.flow, cwd, branch: opts.branch, exited: false, decision: false };
 }
 
 // Fase dibaca dari berkasnya, tidak disimpan: sesi yang selamat dari restart API tetap

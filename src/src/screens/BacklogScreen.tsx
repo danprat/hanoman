@@ -237,7 +237,9 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
         </Modal>
       )}
       {showIntegrate && onIntegrate && (
-        <IntegrateDialog spec={spec} onClose={() => setShowIntegrate(false)}
+        <IntegrateDialog projectId={spec.projectId}
+          ownBranch={`hanoman/${spec.id.toLowerCase().replace(/[^a-z0-9_-]/g, "_")}`} eyebrow={spec.id}
+          onClose={() => setShowIntegrate(false)}
           onIntegrate={(op, target) => { setShowIntegrate(false); onIntegrate(spec, op, target); }} />
       )}
     </Modal>

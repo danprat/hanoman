@@ -1,6 +1,6 @@
 # ADR-0041 — PRD adalah dokumen + flow sesi project-level, bukan entitas DB
 
-**Status:** accepted · **Tanggal:** 2026-07-14 · **SPEC-210**
+**Status:** accepted · **Tanggal:** 2026-07-14 · **SPEC-210** · *diperluas oleh [ADR-0054](0054-review-integrate-ber-skop-sesi-untuk-prd.md) (review+integrate ber-skop sesi)*
 
 ## Konteks
 PM/PO butuh menulis brief, ber-brainstorm, dan menghasilkan **PRD** sebelum sebuah fitur dipecah

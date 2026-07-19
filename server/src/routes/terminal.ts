@@ -1,8 +1,11 @@
 import type { FastifyInstance } from "fastify";
+import { existsSync } from "node:fs";
 import { prisma } from "../db";
-import { zTerminalSession, type Stage } from "@hanoman/shared";
+import { zTerminalSession, zIntegrate, type Stage } from "@hanoman/shared";
 import { realGit, startPrompt, continuePrompt, startProjectPrompt, startPrdPrompt, startScaffoldPrompt, type Flow } from "@hanoman/runner";
 import { phaseFilePath, decisionFilePath, readPhases, stageForRun } from "../services/session-phases";
+import { specReview, reviewFile } from "../services/spec-review";
+import { integrateBranch } from "../services/integrate";
 import { sessionModel } from "../services/settings";
 import { resolveRepoDir } from "../services/local-binding";
 import { recordSessionResult } from "../services/session-result";
@@ -187,7 +190,7 @@ export default async function (app: FastifyInstance) {
         return reply.code(422).send({ error: `gagal membuat worktree: ${(e as Error).message}` });
       }
       const s = createSession(project.id, `${repoDir}/.worktrees/${id}`, {
-        id, flow: "prd", model, effort,
+        id, flow: "prd", branch: `prd/${slug}`, model, effort,
         phaseFile: phaseFilePath(repoDir, id),
         decisionFile: decisionFilePath(repoDir, id),
         prompt: startPrdPrompt(
@@ -207,6 +210,63 @@ export default async function (app: FastifyInstance) {
     const phases = sessionPhases(id);
     if (!s?.flow || !phases) return reply.code(404).send({ error: "not found" });
     return { flow: s.flow, phases };
+  });
+
+  // SPEC-230 · review diff worktree hidup sebuah sesi project-level (PRD). Kunci worktree = id
+  // sesi (worktreeDir(repoDir, id) === s.cwd). Tanpa baseSha/branchFrom → mergeBase jatuh ke
+  // default repo/HEAD (SPEC-227). Worktree lenyap (sesi ditutup) → 409, bukan 500.
+  type WtOk = { ok: true; id: string; repoDir: string };
+  type WtErr = { ok: false; code: number; msg: string };
+  const sessionWorktree = async (id: string): Promise<WtOk | WtErr> => {
+    const s = getSession(id);
+    if (!s) return { ok: false, code: 404, msg: "not found" };
+    const repoDir = await resolveRepoDir(s.projectId);
+    if (!repoDir) return { ok: false, code: 409, msg: "project belum punya repoDir" };
+    if (!s.cwd.includes("/.worktrees/") || !existsSync(s.cwd))
+      return { ok: false, code: 409, msg: "belum ada worktree untuk di-review — jalankan/lanjutkan sesi dulu" };
+    return { ok: true, id: s.id, repoDir };
+  };
+  app.get("/terminal/sessions/:id/review", async (req, reply) => {
+    const r = await sessionWorktree((req.params as { id: string }).id);
+    if (!r.ok) return reply.code(r.code).send({ error: r.msg });
+    return specReview(r.repoDir, r.id, null, null);
+  });
+  app.get("/terminal/sessions/:id/review/*", async (req, reply) => {
+    const id = (req.params as { id: string }).id;
+    const path = (req.params as Record<string, string>)["*"] ?? "";
+    const r = await sessionWorktree(id);
+    if (!r.ok) return reply.code(r.code).send({ error: r.msg });
+    const rf = await reviewFile(r.repoDir, r.id, null, null, path);
+    return rf === null ? reply.code(404).send({ error: "not found" }) : rf;
+  });
+
+  // SPEC-230 · rebase/merge branch sesi project-level (PRD: prd/<slug>). Bersih → langsung;
+  // konflik → spawn sesi claude di worktree merge-<id> (tanpa flow → tak menggerakkan stage, ADR-0031).
+  app.post("/terminal/sessions/:id/integrate", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const parsed = zIntegrate.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: "op/target invalid" });
+    const s = getSession(id);
+    if (!s) return reply.code(404).send({ error: "not found" });
+    if (!s.branch) return reply.code(409).send({ error: "sesi ini tak punya branch untuk di-integrasi" });
+    const repoDir = await resolveRepoDir(s.projectId);
+    if (!repoDir) return reply.code(409).send({ error: "project belum punya repoDir" });
+    const r = await integrateBranch(repoDir, { branch: s.branch, mergeId: s.id }, parsed.data.op, parsed.data.target);
+    if (r.status === "error") return reply.code(r.code).send({ error: r.error });
+    if (r.status === "clean") return { status: "clean", detail: r.detail };
+    // conflict → sesi claude interaktif di worktree yang tertinggal (tanpa flow → tak menggerakkan stage).
+    const { model, effort } = await sessionModel();
+    const prompt = [
+      `hanoman · selesaikan konflik ${r.op} branch \`${s.branch}\` ${r.op === "merge" ? "ke" : "di atas"} \`${r.target}\`.`,
+      `Kamu berada di worktree yang tertinggal di tengah operasi ${r.op} dengan konflik. Resolve konflik pada file bertanda, jaga kedua sisi perubahan sesuai maksudnya.`,
+      r.finalize,
+      `Sesi PRD ${s.id}.`,
+    ].join("\n\n");
+    const cs = createSession(s.projectId, r.worktree, {
+      id: `merge-${id.toLowerCase().replace(/[^a-z0-9_-]/g, "_")}`,
+      model, effort, prompt,
+    });
+    return { status: "conflict", sessionId: cs.id };
   });
 
   app.delete("/terminal/sessions/:id", async (req, reply) => {

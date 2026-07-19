@@ -40,11 +40,10 @@ async function worktreeForBranch(repoDir: string, branch: string): Promise<strin
   return null;
 }
 
-// origin/hanoman/<id> lebih dulu (hasil push run), fallback branch lokal. Null = belum ada.
-async function resolveSource(repoDir: string, specId: string): Promise<string | null> {
-  const b = sourceBranch(specId);
-  if (await refExists(repoDir, `refs/remotes/origin/${b}`)) return `refs/remotes/origin/${b}`;
-  if (await refExists(repoDir, `refs/heads/${b}`)) return `refs/heads/${b}`;
+// origin/<branch> lebih dulu (hasil push), fallback branch lokal. Null = belum ada.
+async function resolveSource(repoDir: string, branch: string): Promise<string | null> {
+  if (await refExists(repoDir, `refs/remotes/origin/${branch}`)) return `refs/remotes/origin/${branch}`;
+  if (await refExists(repoDir, `refs/heads/${branch}`)) return `refs/heads/${branch}`;
   return null;
 }
 
@@ -71,15 +70,22 @@ type Finalize =
   | { kind: "push"; branch: string }
   | { kind: "force-push"; branch: string };
 
-export async function integrate(repoDir: string, specId: string, op: IntegrateOp, target: string): Promise<IntegrateResult> {
-  const source = await resolveSource(repoDir, specId);
-  if (!source) return { status: "error", code: 409, error: "branch spec belum ada — jalankan/selesaikan sesi backlog dulu" };
+// SPEC-230 · sumber integrasi generik: nama branch + id untuk penamaan worktree merge. Spec
+// memakai wrapper `integrate` di bawah; sesi project-level (PRD) memanggil ini langsung dengan
+// branch `prd/<slug>` + mergeId = id sesi.
+export type IntegrateSource = { branch: string; mergeId: string };
+
+export async function integrateBranch(
+  repoDir: string, src: IntegrateSource, op: IntegrateOp, target: string,
+): Promise<IntegrateResult> {
+  const source = await resolveSource(repoDir, src.branch);
+  if (!source) return { status: "error", code: 409, error: "branch belum ada — jalankan/selesaikan sesi dulu" };
   const tgt = await resolveTarget(repoDir, target);
   if (!tgt) return { status: "error", code: 400, error: `target "${target}" tidak dikenal` };
 
   await sh(repoDir, ["fetch", "origin"]); // best-effort; abaikan gagal/offline (timeout 60s)
 
-  const wt = join(repoDir, ".worktrees", `merge-${sanitize(specId)}`);
+  const wt = join(repoDir, ".worktrees", `merge-${sanitize(src.mergeId)}`);
   await reclaim(repoDir, wt);
 
   // base worktree: merge → tip target; rebase → tip source. Resolve ke SHA (hindari flag-injection).
@@ -93,9 +99,9 @@ export async function integrate(repoDir: string, specId: string, op: IntegrateOp
   const cmd = op === "merge" ? ["merge", "--no-edit", applyRef] : ["rebase", applyRef];
   const run = await sh(wt, cmd);
 
-  // Rencana finalisasi: merge→lokal branch -f; merge→origin push; rebase selalu force-push branch spec.
+  // Rencana finalisasi: merge→lokal branch -f; merge→origin push; rebase selalu force-push branch source.
   const finalize: Finalize = op === "rebase"
-    ? { kind: "force-push", branch: sourceBranch(specId) }
+    ? { kind: "force-push", branch: src.branch }
     : tgt.dest === "local"
       ? { kind: "branch-f", branch: tgt.name, checkout: await worktreeForBranch(repoDir, tgt.name) }
       : { kind: "push", branch: tgt.name };
@@ -110,6 +116,11 @@ export async function integrate(repoDir: string, specId: string, op: IntegrateOp
     status: "conflict", worktree: wt, op, source,
     target: `${tgt.dest}:${tgt.name}`, finalize: finalizeInstruction(op, finalize),
   };
+}
+
+// SPEC-175 · wrapper Spec: branch = hanoman/<specid>, mergeId = specid (worktree merge-<specid>).
+export async function integrate(repoDir: string, specId: string, op: IntegrateOp, target: string): Promise<IntegrateResult> {
+  return integrateBranch(repoDir, { branch: sourceBranch(specId), mergeId: specId }, op, target);
 }
 
 async function runFinalize(wt: string, repoDir: string, f: Finalize):

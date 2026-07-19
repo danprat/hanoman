@@ -325,7 +325,8 @@ export default function App() {
   // Pekerjaan yang berjalan adalah sesi tmux, bukan baris Run (SPEC-162).
   const [sessions, setSessions] = React.useState<TerminalSession[]>([]);
   const [projectId, setProjectId] = React.useState("");
-  const [reviewSpecId, setReviewSpecId] = React.useState("");
+  // SPEC-171/230 · target review: backlog item (spec) atau sesi project-level PRD (session).
+  const [review, setReview] = React.useState<{ id: string; kind: "spec" | "session"; title: string } | null>(null);
   // Pemilik tunggal "daftar disaring ke project mana?" (SPEC-146). Sengaja terpisah dari
   // `projectId` ("project yang sedang dibuka Docs/detail"): menyatukannya membuat klik
   // sidebar Runs diam-diam menyaring ke project terakhir yang dibuka Docs.
@@ -384,7 +385,15 @@ export default function App() {
 
   function openProject(p: ProjectVM) { setProjectId(p.id); setSection("project"); }
   // SPEC-171 · buka layar review file worktree sebuah backlog item.
-  function openReview(s: Spec) { setReviewSpecId(s.id); setSection("review"); }
+  function openReview(s: Spec) { setReview({ id: s.id, kind: "spec", title: s.title }); setSection("review"); }
+  // SPEC-171 · dari Terminal (Cell spec): id spec saja → cari judulnya di backlog.
+  function openReviewSpecId(id: string) {
+    setReview({ id, kind: "spec", title: backlog.find((s) => s.id === id)?.title ?? id }); setSection("review");
+  }
+  // SPEC-230 · review worktree sesi project-level (PRD, tanpa Spec).
+  function openSessionReview(id: string, title: string) {
+    setReview({ id, kind: "session", title }); setSection("review");
+  }
 
   // SPEC-184 · klik aksi notifikasi. `sessions` = daftar ter-poll (cek liveness untuk notif done).
   const openNotification = React.useCallback((nt: Notification) => {
@@ -508,6 +517,22 @@ export default function App() {
     } catch (e) {
       const code = e instanceof ApiError ? e.status : 0;
       showToast(`${spec.id} · gagal ${op}` + (code === 409 ? " · cek target/branch" : ""), "err", "x-circle");
+    }
+  }
+
+  // SPEC-230 · rebase/merge branch sesi project-level (PRD). Cermin integrateSpec: konflik → Terminal.
+  async function integrateSession(session: TerminalSession, op: "merge" | "rebase", target: string) {
+    try {
+      const r = await api.sessionIntegrate(session.id, op, target);
+      if (r.status === "conflict") {
+        setSection("terminal");
+        showToast(`${session.id} · konflik ${op} — selesaikan di Terminal`, "warn", "git-merge");
+      } else {
+        showToast(`${session.id} · ${op} berhasil · ${r.detail}`, "ok", "git-merge");
+      }
+    } catch (e) {
+      const code = e instanceof ApiError ? e.status : 0;
+      showToast(`${session.id} · gagal ${op}` + (code === 409 ? " · cek target/branch" : ""), "err", "x-circle");
     }
   }
 
@@ -690,9 +715,10 @@ export default function App() {
               hint="Terminal butuh project dengan repoDir untuk dijalankan."
               action={() => setModal("project")} actionLabel="Project baru" />
           : <TerminalScreen projects={projectsView} backlog={backlog} focusSession={focusSession}
-              onOpenReview={(specId) => { setReviewSpecId(specId); setSection("review"); }}
+              onOpenReview={openReviewSpecId} onOpenSessionReview={openSessionReview}
               titleOf={(id) => backlog.find((s) => s.id === id)?.title}
-              onIntegrate={integrateSpec} specOf={(id) => backlog.find((s) => s.id === id)} />)}
+              onIntegrate={integrateSpec} onIntegrateSession={integrateSession}
+              specOf={(id) => backlog.find((s) => s.id === id)} />)}
       </Shell>
     );
   } else if (section === "ide") {
@@ -731,16 +757,16 @@ export default function App() {
       </Shell>
     );
   } else if (section === "review") {
-    // SPEC-171 · layar review file worktree backlog item (all files + file changed).
-    const rspec = backlog.find((s) => s.id === reviewSpecId);
+    // SPEC-171/230 · layar review file worktree — backlog item (spec) ATAU sesi PRD (session).
+    const back = review?.kind === "session" ? "terminal" : "backlog";
     screen = (
       <Shell active="backlog" title="Review" wide onNavigate={setSection}
-        breadcrumb={rspec ? "backlog · " + rspec.id : "backlog"}
-        actions={<Button size="sm" variant="ghost" leftIcon="arrow-left" onClick={() => setSection("backlog")}>Kembali</Button>}>
-        {gate(reviewSpecId
-          ? <ReviewScreen specId={reviewSpecId} title={rspec?.title ?? reviewSpecId} onBack={() => setSection("backlog")} />
-          : <StateBlock kind="empty" icon="git-compare" title="Pilih backlog item"
-              hint="Buka Review dari sebuah item di Backlog." action={() => setSection("backlog")} actionLabel="Ke Backlog" />)}
+        breadcrumb={review ? (review.kind === "session" ? "terminal · " : "backlog · ") + review.id : "review"}
+        actions={<Button size="sm" variant="ghost" leftIcon="arrow-left" onClick={() => setSection(back)}>Kembali</Button>}>
+        {gate(review
+          ? <ReviewScreen specId={review.id} kind={review.kind} title={review.title} onBack={() => setSection(back)} />
+          : <StateBlock kind="empty" icon="git-compare" title="Pilih item untuk di-review"
+              hint="Buka Review dari Backlog atau dari sel sesi di Terminal." action={() => setSection("backlog")} actionLabel="Ke Backlog" />)}
       </Shell>
     );
   } else if (section === "settings") {
