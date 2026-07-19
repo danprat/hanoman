@@ -130,6 +130,12 @@ export const api = {
   startPrd: (project: string, brief: { title: string; context: string; outcome: string; constraints?: string }) =>
     j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, flow: "prd", brief }) }),
   deleteTerminal: (id: string) => j<void>(paths.terminalSession(id), { method: "DELETE" }),
+  // SPEC-230 · review + integrate ber-skop sesi (sesi project-level PRD, tanpa Spec).
+  sessionReview: (id: string) => j<SpecReview>(paths.sessionReview(id)),
+  sessionReviewFile: (id: string, path: string) => j<ReviewFile>(paths.sessionReviewFile(id, path)),
+  sessionIntegrate: (id: string, op: "merge" | "rebase", target: string) =>
+    j<{ status: "clean"; detail: string } | { status: "conflict"; sessionId: string }>(
+      paths.sessionIntegrate(id), { method: "POST", ...body({ op, target }) }),
   // SPEC-164 · modul VPS
   listVps: () => j<VpsView[]>(paths.vps),
   createVps: (b: { name: string; host: string; user: string; port?: number; keyPath?: string; password?: string }) =>

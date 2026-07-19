@@ -142,6 +142,63 @@ describe("terminal routes", () => {
   });
 });
 
+// SPEC-230: sesi project-level (PRD) mendapat review + integrate ber-skop sesi (keyed ke
+// worktree + branch sesi, tanpa Spec).
+describe("terminal routes · sesi PRD review + integrate", () => {
+  // Buat sesi prd langsung lewat service (hindari spawn claude sungguhan): worktree + branch,
+  // command sleep supaya sesi hidup selama assert.
+  const mkPrd = (slug: string) => {
+    const id = `prd-${slug}`;
+    const wt = join(repoDir, ".worktrees", id);
+    execFileSync("git", ["worktree", "add", "--detach", "-q", wt, "HEAD"], { cwd: repoDir });
+    writeFileSync(join(wt, `docs-prd-${slug}.md`), `# PRD ${slug}\n`);
+    createSessionSvc("p1", wt, { id, flow: "prd", branch: `prd/${slug}`, command: ["/bin/sleep", "30"] });
+    return id;
+  };
+  const cleanup = (id: string) => {
+    killSession(id);
+    const wt = join(repoDir, ".worktrees", id);
+    if (existsSync(wt)) execFileSync("git", ["worktree", "remove", "--force", wt], { cwd: repoDir });
+  };
+
+  it("GET /:id/review mengembalikan diff worktree sesi PRD", async () => {
+    const id = mkPrd("rev");
+    const res = await app.inject({ url: `/api/terminal/sessions/${id}/review` });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.changed.some((c: { path: string }) => c.path === "docs-prd-rev.md")).toBe(true);
+    cleanup(id);
+  });
+
+  it("GET /:id/review setelah worktree lenyap (sesi masih terdaftar) → 409, bukan 500", async () => {
+    const id = mkPrd("gone");
+    // Worktree dihapus tapi sesi masih di tmux (mis. proses exited, DELETE belum jalan): cwd
+    // sesi menunjuk direktori yang lenyap → 409 ramah (empty-state ReviewScreen), bukan 500.
+    execFileSync("git", ["worktree", "remove", "--force", join(repoDir, ".worktrees", id)], { cwd: repoDir });
+    const res = await app.inject({ url: `/api/terminal/sessions/${id}/review` });
+    expect(res.statusCode).toBe(409);
+    killSession(id);
+  });
+
+  it("POST /:id/integrate branch belum ada → 409", async () => {
+    const id = mkPrd("noremote");
+    const res = await app.inject({
+      method: "POST", url: `/api/terminal/sessions/${id}/integrate`,
+      payload: { op: "merge", target: "origin:main" } });
+    expect(res.statusCode).toBe(409);
+    cleanup(id);
+  });
+
+  it("POST /:id/integrate op/target invalid → 400", async () => {
+    const id = mkPrd("badreq");
+    const res = await app.inject({
+      method: "POST", url: `/api/terminal/sessions/${id}/integrate`,
+      payload: { op: "nope", target: "x" } });
+    expect(res.statusCode).toBe(400);
+    cleanup(id);
+  });
+});
+
 // SPEC-162: terminal membuka sesi claude interaktif untuk sebuah backlog item, di worktree-nya.
 describe("terminal routes · sesi backlog", () => {
   const start = (spec: string, flow = "feature") =>

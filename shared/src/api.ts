@@ -33,6 +33,10 @@ export const paths = {
   terminalSessions: `${API}/terminal/sessions`,
   terminalSession: (id: string) => `${API}/terminal/sessions/${id}`,
   terminalPhases: (id: string) => `${API}/terminal/sessions/${id}/phases`,
+  // SPEC-230 · review + integrate ber-skop sesi (sesi project-level PRD, tanpa Spec).
+  sessionReview: (id: string) => `${API}/terminal/sessions/${id}/review`,
+  sessionReviewFile: (id: string, path: string) => `${API}/terminal/sessions/${id}/review/${path}`,
+  sessionIntegrate: (id: string) => `${API}/terminal/sessions/${id}/integrate`,
   terminalWs: (id: string) => `${API}/terminal/sessions/${id}/ws`,
   eventsWs: `${API}/events/ws`,   // SPEC-199 · WebSocket siar dashboard (global, bukan per-sesi)
   vps: `${API}/vps`,
