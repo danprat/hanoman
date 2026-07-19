@@ -299,12 +299,12 @@ git commit -m "feat(ide): route POST /projects/:id/git/merge — deterministik +
   - GitGraph prop baru: `onMerge: (source: string, opts?: { ff?: "no-ff"|"ff-only"; deleteBranch?: string }) => Promise<void>`
   - IdeScreen props baru (opsional): `onToast?: (msg: string, tone: "ok"|"warn"|"err"|"info", icon?: string) => void; onGotoTerminal?: (sessionId?: string) => void`
 
-- [ ] **Step 1: shared path** — di `shared/src/api.ts` setelah baris `ideGit:` (baris 31) tambah:
+- [x] **Step 1: shared path** — di `shared/src/api.ts` setelah baris `ideGit:` (baris 31) tambah:
 ```ts
   ideGitMerge: (id: string) => `${API}/projects/${id}/git/merge`, // SPEC-229 · merge git graph isolasi
 ```
 
-- [ ] **Step 2: client method + tipe** — di `src/src/api/client.ts`, dekat `ideGit` (baris ~110) tambah:
+- [x] **Step 2: client method + tipe** — di `src/src/api/client.ts`, dekat `ideGit` (baris ~110) tambah:
 ```ts
   // SPEC-229 · merge via git graph: deterministik di worktree isolasi; conflict → sesi claude.
   ideGitMerge: (id: string, b: { source: string; ff?: "no-ff" | "ff-only"; deleteBranch?: string }) =>
@@ -315,7 +315,7 @@ dan dekat `GitOpResult` (baris ~35) tambah tipe:
 export type GraphMergeResult = { status: "clean"; detail: string } | { status: "conflict"; sessionId: string };
 ```
 
-- [ ] **Step 3: GitGraph `onMerge`** — di `src/src/screens/GitGraph.tsx`:
+- [x] **Step 3: GitGraph `onMerge`** — di `src/src/screens/GitGraph.tsx`:
 
 Ubah signature `menuItems` agar terima callback merge terpisah:
 ```ts
@@ -353,7 +353,7 @@ dan pada render menu teruskan `mergeAct`:
       {menu && <Menu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={menuItems(menu.c, current, act, mergeAct)} />}
 ```
 
-- [ ] **Step 4: IdeScreen `mergeGraph` + wiring** — di `src/src/screens/IdeScreen.tsx`:
+- [x] **Step 4: IdeScreen `mergeGraph` + wiring** — di `src/src/screens/IdeScreen.tsx`:
 
 Ubah signature komponen (baris 40-41):
 ```ts
@@ -382,14 +382,14 @@ Teruskan ke `GitGraph` (baris ~169):
           onOpenFile={(p, ref) => { setViewRef(ref); setSelected(p); setTab("explorer"); }} />
 ```
 
-- [ ] **Step 5: App wiring** — di `src/src/App.tsx` render IdeScreen (baris ~705):
+- [x] **Step 5: App wiring** — di `src/src/App.tsx` render IdeScreen (baris ~705):
 ```tsx
           : <IdeScreen projects={projectsView} projectId={proj ? proj.id : projectsView[0]!.id}
               onProject={(id) => setProjectId(id)} onToast={showToast}
               onGotoTerminal={(sid) => { if (sid) setFocusSession(sid); setSection("terminal"); }} />)}
 ```
 
-- [ ] **Step 6: Tulis test frontend** — tambahkan di `src/test/ide-screen.test.tsx` (blok baru):
+- [x] **Step 6: Tulis test frontend** — tambahkan di `src/test/ide-screen.test.tsx` (blok baru):
 ```ts
 describe("IdeScreen merge git graph (SPEC-229)", () => {
   beforeEach(() => {
@@ -421,12 +421,12 @@ describe("IdeScreen merge git graph (SPEC-229)", () => {
 ```
 (Sesuaikan role/nama tab bila `Tabs` merender bukan `role="tab"` — cek komponen `Tabs` di `../src/ds`; bila perlu pakai `screen.getByText("Git Graph")`.)
 
-- [ ] **Step 7: Jalankan test frontend + typecheck**
+- [x] **Step 7: Jalankan test frontend + typecheck**
 
 Run: `cd src && npx vitest run test/ide-screen.test.tsx` lalu `pnpm -C src build` (atau `tsc -p src --noEmit`) dan `pnpm -C shared build`.
 Expected: PASS + typecheck bersih.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add shared/src/api.ts src/src/api/client.ts src/src/screens/GitGraph.tsx src/src/screens/IdeScreen.tsx src/src/App.tsx src/test/ide-screen.test.tsx

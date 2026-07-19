@@ -33,6 +33,8 @@ export type GitOp =
   // SPEC-206 · local (default true) dan/atau origin (remote)
   | { op: "delete-branch"; name: string; force?: boolean; local?: boolean; remote?: boolean };
 export type GitOpResult = { ok: boolean; stdout: string; stderr: string; current: string; error?: string };
+// SPEC-229 · hasil merge via git graph: bersih → detail; konflik → sesi claude (sessionId).
+export type GraphMergeResult = { status: "clean"; detail: string } | { status: "conflict"; sessionId: string };
 async function j<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { headers: { "content-type": "application/json" }, ...init });
   if (!res.ok) throw new ApiError(res.status, `${init?.method ?? "GET"} ${url} → ${res.status}`);
@@ -108,6 +110,9 @@ export const api = {
   ideGraph: (id: string, limit = 200) => j<{ commits: GraphCommit[]; current: string }>(paths.ideGraph(id, limit)),
   ideCommit: (id: string, sha: string) => j<CommitDetail>(paths.ideCommit(id, sha)),
   ideGit: (id: string, op: GitOp) => j<GitOpResult>(paths.ideGit(id), { method: "POST", ...body(op) }),
+  // SPEC-229 · merge via git graph: deterministik di worktree isolasi; conflict → sesi claude.
+  ideGitMerge: (id: string, b: { source: string; ff?: "no-ff" | "ff-only"; deleteBranch?: string }) =>
+    j<GraphMergeResult>(paths.ideGitMerge(id), { method: "POST", ...body(b) }),
   browseFs: (path?: string) =>
     j<{ path: string; parent: string | null; entries: { name: string; path: string }[] }>(paths.fsBrowse(path)),
   listTerminals: () => j<TerminalSession[]>(paths.terminalSessions),

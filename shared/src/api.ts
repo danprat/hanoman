@@ -29,6 +29,7 @@ export const paths = {
   ideGraph: (id: string, limit = 200) => `${API}/projects/${id}/graph?limit=${limit}`,
   ideCommit: (id: string, sha: string) => `${API}/projects/${id}/commit/${sha}`,
   ideGit: (id: string) => `${API}/projects/${id}/git`,
+  ideGitMerge: (id: string) => `${API}/projects/${id}/git/merge`, // SPEC-229 · merge git graph isolasi
   fsBrowse: (path?: string) => `${API}/fs/browse${path ? `?path=${encodeURIComponent(path)}` : ""}`,
   terminalSessions: `${API}/terminal/sessions`,
   terminalSession: (id: string) => `${API}/terminal/sessions/${id}`,

@@ -50,3 +50,44 @@ describe("IdeScreen Explorer", () => {
     expect(await screen.findByRole("button", { name: /paksa/i })).toBeInTheDocument();
   });
 });
+
+// SPEC-229 · merge via git graph: konflik → pindah Terminal (sesi claude); bersih → toast; error → toast.
+describe("IdeScreen merge git graph", () => {
+  beforeEach(() => {
+    vi.spyOn(api, "ideGraph").mockResolvedValue({ current: "main", commits: [
+      { sha: "aaaaaaa", parents: [], author: "t", at: new Date(0).toISOString(), subject: "c1", refs: ["origin/feat"] },
+    ] });
+  });
+  const openMergeMenu = async () => {
+    fireEvent.click(await screen.findByRole("tab", { name: /git graph/i }));
+    fireEvent.contextMenu(await screen.findByText("c1"));
+    fireEvent.click(await screen.findByText("Merge (fast-forward bila bisa)"));
+  };
+
+  it("konflik → onGotoTerminal(sessionId) + toast warn", async () => {
+    const onGoto = vi.fn(); const onToast = vi.fn();
+    vi.spyOn(api, "ideGitMerge").mockResolvedValue({ status: "conflict", sessionId: "merge-main" });
+    render(<IdeScreen projects={projects} projectId="p1" onProject={() => {}} onToast={onToast} onGotoTerminal={onGoto} />);
+    await openMergeMenu();
+    await waitFor(() => expect(api.ideGitMerge).toHaveBeenCalledWith("p1", { source: "aaaaaaa" }));
+    await waitFor(() => expect(onGoto).toHaveBeenCalledWith("merge-main"));
+    expect(onToast).toHaveBeenCalledWith(expect.stringContaining("konflik"), "warn", "git-merge");
+  });
+
+  it("bersih → toast ok, tanpa navigasi", async () => {
+    const onGoto = vi.fn(); const onToast = vi.fn();
+    vi.spyOn(api, "ideGitMerge").mockResolvedValue({ status: "clean", detail: "lokal main (ff) → abcdef0" });
+    render(<IdeScreen projects={projects} projectId="p1" onProject={() => {}} onToast={onToast} onGotoTerminal={onGoto} />);
+    await openMergeMenu();
+    await waitFor(() => expect(onToast).toHaveBeenCalledWith(expect.stringContaining("merge berhasil"), "ok", "git-merge"));
+    expect(onGoto).not.toHaveBeenCalled();
+  });
+
+  it("error 409 → toast err, tak melempar ke luar", async () => {
+    const onToast = vi.fn();
+    vi.spyOn(api, "ideGitMerge").mockRejectedValue(new ApiError(409, "tak bisa ff"));
+    render(<IdeScreen projects={projects} projectId="p1" onProject={() => {}} onToast={onToast} onGotoTerminal={vi.fn()} />);
+    await openMergeMenu();
+    await waitFor(() => expect(onToast).toHaveBeenCalledWith(expect.stringContaining("gagal merge"), "err", "x-circle"));
+  });
+});

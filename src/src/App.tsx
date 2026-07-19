@@ -703,7 +703,8 @@ export default function App() {
           ? <StateBlock kind="empty" icon="box" title="Belum ada project"
               hint="IDE butuh project dengan repoDir." action={() => setModal("project")} actionLabel="Project baru" />
           : <IdeScreen projects={projectsView} projectId={proj ? proj.id : projectsView[0]!.id}
-              onProject={(id) => setProjectId(id)} />)}
+              onProject={(id) => setProjectId(id)} onToast={showToast}
+              onGotoTerminal={(sid) => { if (sid) setFocusSession(sid); setSection("terminal"); }} />)}
       </Shell>
     );
   } else if (section === "vps") {

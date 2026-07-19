@@ -37,8 +37,10 @@ function ForceDialog({ msg, onForce, onCancel }: { msg: string; onForce: () => v
   );
 }
 
-export function IdeScreen({ projects, projectId, onProject }:
-  { projects: ProjectVM[]; projectId: string; onProject: (id: string) => void }) {
+export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTerminal }:
+  { projects: ProjectVM[]; projectId: string; onProject: (id: string) => void;
+    onToast?: (msg: string, tone: "ok" | "warn" | "err" | "info", icon?: string) => void;
+    onGotoTerminal?: (sessionId?: string) => void }) {
   const [tab, setTab] = React.useState("explorer");
   const [viewRef, setViewRef] = React.useState("");         // branch/ref yang dilihat (kosong = working tree)
   const [branches, setBranches] = React.useState<{ branches: string[]; remotes: string[] }>({ branches: [], remotes: [] });
@@ -84,6 +86,19 @@ export function IdeScreen({ projects, projectId, onProject }:
     }
   }
   async function checkout() { if (viewRef) await runGit({ op: "checkout", ref: viewRef }).catch(() => {}); }
+  // SPEC-229 · merge via git graph: deterministik di worktree isolasi. Konflik → pindah Terminal
+  // (sesi claude), bersih → toast + reload, error → toast. Melempar ulang agar mergeAct tak reload salah.
+  async function mergeGraph(source: string, opts?: { ff?: "no-ff" | "ff-only"; deleteBranch?: string }) {
+    try {
+      const r = await api.ideGitMerge(projectId, { source, ...opts });
+      if (r.status === "conflict") { onGotoTerminal?.(r.sessionId); onToast?.("konflik merge — selesaikan di Terminal", "warn", "git-merge"); }
+      else { setViewRef(""); reloadTree(); onToast?.(`merge berhasil · ${r.detail}`, "ok", "git-merge"); }
+    } catch (e) {
+      const code = e instanceof ApiError ? e.status : 0;
+      onToast?.("gagal merge" + (code === 409 ? " · cek branch/target" : ""), "err", "x-circle");
+      throw e;
+    }
+  }
   async function confirmForce() {
     if (!pendingForce) return;
     const op = { ...pendingForce.op, force: true } as GitOp;
@@ -166,7 +181,8 @@ export function IdeScreen({ projects, projectId, onProject }:
           </Card>
         </div>
       ) : (
-        <GitGraph projectId={projectId} onRunGit={runGit} onOpenFile={(p, ref) => { setViewRef(ref); setSelected(p); setTab("explorer"); }} />
+        <GitGraph projectId={projectId} onRunGit={runGit} onMerge={mergeGraph}
+          onOpenFile={(p, ref) => { setViewRef(ref); setSelected(p); setTab("explorer"); }} />
       )}
 
       {pendingForce && <ForceDialog msg={pendingForce.msg} onForce={confirmForce} onCancel={() => setPendingForce(null)} />}
