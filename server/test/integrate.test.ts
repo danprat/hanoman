@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { execFileSync } from "node:child_process";
 import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { integrate } from "../src/services/integrate";
+import { integrate, integrateBranch } from "../src/services/integrate";
 import { makeRepoWithSpecBranch } from "./factory";
 
 // isi file di sebuah ref: bare origin lewat --git-dir, repo biasa lewat -C.
@@ -21,6 +21,24 @@ describe("integrate — guards", () => {
     const { repoDir } = makeRepoWithSpecBranch("SPEC-1");
     expect(await integrate(repoDir, "SPEC-1", "merge", "origin:nope")).toMatchObject({ status: "error", code: 400 });
     expect(await integrate(repoDir, "SPEC-1", "merge", "garbage")).toMatchObject({ status: "error", code: 400 });
+  });
+});
+
+describe("integrateBranch — branch eksplisit (sesi PRD)", () => {
+  it("merge branch non-spec ke origin:main → clean, worktree merge-<mergeId> bersih", async () => {
+    // factory membuat branch hanoman/spec-1; kita perlakukan namanya sebagai branch generik
+    // dengan mergeId khas sesi (prd-demo) → worktree integrasi = merge-prd-demo.
+    const { repoDir } = makeRepoWithSpecBranch("SPEC-1");
+    const r = await integrateBranch(
+      repoDir, { branch: "hanoman/spec-1", mergeId: "prd-demo" }, "merge", "origin:main");
+    expect(r.status).toBe("clean");
+    expect(existsSync(`${repoDir}/.worktrees/merge-prd-demo`)).toBe(false);
+  });
+  it("branch tak ada → 409", async () => {
+    const { repoDir } = makeRepoWithSpecBranch("SPEC-1");
+    const r = await integrateBranch(
+      repoDir, { branch: "prd/nope", mergeId: "prd-nope" }, "merge", "origin:main");
+    expect(r).toMatchObject({ status: "error", code: 409 });
   });
 });
 
