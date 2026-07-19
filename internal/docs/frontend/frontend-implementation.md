@@ -158,6 +158,15 @@ dan `Escape` adalah tombol tersibuk di TUI Claude Code. Karena itu pula **tak ad
 untuk keluar — hanya tombol. Pengguna yang mau seluruh layar device menekan `F11` sendiri. State
 `maxed` tidak dipersist (SPEC-163).
 
+Berbeda dari maximize-grid itu, tiap **sel** punya ikon **`fullscreen`** di header-nya (SPEC-232):
+mengklik membuka **satu** terminal itu sendiri dalam sebuah **modal** besar (DS `Modal`, prop baru
+`closeOnEscape={false}` karena Escape milik TUI Claude Code — keluar via `×`/backdrop saja). Supaya
+invariant *satu sesi = satu attach tmux* terjaga, sel yang sedang penuh **melepas** `TerminalPane`-nya
+dan menampilkan placeholder "Terbuka di layar penuh"; pane hidup pindah ke modal. Menutup modal
+memasang ulang pane di sel (reconnect murah — scrollback dipegang tmux, sama seperti pindah grup).
+State `fullId` di `TerminalScreen` tak dipersist; bila sesinya lenyap lewat frame WS siar, modal
+tertutup sendiri. Ini **maximize satu terminal**, bukan seluruh grid — dua fitur terpisah.
+
 Sesi yang **berakhir** (`exited`) ditandai kontras di header cell dengan `StatusPill`
 hijau **"Selesai"**, dan badan terminalnya diredupkan (`opacity: 0.6`) untuk menandakan
 proses sudah beku — menggantikan suffix teks `· berakhir` yang lama (SPEC-188).

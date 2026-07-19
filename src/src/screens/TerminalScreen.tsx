@@ -23,6 +23,9 @@ export function TerminalScreen({ projects, backlog = [], focusSession, onOpenRev
   const [ws, setWs] = React.useState<W.Workspace>(() => W.load() ?? W.emptyWorkspace());
   const [project, setProject] = React.useState(projects[0]?.id ?? "");
   const [maxed, setMaxed] = React.useState(false);
+  // SPEC-232 · id sesi yang sedang dilihat layar-penuh (satu terminal, sebagai modal).
+  // Tak dipersist, seperti `maxed` (SPEC-163).
+  const [fullId, setFullId] = React.useState<string | null>(null);
   const [picking, setPicking] = React.useState(false);
   const [pickError, setPickError] = React.useState<string | null>(null);
 
@@ -57,6 +60,12 @@ export function TerminalScreen({ projects, backlog = [], focusSession, onOpenRev
     if (!sessions.some((s) => s.id === focusSession && !s.exited)) return;
     setWs((w) => W.placedIds(w).has(focusSession) ? w : W.placeFirstEmptyInActive(w, focusSession));
   }, [focusSession, loaded, sessions]);
+
+  // SPEC-232 · fullscreen menunjuk satu sesi hidup; bila sesi itu hilang (kill/exit lewat
+  // frame WS), lepas fullscreen supaya modal tak menggantung ke sesi yang sudah lenyap.
+  React.useEffect(() => {
+    if (fullId && !sessions.some((s) => s.id === fullId)) setFullId(null);
+  }, [fullId, sessions]);
 
   const byId = (id: string) => sessions.find((s) => s.id === id) ?? null;
   const nameOf = (pid: string) => projects.find((p) => p.id === pid)?.name ?? pid;
@@ -209,7 +218,8 @@ export function TerminalScreen({ projects, backlog = [], focusSession, onOpenRev
                       ? <Cell session={s} nameOf={nameOf} onClose={() => void close(s.id)}
                           onDetach={() => detach(s.id)} onExit={() => markExited(s.id)} onReview={onOpenReview}
                           onSessionReview={onOpenSessionReview}
-                          titleOf={titleOf} onIntegrate={onIntegrate} onIntegrateSession={onIntegrateSession} specOf={specOf} />
+                          titleOf={titleOf} onIntegrate={onIntegrate} onIntegrateSession={onIntegrateSession} specOf={specOf}
+                          fullscreen={fullId === s.id} onFullscreen={() => setFullId(s.id)} />
                       : <EmptyCell unplaced={unplaced} nameOf={nameOf} onPick={(sid) => place(idx, sid)} />}
                   </div>
                 );
@@ -223,8 +233,23 @@ export function TerminalScreen({ projects, backlog = [], focusSession, onOpenRev
         <BacklogPicker seed={startable} activeIds={activeSpecIds} error={pickError}
           onPick={(s) => void pickBacklog(s)} onClose={() => setPicking(false)} />
       )}
+
+      {fullId && byId(fullId) && (
+        <FullscreenTerminal session={byId(fullId)!}
+          label={cellLabel(byId(fullId)!, nameOf, titleOf)}
+          onClose={() => setFullId(null)} />
+      )}
     </div>
   );
+}
+
+// SPEC-232 · label header sel/modal: "project · SPEC-x · judul" (atau hanya project untuk
+// sesi tanpa spec). Dipakai bersama oleh Cell dan FullscreenTerminal.
+function cellLabel(s: TerminalSession, nameOf: (pid: string) => string,
+  titleOf?: (specId: string) => string | undefined): string {
+  const proj = nameOf(s.projectId);
+  const title = s.specId ? titleOf?.(s.specId) : undefined;
+  return s.specId ? `${proj} · ${s.specId}${title ? ` · ${title}` : ""}` : proj;
 }
 
 // SPEC-179 · picker backlog dari Terminal. Daftar padat + cari; klik baris = ambil.
@@ -412,7 +437,7 @@ export function PhaseStrip({ phases }: { phases: Phase[] | null }) {
   );
 }
 
-function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, onSessionReview, titleOf, onIntegrate, onIntegrateSession, specOf }: {
+function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, onSessionReview, titleOf, onIntegrate, onIntegrateSession, specOf, fullscreen, onFullscreen }: {
   session: TerminalSession; nameOf: (pid: string) => string;
   onClose: () => void; onDetach: () => void; onExit: (code: number) => void;
   onReview?: (specId: string) => void;
@@ -421,6 +446,7 @@ function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, onSessionR
   onIntegrate?: (spec: Spec, op: "merge" | "rebase", target: string) => void;
   onIntegrateSession?: (session: TerminalSession, op: "merge" | "rebase", target: string) => void;
   specOf?: (specId: string) => Spec | undefined;
+  fullscreen: boolean; onFullscreen: () => void;
 }) {
   const [phases, setPhases] = React.useState<Phase[] | null>(null);
   const [docs, setDocs] = React.useState(false);
@@ -430,9 +456,7 @@ function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, onSessionR
   const spec = session.specId ? specOf?.(session.specId) : undefined;
   // SPEC-230 · sesi project-level ber-branch (PRD) tanpa Spec: review + integrate ber-skop sesi.
   const branchSession = !session.specId && !!session.branch;
-  const proj = nameOf(session.projectId);
-  const title = session.specId ? titleOf?.(session.specId) : undefined;
-  const label = session.specId ? `${proj} · ${session.specId}${title ? ` · ${title}` : ""}` : proj;
+  const label = cellLabel(session, nameOf, titleOf);
   // SPEC-196 · sesi yang berhenti menunggu keputusan manusia (marker) belum `exited` — beri
   // pembeda sendiri. `exited` menang bila keduanya benar (proses sudah beku).
   const awaiting = !session.exited && !!session.decision;
@@ -482,6 +506,12 @@ function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, onSessionR
             <Icon name="git-merge" size={12} />
           </span>
         )}
+        {/* SPEC-232 · lihat SATU terminal ini secara penuh dalam modal. */}
+        <span onClick={onFullscreen} title="Layar penuh — fokus 1 terminal"
+          aria-label={`Layar penuh sesi ${session.id}`}
+          style={{ cursor: "pointer", color: "var(--text-subtle)", display: "inline-flex", alignItems: "center" }}>
+          <Icon name="fullscreen" size={12} />
+        </span>
         <span onClick={onDetach} title="Lepas dari grid (sesi tetap hidup)"
           style={{ cursor: "pointer", color: "var(--text-subtle)" }}>lepas</span>
         <span aria-label={`Tutup sesi ${session.id}`} onClick={onClose}
@@ -492,9 +522,16 @@ function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, onSessionR
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0,
         opacity: session.exited ? 0.6 : 1 }}>
         <PhaseStrip phases={phases} />
-        {/* key = identitas sesi: pindah antar sel memindah subtree, bukan me-remount WebSocket. */}
+        {/* key = identitas sesi: pindah antar sel memindah subtree, bukan me-remount WebSocket.
+            SPEC-232 · saat sel ini sedang layar-penuh, pane-nya dilepas (placeholder) supaya
+            hanya modal yang meng-attach tmux — jaga invariant satu sesi = satu attach. */}
         <div style={{ flex: 1, minHeight: 0 }}>
-          <TerminalPane key={session.id} sessionId={session.id} onExit={onExit} onPhases={setPhases} />
+          {fullscreen
+            ? <div style={{ height: "100%", display: "grid", placeItems: "center", padding: 12,
+                color: "var(--text-subtle)", fontSize: 12, textAlign: "center" }}>
+                Terbuka di layar penuh
+              </div>
+            : <TerminalPane key={session.id} sessionId={session.id} onExit={onExit} onPhases={setPhases} />}
         </div>
       </div>
       {docs && session.specId && <SpecDocsModal specId={session.specId} onClose={() => setDocs(false)} />}
@@ -510,6 +547,23 @@ function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, onSessionR
           onIntegrate={(op, target) => { setSessIntegrate(false); onIntegrateSession(session, op, target); }} />
       )}
     </>
+  );
+}
+
+// SPEC-232 · fullscreen SATU terminal sebagai modal. Pane-nya hidup di sini; sel asalnya
+// menampilkan placeholder (lihat Cell) supaya tmux tetap satu attach. closeOnEscape=false:
+// Escape tombol tersibuk TUI Claude Code — keluar via × / backdrop saja (sejalan maximize-grid,
+// SPEC-163). Menutup modal memasang ulang pane di sel (reconnect murah; scrollback dari tmux).
+function FullscreenTerminal({ session, label, onClose }: {
+  session: TerminalSession; label: string; onClose: () => void;
+}) {
+  return (
+    <Modal open icon="terminal" title={label} onClose={onClose} closeOnEscape={false} width={1600}>
+      <div style={{ height: "72vh", minHeight: 0, display: "flex", flexDirection: "column",
+        opacity: session.exited ? 0.6 : 1 }}>
+        <TerminalPane key={session.id} sessionId={session.id} onExit={() => {}} />
+      </div>
+    </Modal>
   );
 }
 

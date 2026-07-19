@@ -457,6 +457,64 @@ describe("TerminalScreen (layar penuh)", () => {
   });
 });
 
+// SPEC-232 · fullscreen SATU terminal sebagai modal. Pane dipindah sel→modal supaya tetap
+// satu attach tmux; sel menampilkan placeholder. Escape milik terminal (bukan penutup modal).
+describe("TerminalScreen · fullscreen 1 terminal (SPEC-232)", () => {
+  it("klik ikon fullscreen membuka modal berisi terminal sesi itu (pane pindah, tetap satu)", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["aaaa1111"] }));
+    listTerminals.mockResolvedValue([{ id: "aaaa1111", projectId: "p1", cwd: "/repo", exited: false }]);
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByTestId("pane");
+
+    fireEvent.click(screen.getByLabelText("Layar penuh sesi aaaa1111"));
+
+    // modal muncul; pane tetap TEPAT SATU (dipindah dari sel ke modal)
+    expect(screen.getByLabelText("Tutup")).toBeInTheDocument();
+    expect(screen.getAllByTestId("pane")).toHaveLength(1);
+    expect(screen.getByText("Terbuka di layar penuh")).toBeInTheDocument(); // placeholder di sel
+  });
+
+  it("tombol tutup modal mengembalikan terminal ke sel", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["aaaa1111"] }));
+    listTerminals.mockResolvedValue([{ id: "aaaa1111", projectId: "p1", cwd: "/repo", exited: false }]);
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByTestId("pane");
+    fireEvent.click(screen.getByLabelText("Layar penuh sesi aaaa1111"));
+    expect(screen.getByLabelText("Tutup")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Tutup"));
+
+    await waitFor(() => expect(screen.queryByText("Terbuka di layar penuh")).toBeNull());
+    expect(screen.getByTestId("pane")).toHaveTextContent("aaaa1111"); // kembali di sel
+  });
+
+  it("Escape TIDAK menutup modal fullscreen — Escape milik terminal", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["aaaa1111"] }));
+    listTerminals.mockResolvedValue([{ id: "aaaa1111", projectId: "p1", cwd: "/repo", exited: false }]);
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByTestId("pane");
+    fireEvent.click(screen.getByLabelText("Layar penuh sesi aaaa1111"));
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(screen.getByLabelText("Tutup")).toBeInTheDocument(); // masih terbuka
+    expect(screen.getByText("Terbuka di layar penuh")).toBeInTheDocument();
+  });
+
+  it("sesi yang hilang lewat frame WS menutup modal fullscreen", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["aaaa1111"] }));
+    listTerminals.mockResolvedValue([{ id: "aaaa1111", projectId: "p1", cwd: "/repo", exited: false }]);
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByTestId("pane");
+    fireEvent.click(screen.getByLabelText("Layar penuh sesi aaaa1111"));
+    expect(screen.getByLabelText("Tutup")).toBeInTheDocument();
+
+    await act(async () => { ev.handler?.({ t: "sessions", sessions: [] }); }); // sesi lenyap
+
+    await waitFor(() => expect(screen.queryByLabelText("Tutup")).toBeNull());
+  });
+});
+
 // SPEC-175 · aksi rebase/merge di header Cell, hanya untuk sesi ber-specId.
 describe("TerminalScreen · integrate (SPEC-175)", () => {
   it("Cell sesi ber-specId punya aksi Rebase / Merge; sesi tanpa spec tidak", async () => {
