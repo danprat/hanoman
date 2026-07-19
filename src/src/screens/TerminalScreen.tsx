@@ -10,11 +10,13 @@ import type { Spec } from "./types";
 import * as L from "./terminal-layout";
 import * as W from "./terminal-workspace";
 
-export function TerminalScreen({ projects, backlog = [], focusSession, onOpenReview, titleOf, onIntegrate, specOf }: {
+export function TerminalScreen({ projects, backlog = [], focusSession, onOpenReview, onOpenSessionReview, titleOf, onIntegrate, onIntegrateSession, specOf }: {
   projects: { id: string; name: string }[]; backlog?: Spec[]; focusSession?: string | null;
   onOpenReview?: (specId: string) => void;
+  onOpenSessionReview?: (sessionId: string, title: string) => void;
   titleOf?: (specId: string) => string | undefined;
   onIntegrate?: (spec: Spec, op: "merge" | "rebase", target: string) => void;
+  onIntegrateSession?: (session: TerminalSession, op: "merge" | "rebase", target: string) => void;
   specOf?: (specId: string) => Spec | undefined;
 }) {
   const [sessions, setSessions] = React.useState<TerminalSession[]>([]);
@@ -206,7 +208,8 @@ export function TerminalScreen({ projects, backlog = [], focusSession, onOpenRev
                     {s
                       ? <Cell session={s} nameOf={nameOf} onClose={() => void close(s.id)}
                           onDetach={() => detach(s.id)} onExit={() => markExited(s.id)} onReview={onOpenReview}
-                          titleOf={titleOf} onIntegrate={onIntegrate} specOf={specOf} />
+                          onSessionReview={onOpenSessionReview}
+                          titleOf={titleOf} onIntegrate={onIntegrate} onIntegrateSession={onIntegrateSession} specOf={specOf} />
                       : <EmptyCell unplaced={unplaced} nameOf={nameOf} onPick={(sid) => place(idx, sid)} />}
                   </div>
                 );
@@ -409,18 +412,24 @@ export function PhaseStrip({ phases }: { phases: Phase[] | null }) {
   );
 }
 
-function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, titleOf, onIntegrate, specOf }: {
+function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, onSessionReview, titleOf, onIntegrate, onIntegrateSession, specOf }: {
   session: TerminalSession; nameOf: (pid: string) => string;
   onClose: () => void; onDetach: () => void; onExit: (code: number) => void;
-  onReview?: (specId: string) => void; titleOf?: (specId: string) => string | undefined;
+  onReview?: (specId: string) => void;
+  onSessionReview?: (sessionId: string, title: string) => void;
+  titleOf?: (specId: string) => string | undefined;
   onIntegrate?: (spec: Spec, op: "merge" | "rebase", target: string) => void;
+  onIntegrateSession?: (session: TerminalSession, op: "merge" | "rebase", target: string) => void;
   specOf?: (specId: string) => Spec | undefined;
 }) {
   const [phases, setPhases] = React.useState<Phase[] | null>(null);
   const [docs, setDocs] = React.useState(false);
   const [integrate, setIntegrate] = React.useState(false);
+  const [sessIntegrate, setSessIntegrate] = React.useState(false);
   // SPEC-175 · spec dari specId untuk aksi rebase/merge di header.
   const spec = session.specId ? specOf?.(session.specId) : undefined;
+  // SPEC-230 · sesi project-level ber-branch (PRD) tanpa Spec: review + integrate ber-skop sesi.
+  const branchSession = !session.specId && !!session.branch;
   const proj = nameOf(session.projectId);
   const title = session.specId ? titleOf?.(session.specId) : undefined;
   const label = session.specId ? `${proj} · ${session.specId}${title ? ` · ${title}` : ""}` : proj;
@@ -452,9 +461,23 @@ function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, titleOf, o
             <Icon name="git-compare" size={12} />
           </span>
         )}
+        {/* SPEC-230 · review diff worktree sesi project-level (PRD, tanpa Spec). */}
+        {branchSession && onSessionReview && (
+          <span onClick={() => onSessionReview(session.id, label)} title="Review perubahan (diff worktree sesi)"
+            style={{ cursor: "pointer", color: "var(--text-subtle)", display: "inline-flex", alignItems: "center" }}>
+            <Icon name="git-compare" size={12} />
+          </span>
+        )}
         {/* SPEC-175 · rebase/merge branch hasil spec (muncul hanya bila spec-nya dikenal). */}
         {spec && onIntegrate && (
           <span onClick={() => setIntegrate(true)} title="Rebase / Merge branch spec"
+            style={{ cursor: "pointer", color: "var(--text-subtle)", display: "inline-flex", alignItems: "center" }}>
+            <Icon name="git-merge" size={12} />
+          </span>
+        )}
+        {/* SPEC-230 · rebase/merge branch sesi project-level (PRD prd/<slug>). */}
+        {branchSession && onIntegrateSession && (
+          <span onClick={() => setSessIntegrate(true)} title="Rebase / Merge branch sesi"
             style={{ cursor: "pointer", color: "var(--text-subtle)", display: "inline-flex", alignItems: "center" }}>
             <Icon name="git-merge" size={12} />
           </span>
@@ -476,8 +499,15 @@ function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, titleOf, o
       </div>
       {docs && session.specId && <SpecDocsModal specId={session.specId} onClose={() => setDocs(false)} />}
       {integrate && spec && onIntegrate && (
-        <IntegrateDialog spec={spec} onClose={() => setIntegrate(false)}
+        <IntegrateDialog projectId={spec.projectId}
+          ownBranch={`hanoman/${spec.id.toLowerCase().replace(/[^a-z0-9_-]/g, "_")}`} eyebrow={spec.id}
+          onClose={() => setIntegrate(false)}
           onIntegrate={(op, target) => { setIntegrate(false); onIntegrate(spec, op, target); }} />
+      )}
+      {sessIntegrate && branchSession && onIntegrateSession && (
+        <IntegrateDialog projectId={session.projectId} ownBranch={session.branch!} eyebrow={session.id.slice(0, 16)}
+          onClose={() => setSessIntegrate(false)}
+          onIntegrate={(op, target) => { setSessIntegrate(false); onIntegrateSession(session, op, target); }} />
       )}
     </>
   );

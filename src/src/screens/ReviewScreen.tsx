@@ -23,7 +23,12 @@ function DiffView({ diff }: { diff: string }) {
   );
 }
 
-export function ReviewScreen({ specId, title, onBack }: { specId: string; title: string; onBack: () => void }) {
+// SPEC-171/230 · review worktree. kind="spec" (backlog item) atau "session" (sesi project-level
+// PRD, tanpa Spec) memilih endpoint yang dipakai — bentuk data & UI identik.
+export function ReviewScreen({ specId, title, onBack, kind = "spec" }:
+  { specId: string; title: string; onBack: () => void; kind?: "spec" | "session" }) {
+  const fetchReview = kind === "session" ? api.sessionReview : api.specReview;
+  const fetchFile = kind === "session" ? api.sessionReviewFile : api.specReviewFile;
   const [review, setReview] = React.useState<SpecReview | null>(null);
   const [state, setState] = React.useState<"loading" | "ready" | "error" | "empty">("loading");
   const [errMsg, setErrMsg] = React.useState("");
@@ -36,7 +41,7 @@ export function ReviewScreen({ specId, title, onBack }: { specId: string; title:
   React.useEffect(() => {
     let alive = true;
     setState("loading");
-    api.specReview(specId).then((r) => {
+    fetchReview(specId).then((r) => {
       if (!alive) return;
       setReview(r); setState("ready");
       setSelected(r.changed[0]?.path ?? r.files[0] ?? "");
@@ -53,7 +58,7 @@ export function ReviewScreen({ specId, title, onBack }: { specId: string; title:
     if (!selected) { setFile(null); return; }
     let alive = true;
     setFile(null);
-    api.specReviewFile(specId, selected)
+    fetchFile(specId, selected)
       .then((f) => { if (alive) setFile(f); })
       .catch(() => { if (alive) setFile(null); });
     return () => { alive = false; };
