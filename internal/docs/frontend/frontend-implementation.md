@@ -310,3 +310,25 @@ Nav entri **IDE** (`code-2`) membuka `IdeScreen` (`screens/IdeScreen.tsx`), difi
 - **Dialog Paksa**: mutasi yang balas **409** (sesi aktif / tree kotor) memunculkan `ForceDialog`
   dengan pesan git asli + tombol **Paksa** yang mengulang op `force:true` (peringatan: bisa membuang
   perubahan tak ter-commit & mengganggu sesi Claude). Aman-default; force opt-in per aksi.
+
+### Parity ekstensi Git Graph (SPEC-233 · ADR-0055)
+Git graph diperluas mendekati ekstensi VS Code **Git Graph** (mhutchie). Semua tetap tunduk gate sesi +
+force (op menyentuh working tree) atau worktree isolasi + handoff sesi claude (op rawan konflik):
+- **Menu commit**: reset (soft/mixed/hard), **rebase current → sini**, **drop commit**, copy hash/subject,
+  **Add tag…** (lightweight/annotated + push). Rebase/drop lewat `POST /git/rebase|drop` (isolasi); konflik → Terminal.
+- **Menu branch** (klik-kanan chip ref, `branchMenuItems`): checkout, rename, push, merge/**rebase** ke current,
+  hapus (local/origin/both), **Create Pull Request** (`api.idePrUrl` → provider), **Create archive** (`api.ideArchiveUrl`).
+  Ref `origin/*` juga: **Pull into current** (`POST /git/pull`).
+- **Menu tag** (chip tag terpisah, warna leaf): hapus (local/+origin), push, copy.
+- **Baris uncommitted changes** (lingkaran terbuka) dari `api.ideStatus` bila tree kotor → menu: stash,
+  reset (mixed/hard), clean untracked. **Strip stash** (`api.ideStashes`): apply/pop/drop/branch-from/copy.
+- **Detail commit** diperkaya: badge **signed** (`%G?`), avatar **gravatar** (config `fetchAvatars`, default off),
+  toggle **tree/flat**, klik file → **modal diff** (reuse `DiffView` dari `screens/diff-view.tsx`, tab Diff|Source),
+  aksi per-file (view-at-rev/open/copy path), body **linkify** URL/issue/parent-hash + **emoji**/**markdown**
+  (`screens/git-graph-render.ts`, dep-nol, md5 gravatar internal).
+- **Compare dua commit**: Ctrl/Cmd-klik commit kedua → panel + modal diff (`api.ideCompare`/`ideCompareFile`).
+- **Find** (⌘F, client-side atas baris ter-muat, fallback `api.ideSearch`) + **center HEAD** (⌘H); hasil di-highlight & di-navigasi.
+- **Kontrol tampilan**: filter branch (`?branches=`), toggle remote/tag, redup merge-commit, style rounded↔angular.
+  Preferensi dari **CONFIG_REGISTRY grup `gitGraph`** (`api.getConfig`): warna lane, style, tanggal, show/hide, mute,
+  fetchAvatars, emoji/markdown, issue-link pattern.
+- **Modal Remotes** (`IdeScreen`): list/add/hapus remote (`api.ideRemotes`/`ideAddRemote`/`ideDeleteRemote`); tombol **Fetch** (`--prune`).

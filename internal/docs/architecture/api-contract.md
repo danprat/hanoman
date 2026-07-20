@@ -115,10 +115,11 @@ GET    /projects/:id/prds/*path         # SPEC-210 · isi PRD; 404 bila path buk
 GET    /projects/:id/tree?ref=          # { ref, files:string[] }  ref kosong=working tree (ls-files), isi=ls-tree <ref>; 404 project tak ada
 GET    /projects/:id/file?path=&ref=    # { path, content, binary, truncated }  disk / git show <ref>:<path>; 400 path keluar repo/.git; 404 file tak ada
 PUT    /projects/:id/file               { path, content }   # tulis file ke working tree; 400 guard path. TAK digerbang sesi.
-GET    /projects/:id/graph?limit=200    # { commits:{sha,parents,author,at,subject,refs}[], current }  git log --all --date-order
-GET    /projects/:id/commit/:sha        # { sha,parents,author,at,subject,body, changed:{path,add,del,status,binary}[] }  404 sha bukan hex / tak ada
+GET    /projects/:id/graph?limit=200    # { commits:{sha,parents,author,at,subject,refs[],tags[]}[], current }  git log --date-order
+#   SPEC-233: tag dipisah dari refs (tags[]). Filter opsional ?branches=a,b (bukan --all) & showRemote=/showTags=false.
+GET    /projects/:id/commit/:sha        # { sha,parents,author,at,subject,body,changed[], signed,committer,committedAt,authorEmail }  404 sha bukan hex / tak ada (SPEC-233)
 POST   /projects/:id/git                { op, ...args, force? }   # { ok, stdout, stderr, current }
-#   op ∈ checkout|branch|merge|cherry-pick|revert|delete-branch. 400 op/field cacat; 400 tanpa repoDir.
+#   op ∈ checkout|branch|merge|cherry-pick|revert|delete-branch (+ SPEC-233 di blok Git graph parity). 400 op/field cacat; 400 tanpa repoDir.
 #   merge menerima ff opsional (SPEC-193): absen=default git (ff bila bisa); "no-ff"=selalu merge commit; "ff-only"=ff saja (409 bila tak bisa). ff lain → 400.
 #   merge menerima deleteBranch opsional (SPEC-193): setelah merge sukses, hapus branch itu lokal (-D) lalu origin bila remote-tracking-nya ada (git push origin --delete). "" → 400. Gagal salah satu langkah → 409 (merge tetap terjadi).
 #   delete-branch menerima local?(default true)/remote? opsional (SPEC-206): local → git branch -d/-D; remote → git push origin --delete. local:false+remote → hapus origin saja (ref origin/<b> tanpa branch lokal). Gagal salah satu langkah → 409 (langkah sebelumnya sudah terjadi).
@@ -144,8 +145,11 @@ GET    /projects/:id/commit/:sha/file?path=       # { path,status,binary,truncat
 GET    /projects/:id/compare?from=&to=            # { from, to, changed:{path,add,del,status,binary}[] }
 GET    /projects/:id/compare/file?from=&to=&path= # { path,status,binary,truncated,diff,content }
 GET    /projects/:id/graph/search?q=&by=          # { shas:string[] }  by ∈ all|message|author|hash
-GET    /projects/:id/archive?ref=&format=         # stream (download) git archive  format ∈ zip|tar
-POST   /projects/:id/remotes  {name,url} · PATCH /projects/:id/remotes/:name {url} · DELETE /projects/:id/remotes/:name
+GET    /projects/:id/archive?ref=&format=         # stream (download) git archive  format ∈ zip|tar; 400 ref tak valid
+GET    /projects/:id/pr-url?branch=&base=         # { url:string|null }  URL "Create PR" dari origin (github/gitlab/bitbucket) atau null
+POST   /projects/:id/remotes  {name,url} · PATCH /projects/:id/remotes/:name {url} · DELETE /projects/:id/remotes/:name   # → Remote[]; 400 field cacat; 409 git gagal
+# Isolasi (merge/rebase/pull/drop): { status:"clean",detail } | { status:"conflict",sessionId } | 400 body/target · 409 detached/source hilang/working-tree kotor
+# Read (status/stashes/remotes/compare/search): 404 project tak ada; commit-file/compare-file: 400 path keluar repo · 404 tak ada
 # GET /projects/:id/graph menerima filter opsional: ?branches=a,b&showRemote=&showTags= (default = --all lama)
 # POST /projects/:id/git op += reset|reset-worktree|clean|tag|delete-tag|push-tag|stash|stash-apply|
 #   stash-pop|stash-drop|stash-branch|rename-branch|push-branch|fetch. Gate sesi hanya untuk op yang
