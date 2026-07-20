@@ -377,5 +377,6 @@ tampilkan `dsnUrl` **sekali** di kotak `--brass-100` + tombol **Salin** (pola `D
 "error baru", aksi "Lihat error"); `notifTarget` → `{ section: "errors", projectFilter }`. Server hanya
 menotifikasi **grup produksi baru** (dedup `key`), tersiar lewat grup `notifications` WS existing.
 
-**SDK/snippet** copy-paste di `sdk/**` (Node `sdk/node/hanoman-error.ts`, browser `sdk/browser/hanoman-error.js`,
-`sdk/README.md`) — DSN gaya Sentry, fire-and-forget.
+**SDK** = npm package publik **`hanoman-sdk`** (SPEC-254 · ADR-0062; `npm i hanoman-sdk` → `init`/`captureError`,
+Node + browser, DSN gaya Sentry, fire-and-forget). Source di `sdk/src/**`; panduan (`sdk/README.md`) disajikan
+apa adanya di web via modal `IntegrationGuideModal` (`GET /api/errors/integration-guide`).
