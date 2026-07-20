@@ -6,7 +6,7 @@ import { listSessions, createSession } from "../services/pty";
 import { sessionModel } from "../services/settings";
 import { mergeIntoCurrent } from "../services/integrate";
 import {
-  listRepoTree, readRepoFile, writeRepoFile, listGraph, commitDetail, runGitOp, validateGitOp, touchesTree, repoStatus, type GitOp,
+  listRepoTree, readRepoFile, writeRepoFile, listGraph, commitDetail, runGitOp, validateGitOp, touchesTree, repoStatus, listStashes, type GitOp,
 } from "../services/git-ide";
 
 // undefined = project tak ada (→404); null = ada tapi tanpa checkout lokal; string = repoDir.
@@ -59,6 +59,13 @@ export default async function (app: FastifyInstance) {
     const repoDir = await repoOf((req.params as { id: string }).id);
     if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
     return repoStatus(repoDir);
+  });
+
+  // SPEC-233 · daftar stash.
+  app.get("/projects/:id/stashes", async (req, reply) => {
+    const repoDir = await repoOf((req.params as { id: string }).id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    return listStashes(repoDir);
   });
 
   app.get("/projects/:id/commit/:sha", async (req, reply) => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { makeTempRepo, makeRepoWithBranches, makeRepoWithSpecCommits, makeRepoWithSpecBranch } from "./factory";
-import { listRepoTree, readRepoFile, repoAbsPath, listGraph, commitDetail, writeRepoFile, runGitOp, validateGitOp, touchesTree, repoStatus } from "../src/services/git-ide";
+import { listRepoTree, readRepoFile, repoAbsPath, listGraph, commitDetail, writeRepoFile, runGitOp, validateGitOp, touchesTree, repoStatus, listStashes } from "../src/services/git-ide";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
@@ -322,5 +322,43 @@ describe("git-ide status + worktree ops (SPEC-233)", () => {
     expect(validateGitOp({ op: "reset-worktree", mode: "soft" })).toBeTruthy();
     expect(validateGitOp({ op: "reset-worktree", mode: "hard" })).toBeNull();
     expect(validateGitOp({ op: "clean" })).toBeNull();
+  });
+});
+
+describe("git-ide stash (SPEC-233)", () => {
+  it("stash create bersihkan worktree, list menampilkan, apply mengembalikan", async () => {
+    const dir = makeRepoWithBranches();
+    writeFileSync(`${dir}/README.md`, "wip");
+    expect((await runGitOp(dir, { op: "stash", message: "kerjaan" })).ok).toBe(true);
+    expect(readFileSync(`${dir}/README.md`, "utf8")).toBe("x"); // worktree bersih
+    const list = await listStashes(dir);
+    expect(list[0]!.ref).toBe("stash@{0}");
+    expect(list[0]!.message).toMatch(/kerjaan/);
+    expect((await runGitOp(dir, { op: "stash-apply", ref: "stash@{0}" })).ok).toBe(true);
+    expect(readFileSync(`${dir}/README.md`, "utf8")).toBe("wip");
+  });
+  it("stash-drop menghapus entri stash", async () => {
+    const dir = makeRepoWithBranches();
+    writeFileSync(`${dir}/README.md`, "wip"); await runGitOp(dir, { op: "stash" });
+    expect((await listStashes(dir)).length).toBe(1);
+    expect((await runGitOp(dir, { op: "stash-drop", ref: "stash@{0}" })).ok).toBe(true);
+    expect((await listStashes(dir)).length).toBe(0);
+  });
+  it("stash-branch membuat branch dari stash", async () => {
+    const dir = makeRepoWithBranches();
+    writeFileSync(`${dir}/README.md`, "wip"); await runGitOp(dir, { op: "stash" });
+    const r = await runGitOp(dir, { op: "stash-branch", ref: "stash@{0}", name: "wip-b" });
+    expect(r.ok).toBe(true); expect(r.current).toBe("wip-b");
+  });
+  it("validateGitOp stash-* butuh ref/name sesuai", () => {
+    expect(validateGitOp({ op: "stash" })).toBeNull();
+    expect(validateGitOp({ op: "stash-apply" })).toBeTruthy();
+    expect(validateGitOp({ op: "stash-apply", ref: "stash@{0}" })).toBeNull();
+    expect(validateGitOp({ op: "stash-branch", ref: "stash@{0}" })).toBeTruthy();
+    expect(validateGitOp({ op: "stash-branch", ref: "stash@{0}", name: "b" })).toBeNull();
+  });
+  it("touchesTree: stash-drop ref-only, stash-apply menyentuh tree", () => {
+    expect(touchesTree({ op: "stash-drop", ref: "stash@{0}" })).toBe(false);
+    expect(touchesTree({ op: "stash-apply", ref: "stash@{0}" })).toBe(true);
   });
 });

@@ -2,7 +2,7 @@
    Baris = grid [svg lane | subject | refs | meta]; klik = detail; klik-kanan = context-menu. */
 import React from "react";
 import { Card, Button, StateBlock, Badge } from "../ds";
-import { api, type GraphCommit, type CommitDetail, type GitOp, type RepoStatus } from "../api/client";
+import { api, type GraphCommit, type CommitDetail, type GitOp, type RepoStatus, type Stash } from "../api/client";
 import { computeLanes, rowEdges, type GraphRow, type Edge } from "./git-graph";
 
 const LANE_W = 14, ROW_H = 30, DOT = 4;
@@ -115,12 +115,15 @@ export function GitGraph({ projectId, onRunGit, onMerge, onOpenFile }:
   const [tagMenu, setTagMenu] = React.useState<{ x: number; y: number; tag: string } | null>(null);
   const [status, setStatus] = React.useState<RepoStatus | null>(null);
   const [uncMenu, setUncMenu] = React.useState<{ x: number; y: number } | null>(null);
+  const [stashes, setStashes] = React.useState<Stash[]>([]);
+  const [stashMenu, setStashMenu] = React.useState<{ x: number; y: number; s: Stash } | null>(null);
 
   const load = React.useCallback(() => {
     setState("loading");
     api.ideGraph(projectId).then((g) => { setRows(computeLanes(g.commits)); setCurrent(g.current); setState("ready"); })
       .catch(() => setState("error"));
     api.ideStatus(projectId).then(setStatus).catch(() => setStatus(null));
+    api.ideStashes(projectId).then(setStashes).catch(() => setStashes([]));
   }, [projectId]);
   React.useEffect(() => { load(); }, [load]);
 
@@ -166,6 +169,21 @@ export function GitGraph({ projectId, onRunGit, onMerge, onOpenFile }:
             </div>
           );
         })()}
+        {/* SPEC-233 · stash sebagai chip di puncak; klik-kanan → apply/pop/drop/branch/copy */}
+        {stashes.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", padding: "6px 12px", borderBottom: "1px solid var(--border-hair)" }}>
+            <span className="hn-eyebrow" style={{ marginRight: 4 }}>stash</span>
+            {stashes.map((s) => (
+              <span key={s.ref} title={s.message}
+                onClick={(e) => { e.stopPropagation(); setStashMenu({ x: e.clientX, y: e.clientY, s }); }}
+                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setStashMenu({ x: e.clientX, y: e.clientY, s }); }}
+                style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, padding: "2px 8px", borderRadius: 999,
+                  cursor: "pointer", background: "var(--ink-100, #e7e6e1)", color: "var(--text-muted)", flex: "0 0 auto" }}>
+                {s.ref}: {s.message.length > 40 ? s.message.slice(0, 40) + "…" : s.message}
+              </span>
+            ))}
+          </div>
+        )}
         {rows.map((r, i) => {
           const c = r.commit;
           const isHead = c.refs.includes(current);
@@ -236,6 +254,13 @@ export function GitGraph({ projectId, onRunGit, onMerge, onOpenFile }:
         { label: "Reset working tree (mixed — unstage)", run: () => { setUncMenu(null); void act({ op: "reset-worktree", mode: "mixed" }); } },
         { label: "Reset working tree (hard — buang semua)", run: () => { setUncMenu(null); void act({ op: "reset-worktree", mode: "hard" }); } },
         { label: "Clean untracked", run: () => { setUncMenu(null); void act({ op: "clean", directories: true }); } },
+      ]} />}
+      {stashMenu && <Menu x={stashMenu.x} y={stashMenu.y} onClose={() => setStashMenu(null)} items={[
+        { label: "Apply (jaga stash)", run: () => { const s = stashMenu.s; setStashMenu(null); void act({ op: "stash-apply", ref: s.ref }); } },
+        { label: "Pop (apply + buang)", run: () => { const s = stashMenu.s; setStashMenu(null); void act({ op: "stash-pop", ref: s.ref }); } },
+        { label: "Drop (buang stash)", run: () => { const s = stashMenu.s; setStashMenu(null); void act({ op: "stash-drop", ref: s.ref }); } },
+        { label: "Buat branch dari stash…", run: () => { const s = stashMenu.s; setStashMenu(null); const name = window.prompt("Nama branch baru:"); if (name) void act({ op: "stash-branch", ref: s.ref, name }); } },
+        { label: "Copy nama stash", run: () => { const s = stashMenu.s; setStashMenu(null); void navigator.clipboard?.writeText(s.ref); } },
       ]} />}
     </div>
   );

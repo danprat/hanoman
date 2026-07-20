@@ -161,4 +161,17 @@ describe("ide routes", () => {
     expect(t.json().ok).toBe(true);
     killAll();
   });
+
+  it("GET /stashes daftar kosong; stash create → 1 entri (SPEC-233)", async () => {
+    const sr = makeRepoWithBranches();
+    spawnSync("git", ["config", "user.email", "t@t"], { cwd: sr });
+    await makeProject({ id: "stashrepo", repoDir: sr });
+    expect((await app.inject({ url: "/api/projects/stashrepo/stashes" })).json()).toEqual([]);
+    writeFileSync(`${sr}/README.md`, "wip");
+    const c = await app.inject({ method: "POST", url: "/api/projects/stashrepo/git", payload: { op: "stash", message: "m" } });
+    expect(c.statusCode).toBe(200);
+    const list = (await app.inject({ url: "/api/projects/stashrepo/stashes" })).json();
+    expect(list.length).toBe(1);
+    expect(list[0].ref).toBe("stash@{0}");
+  });
 });

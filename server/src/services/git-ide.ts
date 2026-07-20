@@ -93,6 +93,20 @@ export async function repoStatus(repoDir: string | null): Promise<RepoStatus> {
   } catch { return empty; }
 }
 
+export type Stash = { ref: string; message: string; at: string };
+
+// SPEC-233 · daftar stash. %gd = selektor reflog (stash@{0}); %s = subjek; %aI = tanggal ISO.
+export async function listStashes(repoDir: string | null): Promise<Stash[]> {
+  if (!repoDir || !existsSync(repoDir)) return [];
+  try {
+    const { stdout } = await exec("git", ["stash", "list", `--format=%gd${US}%s${US}%aI`], { cwd: repoDir, ...GIT });
+    return stdout.split("\n").filter(Boolean).map((line) => {
+      const [ref, message, at] = line.split(US);
+      return { ref: ref ?? "", message: message ?? "", at: at ?? "" };
+    });
+  } catch { return []; }
+}
+
 // git log --all seluruh ref. `%D` = ref names ("HEAD -> main, origin/main, tag: v1"); buang
 // prefix "HEAD -> ". Satu commit = satu baris (subject/refs tanpa newline).
 export async function listGraph(repoDir: string | null, limit = 200): Promise<{ commits: GraphCommit[]; current: string }> {
@@ -184,7 +198,13 @@ export type GitOp =
   | { op: "push-tag"; name: string }
   // SPEC-233 · operasi baris uncommitted: reset working tree ke HEAD, atau clean untracked.
   | { op: "reset-worktree"; mode: "mixed" | "hard" }
-  | { op: "clean"; directories?: boolean; ignored?: boolean };
+  | { op: "clean"; directories?: boolean; ignored?: boolean }
+  // SPEC-233 · stash: simpan/terapkan/pop/buang/branch-dari-stash.
+  | { op: "stash"; message?: string; includeUntracked?: boolean }
+  | { op: "stash-apply"; ref: string; index?: boolean }
+  | { op: "stash-pop"; ref: string; index?: boolean }
+  | { op: "stash-drop"; ref: string }
+  | { op: "stash-branch"; ref: string; name: string };
 
 export type GitOpResult = { ok: boolean; stdout: string; stderr: string; current: string };
 
@@ -212,6 +232,9 @@ export function validateGitOp(op: unknown): string | null {
     case "tag": case "delete-tag": case "push-tag": return need("name");
     case "reset-worktree": return o.mode === "mixed" || o.mode === "hard" ? null : "mode harus mixed/hard";
     case "clean": return null;
+    case "stash": return null;
+    case "stash-apply": case "stash-pop": case "stash-drop": return need("ref");
+    case "stash-branch": return need("ref") || need("name");
     default: return `op tak dikenal: ${String(o.op)}`;
   }
 }
@@ -241,6 +264,11 @@ function gitArgs(op: GitOp): string[] {
     case "push-tag": return ["push", "origin", "--end-of-options", op.name];
     case "reset-worktree": return ["reset", `--${op.mode}`];
     case "clean": return ["clean", "-f", ...(op.directories ? ["-d"] : []), ...(op.ignored ? ["-x"] : [])];
+    case "stash": return ["stash", "push", ...(op.includeUntracked ? ["-u"] : []), ...(op.message ? ["-m", op.message] : [])];
+    case "stash-apply": return ["stash", "apply", ...(op.index ? ["--index"] : []), "--end-of-options", op.ref];
+    case "stash-pop": return ["stash", "pop", ...(op.index ? ["--index"] : []), "--end-of-options", op.ref];
+    case "stash-drop": return ["stash", "drop", "--end-of-options", op.ref];
+    case "stash-branch": return ["stash", "branch", "--end-of-options", op.name, op.ref];
   }
 }
 
