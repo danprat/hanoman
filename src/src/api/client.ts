@@ -22,6 +22,8 @@ export type ReviewFile = {
 };
 // SPEC-182 · IDE Visual
 export type RepoFile = { path: string; content: string | null; binary: boolean; truncated: boolean };
+// SPEC-234 · status working tree utama (staged/unstaged), diturunkan dari git.
+export type WorkingStatus = { branch: string; staged: ChangedFile[]; unstaged: ChangedFile[] };
 export type GraphCommit = { sha: string; parents: string[]; author: string; at: string; subject: string; refs: string[] };
 export type CommitDetail = { sha: string; parents: string[]; author: string; at: string; subject: string; body: string; changed: ChangedFile[] };
 export type GitOp =
@@ -113,6 +115,9 @@ export const api = {
   // SPEC-229 · merge via git graph: deterministik di worktree isolasi; conflict → sesi claude.
   ideGitMerge: (id: string, b: { source: string; ff?: "no-ff" | "ff-only"; deleteBranch?: string }) =>
     j<GraphMergeResult>(paths.ideGitMerge(id), { method: "POST", ...body(b) }),
+  // SPEC-234 · status working tree + diff satu file working tree.
+  ideStatus: (id: string) => j<WorkingStatus>(paths.ideStatus(id)),
+  ideFileDiff: (id: string, path: string, staged: boolean) => j<ReviewFile>(paths.ideFileDiff(id, path, staged)),
   browseFs: (path?: string) =>
     j<{ path: string; parent: string | null; entries: { name: string; path: string }[] }>(paths.fsBrowse(path)),
   listTerminals: () => j<TerminalSession[]>(paths.terminalSessions),

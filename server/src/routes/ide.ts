@@ -6,7 +6,8 @@ import { listSessions, createSession } from "../services/pty";
 import { sessionModel } from "../services/settings";
 import { mergeIntoCurrent } from "../services/integrate";
 import {
-  listRepoTree, readRepoFile, writeRepoFile, listGraph, commitDetail, runGitOp, validateGitOp, type GitOp,
+  listRepoTree, readRepoFile, writeRepoFile, listGraph, commitDetail, runGitOp, validateGitOp,
+  workingStatus, workingFileDiff, type GitOp,
 } from "../services/git-ide";
 
 // undefined = project tak ada (→404); null = ada tapi tanpa checkout lokal; string = repoDir.
@@ -33,6 +34,25 @@ export default async function (app: FastifyInstance) {
     if (!path) return reply.code(400).send({ error: "path wajib" });
     try {
       const f = await readRepoFile(repoDir, path, ref ?? "");
+      return f === null ? reply.code(404).send({ error: "not found" }) : f;
+    } catch (e) { return reply.code(400).send({ error: (e as Error).message }); }
+  });
+
+  // SPEC-234 · status working tree utama (staged/unstaged). Read-only → TAK digerbang sesi (spt /tree).
+  app.get("/projects/:id/status", async (req, reply) => {
+    const repoDir = await repoOf((req.params as { id: string }).id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    return workingStatus(repoDir);
+  });
+
+  // SPEC-234 · diff satu file working tree. staged=1 → index vs HEAD, else working tree vs index.
+  app.get("/projects/:id/file-diff", async (req, reply) => {
+    const repoDir = await repoOf((req.params as { id: string }).id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    const { path, staged } = req.query as { path?: string; staged?: string };
+    if (!path) return reply.code(400).send({ error: "path wajib" });
+    try {
+      const f = await workingFileDiff(repoDir, path, staged === "1" || staged === "true");
       return f === null ? reply.code(404).send({ error: "not found" }) : f;
     } catch (e) { return reply.code(400).send({ error: (e as Error).message }); }
   });

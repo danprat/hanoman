@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { buildApp } from "../src/app";
-import { resetDb, makeProject, makeRepoWithBranches, makeRepoWithSpecBranch } from "./factory";
+import { resetDb, makeProject, makeRepoWithBranches, makeRepoWithSpecBranch, makeRepoWithChanges } from "./factory";
 import { createSession, killAll } from "../src/services/pty";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -26,6 +26,7 @@ beforeAll(async () => {
   await makeProject({ id: "delrepo2", repoDir: makeRepoWithSpecBranch("del2").repoDir }); // idem, untuk hapus mandiri (SPEC-206)
   await makeProject({ id: "delrepo3", repoDir: makeRepoWithSpecBranch("del3").repoDir });
   await makeProject({ id: "nodir", repoDir: null });
+  await makeProject({ id: "chg", repoDir: makeRepoWithChanges() });
 });
 
 describe("ide routes", () => {
@@ -129,5 +130,31 @@ describe("ide routes", () => {
   it("POST /git/merge source kosong → 400; project tanpa repoDir → 400 (SPEC-229)", async () => {
     expect((await app.inject({ method: "POST", url: "/api/projects/gm1/git/merge", payload: {} })).statusCode).toBe(400);
     expect((await app.inject({ method: "POST", url: "/api/projects/nodir/git/merge", payload: { source: "main" } })).statusCode).toBe(400);
+  });
+
+  it("GET /status memisah staged & unstaged; project tak ada → 404 (SPEC-234)", async () => {
+    const r = await app.inject({ url: "/api/projects/chg/status" });
+    expect(r.statusCode).toBe(200);
+    const b = r.json();
+    expect(b.branch).toBe("main");
+    expect(b.staged.map((c: { path: string }) => c.path)).toEqual(["staged.txt"]);
+    expect(b.unstaged.map((c: { path: string }) => c.path)).toEqual(["new.txt", "tracked.txt"]);
+    expect((await app.inject({ url: "/api/projects/ghost/status" })).statusCode).toBe(404);
+  });
+  it("GET /status project tanpa repoDir → kosong 200 (SPEC-234)", async () => {
+    const r = await app.inject({ url: "/api/projects/nodir/status" });
+    expect(r.statusCode).toBe(200);
+    expect(r.json()).toMatchObject({ branch: "", staged: [], unstaged: [] });
+  });
+  it("GET /file-diff staged/unstaged; path buruk → 400; tak berubah → 404 (SPEC-234)", async () => {
+    const st = await app.inject({ url: "/api/projects/chg/file-diff?path=staged.txt&staged=1" });
+    expect(st.statusCode).toBe(200);
+    expect(st.json().diff).toMatch(/\+two/);
+    const un = await app.inject({ url: "/api/projects/chg/file-diff?path=new.txt" });
+    expect(un.statusCode).toBe(200);
+    expect(un.json().status).toBe("A");
+    expect((await app.inject({ url: "/api/projects/chg/file-diff?path=../evil&staged=1" })).statusCode).toBe(400);
+    expect((await app.inject({ url: "/api/projects/chg/file-diff?path=staged.txt" })).statusCode).toBe(404);
+    expect((await app.inject({ url: "/api/projects/chg/file-diff" })).statusCode).toBe(400);
   });
 });

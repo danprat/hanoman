@@ -30,6 +30,10 @@ export const paths = {
   ideCommit: (id: string, sha: string) => `${API}/projects/${id}/commit/${sha}`,
   ideGit: (id: string) => `${API}/projects/${id}/git`,
   ideGitMerge: (id: string) => `${API}/projects/${id}/git/merge`, // SPEC-229 · merge git graph isolasi
+  // SPEC-234 · status working tree (staged/unstaged) + diff satu file working tree
+  ideStatus: (id: string) => `${API}/projects/${id}/status`,
+  ideFileDiff: (id: string, path: string, staged: boolean) =>
+    `${API}/projects/${id}/file-diff?path=${encodeURIComponent(path)}${staged ? "&staged=1" : ""}`,
   fsBrowse: (path?: string) => `${API}/fs/browse${path ? `?path=${encodeURIComponent(path)}` : ""}`,
   terminalSessions: `${API}/terminal/sessions`,
   terminalSession: (id: string) => `${API}/terminal/sessions/${id}`,
