@@ -14,7 +14,9 @@ const ORDER: DocKind[] = ["audit", "spec", "plan", "objective", "brainstorm", "o
 // SEBELUM aturan dir specs, supaya keduanya tak tertelan jadi "spec".
 export function kindOf(path: string): DocKind {
   const p = path.toLowerCase();
-  if (p.endsWith("-audit.md")) return "audit";
+  // SPEC-237 · audit SoT bernama `research/audit-<spec>-<slug>.md` (tak berakhiran -audit.md);
+  // qa-flow lama & audit-only sama-sama masuk kind "audit" di preview docs.
+  if (p.endsWith("-audit.md") || p.includes("/research/audit-")) return "audit";
   if (p.endsWith("-objective.md")) return "objective";
   if (p.endsWith("-brainstorm.md")) return "brainstorm";
   if (p.endsWith("-design.md") || p.endsWith("-spec.md") || p.startsWith("docs/superpowers/specs/")) return "spec";

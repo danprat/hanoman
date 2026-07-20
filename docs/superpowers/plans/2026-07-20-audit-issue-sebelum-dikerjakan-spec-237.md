@@ -234,7 +234,7 @@ git commit -m "feat(server): fase Laporan → stage done (audit-only) — SPEC-2
 **Interfaces:**
 - Produces: `kindOf("internal/docs/research/audit-spec-237-x.md") === "audit"`; perilaku lama (`*-audit.md`) tetap.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambah assertion di dalam `describe("kindOf")` (`server/test/spec-docs.test.ts`, setelah baris 31):
 ```ts
@@ -242,12 +242,12 @@ Tambah assertion di dalam `describe("kindOf")` (`server/test/spec-docs.test.ts`,
     expect(kindOf("internal/docs/research/audit-spec-230-prd-review-merge.md")).toBe("audit");
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan gagal**
+- [x] **Step 2: Jalankan test — pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run test/spec-docs.test.ts`
 Expected: FAIL (kedua path kini `"other"`).
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 `server/src/services/spec-docs.ts:17` — ganti baris audit jadi mencakup konvensi SoT `research/audit-`:
 ```ts
@@ -256,12 +256,12 @@ Expected: FAIL (kedua path kini `"other"`).
   if (p.endsWith("-audit.md") || p.includes("/research/audit-")) return "audit";
 ```
 
-- [ ] **Step 4: Jalankan test — pastikan lolos**
+- [x] **Step 4: Jalankan test — pastikan lolos**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run test/spec-docs.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/spec-docs.ts server/test/spec-docs.test.ts
