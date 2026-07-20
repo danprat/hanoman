@@ -23,6 +23,19 @@ describe("zTerminalSession — varian prd", () => {
   it("zFlow memuat prd", () => expect(zFlow.safeParse("prd").success).toBe(true));
 });
 
+// SPEC-252 · ADR-0061 — model & effort per sesi (override opsional saat Start backlog).
+describe("zTerminalSession — model/effort per sesi (SPEC-252)", () => {
+  it("menerima spec+flow+model+effort", () => {
+    const r = zTerminalSession.safeParse({ spec: "SPEC-1", flow: "qa", model: "claude-sonnet-5", effort: "high" });
+    expect(r.success).toBe(true);
+    expect(r.success && "model" in r.data && r.data.model).toBe("claude-sonnet-5");
+    expect(r.success && "effort" in r.data && r.data.effort).toBe("high");
+  });
+  it("spec+flow tanpa model/effort tetap valid (fallback global di server)", () => {
+    expect(zTerminalSession.safeParse({ spec: "SPEC-1", flow: "qa" }).success).toBe(true);
+  });
+});
+
 // SPEC-236 · terminal biasa NON-claude: shell mentah di repoDir project. Varian `{project, shell:true}`
 // terpisah dari `flow` dan didahulukan di union (z.object non-strict membuang key asing).
 describe("zTerminalSession — varian shell (SPEC-236)", () => {

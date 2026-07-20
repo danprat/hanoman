@@ -122,7 +122,8 @@ export const zTerminalSession = z.union([
   // SPEC-222 · scaffold: sesi project-level from-scratch, menyusun SoT dari ide. Tanpa brief
   // (diseed dari Project.desc), tanpa Spec — cermin reverse.
   z.object({ project: z.string(), flow: z.literal("scaffold") }),
-  z.object({ spec: z.string(), flow: zFlow }),
+  // SPEC-252 · ADR-0061 — model & effort per SESI: override opsional saat Start; kosong → global.
+  z.object({ spec: z.string(), flow: zFlow, model: z.string().optional(), effort: z.string().optional() }),
 ]);
 
 export const zDocFileContent = z.object({ content: z.string() });

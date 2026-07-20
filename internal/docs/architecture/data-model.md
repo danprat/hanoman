@@ -52,17 +52,19 @@ divalidasi zod di `@hanoman/shared` (`enums.ts`), bukan enum Prisma.
 
 ## Setting (per workspace)
 Singleton `id = 1`, kolom `data` (Json) berbentuk `zSetting`:
-- `model` (default `claude-opus-4-8`) + `effort` (default `xhigh`) — **default global**, dipakai
-  sebagai argv saat sesi lahir bila fase-nya tak punya override; manusia tetap bisa `/model` di dalam
-  terminal. `maxConcurrent` dan `askTimeoutMin` **hilang** bersama runner headless (ADR-0024) — tak
-  ada `dailyBudget`.
-- `phaseModels` (SPEC-238, [ADR-0058](../adr/0058-model-effort-per-fase.md), default `{}`) — map
-  `flow → phase → { model?, effort? }`; override model/effort **per fase** untuk semua flow
-  (feature/qa/reverse/prd/scaffold). Sel kosong → fallback `{ model, effort }` global. Sesi lahir
-  dengan config **fase pertama**; fase berikutnya diganti agen via `/model`+`/effort` (aman terhadap
-  konteks). `steps` headless lama (ADR-0003/0024) **tidak** dihidupkan — mekanismenya in-session.
+- `model` (default `claude-opus-4-8`) + `effort` (default `xhigh`) — **default global** untuk sesi baru,
+  dipakai sebagai argv saat sesi lahir. Sejak [ADR-0061](../adr/0061-model-effort-per-sesi-picker-start.md)
+  (SPEC-252) model/effort dipilih **per SESI** saat Start (picker `StartSessionModal` → body opsional
+  `model`/`effort` di `POST /terminal/sessions`); kosong → default global ini. Manusia tetap bisa
+  `/model` di dalam terminal. `maxConcurrent` dan `askTimeoutMin` **hilang** bersama runner headless
+  (ADR-0024) — tak ada `dailyBudget`.
+- `phaseModels` **dicabut** (SPEC-252, [ADR-0061](../adr/0061-model-effort-per-sesi-picker-start.md),
+  mengamandemen [ADR-0058](../adr/0058-model-effort-per-fase.md)): matrix model/effort **per fase** tak
+  andal — ia bergantung agen mengetik `/model`+`/effort` di batas fase, padahal agen menembus batas fase
+  tanpa berhenti. Model/effort kini **per sesi** (satu proses, satu model seumur hidup). Field dihapus
+  dari skema `zSetting`; baris `Setting` lama yang masih memuatnya tetap parse (key asing diabaikan).
   Model/effort tetap `z.string()` (lenient); daftar pilihan valid (`MODELS`/`EFFORTS`, memuat
-  `claude-fable-5` · `max` · `ultracode`) hidup di `@hanoman/shared` untuk UI.
+  `claude-fable-5` · `max` · `ultracode`) hidup di `@hanoman/shared` untuk picker Start.
 - `autoDefault`, `autoScaffold`, `notifyFail`
 - `notifyDone` (SPEC-180, default true) — toast+sound saat backlog selesai
 - `notifySound` (SPEC-180, default `short`) — `off` atau salah satu nada; durasi/varian bunyi notifikasi

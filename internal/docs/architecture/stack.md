@@ -53,9 +53,10 @@ nama fase per flow, dan prompt menyuruh agen `echo "<Fase> done" >> $HANOMAN_PHA
 Server membaca file append-only itu (`services/session-phases.ts`) untuk menurunkan fase aktif → `Stage`.
 Konteks terbawa antar fase karena semuanya satu sesi. Prompt membawa **kontrak otonomi** (ADR-0035):
 agen menembus batas antar-fase tanpa berhenti — checkpoint "review" milik skill superpowers bukan
-titik berhenti — dan hanya berhenti untuk bertanya di terminal saat butuh keputusan manusia sejati. Model tidak lagi per fase: sesi lahir dengan
-**satu** `--model`/`--effort` dari Settings (`Setting.model`/`effort`), dan manusia bisa mengetik `/model`
-di dalam terminal untuk menggesernya — model-per-step (ADR-0003) usang bersama runner headless (ADR-0024).
+titik berhenti — dan hanya berhenti untuk bertanya di terminal saat butuh keputusan manusia sejati. Model & effort bersifat **per sesi** (SPEC-252/ADR-0061, mengamandemen ADR-0058): sesi lahir dengan
+**satu** `--model`/`--effort` — dipilih saat **Start** (picker default = `Setting.model`/`effort`, body opsional
+di `POST /terminal/sessions`) dan berlaku seumur hidup sesi (satu proses); manusia bisa mengetik `/model`
+di dalam terminal untuk menggesernya. Matrix per-fase (ADR-0058) dicabut — tak andal. Model-per-step (ADR-0003) usang bersama runner headless (ADR-0024).
 
 Sesi memakai `--dangerously-skip-permissions` (tak berpenunggu), sehingga guardrail perintah berbahaya
 bersandar sepenuhnya pada **PreToolUse hook** (`runner/src/safety.ts` `deniesDangerous` lewat

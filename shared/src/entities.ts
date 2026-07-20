@@ -37,18 +37,8 @@ const NOTIFY_SOUNDS = ["off", "short", "medium", "long",
 // SPEC-162 · satu model per sesi interaktif, dipakai sebagai argv saat sesi lahir. Manusia
 // tetap bebas mengetik `/model` di dalam terminal. `steps` (model per fase), `maxConcurrent`,
 // dan `askTimeoutMin` hilang bersama runner headless.
-// SPEC-238 · ADR-0057 — override model/effort per fase. Field kosong → fallback ke {model,effort}
-// global. Tetap z.string() (bukan enum ketat): forward-compatible, baris lama tak pernah gagal parse.
-export const zPhaseOverride = z.object({
-  model: z.string().optional(),
-  effort: z.string().optional(),
-});
-// keyed by flow name → phase name → override. Longgar (record) karena nama fase beda per flow.
-export const zPhaseModels = z.record(z.string(), z.record(z.string(), zPhaseOverride));
-export type PhaseOverride = z.infer<typeof zPhaseOverride>;
-export type PhaseModels = z.infer<typeof zPhaseModels>;
-
 // SPEC-238 · daftar pilihan valid untuk UI (server tetap lenient z.string()). +Fable, +max, +ultracode.
+// SPEC-252 · ADR-0061 — dipakai picker "Mulai sesi" (model/effort per sesi) + kartu default global Settings.
 export const MODELS = [
   { id: "claude-opus-4-8", label: "Opus 4.8" },
   { id: "claude-sonnet-5", label: "Sonnet 5" },
@@ -60,7 +50,6 @@ export const EFFORTS = ["xhigh", "high", "medium", "low", "max", "ultracode"] as
 export const zSetting = z.object({
   model: z.string().default("claude-opus-4-8"),
   effort: z.string().default("xhigh"),
-  phaseModels: zPhaseModels.default({}),                                   // SPEC-238 · ADR-0058
   autoDefault: z.boolean(),
   autoScaffold: z.boolean(),
   notifyFail: z.boolean(),

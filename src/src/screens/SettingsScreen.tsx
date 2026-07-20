@@ -21,16 +21,8 @@ const S_EFFORT = [
   { value: "medium", label: "medium" }, { value: "low", label: "low" },
   { value: "max", label: "max" }, { value: "ultracode", label: "ultracode" }, // SPEC-238
 ];
-// SPEC-238 · cerminan runner PIPELINES (keep in sync). Matrix model/effort per fase.
-const FLOW_PHASES: { flow: string; label: string; phases: string[] }[] = [
-  { flow: "feature", label: "Feature", phases: ["Brainstorm", "Objective", "Spec", "Plan", "Execute"] },
-  { flow: "qa", label: "QA / Audit", phases: ["Audit", "Spec", "Plan", "Execute"] },
-  { flow: "audit", label: "Audit-only", phases: ["Audit", "Laporan"] }, // SPEC-242 · ADR-0057
-  { flow: "reverse", label: "Reverse docs", phases: ["Scan", "Docs teknis", "Wawancara", "Konvensi & index", "Serah terima"] },
-  { flow: "prd", label: "PRD", phases: ["Brainstorm", "PRD"] },
-  { flow: "scaffold", label: "Scaffold", phases: ["Brainstorm", "Objective", "Doc index"] },
-];
-const isOpusLike = (m: string) => m === "claude-opus-4-8" || m === "claude-fable-5";
+// SPEC-252 · ADR-0061 · matrix model/effort per fase (SPEC-238) dicabut — model/effort kini per SESI,
+// dipilih saat Start (StartSessionModal). Yang tersisa di sini hanya default global.
 // SPEC-180 · nada notifikasi backlog selesai (durasi bervariasi). "off" = senyap (toast+daftar tetap jalan).
 const S_SOUNDS = [
   { value: "blip", label: "Blip · 0.1s" }, { value: "pop", label: "Pop · 0.1s" },
@@ -46,7 +38,6 @@ const S_DEFAULTS: Setting = {
   autoDefault: true, autoScaffold: true, notifyFail: true,
   notifyDone: true, notifySound: "short",
   notifyDecision: true, notifyDecisionSound: "alert",
-  phaseModels: {},                                          // SPEC-238
 };
 
 function SettingRow({ title, desc, children, last }: { title: string; desc?: string; children?: React.ReactNode; last?: boolean }) {
@@ -367,17 +358,6 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
     };
     const save = (patch: Partial<Setting>, msg: string) => persist({ ...s, ...patch }, msg);
     const sw = (k: keyof Setting, msg: string) => (v: boolean) => save({ [k]: v } as Partial<Setting>, msg + (v ? " · aktif" : " · nonaktif"));
-    // SPEC-238 · set model/effort satu sel fase. "" = kembali ke default global (hapus field).
-    const setPhase = (flow: string, phase: string, field: "model" | "effort", value: string) => {
-      const pm: Record<string, Record<string, { model?: string; effort?: string }>> =
-        JSON.parse(JSON.stringify(s.phaseModels ?? {}));
-      const cell = { ...(pm[flow]?.[phase] ?? {}) };
-      if (value === "") delete cell[field]; else cell[field] = value;
-      if (!Object.keys(cell).length) { if (pm[flow]) delete pm[flow][phase]; }
-      else { pm[flow] = { ...(pm[flow] ?? {}), [phase]: cell }; }
-      if (pm[flow] && !Object.keys(pm[flow]).length) delete pm[flow];
-      save({ phaseModels: pm }, `${flow}/${phase} → ${field} ${value || "default"}`);
-    };
 
     if (tab === "umum") return (
       <>
@@ -402,52 +382,23 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
       </>
     );
     if (tab === "model") return (
-      // SPEC-238 · ADR-0057 · default global + matrix model/effort per fase. Manusia tetap bebas
-      // mengetik `/model`/`/effort` di dalam terminal — itu justru gunanya interaktif.
-      <>
-        <Card eyebrow="model" title="Model sesi — default global">
-          <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.5 }}>
-            Fallback untuk fase yang tak di-set di matrix. Di terminal, <code>/model</code> mengubahnya kapan saja.
-          </div>
-          <SettingRow title="Model">
-            <Select size="sm" value={s.model} options={S_MODELS} style={{ width: 190 }}
-              onChange={(e) => save({ model: e.target.value }, "Model → " + e.target.value)} />
-          </SettingRow>
-          <SettingRow title="Effort" last desc="Anggaran berpikir per giliran.">
-            <Select size="sm" value={s.effort} options={S_EFFORT} style={{ width: 130 }}
-              onChange={(e) => save({ effort: e.target.value }, "Effort → " + e.target.value)} />
-          </SettingRow>
-        </Card>
-        <Card eyebrow="per-fase" title="Model & effort per fase">
-          <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.5 }}>
-            Tiap fase bisa pakai model & effort sendiri. Kosong = ikut default global. Sesi lahir dengan
-            config fase pertama; ganti model aman-konteks. <b>Catatan:</b> <code>/effort</code> best-effort
-            di Opus/Fable saat di tengah sesi (ditandai ⚠).
-          </div>
-          {FLOW_PHASES.map(({ flow, label, phases }) => (
-            <div key={flow} style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-subtle)", margin: "6px 0" }}>{label}</div>
-              {phases.map((phase, i) => {
-                const cell = s.phaseModels?.[flow]?.[phase] ?? {};
-                const effOpus = isOpusLike(cell.model ?? s.model) && i > 0;
-                return (
-                  <SettingRow key={phase} title={phase} last={i === phases.length - 1}
-                    desc={effOpus ? "⚠ effort best-effort (Opus/Fable di tengah sesi)" : undefined}>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <Select size="sm" value={cell.model ?? ""} style={{ width: 150 }}
-                        options={[{ value: "", label: "(default)" }, ...S_MODELS]}
-                        onChange={(e) => setPhase(flow, phase, "model", e.target.value)} />
-                      <Select size="sm" value={cell.effort ?? ""} style={{ width: 120 }}
-                        options={[{ value: "", label: "(default)" }, ...S_EFFORT]}
-                        onChange={(e) => setPhase(flow, phase, "effort", e.target.value)} />
-                    </div>
-                  </SettingRow>
-                );
-              })}
-            </div>
-          ))}
-        </Card>
-      </>
+      // SPEC-252 · ADR-0061 · default global saja. Model & effort dipilih PER SESI saat Start
+      // (picker StartSessionModal); matrix per-fase (SPEC-238) dicabut. Manusia tetap bebas mengetik
+      // `/model`/`/effort` di dalam terminal — itu justru gunanya interaktif.
+      <Card eyebrow="model" title="Model sesi — default global">
+        <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.5 }}>
+          Default untuk sesi baru; bisa di-override per sesi saat <b>Start</b>. Di terminal, <code>/model</code>
+          mengubahnya kapan saja. Sesi = satu proses, satu model seumur hidup.
+        </div>
+        <SettingRow title="Model">
+          <Select size="sm" value={s.model} options={S_MODELS} style={{ width: 190 }}
+            onChange={(e) => save({ model: e.target.value }, "Model → " + e.target.value)} />
+        </SettingRow>
+        <SettingRow title="Effort" last desc="Anggaran berpikir per giliran.">
+          <Select size="sm" value={s.effort} options={S_EFFORT} style={{ width: 130 }}
+            onChange={(e) => save({ effort: e.target.value }, "Effort → " + e.target.value)} />
+        </SettingRow>
+      </Card>
     );
     return ( // sesi
       <Card eyebrow="sesi" title="Sesi & notifikasi">

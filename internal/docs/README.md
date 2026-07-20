@@ -36,9 +36,10 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 
 ## adr
 > Nomor unik & imutable. ADR usang tidak dihapus — ditandai statusnya di bawah dan di header masing-masing.
+- [0061 — Model & effort per sesi (picker saat Start), mencabut matrix per-fase](adr/0061-model-effort-per-sesi-picker-start.md) — **mengamandemen 0058** (SPEC-252)
 - [0060 — Error monitoring: model baru + ingest ber-DSN sebagai pengecualian auth](adr/0060-error-monitoring-ingest-ber-dsn.md) — **memperluas 0028/0033/0039/0040** (SPEC-249)
 - [0059 — Kontinuitas branch take-to-backlog (PRD→brief, audit→QA) + skip-audit qa lanjutan audit](adr/0059-kontinuitas-branch-take-to-backlog-dan-skip-audit.md) — **memperluas 0032/0040/0041/0057** (SPEC-244)
-- [0058 — Model & effort per fase, lewat `/model`+`/effort` in-session](adr/0058-model-effort-per-fase.md) — **mengamandemen 0024, sebagian menghidupkan 0003** (SPEC-238)
+- [0058 — Model & effort per fase, lewat `/model`+`/effort` in-session](adr/0058-model-effort-per-fase.md) — **mengamandemen 0024, sebagian menghidupkan 0003** (SPEC-238) — *mekanisme per-fase dicabut oleh 0061*
 - [0057 — Audit-only sebagai source + flow (dokumen, tanpa perbaikan)](adr/0057-audit-only-source-flow.md) — SPEC-237
 - [0056 — Terminal biasa = shell mentah di repoDir project (bukan claude)](adr/0056-terminal-shell-non-claude.md) — SPEC-236, pola ADR-0042
 - [0055 — Git graph parity: taksonomi operasi + eksekusi berlapis](adr/0055-git-graph-parity-op-taxonomy.md) — **memperluas 0034/0053** (SPEC-233)

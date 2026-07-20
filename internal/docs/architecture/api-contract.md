@@ -171,8 +171,9 @@ POST   /projects/:id/remotes  {name,url} · PATCH /projects/:id/remotes/:name {u
 ```
 GET/PUT  /settings                      # Setting blob (zSetting): model, effort, autoDefault, autoScaffold,
 #                                         notifyFail, notifyDone (bool), notifySound — SPEC-180. Tanpa dailyBudget/maxConcurrent.
-#                                         phaseModels: { [flow]: { [phase]: {model?,effort?} } } — override per fase (SPEC-238/ADR-0058);
-#                                         sel kosong → fallback model/effort global. PUT ganti seluruh blob (full replace).
+#                                         model/effort = DEFAULT GLOBAL sesi baru (SPEC-252/ADR-0061); per sesi di-override saat Start.
+#                                         phaseModels DICABUT (SPEC-252/ADR-0061) — baris lama yang masih memuatnya tetap parse (diabaikan).
+#                                         PUT ganti seluruh blob (full replace).
 GET      /notifications                 # { items:Notification[] (≤50 terbaru dulu), unread:int }  (SPEC-180)
 #   Notification dibuat server-side saat backlog masuk `done` (advanceStage + write-through GET /specs).
 POST     /notifications/read            # 204; tandai semua unread jadi terbaca
@@ -194,7 +195,9 @@ POST   /terminal/sessions  {project, flow?} # 201 { id } · 404 project · 400 t
 #   {project, shell:true} (SPEC-236, ADR-0056): terminal biasa NON-claude — shell mentah
 #     (HANOMAN_SHELL ?? $SHELL ?? /bin/bash) di repoDir project, tanpa flow (tak menggerakkan stage,
 #     tak buat worktree). 201 { id } · 404 project · 400 tanpa repoDir (needsBind).
-#   {spec, flow} (SPEC-162): sesi backlog item di worktree .worktrees/<spec>, prompt pipeline penuh
+#   {spec, flow, model?, effort?} (SPEC-162; model/effort SPEC-252/ADR-0061): sesi backlog item di worktree
+#     .worktrees/<spec>, prompt pipeline penuh. model/effort opsional = override PER SESI (kosong → default global);
+#     jadi argv --model/--effort saat sesi lahir (andal, tak bergantung agen).
 #     flow ∈ feature|qa|audit (dari source; flowForSource). audit (SPEC-237/ADR-0057) = pipeline
 #     Audit → Laporan: investigasi + dokumen SoT (research/audit-<spec>-<slug>.md), TANPA Execute; stage done via Laporan.
 #   SPEC-172: bila Spec.stage === "done", sesi baru dibuka dengan prompt LANJUTAN (fase Execute

@@ -166,7 +166,8 @@ export const api = {
   // SPEC-236 · terminal biasa non-claude: shell mentah di repoDir project (tanpa flow).
   createShell: (project: string) => j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, shell: true }) }),
   // SPEC-162 · sesi claude interaktif untuk sebuah backlog item, di worktree-nya sendiri.
-  startSession: (b: { spec: string; flow: Flow }) =>
+  // SPEC-252 · ADR-0061 · model/effort per sesi (opsional; kosong → default global di server).
+  startSession: (b: { spec: string; flow: Flow; model?: string; effort?: string }) =>
     j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body(b) }),
   // SPEC-166 · reverse: sesi project-level menyusun Source of Truth dari kode, di worktree-nya.
   reverseDocs: (project: string) =>

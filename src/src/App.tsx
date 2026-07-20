@@ -8,7 +8,7 @@ import { Shell, Modal, Field, HnTextarea, Button, StatusPill, Select, Input, Tab
 import { api, ApiError, type TerminalSession } from "./api/client";
 import { subscribe } from "./api/events";
 import type { ProjectView, Spec, AuthStatus, UserView, Notification } from "@hanoman/shared";
-import { flowForSource } from "@hanoman/shared";
+import { flowForSource, MODELS, EFFORTS } from "@hanoman/shared";
 import { AuthScreen } from "./screens/AuthScreen";
 import { AuthProvider } from "./auth/AuthContext";
 import type { ProjectVM } from "./screens/types";
@@ -36,6 +36,51 @@ type SpecForm = { kind: string; project: string; title: string; context: string;
 // SPEC-244 · branchFrom (teruskan branch PRD/audit) + fromAudit (sinyal skip-audit) juga di-seed.
 type SpecPrefill = { project?: string; title?: string; context?: string; outcome?: string; prdPath?: string;
   kind?: string; steps?: string; actual?: string; severity?: string; branchFrom?: string; fromAudit?: string };
+
+// SPEC-252 · ADR-0061 — picker model & effort PER SESI saat Start backlog. Default = setelan global
+// (GET /settings); nilai terpilih dikirim ke POST /terminal/sessions dan jadi argv `--model`/`--effort`
+// saat sesi lahir. Sesi = satu proses satu model seumur hidup (matrix per-fase ADR-0058 dicabut).
+export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
+  { open: boolean; spec: Spec | null; onClose: () => void; onStarted: (id: string) => void; onError?: (e: unknown) => void }) {
+  const [model, setModel] = React.useState("claude-opus-4-8");
+  const [effort, setEffort] = React.useState("xhigh");
+  const [busy, setBusy] = React.useState(false);
+  React.useEffect(() => {
+    if (!open) return;
+    api.getSettings().then((s) => { setModel(s.model); setEffort(s.effort); }).catch(() => {});
+  }, [open]);
+  if (!spec) return null;
+  const s = spec;
+  const flow = flowForSource(s.source);
+  async function start() {
+    setBusy(true);
+    try { const { id } = await api.startSession({ spec: s.id, flow, model, effort }); onStarted(id); onClose(); }
+    catch (e) { onError?.(e); }
+    finally { setBusy(false); }
+  }
+  return (
+    <Modal open={open} onClose={onClose} icon="play" eyebrow={`${s.id} · ${flow}`} title="Mulai sesi"
+      footer={<>
+        <Button variant="ghost" onClick={onClose}>Batal</Button>
+        <Button leftIcon="play" disabled={busy} onClick={start}>Mulai</Button>
+      </>}>
+      <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.5 }}>
+        Model & effort untuk sesi ini. Default dari setelan global; ubah bila perlu. Sesi lahir dengan pilihan
+        ini untuk seluruh hidupnya (satu proses) — <code>/model</code> di terminal tetap bisa mengubahnya.
+      </div>
+      <Field label="Model">
+        <Select aria-label="Model" value={model} style={{ width: "100%" }}
+          options={MODELS.map((m) => ({ value: m.id, label: m.label }))}
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setModel(e.target.value)} />
+      </Field>
+      <Field label="Effort">
+        <Select aria-label="Effort" value={effort} style={{ width: "100%" }}
+          options={EFFORTS.map((v) => ({ value: v, label: v }))}
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEffort(e.target.value)} />
+      </Field>
+    </Modal>
+  );
+}
 
 function NewSpecModal({ open, onClose, projects, defaultProject, onCreate, prefill }:
   { open: boolean; onClose: () => void; projects: ProjectVM[]; defaultProject: string; onCreate: (f: SpecForm) => void;
@@ -511,16 +556,10 @@ export default function App() {
   // SPEC-162 · Start membuka sesi claude interaktif di worktree backlog item ini, lalu pindah
   // ke layar Terminal: di sanalah pekerjaannya terlihat, dan di sanalah manusia menjawab agen.
   // `branchFrom` tak dikirim — server membacanya dari baris Spec (SPEC-143).
-  async function startSession(spec: Spec) {
-    try {
-      const { id } = await api.startSession({ spec: spec.id, flow: flowForSource(spec.source) });
-      setSection("terminal");
-      showToast(spec.id + " · sesi " + id + " dimulai", "info", "play");
-    } catch (e) {
-      const noRepo = e instanceof ApiError && e.status === 400;
-      showToast(spec.id + " · gagal mulai sesi" + (noRepo ? " · project belum punya repoDir" : ""), "warn", "x-circle");
-    }
-  }
+  // SPEC-252 · ADR-0061 · Start membuka picker model/effort per sesi dulu (StartSessionModal);
+  // konfirmasi picker-lah yang memanggil api.startSession dengan pilihan itu.
+  const [startSpec, setStartSpec] = React.useState<Spec | null>(null);
+  function startSession(spec: Spec) { setStartSpec(spec); }
 
   // SPEC-175 · rebase/merge branch hasil sebuah done spec. Bersih → toast; conflict → pindah ke
   // Terminal tempat sesi claude membereskan konflik (pola startSession).
@@ -832,6 +871,13 @@ export default function App() {
           prefill={specPrefill ?? undefined} />
         <NewProjectModal open={modal === "project"} onClose={() => setModal(null)} onCreate={createProject} />
         <EditProjectModal open={modal === "project-edit"} project={proj} onClose={() => setModal(null)} onSave={updateProject} />
+        {/* SPEC-252 · ADR-0061 · picker model/effort per sesi saat Start backlog. */}
+        <StartSessionModal open={!!startSpec} spec={startSpec} onClose={() => setStartSpec(null)}
+          onStarted={(id) => { setSection("terminal"); showToast((startSpec?.id ?? "") + " · sesi " + id + " dimulai", "info", "play"); }}
+          onError={(e) => {
+            const noRepo = e instanceof ApiError && (e.status === 400 || e.status === 422);
+            showToast((startSpec?.id ?? "") + " · gagal mulai sesi" + (noRepo ? " · project belum punya repoDir" : ""), "warn", "x-circle");
+          }} />
         <Toast toast={toast} />
       </NotificationsProvider>
     </AuthProvider>

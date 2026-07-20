@@ -1,6 +1,6 @@
 # ADR-0058 — Model & effort per fase, lewat `/model`+`/effort` in-session
 
-**Status:** accepted · **Date:** 2026-07-20 · **Spec:** SPEC-238
+**Status:** accepted, *mekanisme per-fase diamandemen (dicabut) oleh [ADR-0061](0061-model-effort-per-sesi-picker-start.md)* · **Date:** 2026-07-20 · **Spec:** SPEC-238
 **Terkait:** [ADR-0024](0024-sesi-interaktif-menggantikan-run.md) (sesi = satu proses; men-drop
 `steps` model-per-fase), [ADR-0003](0003-per-step-model-selection.md) (pemilihan model per step —
 *de-facto obsolete per 0024*, sebagian dihidupkan kembali di sini dengan mekanisme berbeda),

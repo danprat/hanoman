@@ -88,21 +88,18 @@ describe("schemas", () => {
     expect(s.notifyDecisionSound).toBe("alert");
   });
 
-  // SPEC-238 · ADR-0058 — model & effort per fase
-  describe("zSetting.phaseModels", () => {
+  // SPEC-252 · ADR-0061 — model & effort per SESI; matrix per-fase (phaseModels) dicabut.
+  describe("zSetting tanpa phaseModels", () => {
     const base = { autoDefault: true, autoScaffold: true, notifyFail: true };
-    it("phaseModels hilang → default {}", () => {
-      expect(zSetting.parse(base).phaseModels).toEqual({});
+    it("zSetting tak lagi punya field phaseModels", () => {
+      expect("phaseModels" in zSetting.parse(base)).toBe(false);
     });
-    it("menyimpan override per flow/phase", () => {
-      const s = zSetting.parse({ ...base, phaseModels: { feature: { Brainstorm: { model: "claude-sonnet-5", effort: "high" } } } });
-      expect(s.phaseModels.feature!.Brainstorm).toEqual({ model: "claude-sonnet-5", effort: "high" });
+    it("baris lama yang masih memuat phaseModels tetap parse (field diabaikan)", () => {
+      const s = zSetting.parse({ ...base, phaseModels: { feature: { Brainstorm: { model: "claude-sonnet-5" } } } });
+      expect("phaseModels" in s).toBe(false);
+      expect(s.model).toBe("claude-opus-4-8");
     });
-    it("override boleh sebagian (hanya effort)", () => {
-      const s = zSetting.parse({ ...base, phaseModels: { qa: { Execute: { effort: "max" } } } });
-      expect(s.phaseModels.qa!.Execute).toEqual({ effort: "max" });
-    });
-    it("MODELS memuat Fable; EFFORTS memuat max & ultracode", () => {
+    it("MODELS memuat Fable; EFFORTS memuat max & ultracode (dipakai picker Start)", () => {
       expect(MODELS.map((m) => m.id)).toContain("claude-fable-5");
       expect(EFFORTS).toContain("max");
       expect(EFFORTS).toContain("ultracode");

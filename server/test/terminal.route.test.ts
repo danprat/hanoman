@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import WebSocket from "ws";
-import { mkdtempSync, appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync, appendFileSync, existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -355,6 +355,42 @@ describe("terminal routes · sesi backlog", () => {
     expect(c.data()).not.toContain("MELANJUTKAN");
     c.ws.close();
     await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-921" });
+  });
+
+  // SPEC-252 · ADR-0061 — model & effort per SESI: override per-instance dari body Start sampai ke
+  // argv `--model`/`--effort`; kosong → default global. fake-claude yang merekam argv ke berkas
+  // menghindari kerapuhan viewport (baris argv panjang ter-wrap di layar tmux 80×24).
+  const recordingClaude = () => {
+    const out = join(mkdtempSync(join(tmpdir(), "hanoman-argv-")), "argv");
+    const bin = join(mkdtempSync(join(tmpdir(), "hanoman-bin-")), "fake-claude.sh");
+    writeFileSync(bin, `#!/bin/sh\nprintf '%s' "$*" > ${JSON.stringify(out)}\nexec cat\n`);
+    execFileSync("chmod", ["755", bin]);
+    process.env.HANOMAN_CLAUDE_BIN = bin;
+    return out;
+  };
+  it("spec-flow dengan model/effort per-instance → argv sesi memakai override", async () => {
+    const out = recordingClaude();
+    await makeSpec({ id: "SPEC-952", projectId: "p1", stage: "planned", objective: "kerja" });
+    const res = await app.inject({ method: "POST", url: "/api/terminal/sessions",
+      payload: { spec: "SPEC-952", flow: "qa", model: "claude-sonnet-5", effort: "high" } });
+    expect(res.statusCode).toBe(201);
+    await waitFor(() => existsSync(out) && readFileSync(out, "utf8").includes("--dangerously-skip-permissions"));
+    const argv = readFileSync(out, "utf8");
+    expect(argv).toContain("--model claude-sonnet-5");
+    expect(argv).toContain("--effort high");
+    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-952" });
+  });
+  it("spec-flow TANPA model/effort → argv memakai default global", async () => {
+    const out = recordingClaude();
+    await makeSpec({ id: "SPEC-953", projectId: "p1", stage: "planned", objective: "kerja" });
+    const res = await app.inject({ method: "POST", url: "/api/terminal/sessions",
+      payload: { spec: "SPEC-953", flow: "qa" } });
+    expect(res.statusCode).toBe(201);
+    await waitFor(() => existsSync(out) && readFileSync(out, "utf8").includes("--dangerously-skip-permissions"));
+    const argv = readFileSync(out, "utf8");
+    expect(argv).toContain("--model claude-opus-4-8");
+    expect(argv).toContain("--effort xhigh");
+    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/spec-953" });
   });
 
   // SPEC-173 · ADR-0029: `Execute done` tak boleh mencapai `done` selama plan spec-nya
