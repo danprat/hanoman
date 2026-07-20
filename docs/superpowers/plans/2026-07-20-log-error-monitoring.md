@@ -849,15 +849,15 @@ patchError: (id: string, status: string) => j<{ id: string; status: string }>(pa
 - Consumes: `zNotification.type` `"error"` (Task 1).
 - Produces: toast/bell/route untuk notif `error`.
 
-- [ ] **Step 1: `toastFor`** — case `type==="error"`: message dari `title`, tone `err` (→ `--status-err`), icon `triangle-alert`, sound (reuse `notifyDecisionSound`/setting error atau `notifyFail`). Enabled default true.
+- [x] **Step 1: `toastFor`** — case `type==="error"`: message dari `title`, tone `err` (→ `--status-err`), icon `triangle-alert`, sound (reuse `notifyDecisionSound`/setting error atau `notifyFail`). Enabled default true.
 
-- [ ] **Step 2: `NotificationBell`** — per-type branch untuk `error`: icon/label ("Error baru"). `target.ts` `notifTarget` — `type==="error"` → `{ section: "errors", projectFilter: n.projectId ?? undefined }`.
+- [x] **Step 2: `NotificationBell`** — per-type branch untuk `error`: icon/label ("Error baru"). `target.ts` `notifTarget` — `type==="error"` → `{ section: "errors", projectFilter: n.projectId ?? undefined }`.
 
-- [ ] **Step 3: Test `notifications-error.test.tsx`** — notif `type:"error"` menghasilkan toast tone err + klik route ke `errors`.
+- [x] **Step 3: Test `notifications-error.test.tsx`** — notif `type:"error"` menghasilkan toast tone err + klik route ke `errors`.
 
-- [ ] **Step 4: Run** test → PASS; `pnpm -C src build` hijau.
+- [x] **Step 4: Run** test → PASS; `pnpm -C src build` hijau.
 
-- [ ] **Step 5: Commit** `git commit -m "feat(spec-249): error notifications — toast, bell, click-through to Errors"`
+- [x] **Step 5: Commit** `git commit -m "feat(spec-249): error notifications — toast, bell, click-through to Errors"`
 
 ---
 

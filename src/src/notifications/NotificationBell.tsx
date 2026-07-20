@@ -64,24 +64,29 @@ export function NotificationBell() {
             </div>
           ) : items.map((n) => {
             const decision = n.type === "decision";
+            const error = n.type === "error";
+            // SPEC-249 · +error (grup produksi baru). icon/warna/label per tipe.
+            const icon = error ? "triangle-alert" : decision ? "git-merge" : "check-circle-2";
+            const accent = error ? "var(--clay-600)" : decision ? "var(--amber-600)" : "var(--leaf-500)";
+            const label = error ? "error baru" : decision ? "butuh keputusan" : "selesai";
+            const openLabel = decision ? "Buka terminal" : error ? "Lihat error" : "Buka";
             return (
             <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px",
               borderRadius: "var(--radius-sm)" }}>
-              <Icon name={decision ? "git-merge" : "check-circle-2"} size={16}
-                color={decision ? "var(--amber-600)" : "var(--leaf-500)"} />
+              <Icon name={icon} size={16} color={accent} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, color: "var(--text-strong)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {(n.specId ?? n.sessionId)} · {n.title}
+                  {error ? n.title : `${n.specId ?? n.sessionId} · ${n.title}`}
                 </div>
                 <div style={{ fontSize: 11.5, color: "var(--text-subtle)" }}>
-                  {decision ? "butuh keputusan" : "selesai"} · {timeAgo(n.createdAt)}
+                  {label} · {timeAgo(n.createdAt)}
                 </div>
               </div>
               {onOpen && (
                 <button onClick={() => { onOpen(n); setOpen(false); }} style={{
                   flex: "0 0 auto", border: "none", background: "transparent", cursor: "pointer",
-                  color: decision ? "var(--amber-600)" : "var(--text-muted)", fontSize: 12, fontFamily: "var(--font-ui)", whiteSpace: "nowrap" }}>
-                  {decision ? "Buka terminal" : "Buka"}
+                  color: error ? "var(--clay-600)" : decision ? "var(--amber-600)" : "var(--text-muted)", fontSize: 12, fontFamily: "var(--font-ui)", whiteSpace: "nowrap" }}>
+                  {openLabel}
                 </button>
               )}
               {!n.readAt && <span style={{ flex: "0 0 auto", width: 7, height: 7, borderRadius: "50%", background: "var(--accent)" }} />}

@@ -13,13 +13,17 @@ export function newSince(items: Notification[], baseline: string): Notification[
 }
 
 export type NotifyPrefs = Pick<Setting, "notifyDone" | "notifySound" | "notifyDecision" | "notifyDecisionSound">;
-export type ToastPlan = { msg: string; tone: "ok" | "warn"; icon: string; sound: NotifySound; enabled: boolean };
+export type ToastPlan = { msg: string; tone: "ok" | "warn" | "err"; icon: string; sound: NotifySound; enabled: boolean };
 
 // SPEC-184 · satu tempat memutuskan bunyi/tampilan toast per tipe notifikasi.
 export function toastFor(n: Notification, p: NotifyPrefs): ToastPlan {
   if (n.type === "decision")
     return { msg: `${n.specId ?? n.sessionId} · butuh keputusan`, tone: "warn", icon: "git-merge",
              sound: p.notifyDecisionSound as NotifySound, enabled: p.notifyDecision };
+  // SPEC-249 · grup error produksi baru (server hanya menotifikasi grup baru production).
+  if (n.type === "error")
+    return { msg: n.title, tone: "err", icon: "triangle-alert",
+             sound: p.notifyDecisionSound as NotifySound, enabled: true };
   return { msg: `${n.specId} · "${n.title}" selesai`, tone: "ok", icon: "check-circle-2",
            sound: p.notifySound as NotifySound, enabled: p.notifyDone };
 }
