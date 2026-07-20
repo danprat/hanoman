@@ -176,6 +176,32 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
   // SPEC-233 · compare dua commit: Ctrl/Cmd-klik commit kedua. compareFrom = commit pertama.
   const [compareFrom, setCompareFrom] = React.useState<string | null>(null);
   const [compare, setCompare] = React.useState<{ from: string; to: string; changed: import("../api/client").ChangedFile[] } | null>(null);
+  // SPEC-233 · find widget + center HEAD. rowRefs → scrollIntoView per sha.
+  const rowRefs = React.useRef<Map<string, HTMLDivElement>>(new Map());
+  const [findOpen, setFindOpen] = React.useState(false);
+  const [find, setFind] = React.useState("");
+  const [findIdx, setFindIdx] = React.useState(0);
+  const scrollToSha = React.useCallback((sha: string) => {
+    rowRefs.current.get(sha)?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, []);
+  const findHits = React.useMemo(() => {
+    const q = find.trim().toLowerCase();
+    if (!q) return [] as string[];
+    return rows.filter((r) => {
+      const c = r.commit;
+      return c.subject.toLowerCase().includes(q) || c.author.toLowerCase().includes(q) || c.sha.toLowerCase().startsWith(q)
+        || c.refs.some((x) => x.toLowerCase().includes(q)) || c.tags.some((x) => x.toLowerCase().includes(q));
+    }).map((r) => r.commit.sha);
+  }, [find, rows]);
+  const gotoHit = React.useCallback((idx: number) => {
+    if (!findHits.length) return;
+    const i = ((idx % findHits.length) + findHits.length) % findHits.length;
+    setFindIdx(i); scrollToSha(findHits[i]!);
+  }, [findHits, scrollToSha]);
+  const centerHead = React.useCallback(() => {
+    const r = rows.find((x) => x.commit.refs.includes(current));
+    if (r) scrollToSha(r.commit.sha);
+  }, [rows, current, scrollToSha]);
   const onRowClick = React.useCallback((e: React.MouseEvent, sha: string) => {
     if (e.metaKey || e.ctrlKey) {
       if (!compareFrom) { setCompareFrom(sha); return; }
@@ -193,11 +219,15 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
     api.ideStashes(projectId).then(setStashes).catch(() => setStashes([]));
   }, [projectId]);
   React.useEffect(() => { load(); }, [load]);
-  // SPEC-233 · Esc menutup compare/fileDiff/compareFrom.
+  // SPEC-233 · shortcut: Esc tutup panel; Ctrl/Cmd-F find; Ctrl/Cmd-H center HEAD.
   React.useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === "Escape") { setFileDiff(null); setCompare(null); setCompareFrom(null); } };
+    const h = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { setFileDiff(null); setCompare(null); setCompareFrom(null); setFindOpen(false); }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f") { e.preventDefault(); setFindOpen(true); }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "h") { e.preventDefault(); centerHead(); }
+    };
     window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h);
-  }, []);
+  }, [centerHead]);
 
   function openMenu(e: React.MouseEvent, c: GraphCommit) {
     e.preventDefault();
@@ -223,6 +253,31 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
   return (
     <div style={{ display: "grid", gridTemplateColumns: (detail || compare) ? "1fr 340px" : "1fr", gap: 16, alignItems: "start" }}>
       <Card padding={0}>
+        {/* SPEC-233 · find widget (Ctrl/Cmd-F) + center HEAD (Ctrl/Cmd-H) */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: "1px solid var(--border-hair)" }}>
+          {findOpen ? (
+            <>
+              <Icon name="search" size={13} color="var(--text-subtle)" />
+              <input autoFocus value={find} onChange={(e) => { setFind(e.target.value); setFindIdx(0); }}
+                onKeyDown={(e) => { if (e.key === "Enter") gotoHit(findIdx + (e.shiftKey ? -1 : 1)); if (e.key === "Escape") setFindOpen(false); }}
+                placeholder="cari commit (pesan/author/hash/ref)…"
+                style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 12.5, fontFamily: "var(--font-ui)", color: "var(--text-body)" }} />
+              <span style={{ fontSize: 11, color: "var(--text-subtle)", fontFamily: "var(--font-mono)" }}>
+                {findHits.length ? `${findIdx + 1}/${findHits.length}` : find ? "0" : ""}
+              </span>
+              <Button size="sm" variant="ghost" leftIcon="chevron-up" disabled={!findHits.length} onClick={() => gotoHit(findIdx - 1)} />
+              <Button size="sm" variant="ghost" leftIcon="chevron-down" disabled={!findHits.length} onClick={() => gotoHit(findIdx + 1)} />
+              <Button size="sm" variant="ghost" leftIcon="x" onClick={() => { setFindOpen(false); setFind(""); }} />
+            </>
+          ) : (
+            <>
+              <Button size="sm" variant="ghost" leftIcon="search" onClick={() => setFindOpen(true)}>Cari</Button>
+              <Button size="sm" variant="ghost" leftIcon="crosshair" onClick={centerHead}>HEAD</Button>
+              <span style={{ flex: 1 }} />
+              <span style={{ fontSize: 11, color: "var(--text-subtle)" }}>⌘F cari · ⌘H center HEAD</span>
+            </>
+          )}
+        </div>
         {/* SPEC-233 · baris uncommitted changes (lingkaran terbuka) di puncak bila working tree kotor */}
         {status && !status.clean && (() => {
           const n = status.staged.length + status.unstaged.length + status.untracked.length;
@@ -264,15 +319,19 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
           const c = r.commit;
           const isHead = c.refs.includes(current);
           const sel = detail?.sha === c.sha;
+          const hit = findHits.includes(c.sha);
+          const activeHit = findHits[findIdx] === c.sha;
+          const rowBg = sel ? "var(--brass-100)" : activeHit ? "var(--brass-200, #ecd9ac)" : hit ? "var(--bone-100)" : "transparent";
           return (
-            <div key={c.sha} onClick={(e) => onRowClick(e, c.sha)}
+            <div key={c.sha} ref={(el) => { if (el) rowRefs.current.set(c.sha, el); }}
+              onClick={(e) => onRowClick(e, c.sha)}
               onContextMenu={(e) => openMenu(e, c)}
               title={compareFrom ? "Ctrl/Cmd-klik untuk bandingkan dengan commit pertama" : "Ctrl/Cmd-klik untuk mulai compare"}
-              onMouseEnter={(e) => { if (!sel) e.currentTarget.style.background = "var(--bone-100)"; }}
-              onMouseLeave={(e) => { if (!sel) e.currentTarget.style.background = "transparent"; }}
+              onMouseEnter={(e) => { if (!sel && !activeHit) e.currentTarget.style.background = "var(--bone-100)"; }}
+              onMouseLeave={(e) => { if (!sel && !activeHit) e.currentTarget.style.background = hit ? "var(--bone-100)" : "transparent"; }}
               style={{ display: "flex", alignItems: "center", gap: 10, height: ROW_H, padding: "0 12px",
                 cursor: "pointer", borderBottom: "1px solid var(--border-hair)",
-                background: sel ? "var(--brass-100)" : "transparent" }}>
+                background: rowBg }}>
               <RowSvg row={r} edges={allEdges[i] ?? []} maxLanes={maxLanes} />
               <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1 }}>
                 {c.refs.map((ref) => (

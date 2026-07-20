@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { makeTempRepo, makeRepoWithBranches, makeRepoWithSpecCommits, makeRepoWithSpecBranch } from "./factory";
-import { listRepoTree, readRepoFile, repoAbsPath, listGraph, commitDetail, writeRepoFile, runGitOp, validateGitOp, touchesTree, repoStatus, listStashes, commitFileDiff, compareCommits, compareFile } from "../src/services/git-ide";
+import { listRepoTree, readRepoFile, repoAbsPath, listGraph, commitDetail, writeRepoFile, runGitOp, validateGitOp, touchesTree, repoStatus, listStashes, commitFileDiff, compareCommits, compareFile, searchCommits } from "../src/services/git-ide";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
@@ -427,5 +427,21 @@ describe("git-ide compare (SPEC-233)", () => {
     const cs = (await listGraph(dir)).commits;
     const f = await compareFile(dir, cs[1]!.sha, cs[0]!.sha, "a.txt");
     expect(f!.diff).toMatch(/-satu/); expect(f!.diff).toMatch(/\+dua/);
+  });
+});
+
+describe("git-ide search (SPEC-233)", () => {
+  it("searchCommits by message & author", async () => {
+    const dir = makeRepoWithSpecCommits({ "a": "1" }, [{ msg: "tambah fitur X", changes: { "x": "1" } }, { msg: "perbaiki bug", changes: { "y": "1" } }]);
+    expect((await searchCommits(dir, "fitur", "message")).length).toBe(1);
+    expect((await searchCommits(dir, "t@t", "author")).length).toBeGreaterThan(0);
+  });
+  it("searchCommits by hash prefix", async () => {
+    const dir = makeRepoWithSpecCommits({ "a": "1" }, []);
+    const head = (await listGraph(dir)).commits[0]!.sha;
+    expect(await searchCommits(dir, head.slice(0, 6), "hash")).toContain(head);
+  });
+  it("searchCommits q kosong → []", async () => {
+    expect(await searchCommits(makeRepoWithSpecCommits({ "a": "1" }, []), "", "all")).toEqual([]);
   });
 });

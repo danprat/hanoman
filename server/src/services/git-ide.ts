@@ -181,6 +181,24 @@ export async function compareCommits(repoDir: string | null, from: string, to: s
   } catch { return empty; }
 }
 
+// SPEC-233 · cari commit lintas semua ref. by=message (grep, fixed+case-insensitive), author,
+// hash (prefix sha), all (gabungan, dedup urutan). Kembalikan daftar sha. q kosong → [].
+export async function searchCommits(repoDir: string | null, q: string, by: "all" | "message" | "author" | "hash" = "all"): Promise<string[]> {
+  if (!repoDir || !existsSync(repoDir) || !q) return [];
+  const run = async (extra: string[]): Promise<string[]> => {
+    try { return (await exec("git", ["log", "--all", "--format=%H", ...extra], { cwd: repoDir, ...GIT })).stdout.split("\n").filter(Boolean); }
+    catch { return []; }
+  };
+  const byMessage = () => run(["-i", "-F", `--grep=${q}`]);
+  const byAuthor = () => run(["-i", `--author=${q}`]);
+  const byHash = async () => (await run([])).filter((h) => h.toLowerCase().startsWith(q.toLowerCase()));
+  if (by === "message") return byMessage();
+  if (by === "author") return byAuthor();
+  if (by === "hash") return byHash();
+  const [m, a, h] = await Promise.all([byMessage(), byAuthor(), byHash()]);
+  return [...new Set([...m, ...a, ...h])];
+}
+
 export async function compareFile(repoDir: string | null, from: string, to: string, rel: string): Promise<ReviewFile | null> {
   if (!repoDir) return null;
   repoAbsPath(repoDir, rel); // throws → route 400

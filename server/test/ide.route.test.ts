@@ -35,7 +35,7 @@ beforeAll(async () => {
   await makeProject({ id: "delrepo3", repoDir: makeRepoWithSpecBranch("del3").repoDir });
   await makeProject({ id: "resetrepo", repoDir: twoCommitRepo() });
   await makeProject({ id: "nodir", repoDir: null });
-});
+}, 30_000); // fixtures git+DB banyak — beri ruang di mesin ber-load tinggi
 
 describe("ide routes", () => {
   it("GET /tree lists files; project tak ada → 404", async () => {
@@ -197,6 +197,15 @@ describe("ide routes", () => {
     const r = await app.inject({ method: "POST", url: "/api/projects/rebaserepo/git/rebase", payload: { onto: "main" } });
     expect(r.statusCode).toBe(200);
     expect(r.json().status).toBe("clean");
+  });
+  it("GET /graph/search by message → shas (SPEC-233)", async () => {
+    const dir = makeRepoWithBranches();
+    const g = (...a: string[]) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });
+    writeFileSync(`${dir}/f.txt`, "1"); g("add", "-A"); g("commit", "-qm", "tambah fitur unik");
+    await makeProject({ id: "searchrepo", repoDir: dir });
+    const r = await app.inject({ url: "/api/projects/searchrepo/graph/search?q=unik&by=message" });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().shas.length).toBe(1);
   });
   it("GET /compare dua commit; from/to kosong → 400 (SPEC-233)", async () => {
     const dir = makeRepoWithBranches();

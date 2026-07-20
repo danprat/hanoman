@@ -7,7 +7,7 @@ import { sessionModel } from "../services/settings";
 import { mergeIntoCurrent, rebaseOntoCurrent, pullIntoCurrent, dropCommit, type GraphMergeResult } from "../services/integrate";
 import {
   listRepoTree, readRepoFile, writeRepoFile, listGraph, commitDetail, commitFileDiff, compareCommits, compareFile,
-  runGitOp, validateGitOp, touchesTree, repoStatus, listStashes, type GitOp,
+  searchCommits, runGitOp, validateGitOp, touchesTree, repoStatus, listStashes, type GitOp,
 } from "../services/git-ide";
 
 // undefined = project tak ada (→404); null = ada tapi tanpa checkout lokal; string = repoDir.
@@ -53,6 +53,15 @@ export default async function (app: FastifyInstance) {
     if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
     const limit = Number((req.query as { limit?: string }).limit) || 200;
     return listGraph(repoDir, limit);
+  });
+
+  // SPEC-233 · cari commit (message/author/hash/all) lintas semua ref.
+  app.get("/projects/:id/graph/search", async (req, reply) => {
+    const repoDir = await repoOf((req.params as { id: string }).id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    const { q, by } = req.query as { q?: string; by?: string };
+    const kind = (["all", "message", "author", "hash"].includes(by ?? "") ? by : "all") as "all" | "message" | "author" | "hash";
+    return { shas: await searchCommits(repoDir, q ?? "", kind) };
   });
 
   // SPEC-233 · status working tree untuk baris "uncommitted changes" di graph.

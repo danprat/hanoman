@@ -28,6 +28,7 @@ export const paths = {
     `${API}/projects/${id}/file${path ? `?path=${encodeURIComponent(path)}${ref ? `&ref=${encodeURIComponent(ref)}` : ""}` : ""}`,
   ideGraph: (id: string, limit = 200) => `${API}/projects/${id}/graph?limit=${limit}`,
   ideStatus: (id: string) => `${API}/projects/${id}/status`, // SPEC-233 · status working tree
+  ideSearch: (id: string, q: string, by = "all") => `${API}/projects/${id}/graph/search?q=${encodeURIComponent(q)}&by=${by}`, // SPEC-233
   ideStashes: (id: string) => `${API}/projects/${id}/stashes`, // SPEC-233 · daftar stash
 
   ideCommit: (id: string, sha: string) => `${API}/projects/${id}/commit/${sha}`,
