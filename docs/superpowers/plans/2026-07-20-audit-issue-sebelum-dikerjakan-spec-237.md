@@ -180,7 +180,7 @@ git commit -m "feat(runner): flow audit-only (Audit→Laporan, tanpa perbaikan) 
 - Consumes: `PIPELINES.audit` (Task 2), `REACHED` (map fase→stage).
 - Produces: `stageFor` mengembalikan `"done"` saat fase `Laporan` state `done`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambah di `server/test/session-phases.test.ts` (dalam describe `stageFor`, atau describe baru — pakai bentuk `Phase[]`):
 ```ts
@@ -196,12 +196,12 @@ describe("SPEC-237 · stage audit-only", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan gagal**
+- [x] **Step 2: Jalankan test — pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run test/session-phases.test.ts`
 Expected: FAIL (`Laporan` tak ada di REACHED → stage `objective`, bukan `done`).
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 `server/src/services/session-phases.ts:53-55` ganti `REACHED`:
 ```ts
@@ -211,12 +211,12 @@ const REACHED: Record<string, Stage> = {
 };
 ```
 
-- [ ] **Step 4: Jalankan test — pastikan lolos**
+- [x] **Step 4: Jalankan test — pastikan lolos**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run test/session-phases.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/session-phases.ts server/test/session-phases.test.ts
