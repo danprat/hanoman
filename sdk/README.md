@@ -88,8 +88,12 @@ cd sdk
 # 1. naikkan "version" di package.json (semver)
 pnpm build                 # emit dist/ (ESM, CJS, types, global IIFE)
 npm publish --dry-run      # verifikasi isi tarball (dist + README + LICENSE)
-npm publish                # butuh `npm whoami` terautentikasi; access publik
+npm publish --otp=123456   # akun ber-2FA WAJIB kirim OTP authenticator (6 digit);
+                           # atau pakai granular access token "bypass 2FA" via CI.
 npm view hanoman-sdk version
 ```
+
+> **2FA**: registry npm menolak publish tanpa OTP bila akun mengaktifkan two-factor (`403 … Two-factor
+> authentication … required`). Jalankan `npm publish --otp=<kode>` interaktif, atau set token granular.
 
 Snippet copy-paste lama tetap tersedia sebagai source di `sdk/src/`.

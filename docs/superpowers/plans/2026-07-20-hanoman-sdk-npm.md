@@ -580,7 +580,7 @@ git commit -m "docs(spec-254): hanoman-sdk npm-first README + ADR-0062 + SoT upd
 
 **Interfaces:** Consumes README (Task 3) + dist (Task 2).
 
-- [ ] **Step 1: Boot server & curl integration-guide (endpoint tersentuh oleh perubahan README)**
+- [x] **Step 1: Boot server & curl integration-guide (endpoint tersentuh oleh perubahan README)**
 
 Boot server terhadap DB throwaway (jangan `hanoman_test`; lihat memory "Live smoke: dedicated DB"). Contoh minimal — setup DB unik, migrate, build server, jalankan, login, curl:
 ```bash
@@ -598,12 +598,12 @@ kill %1 2>/dev/null || true
 ```
 Expected: `npm-first? true` (README baru tersaji di web). Bila boot ribet, minimal verifikasi route membaca file: konfirmasi `sdk/README.md` memuat `npm i hanoman-sdk` (route hanya `readFile` file itu).
 
-- [ ] **Step 2: Full repo test hijau**
+- [x] **Step 2: Full repo test hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm test`
 Expected: semua paket hijau (termasuk `sdk`). Perbaiki bila ada regresi sebelum lanjut.
 
-- [ ] **Step 3: Build + dry-run publish**
+- [x] **Step 3: Build + dry-run publish**
 
 Run:
 ```bash
@@ -612,7 +612,7 @@ cd sdk && npm publish --dry-run 2>&1 | tail -20 && cd ..
 ```
 Expected: tarball berisi `dist/**` (index.js, index.cjs, index.d.ts, hanoman.global.js), `README.md`, `LICENSE`, `package.json`. Tak ada `src/` atau `test/` (karena `files` membatasi ke `dist`).
 
-- [ ] **Step 4: Publish (kredensial siap)**
+- [x] **Step 4: Publish (kredensial siap)**
 
 Prasyarat: `npm whoami` = `denameidina` (sudah dikonfirmasi), nama `hanoman-sdk` tersedia (404, dikonfirmasi).
 Run:
@@ -624,7 +624,7 @@ Expected: publish sukses; `npm view hanoman-sdk version` → `0.1.0`.
 
 **Fallback** (bila publish gagal karena OTP/2FA/registry/izin): JANGAN paksa. Laporkan error apa adanya; package tetap fully-publishable (dry-run hijau) + runbook di `sdk/README.md`. Operator menjalankan `npm publish` manual. Ini memenuhi AC-5 (publish atau publishable+dilaporkan).
 
-- [ ] **Step 5: Commit (bila ada perubahan, mis. version bump) & tandai plan selesai**
+- [x] **Step 5: Commit (bila ada perubahan, mis. version bump) & tandai plan selesai**
 
 ```bash
 git add -A sdk docs/superpowers/plans
