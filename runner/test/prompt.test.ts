@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { PIPELINES, startPrompt, startProjectPrompt, continuePrompt, startPrdPrompt, startScaffoldPrompt } from "../src/prompt";
+import { PIPELINES, startPrompt, startProjectPrompt, continuePrompt, startPrdPrompt, startScaffoldPrompt, resolvePhaseModels } from "../src/prompt";
 
 const spec = { id: "SPEC-162", title: "Sesi interaktif", source: "brief",
   priority: "high", objective: "Ganti runOne dengan tmux" };
@@ -275,5 +275,38 @@ describe("startScaffoldPrompt", () => {
 
   it("tanpa klausa penyelesaian plan (tak ada fase Plan+Execute)", () => {
     expect(startScaffoldPrompt(project, "scaffold-docs")).not.toContain("Execute BELUM selesai");
+  });
+});
+
+// SPEC-238 · ADR-0057 — model & effort per fase
+describe("resolvePhaseModels + prompt per-fase", () => {
+  const fb = { model: "claude-opus-4-8", effort: "xhigh" };
+  it("launch = fallback bila fase pertama tak punya override; sel kosong fallback", () => {
+    const r = resolvePhaseModels("feature", { Spec: { model: "claude-sonnet-5" } }, fb);
+    expect(r.launch).toEqual({ model: "claude-opus-4-8", effort: "xhigh" });
+    const specRow = r.perPhase.find((p) => p.phase === "Spec")!;
+    expect(specRow.model).toBe("claude-sonnet-5");
+    expect(specRow.effort).toBe("xhigh"); // effort kosong → fallback
+  });
+  it("launch memakai override fase pertama bila ada", () => {
+    const r = resolvePhaseModels("feature", { Brainstorm: { model: "claude-sonnet-5", effort: "high" } }, fb);
+    expect(r.launch).toEqual({ model: "claude-sonnet-5", effort: "high" });
+  });
+  it("prompt seragam (tanpa override) TAK memuat blok per-fase", () => {
+    const { perPhase } = resolvePhaseModels("feature", {}, fb);
+    const p = startPrompt("feature", spec, "b", perPhase);
+    expect(p).not.toContain("Model & effort per fase");
+    expect(p).not.toContain("/model claude");
+  });
+  it("prompt dengan variasi memuat baris /model + /effort tiap fase", () => {
+    const { perPhase } = resolvePhaseModels("feature", { Execute: { effort: "max" } }, fb);
+    const p = startPrompt("feature", spec, "b", perPhase);
+    expect(p).toContain("Model & effort per fase");
+    expect(p).toContain("/effort max");
+    expect(p).toContain("/model claude-opus-4-8");
+  });
+  it("startPrompt tanpa arg perPhase tak berubah (backward-compatible)", () => {
+    const p = startPrompt("feature", spec, "b");
+    expect(p).not.toContain("Model & effort per fase");
   });
 });

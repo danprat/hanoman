@@ -117,7 +117,7 @@ git commit -m "feat(shared): zSetting.phaseModels + MODELS/EFFORTS (Fable/max/ul
 - Consumes: `PIPELINES` (sudah ada, `runner/src/prompt.ts:4`), tipe `Flow` (`runner/src/types.ts`).
 - Produces: `type PhaseModel = { phase: string; model: string; effort: string }`; `resolvePhaseModels(flow, overrides, fallback) → { launch: {model,effort}; perPhase: PhaseModel[] }`; parameter opsional ke-4 `perPhase?: PhaseModel[]` pada `startPrompt`, `startProjectPrompt`, `startPrdPrompt`, `startScaffoldPrompt` (BUKAN `continuePrompt`). Ter-export via barrel `runner/src/index.ts` (`export * from "./prompt"` sudah ada).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Di `runner/test/prompt.test.ts`, tambah `resolvePhaseModels` ke import baris 2, lalu blok baru:
 
@@ -155,12 +155,12 @@ describe("resolvePhaseModels + prompt per-fase (SPEC-238)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd runner && npx vitest run test/prompt.test.ts -t "per-fase"`
 Expected: FAIL — `resolvePhaseModels` is not exported / `startPrompt` takes 3 args.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Di `runner/src/prompt.ts`, setelah definisi `PIPELINES` (baris ~10), tambah:
 
@@ -220,12 +220,12 @@ export function startPrompt(flow: Flow, spec: SpecBrief, branchTo: string, perPh
 
 Lakukan hal yang sama (tambah param `perPhase?: PhaseModel[]` dan sisipkan `phaseModelInstruction(perPhase)` tepat setelah baris `phaseInstruction(...)`) pada: `startProjectPrompt` (baris ~138), `startPrdPrompt` (baris ~158), `startScaffoldPrompt` (baris ~199). JANGAN ubah `continuePrompt` (fase tunggal Execute — tak perlu tabel).
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd runner && npx vitest run test/prompt.test.ts`
 Expected: PASS (blok baru + semua test prompt lama tetap hijau).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runner/src/prompt.ts runner/test/prompt.test.ts
