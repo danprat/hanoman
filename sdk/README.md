@@ -1,8 +1,8 @@
-# hanoman error SDK/snippet (SPEC-249 · ADR-0060)
+# hanoman-sdk — error monitoring untuk project apa pun (SPEC-249/254 · ADR-0060/0063)
 
-Kirim error dari project apa pun ke **hanoman** (Sentry ringan). hanoman mengelompokkan error identik jadi grup, menampilkannya di area **Errors**, memberi notifikasi saat grup produksi baru muncul, dan bisa dieskalasikan sekali klik jadi backlog (`Spec`).
+Kirim error dari project-mu ke **hanoman** (Sentry ringan). hanoman mengelompokkan error identik jadi grup, menampilkannya di area **Errors**, memberi notifikasi saat grup produksi baru muncul, dan bisa dieskalasikan sekali klik jadi backlog (`Spec`).
 
-> Helper ini **in-repo & copy-paste** — belum dipublish ke npm (pasca-MVP). Salin file yang kamu butuh ke project-mu.
+> Isomorphic (Node + browser), **fire-and-forget** (hanoman down ≠ app crash), **tanpa dependency**. SDK ini akan tumbuh (logs, monitoring) — untuk sekarang: error capture.
 
 ## 1. Dapatkan DSN
 
@@ -14,12 +14,18 @@ https://<host-hanoman>/api/ingest/<project-slug>?key=hnm_ing_xxxxxxxx
 
 **Plaintext hanya ditampilkan sekali** — salin & simpan (mis. env `HANOMAN_DSN`). Bocor/hilang → **Rotate** (key lama langsung ditolak; tanpa grace). Nonaktifkan → **Revoke**.
 
-## 2. Node/TS (`sdk/node/hanoman-error.ts`)
+## 2. Install
+
+```bash
+npm i hanoman-sdk    # atau: pnpm add hanoman-sdk / yarn add hanoman-sdk
+```
+
+## 3. Node / TypeScript
 
 ```ts
-import { initHanomanErrors, captureError } from "./hanoman-error";
+import { init, captureError } from "hanoman-sdk";
 
-initHanomanErrors({
+init({
   dsn: process.env.HANOMAN_DSN!,   // URL DSN dari hanoman
   environment: "production",       // hanya "production" yang memicu notifikasi grup baru
   release: "1.2.3",                // opsional
@@ -30,22 +36,29 @@ initHanomanErrors({
 try { risky(); } catch (e) { captureError(e, { route: "/checkout" }); }
 ```
 
-- **Fire-and-forget**: hanoman down / lambat **tidak** menjatuhkan app (kegagalan ditelan).
-- Butuh `fetch` global (Node ≥ 18).
+- Butuh `fetch` global (Node ≥ 18). `init()` no-op bila `dsn` kosong.
+- Kompatibel mundur: `initHanomanErrors` = alias `init` (nama lama tetap jalan).
 
-## 3. Browser (`sdk/browser/hanoman-error.js`)
+## 4. Browser
 
+**Via bundler (npm):**
+```ts
+import { init } from "hanoman-sdk";
+init({ dsn: "https://hanoman.example/api/ingest/my-project?key=hnm_ing_...", environment: "production" });
+```
+
+**Via `<script>` (tanpa bundler, CDN):**
 ```html
 <script>
   window.HANOMAN_DSN = "https://hanoman.example/api/ingest/my-project?key=hnm_ing_...";
   window.HANOMAN_OPTS = { environment: "production", release: "1.2.3" };
 </script>
-<script src="/hanoman-error.js"></script>
+<script src="https://unpkg.com/hanoman-sdk/dist/hanoman.global.js"></script>
 ```
 
 Memasang `window.onerror` + `unhandledrejection`; POST via `fetch` `keepalive`. Endpoint ingest membalas header CORS (`Access-Control-Allow-Origin: *`) sehingga pengiriman lintas-origin dari browser diterima.
 
-## 4. Payload (JSON generik)
+## 5. Payload (JSON generik)
 
 Bahasa apa pun bisa POST tanpa perubahan server:
 
@@ -65,3 +78,22 @@ Bahasa apa pun bisa POST tanpa perubahan server:
 ## Grouping & eskalasi
 
 Error identik (tipe + pesan ternormalisasi + frame stack teratas) digabung jadi satu grup dengan hitungan, first/last-seen. Di area **Errors** hanoman, buka grup → **Eskalasi ke backlog** membuat `Spec` (QA) prefilled dari pesan + stack + tautan balik ke grup, lalu masuk alur backlog (audit → plan → execute).
+
+## Rilis (maintainer hanoman)
+
+Package dibangun dari `sdk/src/**` (source di repo hanoman). Untuk merilis versi baru:
+
+```bash
+cd sdk
+# 1. naikkan "version" di package.json (semver)
+pnpm build                 # emit dist/ (ESM, CJS, types, global IIFE)
+npm publish --dry-run      # verifikasi isi tarball (dist + README + LICENSE)
+npm publish --otp=123456   # akun ber-2FA WAJIB kirim OTP authenticator (6 digit);
+                           # atau pakai granular access token "bypass 2FA" via CI.
+npm view hanoman-sdk version
+```
+
+> **2FA**: registry npm menolak publish tanpa OTP bila akun mengaktifkan two-factor (`403 … Two-factor
+> authentication … required`). Jalankan `npm publish --otp=<kode>` interaktif, atau set token granular.
+
+Snippet copy-paste lama tetap tersedia sebagai source di `sdk/src/`.

@@ -32,10 +32,11 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 - [vps-compliance](architecture/vps-compliance.md) — kerangka kepatuhan checklist 232 item (SPEC-220 · ADR-0050)
 
 ## integrasi (untuk project yang memakai hanoman)
-- [SDK/snippet error monitoring](../../sdk/README.md) — cara project lain mengirim error ke hanoman: dapatkan DSN → helper Node/TS (`sdk/node/hanoman-error.ts`) atau browser (`sdk/browser/hanoman-error.js`) → payload JSON generik (bahasa apa pun) → grouping & eskalasi ke backlog (SPEC-249 · ADR-0060)
+- [SDK error monitoring — npm `hanoman-sdk`](../../sdk/README.md) — cara project lain mengirim error ke hanoman: `npm i hanoman-sdk` → `init({ dsn })` + `captureError()` (Node/browser) atau POST JSON generik langsung → grouping & eskalasi ke backlog (SPEC-249/254 · ADR-0060/0063)
 
 ## adr
 > Nomor unik & imutable. ADR usang tidak dihapus — ditandai statusnya di bawah dan di header masing-masing.
+- [0063 — hanoman-sdk sebagai npm package publik (extensible, errors dulu)](adr/0063-hanoman-sdk-npm-package.md) — **memperluas 0060** (SPEC-254)
 - [0062 — Help Center: model tiket + endpoint publik ber-scope-project + jembatan triase→backlog](adr/0062-help-center-tiket-publik-triase.md) — **memperluas 0060/0028/0033/0039** (SPEC-253)
 - [0061 — Model & effort per sesi (picker saat Start), mencabut matrix per-fase](adr/0061-model-effort-per-sesi-picker-start.md) — **mengamandemen 0058** (SPEC-252)
 - [0060 — Error monitoring: model baru + ingest ber-DSN sebagai pengecualian auth](adr/0060-error-monitoring-ingest-ber-dsn.md) — **memperluas 0028/0033/0039/0040** (SPEC-249)

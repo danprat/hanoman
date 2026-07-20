@@ -1,0 +1,29 @@
+{
+  "name": "hanoman-sdk",
+  "version": "0.1.0",
+  "description": "Kirim error dari project apa pun ke hanoman (Sentry ringan). Node + browser, fire-and-forget.",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=18" },
+  "keywords": ["hanoman", "error-monitoring", "sentry", "observability", "sdk"],
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js", "require": "./dist/index.cjs" },
+    "./global": "./dist/hanoman.global.js"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "unpkg": "./dist/hanoman.global.js",
+  "jsdelivr": "./dist/hanoman.global.js",
+  "sideEffects": false,
+  "files": ["dist", "README.md", "LICENSE"],
+  "publishConfig": { "access": "public" },
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "pnpm clean && esbuild src/index.ts --bundle --format=esm --platform=neutral --outfile=dist/index.js && esbuild src/index.ts --bundle --format=cjs --platform=node --outfile=dist/index.cjs && esbuild src/browser-global.ts --bundle --format=iife --minify --outfile=dist/hanoman.global.js && tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "pnpm build"
+  },
+  "devDependencies": { "esbuild": "^0.28.0" }
+}

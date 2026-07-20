@@ -39,8 +39,8 @@
     error project lain (AC PRD).
   - **Ketahanan**: caps payload (message ≤ 2 KB, stack ≤ 16 KB, body ≤ 64 KB → 413) + rate-limit token-bucket
     in-memory per project (429) + retensi opportunistic. DSN browser inheren semi-publik (ship di bundle
-    klien) — batasnya adalah rotate/revoke + rate-limit, bukan kerahasiaan.
-  - **PII**: payload disimpan **apa adanya** (scrub PII pasca-MVP, Open question PRD) — SDK/snippet
+    npm `hanoman-sdk` / snippet browser) — batasnya adalah rotate/revoke + rate-limit, bukan kerahasiaan.
+  - **PII**: payload disimpan **apa adanya** (scrub PII pasca-MVP, Open question PRD) — SDK `hanoman-sdk`
     diingatkan tak mengirim rahasia/PII di `message`/`context`.
 - **Help Center publik (SPEC-253, [ADR-0062](../adr/0062-help-center-tiket-publik-triase.md))**:
   `/api/help/*` adalah **pengecualian sah** gate `/api` — dipanggil pengguna akhir tanpa sesi login.

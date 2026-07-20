@@ -308,8 +308,10 @@ PATCH /errors/:id            { status }   # 200 { id, status } — status ∈ ne
 > (`server/src/services/error-fingerprint.ts`) → varian dari error yang sama jatuh ke satu grup.
 > **Notifikasi** grup PRODUKSI baru → `Notification { type:"error", key:"error:<groupId>" }` (dedup),
 > tersiar lewat grup `notifications` WS existing. **Retensi** opportunistic-on-write: cap event per grup
-> (default 50) + umur (default 30 hari) — tanpa scheduler global. **SDK/snippet** in-repo di `sdk/**`
-> (Node + browser; DSN gaya Sentry). Model `ErrorGroup`/`ErrorEvent` server-local (tanpa sync). Realtime
+> (default 50) + umur (default 30 hari) — tanpa scheduler global. **SDK** = npm package publik
+> `hanoman-sdk` (SPEC-254 · ADR-0063; source `sdk/src/**`, Node + browser, DSN gaya Sentry); `GET
+> /errors/integration-guide` tetap menyajikan `sdk/README.md` apa adanya. Model `ErrorGroup`/`ErrorEvent`
+> server-local (tanpa sync). Realtime
 > area Error = **HTTP polling** (silent poll, pola GitGraph), bukan kanal WS baru (ADR-0039).
 
 ## Help Center (SPEC-253 · ADR-0062)
