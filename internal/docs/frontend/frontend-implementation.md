@@ -379,3 +379,31 @@ menotifikasi **grup produksi baru** (dedup `key`), tersiar lewat grup `notificat
 
 **SDK/snippet** copy-paste di `sdk/**` (Node `sdk/node/hanoman-error.ts`, browser `sdk/browser/hanoman-error.js`,
 `sdk/README.md`) — DSN gaya Sentry, fire-and-forget.
+
+## Help Center — halaman publik + Triase + kartu link (SPEC-253 · ADR-0062)
+
+**Rute publik pertama di SPA.** `main.tsx` men-mount `<PublicHelpApp/>` (`public/PublicHelpApp.tsx`) saat
+`location.pathname` diawali `/help/` — **tanpa** `AuthProvider`/Shell/login; selainnya `<App/>` biasa.
+Fallback `index.html` sudah ada (prod `setNotFoundHandler`; dev Vite historyApiFallback) → bundle yang sama
+melayani keduanya, **nol perubahan server** untuk menyajikan halaman. `PublicHelpApp` mem-parse path:
+`/help/:slug` → **form keluhan** (Select kategori, judul, detail, email, input file ≤3 gambar + preview,
+field honeypot `hp` tersembunyi) yang submit multipart via `api/help.ts` (`helpApi`, same-origin fetch) lalu
+menampilkan **nomor tiket + link status berkode** (Salin); `/help/:slug/status/:key` → **status publik**
+terpetakan otomatis. Layout minimal (bone paper, `Card`/`Button`/`Select`/`StateBlock` DS tanpa context auth).
+
+**Triase** (nav `triage` "Triase" `inbox` di `HN_NAV`; cabang `section === "triage"` di `App.tsx`, pola VPS/Errors
+— screen mandiri, tak lewat `gate`). `screens/TriageScreen.tsx`: **self-fetch + silent poll 5s** (pola
+`ErrorsScreen`, `!document.hidden`). Master→detail: daftar tiket (Badge status + kategori, judul, email, waktu
+relatif, badge **"belum ditinjau"** dari `unreviewed`) + filter project/status + cari; detail = isi penuh +
+**lampiran** (thumbnail via `GET /tickets/:id/attachments/:attId`, ber-auth same-origin) + email + tombol
+**Terima** (Select prioritas → `api.acceptTicket`) & **Tolak** (`window.confirm` → `api.rejectTicket`) + tautan
+`→ SPEC-N` bila sudah promoted. **Terima** → `onAccepted(spec)` → `setProjectFilter` + `setSection("backlog")` + toast.
+
+**Kartu Help Center** di `ProjectDetailScreen.tsx` (`HelpCenterCard`, cermin `DsnCard`): toggle
+Aktifkan/Nonaktifkan (`api.enableHelpCenter`/`disableHelpCenter`); saat aktif tampil **link publik**
+(`<base>/help/<slug>`, dari `api.getHelpCenter`) + tombol **Salin**.
+
+**Notifikasi tiket** (reuse jalur existing): `zNotification.type` menerima `ticket`; `toastFor` → tone warn +
+icon `inbox`; `NotificationBell` per-tipe (icon/warna brass, label "keluhan baru", aksi "Lihat triase");
+`notifTarget` → `{ section: "triage", projectFilter }`. Server menotifikasi **setiap** tiket baru (dedup `key`),
+tersiar lewat grup `notifications` WS existing.

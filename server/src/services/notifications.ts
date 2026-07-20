@@ -43,6 +43,19 @@ export async function recordNewErrorGroup(
   }).catch(() => { /* P2002: sudah ada untuk grup ini */ });
 }
 
+// SPEC-253 · ADR-0062 · notif saat tiket Help Center baru masuk. Dedup `key: ticket:<ticketId>`
+// idempoten (insert kedua kena P2002, diabaikan). Setiap tiket baru menotifikasi (bukan hanya
+// "grup baru" seperti error) — volume manusiawi, dijaga rate-limit di endpoint publik.
+export async function recordNewTicket(
+  ticketId: string, projectId: string, projectName: string, category: string, title: string,
+): Promise<void> {
+  const short = title.length > 80 ? title.slice(0, 77) + "…" : title;
+  const t = `Keluhan baru di "${projectName}": ${category}: ${short}`;
+  await prisma.notification.create({
+    data: { type: "ticket", key: `ticket:${ticketId}`, projectId, title: t },
+  }).catch(() => { /* P2002: sudah ada untuk tiket ini */ });
+}
+
 type DecisionSession = { id: string; specId?: string; projectId: string; decisionFile: string };
 
 // SPEC-184 · episode per-sesi. Di-rebuild tiap scan dari kondisi marker: sesi mati hilang dari

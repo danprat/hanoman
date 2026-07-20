@@ -71,6 +71,49 @@ function DsnCard({ p, onToast }: { p: ProjectVM; onToast: (msg: string, kind?: s
   );
 }
 
+// SPEC-253 · kartu Help Center: toggle aktif + link publik yang bisa disalin & disebar. Link terikat
+// Project.id (slug), stabil. Init dari VM, update lokal saat aksi.
+function HelpCenterCard({ p, onToast }: { p: ProjectVM; onToast: (msg: string, kind?: string, icon?: string) => void }) {
+  const [enabled, setEnabled] = React.useState(p.helpEnabled);
+  const [busy, setBusy] = React.useState(false);
+  // Link publik same-origin — dibangun di klien (setara publicUrl server), tanpa fetch saat mount.
+  const publicUrl = `${window.location.origin}/help/${encodeURIComponent(p.id)}`;
+
+  async function enable() {
+    setBusy(true);
+    try { await api.enableHelpCenter(p.id); setEnabled(true); onToast("Help Center aktif", "ok", "inbox"); }
+    catch { onToast("Gagal mengaktifkan Help Center", "err", "x-circle"); }
+    finally { setBusy(false); }
+  }
+  async function disable() {
+    if (!window.confirm(`Nonaktifkan Help Center project "${p.name}"? Link publik berhenti menerima keluhan baru (tiket lama tetap ada).`)) return;
+    setBusy(true);
+    try { await api.disableHelpCenter(p.id); setEnabled(false); onToast("Help Center nonaktif", "ok", "inbox"); }
+    catch { onToast("Gagal menonaktifkan Help Center", "err", "x-circle"); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <Card eyebrow="help center" title="Link publik keluhan"
+      actions={enabled
+        ? <Button size="sm" variant="ghost" leftIcon="ban" onClick={disable} disabled={busy}>Nonaktifkan</Button>
+        : <Button size="sm" leftIcon="inbox" onClick={enable} disabled={busy}>Aktifkan</Button>}>
+      <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.5 }}>
+        Saat aktif, sebar link ini agar pengguna project melapor keluhan tanpa login. Keluhan masuk ke antrean Triase.
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <Badge tone={enabled ? "ok" : "neutral"} size="sm">{enabled ? "aktif" : "nonaktif"}</Badge>
+        {enabled && publicUrl && (
+          <>
+            <code style={{ fontFamily: "var(--font-mono)", fontSize: 12.5, color: "var(--text-body)", wordBreak: "break-all" }}>{publicUrl}</code>
+            <Button size="sm" leftIcon="copy" onClick={() => { void navigator.clipboard?.writeText(publicUrl); onToast("Link disalin", "ok", "copy"); }}>Salin</Button>
+          </>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 function Meta({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div>
@@ -140,6 +183,7 @@ export function ProjectDetailScreen({ p, onEdit, onGotoDocs, onGotoTerminal, onG
       </Card>
 
       <DsnCard p={p} onToast={onToast} />
+      <HelpCenterCard p={p} onToast={onToast} />
 
       <div style={{ display: "grid", gridTemplateColumns: `repeat(${onReverse || onScaffold ? 4 : 3}, 1fr)`, gap: 12 }}>
         <Door icon="book-open" title="Source of Truth" hint="baca & sunting docs" onClick={onGotoDocs} />

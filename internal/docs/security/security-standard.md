@@ -42,3 +42,20 @@
     klien) — batasnya adalah rotate/revoke + rate-limit, bukan kerahasiaan.
   - **PII**: payload disimpan **apa adanya** (scrub PII pasca-MVP, Open question PRD) — SDK/snippet
     diingatkan tak mengirim rahasia/PII di `message`/`context`.
+- **Help Center publik (SPEC-253, [ADR-0062](../adr/0062-help-center-tiket-publik-triase.md))**:
+  `/api/help/*` adalah **pengecualian sah** gate `/api` — dipanggil pengguna akhir tanpa sesi login.
+  Gate cookie di-bypass untuk prefix `/api/help` (cermin `/api/ingest`); route mengotorisasi sendiri.
+  - **Otorisasi non-cookie**: submit/info oleh `Project.helpEnabled` (nonaktif/project asing → **404
+    generik**, tak enumerasi); cek status oleh **kunci opaque tiket** `hnm_tkt_<hex>`, disimpan
+    **hash-at-rest** `sha256(key)` (**@unique**, `accessKeyHash` **TAK PERNAH** ke client/log), lookup
+    by hash + diverifikasi milik slug (404 tanpa membocorkan keberadaan tiket/project lain). Plaintext
+    kunci hanya ditampilkan **sekali** di layar setelah submit.
+  - **Isolasi antar-project**: query tiket/lampiran selalu ber-scope `projectId`; satu Help Center tak
+    pernah membaca/menulis tiket project lain.
+  - **Lampiran**: berkas di `HANOMAN_UPLOAD_DIR` (server-local, **di luar repoDir, tak disync**), nama
+    opaque `uuid+ext` (bukan input user → tanpa path traversal), disajikan **hanya ber-auth**
+    (`GET /api/tickets/:id/attachments/:attId` di belakang gate); halaman status publik tak menampilkannya
+    balik. Batas: ≤3 berkas, ≤5MB, mime gambar; invalid di-skip (submit sisanya tetap jadi).
+  - **Ketahanan**: rate-limit token-bucket in-memory **per IP & per project** (429) + **honeypot** (`hp`
+    terisi → 200 palsu, tak buat tiket) + caps field. **Bukan** anti-spam berat (tanpa CAPTCHA/verifikasi
+    email) — spam disaring saat triase (Non-goal PRD). PII isi/lampiran disimpan apa adanya (scrub pasca-MVP).

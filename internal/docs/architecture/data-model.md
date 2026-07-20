@@ -2,11 +2,12 @@
 
 Entitas inti (Postgres via Prisma). **Tujuh model inti**: Project, Spec, Setting, Notification, User,
 Session, Vps — plus model pendukung (VpsAuditSnapshot/VpsItemState, DeviceToken, SessionResult, SyncLog,
-LocalBinding, SyncOutbox, SyncState, RuntimeConfig) dan **model error monitoring** (`ErrorGroup`,
-`ErrorEvent`, SPEC-249/[ADR-0060](../adr/0060-error-monitoring-ingest-ber-dsn.md)). Tidak ada model `Run`
-maupun `Trigger` — keduanya di-drop saat pindah ke sesi interaktif (ADR-0024; migrasi
-`drop_run_trigger_github`). Enum stage/source/priority/error-status disimpan sebagai `String` dan
-divalidasi zod di `@hanoman/shared` (`enums.ts`), bukan enum Prisma.
+LocalBinding, SyncOutbox, SyncState, RuntimeConfig), **model error monitoring** (`ErrorGroup`,
+`ErrorEvent`, SPEC-249/[ADR-0060](../adr/0060-error-monitoring-ingest-ber-dsn.md)) dan **model Help
+Center** (`Ticket`, `TicketAttachment`, SPEC-253/[ADR-0062](../adr/0062-help-center-tiket-publik-triase.md)).
+Tidak ada model `Run` maupun `Trigger` — keduanya di-drop saat pindah ke sesi interaktif (ADR-0024; migrasi
+`drop_run_trigger_github`). Enum stage/source/priority/error-status/ticket-status/ticket-category disimpan
+sebagai `String` dan divalidasi zod di `@hanoman/shared` (`enums.ts`), bukan enum Prisma.
 
 ## Project
 - `id` (slug) — **kekal**. Kunci asing `Spec` (`onDelete: Cascade`); tidak ada endpoint rename.
@@ -24,10 +25,17 @@ divalidasi zod di `@hanoman/shared` (`enums.ts`), bukan enum Prisma.
   kunci ingest error hash-at-rest (`sha256(key)`) + hint prefix untuk UI. `null` = monitoring off.
   **`ingestKeyHash` TAK PERNAH ke client/log**; `toProjectView` hanya mengekspos `monitoringEnabled`
   (`!!ingestKeyHash`) + `ingestKeyPrefix`.
+- `helpEnabled` (Boolean, default false · SPEC-253 · [ADR-0062](../adr/0062-help-center-tiket-publik-triase.md)) —
+  flag opt-in Help Center publik. Link publik `/help/<id>` menerima keluhan HANYA bila aktif. Additive;
+  diekspos di `toProjectView` sebagai `helpEnabled`.
 - `docStatus` ("ok" | "drift" | "broken") + `coverage` (0–100) **bukan kolom** — diturunkan dari disk tiap `toProjectView` (ADR-0018).
 
 ## Spec (backlog item)
-- `id` (SPEC-n), `projectId`, `title`, `source` ("brief" | "qa" | "audit")
+- `id` (SPEC-n), `projectId`, `title`, `source` ("brief" | "qa" | "audit" | "help")
+  - **`help`** (SPEC-253/[ADR-0062](../adr/0062-help-center-tiket-publik-triase.md)): backlog hasil
+    promosi tiket Help Center. `flowForSource("help") = "feature"` (pipeline penuh), payload brief-shaped
+    (context berisi keluhan + kategori + pelapor + backlink tiket). Author `Help ·`. Tanpa migration
+    (source = String + zod, bukan enum Prisma).
   - **`audit`** (SPEC-237/[ADR-0057](../adr/0057-audit-only-source-flow.md)): audit-only. Flow `audit`
     (pipeline `Audit → Laporan`) hanya menghasilkan **dokumen audit** `internal/docs/research/audit-<spec-id>-<slug>.md`
     — TANPA perbaikan kode. Stage `done` dicapai lewat fase `Laporan` (`REACHED.Laporan="done"`); tak ada
@@ -81,7 +89,8 @@ Singleton `id = 1`, kolom `data` (Json) berbentuk `zSetting`:
 ## Notification (SPEC-180/184, [ADR-0033](../adr/0033-notifikasi-backlog-selesai.md), [ADR-0036](../adr/0036-notifikasi-human-decision.md))
 Dua tipe: `done` (backlog masuk `done`, dibuat di `advanceStage()` & write-through `GET /specs`)
 dan `decision` (sesi Claude menunggu keputusan manusia, dibuat `scanDecisions()` di `GET /notifications`).
-- `id` (cuid), `type` (`done|decision`, default `done`).
+- `id` (cuid), `type` (`done|decision|drift|error|ticket`, default `done`; `error` SPEC-249, `ticket`
+  SPEC-253 — grup error produksi baru / keluhan Help Center baru. Longgar String → tanpa migration kolom).
 - `key` **@unique** nullable — dedup selesai `"done:<specId>"` (insert kedua kena P2002, diabaikan);
   `null` untuk decision (di-dedup di sisi scan via `Set` episode; NULL berulang diizinkan Postgres).
 - `specId` (nullable — sesi reverse tak punya spec), `sessionId` (target redirect terminal),
@@ -125,6 +134,25 @@ Error monitoring (Sentry ringan). **Server-local** — seperti `Notification`, *
 - Ingest publik `POST /api/ingest/:slug` diotorisasi **DSN** (`Project.ingestKeyHash`) — pengecualian
   sah gate `/api` (ADR-0060). Grup produksi **baru** → `Notification` type `error`. Eskalasi →
   `Spec` source qa (`fromErrorGroup`). Rate-limit token-bucket in-memory + caps payload.
+
+## Ticket / TicketAttachment (SPEC-253 · [ADR-0062](../adr/0062-help-center-tiket-publik-triase.md))
+Help Center: keluhan pengguna akhir → antrean triase → promosi ke backlog. **Server-local** — seperti
+`ErrorGroup`, **tanpa** `version`/sync (volume rendah, satu workspace); tautan ke `Spec` (tersync)
+satu-arah soft-link. `status`/`category` = `String` + zod (`zTicketStatus`/`zTicketCategory`), bukan enum Prisma.
+- **`Ticket`** — tiket keluhan per project: `id` (cuid), `projectId`→Project (cascade), `number` (nomor
+  pendek human-readable per project), `category` (`bug|fitur|pertanyaan|lainnya`), `title`, `detail`,
+  `reporterEmail`, `status` (`new`|`accepted`|`rejected`, default `new`), `accessKeyHash` (**@unique**,
+  `sha256(kunci opaque)` untuk cek status — plaintext hanya sekali; **TAK PERNAH ke client/log**),
+  `specId?` (tautan Spec hasil promosi), `createdAt`, `updatedAt`. Unik `(projectId, number)`; index
+  `(projectId, createdAt)`. Nomor dihitung `max+1` per project (retry P2002, cermin `nextSpecId`).
+- **`TicketAttachment`** — lampiran gambar: `id`, `ticketId`→Ticket (cascade), `projectId` (denormal,
+  isolasi), `filename` (display), `mimeType`, `size`, `storageKey` (nama opaque `uuid+ext` di
+  `HANOMAN_UPLOAD_DIR` — server-local, **di luar repoDir, tak disync**), `createdAt`. Index `(ticketId)`.
+- Submit publik `POST /api/help/:slug/tickets` (multipart) diotorisasi **`Project.helpEnabled`**; cek status
+  `GET /api/help/:slug/tickets/:key` diotorisasi **kunci opaque** — pengecualian sah gate `/api` (ADR-0062).
+  Tiket baru → `Notification` type `ticket`. Promosi (`POST /tickets/:id/accept`) → `Spec` source `help`
+  (payload brief-shaped + backlink). Status publik **diturunkan** (`publicStatus`) dari status tiket +
+  `stage` Spec. Rate-limit token-bucket in-memory (per IP & per project) + honeypot + retensi opportunistic.
 
 ## Docs (Source of Truth) — TIDAK dipersist
 Docs bukan entitas DB. Tabel `DocFile` sudah di-drop (ADR-0011). Docs dibaca **live dari path

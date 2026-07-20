@@ -20,8 +20,10 @@ model Project {
   updatedAt DateTime @default(now())
   ingestKeyHash   String? // SPEC-249 · sha256(ingest key) hex; null = monitoring off. TAK PERNAH ke client.
   ingestKeyPrefix String? // SPEC-249 · ~12-16 char awal key untuk hint UI (bukan rahasia)
+  helpEnabled Boolean @default(false) // SPEC-253 · opt-in Help Center publik
   specs       Spec[]
   errorGroups ErrorGroup[]
+  tickets     Ticket[]
 }
 
 model Spec {
@@ -247,4 +249,40 @@ model ErrorEvent {
 
   @@index([groupId, receivedAt])
   @@index([projectId, receivedAt])
+}
+
+// SPEC-253 · ADR-0062 · tiket keluhan Help Center (server-local, tanpa version/sync — cermin ErrorGroup).
+model Ticket {
+  id            String   @id @default(cuid())
+  projectId     String
+  number        Int      // nomor pendek human-readable per project (Tiket #<n>)
+  category      String   // bug | fitur | pertanyaan | lainnya (zTicketCategory)
+  title         String
+  detail        String
+  reporterEmail String
+  status        String   @default("new") // new | accepted | rejected (zTicketStatus)
+  accessKeyHash String   @unique // sha256(kunci opaque) — lookup cek status. Plaintext hanya sekali.
+  specId        String?  // soft-link Spec hasil promosi (cermin ErrorGroup.specId)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now())
+  project       Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  attachments   TicketAttachment[]
+
+  @@unique([projectId, number])
+  @@index([projectId, createdAt])
+}
+
+// SPEC-253 · ADR-0062 · lampiran gambar tiket. Berkas di HANOMAN_UPLOAD_DIR (server-local, tak disync).
+model TicketAttachment {
+  id         String   @id @default(cuid())
+  ticketId   String
+  projectId  String   // denormal — isolasi & query murah (pola ErrorEvent.projectId)
+  filename   String   // nama asli tersanitasi (display saja)
+  mimeType   String   // image/png | image/jpeg | image/webp
+  size       Int
+  storageKey String   // nama berkas opaque di upload dir (uuid+ext)
+  createdAt  DateTime @default(now())
+  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
 }

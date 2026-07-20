@@ -113,4 +113,31 @@ export default async function (app: FastifyInstance) {
     await enqueueOutbox("project", id); // SPEC-213 · antre push sync
     return reply.code(204).send();
   });
+
+  // SPEC-253 · ADR-0062 · Help Center publik per project (opt-in). Link publik terikat Project.id (slug).
+  app.get("/projects/:id/help-center", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const p = await prisma.project.findUnique({ where: { id } });
+    if (!p) return reply.code(404).send({ error: "not found" });
+    const base = `${req.protocol}://${req.headers.host ?? "localhost"}`;
+    return { enabled: p.helpEnabled, publicUrl: `${base}/help/${encodeURIComponent(id)}` };
+  });
+  app.post("/projects/:id/help-center", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const p = await prisma.project.findUnique({ where: { id } });
+    if (!p) return reply.code(404).send({ error: "not found" });
+    await prisma.project.update({ where: { id }, data: { helpEnabled: true } });
+    await enqueueOutbox("project", id); // SPEC-213 · antre push sync
+    const base = `${req.protocol}://${req.headers.host ?? "localhost"}`;
+    return { enabled: true, publicUrl: `${base}/help/${encodeURIComponent(id)}` };
+  });
+  app.delete("/projects/:id/help-center", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const p = await prisma.project.findUnique({ where: { id } });
+    if (!p) return reply.code(404).send({ error: "not found" });
+    // Nonaktifkan tanpa menghapus tiket yang sudah ada (AC PRD).
+    await prisma.project.update({ where: { id }, data: { helpEnabled: false } });
+    await enqueueOutbox("project", id); // SPEC-213 · antre push sync
+    return reply.code(204).send();
+  });
 }

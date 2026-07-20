@@ -18,6 +18,7 @@ import { ProjectsScreen } from "./screens/ProjectsScreen";
 import { ProjectDetailScreen } from "./screens/ProjectDetailScreen";
 import { BacklogScreen } from "./screens/BacklogScreen";
 import { ErrorsScreen } from "./screens/ErrorsScreen";
+import { TriageScreen } from "./screens/TriageScreen";
 import { PrdScreen, type PrdPrefill, type PrdBriefForm } from "./screens/PrdScreen";
 import { TerminalScreen } from "./screens/TerminalScreen";
 import { IdeScreen } from "./screens/IdeScreen";
@@ -775,6 +776,19 @@ export default function App() {
         <ErrorsScreen projects={projectsView} onToast={showToast}
           onEscalated={(spec, already) => {
             showToast(already ? `Sudah dieskalasi ke ${spec.id}` : `Dieskalasi ke ${spec.id}`, "ok", "arrow-up-right");
+            setProjectFilter(spec.projectId);
+            setSection("backlog");
+          }} />
+      </Shell>
+    );
+  } else if (section === "triage") {
+    // SPEC-253 · Help Center: antrean triase keluhan publik → terima jadi Spec / tolak.
+    // Screen mandiri (pola Errors) — memuat datanya sendiri (HTTP polling), tak lewat `gate`.
+    screen = (
+      <Shell active="triage" title="Triase" breadcrumb="keluhan · lapor → triase → backlog" onNavigate={setSection}>
+        <TriageScreen projects={projectsView} onToast={showToast}
+          onAccepted={(spec, already) => {
+            showToast(already ? `Tiket sudah jadi ${spec.id}` : `Diterima → ${spec.id}`, "ok", "arrow-up-right");
             setProjectFilter(spec.projectId);
             setSection("backlog");
           }} />

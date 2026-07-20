@@ -1,7 +1,23 @@
 import { describe, it, expect } from "vitest";
 import { zSetting, zTerminalSession, paths } from "../src/index";
-import { zSpecSource } from "../src/enums";
+import { zSpecSource, zTicketCategory, zTicketStatus } from "../src/enums";
 import { flowForSource } from "../src/dto";
+
+// SPEC-253 · Help Center: source `help`, enum kategori & status tiket.
+describe("SPEC-253 · Help Center enums", () => {
+  it("zSpecSource menerima help; flowForSource(help) = feature", () => {
+    expect(zSpecSource.safeParse("help").success).toBe(true);
+    expect(flowForSource("help")).toBe("feature");
+  });
+  it("zTicketCategory valid & tolak lainnya", () => {
+    for (const c of ["bug", "fitur", "pertanyaan", "lainnya"]) expect(zTicketCategory.parse(c)).toBe(c);
+    expect(zTicketCategory.safeParse("spam").success).toBe(false);
+  });
+  it("zTicketStatus valid & tolak lainnya", () => {
+    for (const s of ["new", "accepted", "rejected"]) expect(zTicketStatus.parse(s)).toBe(s);
+    expect(zTicketStatus.safeParse("closed").success).toBe(false);
+  });
+});
 
 // SPEC-237 · source+flow audit (audit-only: dokumen, tanpa perbaikan).
 describe("SPEC-237 · source audit", () => {

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@fastify/cookie": "^9.4.0",
+    "@fastify/multipart": "^8.3.1",
     "@fastify/static": "^7.0.0",
     "@fastify/websocket": "^10.0.1",
     "@hanoman/runner": "workspace:*",

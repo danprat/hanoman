@@ -24,6 +24,10 @@ export function toastFor(n: Notification, p: NotifyPrefs): ToastPlan {
   if (n.type === "error")
     return { msg: n.title, tone: "err", icon: "triangle-alert",
              sound: p.notifyDecisionSound as NotifySound, enabled: true };
+  // SPEC-253 · keluhan Help Center baru masuk (setiap tiket baru).
+  if (n.type === "ticket")
+    return { msg: n.title, tone: "warn", icon: "inbox",
+             sound: p.notifyDecisionSound as NotifySound, enabled: true };
   return { msg: `${n.specId} · "${n.title}" selesai`, tone: "ok", icon: "check-circle-2",
            sound: p.notifySound as NotifySound, enabled: p.notifyDone };
 }

@@ -1,0 +1,183 @@
+/* TriageScreen — antrean triase keluhan Help Center (SPEC-253). Screen mandiri (pola ErrorsScreen):
+   memuat datanya sendiri + silent poll (pola GitGraph). Master (daftar tiket) → detail dengan
+   lampiran + aksi Terima (→ Spec source help) / Tolak. Realtime via HTTP polling (ADR-0062), bukan WS. */
+import React from "react";
+import { Button, Badge, Select, StateBlock, Icon } from "../ds";
+import { paths, type TicketView, type TicketDetail, type Spec } from "@hanoman/shared";
+import { api } from "../api/client";
+import type { ProjectVM } from "./types";
+
+const POLL_MS = 5000;
+
+function ago(iso: string, now = Date.now()): string {
+  const d = Math.max(0, now - new Date(iso).getTime());
+  const m = Math.floor(d / 60_000);
+  if (m < 1) return "baru saja";
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}j`;
+  return `${Math.floor(h / 24)}h`;
+}
+
+const STATUS_TONE = { new: "warn", accepted: "ok", rejected: "neutral" } as const;
+const STATUS_LABEL = { new: "belum ditinjau", accepted: "diterima", rejected: "ditutup" } as const;
+type TStatus = keyof typeof STATUS_TONE;
+
+function TicketRow({ t, onOpen }: { t: TicketView; onOpen: (id: string) => void }) {
+  return (
+    <button
+      onClick={() => onOpen(t.id)}
+      style={{
+        display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left",
+        padding: "12px 14px", border: "1px solid var(--border-hair)", borderRadius: "var(--radius-md)",
+        background: "var(--surface-card)", cursor: "pointer", marginBottom: 8,
+      }}>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text-strong)" }}>#{t.number}</span>
+          <Badge tone="neutral" size="sm">{t.category}</Badge>
+          <Badge tone={STATUS_TONE[t.status as TStatus] ?? "neutral"} size="sm">{STATUS_LABEL[t.status as TStatus] ?? t.status}</Badge>
+        </span>
+        <span style={{
+          display: "block", color: "var(--text-body)", fontSize: "var(--text-sm)", marginTop: 2,
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        }}>{t.title}</span>
+        <span style={{ fontSize: "var(--text-xs)", color: "var(--text-subtle)", marginTop: 2, display: "block" }}>
+          {t.projectId} · {t.reporterEmail} · {ago(t.createdAt)} lalu{t.attachmentCount > 0 ? ` · ${t.attachmentCount} lampiran` : ""}
+        </span>
+      </span>
+      {t.specId && <Badge tone="ok" icon="link">→ {t.specId}</Badge>}
+      <Icon name="chevron-right" size={16} color="var(--text-subtle)" />
+    </button>
+  );
+}
+
+function TicketDetailView({ id, onBack, onAccepted, onToast }:
+  { id: string; onBack: () => void; onAccepted: (spec: Spec, already: boolean) => void;
+    onToast: (msg: string, kind?: string, icon?: string) => void }) {
+  const [t, setT] = React.useState<(TicketDetail & { spec: Spec | null }) | null>(null);
+  const [state, setState] = React.useState<"loading" | "ready" | "error">("loading");
+  const [busy, setBusy] = React.useState(false);
+  const [priority, setPriority] = React.useState("sedang");
+
+  const load = React.useCallback(() => {
+    api.getTicket(id).then((d) => { setT(d); setState("ready"); }).catch(() => setState("error"));
+  }, [id]);
+  React.useEffect(() => { load(); }, [load]);
+
+  if (state === "loading") return <StateBlock kind="loading" />;
+  if (state === "error" || !t) return <StateBlock kind="error" hint="Gagal memuat tiket." action={load} actionLabel="Coba lagi" />;
+
+  async function accept() {
+    setBusy(true);
+    try {
+      const r = await api.acceptTicket(id, priority);
+      onAccepted(r.spec, !!r.alreadyPromoted);
+    } catch { onToast("Gagal menerima tiket", "err", "x-circle"); }
+    finally { setBusy(false); }
+  }
+  async function reject() {
+    if (!window.confirm(`Tolak & tutup tiket #${t!.number}? Tak membuat backlog.`)) return;
+    setBusy(true);
+    try { await api.rejectTicket(id); setT({ ...t!, status: "rejected" }); onToast("Tiket ditutup", "ok", "check"); }
+    catch { onToast("Gagal menolak tiket", "err", "x-circle"); }
+    finally { setBusy(false); }
+  }
+
+  const done = t.status !== "new";
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <Button size="sm" variant="ghost" leftIcon="arrow-left" onClick={onBack}>Kembali</Button>
+        <Badge tone={STATUS_TONE[t.status as TStatus] ?? "neutral"}>{STATUS_LABEL[t.status as TStatus] ?? t.status}</Badge>
+        <span style={{ flex: 1 }} />
+        {t.specId
+          ? <Badge tone="ok" icon="link">→ {t.specId}</Badge>
+          : !done && <>
+              <Select size="sm" value={priority} onChange={(e) => setPriority(e.target.value)}
+                options={[{ value: "tinggi", label: "Prioritas tinggi" }, { value: "sedang", label: "Prioritas sedang" }, { value: "rendah", label: "Prioritas rendah" }]} />
+              <Button size="sm" leftIcon="arrow-up-right" onClick={accept} disabled={busy}>Terima → backlog</Button>
+              <Button size="sm" variant="ghost" leftIcon="ban" onClick={reject} disabled={busy}>Tolak</Button>
+            </>}
+      </div>
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text-strong)" }}>#{t.number}</span>
+          <Badge tone="neutral" size="sm">{t.category}</Badge>
+        </div>
+        <div style={{ fontWeight: 600, fontSize: "var(--text-lg)", color: "var(--text-strong)", marginTop: 4 }}>{t.title}</div>
+      </div>
+      <div style={{ display: "flex", gap: 18, flexWrap: "wrap", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
+        <span>pelapor: <b style={{ color: "var(--text-body)" }}>{t.reporterEmail}</b></span>
+        <span>project: <b style={{ color: "var(--text-body)" }}>{t.projectId}</b></span>
+        <span>masuk: {ago(t.createdAt)} lalu</span>
+      </div>
+      <div>
+        <div className="hn-eyebrow" style={{ marginBottom: 6 }}>Detail keluhan</div>
+        <div style={{ whiteSpace: "pre-wrap", color: "var(--text-body)", fontSize: "var(--text-sm)", lineHeight: 1.55 }}>{t.detail}</div>
+      </div>
+      {t.attachments.length > 0 && (
+        <div>
+          <div className="hn-eyebrow" style={{ marginBottom: 6 }}>Lampiran</div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {t.attachments.map((a) => (
+              <a key={a.id} href={paths.ticketAttachment(t.id, a.id)} target="_blank" rel="noreferrer"
+                style={{ display: "block", border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", overflow: "hidden" }}>
+                <img src={paths.ticketAttachment(t.id, a.id)} alt={a.filename}
+                  style={{ display: "block", maxWidth: 180, maxHeight: 140, objectFit: "cover" }} />
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function TriageScreen({ projects, onAccepted, onToast }:
+  { projects: ProjectVM[]; onAccepted: (spec: Spec, already: boolean) => void;
+    onToast: (msg: string, kind?: string, icon?: string) => void }) {
+  const [list, setList] = React.useState<TicketView[]>([]);
+  const [unreviewed, setUnreviewed] = React.useState(0);
+  const [state, setState] = React.useState<"loading" | "ready" | "error">("loading");
+  const [openId, setOpenId] = React.useState<string | null>(null);
+  const [project, setProject] = React.useState("");
+  const [status, setStatus] = React.useState("");
+  const [q, setQ] = React.useState("");
+
+  const load = React.useCallback((silent = false) => {
+    if (!silent) setState("loading");
+    api.listTickets({ project: project || undefined, status: status || undefined, q: q || undefined })
+      .then((r) => { setList(r.items); setUnreviewed(r.unreviewed); setState("ready"); })
+      .catch(() => { if (!silent) setState("error"); });
+  }, [project, status, q]);
+
+  React.useEffect(() => { load(); }, [load]);
+  React.useEffect(() => {
+    const t = setInterval(() => { if (!document.hidden) load(true); }, POLL_MS);
+    return () => clearInterval(t);
+  }, [load]);
+
+  if (openId) return <TicketDetailView id={openId} onBack={() => { setOpenId(null); load(true); }} onAccepted={onAccepted} onToast={onToast} />;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, minHeight: 0, flex: 1 }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+        <Select size="sm" value={project} onChange={(e) => setProject(e.target.value)}
+          options={[{ value: "", label: "Semua project" }, ...projects.map((p) => ({ value: p.id, label: p.name }))]} />
+        <Select size="sm" value={status} onChange={(e) => setStatus(e.target.value)}
+          options={[{ value: "", label: "Semua status" }, { value: "new", label: "belum ditinjau" }, { value: "accepted", label: "diterima" }, { value: "rejected", label: "ditutup" }]} />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari judul / email"
+          style={{ flex: 1, minWidth: 160, padding: "6px 10px", border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", background: "var(--surface-card)", color: "var(--text-body)", fontSize: 13 }} />
+        {unreviewed > 0 && <Badge tone="warn">{unreviewed} belum ditinjau</Badge>}
+      </div>
+      {state === "loading" ? <StateBlock kind="loading" />
+        : state === "error" ? <StateBlock kind="error" hint="Gagal memuat tiket." action={() => load()} actionLabel="Coba lagi" />
+        : list.length === 0 ? <StateBlock kind="empty" icon="inbox" title="Belum ada keluhan"
+            hint="Aktifkan Help Center di detail project, lalu sebar link publiknya agar keluhan mulai masuk." />
+        : <div style={{ overflowY: "auto", minHeight: 0 }}>
+            {list.map((t) => <TicketRow key={t.id} t={t} onOpen={setOpenId} />)}
+          </div>}
+    </div>
+  );
+}

@@ -20,6 +20,7 @@ const HN_NAV: NavItem[] = [
   { key: "prd", label: "PRD", icon: "scroll-text" },
   { key: "backlog", label: "Backlog", icon: "list-checks" },
   { key: "errors", label: "Errors", icon: "triangle-alert" },
+  { key: "triage", label: "Triase", icon: "inbox" },
   { key: "terminal", label: "Terminal", icon: "terminal" },
   { key: "ide", label: "IDE", icon: "code-2" },
   { key: "vps", label: "VPS", icon: "server" },

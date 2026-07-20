@@ -107,6 +107,18 @@ export const paths = {
   error: (id: string) => `${API}/errors/${id}`,
   errorEscalate: (id: string) => `${API}/errors/${id}/escalate`,
   projectIngestKey: (id: string) => `${API}/projects/${encodeURIComponent(id)}/ingest-key`,
+  // SPEC-253 · Help Center publik (bypass gate cookie; otorisasi helpEnabled + kunci opaque tiket).
+  help: (slug: string) => `${API}/help/${encodeURIComponent(slug)}`,
+  helpTickets: (slug: string) => `${API}/help/${encodeURIComponent(slug)}/tickets`,
+  helpStatus: (slug: string, key: string) =>
+    `${API}/help/${encodeURIComponent(slug)}/tickets/${encodeURIComponent(key)}`,
+  // SPEC-253 · triase (di belakang gate cookie)
+  projectHelpCenter: (id: string) => `${API}/projects/${encodeURIComponent(id)}/help-center`,
+  tickets: `${API}/tickets`,
+  ticket: (id: string) => `${API}/tickets/${id}`,
+  ticketAttachment: (id: string, attId: string) => `${API}/tickets/${id}/attachments/${attId}`,
+  ticketAccept: (id: string) => `${API}/tickets/${id}/accept`,
+  ticketReject: (id: string) => `${API}/tickets/${id}/reject`,
 } as const;
 
 // SPEC-215 · view config untuk UI. Secret: tanpa `value`, pakai `masked` + `hasValue`.
