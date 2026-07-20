@@ -30,7 +30,10 @@ describe("Matrix model & effort per fase (SPEC-238)", () => {
     // fase dari beberapa flow (Brainstorm/Execute muncul di >1 flow → getAllByText)
     expect(screen.getAllByText("Brainstorm").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Execute").length).toBeGreaterThan(0);
-    expect(screen.getByText("Audit")).toBeInTheDocument(); // unik ke flow qa
+    expect(screen.getAllByText("Audit").length).toBeGreaterThan(0); // di flow qa & audit
+    // flow audit (SPEC-242): fase Laporan unik ke flow audit-only
+    expect(screen.getByText("Laporan")).toBeInTheDocument();
+    expect(screen.getByText("Audit-only")).toBeInTheDocument();
     // pilihan baru tersedia di option select
     expect(screen.getAllByText("Fable 5").length).toBeGreaterThan(0);
     expect(screen.getAllByText("max").length).toBeGreaterThan(0);

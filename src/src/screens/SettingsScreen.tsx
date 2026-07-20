@@ -25,6 +25,7 @@ const S_EFFORT = [
 const FLOW_PHASES: { flow: string; label: string; phases: string[] }[] = [
   { flow: "feature", label: "Feature", phases: ["Brainstorm", "Objective", "Spec", "Plan", "Execute"] },
   { flow: "qa", label: "QA / Audit", phases: ["Audit", "Spec", "Plan", "Execute"] },
+  { flow: "audit", label: "Audit-only", phases: ["Audit", "Laporan"] }, // SPEC-242 · ADR-0057
   { flow: "reverse", label: "Reverse docs", phases: ["Scan", "Docs teknis", "Wawancara", "Konvensi & index", "Serah terima"] },
   { flow: "prd", label: "PRD", phases: ["Brainstorm", "PRD"] },
   { flow: "scaffold", label: "Scaffold", phases: ["Brainstorm", "Objective", "Doc index"] },
