@@ -47,6 +47,11 @@ POST   /projects/:id/clone    { dir }   # 201 { repoDir } · git clone gitRemote
 GET    /projects/:id/ingest-key   -> { enabled, prefix }   # tanpa plaintext. 404 project.
 POST   /projects/:id/ingest-key   -> 201 { enabled:true, prefix, key, dsnUrl }   # generate/rotate (ganti key lama; no grace). 404.
 DELETE /projects/:id/ingest-key   # 204 · revoke (kosongkan hash → monitoring off). 404.
+
+# SPEC-253 · ADR-0061 · Help Center per project (opt-in). Link publik terikat Project.id (slug).
+GET    /projects/:id/help-center  -> { enabled, publicUrl }   # 404 project.
+POST   /projects/:id/help-center  -> 200 { enabled:true, publicUrl }   # aktifkan. 404.
+DELETE /projects/:id/help-center  # 200-ish 204 · nonaktifkan (tak hapus tiket yang sudah ada). 404.
 ```
 
 > **Path efektif** project = `resolveRepoDir(projectId)` = **binding per-mesin ?? `Project.repoDir`** (null-safe).
@@ -301,3 +306,36 @@ PATCH /errors/:id            { status }   # 200 { id, status } — status ∈ ne
 > (default 50) + umur (default 30 hari) — tanpa scheduler global. **SDK/snippet** in-repo di `sdk/**`
 > (Node + browser; DSN gaya Sentry). Model `ErrorGroup`/`ErrorEvent` server-local (tanpa sync). Realtime
 > area Error = **HTTP polling** (silent poll, pola GitGraph), bukan kanal WS baru (ADR-0039).
+
+## Help Center (SPEC-253 · ADR-0061)
+```
+# PUBLIK ber-scope-project — pengecualian sah gate /api (bypass cookie, otorisasi non-cookie sendiri).
+# Same-origin (SPA + API satu host) → tanpa CORS/OPTIONS.
+GET     /api/help/:slug                  -> { projectName, categories }
+#   Info halaman publik. Otorisasi = helpEnabled. 404 generik bila project tak ada / helpEnabled=false.
+POST    /api/help/:slug/tickets          # multipart/form-data
+#   Field: category, title, detail, email, hp (honeypot) + files[] (≤3 gambar png/jpeg/webp, ≤5MB).
+#   Otorisasi = helpEnabled. 201 { number, key, statusPath } (key+link ditampilkan SEKALI di layar).
+#   400 field wajib kosong/kategori invalid (tak buat tiket). 404 helpEnabled=false. 429 rate-limit
+#   per IP & per project. Honeypot terisi → 200 { ok:true } palsu (tak buat tiket). Berkas invalid di-skip.
+GET     /api/help/:slug/tickets/:key     -> { number, category, title, status, createdAt }
+#   Cek status publik by kunci opaque; status terpetakan otomatis (publicStatus), tanpa jargon internal.
+#   Scoped ke slug (isolasi). 404 bila kunci tak dikenal / bukan milik slug (tak membocorkan).
+
+# TRIASE — di belakang gate cookie. Query selalu ber-scope projectId (isolasi antar-project).
+GET   /tickets?project=&status=&q=&page=&limit=  -> { items: TicketView[], total, page, pageSize, unreviewed }
+#   urut createdAt desc; q atas title+reporterEmail; paginasi response-layer (ADR-0038); unreviewed = jumlah status new.
+GET   /tickets/:id            -> TicketDetail { ...ticket, detail, attachments:[{id,filename,mimeType,size}], spec? } · 404
+GET   /tickets/:id/attachments/:attId    # stream berkas gambar (Content-Type mimeType) ber-auth · 404 (att bukan milik tiket)
+POST  /tickets/:id/accept  { priority? }  # 201 { spec } — buat Spec source help prefilled + tandai tiket
+#   accepted + specId (tautan dua arah). Idempoten: sudah promoted → 200 { alreadyPromoted:true, spec }. 404.
+POST  /tickets/:id/reject                 # 200 { id, status:"rejected" } — tutup tanpa Spec · 404
+```
+
+> **Status publik** `publicStatus(ticket.status, spec.stage?)`: new→"Sedang ditinjau", rejected→"Ditutup",
+> accepted+executing→"Sedang dikerjakan", done→"Selesai", selainnya→"Diterima". **Notifikasi** tiket baru →
+> `Notification { type:"ticket", key:"ticket:<id>" }` (dedup), tersiar lewat grup `notifications` WS existing.
+> **Lampiran** di `HANOMAN_UPLOAD_DIR` (server-local, tak disync), disajikan **hanya ber-auth** ke triase —
+> halaman status publik tak menampilkannya balik. **Halaman publik** `/help/*` di-mount SPA (routing baru,
+> `main.tsx`) tanpa auth; fallback `index.html` existing → nol perubahan server untuk menyajikan halaman.
+> Realtime area Triase = **HTTP polling** (pola ErrorsScreen), bukan kanal WS baru (ADR-0039).

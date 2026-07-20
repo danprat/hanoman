@@ -33,6 +33,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 
 ## adr
 > Nomor unik & imutable. ADR usang tidak dihapus — ditandai statusnya di bawah dan di header masing-masing.
+- [0061 — Help Center: model tiket + endpoint publik ber-scope-project + jembatan triase→backlog](adr/0061-help-center-tiket-publik-triase.md) — **memperluas 0060/0028/0033/0039** (SPEC-253)
 - [0060 — Error monitoring: model baru + ingest ber-DSN sebagai pengecualian auth](adr/0060-error-monitoring-ingest-ber-dsn.md) — **memperluas 0028/0033/0039/0040** (SPEC-249)
 - [0059 — Kontinuitas branch take-to-backlog (PRD→brief, audit→QA) + skip-audit qa lanjutan audit](adr/0059-kontinuitas-branch-take-to-backlog-dan-skip-audit.md) — **memperluas 0032/0040/0041/0057** (SPEC-244)
 - [0058 — Model & effort per fase, lewat `/model`+`/effort` in-session](adr/0058-model-effort-per-fase.md) — **mengamandemen 0024, sebagian menghidupkan 0003** (SPEC-238)
