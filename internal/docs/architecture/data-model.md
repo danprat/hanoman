@@ -39,10 +39,17 @@ interaktif (ADR-0024; migrasi `drop_run_trigger_github`). Enum stage/source/prio
 
 ## Setting (per workspace)
 Singleton `id = 1`, kolom `data` (Json) berbentuk `zSetting`:
-- `model` (default `claude-opus-4-8`) + `effort` (default `xhigh`) — **satu** model/effort per sesi,
-  dipakai sebagai argv saat sesi lahir; manusia tetap bisa `/model` di dalam terminal. `steps` (model
-  per fase), `maxConcurrent`, dan `askTimeoutMin` **hilang** bersama runner headless (ADR-0024) — tak
+- `model` (default `claude-opus-4-8`) + `effort` (default `xhigh`) — **default global**, dipakai
+  sebagai argv saat sesi lahir bila fase-nya tak punya override; manusia tetap bisa `/model` di dalam
+  terminal. `maxConcurrent` dan `askTimeoutMin` **hilang** bersama runner headless (ADR-0024) — tak
   ada `dailyBudget`.
+- `phaseModels` (SPEC-238, [ADR-0057](../adr/0057-model-effort-per-fase.md), default `{}`) — map
+  `flow → phase → { model?, effort? }`; override model/effort **per fase** untuk semua flow
+  (feature/qa/reverse/prd/scaffold). Sel kosong → fallback `{ model, effort }` global. Sesi lahir
+  dengan config **fase pertama**; fase berikutnya diganti agen via `/model`+`/effort` (aman terhadap
+  konteks). `steps` headless lama (ADR-0003/0024) **tidak** dihidupkan — mekanismenya in-session.
+  Model/effort tetap `z.string()` (lenient); daftar pilihan valid (`MODELS`/`EFFORTS`, memuat
+  `claude-fable-5` · `max` · `ultracode`) hidup di `@hanoman/shared` untuk UI.
 - `autoDefault`, `autoScaffold`, `notifyFail`
 - `notifyDone` (SPEC-180, default true) — toast+sound saat backlog selesai
 - `notifySound` (SPEC-180, default `short`) — `off` atau salah satu nada; durasi/varian bunyi notifikasi

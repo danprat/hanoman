@@ -555,17 +555,17 @@ git commit -m "feat(web): matrix model+effort per fase di Settings + Fable/max/u
 
 **Files:** tidak ada (verifikasi).
 
-- [ ] **Step 1: Build semua paket**
+- [x] **Step 1: Build semua paket**
 
 Run: `pnpm -w build`
 Expected: shared → runner → server → web semua sukses.
 
-- [ ] **Step 2: Full test suite bersih (tanpa env prod bocor)**
+- [x] **Step 2: Full test suite bersih (tanpa env prod bocor)**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm test` (atau `vitest run --no-file-parallelism` per paket)
 Expected: hijau semua.
 
-- [ ] **Step 3: Boot server + curl round-trip /settings**
+- [x] **Step 3: Boot server + curl round-trip /settings**
 
 Boot server terhadap DB throwaway (jangan pakai hanoman_test yang bisa di-truncate sesi lain — lihat memory live-smoke). Lalu:
 
@@ -580,15 +580,15 @@ curl -s localhost:8787/api/settings | jq '.phaseModels.feature'
 ```
 Expected: `phaseModels.feature.Brainstorm = {model:"claude-sonnet-5",effort:"high"}`, `Execute = {effort:"max"}` — persist utuh.
 
-- [ ] **Step 4: Verifikasi launch model fase-1 (unit sudah menutup; catat di sini)**
+- [x] **Step 4: Verifikasi launch model fase-1 (unit sudah menutup; catat di sini)**
 
 Karena spawn sesi nyata = proses `claude` interaktif, verifikasi logika launch lewat unit `phaseModelsForFlow`/`resolvePhaseModels` (Task 2/3) dianggap cukup untuk argv; auth-gated `POST /terminal/sessions` tak di-curl agar tak men-spawn claude sungguhan (lihat memory browser-smoke). Centang setelah Step 2 hijau.
 
-- [ ] **Step 5: Update checklist plan & pastikan docs SoT ter-link**
+- [x] **Step 5: Update checklist plan & pastikan docs SoT ter-link**
 
-Pastikan semua `- [ ]` di plan ini `- [x]`, dan cek `internal/docs/README.md` memuat ADR-0057 (sudah ditulis di fase Spec). Bila ada sisa, perbaiki dulu.
+Pastikan semua `- [x]` di plan ini `- [x]`, dan cek `internal/docs/README.md` memuat ADR-0057 (sudah ditulis di fase Spec). Bila ada sisa, perbaiki dulu.
 
-- [ ] **Step 6: Commit akhir (bila ada perubahan verifikasi)**
+- [x] **Step 6: Commit akhir (bila ada perubahan verifikasi)**
 
 ```bash
 git add -A docs/superpowers/plans/
