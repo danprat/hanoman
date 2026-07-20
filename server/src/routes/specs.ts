@@ -8,7 +8,7 @@ import { prisma } from "../db";
 import { specReview, reviewFile, worktreeDir, specCommitRange, specReviewRange, reviewFileRange, shaResolvable } from "../services/spec-review";
 import { nextSpecId } from "../services/id";
 import { enqueueOutbox } from "../services/outbox";
-import { listRepoBranches } from "../services/branches";
+import { branchFromCandidates } from "../services/branches";
 import { STAGES } from "../services/stage-machine";
 import { artifactsToRemove } from "../services/stage-artifacts";
 import { deleteDoc } from "../services/docs";
@@ -22,9 +22,9 @@ import { liveSpecs } from "../services/live-specs";
 
 // SPEC-143: daftar yang mengisi dropdown adalah daftar yang menjaga gerbang — tak ada validator
 // terpisah yang bisa ikut basi. Branch karangan ditolak di sini, bukan beberapa menit kemudian
-// saat worktree gagal di dalam run.
+// saat worktree gagal di dalam run. SPEC-244 · kandidat = lokal ∪ origin (branch PRD/audit remote-only).
 const branchUnknown = async (repoDir: string | null, branch: string) =>
-  !(await listRepoBranches(repoDir)).includes(branch);
+  !(await branchFromCandidates(repoDir)).includes(branch);
 
 // SPEC-186 · derivasi priority + objective dari source+payload. Satu sumber untuk POST & PATCH:
 // qa → priority dari severity, objective dari actual/steps; brief → priority manual, objective dari outcome/context.

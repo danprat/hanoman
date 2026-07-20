@@ -28,3 +28,11 @@ export async function listRepoRemoteBranches(repoDir: string | null): Promise<st
     .map((b) => b.replace(/^origin\//, ""))
     .sort();
 }
+
+// SPEC-244 · ADR-0059 — kandidat branchFrom = lokal ∪ origin (dedup). Branch PRD (`prd/<slug>`) dan
+// audit (`hanoman/<id>`) di-push dari worktree detached → hanya ada di refs/remotes/origin/*. Satu
+// daftar memasok dropdown DAN gerbang validasi branchFrom (prinsip ADR-0032), kini melebar ke remote.
+export async function branchFromCandidates(repoDir: string | null): Promise<string[]> {
+  const [local, remote] = await Promise.all([listRepoBranches(repoDir), listRepoRemoteBranches(repoDir)]);
+  return [...new Set([...local, ...remote])].sort();
+}
