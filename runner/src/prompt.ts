@@ -126,6 +126,21 @@ const auditOnlyInstruction = (flow: Flow): string =>
     + "issue terdefinisi baik, dan REKOMENDASI — 'cukup jawaban, tak perlu perbaikan' ATAU 'perlu "
     + "dinaikkan jadi Finding QA untuk diperbaiki'. Commit dokumen itu lalu push. Tak ada kode fitur.";
 
+// SPEC-244 · ADR-0059 — qa yang DINAIKKAN dari audit (payload.fromAudit) berjalan di branch audit,
+// jadi dokumen audit sudah ada di worktree. Lewati fase Audit (jangan investigasi ulang), baca
+// dokumen itu, tandai `Audit skipped`, lalu keputusan pasca-Audit ADR-0040.
+const auditContinuationInstruction = (flow: Flow, spec: SpecBrief): string => {
+  const fromAudit = flow === "qa" && spec.payload && typeof spec.payload === "object"
+    ? (spec.payload as { fromAudit?: unknown }).fromAudit : undefined;
+  if (typeof fromAudit !== "string" || !fromAudit) return "";
+  return `Backlog qa ini LANJUTAN dari audit ${fromAudit}. Worktree ini lahir dari branch audit itu, `
+    + `jadi dokumen audit sudah ada di internal/docs/research/audit-${fromAudit.toLowerCase()}-*.md. `
+    + "JANGAN mengulang investigasi fase Audit dari nol — baca dokumen audit itu sebagai temuan, "
+    + "tandai fase Audit dilewati (`echo \"Audit skipped\" >> \"$HANOMAN_PHASE_FILE\"`), lalu ambil "
+    + "keputusan pasca-Audit: perbaikan jelas & kecil → langsung Execute (tandai `Spec skipped` dan "
+    + "`Plan skipped` bila sesuai); selain itu Spec → Plan → Execute penuh.";
+};
+
 export function startPrompt(flow: Flow, spec: SpecBrief, branchTo: string, perPhase?: PhaseModel[]): string {
   const detail = spec.payload ? `\nDetail: ${JSON.stringify(spec.payload)}` : "";
   return [
@@ -134,6 +149,7 @@ export function startPrompt(flow: Flow, spec: SpecBrief, branchTo: string, perPh
     phaseInstruction(PIPELINES[flow]),
     phaseModelInstruction(perPhase),
     auditDecisionInstruction(flow),
+    auditContinuationInstruction(flow, spec),
     auditOnlyInstruction(flow),
     AUTONOMY_CLAUSE,
     skillInstruction(PIPELINES[flow]),
