@@ -532,7 +532,7 @@ git commit -m "feat(web): NewSpecModal tab Audit (payload brief-shaped) — SPEC
 - Consumes: NewSpecModal `prefill` (perluas dengan `kind` + field qa).
 - Produces: dari item audit, tombol "Jadikan Finding QA" membuka NewSpecModal source `qa` ter-prefill (title + backlink audit di `steps`).
 
-- [ ] **Step 1: Perluas prefill NewSpecModal menerima `kind`**
+- [x] **Step 1: Perluas prefill NewSpecModal menerima `kind`**
 
 `App.tsx` `NewSpecModal` prop `prefill` (`:36`) tambah field:
 ```ts
@@ -548,7 +548,7 @@ git commit -m "feat(web): NewSpecModal tab Audit (payload brief-shaped) — SPEC
 ```
 (`useEffect` reset `:41-43` sudah `setF({ ...blank, ... })` — ikut membawa `kind` prefill.)
 
-- [ ] **Step 2: Handler `promoteToQa` + prop threading**
+- [x] **Step 2: Handler `promoteToQa` + prop threading**
 
 Di App (dekat `takeToBacklog` `:576`):
 ```ts
@@ -564,7 +564,7 @@ Di App (dekat `takeToBacklog` `:576`):
 Teruskan `onPromoteToQa={promoteToQa}` ke `BacklogScreen` (di render backlog `:692`).
 Perluas tipe `PrdPrefill`/state `specPrefill` agar menerima field baru (samakan dengan prefill NewSpecModal).
 
-- [ ] **Step 3: Tombol di SpecDetail (audit)**
+- [x] **Step 3: Tombol di SpecDetail (audit)**
 
 `BacklogScreen.tsx` `SpecDetail` (`:80` signature + body `:134-175`): tambah prop `onPromoteToQa?: (s: Spec) => void`; render tombol saat `spec.source === "audit"`:
 ```tsx
@@ -576,12 +576,12 @@ Perluas tipe `PrdPrefill`/state `specPrefill` agar menerima field baru (samakan 
 ```
 Teruskan prop dari `BacklogScreen` (`:507` signature) ke `<SpecDetail … onPromoteToQa={onPromoteToQa} />` (`:622`).
 
-- [ ] **Step 4: Typecheck**
+- [x] **Step 4: Typecheck**
 
 Run: `pnpm --filter @hanoman/web exec tsc --noEmit`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/App.tsx src/src/screens/BacklogScreen.tsx

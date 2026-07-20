@@ -134,6 +134,23 @@ describe("source audit (SPEC-237)", () => {
     expect(screen.getAllByText("Audit").length).toBeGreaterThan(1);
     expect(screen.queryByText("feature brief")).toBeNull();
   });
+  it("SpecDetail audit menampilkan 'Jadikan Finding QA' → memanggil onPromoteToQa", async () => {
+    const onPromoteToQa = vi.fn();
+    render(<BacklogScreen backlog={[spec({ id: "SPEC-237", title: "audit funnel", source: "audit" })]}
+      projects={[{ id: "p", name: "p" }] as never}
+      projectFilter="all" onProjectFilter={() => {}} onStart={() => {}} onPromoteToQa={onPromoteToQa} />);
+    fireEvent.click(screen.getByText("audit funnel"));          // buka detail
+    fireEvent.click(await screen.findByRole("button", { name: /jadikan finding qa/i }));
+    expect(onPromoteToQa).toHaveBeenCalledOnce();
+    expect(onPromoteToQa.mock.calls[0]![0].id).toBe("SPEC-237");
+  });
+  it("SpecDetail brief tak menampilkan 'Jadikan Finding QA'", () => {
+    render(<BacklogScreen backlog={[spec({ id: "SPEC-9", title: "brief x", source: "brief" })]}
+      projects={[{ id: "p", name: "p" }] as never}
+      projectFilter="all" onProjectFilter={() => {}} onStart={() => {}} onPromoteToQa={() => {}} />);
+    fireEvent.click(screen.getByText("brief x"));
+    expect(screen.queryByRole("button", { name: /jadikan finding qa/i })).toBeNull();
+  });
 });
 
 describe("board drag (jsdom)", () => {

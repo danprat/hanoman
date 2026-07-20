@@ -30,14 +30,20 @@ const PRIORITY = [{ value: "tinggi", label: "Tinggi" }, { value: "sedang", label
 
 type SpecForm = { kind: string; project: string; title: string; context: string; outcome: string; constraints: string;
   priority: string; severity: string; steps: string; expected: string; actual: string; env: string; branchFrom: string };
+// SPEC-210 (PRD take-to-backlog) + SPEC-237 (promosi audit → Finding QA) menyeed NewSpecModal.
+// Semua opsional → PrdPrefill (field wajib) tetap assignable ke sini.
+type SpecPrefill = { project?: string; title?: string; context?: string; outcome?: string; prdPath?: string;
+  kind?: string; steps?: string; actual?: string; severity?: string };
 
 function NewSpecModal({ open, onClose, projects, defaultProject, onCreate, prefill }:
   { open: boolean; onClose: () => void; projects: ProjectVM[]; defaultProject: string; onCreate: (f: SpecForm) => void;
-    // SPEC-210 · seed dari "Take ke backlog" sebuah PRD (selalu kind brief).
-    prefill?: { project?: string; title?: string; context?: string; outcome?: string; prdPath?: string } }) {
-  const blank: SpecForm = { kind: "brief", project: prefill?.project || defaultProject, title: prefill?.title ?? "",
-    context: prefill?.context ?? "", outcome: prefill?.outcome ?? "", constraints: "",
-    priority: "sedang", severity: "major", steps: "", expected: "", actual: "", env: "", branchFrom: "" };
+    // SPEC-210 · seed dari "Take ke backlog" PRD (kind brief). SPEC-237 · promosi audit → Finding QA
+    // (kind qa) membawa `kind` + field qa. Semua opsional; PrdPrefill (semua wajib) tetap assignable.
+    prefill?: SpecPrefill }) {
+  const blank: SpecForm = { kind: prefill?.kind ?? "brief", project: prefill?.project || defaultProject,
+    title: prefill?.title ?? "", context: prefill?.context ?? "", outcome: prefill?.outcome ?? "", constraints: "",
+    priority: "sedang", severity: prefill?.severity ?? "major", steps: prefill?.steps ?? "",
+    expected: "", actual: prefill?.actual ?? "", env: "", branchFrom: "" };
   const [f, setF] = React.useState<SpecForm>(blank);
   React.useEffect(() => {
     if (open) setF({ ...blank, project: prefill?.project || defaultProject });
@@ -343,7 +349,7 @@ export default function App() {
   const [search, setSearch] = React.useState("");
   const [modal, setModal] = React.useState<string | null>(null);
   // SPEC-210 · prefill NewSpecModal saat "Take ke backlog" dari sebuah PRD.
-  const [specPrefill, setSpecPrefill] = React.useState<PrdPrefill | null>(null);
+  const [specPrefill, setSpecPrefill] = React.useState<SpecPrefill | null>(null);
   const [toast, showToast] = useToast();
   const [status, setStatus] = React.useState<"loading" | "ready" | "error">("loading");
   // SPEC-169 · gate auth. null = belum tahu (splash). Sesi kedaluwarsa (401) → balik ke Login.
@@ -581,6 +587,13 @@ export default function App() {
   }
   // SPEC-210 · take PRD → backlog: prefill NewSpecModal (brief) dari PRD, buka modal-nya.
   function takeToBacklog(pf: PrdPrefill) { setSpecPrefill(pf); setModal("brief"); }
+  // SPEC-237 · naikkan audit → Finding QA (audit tetap doc-of-record). Buka NewSpecModal source qa
+  // ter-prefill (title + backlink audit di langkah); qa menjalankan audit→spec→plan→execute (perbaikan).
+  function promoteToQa(spec: Spec) {
+    setSpecPrefill({ project: spec.projectId, kind: "qa", title: spec.title,
+      steps: `Dari audit ${spec.id}: ${spec.objective}`.slice(0, 500), actual: spec.objective, severity: "major" });
+    setModal("brief");
+  }
 
   // SPEC-143. Hanya menentukan basis run BERIKUTNYA; run yang sudah jalan diubah dari layar Runs.
   async function editBranch(spec: Spec, branchFrom: string | null) {
@@ -701,6 +714,7 @@ export default function App() {
           onStart={startSession} activeSpecs={activeSpecs} onNew={() => setModal("brief")}
           onDelete={deleteSpec} onOpenRun={() => setSection("terminal")} onOpenReview={openReview}
           onEditBranch={editBranch} onRevertStage={revertStage} onIntegrate={integrateSpec} onEditSpec={editSpec}
+          onPromoteToQa={promoteToQa}
           projectFilter={projectFilter} onProjectFilter={setProjectFilter} dataVersion={dataVersion} />)}
       </Shell>
     );

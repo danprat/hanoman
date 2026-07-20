@@ -85,14 +85,15 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, onStart, onIntegrate, onEditSpec }:
+function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, onStart, onIntegrate, onEditSpec, onPromoteToQa }:
   {
     spec: Spec | null; onClose: () => void; onEditBranch?: (s: Spec, b: string | null) => void;
     onRevertStage?: (s: Spec, target: string, confirmDelete?: boolean) => Promise<any>;
     onOpenReview?: (s: Spec) => void;
     onStart?: (s: Spec) => void;
     onIntegrate?: (s: Spec, op: "merge" | "rebase", target: string) => void;
-    onEditSpec?: (s: Spec, patch: { title?: string; priority?: string; payload?: unknown }) => void
+    onEditSpec?: (s: Spec, patch: { title?: string; priority?: string; payload?: unknown }) => void;
+    onPromoteToQa?: (s: Spec) => void   // SPEC-237
   }) {
   // Hook HARUS mendahului early-return `if (!spec)` — rules-of-hooks.
   const [branches, setBranches] = React.useState<string[]>([]);
@@ -170,6 +171,15 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
           <div style={{ marginTop: 12 }}>
             <Button size="sm" variant="primary" leftIcon="play" onClick={() => onStart(spec)}>
               Buka sesi lagi
+            </Button>
+          </div>
+        )}
+        {/* SPEC-237 · audit tetap doc-of-record; bila perlu perbaikan, naikkan jadi Finding QA. */}
+        {spec.source === "audit" && onPromoteToQa && (
+          <div style={{ marginTop: 12 }}>
+            <div className="hn-eyebrow" style={{ marginBottom: 4 }}>Tindak lanjut</div>
+            <Button size="sm" variant="secondary" leftIcon="bug" onClick={() => onPromoteToQa(spec)}>
+              Jadikan Finding QA
             </Button>
           </div>
         )}
@@ -509,7 +519,7 @@ const VIEWS = [
   { value: "board", label: "Board", icon: "kanban" },
 ];
 
-export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onOpenReview, onNew, onEditBranch, onRevertStage, onIntegrate, onEditSpec, projectFilter, onProjectFilter, dataVersion }:
+export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onOpenReview, onNew, onEditBranch, onRevertStage, onIntegrate, onEditSpec, onPromoteToQa, projectFilter, onProjectFilter, dataVersion }:
   {
     backlog: Spec[]; projects: ProjectVM[]; pageSize?: number;
     onStart?: (s: Spec) => void; activeSpecs?: Set<string>;
@@ -518,6 +528,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
     onRevertStage?: (s: Spec, target: string, confirmDelete?: boolean) => Promise<any>;
     onIntegrate?: (s: Spec, op: "merge" | "rebase", target: string) => void;
     onEditSpec?: (s: Spec, patch: { title?: string; priority?: string; payload?: unknown }) => void;
+    onPromoteToQa?: (s: Spec) => void;   // SPEC-237 · naikkan audit → Finding QA
     projectFilter: string; onProjectFilter: (id: string) => void; dataVersion?: number
   }) {
   const [tab, setTab] = React.useState("all");
@@ -626,7 +637,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
         </>
       )}
       <SpecDetail spec={backlog.find((s) => s.id === detailId) || null} onClose={() => setDetailId(null)}
-        onEditBranch={onEditBranch} onRevertStage={onRevertStage} onOpenReview={onOpenReview} onStart={onStart} onIntegrate={onIntegrate} onEditSpec={onEditSpec} />
+        onEditBranch={onEditBranch} onRevertStage={onRevertStage} onOpenReview={onOpenReview} onStart={onStart} onIntegrate={onIntegrate} onEditSpec={onEditSpec} onPromoteToQa={onPromoteToQa} />
     </div>
   );
 }
