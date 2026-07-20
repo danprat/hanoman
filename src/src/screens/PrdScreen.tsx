@@ -9,9 +9,11 @@ import {
 } from "../ds";
 import { api, type PrdDoc } from "../api/client";
 import type { ProjectVM } from "./types";
+import { prdBranchOf } from "./branch";
 
 export type PrdBriefForm = { title: string; context: string; outcome: string; constraints?: string };
-export type PrdPrefill = { project: string; title: string; context: string; outcome: string; prdPath: string };
+// SPEC-244 · branchFrom = branch yang dibuat sesi PRD (prd/<slug>) — diteruskan ke brief take-to-backlog.
+export type PrdPrefill = { project: string; title: string; context: string; outcome: string; prdPath: string; branchFrom: string };
 
 function NewPrdModal({ projects, defaultProject, onClose, onCreate }:
   { projects: ProjectVM[]; defaultProject: string; onClose: () => void; onCreate: (project: string, brief: PrdBriefForm) => void }) {
@@ -72,7 +74,7 @@ function PrdPreviewPane({ prd, projectId, onTake }:
           <div style={{ fontFamily: "var(--font-sans)", fontSize: 18, fontWeight: 700, color: "var(--text-strong)" }}>{prd.title}</div>
         </div>
         <Button size="sm" leftIcon="list-checks"
-          onClick={() => onTake({ project: projectId, title: prd.title, context: `Dari PRD: ${prd.path}`, outcome: "", prdPath: prd.path })}>
+          onClick={() => onTake({ project: projectId, title: prd.title, context: `Dari PRD: ${prd.path}`, outcome: "", prdPath: prd.path, branchFrom: prdBranchOf(prd.path) })}>
           Take ke backlog
         </Button>
       </div>

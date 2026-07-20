@@ -29,11 +29,12 @@ const SEVERITY =[{ value: "critical", label: "Critical" }, { value: "major", lab
 const PRIORITY = [{ value: "tinggi", label: "Tinggi" }, { value: "sedang", label: "Sedang" }, { value: "rendah", label: "Rendah" }];
 
 type SpecForm = { kind: string; project: string; title: string; context: string; outcome: string; constraints: string;
-  priority: string; severity: string; steps: string; expected: string; actual: string; env: string; branchFrom: string };
+  priority: string; severity: string; steps: string; expected: string; actual: string; env: string; branchFrom: string; fromAudit: string };
 // SPEC-210 (PRD take-to-backlog) + SPEC-237 (promosi audit → Finding QA) menyeed NewSpecModal.
 // Semua opsional → PrdPrefill (field wajib) tetap assignable ke sini.
+// SPEC-244 · branchFrom (teruskan branch PRD/audit) + fromAudit (sinyal skip-audit) juga di-seed.
 type SpecPrefill = { project?: string; title?: string; context?: string; outcome?: string; prdPath?: string;
-  kind?: string; steps?: string; actual?: string; severity?: string };
+  kind?: string; steps?: string; actual?: string; severity?: string; branchFrom?: string; fromAudit?: string };
 
 function NewSpecModal({ open, onClose, projects, defaultProject, onCreate, prefill }:
   { open: boolean; onClose: () => void; projects: ProjectVM[]; defaultProject: string; onCreate: (f: SpecForm) => void;
@@ -43,23 +44,27 @@ function NewSpecModal({ open, onClose, projects, defaultProject, onCreate, prefi
   const blank: SpecForm = { kind: prefill?.kind ?? "brief", project: prefill?.project || defaultProject,
     title: prefill?.title ?? "", context: prefill?.context ?? "", outcome: prefill?.outcome ?? "", constraints: "",
     priority: "sedang", severity: prefill?.severity ?? "major", steps: prefill?.steps ?? "",
-    expected: "", actual: prefill?.actual ?? "", env: "", branchFrom: "" };
+    expected: "", actual: prefill?.actual ?? "", env: "", branchFrom: prefill?.branchFrom ?? "", fromAudit: prefill?.fromAudit ?? "" };
   const [f, setF] = React.useState<SpecForm>(blank);
   React.useEffect(() => {
     if (open) setF({ ...blank, project: prefill?.project || defaultProject });
   }, [open, defaultProject, prefill]);
   const [branches, setBranches] = React.useState<string[]>([]);
+  // SPEC-244 · branch yang hanya ada di origin (branch PRD/audit di-push detached) — kandidat branchFrom penuh.
+  const [remoteOnly, setRemoteOnly] = React.useState<Set<string>>(new Set());
   React.useEffect(() => {
-    if (!open || !f.project) { setBranches([]); return; }
+    if (!open || !f.project) { setBranches([]); setRemoteOnly(new Set()); return; }
     let alive = true;
     api.listBranches(f.project)
       .then((r) => {
         if (!alive) return;
-        setBranches(r.branches);
+        const combined = [...new Set([...r.branches, ...r.remotes])].sort();
+        setBranches(combined);
+        setRemoteOnly(new Set(r.remotes.filter((b) => !r.branches.includes(b))));
         // ganti project → branch pilihan lama bisa tak ada di repo baru; server akan menolaknya (400)
-        setF((s) => (s.branchFrom && !r.branches.includes(s.branchFrom) ? { ...s, branchFrom: "" } : s));
+        setF((s) => (s.branchFrom && !combined.includes(s.branchFrom) ? { ...s, branchFrom: "" } : s));
       })
-      .catch(() => { if (alive) setBranches([]); });
+      .catch(() => { if (alive) { setBranches([]); setRemoteOnly(new Set()); } });
     return () => { alive = false; };
   }, [open, f.project]);
   const set = (k: keyof SpecForm) => (e: React.ChangeEvent<any>) => setF((s) => ({ ...s, [k]: e.target.value }));
@@ -93,7 +98,7 @@ function NewSpecModal({ open, onClose, projects, defaultProject, onCreate, prefi
       </Field>
       <Field label="Branch" hint="branch yang di-copy ke git worktree saat run">
         <Select value={f.branchFrom} onChange={set("branchFrom")} disabled={!branches.length}
-          style={{ width: "100%" }} options={branchOptions(branches)} />
+          style={{ width: "100%" }} options={branchOptions(branches, remoteOnly)} />
       </Field>
       <Field label="Judul">
         <Input value={f.title} onChange={set("title")}
@@ -591,7 +596,9 @@ export default function App() {
   // ter-prefill (title + backlink audit di langkah); qa menjalankan audit→spec→plan→execute (perbaikan).
   function promoteToQa(spec: Spec) {
     setSpecPrefill({ project: spec.projectId, kind: "qa", title: spec.title,
-      steps: `Dari audit ${spec.id}: ${spec.objective}`.slice(0, 500), actual: spec.objective, severity: "major" });
+      steps: `Dari audit ${spec.id}: ${spec.objective}`.slice(0, 500), actual: spec.objective, severity: "major",
+      // SPEC-244 · teruskan branch audit (hanoman/<audit-id>) + sinyal skip fase Audit (ADR-0059).
+      branchFrom: `hanoman/${spec.id.toLowerCase()}`, fromAudit: spec.id });
     setModal("brief");
   }
 
@@ -639,7 +646,9 @@ export default function App() {
   async function createSpec(f: SpecForm) {
     const isQa = f.kind === "qa";
     const payload = isQa
-      ? { severity: f.severity, steps: f.steps, expected: f.expected, actual: f.actual, env: f.env }
+      // SPEC-244 · fromAudit (bila qa dinaikkan dari audit) → runner lewati fase Audit (ADR-0059).
+      ? { severity: f.severity, steps: f.steps, expected: f.expected, actual: f.actual, env: f.env,
+          ...(f.fromAudit ? { fromAudit: f.fromAudit } : {}) }
       // Brief dari "Take ke backlog" menaut PRD lewat teks Konteks ("Dari PRD: …"), bukan field
       // payload terpisah — zBriefPayload strip key tak dikenal, dan tak ada yang mengonsumsinya.
       : { context: f.context, outcome: f.outcome, constraints: f.constraints, priority: f.priority };
