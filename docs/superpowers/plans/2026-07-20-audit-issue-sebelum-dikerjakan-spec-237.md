@@ -598,33 +598,33 @@ git commit -m "feat(web): promosi audit → Finding QA (prefill NewSpecModal qa)
   `internal/docs/operations/agent-documentation-workflow.md`, `internal/docs/README.md`,
   `internal/skills/hanoman/SKILL.md`
 
-- [ ] **Step 1: Tulis ADR-0057**
+- [x] **Step 1: Tulis ADR-0057**
 
 `internal/docs/adr/0057-audit-only-source-flow.md` — Status accepted · 2026-07-20 · SPEC-237. Isi: konteks (qa selalu execute; butuh audit-only), keputusan (source+flow `audit`, pipeline `Audit→Laporan`, dokumen SoT, stage `done` via `Laporan`, tanpa migration, parity terminal gratis, promosi = spec qa baru pola ADR-0041), konsekuensi, alternatif ditolak (project-level seperti PRD; reuse qa + no-execute), acceptance EARS (AC-1..AC-6, lihat design doc). Tautkan ADR-0040/0041/0054/0021/0029.
 
-- [ ] **Step 2: Perbarui api-contract.md**
+- [x] **Step 2: Perbarui api-contract.md**
 
 Di bawah `POST /specs` catat `source ∈ brief|qa|audit`; di `/specs/:id/docs` catat audit doc SoT (`research/audit-*`) diklasifikasi `audit`; catat flow set kini `feature|qa|scaffold|reverse|prd|audit` dan pipeline `audit = Audit → Laporan` (dokumen saja, tanpa Execute).
 
-- [ ] **Step 3: Perbarui data-model.md**
+- [x] **Step 3: Perbarui data-model.md**
 
 `Spec.source ("brief" | "qa" | "audit")`; bagian flow: `feature | qa | scaffold | reverse | prd | audit`; tambah kalimat: audit-only menghasilkan dokumen `internal/docs/research/audit-<spec-id>-<slug>.md`, stage `done` lewat fase `Laporan`, tanpa perubahan skema (String enum).
 
-- [ ] **Step 4: Perbarui agent-documentation-workflow.md**
+- [x] **Step 4: Perbarui agent-documentation-workflow.md**
 
 Tambah baris alur: **Audit-only:** audit → laporan (dokumen SoT), berhenti; bila perlu perbaikan, dinaikkan jadi Finding QA (qa → audit → spec → plan → execute). Fase Audit→systematic-debugging, Laporan→tulis dokumen.
 
-- [ ] **Step 5: Tautkan di README index + SKILL**
+- [x] **Step 5: Tautkan di README index + SKILL**
 
 `internal/docs/README.md` bagian adr — tambah baris `[0057 — Audit-only …](adr/0057-audit-only-source-flow.md)`.
 `internal/skills/hanoman/SKILL.md` — pada aturan sesi/alur, sebut flow `audit` (audit-only, dokumen, promotable ke qa).
 
-- [ ] **Step 6: Verifikasi index integritas**
+- [x] **Step 6: Verifikasi index integritas**
 
 Run: `node -e "0"` *(placeholder tak dipakai)* — sebagai gantinya jalankan pemeriksa coverage dep-free (memory hanoman-verify-coverage-without-server):
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/shared exec vitest run` (pastikan tak ada regresi) lalu pastikan setiap doc baru ter-link (grep manual).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add internal/docs docs/superpowers

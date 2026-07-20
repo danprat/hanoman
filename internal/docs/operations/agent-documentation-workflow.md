@@ -5,6 +5,7 @@ Kontrak operasional untuk hanoman + Claude Code.
 - Docs di `internal/docs/**` adalah **Source of Truth**.
 - Sebelum plan execute: **Update the index. Link every doc.**
 - **Fitur:** spec → plan → execute. **QA:** audit → **keputusan** → (spec → plan)? → execute — temuan kecil langsung execute, Spec & Plan ditandai `skipped`; keputusan dielicit lewat prompt & diambil agen (SPEC-145/ADR-0020, mekanisme SPEC-204/ADR-0040).
+- **Audit-only** (SPEC-237/[ADR-0057](../adr/0057-audit-only-source-flow.md)): source `audit` → flow `audit` = **audit → laporan**, berhenti. Hanya menghasilkan dokumen audit `internal/docs/research/audit-<spec-id>-<slug>.md` (Audit→systematic-debugging; Laporan→tulis dokumen + link index), **tanpa perbaikan kode**. Bila perlu diperbaiki, dinaikkan jadi Finding QA (qa → audit → spec → plan → execute) lewat "Jadikan Finding QA". Aksi Terminal (preview docs/review/merge/fullscreen) sama seperti brief/qa.
 - Prompt sesi memetakan fase → skill superpowers (SPEC-166): Brainstorm→brainstorming,
   Audit→systematic-debugging, Plan→writing-plans, Execute→executing-plans + TDD +
   verification-before-completion. Objective/Spec adalah keluaran brainstorming.

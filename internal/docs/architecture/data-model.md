@@ -20,7 +20,13 @@ interaktif (ADR-0024; migrasi `drop_run_trigger_github`). Enum stage/source/prio
 - `docStatus` ("ok" | "drift" | "broken") + `coverage` (0–100) **bukan kolom** — diturunkan dari disk tiap `toProjectView` (ADR-0018).
 
 ## Spec (backlog item)
-- `id` (SPEC-n), `projectId`, `title`, `source` ("brief" | "qa")
+- `id` (SPEC-n), `projectId`, `title`, `source` ("brief" | "qa" | "audit")
+  - **`audit`** (SPEC-237/[ADR-0057](../adr/0057-audit-only-source-flow.md)): audit-only. Flow `audit`
+    (pipeline `Audit → Laporan`) hanya menghasilkan **dokumen audit** `internal/docs/research/audit-<spec-id>-<slug>.md`
+    — TANPA perbaikan kode. Stage `done` dicapai lewat fase `Laporan` (`REACHED.Laporan="done"`); tak ada
+    Plan/Execute, jadi gerbang ADR-0029 tak berlaku. Payload brief-shaped; author berawalan `Audit ·`. Bisa
+    dinaikkan jadi Finding QA (source `qa`) lewat "Take ke backlog" (cermin PRD, ADR-0041). Tanpa migration
+    (source/flow = String + zod, bukan enum Prisma).
 - `stage` ("brainstorming" | "objective" | "spec-ready" | "planned" | "executing" | "done").
   Bergerak **maju** hanya lewat fase yang dilaporkan sesi (ADR-0008/0024), **mundur** hanya
   lewat aksi human eksplisit `PATCH /specs/:id { stage }` (backward-only, SPEC-167/ADR-0027).
@@ -102,7 +108,7 @@ Dibuat oleh **flow sesi `prd`** (project-level, tanpa `Spec`; pipeline `Brainsto
 List/preview **freshest-wins** (worktree sesi `prd` hidup > `repoDir`). "Take ke backlog" membuat
 `Spec` (source `brief`) ter-prefill dari PRD; tautan balik dibawa teks Konteks brief ("Dari PRD: <path>"),
 bukan field payload (zBriefPayload strip key tak dikenal). Set flow sesi kini:
-`feature | qa | scaffold | reverse | prd`.
+`feature | qa | scaffold | reverse | prd | audit` (audit = SPEC-237/ADR-0057).
 
 ## Docs sebagai konvensi, bukan lagi gerbang
 Fase Execute **tidak** lagi diverifikasi terhadap DocIndex sebelum jalan — guardrail Source of
