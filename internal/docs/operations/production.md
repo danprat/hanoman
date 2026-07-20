@@ -27,10 +27,13 @@ prod diberi token sendiri. Setel `PORT=8788` dan `DATABASE_URL` prod di sana.
 pnpm prod
 ```
 
-Satu perintah, dari keadaan mati total. Hook `preprod` menjalankan `prod:setup` lebih dulu —
+Satu perintah, dari keadaan mati total. `prod` menjalankan `prod:setup` lebih dulu (rantai eksplisit
+`prod:setup && prod:api`, **bukan** hook `preprod` — pnpm v7+ mematikan script `pre`/`post` secara
+default, jadi mengandalkan `preprod` diam-diam melewati migrasi dan bikin fitur baru 500) —
 `docker compose up -d --wait` (Postgres), bikin `hanoman_prod` kalau belum ada (`prod:db`),
-`prisma migrate deploy`, lalu `pnpm build` — baru `prod:api` naik: `node server/dist/server.js` yang
-menyajikan SPA dari `src/dist` sekaligus API. Tak ada proses worker terpisah.
+`prisma migrate deploy`, `prisma generate` (regen client untuk model baru), lalu `pnpm build` — baru
+`prod:api` naik: `node server/dist/server.js` yang menyajikan SPA dari `src/dist` sekaligus API. Tak
+ada proses worker terpisah.
 
 Dashboard di <http://127.0.0.1:8788>. Server bind `127.0.0.1`; `/api/terminal` menyerahkan PTY
 sungguhan (RCE by design, ADR-0014), jadi jangan setel `HOST=0.0.0.0` tanpa reverse proxy TLS + auth
@@ -39,7 +42,7 @@ di depannya.
 ## Yang masih berbagi — hati-hati
 
 - **`pnpm build` saat prod jalan** menimpa `server/dist/*` dan `src/dist/*` yang sedang disajikan prod.
-  `preprod` ikut membangun, jadi `pnpm prod` kedua me-rebuild di bawah instance yang sedang melayani —
+  `prod:setup` ikut membangun, jadi `pnpm prod` kedua me-rebuild di bawah instance yang sedang melayani —
   matikan yang lama dulu.
 - **`docker compose stop db` mematikan dev juga.** Postgres-nya satu instance; `hanoman` dan
   `hanoman_prod` cuma dua database di dalamnya.
