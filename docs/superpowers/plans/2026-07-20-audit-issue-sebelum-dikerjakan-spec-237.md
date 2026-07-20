@@ -637,20 +637,20 @@ git commit -m "docs: ADR-0057 audit-only source/flow + SoT (api-contract, data-m
 
 **Files:** none (verifikasi).
 
-- [ ] **Step 1: Build seluruh workspace**
+- [x] **Step 1: Build seluruh workspace**
 
 Run: `pnpm -r build` (shared→runner→server→web). Expected: sukses tanpa error TS.
 
-- [ ] **Step 2: Test repo penuh**
+- [x] **Step 2: Test repo penuh**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism`
 Expected: hijau (tak ada regresi; test baru lolos).
 
-- [ ] **Step 3: Boot server terhadap DB throwaway ter-migrate**
+- [x] **Step 3: Boot server terhadap DB throwaway ter-migrate**
 
 Ikuti memory hanoman-live-smoke-dedicated-db (JANGAN pakai hanoman_test/hanoman dev): buat DB throwaway, `prisma migrate deploy` + `prisma generate`, `node server/dist/server.js` (port non-8787). Buat user via `POST /auth/setup`.
 
-- [ ] **Step 4: Curl POST /specs source audit**
+- [x] **Step 4: Curl POST /specs source audit**
 
 ```bash
 curl -sS -X POST localhost:<port>/api/specs -b cookie.txt -H 'content-type: application/json' \
@@ -658,15 +658,15 @@ curl -sS -X POST localhost:<port>/api/specs -b cookie.txt -H 'content-type: appl
 ```
 Expected: `source":"audit"`, `author` berawalan `Audit`.
 
-- [ ] **Step 5: Verifikasi flow prompt (tanpa spawn claude sungguhan)**
+- [x] **Step 5: Verifikasi flow prompt (tanpa spawn claude sungguhan)**
 
 Karena `POST /terminal/sessions` men-spawn `claude` sungguhan (memory hanoman-browser-smoke), verifikasi pemetaan flow lewat unit: `startPrompt("audit", …)` sudah teruji (Task 2). Cek `GET /specs?source=audit` mengembalikan item; `GET /specs/:id/docs` berfungsi (kosong sampai sesi menulis doc — OK).
 
-- [ ] **Step 6: Ceklis plan penuh + tandai fase**
+- [x] **Step 6: Ceklis plan penuh + tandai fase**
 
-Pastikan semua `- [ ]` di plan ini `- [x]`. Lalu `echo "Execute done" >> "$HANOMAN_PHASE_FILE"`.
+Pastikan semua `- [x]` di plan ini `- [x]`. Lalu `echo "Execute done" >> "$HANOMAN_PHASE_FILE"`.
 
-- [ ] **Step 7: Commit akhir + push**
+- [x] **Step 7: Commit akhir + push**
 
 ```bash
 git add -A && git commit -m "chore: verifikasi build+test+API audit-only — SPEC-237"
