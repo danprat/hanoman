@@ -256,3 +256,36 @@ describe("git-ide reset (SPEC-233)", () => {
     expect(touchesTree({ op: "fetch" })).toBe(false);
   });
 });
+
+describe("git-ide tag (SPEC-233)", () => {
+  const tags = (dir: string) => spawnSync("git", ["tag", "--list"], { cwd: dir, encoding: "utf8" }).stdout.trim().split("\n").filter(Boolean);
+  it("tag lightweight di commit + graph memuat tags terpisah dari refs", async () => {
+    const dir = makeRepoWithSpecCommits({ "a": "1" }, []);
+    const head = (await listGraph(dir)).commits[0]!.sha;
+    const r = await runGitOp(dir, { op: "tag", name: "v1", at: head });
+    expect(r.ok).toBe(true);
+    expect(tags(dir)).toContain("v1");
+    const g = await listGraph(dir);
+    expect(g.commits[0]!.tags).toContain("v1");
+    expect(g.commits[0]!.refs).not.toContain("v1"); // tag tak bocor ke refs branch
+  });
+  it("tag annotated menyimpan pesan", async () => {
+    const dir = makeRepoWithSpecCommits({ "a": "1" }, []);
+    const r = await runGitOp(dir, { op: "tag", name: "v2", message: "rilis dua" });
+    expect(r.ok).toBe(true);
+    expect(spawnSync("git", ["tag", "-n", "--list", "v2"], { cwd: dir, encoding: "utf8" }).stdout).toMatch(/rilis dua/);
+  });
+  it("delete-tag menghapus tag", async () => {
+    const dir = makeRepoWithSpecCommits({ "a": "1" }, []);
+    await runGitOp(dir, { op: "tag", name: "v1" });
+    const r = await runGitOp(dir, { op: "delete-tag", name: "v1" });
+    expect(r.ok).toBe(true);
+    expect(tags(dir)).not.toContain("v1");
+  });
+  it("validateGitOp tag/delete-tag/push-tag butuh name", () => {
+    expect(validateGitOp({ op: "tag" })).toBeTruthy();
+    expect(validateGitOp({ op: "tag", name: "v1" })).toBeNull();
+    expect(validateGitOp({ op: "delete-tag", name: "v1" })).toBeNull();
+    expect(validateGitOp({ op: "push-tag", name: "v1" })).toBeNull();
+  });
+});

@@ -3,7 +3,7 @@ import { computeLanes, rowEdges } from "../src/screens/git-graph";
 import type { GraphCommit } from "../src/api/client";
 
 const c = (sha: string, parents: string[]): GraphCommit =>
-  ({ sha, parents, author: "t", at: "", subject: sha, refs: [] });
+  ({ sha, parents, author: "t", at: "", subject: sha, refs: [], tags: [] });
 
 describe("computeLanes", () => {
   it("riwayat linear semuanya di lane 0", () => {

@@ -4,8 +4,8 @@ import { GitGraph } from "../src/screens/GitGraph";
 import { api } from "../src/api/client";
 
 const commits = [
-  { sha: "aaaa111", parents: ["bbbb222"], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["main"] },
-  { sha: "bbbb222", parents: [], author: "t", at: "2026-01-01T00:00:00Z", subject: "pertama", refs: [] },
+  { sha: "aaaa111", parents: ["bbbb222"], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["main"], tags: [] },
+  { sha: "bbbb222", parents: [], author: "t", at: "2026-01-01T00:00:00Z", subject: "pertama", refs: [], tags: [] },
 ];
 
 beforeEach(() => {
@@ -39,7 +39,7 @@ describe("GitGraph", () => {
   it("branch local+origin: tawarkan hapus local+origin, local, dan origin", async () => {
     const onRunGit = vi.fn().mockResolvedValue({});
     vi.spyOn(api, "ideGraph").mockResolvedValue({
-      commits: [{ sha: "aaaa111", parents: [], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["feat", "origin/feat"] }],
+      commits: [{ sha: "aaaa111", parents: [], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["feat", "origin/feat"], tags: [] }],
       current: "main",
     });
     render(<GitGraph projectId="p1" onRunGit={onRunGit} onMerge={vi.fn()} onOpenFile={vi.fn()} />);
@@ -60,7 +60,7 @@ describe("GitGraph", () => {
   it("ref origin saja (tanpa local): hanya tawarkan hapus origin", async () => {
     const onRunGit = vi.fn().mockResolvedValue({});
     vi.spyOn(api, "ideGraph").mockResolvedValue({
-      commits: [{ sha: "aaaa111", parents: [], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["origin/gone"] }],
+      commits: [{ sha: "aaaa111", parents: [], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["origin/gone"], tags: [] }],
       current: "main",
     });
     render(<GitGraph projectId="p1" onRunGit={onRunGit} onMerge={vi.fn()} onOpenFile={vi.fn()} />);
@@ -74,7 +74,7 @@ describe("GitGraph", () => {
   it("merge commit (termasuk origin) memanggil onMerge dengan sha, bukan onRunGit", async () => {
     const onRunGit = vi.fn().mockResolvedValue({}), onMerge = vi.fn().mockResolvedValue(undefined);
     vi.spyOn(api, "ideGraph").mockResolvedValue({
-      commits: [{ sha: "aaaa111", parents: [], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["origin/feat"] }],
+      commits: [{ sha: "aaaa111", parents: [], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["origin/feat"], tags: [] }],
       current: "main",
     });
     render(<GitGraph projectId="p1" onRunGit={onRunGit} onMerge={onMerge} onOpenFile={vi.fn()} />);
@@ -87,7 +87,7 @@ describe("GitGraph", () => {
   it("merge --no-ff & 'Merge <branch> lalu hapus' meneruskan opsi ke onMerge", async () => {
     const onMerge = vi.fn().mockResolvedValue(undefined);
     vi.spyOn(api, "ideGraph").mockResolvedValue({
-      commits: [{ sha: "aaaa111", parents: [], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["feat"] }],
+      commits: [{ sha: "aaaa111", parents: [], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["feat"], tags: [] }],
       current: "main",
     });
     render(<GitGraph projectId="p1" onRunGit={vi.fn()} onMerge={onMerge} onOpenFile={vi.fn()} />);

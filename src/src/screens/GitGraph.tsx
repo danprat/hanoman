@@ -79,6 +79,13 @@ function menuItems(c: GraphCommit, current: string, act: (op: GitOp) => void, me
     { label: "Copy hash", run: () => copy(c.sha) },
     { label: "Copy subject", run: () => copy(c.subject) },
     { label: "Buat branch di sini…", run: () => { const name = window.prompt("Nama branch baru:"); if (name) act({ op: "branch", name, at: c.sha, checkout: true }); } },
+    // SPEC-233 · buat tag di commit ini. Pesan kosong = lightweight; terisi = annotated. Konfirmasi push.
+    { label: "Add tag…", run: () => {
+      const name = window.prompt("Nama tag:"); if (!name) return;
+      const message = window.prompt("Pesan (kosong = lightweight):") || undefined;
+      const push = window.confirm("Dorong tag ke origin?");
+      act({ op: "tag", name, message, at: c.sha, push });
+    } },
     // Merge branch ini lalu hapus (local + origin bila ada). Hanya branch lokal selain yang aktif.
     ...locals.filter((r) => r !== current).map((r) => ({
       label: `Merge ${r} lalu hapus (local${origins.includes(r) ? " + origin" : ""})`,
@@ -105,6 +112,7 @@ export function GitGraph({ projectId, onRunGit, onMerge, onOpenFile }:
   const [current, setCurrent] = React.useState("");
   const [detail, setDetail] = React.useState<CommitDetail | null>(null);
   const [menu, setMenu] = React.useState<{ x: number; y: number; c: GraphCommit } | null>(null);
+  const [tagMenu, setTagMenu] = React.useState<{ x: number; y: number; tag: string } | null>(null);
 
   const load = React.useCallback(() => {
     setState("loading");
@@ -152,6 +160,14 @@ export function GitGraph({ projectId, onRunGit, onMerge, onOpenFile }:
                     borderRadius: 999, background: isHead && ref === current ? "var(--brass-500)" : "var(--brass-100)",
                     color: isHead && ref === current ? "#fff" : "var(--brass-700)", flex: "0 0 auto" }}>{ref}</span>
                 ))}
+                {/* SPEC-233 · tag = pill terpisah (warna leaf, ikon tag); klik-kanan → menu tag */}
+                {c.tags.map((t) => (
+                  <span key={`tag:${t}`} title="tag — klik-kanan untuk aksi"
+                    onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setTagMenu({ x: e.clientX, y: e.clientY, tag: t }); }}
+                    style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, padding: "1px 6px 1px 4px", borderRadius: 999,
+                      display: "inline-flex", alignItems: "center", gap: 3, background: "var(--leaf-100, #e6efe9)",
+                      color: "var(--leaf-600, #3b7a57)", flex: "0 0 auto" }}>⌂{t}</span>
+                ))}
                 <span style={{ fontSize: 12.5, color: "var(--text-body)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.subject}</span>
               </div>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)",
@@ -183,6 +199,12 @@ export function GitGraph({ projectId, onRunGit, onMerge, onOpenFile }:
       )}
 
       {menu && <Menu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={menuItems(menu.c, current, act, mergeAct)} />}
+      {tagMenu && <Menu x={tagMenu.x} y={tagMenu.y} onClose={() => setTagMenu(null)} items={[
+        { label: `Hapus tag ${tagMenu.tag} (local)`, run: () => { setTagMenu(null); void act({ op: "delete-tag", name: tagMenu.tag }); } },
+        { label: `Hapus tag ${tagMenu.tag} (local + origin)`, run: () => { setTagMenu(null); void act({ op: "delete-tag", name: tagMenu.tag, remote: true }); } },
+        { label: "Push tag ke origin", run: () => { setTagMenu(null); void act({ op: "push-tag", name: tagMenu.tag }); } },
+        { label: "Copy nama tag", run: () => { setTagMenu(null); void navigator.clipboard?.writeText(tagMenu.tag); } },
+      ]} />}
     </div>
   );
 }

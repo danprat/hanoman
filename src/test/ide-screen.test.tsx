@@ -55,7 +55,7 @@ describe("IdeScreen Explorer", () => {
 describe("IdeScreen merge git graph", () => {
   beforeEach(() => {
     vi.spyOn(api, "ideGraph").mockResolvedValue({ current: "main", commits: [
-      { sha: "aaaaaaa", parents: [], author: "t", at: new Date(0).toISOString(), subject: "c1", refs: ["origin/feat"] },
+      { sha: "aaaaaaa", parents: [], author: "t", at: new Date(0).toISOString(), subject: "c1", refs: ["origin/feat"], tags: [] },
     ] });
   });
   const openMergeMenu = async () => {

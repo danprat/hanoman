@@ -51,7 +51,7 @@ export async function readRepoFile(repoDir: string | null, rel: string, ref = ""
 
 const US = "\x1f"; // unit separator dalam satu baris commit
 
-export type GraphCommit = { sha: string; parents: string[]; author: string; at: string; subject: string; refs: string[] };
+export type GraphCommit = { sha: string; parents: string[]; author: string; at: string; subject: string; refs: string[]; tags: string[] };
 
 async function currentBranch(repoDir: string): Promise<string> {
   return exec("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd: repoDir, ...GIT })
@@ -68,11 +68,17 @@ export async function listGraph(repoDir: string | null, limit = 200): Promise<{ 
       ["log", "--all", "--date-order", `--max-count=${limit}`, `--pretty=format:${fmt}`], { cwd: repoDir, ...GIT });
     const commits = stdout.split("\n").filter(Boolean).map((line) => {
       const [sha, parents, author, at, subject, refs] = line.split(US);
+      // SPEC-233 · pisahkan tag (`tag: v1`) dari ref branch agar client bisa merender/menuinya beda.
+      const tags: string[] = [], branchRefs: string[] = [];
+      for (const d of (refs ?? "").split(",").map((r) => r.trim()).filter(Boolean)) {
+        const clean = d.replace(/^HEAD -> /, "");
+        if (clean === "HEAD") continue;
+        if (clean.startsWith("tag: ")) tags.push(clean.slice(5));
+        else branchRefs.push(clean);
+      }
       return {
         sha: sha!, parents: parents ? parents.split(" ") : [], author: author ?? "", at: at ?? "",
-        subject: subject ?? "",
-        refs: (refs ?? "").split(",").map((r) => r.trim().replace(/^HEAD -> /, "").replace(/^tag: /, ""))
-          .filter((r) => r && r !== "HEAD"),
+        subject: subject ?? "", refs: branchRefs, tags,
       };
     });
     return { commits, current: await currentBranch(repoDir) };
@@ -136,7 +142,11 @@ export type GitOp =
   // SPEC-206 · hapus branch mandiri: local (`local` default true), origin (`remote`), atau keduanya.
   | { op: "delete-branch"; name: string; force?: boolean; local?: boolean; remote?: boolean }
   // SPEC-233 · reset branch current ke sebuah commit (soft: HEAD saja; mixed: +index; hard: +worktree).
-  | { op: "reset"; sha: string; mode: "soft" | "mixed" | "hard" };
+  | { op: "reset"; sha: string; mode: "soft" | "mixed" | "hard" }
+  // SPEC-233 · tag: annotated bila `message`, di `at` bila ada; `push` → dorong ke origin sesudahnya.
+  | { op: "tag"; name: string; message?: string; at?: string; push?: boolean }
+  | { op: "delete-tag"; name: string; remote?: boolean }
+  | { op: "push-tag"; name: string };
 
 export type GitOpResult = { ok: boolean; stdout: string; stderr: string; current: string };
 
@@ -161,6 +171,7 @@ export function validateGitOp(op: unknown): string | null {
       const e = need("sha"); if (e) return e;
       return o.mode === "soft" || o.mode === "mixed" || o.mode === "hard" ? null : "mode harus soft/mixed/hard";
     }
+    case "tag": case "delete-tag": case "push-tag": return need("name");
     default: return `op tak dikenal: ${String(o.op)}`;
   }
 }
@@ -185,6 +196,9 @@ function gitArgs(op: GitOp): string[] {
     case "revert": return ["revert", "--no-edit", "--end-of-options", op.sha];
     case "delete-branch": return ["branch", op.force ? "-D" : "-d", "--end-of-options", op.name];
     case "reset": return ["reset", `--${op.mode}`, "--end-of-options", op.sha];
+    case "tag": return ["tag", ...(op.message ? ["-a", "-m", op.message] : []), "--end-of-options", op.name, ...(op.at ? [op.at] : [])];
+    case "delete-tag": return ["tag", "-d", "--end-of-options", op.name];
+    case "push-tag": return ["push", "origin", "--end-of-options", op.name];
   }
 }
 
@@ -222,11 +236,29 @@ async function runDeleteBranch(repoDir: string, op: Extract<GitOp, { op: "delete
   }
 }
 
+// SPEC-233 · tag multi-langkah: buat tag (lightweight/annotated) lalu opsional push ke origin;
+// atau hapus tag lokal lalu opsional hapus di origin. Gagal salah satu langkah → ok:false + stderr
+// (langkah sebelumnya sudah terjadi; graph reload menunjukkan keadaan sebenarnya).
+async function runTagOp(repoDir: string, op: Extract<GitOp, { op: "tag" | "delete-tag" }>): Promise<GitOpResult> {
+  const out: string[] = [], err: string[] = [];
+  const step = async (args: string[]) => { const r = await exec("git", args, { cwd: repoDir, ...GIT }); out.push(r.stdout); err.push(r.stderr); };
+  try {
+    await step(gitArgs(op));
+    if (op.op === "tag" && op.push) await step(["push", "origin", "--end-of-options", op.name]);
+    if (op.op === "delete-tag" && op.remote) await step(["push", "origin", "--delete", "--end-of-options", op.name]);
+    return { ok: true, stdout: out.join("\n").trim(), stderr: err.join("\n").trim(), current: await currentBranch(repoDir) };
+  } catch (e) {
+    const ee = e as { stdout?: string; stderr?: string };
+    return { ok: false, stdout: [...out, ee.stdout ?? ""].join("\n").trim(), stderr: [...err, ee.stderr ?? String(e)].join("\n").trim(), current: await currentBranch(repoDir) };
+  }
+}
+
 // Jalankan satu op git. Exit ≠ 0 → { ok:false, stderr } (route ubah jadi 409), tak throw.
 // `branch` dengan checkout:true → buat lalu checkout (dua exec). `merge` dengan deleteBranch →
 // merge lalu bersihkan branch lokal+origin (SPEC-193). `delete-branch` → runDeleteBranch (SPEC-206).
 export async function runGitOp(repoDir: string, op: GitOp): Promise<GitOpResult> {
   if (op.op === "delete-branch") return runDeleteBranch(repoDir, op);
+  if (op.op === "tag" || op.op === "delete-tag") return runTagOp(repoDir, op);
   try {
     const { stdout, stderr } = await exec("git", gitArgs(op), { cwd: repoDir, ...GIT });
     if (op.op === "branch" && op.checkout) return runGitOp(repoDir, { op: "checkout", ref: op.name });

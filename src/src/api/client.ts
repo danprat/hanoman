@@ -22,7 +22,7 @@ export type ReviewFile = {
 };
 // SPEC-182 · IDE Visual
 export type RepoFile = { path: string; content: string | null; binary: boolean; truncated: boolean };
-export type GraphCommit = { sha: string; parents: string[]; author: string; at: string; subject: string; refs: string[] };
+export type GraphCommit = { sha: string; parents: string[]; author: string; at: string; subject: string; refs: string[]; tags: string[] };
 export type CommitDetail = { sha: string; parents: string[]; author: string; at: string; subject: string; body: string; changed: ChangedFile[] };
 export type GitOp =
   | { op: "checkout"; ref: string; force?: boolean }
@@ -33,7 +33,11 @@ export type GitOp =
   // SPEC-206 · local (default true) dan/atau origin (remote)
   | { op: "delete-branch"; name: string; force?: boolean; local?: boolean; remote?: boolean }
   // SPEC-233 · reset branch current ke commit (soft/mixed/hard)
-  | { op: "reset"; sha: string; mode: "soft" | "mixed" | "hard"; force?: boolean };
+  | { op: "reset"; sha: string; mode: "soft" | "mixed" | "hard"; force?: boolean }
+  // SPEC-233 · tag: buat (annotated bila message, di `at` bila ada, push opsional), hapus, push
+  | { op: "tag"; name: string; message?: string; at?: string; push?: boolean; force?: boolean }
+  | { op: "delete-tag"; name: string; remote?: boolean; force?: boolean }
+  | { op: "push-tag"; name: string; force?: boolean };
 export type GitOpResult = { ok: boolean; stdout: string; stderr: string; current: string; error?: string };
 // SPEC-229 · hasil merge via git graph: bersih → detail; konflik → sesi claude (sessionId).
 export type GraphMergeResult = { status: "clean"; detail: string } | { status: "conflict"; sessionId: string };
