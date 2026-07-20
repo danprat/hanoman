@@ -384,7 +384,7 @@ curl -sS -XDELETE localhost:8799/api/projects/<slug>/ingest-key -i   # 204
 **Interfaces:**
 - Produces: `normalizeMessage(msg: string): string`; `topFrame(stack?: string): string`; `fingerprint(type: string, message: string, stack?: string): string` (hex 32 char, deterministik).
 
-- [ ] **Step 1: Test** `error-fingerprint.test.ts`:
+- [x] **Step 1: Test** `error-fingerprint.test.ts`:
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -416,9 +416,9 @@ describe("error-fingerprint", () => {
 });
 ```
 
-- [ ] **Step 2: Run → fail.**
+- [x] **Step 2: Run → fail.**
 
-- [ ] **Step 3: Implement `error-fingerprint.ts`**:
+- [x] **Step 3: Implement `error-fingerprint.ts`**:
 
 ```ts
 import { createHash } from "node:crypto";
@@ -454,9 +454,9 @@ export function fingerprint(type: string, message: string, stack?: string): stri
 }
 ```
 
-- [ ] **Step 4: Run → pass.**
+- [x] **Step 4: Run → pass.**
 
-- [ ] **Step 5: Commit** `git commit -m "feat(spec-249): deterministic error fingerprint (normalize + top frame)"`
+- [x] **Step 5: Commit** `git commit -m "feat(spec-249): deterministic error fingerprint (normalize + top frame)"`
 
 ---
 
