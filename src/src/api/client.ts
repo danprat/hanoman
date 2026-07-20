@@ -1,4 +1,4 @@
-import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type ConfigResponse, type ConfigEntryView, type IngestKeyView, type ErrorGroupView, type ErrorGroupDetail } from "@hanoman/shared";
+import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type ConfigResponse, type ConfigEntryView, type IngestKeyView, type ErrorGroupView, type ErrorGroupDetail, type TicketView, type TicketDetail } from "@hanoman/shared";
 export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit";
 // SPEC-210 · dokumen PRD project (freshest-wins: worktree sesi prd hidup > repoDir). Tipe di @hanoman/shared.
@@ -250,5 +250,16 @@ export const api = {
   escalateError: (id: string) => j<{ spec: Spec; alreadyEscalated?: boolean }>(paths.errorEscalate(id), { method: "POST" }),
   patchError: (id: string, status: string) =>
     j<{ id: string; status: string }>(paths.error(id), { method: "PATCH", ...body({ status }) }),
+  // SPEC-253 · Help Center — manajemen per project + triase tiket.
+  getHelpCenter: (id: string) => j<{ enabled: boolean; publicUrl: string }>(paths.projectHelpCenter(id)),
+  enableHelpCenter: (id: string) => j<{ enabled: boolean; publicUrl: string }>(paths.projectHelpCenter(id), { method: "POST" }),
+  disableHelpCenter: (id: string) => j<void>(paths.projectHelpCenter(id), { method: "DELETE" }),
+  listTickets: (params: Record<string, string | undefined> = {}) =>
+    j<Paginated<TicketView> & { unreviewed: number }>(paths.tickets + qs(params)),
+  getTicket: (id: string) => j<TicketDetail & { spec: Spec | null }>(paths.ticket(id)),
+  acceptTicket: (id: string, priority?: string) =>
+    j<{ spec: Spec; alreadyPromoted?: boolean }>(paths.ticketAccept(id), { method: "POST", ...body({ priority }) }),
+  rejectTicket: (id: string) =>
+    j<{ id: string; status: string }>(paths.ticketReject(id), { method: "POST", ...body({}) }),
 };
 

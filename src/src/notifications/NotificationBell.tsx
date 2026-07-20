@@ -65,18 +65,19 @@ export function NotificationBell() {
           ) : items.map((n) => {
             const decision = n.type === "decision";
             const error = n.type === "error";
-            // SPEC-249 · +error (grup produksi baru). icon/warna/label per tipe.
-            const icon = error ? "triangle-alert" : decision ? "git-merge" : "check-circle-2";
-            const accent = error ? "var(--clay-600)" : decision ? "var(--amber-600)" : "var(--leaf-500)";
-            const label = error ? "error baru" : decision ? "butuh keputusan" : "selesai";
-            const openLabel = decision ? "Buka terminal" : error ? "Lihat error" : "Buka";
+            const ticket = n.type === "ticket";
+            // SPEC-249 · +error (grup produksi baru); SPEC-253 · +ticket (keluhan Help Center). icon/warna/label per tipe.
+            const icon = ticket ? "inbox" : error ? "triangle-alert" : decision ? "git-merge" : "check-circle-2";
+            const accent = ticket ? "var(--brass-500)" : error ? "var(--clay-600)" : decision ? "var(--amber-600)" : "var(--leaf-500)";
+            const label = ticket ? "keluhan baru" : error ? "error baru" : decision ? "butuh keputusan" : "selesai";
+            const openLabel = decision ? "Buka terminal" : error ? "Lihat error" : ticket ? "Lihat triase" : "Buka";
             return (
             <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px",
               borderRadius: "var(--radius-sm)" }}>
               <Icon name={icon} size={16} color={accent} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, color: "var(--text-strong)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {error ? n.title : `${n.specId ?? n.sessionId} · ${n.title}`}
+                  {error || ticket ? n.title : `${n.specId ?? n.sessionId} · ${n.title}`}
                 </div>
                 <div style={{ fontSize: 11.5, color: "var(--text-subtle)" }}>
                   {label} · {timeAgo(n.createdAt)}
@@ -85,7 +86,7 @@ export function NotificationBell() {
               {onOpen && (
                 <button onClick={() => { onOpen(n); setOpen(false); }} style={{
                   flex: "0 0 auto", border: "none", background: "transparent", cursor: "pointer",
-                  color: error ? "var(--clay-600)" : decision ? "var(--amber-600)" : "var(--text-muted)", fontSize: 12, fontFamily: "var(--font-ui)", whiteSpace: "nowrap" }}>
+                  color: ticket ? "var(--brass-600)" : error ? "var(--clay-600)" : decision ? "var(--amber-600)" : "var(--text-muted)", fontSize: 12, fontFamily: "var(--font-ui)", whiteSpace: "nowrap" }}>
                   {openLabel}
                 </button>
               )}
