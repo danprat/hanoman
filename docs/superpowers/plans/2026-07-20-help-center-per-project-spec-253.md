@@ -1,6 +1,6 @@
 # Help Center per Project Implementation Plan (SPEC-253)
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Aktifkan link publik keluhan per project → tiket → antrean triase → promosi ke `Spec` / tolak → status publik terpetakan otomatis, dengan lampiran gambar.
 
@@ -35,7 +35,7 @@
 **Interfaces:**
 - Produces: model Prisma `Ticket { id, projectId, number, category, title, detail, reporterEmail, status, accessKeyHash, specId?, createdAt, updatedAt, attachments }`, `TicketAttachment { id, ticketId, projectId, filename, mimeType, size, storageKey, createdAt }`; `Project.helpEnabled: boolean`. Zod `zTicketCategory` (`bug|fitur|pertanyaan|lainnya`), `zTicketStatus` (`new|accepted|rejected`). `zSpecSource` menerima `help`. `zProjectView.helpEnabled: boolean`.
 
-- [ ] **Step 1: Tulis test enum yang gagal**
+- [x] **Step 1: Tulis test enum yang gagal**
 
 Di `shared/src/enums.test.ts` (buat bila belum ada; pola vitest):
 ```ts
@@ -57,12 +57,12 @@ describe("ticket enums", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — gagal**
+- [x] **Step 2: Jalankan — gagal**
 
 Run: `cd shared && npx vitest run src/enums.test.ts`
 Expected: FAIL (`zTicketCategory` undefined / `help` ditolak).
 
-- [ ] **Step 3: Tambah enum di `shared/src/enums.ts`**
+- [x] **Step 3: Tambah enum di `shared/src/enums.ts`**
 
 ```ts
 export const zSpecSource = z.enum(["brief", "qa", "audit", "help"]); // SPEC-253 · +help
@@ -70,7 +70,7 @@ export const zTicketCategory = z.enum(["bug", "fitur", "pertanyaan", "lainnya"])
 export const zTicketStatus = z.enum(["new", "accepted", "rejected"]); // SPEC-253
 ```
 
-- [ ] **Step 4: Tambah model Prisma + kolom Project di `server/prisma/schema.prisma`**
+- [x] **Step 4: Tambah model Prisma + kolom Project di `server/prisma/schema.prisma`**
 
 Di `model Project` tambahkan (setelah `errorGroups ErrorGroup[]`):
 ```prisma
@@ -114,7 +114,7 @@ model TicketAttachment {
 }
 ```
 
-- [ ] **Step 5: Tulis migration hand-written**
+- [x] **Step 5: Tulis migration hand-written**
 
 `server/prisma/migrations/2026072001_spec253_help_center/migration.sql`:
 ```sql
@@ -158,7 +158,7 @@ ALTER TABLE "TicketAttachment" ADD CONSTRAINT "TicketAttachment_ticketId_fkey"
   FOREIGN KEY ("ticketId") REFERENCES "Ticket"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ```
 
-- [ ] **Step 6: Tambah DTO di `shared/src/dto.ts`**
+- [x] **Step 6: Tambah DTO di `shared/src/dto.ts`**
 
 Di `zProjectView` tambah field:
 ```ts
@@ -191,7 +191,7 @@ export const zPublicTicketStatus = z.object({
 export type PublicTicketStatus = z.infer<typeof zPublicTicketStatus>;
 ```
 
-- [ ] **Step 7: Migrate + generate + jalankan test**
+- [x] **Step 7: Migrate + generate + jalankan test**
 
 Run:
 ```bash
@@ -202,7 +202,7 @@ cd ../shared && npx vitest run src/enums.test.ts
 ```
 Expected: enum test PASS. (Sesuaikan DATABASE_URL/port ke DB dev lokal; pakai base unik `hanoman253` agar tak bentrok sibling — lihat catatan memory.)
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/prisma shared/src/enums.ts shared/src/dto.ts shared/src/enums.test.ts
@@ -222,7 +222,7 @@ git commit -m "feat(spec-253): schema Ticket+TicketAttachment+Project.helpEnable
 **Interfaces:**
 - Produces: `uploadDir(): string`, `saveUpload(buf: Buffer, mimeType: string): Promise<{ storageKey: string; size: number }>`, `readUpload(storageKey: string): Promise<Buffer>`, `deleteUpload(storageKey: string): Promise<void>`, `extFor(mimeType: string): string` (`image/png→.png`, dst). Semua sinkron ke FS lokal; nama opaque `<cuid>.<ext>`.
 
-- [ ] **Step 1: Test gagal**
+- [x] **Step 1: Test gagal**
 
 `server/src/services/uploads.test.ts`:
 ```ts
@@ -247,12 +247,12 @@ describe("uploads", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — gagal**
+- [x] **Step 2: Jalankan — gagal**
 
 Run: `cd server && npx vitest run src/services/uploads.test.ts`
 Expected: FAIL (module tak ada).
 
-- [ ] **Step 3: Implement `services/uploads.ts`**
+- [x] **Step 3: Implement `services/uploads.ts`**
 
 ```ts
 import { randomUUID } from "node:crypto";
@@ -284,17 +284,17 @@ export async function deleteUpload(storageKey: string): Promise<void> {
 }
 ```
 
-- [ ] **Step 4: Tambah dependency**
+- [x] **Step 4: Tambah dependency**
 
 Run: `cd server && pnpm add @fastify/multipart`
 (Verifikasi versi kompatibel Fastify 4/5 yang dipakai repo — cek `server/package.json` `fastify` major dulu; pakai major `@fastify/multipart` yang cocok.)
 
-- [ ] **Step 5: Jalankan test**
+- [x] **Step 5: Jalankan test**
 
 Run: `cd server && HANOMAN_UPLOAD_DIR=/tmp/hn253-uploads npx vitest run src/services/uploads.test.ts`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/services/uploads.ts server/src/services/uploads.test.ts server/package.json server/pnpm-lock.yaml ../pnpm-lock.yaml
@@ -316,7 +316,7 @@ git commit -m "feat(spec-253): file storage capability (uploads.ts) + @fastify/m
   - `publicStatus(ticketStatus: string, specStage?: string | null): string` — label publik.
   - `createTicket(input: { projectId, category, title, detail, reporterEmail }): Promise<{ ticket, key }>` — hitung `number` (max+1 per project) + kunci, insert, retry P2002.
 
-- [ ] **Step 1: Test gagal (murni: key + publicStatus)**
+- [x] **Step 1: Test gagal (murni: key + publicStatus)**
 
 `server/src/services/ticket.test.ts`:
 ```ts
@@ -341,12 +341,12 @@ describe("publicStatus", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — gagal**
+- [x] **Step 2: Jalankan — gagal**
 
 Run: `cd server && npx vitest run src/services/ticket.test.ts`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement `services/ticket.ts`**
+- [x] **Step 3: Implement `services/ticket.ts`**
 
 ```ts
 import { createHash, randomBytes } from "node:crypto";
@@ -390,12 +390,12 @@ export async function createTicket(input: {
 }
 ```
 
-- [ ] **Step 4: Jalankan test murni**
+- [x] **Step 4: Jalankan test murni**
 
 Run: `cd server && npx vitest run src/services/ticket.test.ts`
 Expected: PASS (test key + publicStatus; `createTicket` diuji lewat route Task 4/6).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/ticket.ts server/src/services/ticket.test.ts
@@ -417,7 +417,7 @@ git commit -m "feat(spec-253): ticket service — access key, number, publicStat
 - Consumes: `createTicket`, `generateAccessKey`/`hashAccessKey`, `publicStatus` (Task 3); `saveUpload`, `extFor` (Task 2).
 - Produces: `helpRateOk(projectId: string, ip: string, now?: number): boolean` (dua bucket: per-IP & per-project); route `GET /api/help/:slug`, `POST /api/help/:slug/tickets` (multipart), `GET /api/help/:slug/tickets/:key`.
 
-- [ ] **Step 1: Test rate-limit gagal**
+- [x] **Step 1: Test rate-limit gagal**
 
 `server/src/services/help-ratelimit.test.ts`:
 ```ts
@@ -440,12 +440,12 @@ describe("helpRateOk", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — gagal**
+- [x] **Step 2: Jalankan — gagal**
 
 Run: `cd server && npx vitest run src/services/help-ratelimit.test.ts`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement `services/help-ratelimit.ts`** (cermin `error-ingest.ts` token bucket)
+- [x] **Step 3: Implement `services/help-ratelimit.ts`** (cermin `error-ingest.ts` token bucket)
 
 ```ts
 import { effectiveInt } from "../config";
@@ -471,12 +471,12 @@ export function helpRateOk(projectId: string, ip: string, now = Date.now()): boo
 export function __resetHelpBuckets() { ipBuckets.clear(); projBuckets.clear(); }
 ```
 
-- [ ] **Step 4: Jalankan test rate-limit**
+- [x] **Step 4: Jalankan test rate-limit**
 
 Run: `cd server && npx vitest run src/services/help-ratelimit.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Path helper `shared/src/api.ts`**
+- [x] **Step 5: Path helper `shared/src/api.ts`**
 
 Di objek path (dekat `ingest`):
 ```ts
@@ -486,7 +486,7 @@ Di objek path (dekat `ingest`):
   helpStatus: (slug: string, key: string) => `${API}/help/${encodeURIComponent(slug)}/tickets/${encodeURIComponent(key)}`,
 ```
 
-- [ ] **Step 6: Implement `routes/help.ts`**
+- [x] **Step 6: Implement `routes/help.ts`**
 
 ```ts
 import type { FastifyInstance } from "fastify";
@@ -571,7 +571,7 @@ export default async function (app: FastifyInstance) {
 }
 ```
 
-- [ ] **Step 7: Wire `server/src/app.ts`**
+- [x] **Step 7: Wire `server/src/app.ts`**
 
 Setelah baris bypass ingest, tambah:
 ```ts
@@ -590,7 +590,7 @@ Di dalam scope `/api` (sebelum register route, setelah `api.register(cookie)`):
 ```
 Dan register route: `await api.register(help);` (di daftar register, dekat `ingest`).
 
-- [ ] **Step 8: Test route help (integration, DB test)**
+- [x] **Step 8: Test route help (integration, DB test)**
 
 `server/src/routes/help.test.ts` — pola test route existing (buildApp({requireAuth:false}) + inject). Contoh inti (lengkapi setup project via prisma):
 ```ts
@@ -652,12 +652,12 @@ describe("help center public", () => {
 });
 ```
 
-- [ ] **Step 9: Jalankan test route**
+- [x] **Step 9: Jalankan test route**
 
 Run: `cd server && env -u NODE_ENV -u DATABASE_URL DATABASE_URL="postgresql://hanoman:hanoman@localhost:5433/hanoman253_test" HANOMAN_UPLOAD_DIR=/tmp/hn253-uploads npx vitest run src/routes/help.test.ts`
 Expected: PASS.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add server/src/routes/help.ts server/src/services/help-ratelimit.ts server/src/services/help-ratelimit.test.ts server/src/routes/help.test.ts server/src/app.ts shared/src/api.ts
@@ -679,7 +679,7 @@ git commit -m "feat(spec-253): endpoint publik /api/help (info/submit/status) + 
 - Consumes: `helpEnabled` kolom (Task 1).
 - Produces: `recordNewTicket(ticketId, projectId, projectName, category, title): Promise<void>` (Notification `type:"ticket"`, `key:"ticket:<id>"`). Route help-center enable/disable + `{ enabled, publicUrl }`.
 
-- [ ] **Step 1: Test help-center route gagal**
+- [x] **Step 1: Test help-center route gagal**
 
 Tambah di `server/src/routes/projects.test.ts` (atau file baru `projects-help.test.ts`):
 ```ts
@@ -696,9 +696,9 @@ it("enable → disable help center", async () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — gagal** · Run: `cd server && ... npx vitest run src/routes/projects.test.ts` · Expected: FAIL (404 route).
+- [x] **Step 2: Jalankan — gagal** · Run: `cd server && ... npx vitest run src/routes/projects.test.ts` · Expected: FAIL (404 route).
 
-- [ ] **Step 3: Implement route di `server/src/routes/projects.ts`** (setelah blok ingest-key)
+- [x] **Step 3: Implement route di `server/src/routes/projects.ts`** (setelah blok ingest-key)
 
 ```ts
   // SPEC-253 · Help Center publik per project (opt-in). Link publik ke Project.id (slug).
@@ -728,14 +728,14 @@ it("enable → disable help center", async () => {
   });
 ```
 
-- [ ] **Step 4: Ekspos `helpEnabled` di `server/src/services/project-view.ts`**
+- [x] **Step 4: Ekspos `helpEnabled` di `server/src/services/project-view.ts`**
 
 Di objek return `toProjectView`, tambah:
 ```ts
     helpEnabled: p.helpEnabled,   // SPEC-253
 ```
 
-- [ ] **Step 5: `recordNewTicket` di `server/src/services/notifications.ts`** (cermin `recordNewErrorGroup`)
+- [x] **Step 5: `recordNewTicket` di `server/src/services/notifications.ts`** (cermin `recordNewErrorGroup`)
 
 ```ts
 export async function recordNewTicket(ticketId: string, projectId: string, projectName: string, category: string, title: string) {
@@ -747,15 +747,15 @@ export async function recordNewTicket(ticketId: string, projectId: string, proje
 }
 ```
 
-- [ ] **Step 6: Path helper `shared/src/api.ts`**
+- [x] **Step 6: Path helper `shared/src/api.ts`**
 
 ```ts
   projectHelpCenter: (id: string) => `${API}/projects/${encodeURIComponent(id)}/help-center`,
 ```
 
-- [ ] **Step 7: Jalankan test** · Run: `cd server && env ... DATABASE_URL=.../hanoman253_test npx vitest run src/routes/projects.test.ts` · Expected: PASS.
+- [x] **Step 7: Jalankan test** · Run: `cd server && env ... DATABASE_URL=.../hanoman253_test npx vitest run src/routes/projects.test.ts` · Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/src/routes/projects.ts server/src/services/project-view.ts server/src/services/notifications.ts shared/src/api.ts shared/src/dto.ts server/src/routes/projects.test.ts
@@ -777,7 +777,7 @@ git commit -m "feat(spec-253): help-center enable/disable + helpEnabled in Proje
 - Consumes: `publicStatus` tidak dipakai di sini; `saveUpload`/`readUpload`/`deleteUpload` (serve/prune); `nextSpecId`, `resolveRepoDir`, `enqueueOutbox` (accept, cermin escalate); `flowForSource("help")` sudah `feature`.
 - Produces: routes `GET /tickets`, `GET /tickets/:id`, `GET /tickets/:id/attachments/:attId`, `POST /tickets/:id/accept`, `POST /tickets/:id/reject`. Envelope `GET /tickets` menyertakan `unreviewed` (jumlah status new dalam scope).
 
-- [ ] **Step 1: Test triase gagal (accept membuat Spec source help + idempoten + isolasi)**
+- [x] **Step 1: Test triase gagal (accept membuat Spec source help + idempoten + isolasi)**
 
 `server/src/routes/tickets.test.ts` (setup project + tiket via prisma; app requireAuth:false):
 ```ts
@@ -831,9 +831,9 @@ describe("triage tickets", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — gagal** · Run: `cd server && ... npx vitest run src/routes/tickets.test.ts` · Expected: FAIL.
+- [x] **Step 2: Jalankan — gagal** · Run: `cd server && ... npx vitest run src/routes/tickets.test.ts` · Expected: FAIL.
 
-- [ ] **Step 3: Implement `routes/tickets.ts`**
+- [x] **Step 3: Implement `routes/tickets.ts`**
 
 ```ts
 import type { FastifyInstance } from "fastify";
@@ -931,7 +931,7 @@ export default async function (app: FastifyInstance) {
 }
 ```
 
-- [ ] **Step 4: Register di `server/src/app.ts`** (di belakang gate, dekat `errors`)
+- [x] **Step 4: Register di `server/src/app.ts`** (di belakang gate, dekat `errors`)
 
 ```ts
 import tickets from "./routes/tickets";
@@ -939,7 +939,7 @@ import tickets from "./routes/tickets";
     await api.register(tickets);  // SPEC-253 · triase (gate cookie)
 ```
 
-- [ ] **Step 5: Path helpers `shared/src/api.ts`**
+- [x] **Step 5: Path helpers `shared/src/api.ts`**
 
 ```ts
   // SPEC-253 · triase
@@ -950,7 +950,7 @@ import tickets from "./routes/tickets";
   ticketReject: (id: string) => `${API}/tickets/${id}/reject`,
 ```
 
-- [ ] **Step 6: Retensi opportunistic — `pruneOldTickets` di `services/ticket.ts` + panggil di submit**
+- [x] **Step 6: Retensi opportunistic — `pruneOldTickets` di `services/ticket.ts` + panggil di submit**
 
 Tambah di `services/ticket.ts`:
 ```ts
@@ -970,9 +970,9 @@ export async function pruneOldTickets(now = Date.now()): Promise<void> {
 ```
 Di `routes/help.ts` submit, setelah membuat tiket (fire-and-forget): `void (await import("../services/ticket")).pruneOldTickets();`
 
-- [ ] **Step 7: Jalankan test** · Run: `cd server && env ... DATABASE_URL=.../hanoman253_test HANOMAN_UPLOAD_DIR=/tmp/hn253-uploads npx vitest run src/routes/tickets.test.ts` · Expected: PASS.
+- [x] **Step 7: Jalankan test** · Run: `cd server && env ... DATABASE_URL=.../hanoman253_test HANOMAN_UPLOAD_DIR=/tmp/hn253-uploads npx vitest run src/routes/tickets.test.ts` · Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/src/routes/tickets.ts server/src/routes/tickets.test.ts server/src/app.ts shared/src/api.ts server/src/services/ticket.ts
@@ -992,7 +992,7 @@ git commit -m "feat(spec-253): triage API — list/detail/attachment/accept(help
 - Consumes: `apiPath.help/helpTickets/helpStatus` (Task 4).
 - Produces: `PublicHelpApp` (parse `location.pathname`: `/help/:slug` → form; `/help/:slug/status/:key` → status). `helpApi` client: `getInfo(slug)`, `submit(slug, FormData)`, `status(slug, key)`.
 
-- [ ] **Step 1: Test routing gagal**
+- [x] **Step 1: Test routing gagal**
 
 `src/src/test/public-help.test.tsx`:
 ```tsx
@@ -1020,9 +1020,9 @@ describe("PublicHelpApp routing", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — gagal** · Run: `cd src && npx vitest run src/test/public-help.test.tsx` · Expected: FAIL.
+- [x] **Step 2: Jalankan — gagal** · Run: `cd src && npx vitest run src/test/public-help.test.tsx` · Expected: FAIL.
 
-- [ ] **Step 3: Implement `src/src/api/help.ts`**
+- [x] **Step 3: Implement `src/src/api/help.ts`**
 
 ```ts
 import { apiPath } from "@hanoman/shared";
@@ -1046,11 +1046,11 @@ export const helpApi = {
 };
 ```
 
-- [ ] **Step 4: Implement `src/src/public/PublicHelpApp.tsx`**
+- [x] **Step 4: Implement `src/src/public/PublicHelpApp.tsx`**
 
 Parse path, dua tampilan. Gunakan elemen form native + token DS (kelas `.hn-*` sudah ada via styles.css yang di-import di main). Kunci: `<label htmlFor>` untuk `getByLabelText`, field honeypot tersembunyi `name="hp"`, input file `accept="image/*"` (maks 3), tampilkan konfirmasi nomor + link status. (Tulis komponen penuh: state form, submit membangun `FormData`, tampilkan hasil; halaman status memanggil `helpApi.status`.) Layout minimal terpusat maks 640px, tanpa Shell/sidebar.
 
-- [ ] **Step 5: Wire `src/src/main.tsx`**
+- [x] **Step 5: Wire `src/src/main.tsx`**
 
 ```tsx
 import React from "react";
@@ -1065,9 +1065,9 @@ createRoot(document.getElementById("root")!).render(
 );
 ```
 
-- [ ] **Step 6: Jalankan test** · Run: `cd src && npx vitest run src/test/public-help.test.tsx` · Expected: PASS.
+- [x] **Step 6: Jalankan test** · Run: `cd src && npx vitest run src/test/public-help.test.tsx` · Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/src/public src/src/api/help.ts src/src/main.tsx src/src/test/public-help.test.tsx
@@ -1088,13 +1088,13 @@ git commit -m "feat(spec-253): halaman publik Help Center (SPA routing /help/*) 
 - Consumes: `apiPath.tickets/ticket/ticketAttachment/ticketAccept/ticketReject`, `apiPath.projectHelpCenter` (Task 5/6). `TicketView`/`TicketDetail` (Task 1).
 - Produces: nav `triage`; `client.listTickets/getTicket/acceptTicket/rejectTicket/getHelpCenter/enableHelpCenter/disableHelpCenter`; toast/bell cabang `type==="ticket"`.
 
-- [ ] **Step 1: Test triase gagal**
+- [x] **Step 1: Test triase gagal**
 
 `src/src/test/triage.test.tsx` — render `TriageScreen` dengan `fetch` mock daftar tiket → assert daftar tampil; klik detail → assert isi; klik Terima → assert `acceptTicket` terpanggil. (Pola `src/src/test` existing untuk screen; mock `api.client`.)
 
-- [ ] **Step 2: Jalankan — gagal** · Run: `cd src && npx vitest run src/test/triage.test.tsx` · Expected: FAIL.
+- [x] **Step 2: Jalankan — gagal** · Run: `cd src && npx vitest run src/test/triage.test.tsx` · Expected: FAIL.
 
-- [ ] **Step 3: Client methods `src/src/api/client.ts`** (cermin metode errors)
+- [x] **Step 3: Client methods `src/src/api/client.ts`** (cermin metode errors)
 
 ```ts
   listTickets: (params: string) => get<{ items: TicketView[]; total: number; page: number; pageSize: number; unreviewed: number }>(`${apiPath.tickets}${params}`),
@@ -1107,29 +1107,29 @@ git commit -m "feat(spec-253): halaman publik Help Center (SPA routing /help/*) 
 ```
 (Sesuaikan ke helper `get/post/del` yang dipakai file itu; import `TicketView, TicketDetail`.)
 
-- [ ] **Step 4: `TriageScreen.tsx`** (cermin `ErrorsScreen.tsx`: self-fetch + silent poll 5s, master→detail, filter project/status/search)
+- [x] **Step 4: `TriageScreen.tsx`** (cermin `ErrorsScreen.tsx`: self-fetch + silent poll 5s, master→detail, filter project/status/search)
 
 Detail menampilkan lampiran via `<img src={apiPath.ticketAttachment(id, attId)} />` (ber-auth via cookie same-origin). Tombol **Terima** (Select prioritas + konfirmasi) → `api.acceptTicket` → `onAccepted(spec)`; **Tolak** → `window.confirm` → `api.rejectTicket`. Badge "belum ditinjau" dari `unreviewed`.
 
-- [ ] **Step 5: Nav + App wiring**
+- [x] **Step 5: Nav + App wiring**
 
 `ds/shell.tsx` `HN_NAV` += `{ key: "triage", label: "Triase", icon: "inbox" }` (dekat errors). `App.tsx`: import `TriageScreen`; branch `section === "triage"` (pola errors) merender `<Shell active="triage" title="Triase" …><TriageScreen onAccepted={(spec)=>{ setProjectFilter(spec.projectId); setSection("backlog"); showToast(...); }} /></Shell>`.
 
-- [ ] **Step 6: `HelpCenterCard` di `ProjectDetailScreen.tsx`** (cermin `DsnCard`)
+- [x] **Step 6: `HelpCenterCard` di `ProjectDetailScreen.tsx`** (cermin `DsnCard`)
 
 Toggle enable/disable (`api.enableHelpCenter`/`disableHelpCenter`); saat aktif tampil `publicUrl` (mono) + tombol Salin.
 
-- [ ] **Step 7: Notifikasi cabang `ticket`**
+- [x] **Step 7: Notifikasi cabang `ticket`**
 
 `NotificationsContext.tsx` `toastFor`: `type === "ticket"` → tone info, icon `inbox`, msg = `title`, enabled true, target `{ section: "triage", projectFilter }`. `NotificationBell.tsx`: cabang `ticket` (icon `inbox`, label "keluhan baru", aksi "Lihat triase"). `zNotification.type` sudah `z.string()` longgar — verifikasi menerima `ticket` (jika enum, tambah).
 
-- [ ] **Step 8: Docs SoT + ADR-0061**
+- [x] **Step 8: Docs SoT + ADR-0061**
 
 Tulis `internal/docs/adr/0061-help-center-tiket-publik-triase.md` (Konteks/Keputusan/Konsekuensi/Alternatif/Acceptance EARS — pola ADR-0060). Update `data-model.md` (Ticket/TicketAttachment/Project.helpEnabled), `api-contract.md` (`/api/help/*` + `/tickets*` + `/projects/:id/help-center`), `security-standard.md` (pengecualian Help Center + lampiran ber-auth + rate-limit/honeypot), `frontend-implementation.md` (SPA routing publik + TriageScreen + HelpCenterCard + notif ticket). Tambah link ADR-0061 di `internal/docs/README.md`.
 
-- [ ] **Step 9: Jalankan test frontend + build** · Run: `cd src && npx vitest run src/test/triage.test.tsx && npx tsc --noEmit && npx vite build` · Expected: PASS + build sukses.
+- [x] **Step 9: Jalankan test frontend + build** · Run: `cd src && npx vitest run src/test/triage.test.tsx && npx tsc --noEmit && npx vite build` · Expected: PASS + build sukses.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add src/src internal/docs
@@ -1142,7 +1142,7 @@ git commit -m "feat(spec-253): triage UI + HelpCenterCard + notifikasi ticket + 
 
 **Files:** (tak ada file baru — verifikasi)
 
-- [ ] **Step 1: Boot server ke DB throwaway** (bukan hanoman_test — sibling bisa truncate; pola memory live-smoke)
+- [x] **Step 1: Boot server ke DB throwaway** (bukan hanoman_test — sibling bisa truncate; pola memory live-smoke)
 
 ```bash
 cd server
@@ -1151,7 +1151,7 @@ env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@localhost:5433/hanoma
 # tunggu listen 8787
 ```
 
-- [ ] **Step 2: Curl jalur end-to-end** (auth: setup akun dulu → cookie; enable help; submit; status; triase; accept; status lagi)
+- [x] **Step 2: Curl jalur end-to-end** (auth: setup akun dulu → cookie; enable help; submit; status; triase; accept; status lagi)
 
 ```bash
 # setup + login → simpan cookie
@@ -1171,9 +1171,9 @@ curl -s localhost:8787/api/help/demo/tickets/<key>
 ```
 Expected: submit 201; status "Sedang ditinjau" → setelah accept "Diterima"; accept membuat Spec source `help`.
 
-- [ ] **Step 3: Uji halaman publik di browser (smoke opsional)** — buka `http://localhost:8787/help/demo` (butuh `vite build` + NODE_ENV=production untuk static, atau `vite dev` proxy). Verifikasi form tampil & submit menampilkan nomor + link.
+- [x] **Step 3: Uji halaman publik di browser (smoke opsional)** — buka `http://localhost:8787/help/demo` (butuh `vite build` + NODE_ENV=production untuk static, atau `vite dev` proxy). Verifikasi form tampil & submit menampilkan nomor + link.
 
-- [ ] **Step 4: Full test suite**
+- [x] **Step 4: Full test suite**
 
 Run:
 ```bash
@@ -1182,9 +1182,9 @@ env -u NODE_ENV -u DATABASE_URL DATABASE_URL="postgresql://hanoman:hanoman@local
 ```
 Expected: seluruh test hijau (shared + server + src). Fix sampai hijau.
 
-- [ ] **Step 5: Bersihkan smoke** (kill server, hapus DB smoke opsional) & pastikan diff bersih.
+- [x] **Step 5: Bersihkan smoke** (kill server, hapus DB smoke opsional) & pastikan diff bersih.
 
-- [ ] **Step 6: Centang semua `- [ ]` di plan ini menjadi `- [x]`, lalu commit final**
+- [x] **Step 6: Centang semua `- [x]` di plan ini menjadi `- [x]`, lalu commit final**
 
 ```bash
 git add docs/superpowers internal/docs
