@@ -129,6 +129,29 @@ POST   /projects/:id/git                { op, ...args, force? }   # { ok, stdout
 > (tanpa cache, cermin ADR-0018). Mutasi git digerbang sesi-aktif + tree-bersih dengan escape `force`
 > (ADR-0034). Read-di-`ref` memungkinkan **melihat** branch local/origin tanpa checkout.
 
+### Git graph parity (SPEC-233 · ADR-0055)
+```
+# Merge isolasi (SPEC-229/ADR-0053) — bentuk { status:"clean",detail } | { status:"conflict",sessionId }
+POST   /projects/:id/git/merge          { source, ff?, deleteBranch? }   # merge → branch current, worktree isolasi
+POST   /projects/:id/git/rebase         { onto }                         # rebase branch current → onto (isolasi + claude)
+POST   /projects/:id/git/pull           { source, ff? }                  # pull remote branch → current (isolasi + claude)
+POST   /projects/:id/git/drop           { sha }                          # buang satu commit dari branch current (isolasi + claude)
+# Read live (ADR-0018) — tanpa cache/kolom DB
+GET    /projects/:id/status             # { branch, ahead, behind, staged[], unstaged[], untracked[], clean }
+GET    /projects/:id/stashes            # [{ ref, message, at }]
+GET    /projects/:id/remotes            # [{ name, fetch, push }]
+GET    /projects/:id/commit/:sha/file?path=       # { path,status,binary,truncated,diff,content }  diff commit vs parent
+GET    /projects/:id/compare?from=&to=            # { from, to, changed:{path,add,del,status,binary}[] }
+GET    /projects/:id/compare/file?from=&to=&path= # { path,status,binary,truncated,diff,content }
+GET    /projects/:id/graph/search?q=&by=          # { shas:string[] }  by ∈ all|message|author|hash
+GET    /projects/:id/archive?ref=&format=         # stream (download) git archive  format ∈ zip|tar
+POST   /projects/:id/remotes  {name,url} · PATCH /projects/:id/remotes/:name {url} · DELETE /projects/:id/remotes/:name
+# GET /projects/:id/graph menerima filter opsional: ?branches=a,b&showRemote=&showTags= (default = --all lama)
+# POST /projects/:id/git op += reset|reset-worktree|clean|tag|delete-tag|push-tag|stash|stash-apply|
+#   stash-pop|stash-drop|stash-branch|rename-branch|push-branch|fetch. Gate sesi hanya untuk op yang
+#   menyentuh working tree (touchesTree); tag/rename/push/fetch/stash-drop lolos gate (ADR-0055).
+```
+
 ## Settings / notifications / limits
 ```
 GET/PUT  /settings                      # Setting blob (zSetting): model, effort, autoDefault, autoScaffold,
