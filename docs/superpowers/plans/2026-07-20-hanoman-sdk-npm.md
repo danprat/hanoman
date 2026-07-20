@@ -288,7 +288,7 @@ git commit -m "feat(spec-254): hanoman-sdk core (init/captureError) + tests, wor
 - Consumes: `init` dari `sdk/src/index.ts` (Task 1).
 - Produces: artefak `sdk/dist/index.js` (ESM), `sdk/dist/index.cjs` (CJS), `sdk/dist/index.d.ts` (types), `sdk/dist/hanoman.global.js` (IIFE browser). `dist/` gitignored (sudah), diikutkan ke tarball via `files`.
 
-- [ ] **Step 1: Implementasi `sdk/src/browser-global.ts`** (IIFE entry, kontrak SPEC-249)
+- [x] **Step 1: Implementasi `sdk/src/browser-global.ts`** (IIFE entry, kontrak SPEC-249)
 
 ```ts
 // Global IIFE: <script src="hanoman.global.js"></script> setelah set window.HANOMAN_DSN.
@@ -302,7 +302,7 @@ if (w.HANOMAN_DSN) {
 }
 ```
 
-- [ ] **Step 2: Tambah build scripts ke `sdk/package.json`**
+- [x] **Step 2: Tambah build scripts ke `sdk/package.json`**
 
 Ganti blok `"scripts"` jadi:
 ```json
@@ -316,12 +316,12 @@ Ganti blok `"scripts"` jadi:
 ```
 (`tsc` memakai `sdk/tsconfig.json` → `emitDeclarationOnly` ke `dist/`.)
 
-- [ ] **Step 3: Jalankan build**
+- [x] **Step 3: Jalankan build**
 
 Run: `pnpm --filter hanoman-sdk build`
 Expected: sukses; `sdk/dist/` berisi `index.js`, `index.cjs`, `index.d.ts`, `hanoman.global.js`.
 
-- [ ] **Step 4: Verifikasi tiap entry termuat (smoke)**
+- [x] **Step 4: Verifikasi tiap entry termuat (smoke)**
 
 Run:
 ```bash
@@ -332,7 +332,7 @@ test -f sdk/dist/index.d.ts && echo "types: ok"
 ```
 Expected: `esm: function function function`, `cjs: function function`, `global bytes: <n>` + `has HANOMAN_DSN: true`, `types: ok`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add sdk/src/browser-global.ts sdk/package.json
