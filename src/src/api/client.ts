@@ -31,7 +31,9 @@ export type GitOp =
   | { op: "cherry-pick"; sha: string; force?: boolean }
   | { op: "revert"; sha: string; force?: boolean }
   // SPEC-206 · local (default true) dan/atau origin (remote)
-  | { op: "delete-branch"; name: string; force?: boolean; local?: boolean; remote?: boolean };
+  | { op: "delete-branch"; name: string; force?: boolean; local?: boolean; remote?: boolean }
+  // SPEC-233 · reset branch current ke commit (soft/mixed/hard)
+  | { op: "reset"; sha: string; mode: "soft" | "mixed" | "hard"; force?: boolean };
 export type GitOpResult = { ok: boolean; stdout: string; stderr: string; current: string; error?: string };
 // SPEC-229 · hasil merge via git graph: bersih → detail; konflik → sesi claude (sessionId).
 export type GraphMergeResult = { status: "clean"; detail: string } | { status: "conflict"; sessionId: string };

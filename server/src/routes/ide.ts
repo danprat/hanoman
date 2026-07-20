@@ -6,7 +6,7 @@ import { listSessions, createSession } from "../services/pty";
 import { sessionModel } from "../services/settings";
 import { mergeIntoCurrent } from "../services/integrate";
 import {
-  listRepoTree, readRepoFile, writeRepoFile, listGraph, commitDetail, runGitOp, validateGitOp, type GitOp,
+  listRepoTree, readRepoFile, writeRepoFile, listGraph, commitDetail, runGitOp, validateGitOp, touchesTree, type GitOp,
 } from "../services/git-ide";
 
 // undefined = project tak ada (→404); null = ada tapi tanpa checkout lokal; string = repoDir.
@@ -71,7 +71,9 @@ export default async function (app: FastifyInstance) {
     const op = req.body as GitOp & { force?: boolean };
     const err = validateGitOp(op);
     if (err) return reply.code(400).send({ error: err });
-    if (!op.force) {
+    // SPEC-233/ADR-0055 · hanya op yang menyentuh working tree digerbang sesi aktif; op ref-only
+    // (tag/rename/push/fetch/stash-drop) aman berjalan berdampingan dengan sesi.
+    if (!op.force && touchesTree(op)) {
       const n = activeSessions(id);
       if (n) return reply.code(409).send({ error: `project "${id}" punya ${n} sesi aktif; commit/stash atau paksa` });
     }

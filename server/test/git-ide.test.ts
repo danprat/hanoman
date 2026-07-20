@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { makeTempRepo, makeRepoWithBranches, makeRepoWithSpecCommits, makeRepoWithSpecBranch } from "./factory";
-import { listRepoTree, readRepoFile, repoAbsPath, listGraph, commitDetail, writeRepoFile, runGitOp, validateGitOp } from "../src/services/git-ide";
-import { readFileSync, writeFileSync } from "node:fs";
+import { listRepoTree, readRepoFile, repoAbsPath, listGraph, commitDetail, writeRepoFile, runGitOp, validateGitOp, touchesTree } from "../src/services/git-ide";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
 const NUL = "a" + String.fromCharCode(0) + "b";
@@ -225,5 +225,34 @@ describe("git-ide hapus branch local &/atau origin standalone (SPEC-206)", () =>
     const r = await runGitOp(dir, { op: "delete-branch", name: "dev", remote: true });
     expect(r.ok).toBe(false);                                          // push --delete gagal (no origin)
     expect(list(dir, "branch", "--list", "dev")).toBe("");             // local sudah terhapus lebih dulu
+  });
+});
+
+describe("git-ide reset (SPEC-233)", () => {
+  const headMsg = (dir: string) => spawnSync("git", ["log", "-1", "--format=%s"], { cwd: dir, encoding: "utf8" }).stdout.trim();
+  it("reset --soft memindah HEAD, jaga index+worktree", async () => {
+    const dir = makeRepoWithSpecCommits({ "a.txt": "1" }, [{ msg: "kedua", changes: { "a.txt": "2" } }]);
+    const root = (await listGraph(dir)).commits[1]!.sha;
+    const r = await runGitOp(dir, { op: "reset", sha: root, mode: "soft" });
+    expect(r.ok).toBe(true);
+    expect(headMsg(dir)).toBe("base");
+    expect(readFileSync(`${dir}/a.txt`, "utf8")).toBe("2"); // worktree utuh
+  });
+  it("reset --hard membuang perubahan worktree", async () => {
+    const dir = makeRepoWithSpecCommits({ "a.txt": "1" }, [{ msg: "kedua", changes: { "a.txt": "2" } }]);
+    const root = (await listGraph(dir)).commits[1]!.sha;
+    const r = await runGitOp(dir, { op: "reset", sha: root, mode: "hard" });
+    expect(r.ok).toBe(true);
+    expect(readFileSync(`${dir}/a.txt`, "utf8")).toBe("1"); // kembali ke base
+  });
+  it("validateGitOp reset butuh sha + mode valid", () => {
+    expect(validateGitOp({ op: "reset", sha: "abc123" })).toBeTruthy();
+    expect(validateGitOp({ op: "reset", sha: "abc123", mode: "bogus" })).toBeTruthy();
+    expect(validateGitOp({ op: "reset", sha: "abc123", mode: "hard" })).toBeNull();
+  });
+  it("touchesTree: reset menyentuh tree, tag/rename/fetch tidak", () => {
+    expect(touchesTree({ op: "reset", sha: "x", mode: "hard" })).toBe(true);
+    expect(touchesTree({ op: "checkout", ref: "main" })).toBe(true);
+    expect(touchesTree({ op: "fetch" })).toBe(false);
   });
 });

@@ -134,7 +134,9 @@ export type GitOp =
   | { op: "cherry-pick"; sha: string }
   | { op: "revert"; sha: string }
   // SPEC-206 · hapus branch mandiri: local (`local` default true), origin (`remote`), atau keduanya.
-  | { op: "delete-branch"; name: string; force?: boolean; local?: boolean; remote?: boolean };
+  | { op: "delete-branch"; name: string; force?: boolean; local?: boolean; remote?: boolean }
+  // SPEC-233 · reset branch current ke sebuah commit (soft: HEAD saja; mixed: +index; hard: +worktree).
+  | { op: "reset"; sha: string; mode: "soft" | "mixed" | "hard" };
 
 export type GitOpResult = { ok: boolean; stdout: string; stderr: string; current: string };
 
@@ -155,8 +157,20 @@ export function validateGitOp(op: unknown): string | null {
     case "cherry-pick": return need("sha");
     case "revert": return need("sha");
     case "delete-branch": return need("name");
+    case "reset": {
+      const e = need("sha"); if (e) return e;
+      return o.mode === "soft" || o.mode === "mixed" || o.mode === "hard" ? null : "mode harus soft/mixed/hard";
+    }
     default: return `op tak dikenal: ${String(o.op)}`;
   }
+}
+
+// SPEC-233 · op yang TIDAK menyentuh working tree (ref/remote murni) → tak digerbang sesi aktif
+// di POST /projects/:id/git (ADR-0055). Signature longgar agar op yang belum masuk union pun bisa
+// diklasifikasi saat ditambah PR berikutnya.
+const REF_ONLY_OPS = new Set(["tag", "delete-tag", "push-tag", "rename-branch", "push-branch", "fetch", "stash-drop"]);
+export function touchesTree(op: GitOp | { op: string }): boolean {
+  return !REF_ONLY_OPS.has(op.op);
 }
 
 // SPEC-197 · `--end-of-options` sebelum ref/name yang berasal dari data: refname berbentuk
@@ -170,6 +184,7 @@ function gitArgs(op: GitOp): string[] {
     case "cherry-pick": return ["cherry-pick", "--end-of-options", op.sha];
     case "revert": return ["revert", "--no-edit", "--end-of-options", op.sha];
     case "delete-branch": return ["branch", op.force ? "-D" : "-d", "--end-of-options", op.name];
+    case "reset": return ["reset", `--${op.mode}`, "--end-of-options", op.sha];
   }
 }
 

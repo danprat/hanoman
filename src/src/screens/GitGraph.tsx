@@ -64,6 +64,7 @@ function menuItems(c: GraphCommit, current: string, act: (op: GitOp) => void, me
   const locals = c.refs.filter((r) => !r.startsWith("origin/"));
   const origins = c.refs.filter((r) => r.startsWith("origin/") && r !== "origin/HEAD").map((r) => r.slice("origin/".length));
   const names = [...new Set([...locals, ...origins])];
+  const copy = (t: string) => { void navigator.clipboard?.writeText(t); };
   return [
     { label: `Checkout ${c.sha.slice(0, 7)}`, run: () => act({ op: "checkout", ref: c.sha }) },
     { label: "Merge (fast-forward bila bisa)", run: () => merge(c.sha) },
@@ -71,6 +72,12 @@ function menuItems(c: GraphCommit, current: string, act: (op: GitOp) => void, me
     { label: "Merge fast-forward saja", run: () => merge(c.sha, { ff: "ff-only" }) },
     { label: "Cherry-pick", run: () => act({ op: "cherry-pick", sha: c.sha }) },
     { label: "Revert", run: () => act({ op: "revert", sha: c.sha }) },
+    // SPEC-233 · reset branch current ke commit ini (soft/mixed/hard). hard ireversibel → gate force.
+    { label: "Reset current → sini (soft)", run: () => act({ op: "reset", sha: c.sha, mode: "soft" }) },
+    { label: "Reset current → sini (mixed)", run: () => act({ op: "reset", sha: c.sha, mode: "mixed" }) },
+    { label: "Reset current → sini (hard)", run: () => act({ op: "reset", sha: c.sha, mode: "hard" }) },
+    { label: "Copy hash", run: () => copy(c.sha) },
+    { label: "Copy subject", run: () => copy(c.subject) },
     { label: "Buat branch di sini…", run: () => { const name = window.prompt("Nama branch baru:"); if (name) act({ op: "branch", name, at: c.sha, checkout: true }); } },
     // Merge branch ini lalu hapus (local + origin bila ada). Hanya branch lokal selain yang aktif.
     ...locals.filter((r) => r !== current).map((r) => ({

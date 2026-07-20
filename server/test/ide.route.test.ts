@@ -18,6 +18,14 @@ function ffRepo(): string {
   return dir;
 }
 
+// Repo main dengan 2 commit → uji reset (SPEC-233).
+function twoCommitRepo(): string {
+  const dir = makeRepoWithBranches();
+  const g = (...a: string[]) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });
+  writeFileSync(`${dir}/second.txt`, "s"); g("add", "-A"); g("commit", "-qm", "second");
+  return dir;
+}
+
 beforeAll(async () => {
   await resetDb();
   await makeProject({ id: "ide", repoDir: makeRepoWithBranches("dev") });
@@ -25,6 +33,7 @@ beforeAll(async () => {
   await makeProject({ id: "delrepo", repoDir: makeRepoWithSpecBranch("del").repoDir }); // branch hanoman/del local+origin
   await makeProject({ id: "delrepo2", repoDir: makeRepoWithSpecBranch("del2").repoDir }); // idem, untuk hapus mandiri (SPEC-206)
   await makeProject({ id: "delrepo3", repoDir: makeRepoWithSpecBranch("del3").repoDir });
+  await makeProject({ id: "resetrepo", repoDir: twoCommitRepo() });
   await makeProject({ id: "nodir", repoDir: null });
 });
 
@@ -129,5 +138,14 @@ describe("ide routes", () => {
   it("POST /git/merge source kosong → 400; project tanpa repoDir → 400 (SPEC-229)", async () => {
     expect((await app.inject({ method: "POST", url: "/api/projects/gm1/git/merge", payload: {} })).statusCode).toBe(400);
     expect((await app.inject({ method: "POST", url: "/api/projects/nodir/git/merge", payload: { source: "main" } })).statusCode).toBe(400);
+  });
+
+  it("POST /git reset: mode buruk → 400; force reset --soft → 200 (SPEC-233)", async () => {
+    const bad = await app.inject({ method: "POST", url: "/api/projects/resetrepo/git", payload: { op: "reset", sha: "HEAD~1", mode: "bogus" } });
+    expect(bad.statusCode).toBe(400);
+    const r = await app.inject({ method: "POST", url: "/api/projects/resetrepo/git", payload: { op: "reset", sha: "HEAD~1", mode: "soft", force: true } });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().ok).toBe(true);
+    expect(r.json().current).toBe("main");
   });
 });
