@@ -108,6 +108,7 @@ export function OverviewScreen({ projects, backlog, onOpenProject, onGoto }:
 
   const briefN = backlog.filter((s) => s.source === "brief").length;
   const qaN = backlog.filter((s) => s.source === "qa").length;
+  const auditN = backlog.filter((s) => s.source === "audit").length;
   const hiPrio = backlog.filter((s) => s.priority === "tinggi").length;
 
   const coverageSorted = [...projects].sort((a, b) => a.coverage - b.coverage);
@@ -117,7 +118,7 @@ export function OverviewScreen({ projects, backlog, onOpenProject, onGoto }:
     { label: "Sesi aktif", value: live.length, dot: "var(--brass-500)" },
     { label: "Perlu perhatian", value: highAtt, dot: "var(--clay-600)" },
     { label: "Docs on-convention", value: onConv + "/" + projects.length, sub: "rata-rata " + coverageAvg + "%", dot: "var(--leaf-600)" },
-    { label: "Spec di backlog", value: backlog.length, sub: briefN + " brief · " + qaN + " QA", dot: "var(--wind-600)" },
+    { label: "Spec di backlog", value: backlog.length, sub: briefN + " brief · " + qaN + " QA · " + auditN + " audit", dot: "var(--wind-600)" },
   ];
 
   return (

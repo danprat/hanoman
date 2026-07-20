@@ -24,6 +24,14 @@ const B_PRIO: Record<string, { tone: any; label: string }> = {
   sedang: { tone: "neutral", label: "prioritas sedang" },
   rendah: { tone: "neutral", label: "prioritas rendah" },
 };
+// SPEC-237 · satu peta source → tampilan (menggantikan ternari qa/brief tersebar). audit =
+// audit-only (dokumen). brief adalah fallback untuk source tak dikenal.
+const SOURCE_META: Record<string, { label: string; icon: string; tone: "err" | "brass" | "info"; color: string }> = {
+  qa:    { label: "QA finding",    icon: "bug",       tone: "err",   color: "var(--clay-500)" },
+  audit: { label: "Audit",         icon: "search",    tone: "info",  color: "var(--wind-600)" },
+  brief: { label: "feature brief", icon: "lightbulb", tone: "brass", color: "var(--brass-500)" },
+};
+const sourceMeta = (s: string) => SOURCE_META[s] ?? SOURCE_META.brief!;
 // SPEC-186 · opsi enum untuk form edit inline.
 const PRIO_OPTS = [{ value: "tinggi", label: "Tinggi" }, { value: "sedang", label: "Sedang" }, { value: "rendah", label: "Rendah" }];
 const SEV_OPTS = [{ value: "critical", label: "Critical" }, { value: "major", label: "Major" }, { value: "minor", label: "Minor" }];
@@ -77,14 +85,15 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, onStart, onIntegrate, onEditSpec }:
+function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, onStart, onIntegrate, onEditSpec, onPromoteToQa }:
   {
     spec: Spec | null; onClose: () => void; onEditBranch?: (s: Spec, b: string | null) => void;
     onRevertStage?: (s: Spec, target: string, confirmDelete?: boolean) => Promise<any>;
     onOpenReview?: (s: Spec) => void;
     onStart?: (s: Spec) => void;
     onIntegrate?: (s: Spec, op: "merge" | "rebase", target: string) => void;
-    onEditSpec?: (s: Spec, patch: { title?: string; priority?: string; payload?: unknown }) => void
+    onEditSpec?: (s: Spec, patch: { title?: string; priority?: string; payload?: unknown }) => void;
+    onPromoteToQa?: (s: Spec) => void   // SPEC-237
   }) {
   // Hook HARUS mendahului early-return `if (!spec)` — rules-of-hooks.
   const [branches, setBranches] = React.useState<string[]>([]);
@@ -136,9 +145,9 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
   const fields = qa ? QA_FIELDS : BRIEF_FIELDS;
   return (
     <Modal open title={spec.title} eyebrow={spec.id + " · " + spec.projectId}
-      icon={qa ? "bug" : "lightbulb"} onClose={() => { setEditing(false); onClose(); }}>
+      icon={sourceMeta(spec.source).icon} onClose={() => { setEditing(false); onClose(); }}>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
-        <Badge tone={qa ? "err" : "brass"} size="sm">{qa ? "QA finding" : "feature brief"}</Badge>
+        <Badge tone={sourceMeta(spec.source).tone} size="sm">{sourceMeta(spec.source).label}</Badge>
         <Badge tone={(B_PRIO[spec.priority] || B_PRIO.sedang!).tone} size="sm" variant="outline">
           {(B_PRIO[spec.priority] || B_PRIO.sedang!).label}
         </Badge>
@@ -162,6 +171,15 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
           <div style={{ marginTop: 12 }}>
             <Button size="sm" variant="primary" leftIcon="play" onClick={() => onStart(spec)}>
               Buka sesi lagi
+            </Button>
+          </div>
+        )}
+        {/* SPEC-237 · audit tetap doc-of-record; bila perlu perbaikan, naikkan jadi Finding QA. */}
+        {spec.source === "audit" && onPromoteToQa && (
+          <div style={{ marginTop: 12 }}>
+            <div className="hn-eyebrow" style={{ marginBottom: 4 }}>Tindak lanjut</div>
+            <Button size="sm" variant="secondary" leftIcon="bug" onClick={() => onPromoteToQa(spec)}>
+              Jadikan Finding QA
             </Button>
           </div>
         )}
@@ -296,7 +314,6 @@ function SpecCard({ spec, onStart, onDelete, onOpenRun, onOpenReview, onOpenDeta
     spec: Spec; onStart?: (s: Spec) => void; onDelete?: (s: Spec) => void;
     onOpenRun?: (s: Spec) => void; onOpenReview?: (s: Spec) => void; onOpenDetail?: (s: Spec) => void; running?: boolean
   }) {
-  const qa = spec.source === "qa";
   const prio = B_PRIO[spec.priority] || B_PRIO.sedang!;
   return (
     <Card padding={16}>
@@ -304,8 +321,8 @@ function SpecCard({ spec, onStart, onDelete, onOpenRun, onOpenReview, onOpenDeta
         <div style={{ minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-subtle)" }}>{spec.id}</span>
-            <Badge tone={qa ? "err" : "brass"} size="sm" icon={qa ? "bug" : "lightbulb"}>
-              {qa ? "QA finding" : "feature brief"}
+            <Badge tone={sourceMeta(spec.source).tone} size="sm" icon={sourceMeta(spec.source).icon}>
+              {sourceMeta(spec.source).label}
             </Badge>
             {spec.branchFrom && <Badge tone="neutral" size="sm" icon="git-branch">{spec.branchFrom}</Badge>}
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-muted)" }}>· {spec.projectId}</span>
@@ -333,14 +350,13 @@ function SpecRow({ spec, onStart, onDelete, onOpenRun, onOpenReview, onOpenDetai
     spec: Spec; onStart?: (s: Spec) => void; onDelete?: (s: Spec) => void;
     onOpenRun?: (s: Spec) => void; onOpenReview?: (s: Spec) => void; onOpenDetail?: (s: Spec) => void; running?: boolean
   }) {
-  const qa = spec.source === "qa";
   const prio = B_PRIO[spec.priority] || B_PRIO.sedang!;
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 14, padding: "12px 16px",
       borderBottom: "1px solid var(--border-hair)", background: "var(--surface-card)"
     }}>
-      <Icon name={qa ? "bug" : "lightbulb"} size={15} color={qa ? "var(--clay-500)" : "var(--brass-500)"} />
+      <Icon name={sourceMeta(spec.source).icon} size={15} color={sourceMeta(spec.source).color} />
       <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-subtle)", flex: "0 0 84px" }}>{spec.id}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <TitleButton spec={spec} onOpenDetail={onOpenDetail} size={14} />
@@ -399,7 +415,6 @@ function BoardCard({ spec, col, onOpenDetail, onStart, onOpenRun, onOpenReview, 
     onOpenRun?: (s: Spec) => void; onOpenReview?: (s: Spec) => void; running?: boolean;
     onDragStart: () => void; onDragEnd: () => void; dragging: boolean
   }) {
-  const qa = spec.source === "qa";
   const prio = B_PRIO[spec.priority] || B_PRIO.sedang!;
   const draggable = col === BACKLOG_COL;
   return (
@@ -416,7 +431,7 @@ function BoardCard({ spec, col, onOpenDetail, onStart, onOpenRun, onOpenReview, 
         cursor: draggable ? "grab" : "default", opacity: dragging ? 0.4 : 1,
       }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-        <Icon name={qa ? "bug" : "lightbulb"} size={13} color={qa ? "var(--clay-500)" : "var(--brass-500)"} />
+        <Icon name={sourceMeta(spec.source).icon} size={13} color={sourceMeta(spec.source).color} />
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)" }}>{spec.id}</span>
         <span style={{ flex: 1 }} />
         <Badge tone={prio.tone} size="sm" variant={spec.priority === "tinggi" ? "soft" : "outline"}>{spec.priority}</Badge>
@@ -504,7 +519,7 @@ const VIEWS = [
   { value: "board", label: "Board", icon: "kanban" },
 ];
 
-export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onOpenReview, onNew, onEditBranch, onRevertStage, onIntegrate, onEditSpec, projectFilter, onProjectFilter, dataVersion }:
+export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onOpenReview, onNew, onEditBranch, onRevertStage, onIntegrate, onEditSpec, onPromoteToQa, projectFilter, onProjectFilter, dataVersion }:
   {
     backlog: Spec[]; projects: ProjectVM[]; pageSize?: number;
     onStart?: (s: Spec) => void; activeSpecs?: Set<string>;
@@ -513,6 +528,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
     onRevertStage?: (s: Spec, target: string, confirmDelete?: boolean) => Promise<any>;
     onIntegrate?: (s: Spec, op: "merge" | "rebase", target: string) => void;
     onEditSpec?: (s: Spec, patch: { title?: string; priority?: string; payload?: unknown }) => void;
+    onPromoteToQa?: (s: Spec) => void;   // SPEC-237 · naikkan audit → Finding QA
     projectFilter: string; onProjectFilter: (id: string) => void; dataVersion?: number
   }) {
   const [tab, setTab] = React.useState("all");
@@ -558,7 +574,8 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
       <div style={{ ...FIXED_ROW_STYLE, marginBottom: 18 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
           <Tabs variant="pill" value={tab} onChange={setTab} tabs={[
-            { value: "all", label: "Semua spec" }, { value: "brief", label: "Dari brief" }, { value: "qa", label: "Dari QA" },
+            { value: "all", label: "Semua spec" }, { value: "brief", label: "Dari brief" },
+            { value: "qa", label: "Dari QA" }, { value: "audit", label: "Audit" },
           ]} />
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <Tabs variant="pill" value={view} onChange={setView} tabs={VIEWS} aria-label="Mode tampilan" />
@@ -620,7 +637,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
         </>
       )}
       <SpecDetail spec={backlog.find((s) => s.id === detailId) || null} onClose={() => setDetailId(null)}
-        onEditBranch={onEditBranch} onRevertStage={onRevertStage} onOpenReview={onOpenReview} onStart={onStart} onIntegrate={onIntegrate} onEditSpec={onEditSpec} />
+        onEditBranch={onEditBranch} onRevertStage={onRevertStage} onOpenReview={onOpenReview} onStart={onStart} onIntegrate={onIntegrate} onEditSpec={onEditSpec} onPromoteToQa={onPromoteToQa} />
     </div>
   );
 }

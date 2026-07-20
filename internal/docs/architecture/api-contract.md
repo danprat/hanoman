@@ -58,6 +58,9 @@ GET  /specs?project=&source=&q=&stage=&priority=&startable=&page=&limit=
 #   & paginasi diterapkan DI MEMORI SETELAH overlay — filter stage cocok ke stage LIVE, bukan DB.
 #   Tanpa page/limit → seluruh item terfilter (page 1, pageSize=total). Lihat ADR-0038.
 POST /specs               { project, source, ...payload, branchFrom? }  -> SPEC-n
+#   source ∈ brief|qa|audit (SPEC-237). audit = audit-only (payload brief-shaped, author `Audit ·`);
+#   qa payload ber-severity (superRefine mengikat source↔bentuk payload). audit → flow `audit`
+#   (Audit → Laporan, dokumen SoT tanpa Execute; ADR-0057). Client memetakan source→flow via flowForSource.
 #   404 bila project tak dikenal; 400 bila branchFrom tak ada di refs/heads repo project.
 PATCH /specs/:id          { branchFrom?: string|null, stage?, confirmDelete? }   -> Spec
 #   branchFrom null = kembali ke default project (main); menentukan basis sesi BERIKUTNYA. Lihat ADR-0032.
@@ -67,6 +70,7 @@ PATCH /specs/:id          { branchFrom?: string|null, stage?, confirmDelete? }  
 #   confirmDelete:true → hapus artefak + set stage. Sesi tetap forward-only (ADR-0008/0024).
 DELETE /specs/:id
 GET  /specs/:id/docs                   # daftar dokumen superpowers backlog ini (audit/spec/plan/objective/brainstorm) — SPEC-170
+#   kind audit = `*-audit.md` ATAU `…/research/audit-…` (SPEC-237/ADR-0057) — dokumen audit SoT ikut tampil sbg audit
 GET  /specs/:id/docs/*path             # isi satu dokumen superpowers (raw)
 GET  /specs/:id/review                 # { base, files:string[], changed:{path,add,del,status,binary}[] }  (SPEC-171)
 #   worktree hidup <repoDir>/.worktrees/<specid> → diff working tree, base = merge-base(branchFrom‖main, HEAD).
@@ -184,6 +188,8 @@ POST   /terminal/sessions  {project, flow?} # 201 { id } · 404 project · 400 t
 #     (HANOMAN_SHELL ?? $SHELL ?? /bin/bash) di repoDir project, tanpa flow (tak menggerakkan stage,
 #     tak buat worktree). 201 { id } · 404 project · 400 tanpa repoDir (needsBind).
 #   {spec, flow} (SPEC-162): sesi backlog item di worktree .worktrees/<spec>, prompt pipeline penuh
+#     flow ∈ feature|qa|audit (dari source; flowForSource). audit (SPEC-237/ADR-0057) = pipeline
+#     Audit → Laporan: investigasi + dokumen SoT (research/audit-<spec>-<slug>.md), TANPA Execute; stage done via Laporan.
 #   SPEC-172: bila Spec.stage === "done", sesi baru dibuka dengan prompt LANJUTAN (fase Execute
 #     saja, continuePrompt) alih-alih pipeline penuh — reopen backlog yang keburu selesai.
 #   flow "reverse" (SPEC-166, ADR-0026): sesi project-level di worktree .worktrees/reverse-<project>

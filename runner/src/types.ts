@@ -1,4 +1,4 @@
-export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd";
+export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit";
 
 // Backlog item yang dikerjakan sebuah sesi. Id-nya saja tak berarti apa-apa di dalam
 // worktree yang masih segar (spec hidup di Postgres, bukan di repo), jadi ia harus

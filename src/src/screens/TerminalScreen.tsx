@@ -2,6 +2,7 @@ import React from "react";
 import { Button, IconButton, Icon, Select, StateBlock, Modal, Input, Badge, StatusPill } from "../ds";
 import { api, ApiError, type TerminalSession, type Phase, type Flow } from "../api/client";
 import { subscribe } from "../api/events";
+import { flowForSource } from "@hanoman/shared";
 import { TerminalPane } from "./TerminalPane";
 import { SpecDocsModal } from "./SpecDocsModal";
 import { IntegrateDialog } from "./IntegrateDialog";
@@ -89,7 +90,7 @@ export function TerminalScreen({ projects, backlog = [], focusSession, onOpenRev
   // SPEC-179 · ambil backlog item tanpa pindah page. Reuse start API idempoten +
   // placeFirstEmptyInActive — sesi baru langsung masuk grid aktif.
   async function pickBacklog(spec: Spec) {
-    const flow: Flow = spec.source === "qa" ? "qa" : "feature";
+    const flow: Flow = flowForSource(spec.source);
     try {
       const { id } = await api.startSession({ spec: spec.id, flow });
       setSessions((s) => s.some((x) => x.id === id)
@@ -318,8 +319,8 @@ function BacklogPicker({ seed, activeIds, error, onPick, onClose }: {
               all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
               padding: "9px 8px", borderBottom: "1px solid var(--border-hair)",
             }}>
-              <Icon name={s.source === "qa" ? "bug" : "lightbulb"} size={14}
-                color={s.source === "qa" ? "var(--clay-500)" : "var(--brass-500)"} />
+              <Icon name={s.source === "qa" ? "bug" : s.source === "audit" ? "search" : "lightbulb"} size={14}
+                color={s.source === "qa" ? "var(--clay-500)" : s.source === "audit" ? "var(--wind-600)" : "var(--brass-500)"} />
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-subtle)",
                 flex: "0 0 78px" }}>{s.id}</span>
               <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: "var(--text-strong)",

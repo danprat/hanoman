@@ -1,5 +1,21 @@
 import { describe, it, expect } from "vitest";
 import { zSetting, zTerminalSession, paths } from "../src/index";
+import { zSpecSource } from "../src/enums";
+import { flowForSource } from "../src/dto";
+
+// SPEC-237 · source+flow audit (audit-only: dokumen, tanpa perbaikan).
+describe("SPEC-237 · source audit", () => {
+  it("zSpecSource menerima brief, qa, audit", () => {
+    for (const s of ["brief", "qa", "audit"]) expect(zSpecSource.safeParse(s).success).toBe(true);
+    expect(zSpecSource.safeParse("hantu").success).toBe(false);
+  });
+  it("flowForSource memetakan source → flow", () => {
+    expect(flowForSource("brief")).toBe("feature");
+    expect(flowForSource("qa")).toBe("qa");
+    expect(flowForSource("audit")).toBe("audit");
+    expect(flowForSource("apapun")).toBe("feature");
+  });
+});
 
 // SPEC-157 (`awaiting`, zAsk, zAnswer) dicabut bersama runner headless: agen bertanya di
 // terminalnya sendiri, dan manusia menjawab di sana (SPEC-162).

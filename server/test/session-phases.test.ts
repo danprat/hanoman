@@ -128,3 +128,15 @@ describe("stageForRun", () => {
     expect(stageForRun(P([["Plan", "done"]]), mkPlan("- [ ] b\n"), "SPEC-173")).toBe("planned");
   });
 });
+
+// SPEC-237 · ADR-0057 — flow audit-only (Audit → Laporan). Fase terminal Laporan → stage done.
+describe("SPEC-237 · stage audit-only", () => {
+  it("Laporan done → stage done", () => {
+    const phases: Phase[] = [{ name: "Audit", state: "done" }, { name: "Laporan", state: "done" }];
+    expect(stageFor(phases)).toBe("done");
+  });
+  it("Audit done, Laporan active → belum done (objective)", () => {
+    const phases: Phase[] = [{ name: "Audit", state: "done" }, { name: "Laporan", state: "active" }];
+    expect(stageFor(phases)).toBe("objective");
+  });
+});

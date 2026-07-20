@@ -50,8 +50,11 @@ export function readPhases(file: string, flow: Flow): Phase[] {
 
 // ADR-0008 · Spec.stage cermin fase, hanya maju. `skipped` dihitung sebagai tercapai:
 // jalur cepat qa melewati Spec+Plan justru karena pekerjaannya tak diperlukan.
+// SPEC-237 · `Laporan` = fase terminal flow audit-only → stage `done` (dokumen ditulis, tak ada
+// Execute/plan; `planComplete` true → `stageForRun` tak menahan di `executing`). Nama unik lintas PIPELINES.
 const REACHED: Record<string, Stage> = {
-  Objective: "objective", Audit: "objective", Spec: "spec-ready", Plan: "planned", Execute: "done",
+  Objective: "objective", Audit: "objective", Spec: "spec-ready", Plan: "planned",
+  Laporan: "done", Execute: "done",
 };
 export function stageFor(phases: Phase[]): Stage | null {
   let best = -1;

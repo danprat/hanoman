@@ -8,6 +8,7 @@ import { Shell, Modal, Field, HnTextarea, Button, StatusPill, Select, Input, Tab
 import { api, ApiError, type TerminalSession } from "./api/client";
 import { subscribe } from "./api/events";
 import type { ProjectView, Spec, AuthStatus, UserView, Notification } from "@hanoman/shared";
+import { flowForSource } from "@hanoman/shared";
 import { AuthScreen } from "./screens/AuthScreen";
 import { AuthProvider } from "./auth/AuthContext";
 import type { ProjectVM } from "./screens/types";
@@ -29,14 +30,20 @@ const PRIORITY = [{ value: "tinggi", label: "Tinggi" }, { value: "sedang", label
 
 type SpecForm = { kind: string; project: string; title: string; context: string; outcome: string; constraints: string;
   priority: string; severity: string; steps: string; expected: string; actual: string; env: string; branchFrom: string };
+// SPEC-210 (PRD take-to-backlog) + SPEC-237 (promosi audit → Finding QA) menyeed NewSpecModal.
+// Semua opsional → PrdPrefill (field wajib) tetap assignable ke sini.
+type SpecPrefill = { project?: string; title?: string; context?: string; outcome?: string; prdPath?: string;
+  kind?: string; steps?: string; actual?: string; severity?: string };
 
 function NewSpecModal({ open, onClose, projects, defaultProject, onCreate, prefill }:
   { open: boolean; onClose: () => void; projects: ProjectVM[]; defaultProject: string; onCreate: (f: SpecForm) => void;
-    // SPEC-210 · seed dari "Take ke backlog" sebuah PRD (selalu kind brief).
-    prefill?: { project?: string; title?: string; context?: string; outcome?: string; prdPath?: string } }) {
-  const blank: SpecForm = { kind: "brief", project: prefill?.project || defaultProject, title: prefill?.title ?? "",
-    context: prefill?.context ?? "", outcome: prefill?.outcome ?? "", constraints: "",
-    priority: "sedang", severity: "major", steps: "", expected: "", actual: "", env: "", branchFrom: "" };
+    // SPEC-210 · seed dari "Take ke backlog" PRD (kind brief). SPEC-237 · promosi audit → Finding QA
+    // (kind qa) membawa `kind` + field qa. Semua opsional; PrdPrefill (semua wajib) tetap assignable.
+    prefill?: SpecPrefill }) {
+  const blank: SpecForm = { kind: prefill?.kind ?? "brief", project: prefill?.project || defaultProject,
+    title: prefill?.title ?? "", context: prefill?.context ?? "", outcome: prefill?.outcome ?? "", constraints: "",
+    priority: "sedang", severity: prefill?.severity ?? "major", steps: prefill?.steps ?? "",
+    expected: "", actual: prefill?.actual ?? "", env: "", branchFrom: "" };
   const [f, setF] = React.useState<SpecForm>(blank);
   React.useEffect(() => {
     if (open) setF({ ...blank, project: prefill?.project || defaultProject });
@@ -57,23 +64,26 @@ function NewSpecModal({ open, onClose, projects, defaultProject, onCreate, prefi
   }, [open, f.project]);
   const set = (k: keyof SpecForm) => (e: React.ChangeEvent<any>) => setF((s) => ({ ...s, [k]: e.target.value }));
   const isQa = f.kind === "qa";
+  const isAudit = f.kind === "audit";                       // SPEC-237 · audit-only (dokumen, tanpa perbaikan)
   const submit = () => { if (!f.title.trim()) return; onCreate(f); };
   return (
-    <Modal open={open} onClose={onClose} icon={isQa ? "bug" : "lightbulb"} eyebrow="human → hanoman"
-      title={isQa ? "QA finding baru" : "Feature brief baru"}
+    <Modal open={open} onClose={onClose} icon={isQa ? "bug" : isAudit ? "search" : "lightbulb"} eyebrow="human → hanoman"
+      title={isQa ? "QA finding baru" : isAudit ? "Audit baru" : "Feature brief baru"}
       footer={<>
         <Button variant="ghost" size="sm" onClick={onClose}>Batal</Button>
-        <Button size="sm" leftIcon={isQa ? "radar" : "messages-square"} onClick={submit}>
-          {isQa ? "Filekan finding → audit" : "Buat brief → brainstorm"}
+        <Button size="sm" leftIcon={isQa ? "radar" : isAudit ? "search" : "messages-square"} onClick={submit}>
+          {isQa ? "Filekan finding → audit" : isAudit ? "Buat audit → investigasi" : "Buat brief → brainstorm"}
         </Button>
       </>}>
       <div style={{ marginBottom: 16 }}>
         <Tabs variant="pill" value={f.kind} onChange={(v) => setF((s) => ({ ...s, kind: v }))} tabs={[
           { value: "brief", label: "Feature brief", icon: "lightbulb" },
           { value: "qa", label: "QA finding", icon: "bug" },
+          { value: "audit", label: "Audit", icon: "search" },
         ]} />
         <div style={{ fontSize: 12, color: "var(--text-subtle)", marginTop: 8, lineHeight: 1.5 }}>
           {isQa ? "Finding masuk lewat alur audit → spec → plan → execute. hanoman menelusuri akar masalah dulu."
+            : isAudit ? "Audit HANYA menghasilkan dokumen (audit → laporan) — tanpa perbaikan kode. Bisa dinaikkan jadi Finding QA bila perlu diperbaiki."
             : "Brief masuk lewat alur brainstorm → objective → spec → plan → execute."}
         </div>
       </div>
@@ -108,11 +118,14 @@ function NewSpecModal({ open, onClose, projects, defaultProject, onCreate, prefi
         </>
       ) : (
         <>
-          <Field label="Konteks" hint="Latar belakang & alasan fitur ini dibutuhkan">
-            <HnTextarea value={f.context} onChange={set("context")} rows={3} placeholder="Situasi & motivasi…" />
+          <Field label={isAudit ? "Apa yang diaudit / pertanyaan" : "Konteks"}
+            hint={isAudit ? "Isu atau pertanyaan yang mau ditelusuri" : "Latar belakang & alasan fitur ini dibutuhkan"}>
+            <HnTextarea value={f.context} onChange={set("context")} rows={3}
+              placeholder={isAudit ? "mis. apakah funnel double-count? cek log sesi lintas tengah malam…" : "Situasi & motivasi…"} />
           </Field>
-          <Field label="Hasil yang diharapkan">
-            <HnTextarea value={f.outcome} onChange={set("outcome")} rows={2} placeholder="Kondisi setelah selesai…" />
+          <Field label={isAudit ? "Temuan/jawaban yang diharapkan" : "Hasil yang diharapkan"}>
+            <HnTextarea value={f.outcome} onChange={set("outcome")} rows={2}
+              placeholder={isAudit ? "Jawaban/kepastian yang dicari…" : "Kondisi setelah selesai…"} />
           </Field>
           <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 12 }}>
             <Field label="Batasan" hint="opsional">
@@ -336,7 +349,7 @@ export default function App() {
   const [search, setSearch] = React.useState("");
   const [modal, setModal] = React.useState<string | null>(null);
   // SPEC-210 · prefill NewSpecModal saat "Take ke backlog" dari sebuah PRD.
-  const [specPrefill, setSpecPrefill] = React.useState<PrdPrefill | null>(null);
+  const [specPrefill, setSpecPrefill] = React.useState<SpecPrefill | null>(null);
   const [toast, showToast] = useToast();
   const [status, setStatus] = React.useState<"loading" | "ready" | "error">("loading");
   // SPEC-169 · gate auth. null = belum tahu (splash). Sesi kedaluwarsa (401) → balik ke Login.
@@ -494,7 +507,7 @@ export default function App() {
   // `branchFrom` tak dikirim — server membacanya dari baris Spec (SPEC-143).
   async function startSession(spec: Spec) {
     try {
-      const { id } = await api.startSession({ spec: spec.id, flow: spec.source === "qa" ? "qa" : "feature" });
+      const { id } = await api.startSession({ spec: spec.id, flow: flowForSource(spec.source) });
       setSection("terminal");
       showToast(spec.id + " · sesi " + id + " dimulai", "info", "play");
     } catch (e) {
@@ -574,6 +587,13 @@ export default function App() {
   }
   // SPEC-210 · take PRD → backlog: prefill NewSpecModal (brief) dari PRD, buka modal-nya.
   function takeToBacklog(pf: PrdPrefill) { setSpecPrefill(pf); setModal("brief"); }
+  // SPEC-237 · naikkan audit → Finding QA (audit tetap doc-of-record). Buka NewSpecModal source qa
+  // ter-prefill (title + backlink audit di langkah); qa menjalankan audit→spec→plan→execute (perbaikan).
+  function promoteToQa(spec: Spec) {
+    setSpecPrefill({ project: spec.projectId, kind: "qa", title: spec.title,
+      steps: `Dari audit ${spec.id}: ${spec.objective}`.slice(0, 500), actual: spec.objective, severity: "major" });
+    setModal("brief");
+  }
 
   // SPEC-143. Hanya menentukan basis run BERIKUTNYA; run yang sudah jalan diubah dari layar Runs.
   async function editBranch(spec: Spec, branchFrom: string | null) {
@@ -628,7 +648,9 @@ export default function App() {
         priority: f.priority, payload, branchFrom: f.branchFrom || undefined });
       setBacklog((b) => [created, ...b]);
       setModal(null); setSpecPrefill(null); setSection("backlog");
-      showToast(created.id + (isQa ? " difilekan · masuk audit" : " dibuat · masuk brainstorm"), "ok", isQa ? "bug" : "lightbulb");
+      const toastMsg = f.kind === "audit" ? " dibuat · audit-only (dokumen)"
+        : isQa ? " difilekan · masuk audit" : " dibuat · masuk brainstorm";
+      showToast(created.id + toastMsg, "ok", f.kind === "audit" ? "search" : isQa ? "bug" : "lightbulb");
     } catch { showToast("Gagal membuat spec", "err", "x-circle"); }
   }
 
@@ -692,6 +714,7 @@ export default function App() {
           onStart={startSession} activeSpecs={activeSpecs} onNew={() => setModal("brief")}
           onDelete={deleteSpec} onOpenRun={() => setSection("terminal")} onOpenReview={openReview}
           onEditBranch={editBranch} onRevertStage={revertStage} onIntegrate={integrateSpec} onEditSpec={editSpec}
+          onPromoteToQa={promoteToQa}
           projectFilter={projectFilter} onProjectFilter={setProjectFilter} dataVersion={dataVersion} />)}
       </Shell>
     );

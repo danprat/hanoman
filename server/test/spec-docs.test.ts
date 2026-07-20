@@ -28,6 +28,9 @@ describe("kindOf", () => {
     expect(kindOf("docs/superpowers/specs/a-spec-170-design.md")).toBe("spec");
     expect(kindOf("internal/docs/operations/spec-168-x-spec.md")).toBe("spec");
     expect(kindOf("docs/superpowers/plans/a-spec-170.md")).toBe("plan");
+    // SPEC-237 · audit SoT `research/audit-<spec>-<slug>.md` (tak berakhiran -audit.md) → kind audit.
+    expect(kindOf("internal/docs/research/audit-spec-237-audit-issue.md")).toBe("audit");
+    expect(kindOf("internal/docs/research/audit-spec-230-prd-review-merge.md")).toBe("audit");
     expect(kindOf("README.md")).toBe("other");
   });
 });
