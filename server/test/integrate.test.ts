@@ -2,8 +2,9 @@ import { describe, it, expect } from "vitest";
 import { execFileSync } from "node:child_process";
 import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { integrate, integrateBranch, mergeIntoCurrent } from "../src/services/integrate";
-import { makeRepoWithSpecBranch } from "./factory";
+import { integrate, integrateBranch, mergeIntoCurrent, rebaseOntoCurrent, dropCommit } from "../src/services/integrate";
+import { makeRepoWithSpecBranch, makeRepoWithBranches, makeRepoWithSpecCommits } from "./factory";
+import { spawnSync } from "node:child_process";
 
 // isi file di sebuah ref: bare origin lewat --git-dir, repo biasa lewat -C.
 const showBare = (gitDir: string, ref: string, path: string) =>
@@ -176,5 +177,45 @@ describe("integrate — rebase", () => {
     const r = await integrate(repoDir, "SPEC-1", "rebase", "origin:main");
     expect(r.status).toBe("conflict");
     if (r.status === "conflict") expect(r.finalize).toContain("--force-with-lease");
+  });
+});
+
+describe("rebase/drop current (SPEC-233)", () => {
+  const g = (dir: string, ...a: string[]) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });
+  it("rebaseOntoCurrent clean: branch current ditulis ulang di atas target", async () => {
+    const dir = makeRepoWithBranches("dev");
+    g(dir, "checkout", "-q", "dev"); writeFileSync(`${dir}/dev.txt`, "d"); g(dir, "add", "-A"); g(dir, "commit", "-qm", "dev1");
+    g(dir, "checkout", "-q", "main"); writeFileSync(`${dir}/base2.txt`, "b"); g(dir, "add", "-A"); g(dir, "commit", "-qm", "main1");
+    g(dir, "checkout", "-q", "dev");
+    const r = await rebaseOntoCurrent(dir, "main");
+    expect(r.status).toBe("clean");
+    expect(existsSync(`${dir}/base2.txt`)).toBe(true); // membawa commit main
+    expect(existsSync(`${dir}/dev.txt`)).toBe(true);   // menjaga commit dev
+  });
+  it("dropCommit clean: commit dibuang, descendant dipertahankan", async () => {
+    const dir = makeRepoWithSpecCommits({ "a": "1" }, [
+      { msg: "buang", changes: { "buang.txt": "x" } }, { msg: "simpan", changes: { "simpan.txt": "y" } }]);
+    const shas = g(dir, "log", "--format=%H").stdout.trim().split("\n"); // newest→oldest: simpan, buang, base
+    const buang = shas[1]!;
+    const r = await dropCommit(dir, buang);
+    expect(r.status).toBe("clean");
+    expect(existsSync(`${dir}/buang.txt`)).toBe(false);
+    expect(existsSync(`${dir}/simpan.txt`)).toBe(true);
+  });
+  it("rebase konflik → status conflict + worktree tersisa", async () => {
+    const dir = makeRepoWithBranches("dev");
+    g(dir, "checkout", "-q", "dev"); writeFileSync(`${dir}/README.md`, "dev"); g(dir, "add", "-A"); g(dir, "commit", "-qm", "dev");
+    g(dir, "checkout", "-q", "main"); writeFileSync(`${dir}/README.md`, "main"); g(dir, "add", "-A"); g(dir, "commit", "-qm", "main");
+    g(dir, "checkout", "-q", "dev");
+    const r = await rebaseOntoCurrent(dir, "main");
+    expect(r.status).toBe("conflict");
+    if (r.status === "conflict") expect(existsSync(r.worktree)).toBe(true);
+  });
+  it("rebaseOntoCurrent HEAD detached → error 409", async () => {
+    const dir = makeRepoWithBranches("dev");
+    g(dir, "checkout", "-q", "--detach", "HEAD");
+    const r = await rebaseOntoCurrent(dir, "main");
+    expect(r.status).toBe("error");
+    if (r.status === "error") expect(r.code).toBe(409);
   });
 });

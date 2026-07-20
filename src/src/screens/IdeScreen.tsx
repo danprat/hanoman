@@ -99,6 +99,20 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
       throw e;
     }
   }
+  // SPEC-233 · rebase/pull/drop via git graph: pola mergeGraph — konflik → Terminal, bersih → toast+reload.
+  async function graphIsolated(kind: "rebase" | "pull" | "drop", arg: string) {
+    try {
+      const r = kind === "rebase" ? await api.ideGitRebase(projectId, arg)
+        : kind === "pull" ? await api.ideGitPull(projectId, { source: arg })
+        : await api.ideGitDrop(projectId, arg);
+      if (r.status === "conflict") { onGotoTerminal?.(r.sessionId); onToast?.(`konflik ${kind} — selesaikan di Terminal`, "warn", "git-merge"); }
+      else { setViewRef(""); reloadTree(); onToast?.(`${kind} berhasil · ${r.detail}`, "ok", "git-branch"); }
+    } catch (e) {
+      const code = e instanceof ApiError ? e.status : 0;
+      onToast?.(`gagal ${kind}` + (code === 409 ? " · cek working tree/branch" : ""), "err", "x-circle");
+      throw e;
+    }
+  }
   async function confirmForce() {
     if (!pendingForce) return;
     const op = { ...pendingForce.op, force: true } as GitOp;
@@ -184,6 +198,7 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
         </div>
       ) : (
         <GitGraph projectId={projectId} onRunGit={runGit} onMerge={mergeGraph}
+          onRebase={(onto) => graphIsolated("rebase", onto)} onPull={(src) => graphIsolated("pull", src)} onDrop={(sha) => graphIsolated("drop", sha)}
           onOpenFile={(p, ref) => { setViewRef(ref); setSelected(p); setTab("explorer"); }} />
       )}
 

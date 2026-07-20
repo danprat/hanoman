@@ -229,3 +229,82 @@ export async function mergeIntoCurrent(
   // konflik → tinggalkan worktree; route spawn sesi claude
   return { status: "conflict", worktree: wt, source: src, target: `local:${current}`, finalize: finalizeInstruction("merge", finalize) };
 }
+
+// SPEC-233 · tak ada perubahan file TERLACAK (staged/unstaged). Rebase/drop mendarat lewat
+// `reset --hard` yang menjaga file untracked — jadi untracked (mis. `.worktrees/` isolasi) diabaikan.
+async function isCleanTree(dir: string): Promise<boolean> {
+  return (await out(dir, ["status", "--porcelain", "--untracked-files=no"])).length === 0;
+}
+
+// Mendaratkan history yang ditulis ulang (rebase/drop) ke branch current di working tree utama:
+// karena branch ter-checkout, `branch -f` ditolak git → pakai `reset --hard` (aman, tree wajib bersih).
+async function landRewrite(repoDir: string, branch: string, head: string):
+  Promise<{ ok: true; detail: string } | { ok: false; error: string }> {
+  if (!(await isCleanTree(repoDir)))
+    return { ok: false, error: `working tree "${branch}" ada perubahan belum tersimpan — commit/stash lalu ulangi` };
+  return (await ok(repoDir, ["reset", "--hard", "--end-of-options", head]))
+    ? { ok: true, detail: `${branch} ditulis ulang → ${head.slice(0, 7)}` }
+    : { ok: false, error: `gagal memperbarui branch "${branch}"` };
+}
+
+// Instruksi untuk sesi claude sesudah resolve konflik rebase/drop: lanjutkan rebase, lalu daratkan
+// hasil ke branch current di working tree utama (`git -C <repoDir> reset --hard`).
+function rewriteInstruction(repoDir: string, branch: string): string {
+  return `Sesudah resolve tiap konflik: \`git add -A && git rebase --continue\` (ulangi sampai selesai), ` +
+    `lalu daratkan ke branch \`${branch}\` di working tree utama (pastikan bersih): ` +
+    `\`git -C ${repoDir} reset --hard $(git rev-parse HEAD)\`.`;
+}
+
+// SPEC-233 · replay history branch current di worktree isolasi, lalu daratkan. `cmd` = perintah
+// rebase yang dijalankan di worktree detached pada tip current. Konflik → tinggalkan worktree (sesi
+// claude); bersih → landRewrite. Pola sama seperti mergeIntoCurrent, working tree utama tak dirusak.
+async function replayCurrent(repoDir: string, source: string, cmd: string[]): Promise<GraphMergeResult> {
+  const current = await out(repoDir, ["rev-parse", "--abbrev-ref", "HEAD"]);
+  if (!current || current === "HEAD")
+    return { status: "error", code: 409, error: "HEAD detached — checkout sebuah branch dulu" };
+
+  const wt = join(repoDir, ".worktrees", `merge-${sanitize(current)}`);
+  await reclaim(repoDir, wt);
+  const baseSha = await out(repoDir, ["rev-parse", "--verify", "--end-of-options", `refs/heads/${current}^{commit}`]);
+  if (!(await ok(repoDir, ["worktree", "add", "--detach", "-q", wt, baseSha])))
+    return { status: "error", code: 500, error: "gagal membuat worktree rebase" };
+
+  const run = await sh(wt, cmd);
+  if (run.status === 0) {
+    const head = await out(wt, ["rev-parse", "HEAD"]);
+    const fin = await landRewrite(repoDir, current, head);
+    await sh(repoDir, ["worktree", "remove", "--force", wt]);
+    return fin.ok ? { status: "clean", detail: fin.detail } : { status: "error", code: 409, error: fin.error };
+  }
+  const conflicted = (await out(wt, ["ls-files", "--unmerged"])).length > 0;
+  if (!conflicted) {
+    await sh(wt, ["rebase", "--abort"]);
+    await sh(repoDir, ["worktree", "remove", "--force", wt]);
+    return { status: "error", code: 409, error: run.stderr.trim() || "operasi rebase gagal" };
+  }
+  return { status: "conflict", worktree: wt, source, target: `local:${current}`, finalize: rewriteInstruction(repoDir, current) };
+}
+
+// SPEC-233 · rebase branch current di atas commit/branch `onto` (isolasi + handoff sesi claude).
+export async function rebaseOntoCurrent(repoDir: string, onto: string): Promise<GraphMergeResult> {
+  const src = await resolveGraphSource(repoDir, onto);
+  if (!src) return { status: "error", code: 400, error: `target "${onto}" tak dikenal` };
+  const ontoSha = await out(repoDir, ["rev-parse", "--verify", "--end-of-options", `${src}^{commit}`]);
+  return replayCurrent(repoDir, src, ["rebase", "--end-of-options", ontoSha]);
+}
+
+// SPEC-233 · buang satu commit dari branch current: rebase --onto <sha>^ <sha> (isolasi + handoff).
+export async function dropCommit(repoDir: string, sha: string): Promise<GraphMergeResult> {
+  if (!(await refExists(repoDir, sha))) return { status: "error", code: 400, error: `commit "${sha}" tak dikenal` };
+  const shaSha = await out(repoDir, ["rev-parse", "--verify", "--end-of-options", `${sha}^{commit}`]);
+  const parent = await sh(repoDir, ["rev-parse", "--verify", "--end-of-options", `${shaSha}^`]);
+  if (parent.status !== 0) return { status: "error", code: 400, error: "tak bisa drop commit root (tanpa parent)" };
+  return replayCurrent(repoDir, shaSha, ["rebase", "--onto", parent.stdout.trim(), shaSha]);
+}
+
+// SPEC-233 · pull remote branch ke current = fetch + merge origin/<source> (reuse mergeIntoCurrent
+// yang sudah fetch di dalamnya). Isolasi + konflik → sesi claude.
+export async function pullIntoCurrent(repoDir: string, source: string, opts: { ff?: "no-ff" | "ff-only" } = {}): Promise<GraphMergeResult> {
+  const remote = source.startsWith("origin/") ? source : `origin/${source}`;
+  return mergeIntoCurrent(repoDir, remote, { ff: opts.ff });
+}

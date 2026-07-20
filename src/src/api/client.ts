@@ -137,6 +137,10 @@ export const api = {
   // SPEC-229 · merge via git graph: deterministik di worktree isolasi; conflict → sesi claude.
   ideGitMerge: (id: string, b: { source: string; ff?: "no-ff" | "ff-only"; deleteBranch?: string }) =>
     j<GraphMergeResult>(paths.ideGitMerge(id), { method: "POST", ...body(b) }),
+  // SPEC-233 · rebase/pull/drop via git graph: isolasi + conflict → sesi claude (bentuk sama).
+  ideGitRebase: (id: string, onto: string) => j<GraphMergeResult>(paths.ideGitRebase(id), { method: "POST", ...body({ onto }) }),
+  ideGitPull: (id: string, b: { source: string; ff?: "no-ff" | "ff-only" }) => j<GraphMergeResult>(paths.ideGitPull(id), { method: "POST", ...body(b) }),
+  ideGitDrop: (id: string, sha: string) => j<GraphMergeResult>(paths.ideGitDrop(id), { method: "POST", ...body({ sha }) }),
   browseFs: (path?: string) =>
     j<{ path: string; parent: string | null; entries: { name: string; path: string }[] }>(paths.fsBrowse(path)),
   listTerminals: () => j<TerminalSession[]>(paths.terminalSessions),

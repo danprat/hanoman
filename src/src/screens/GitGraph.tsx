@@ -60,7 +60,8 @@ type MenuItem = { label: string; run: () => void };
 // ref `origin/<b>` dikelompokkan dengan branch lokal `<b>` bila keduanya menunjuk commit ini.
 // SPEC-229 · aksi merge lewat `merge` (jalur worktree isolasi + sesi claude), bukan `act`/onRunGit.
 type MergeFn = (source: string, opts?: { ff?: "no-ff" | "ff-only"; deleteBranch?: string }) => void;
-function menuItems(c: GraphCommit, current: string, act: (op: GitOp) => void, merge: MergeFn): MenuItem[] {
+type RefFn = (ref: string) => void; // rebase(onto) / drop(sha) / pull(source)
+function menuItems(c: GraphCommit, current: string, act: (op: GitOp) => void, merge: MergeFn, rebase: RefFn, drop: RefFn): MenuItem[] {
   const locals = c.refs.filter((r) => !r.startsWith("origin/"));
   const origins = c.refs.filter((r) => r.startsWith("origin/") && r !== "origin/HEAD").map((r) => r.slice("origin/".length));
   const names = [...new Set([...locals, ...origins])];
@@ -72,6 +73,9 @@ function menuItems(c: GraphCommit, current: string, act: (op: GitOp) => void, me
     { label: "Merge fast-forward saja", run: () => merge(c.sha, { ff: "ff-only" }) },
     { label: "Cherry-pick", run: () => act({ op: "cherry-pick", sha: c.sha }) },
     { label: "Revert", run: () => act({ op: "revert", sha: c.sha }) },
+    // SPEC-233 · rebase current ke commit ini / buang commit ini (isolasi + konflik → sesi claude)
+    { label: "Rebase current → sini", run: () => rebase(c.sha) },
+    { label: "Drop commit", run: () => drop(c.sha) },
     // SPEC-233 · reset branch current ke commit ini (soft/mixed/hard). hard ireversibel → gate force.
     { label: "Reset current → sini (soft)", run: () => act({ op: "reset", sha: c.sha, mode: "soft" }) },
     { label: "Reset current → sini (mixed)", run: () => act({ op: "reset", sha: c.sha, mode: "mixed" }) },
@@ -105,13 +109,14 @@ function menuItems(c: GraphCommit, current: string, act: (op: GitOp) => void, me
 
 // SPEC-233 · menu klik-kanan pada pill branch. Local vs origin dibedakan prefix `origin/`.
 // Branch aktif (== current) hanya Rename/Push/Copy (tak boleh checkout/merge/hapus diri sendiri).
-function branchMenuItems(ref: string, current: string, allRefs: string[], act: (op: GitOp) => void, merge: MergeFn): MenuItem[] {
+function branchMenuItems(ref: string, current: string, allRefs: string[], act: (op: GitOp) => void, merge: MergeFn, rebase: RefFn, pull: RefFn): MenuItem[] {
   const isOrigin = ref.startsWith("origin/");
   const name = isOrigin ? ref.slice("origin/".length) : ref;
   const copy = () => { void navigator.clipboard?.writeText(ref); };
   if (isOrigin) return [
     { label: `Checkout ${ref}`, run: () => act({ op: "checkout", ref }) },
     { label: `Merge ${ref} → current`, run: () => merge(ref) },
+    { label: `Pull ${name} → current`, run: () => pull(name) },
     { label: `Hapus origin/${name}`, run: () => act({ op: "delete-branch", name, local: false, remote: true }) },
     { label: "Copy nama branch", run: copy },
   ];
@@ -122,6 +127,7 @@ function branchMenuItems(ref: string, current: string, allRefs: string[], act: (
   items.push({ label: "Rename…", run: () => { const to = window.prompt(`Nama baru untuk ${ref}:`, ref); if (to && to !== ref) act({ op: "rename-branch", from: ref, to }); } });
   items.push({ label: "Push ke origin", run: () => act({ op: "push-branch", name: ref, setUpstream: true }) });
   if (!self) items.push({ label: `Merge ${ref} → current`, run: () => merge(ref) });
+  if (!self) items.push({ label: `Rebase current → ${ref}`, run: () => rebase(ref) });
   if (!self) {
     items.push({ label: hasOrigin ? `Hapus ${ref} (local + origin)` : `Hapus ${ref} (local)`, run: () => act({ op: "delete-branch", name: ref, remote: hasOrigin }) });
     if (hasOrigin) items.push({ label: `Hapus ${ref} (local saja)`, run: () => act({ op: "delete-branch", name: ref }) });
@@ -130,9 +136,12 @@ function branchMenuItems(ref: string, current: string, allRefs: string[], act: (
   return items;
 }
 
-export function GitGraph({ projectId, onRunGit, onMerge, onOpenFile }:
+export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDrop, onOpenFile }:
   { projectId: string; onRunGit: (op: GitOp) => Promise<unknown>;
     onMerge: (source: string, opts?: { ff?: "no-ff" | "ff-only"; deleteBranch?: string }) => Promise<void>;
+    onRebase: (onto: string) => Promise<void>;
+    onPull: (source: string) => Promise<void>;
+    onDrop: (sha: string) => Promise<void>;
     onOpenFile: (path: string, ref: string) => void }) {
   const [state, setState] = React.useState<"loading" | "ready" | "error">("loading");
   const [rows, setRows] = React.useState<GraphRow[]>([]);
@@ -165,6 +174,10 @@ export function GitGraph({ projectId, onRunGit, onMerge, onOpenFile }:
   async function mergeAct(source: string, opts?: { ff?: "no-ff" | "ff-only"; deleteBranch?: string }) {
     setMenu(null); await onMerge(source, opts).then(load).catch(() => {});
   }
+  // SPEC-233 · rebase/pull/drop lewat jalur isolasi (pola merge); konflik/error ditangani host (toast/nav).
+  async function rebaseAct(onto: string) { setMenu(null); setBranchMenu(null); await onRebase(onto).then(load).catch(() => {}); }
+  async function pullAct(source: string) { setMenu(null); setBranchMenu(null); await onPull(source).then(load).catch(() => {}); }
+  async function dropAct(sha: string) { setMenu(null); await onDrop(sha).then(load).catch(() => {}); }
 
   const maxLanes = Math.max(1, ...rows.map((r) => r.width));
   const allEdges = React.useMemo(() => rowEdges(rows), [rows]);
@@ -272,7 +285,7 @@ export function GitGraph({ projectId, onRunGit, onMerge, onOpenFile }:
         </Card>
       )}
 
-      {menu && <Menu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={menuItems(menu.c, current, act, mergeAct)} />}
+      {menu && <Menu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={menuItems(menu.c, current, act, mergeAct, rebaseAct, dropAct)} />}
       {tagMenu && <Menu x={tagMenu.x} y={tagMenu.y} onClose={() => setTagMenu(null)} items={[
         { label: `Hapus tag ${tagMenu.tag} (local)`, run: () => { setTagMenu(null); void act({ op: "delete-tag", name: tagMenu.tag }); } },
         { label: `Hapus tag ${tagMenu.tag} (local + origin)`, run: () => { setTagMenu(null); void act({ op: "delete-tag", name: tagMenu.tag, remote: true }); } },
@@ -294,7 +307,7 @@ export function GitGraph({ projectId, onRunGit, onMerge, onOpenFile }:
         { label: "Copy nama stash", run: () => { const s = stashMenu.s; setStashMenu(null); void navigator.clipboard?.writeText(s.ref); } },
       ]} />}
       {branchMenu && <Menu x={branchMenu.x} y={branchMenu.y} onClose={() => setBranchMenu(null)}
-        items={branchMenuItems(branchMenu.ref, current, allRefs, act, mergeAct)} />}
+        items={branchMenuItems(branchMenu.ref, current, allRefs, act, mergeAct, rebaseAct, pullAct)} />}
     </div>
   );
 }

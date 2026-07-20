@@ -33,6 +33,9 @@ export const paths = {
   ideCommit: (id: string, sha: string) => `${API}/projects/${id}/commit/${sha}`,
   ideGit: (id: string) => `${API}/projects/${id}/git`,
   ideGitMerge: (id: string) => `${API}/projects/${id}/git/merge`, // SPEC-229 · merge git graph isolasi
+  ideGitRebase: (id: string) => `${API}/projects/${id}/git/rebase`, // SPEC-233 · rebase isolasi
+  ideGitPull: (id: string) => `${API}/projects/${id}/git/pull`,     // SPEC-233 · pull isolasi
+  ideGitDrop: (id: string) => `${API}/projects/${id}/git/drop`,     // SPEC-233 · drop commit isolasi
   fsBrowse: (path?: string) => `${API}/fs/browse${path ? `?path=${encodeURIComponent(path)}` : ""}`,
   terminalSessions: `${API}/terminal/sessions`,
   terminalSession: (id: string) => `${API}/terminal/sessions/${id}`,

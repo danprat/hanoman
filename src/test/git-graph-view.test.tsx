@@ -17,19 +17,19 @@ beforeEach(() => {
 
 describe("GitGraph", () => {
   it("menggambar baris commit dari ideGraph", async () => {
-    render(<GitGraph projectId="p1" onRunGit={vi.fn()} onMerge={vi.fn()} onOpenFile={vi.fn()} />);
+    render(<GitGraph projectId="p1" onRunGit={vi.fn()} onMerge={vi.fn()} onRebase={vi.fn()} onPull={vi.fn()} onDrop={vi.fn()} onOpenFile={vi.fn()} />);
     expect(await screen.findByText("kedua")).toBeInTheDocument();
     expect(screen.getByText("main")).toBeInTheDocument(); // chip ref
   });
   it("klik commit memuat detail file berubah", async () => {
-    render(<GitGraph projectId="p1" onRunGit={vi.fn()} onMerge={vi.fn()} onOpenFile={vi.fn()} />);
+    render(<GitGraph projectId="p1" onRunGit={vi.fn()} onMerge={vi.fn()} onRebase={vi.fn()} onPull={vi.fn()} onDrop={vi.fn()} onOpenFile={vi.fn()} />);
     fireEvent.click(await screen.findByText("kedua"));
     await waitFor(() => expect(api.ideCommit).toHaveBeenCalledWith("p1", "aaaa111"));
     expect(await screen.findByText("a.ts")).toBeInTheDocument();
   });
   it("context-menu Checkout memanggil onRunGit", async () => {
     const onRunGit = vi.fn().mockResolvedValue({});
-    render(<GitGraph projectId="p1" onRunGit={onRunGit} onMerge={vi.fn()} onOpenFile={vi.fn()} />);
+    render(<GitGraph projectId="p1" onRunGit={onRunGit} onMerge={vi.fn()} onRebase={vi.fn()} onPull={vi.fn()} onDrop={vi.fn()} onOpenFile={vi.fn()} />);
     fireEvent.contextMenu(await screen.findByText("kedua"));
     fireEvent.click(await screen.findByText(/checkout/i));
     await waitFor(() => expect(onRunGit).toHaveBeenCalledWith({ op: "checkout", ref: "aaaa111" }));
@@ -42,7 +42,7 @@ describe("GitGraph", () => {
       commits: [{ sha: "aaaa111", parents: [], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["feat", "origin/feat"], tags: [] }],
       current: "main",
     });
-    render(<GitGraph projectId="p1" onRunGit={onRunGit} onMerge={vi.fn()} onOpenFile={vi.fn()} />);
+    render(<GitGraph projectId="p1" onRunGit={onRunGit} onMerge={vi.fn()} onRebase={vi.fn()} onPull={vi.fn()} onDrop={vi.fn()} onOpenFile={vi.fn()} />);
     fireEvent.contextMenu(await screen.findByText("kedua"));
 
     fireEvent.click(await screen.findByText("Hapus feat (local + origin)"));
@@ -63,7 +63,7 @@ describe("GitGraph", () => {
       commits: [{ sha: "aaaa111", parents: [], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["origin/gone"], tags: [] }],
       current: "main",
     });
-    render(<GitGraph projectId="p1" onRunGit={onRunGit} onMerge={vi.fn()} onOpenFile={vi.fn()} />);
+    render(<GitGraph projectId="p1" onRunGit={onRunGit} onMerge={vi.fn()} onRebase={vi.fn()} onPull={vi.fn()} onDrop={vi.fn()} onOpenFile={vi.fn()} />);
     fireEvent.contextMenu(await screen.findByText("kedua"));
     expect(screen.queryByText(/Hapus gone \(local/)).toBeNull();
     fireEvent.click(await screen.findByText("Hapus origin/gone"));
@@ -77,7 +77,7 @@ describe("GitGraph", () => {
       commits: [{ sha: "aaaa111", parents: [], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["origin/feat"], tags: [] }],
       current: "main",
     });
-    render(<GitGraph projectId="p1" onRunGit={onRunGit} onMerge={onMerge} onOpenFile={vi.fn()} />);
+    render(<GitGraph projectId="p1" onRunGit={onRunGit} onMerge={onMerge} onRebase={vi.fn()} onPull={vi.fn()} onDrop={vi.fn()} onOpenFile={vi.fn()} />);
     fireEvent.contextMenu(await screen.findByText("kedua"));
     fireEvent.click(await screen.findByText("Merge (fast-forward bila bisa)"));
     await waitFor(() => expect(onMerge).toHaveBeenCalledWith("aaaa111", undefined));
@@ -90,7 +90,7 @@ describe("GitGraph", () => {
       commits: [{ sha: "aaaa111", parents: [], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["feat"], tags: [] }],
       current: "main",
     });
-    render(<GitGraph projectId="p1" onRunGit={vi.fn()} onMerge={onMerge} onOpenFile={vi.fn()} />);
+    render(<GitGraph projectId="p1" onRunGit={vi.fn()} onMerge={onMerge} onRebase={vi.fn()} onPull={vi.fn()} onDrop={vi.fn()} onOpenFile={vi.fn()} />);
     fireEvent.contextMenu(await screen.findByText("kedua"));
     fireEvent.click(await screen.findByText("Merge tanpa fast-forward"));
     await waitFor(() => expect(onMerge).toHaveBeenCalledWith("aaaa111", { ff: "no-ff" }));

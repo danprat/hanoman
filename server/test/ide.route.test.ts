@@ -185,4 +185,29 @@ describe("ide routes", () => {
     expect(b.branches).toContain("develop"); expect(b.branches).not.toContain("dev");
     killAll();
   });
+
+  it("POST /git/rebase clean → 200 {status:clean}; onto kosong → 400 (SPEC-233)", async () => {
+    const dir = makeRepoWithBranches("dev");
+    const g = (...a: string[]) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });
+    g("checkout", "-q", "dev"); writeFileSync(`${dir}/d.txt`, "d"); g("add", "-A"); g("commit", "-qm", "dev1");
+    g("checkout", "-q", "main"); writeFileSync(`${dir}/m.txt`, "m"); g("add", "-A"); g("commit", "-qm", "main1");
+    g("checkout", "-q", "dev");
+    await makeProject({ id: "rebaserepo", repoDir: dir });
+    expect((await app.inject({ method: "POST", url: "/api/projects/rebaserepo/git/rebase", payload: {} })).statusCode).toBe(400);
+    const r = await app.inject({ method: "POST", url: "/api/projects/rebaserepo/git/rebase", payload: { onto: "main" } });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().status).toBe("clean");
+  });
+  it("POST /git/drop clean → 200 {status:clean}; sha kosong → 400 (SPEC-233)", async () => {
+    const dir = makeRepoWithBranches();
+    const g = (...a: string[]) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });
+    writeFileSync(`${dir}/buang.txt`, "x"); g("add", "-A"); g("commit", "-qm", "buang");
+    writeFileSync(`${dir}/simpan.txt`, "y"); g("add", "-A"); g("commit", "-qm", "simpan");
+    const buang = g("log", "--format=%H").stdout.trim().split("\n")[1];
+    await makeProject({ id: "droprepo", repoDir: dir });
+    expect((await app.inject({ method: "POST", url: "/api/projects/droprepo/git/drop", payload: {} })).statusCode).toBe(400);
+    const r = await app.inject({ method: "POST", url: "/api/projects/droprepo/git/drop", payload: { sha: buang } });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().status).toBe("clean");
+  });
 });
