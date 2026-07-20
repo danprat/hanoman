@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { zProject, zBriefPayload, zQaPayload } from "./entities";
 import type { Spec, Notification } from "./entities";
-import { zProjectKind, zSpecSource, zPriority, zStage } from "./enums";
+import { zProjectKind, zSpecSource, zPriority, zStage, zErrorStatus } from "./enums";
 
 // SPEC-198 · amplop daftar via API: search/filter/paginasi dilakukan server-side.
 export type Paginated<T> = { items: T[]; total: number; page: number; pageSize: number };
@@ -72,7 +72,9 @@ export const zSessionSummary = z.object({
 export const zProjectView = zProject.extend({
   binding: z.string().nullable(),   // SPEC-217 · override repoDir per-mesin (null = pakai Project.repoDir)
   backlog: z.number().int(), topStage: z.string(), session: zSessionSummary,
-  activity: z.string(), commit: z.string() });
+  activity: z.string(), commit: z.string(),
+  monitoringEnabled: z.boolean().default(false),   // SPEC-249 · error monitoring aktif (ingest key ada)
+  ingestKeyPrefix: z.string().nullable().default(null) });   // SPEC-249 · hint prefix DSN (bukan hash/rahasia)
 export type ProjectView = z.infer<typeof zProjectView>;
 
 export const zFlow = z.enum(["feature", "qa", "scaffold", "reverse", "prd", "audit"]);
@@ -251,3 +253,41 @@ export type EventMsg =
   | { t: "limits"; limits: LimitsDTO }
   | { t: "vps"; vps: VpsView[] }
   | { t: "update"; update: UpdateStatus };
+
+// SPEC-249 · ADR-0060 · Error monitoring (Sentry ringan).
+// Payload ingest generik: bahasa apa pun bisa POST tanpa perubahan server.
+export const zIngestPayload = z.object({
+  type: z.string().min(1).max(500),
+  message: z.string().min(1),
+  stack: z.string().optional(),
+  environment: z.string().max(120).optional(),
+  release: z.string().max(200).optional(),
+  context: z.record(z.string(), z.unknown()).optional(),
+});
+export type IngestPayload = z.infer<typeof zIngestPayload>;
+
+export const zErrorGroupView = z.object({
+  id: z.string(), projectId: z.string(), type: z.string(), message: z.string(),
+  environment: z.string(), status: zErrorStatus, count: z.number().int(),
+  firstSeenAt: z.string(), lastSeenAt: z.string(), specId: z.string().nullable(),
+});
+export type ErrorGroupView = z.infer<typeof zErrorGroupView>;
+
+export const zErrorEventView = z.object({
+  id: z.string(), type: z.string(), message: z.string(), stack: z.string().nullable(),
+  environment: z.string(), release: z.string().nullable(), receivedAt: z.string(),
+});
+export type ErrorEventView = z.infer<typeof zErrorEventView>;
+
+export const zErrorGroupDetail = zErrorGroupView.extend({
+  sampleStack: z.string().nullable(),
+  events: z.array(zErrorEventView),
+});
+export type ErrorGroupDetail = z.infer<typeof zErrorGroupDetail>;
+
+// key/dsnUrl HANYA muncul saat generate/rotate (plaintext sekali). GET tanpa keduanya.
+export const zIngestKeyView = z.object({
+  enabled: z.boolean(), prefix: z.string().nullable(),
+  key: z.string().optional(), dsnUrl: z.string().optional(),
+});
+export type IngestKeyView = z.infer<typeof zIngestKeyView>;

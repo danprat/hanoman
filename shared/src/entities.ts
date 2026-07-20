@@ -18,7 +18,8 @@ export const zBriefPayload = z.object({
 export const zQaPayload = z.object({
   severity: z.enum(["critical","major","minor"]), steps: z.string(),
   expected: z.string(), actual: z.string(), env: z.string(),
-  fromAudit: z.string().optional() });   // SPEC-244 · qa dinaikkan dari audit → sinyal skip fase Audit (ADR-0059)
+  fromAudit: z.string().optional(),      // SPEC-244 · qa dinaikkan dari audit → sinyal skip fase Audit (ADR-0059)
+  fromErrorGroup: z.string().optional() });   // SPEC-249 · qa dari eskalasi error → tautan grup (ADR-0060)
 
 export const zSpec = z.object({
   id: z.string(), projectId: z.string(), title: z.string(), source: zSpecSource,
@@ -74,7 +75,7 @@ export type Setting = z.infer<typeof zSetting>;
 // = target redirect terminal. Tanggal = string ISO (JSON). readAt null = unread.
 export const zNotification = z.object({
   id: z.string(),
-  type: z.enum(["done", "decision"]).default("done"),
+  type: z.enum(["done", "decision", "error"]).default("done"),   // SPEC-249 · +error (grup produksi baru)
   specId: z.string().nullable(),
   sessionId: z.string().nullable(),
   title: z.string(),

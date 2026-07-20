@@ -1,9 +1,12 @@
 # Data model
 
-Entitas inti (Postgres via Prisma). **Tujuh model**: Project, Spec, Setting, Notification, User,
-Session, Vps. Tidak ada model `Run` maupun `Trigger` — keduanya di-drop saat pindah ke sesi
-interaktif (ADR-0024; migrasi `drop_run_trigger_github`). Enum stage/source/priority disimpan sebagai
-`String` dan divalidasi zod di `@hanoman/shared` (`enums.ts`), bukan enum Prisma.
+Entitas inti (Postgres via Prisma). **Tujuh model inti**: Project, Spec, Setting, Notification, User,
+Session, Vps — plus model pendukung (VpsAuditSnapshot/VpsItemState, DeviceToken, SessionResult, SyncLog,
+LocalBinding, SyncOutbox, SyncState, RuntimeConfig) dan **model error monitoring** (`ErrorGroup`,
+`ErrorEvent`, SPEC-249/[ADR-0060](../adr/0060-error-monitoring-ingest-ber-dsn.md)). Tidak ada model `Run`
+maupun `Trigger` — keduanya di-drop saat pindah ke sesi interaktif (ADR-0024; migrasi
+`drop_run_trigger_github`). Enum stage/source/priority/error-status disimpan sebagai `String` dan
+divalidasi zod di `@hanoman/shared` (`enums.ts`), bukan enum Prisma.
 
 ## Project
 - `id` (slug) — **kekal**. Kunci asing `Spec` (`onDelete: Cascade`); tidak ada endpoint rename.
@@ -17,6 +20,10 @@ interaktif (ADR-0024; migrasi `drop_run_trigger_github`). Enum stage/source/prio
   = `binding ?? Project.repoDir` (null-safe), dipakai SELURUH jalur baca (spawn/IDE/coverage/branches/specs/docs).
   Editable via `PUT /projects/:id/binding`, dikosongkan via `DELETE` (SPEC-213/217).
 - `createdAt`
+- `ingestKeyHash?`/`ingestKeyPrefix?` (SPEC-249 · [ADR-0060](../adr/0060-error-monitoring-ingest-ber-dsn.md)) —
+  kunci ingest error hash-at-rest (`sha256(key)`) + hint prefix untuk UI. `null` = monitoring off.
+  **`ingestKeyHash` TAK PERNAH ke client/log**; `toProjectView` hanya mengekspos `monitoringEnabled`
+  (`!!ingestKeyHash`) + `ingestKeyPrefix`.
 - `docStatus` ("ok" | "drift" | "broken") + `coverage` (0–100) **bukan kolom** — diturunkan dari disk tiap `toProjectView` (ADR-0018).
 
 ## Spec (backlog item)
@@ -99,6 +106,23 @@ Kerangka kepatuhan checklist 232 item (katalog di git, lihat [vps-compliance.md]
 - **`VpsItemState`** — keputusan human durable per item: `na`/`naReason` (keluar denominator skor),
   `attested`/`attestNote` (item `INFO`), `actorEmail` (jejak pelaku dari sesi auth), `updatedAt`.
   Unik `(vpsId, itemId)`, `vpsId`→Vps (cascade).
+
+## ErrorGroup / ErrorEvent (SPEC-249 · [ADR-0060](../adr/0060-error-monitoring-ingest-ber-dsn.md))
+Error monitoring (Sentry ringan). **Server-local** — seperti `Notification`, **tanpa** `version`/sync
+(volume tinggi, satu workspace). Enum `status` = `String` + zod (`zErrorStatus`), bukan enum Prisma.
+- **`ErrorGroup`** — grup error per project (dedup by fingerprint):
+  `id`, `projectId`→Project (cascade), `fingerprint`, `type`, `message`, `sampleStack?`, `environment`
+  (last-seen), `status` (`new`|`escalated`|`resolved`, default `new`), `count`, `firstSeenAt`,
+  `lastSeenAt`, `specId?` (tautan Spec hasil eskalasi), `createdAt`, `updatedAt`.
+  Unik `(projectId, fingerprint)`; index `(projectId, lastSeenAt)`. Fingerprint deterministik dari
+  tipe + pesan ternormalisasi + frame stack teratas (`services/error-fingerprint.ts`).
+- **`ErrorEvent`** — kejadian error mentah, **dipangkas retensi** (cap terakhir per grup + umur,
+  opportunistic-on-write, tanpa scheduler baru): `id`, `groupId`→ErrorGroup (cascade), `projectId`
+  (denormal, isolasi & query murah), `type`, `message`, `stack?`, `environment`, `release?`,
+  `context? (Json)`, `receivedAt`. Index `(groupId, receivedAt)` + `(projectId, receivedAt)`.
+- Ingest publik `POST /api/ingest/:slug` diotorisasi **DSN** (`Project.ingestKeyHash`) — pengecualian
+  sah gate `/api` (ADR-0060). Grup produksi **baru** → `Notification` type `error`. Eskalasi →
+  `Spec` source qa (`fromErrorGroup`). Rate-limit token-bucket in-memory + caps payload.
 
 ## Docs (Source of Truth) — TIDAK dipersist
 Docs bukan entitas DB. Tabel `DocFile` sudah di-drop (ADR-0011). Docs dibaca **live dari path

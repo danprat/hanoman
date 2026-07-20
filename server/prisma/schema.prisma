@@ -18,7 +18,10 @@ model Project {
   createdAt DateTime @default(now())
   version   Int      @default(0) // SPEC-213 · version-stamp sync (ADR-0045)
   updatedAt DateTime @default(now())
-  specs     Spec[]
+  ingestKeyHash   String? // SPEC-249 · sha256(ingest key) hex; null = monitoring off. TAK PERNAH ke client.
+  ingestKeyPrefix String? // SPEC-249 · ~12-16 char awal key untuk hint UI (bukan rahasia)
+  specs       Spec[]
+  errorGroups ErrorGroup[]
 }
 
 model Spec {
@@ -203,4 +206,45 @@ model RuntimeConfig {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+// SPEC-249 · ADR-0060 · grup error per project (fingerprint dedup). Server-local (tanpa version/sync).
+model ErrorGroup {
+  id          String   @id @default(cuid())
+  projectId   String
+  fingerprint String
+  type        String
+  message     String
+  sampleStack String?
+  environment String
+  status      String   @default("new") // new | escalated | resolved
+  count       Int      @default(0)
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+  specId      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  events      ErrorEvent[]
+
+  @@unique([projectId, fingerprint])
+  @@index([projectId, lastSeenAt])
+}
+
+// SPEC-249 · ADR-0060 · kejadian error mentah, dipangkas retensi (cap per grup + umur).
+model ErrorEvent {
+  id          String     @id @default(cuid())
+  groupId     String
+  projectId   String
+  type        String
+  message     String
+  stack       String?
+  environment String
+  release     String?
+  context     Json?
+  receivedAt  DateTime   @default(now())
+  group       ErrorGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, receivedAt])
+  @@index([projectId, receivedAt])
 }

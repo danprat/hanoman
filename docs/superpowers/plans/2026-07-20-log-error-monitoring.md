@@ -55,7 +55,7 @@ Dimodifikasi:
 - Produces: model `ErrorGroup` (`id, projectId, fingerprint, type, message, sampleStack?, environment, status, count, firstSeenAt, lastSeenAt, specId?, createdAt, updatedAt`), `ErrorEvent` (`id, groupId, projectId, type, message, stack?, environment, release?, context?, receivedAt`), `Project.ingestKeyHash?`, `Project.ingestKeyPrefix?`.
 - Produces (shared): `zErrorStatus = z.enum(["new","escalated","resolved"])`; `zIngestPayload`; `zErrorGroupView`; `zErrorEventView`; `zErrorGroupDetail`; `zIngestKeyView`; `zNotification.type` menerima `"error"`; `zQaPayload.fromErrorGroup?`; `paths.ingest/errors/error/errorEscalate/projectIngestKey`.
 
-- [ ] **Step 1: Tambah model ke `schema.prisma`** (setelah model `Vps`/sebelum akhir), dan dua kolom di `model Project`:
+- [x] **Step 1: Tambah model ke `schema.prisma`** (setelah model `Vps`/sebelum akhir), dan dua kolom di `model Project`:
 
 ```prisma
 // model Project — tambah dua kolom (additive, nullable):
@@ -105,7 +105,7 @@ model ErrorEvent {
 }
 ```
 
-- [ ] **Step 2: Tulis `migration.sql`** (hand-write; nama dir `2026072000_spec249_error_monitoring`):
+- [x] **Step 2: Tulis `migration.sql`** (hand-write; nama dir `2026072000_spec249_error_monitoring`):
 
 ```sql
 -- Project: kolom ingest key (additive)
@@ -155,7 +155,7 @@ ALTER TABLE "ErrorEvent" ADD CONSTRAINT "ErrorEvent_groupId_fkey"
   FOREIGN KEY ("groupId") REFERENCES "ErrorGroup"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ```
 
-- [ ] **Step 3: Terapkan migration ke DB dev + test, lalu generate**
+- [x] **Step 3: Terapkan migration ke DB dev + test, lalu generate**
 
 ```bash
 cd server
@@ -166,7 +166,7 @@ npx prisma generate
 ```
 Expected: "migrations applied" untuk kedua DB; generate sukses.
 
-- [ ] **Step 4: Tambah tipe shared.** `shared/src/enums.ts`:
+- [x] **Step 4: Tambah tipe shared.** `shared/src/enums.ts`:
 
 ```ts
 export const zErrorStatus = z.enum(["new","escalated","resolved"]);
@@ -232,11 +232,11 @@ export type IngestKeyView = z.infer<typeof zIngestKeyView>;
   projectIngestKey: (id: string) => `${API}/projects/${encodeURIComponent(id)}/ingest-key`,
 ```
 
-- [ ] **Step 5: Tulis ADR-0060** `internal/docs/adr/0060-error-monitoring-ingest-ber-dsn.md`: konteks (PRD, gate `/api` ADR-0028), keputusan (model baru ErrorGroup/ErrorEvent + kolom ingest key; ingest publik `POST /api/ingest/:slug` diotorisasi DSN hash-at-rest sebagai pengecualian sah gate; grouping fingerprint; retensi opportunistic; rate-limit in-memory; notif reuse; eskalasi reuse Spec qa), konsekuensi (model error server-local tanpa sync; DSN semi-publik utk browser; no grace on rotate). Status: Accepted. Link di `internal/docs/README.md` bagian `## adr`.
+- [x] **Step 5: Tulis ADR-0060** `internal/docs/adr/0060-error-monitoring-ingest-ber-dsn.md`: konteks (PRD, gate `/api` ADR-0028), keputusan (model baru ErrorGroup/ErrorEvent + kolom ingest key; ingest publik `POST /api/ingest/:slug` diotorisasi DSN hash-at-rest sebagai pengecualian sah gate; grouping fingerprint; retensi opportunistic; rate-limit in-memory; notif reuse; eskalasi reuse Spec qa), konsekuensi (model error server-local tanpa sync; DSN semi-publik utk browser; no grace on rotate). Status: Accepted. Link di `internal/docs/README.md` bagian `## adr`.
 
-- [ ] **Step 6: Update `data-model.md`** — bagian baru ErrorGroup/ErrorEvent + kolom ingest key Project; sesuaikan narasi jumlah model (tujuh → sembilan; catat error model server-local tanpa sync).
+- [x] **Step 6: Update `data-model.md`** — bagian baru ErrorGroup/ErrorEvent + kolom ingest key Project; sesuaikan narasi jumlah model (tujuh → sembilan; catat error model server-local tanpa sync).
 
-- [ ] **Step 7: Compile check**
+- [x] **Step 7: Compile check**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-249
@@ -244,7 +244,7 @@ pnpm -C shared build && pnpm -C server exec tsc --noEmit
 ```
 Expected: no type errors.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/prisma shared/src internal/docs
