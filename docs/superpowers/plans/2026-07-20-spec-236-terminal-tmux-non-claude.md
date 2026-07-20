@@ -337,7 +337,7 @@ git commit -m "feat(web): tombol 'Terminal biasa' membuka shell tmux non-claude 
 - Modify: `internal/docs/frontend/frontend-implementation.md` (Terminal — "Terminal biasa" button)
 - Modify: `internal/docs/architecture/data-model.md` (note shell = flow-less)
 
-- [ ] **Step 1: Write ADR-0056** — `internal/docs/adr/0056-terminal-shell-non-claude.md`:
+- [x] **Step 1: Write ADR-0056** — `internal/docs/adr/0056-terminal-shell-non-claude.md`:
 
 ```markdown
 # ADR-0056 — Terminal biasa = shell mentah di repoDir project (bukan claude)
@@ -381,13 +381,13 @@ Console VPS (ADR-0042) sudah membuktikan pola shell mentah lewat `createSession(
 - **Id deterministik (satu shell/project)**: operator sering butuh >1 shell (server + git).
 ```
 
-- [ ] **Step 2: Link ADR-0056 in the index** — `internal/docs/README.md`, add under `## adr` above the ADR-0054 line:
+- [x] **Step 2: Link ADR-0056 in the index** — `internal/docs/README.md`, add under `## adr` above the ADR-0054 line:
 
 ```markdown
 - [0056 — Terminal biasa = shell mentah di repoDir project (bukan claude)](adr/0056-terminal-shell-non-claude.md) — SPEC-236, pola ADR-0042
 ```
 
-- [ ] **Step 3: Document the shell variant in the API contract** — `internal/docs/architecture/api-contract.md`, in the `## Terminal` section, under the `POST /terminal/sessions` lines, add:
+- [x] **Step 3: Document the shell variant in the API contract** — `internal/docs/architecture/api-contract.md`, in the `## Terminal` section, under the `POST /terminal/sessions` lines, add:
 
 ```
 #   {project, shell:true} (SPEC-236, ADR-0056): terminal biasa NON-claude — shell mentah
@@ -395,7 +395,7 @@ Console VPS (ADR-0042) sudah membuktikan pola shell mentah lewat `createSession(
 #     tak buat worktree). 201 { id } · 404 project · 400 tanpa repoDir (needsBind).
 ```
 
-- [ ] **Step 4: Clarify "plain terminal" in stack.md** — `internal/docs/architecture/stack.md`, the "Jenis sesi" enumeration (~line 47-48), change `**plain terminal**` to make explicit it can be claude-di-repoDir OR shell mentah:
+- [x] **Step 4: Clarify "plain terminal" in stack.md** — `internal/docs/architecture/stack.md`, the "Jenis sesi" enumeration (~line 47-48), change `**plain terminal**` to make explicit it can be claude-di-repoDir OR shell mentah:
 
 ```
 Jenis sesi: **spec-flow** (`feature`/`qa`), **reverse** (project-level), **prd**, **plain
@@ -403,9 +403,9 @@ terminal** (claude di repoDir ATAU shell mentah non-claude `{shell:true}`, SPEC-
 **integrate-conflict** (`merge-<id>`), **vps**.
 ```
 
-- [ ] **Step 5: Clarify in SKILL.md** — `internal/skills/hanoman/SKILL.md`, the "Jenis sesi" line (~line 71): append to the `**plain terminal**` item: `(claude di repoDir; atau shell mentah non-claude via {shell:true}, SPEC-236/ADR-0056)`.
+- [x] **Step 5: Clarify in SKILL.md** — `internal/skills/hanoman/SKILL.md`, the "Jenis sesi" line (~line 71): append to the `**plain terminal**` item: `(claude di repoDir; atau shell mentah non-claude via {shell:true}, SPEC-236/ADR-0056)`.
 
-- [ ] **Step 6: Frontend doc** — `internal/docs/frontend/frontend-implementation.md`, in the `## Terminal` section (near the "Ambil backlog" paragraph, ~line 130), add a sentence:
+- [x] **Step 6: Frontend doc** — `internal/docs/frontend/frontend-implementation.md`, in the `## Terminal` section (near the "Ambil backlog" paragraph, ~line 130), add a sentence:
 
 ```
 Toolbar juga punya **Terminal biasa** (SPEC-236): membuka **shell tmux polos tanpa Claude** di
@@ -414,14 +414,14 @@ di sebelah **Sesi baru** yang men-spawn `claude`. Sesi shell tak punya flow/spec
 sesi biasa; menutupnya hanya kill pane (cwd = repoDir, bukan worktree).
 ```
 
-- [ ] **Step 7: Data-model note** — `internal/docs/architecture/data-model.md`, in the PRD/flow note (~line 104, the "Set flow sesi kini" line), append: ` Sesi shell (SPEC-236) TANPA flow — bukan pipeline.`
+- [x] **Step 7: Data-model note** — `internal/docs/architecture/data-model.md`, in the PRD/flow note (~line 104, the "Set flow sesi kini" line), append: ` Sesi shell (SPEC-236) TANPA flow — bukan pipeline.`
 
-- [ ] **Step 8: Verify index integrity + coverage scan (no server boot needed)**
+- [x] **Step 8: Verify index integrity + coverage scan (no server boot needed)**
 
 Run: `env -u NODE_ENV -u DATABASE_URL node --experimental-strip-types shared/src/coverage.ts 2>/dev/null || pnpm exec hanoman docs index --check`
 Expected: index check passes / ADR-0056 reachable from README. (If `hanoman` CLI unavailable in worktree, confirm the README link line was added and the ADR file exists.)
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add internal/docs/adr/0056-terminal-shell-non-claude.md internal/docs/README.md internal/docs/architecture/api-contract.md internal/docs/architecture/stack.md internal/docs/architecture/data-model.md internal/docs/frontend/frontend-implementation.md internal/skills/hanoman/SKILL.md

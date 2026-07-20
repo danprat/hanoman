@@ -133,6 +133,11 @@ memanggil `POST /terminal/sessions {spec, flow}` — endpoint idempoten yang sam
 Mulai/Lanjutkan di halaman Backlog — lalu menaruh sesinya di sel kosong pertama grup aktif.
 `flow` dipilih otomatis dari `spec.source` (`qa`/`feature`). Nol perubahan server.
 
+Toolbar juga punya **Terminal biasa** (SPEC-236): membuka **shell tmux polos tanpa Claude** di
+repoDir project terpilih (`POST {project, shell:true}`) untuk sekadar menjalankan command —
+di sebelah **Sesi baru** yang men-spawn `claude`. Sesi shell tak punya flow/spec, tampil seperti
+sesi biasa; menutupnya hanya kill pane (cwd = repoDir, bukan worktree). Lihat ADR-0056.
+
 Grid-grid itu dikelompokkan ke **grup** bernama yang dipindah lewat tabbar (`+` menambah, `✎`
 mengganti nama, `×` menghapus; grup terakhir tak bisa dihapus). Tiap grup memegang `Layout`-nya
 sendiri, dan satu sesi menempati paling banyak satu sel **di satu grup** — tray karena itu global,

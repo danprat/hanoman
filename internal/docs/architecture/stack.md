@@ -45,7 +45,8 @@ frame. tmux adalah satu-satunya sumber kebenaran pekerjaan yang berjalan — tid
 Start dua kali **re-attach**, bukan spawn kedua. Sesi berjalan di worktree-nya sendiri di
 `<repoDir>/.worktrees/<id>` yang dibuat `--detach` dari `branchFrom` (default `main`); `baseSha` dicatat
 untuk rentang review (SPEC-176/ADR-0030). Jenis sesi: **spec-flow** (`feature`/`qa`), **reverse**
-(project-level, `reverse-<project>`), **plain terminal**, **integrate-conflict** (`merge-<id>`), **vps**.
+(project-level, `reverse-<project>`), **plain terminal** (claude di repoDir ATAU shell mentah
+non-claude `{shell:true}`, SPEC-236/ADR-0056), **integrate-conflict** (`merge-<id>`), **vps**.
 
 **Fase bukan proses melainkan giliran** di dalam sesi itu: `runner/src/prompt.ts` `PIPELINES` mendefinisikan
 nama fase per flow, dan prompt menyuruh agen `echo "<Fase> done" >> $HANOMAN_PHASE_FILE` selesai tiap fase.
