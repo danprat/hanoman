@@ -74,7 +74,8 @@ export const zProjectView = zProject.extend({
   backlog: z.number().int(), topStage: z.string(), session: zSessionSummary,
   activity: z.string(), commit: z.string(),
   monitoringEnabled: z.boolean().default(false),   // SPEC-249 · error monitoring aktif (ingest key ada)
-  ingestKeyPrefix: z.string().nullable().default(null) });   // SPEC-249 · hint prefix DSN (bukan hash/rahasia)
+  ingestKeyPrefix: z.string().nullable().default(null),   // SPEC-249 · hint prefix DSN (bukan hash/rahasia)
+  helpEnabled: z.boolean().default(false) });   // SPEC-253 · Help Center publik aktif
 export type ProjectView = z.infer<typeof zProjectView>;
 
 export const zFlow = z.enum(["feature", "qa", "scaffold", "reverse", "prd", "audit"]);
@@ -291,3 +292,29 @@ export const zIngestKeyView = z.object({
   key: z.string().optional(), dsnUrl: z.string().optional(),
 });
 export type IngestKeyView = z.infer<typeof zIngestKeyView>;
+
+// SPEC-253 · Help Center — DTO triase + halaman publik.
+export const zTicketView = z.object({
+  id: z.string(), projectId: z.string(), number: z.number().int(),
+  category: z.string(), title: z.string(), reporterEmail: z.string(),
+  status: z.string(), specId: z.string().nullable(), attachmentCount: z.number().int(),
+  createdAt: z.string(),
+});
+export type TicketView = z.infer<typeof zTicketView>;
+export const zTicketAttachmentView = z.object({
+  id: z.string(), filename: z.string(), mimeType: z.string(), size: z.number().int(),
+});
+export type TicketAttachmentView = z.infer<typeof zTicketAttachmentView>;
+export const zTicketDetail = zTicketView.extend({
+  detail: z.string(),
+  attachments: z.array(zTicketAttachmentView),
+});
+export type TicketDetail = z.infer<typeof zTicketDetail>;
+// halaman publik (tak butuh auth)
+export const zHelpInfo = z.object({ projectName: z.string(), categories: z.array(z.string()) });
+export type HelpInfo = z.infer<typeof zHelpInfo>;
+export const zPublicTicketStatus = z.object({
+  number: z.number().int(), category: z.string(), title: z.string(),
+  status: z.string(), createdAt: z.string(),
+});
+export type PublicTicketStatus = z.infer<typeof zPublicTicketStatus>;
