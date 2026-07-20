@@ -1,13 +1,16 @@
 import type { FastifyInstance } from "fastify";
 import { basename } from "node:path";
+import { spawn } from "node:child_process";
+import { listRemotes, addRemote, setRemoteUrl, removeRemote, prUrl } from "../services/git-remotes";
 import { prisma } from "../db";
 import { resolveRepoDir } from "../services/local-binding";
 import { listSessions, createSession } from "../services/pty";
 import { sessionModel } from "../services/settings";
-import { mergeIntoCurrent } from "../services/integrate";
+import { mergeIntoCurrent, rebaseOntoCurrent, pullIntoCurrent, dropCommit, type GraphMergeResult } from "../services/integrate";
 import {
-  listRepoTree, readRepoFile, writeRepoFile, listGraph, commitDetail, runGitOp, validateGitOp,
-  workingStatus, workingFileDiff, type GitOp,
+  listRepoTree, readRepoFile, writeRepoFile, listGraph, commitDetail, commitFileDiff, compareCommits, compareFile,
+  searchCommits, runGitOp, validateGitOp, touchesTree, repoStatus, listStashes,
+  workingStatus, workingFileDiff, type GitOp, type GraphOpts,
 } from "../services/git-ide";
 
 // undefined = project tak ada (→404); null = ada tapi tanpa checkout lokal; string = repoDir.
@@ -39,7 +42,8 @@ export default async function (app: FastifyInstance) {
   });
 
   // SPEC-234 · status working tree utama (staged/unstaged). Read-only → TAK digerbang sesi (spt /tree).
-  app.get("/projects/:id/status", async (req, reply) => {
+  // path /working-status: dibedakan dari /status milik SPEC-233 (repoStatus untuk baris uncommitted di graph).
+  app.get("/projects/:id/working-status", async (req, reply) => {
     const repoDir = await repoOf((req.params as { id: string }).id);
     if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
     return workingStatus(repoDir);
@@ -70,8 +74,96 @@ export default async function (app: FastifyInstance) {
   app.get("/projects/:id/graph", async (req, reply) => {
     const repoDir = await repoOf((req.params as { id: string }).id);
     if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
-    const limit = Number((req.query as { limit?: string }).limit) || 200;
-    return listGraph(repoDir, limit);
+    const q = req.query as { limit?: string; branches?: string; showRemote?: string; showTags?: string };
+    const limit = Number(q.limit) || 200;
+    const opts: GraphOpts = {
+      branches: q.branches ? q.branches.split(",").filter(Boolean) : undefined,
+      showRemote: q.showRemote === "false" ? false : undefined,
+      showTags: q.showTags === "false" ? false : undefined,
+    };
+    return listGraph(repoDir, limit, opts);
+  });
+
+  // SPEC-233 · cari commit (message/author/hash/all) lintas semua ref.
+  app.get("/projects/:id/graph/search", async (req, reply) => {
+    const repoDir = await repoOf((req.params as { id: string }).id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    const { q, by } = req.query as { q?: string; by?: string };
+    const kind = (["all", "message", "author", "hash"].includes(by ?? "") ? by : "all") as "all" | "message" | "author" | "hash";
+    return { shas: await searchCommits(repoDir, q ?? "", kind) };
+  });
+
+  // SPEC-233 · status working tree untuk baris "uncommitted changes" di graph.
+  app.get("/projects/:id/status", async (req, reply) => {
+    const repoDir = await repoOf((req.params as { id: string }).id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    return repoStatus(repoDir);
+  });
+
+  // SPEC-233 · daftar stash.
+  app.get("/projects/:id/stashes", async (req, reply) => {
+    const repoDir = await repoOf((req.params as { id: string }).id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    return listStashes(repoDir);
+  });
+
+  // SPEC-233 · kelola remote (list/add/edit/hapus).
+  app.get("/projects/:id/remotes", async (req, reply) => {
+    const repoDir = await repoOf((req.params as { id: string }).id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    return listRemotes(repoDir);
+  });
+  app.post("/projects/:id/remotes", async (req, reply) => {
+    const repoDir = await repoOf((req.params as { id: string }).id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    if (!repoDir) return reply.code(400).send({ error: "project tidak punya repoDir" });
+    const b = req.body as { name?: string; url?: string };
+    if (!b?.name || !b?.url) return reply.code(400).send({ error: "name & url wajib" });
+    const r = await addRemote(repoDir, b.name, b.url);
+    return r.ok ? listRemotes(repoDir) : reply.code(409).send({ error: r.error });
+  });
+  app.patch("/projects/:id/remotes/:name", async (req, reply) => {
+    const { id, name } = req.params as { id: string; name: string };
+    const repoDir = await repoOf(id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    if (!repoDir) return reply.code(400).send({ error: "project tidak punya repoDir" });
+    const b = req.body as { url?: string };
+    if (!b?.url) return reply.code(400).send({ error: "url wajib" });
+    const r = await setRemoteUrl(repoDir, name, b.url);
+    return r.ok ? listRemotes(repoDir) : reply.code(409).send({ error: r.error });
+  });
+  app.delete("/projects/:id/remotes/:name", async (req, reply) => {
+    const { id, name } = req.params as { id: string; name: string };
+    const repoDir = await repoOf(id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    if (!repoDir) return reply.code(400).send({ error: "project tidak punya repoDir" });
+    const r = await removeRemote(repoDir, name);
+    return r.ok ? listRemotes(repoDir) : reply.code(409).send({ error: r.error });
+  });
+
+  // SPEC-233 · URL "Create Pull Request" diturunkan dari remote origin project.
+  app.get("/projects/:id/pr-url", async (req, reply) => {
+    const repoDir = await repoOf((req.params as { id: string }).id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    const { branch, base } = req.query as { branch?: string; base?: string };
+    if (!branch) return reply.code(400).send({ error: "branch wajib" });
+    const origin = (await listRemotes(repoDir)).find((r) => r.name === "origin");
+    return { url: origin ? prUrl(origin.push || origin.fetch, branch, base || "main") : null };
+  });
+
+  // SPEC-233 · unduh arsip (git archive) sebuah ref. format ∈ zip|tar. Stream langsung.
+  app.get("/projects/:id/archive", async (req, reply) => {
+    const repoDir = await repoOf((req.params as { id: string }).id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    if (!repoDir) return reply.code(400).send({ error: "project tidak punya repoDir" });
+    const q = req.query as { ref?: string; format?: string };
+    const ref = q.ref || "HEAD";
+    if (!/^[\w./@{}-]+$/.test(ref)) return reply.code(400).send({ error: "ref tidak valid" });
+    const fmt = q.format === "tar" ? "tar" : "zip";
+    const child = spawn("git", ["archive", `--format=${fmt}`, "--end-of-options", ref], { cwd: repoDir });
+    reply.header("content-type", fmt === "zip" ? "application/zip" : "application/x-tar");
+    reply.header("content-disposition", `attachment; filename="${basename(repoDir)}-${ref.replace(/[^\w.-]/g, "_")}.${fmt}"`);
+    return reply.send(child.stdout);
   });
 
   app.get("/projects/:id/commit/:sha", async (req, reply) => {
@@ -80,6 +172,39 @@ export default async function (app: FastifyInstance) {
     if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
     const d = await commitDetail(repoDir, sha);
     return d === null ? reply.code(404).send({ error: "not found" }) : d;
+  });
+
+  // SPEC-233 · compare dua commit: file yang beda + per-file diff.
+  app.get("/projects/:id/compare", async (req, reply) => {
+    const repoDir = await repoOf((req.params as { id: string }).id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    const { from, to } = req.query as { from?: string; to?: string };
+    if (!from || !to) return reply.code(400).send({ error: "from & to wajib" });
+    return compareCommits(repoDir, from, to);
+  });
+
+  app.get("/projects/:id/compare/file", async (req, reply) => {
+    const repoDir = await repoOf((req.params as { id: string }).id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    const { from, to, path } = req.query as { from?: string; to?: string; path?: string };
+    if (!from || !to || !path) return reply.code(400).send({ error: "from, to & path wajib" });
+    try {
+      const f = await compareFile(repoDir, from, to, path);
+      return f === null ? reply.code(404).send({ error: "not found" }) : f;
+    } catch (e) { return reply.code(400).send({ error: (e as Error).message }); }
+  });
+
+  // SPEC-233 · diff satu file di sebuah commit (vs parent), untuk viewer detail commit.
+  app.get("/projects/:id/commit/:sha/file", async (req, reply) => {
+    const { id, sha } = req.params as { id: string; sha: string };
+    const repoDir = await repoOf(id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    const { path } = req.query as { path?: string };
+    if (!path) return reply.code(400).send({ error: "path wajib" });
+    try {
+      const f = await commitFileDiff(repoDir, sha, path);
+      return f === null ? reply.code(404).send({ error: "not found" }) : f;
+    } catch (e) { return reply.code(400).send({ error: (e as Error).message }); }
   });
 
   // Mutasi git. Gerbang sesi aktif (persis DELETE /projects); force melewatinya + menambah -f/-D.
@@ -91,7 +216,9 @@ export default async function (app: FastifyInstance) {
     const op = req.body as GitOp & { force?: boolean };
     const err = validateGitOp(op);
     if (err) return reply.code(400).send({ error: err });
-    if (!op.force) {
+    // SPEC-233/ADR-0055 · hanya op yang menyentuh working tree digerbang sesi aktif; op ref-only
+    // (tag/rename/push/fetch/stash-drop) aman berjalan berdampingan dengan sesi.
+    if (!op.force && touchesTree(op)) {
       const n = activeSessions(id);
       if (n) return reply.code(409).send({ error: `project "${id}" punya ${n} sesi aktif; commit/stash atau paksa` });
     }
@@ -113,17 +240,56 @@ export default async function (app: FastifyInstance) {
     if (b.deleteBranch !== undefined && !(typeof b.deleteBranch === "string" && b.deleteBranch)) return reply.code(400).send({ error: "deleteBranch harus string tak kosong" });
     const r = await mergeIntoCurrent(repoDir, b.source, {
       ff: b.ff as "no-ff" | "ff-only" | undefined, deleteBranch: b.deleteBranch as string | undefined });
-    if (r.status === "error") return reply.code(r.code).send({ error: r.error });
-    if (r.status === "clean") return { status: "clean", detail: r.detail };
-    // conflict → sesi claude interaktif di worktree yang tertinggal (never touch main working tree).
-    const { model, effort } = await sessionModel();
-    const prompt = [
-      `hanoman · selesaikan konflik merge \`${r.source}\` ke \`${r.target}\`.`,
-      `Kamu berada di worktree yang tertinggal di tengah merge dengan konflik. Resolve konflik pada file bertanda, jaga kedua sisi perubahan sesuai maksudnya.`,
-      r.finalize,
-      `Merge via git graph project ${id}.`,
-    ].join("\n\n");
-    const s = createSession(id, r.worktree, { id: basename(r.worktree), model, effort, prompt });
-    return { status: "conflict", sessionId: s.id };
+    return finishGraphOp(reply, id, r, "merge");
   });
+
+  // SPEC-233/ADR-0055 · rebase branch current ke commit/branch (isolasi + konflik → sesi claude).
+  app.post("/projects/:id/git/rebase", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const repoDir = await repoOf(id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    if (!repoDir) return reply.code(400).send({ error: "project tidak punya repoDir" });
+    const b = req.body as { onto?: unknown };
+    if (typeof b?.onto !== "string" || !b.onto) return reply.code(400).send({ error: "onto wajib" });
+    return finishGraphOp(reply, id, await rebaseOntoCurrent(repoDir, b.onto), "rebase");
+  });
+
+  // SPEC-233 · pull remote branch ke current (fetch + merge, isolasi + konflik → sesi claude).
+  app.post("/projects/:id/git/pull", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const repoDir = await repoOf(id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    if (!repoDir) return reply.code(400).send({ error: "project tidak punya repoDir" });
+    const b = req.body as { source?: unknown; ff?: unknown };
+    if (typeof b?.source !== "string" || !b.source) return reply.code(400).send({ error: "source wajib" });
+    if (b.ff !== undefined && b.ff !== "no-ff" && b.ff !== "ff-only") return reply.code(400).send({ error: "ff harus no-ff atau ff-only" });
+    return finishGraphOp(reply, id, await pullIntoCurrent(repoDir, b.source, { ff: b.ff as "no-ff" | "ff-only" | undefined }), "pull");
+  });
+
+  // SPEC-233 · buang satu commit dari branch current (isolasi + konflik → sesi claude).
+  app.post("/projects/:id/git/drop", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const repoDir = await repoOf(id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    if (!repoDir) return reply.code(400).send({ error: "project tidak punya repoDir" });
+    const b = req.body as { sha?: unknown };
+    if (typeof b?.sha !== "string" || !b.sha) return reply.code(400).send({ error: "sha wajib" });
+    return finishGraphOp(reply, id, await dropCommit(repoDir, b.sha), "drop");
+  });
+}
+
+// SPEC-233 · penyelesaian seragam operasi graph isolasi (merge/rebase/pull/drop): error → kode;
+// clean → { status, detail }; conflict → spawn sesi claude di worktree yang tertinggal → sessionId.
+async function finishGraphOp(reply: import("fastify").FastifyReply, id: string, r: GraphMergeResult, verb: string) {
+  if (r.status === "error") return reply.code(r.code).send({ error: r.error });
+  if (r.status === "clean") return { status: "clean", detail: r.detail };
+  const { model, effort } = await sessionModel();
+  const prompt = [
+    `hanoman · selesaikan konflik ${verb} \`${r.source}\` → \`${r.target}\`.`,
+    `Kamu berada di worktree yang tertinggal di tengah ${verb} dengan konflik. Resolve konflik pada file bertanda, jaga kedua sisi perubahan sesuai maksudnya.`,
+    r.finalize,
+    `${verb} via git graph project ${id}.`,
+  ].join("\n\n");
+  const s = createSession(id, r.worktree, { id: basename(r.worktree), model, effort, prompt });
+  return { status: "conflict", sessionId: s.id };
 }

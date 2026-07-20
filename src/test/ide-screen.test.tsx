@@ -10,7 +10,7 @@ beforeEach(() => {
   vi.spyOn(api, "ideTree").mockResolvedValue({ ref: "", files: ["src/a.ts", "README.md"] });
   vi.spyOn(api, "listBranches").mockResolvedValue({ branches: ["main", "dev"], remotes: ["main"] });
   vi.spyOn(api, "ideFile").mockResolvedValue({ path: "README.md", content: "# hi", binary: false, truncated: false });
-  vi.spyOn(api, "ideStatus").mockResolvedValue({ branch: "main", staged: [], unstaged: [] });
+  vi.spyOn(api, "ideWorkingStatus").mockResolvedValue({ branch: "main", staged: [], unstaged: [] });
 });
 
 describe("IdeScreen Explorer", () => {
@@ -56,7 +56,7 @@ describe("IdeScreen Explorer", () => {
 describe("IdeScreen merge git graph", () => {
   beforeEach(() => {
     vi.spyOn(api, "ideGraph").mockResolvedValue({ current: "main", commits: [
-      { sha: "aaaaaaa", parents: [], author: "t", at: new Date(0).toISOString(), subject: "c1", refs: ["origin/feat"] },
+      { sha: "aaaaaaa", parents: [], author: "t", at: new Date(0).toISOString(), subject: "c1", refs: ["origin/feat"], tags: [] },
     ] });
   });
   const openMergeMenu = async () => {
@@ -95,8 +95,8 @@ describe("IdeScreen merge git graph", () => {
 
 // SPEC-234 · section Staged & Changed dari status working tree, klik → diff.
 describe("IdeScreen Staged & Changed", () => {
-  it("merender section Staged & Changed dari ideStatus", async () => {
-    vi.spyOn(api, "ideStatus").mockResolvedValue({ branch: "main",
+  it("merender section Staged & Changed dari ideWorkingStatus", async () => {
+    vi.spyOn(api, "ideWorkingStatus").mockResolvedValue({ branch: "main",
       staged: [{ path: "src/app.ts", add: 12, del: 3, status: "M", binary: false }],
       unstaged: [{ path: "CHANGELOG.md", add: 2, del: 1, status: "M", binary: false }] });
     render(<IdeScreen projects={projects} projectId="p1" onProject={() => {}} />);
@@ -104,7 +104,7 @@ describe("IdeScreen Staged & Changed", () => {
     expect(await screen.findByText("CHANGELOG.md")).toBeInTheDocument(); // changed (bukan di files tree)
   });
   it("klik file staged → panggil ideFileDiff(staged=true) & render diff", async () => {
-    vi.spyOn(api, "ideStatus").mockResolvedValue({ branch: "main",
+    vi.spyOn(api, "ideWorkingStatus").mockResolvedValue({ branch: "main",
       staged: [{ path: "app.ts", add: 1, del: 0, status: "M", binary: false }], unstaged: [] });
     vi.spyOn(api, "ideFileDiff").mockResolvedValue({ path: "app.ts", status: "M", binary: false,
       truncated: false, diff: "@@ -1 +1 @@\n+baris baru", content: "baris baru" });
@@ -114,7 +114,7 @@ describe("IdeScreen Staged & Changed", () => {
     expect(await screen.findByText(/baris baru/)).toBeInTheDocument();
   });
   it("toggle Tree pada section Changed memakai folder tree", async () => {
-    vi.spyOn(api, "ideStatus").mockResolvedValue({ branch: "main", staged: [],
+    vi.spyOn(api, "ideWorkingStatus").mockResolvedValue({ branch: "main", staged: [],
       unstaged: [{ path: "docs/guide.md", add: 4, del: 0, status: "A", binary: false }] });
     render(<IdeScreen projects={projects} projectId="p1" onProject={() => {}} />);
     fireEvent.click(await screen.findByRole("button", { name: /Tree Changed/i }));

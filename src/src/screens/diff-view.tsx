@@ -1,10 +1,11 @@
-/* diff-view — render unified diff berwarna (dipakai Review & IDE Explorer, SPEC-234). */
+/* diff-view — render unified diff berwarna +/−/@@ (SPEC-171, diekstrak SPEC-233/234).
+   Dipakai ReviewScreen (review spec/sesi) & IDE Explorer/GitGraph (detail commit + compare). */
 import React from "react";
 import { StateBlock } from "../ds";
 
-export function DiffView({ diff }: { diff: string }) {
-  if (!diff) return <StateBlock kind="empty" icon="check" title="Tidak ada perubahan pada file ini"
-    hint="File ini bagian dari project tapi tak diubah." />;
+export function DiffView({ diff, emptyTitle = "Tidak ada perubahan pada file ini", emptyHint }:
+  { diff: string; emptyTitle?: string; emptyHint?: string }) {
+  if (!diff) return <StateBlock kind="empty" icon="check" title={emptyTitle} hint={emptyHint} />;
   return (
     <pre style={{ margin: 0, fontFamily: "var(--font-mono)", fontSize: 12.5, lineHeight: 1.6 }}>
       {diff.split("\n").map((line, i) => {

@@ -26,14 +26,40 @@ export const paths = {
   ideTree: (id: string, ref = "") => `${API}/projects/${id}/tree${ref ? `?ref=${encodeURIComponent(ref)}` : ""}`,
   ideFile: (id: string, path?: string, ref = "") =>
     `${API}/projects/${id}/file${path ? `?path=${encodeURIComponent(path)}${ref ? `&ref=${encodeURIComponent(ref)}` : ""}` : ""}`,
-  ideGraph: (id: string, limit = 200) => `${API}/projects/${id}/graph?limit=${limit}`,
+  ideGraph: (id: string, limit = 200, opts?: { branches?: string[]; showRemote?: boolean; showTags?: boolean }) => {
+    const p = new URLSearchParams({ limit: String(limit) });
+    if (opts?.branches?.length) p.set("branches", opts.branches.join(","));
+    if (opts?.showRemote === false) p.set("showRemote", "false");
+    if (opts?.showTags === false) p.set("showTags", "false");
+    return `${API}/projects/${id}/graph?${p.toString()}`;
+  },
+  ideStatus: (id: string) => `${API}/projects/${id}/status`, // SPEC-233 · status working tree
+  ideSearch: (id: string, q: string, by = "all") => `${API}/projects/${id}/graph/search?q=${encodeURIComponent(q)}&by=${by}`, // SPEC-233
+  ideStashes: (id: string) => `${API}/projects/${id}/stashes`, // SPEC-233 · daftar stash
+  // SPEC-233 · remote mgmt + pr-url + archive
+  ideRemotes: (id: string) => `${API}/projects/${id}/remotes`,
+  ideRemote: (id: string, name: string) => `${API}/projects/${id}/remotes/${encodeURIComponent(name)}`,
+  idePrUrl: (id: string, branch: string, base?: string) =>
+    `${API}/projects/${id}/pr-url?branch=${encodeURIComponent(branch)}${base ? `&base=${encodeURIComponent(base)}` : ""}`,
+  ideArchive: (id: string, ref: string, format = "zip") => `${API}/projects/${id}/archive?ref=${encodeURIComponent(ref)}&format=${format}`,
+
   ideCommit: (id: string, sha: string) => `${API}/projects/${id}/commit/${sha}`,
+  // SPEC-233 · diff satu file di commit (vs parent)
+  ideCommitFile: (id: string, sha: string, path: string) => `${API}/projects/${id}/commit/${sha}/file?path=${encodeURIComponent(path)}`,
+  // SPEC-233 · compare dua commit
+  ideCompare: (id: string, from: string, to: string) => `${API}/projects/${id}/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+  ideCompareFile: (id: string, from: string, to: string, path: string) =>
+    `${API}/projects/${id}/compare/file?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&path=${encodeURIComponent(path)}`,
   ideGit: (id: string) => `${API}/projects/${id}/git`,
   ideGitMerge: (id: string) => `${API}/projects/${id}/git/merge`, // SPEC-229 · merge git graph isolasi
   // SPEC-234 · status working tree (staged/unstaged) + diff satu file working tree
-  ideStatus: (id: string) => `${API}/projects/${id}/status`,
+  // catat: /working-status dibedakan dari /status milik SPEC-233 (repoStatus graph) — beda bentuk respons.
+  ideWorkingStatus: (id: string) => `${API}/projects/${id}/working-status`,
   ideFileDiff: (id: string, path: string, staged: boolean) =>
     `${API}/projects/${id}/file-diff?path=${encodeURIComponent(path)}${staged ? "&staged=1" : ""}`,
+  ideGitRebase: (id: string) => `${API}/projects/${id}/git/rebase`, // SPEC-233 · rebase isolasi
+  ideGitPull: (id: string) => `${API}/projects/${id}/git/pull`,     // SPEC-233 · pull isolasi
+  ideGitDrop: (id: string) => `${API}/projects/${id}/git/drop`,     // SPEC-233 · drop commit isolasi
   fsBrowse: (path?: string) => `${API}/fs/browse${path ? `?path=${encodeURIComponent(path)}` : ""}`,
   terminalSessions: `${API}/terminal/sessions`,
   terminalSession: (id: string) => `${API}/terminal/sessions/${id}`,

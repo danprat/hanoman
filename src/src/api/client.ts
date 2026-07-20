@@ -24,8 +24,8 @@ export type ReviewFile = {
 export type RepoFile = { path: string; content: string | null; binary: boolean; truncated: boolean };
 // SPEC-234 · status working tree utama (staged/unstaged), diturunkan dari git.
 export type WorkingStatus = { branch: string; staged: ChangedFile[]; unstaged: ChangedFile[] };
-export type GraphCommit = { sha: string; parents: string[]; author: string; at: string; subject: string; refs: string[] };
-export type CommitDetail = { sha: string; parents: string[]; author: string; at: string; subject: string; body: string; changed: ChangedFile[] };
+export type GraphCommit = { sha: string; parents: string[]; author: string; at: string; subject: string; refs: string[]; tags: string[] };
+export type CommitDetail = { sha: string; parents: string[]; author: string; at: string; subject: string; body: string; changed: ChangedFile[]; signed: boolean; committer: string; committedAt: string; authorEmail: string };
 export type GitOp =
   | { op: "checkout"; ref: string; force?: boolean }
   | { op: "branch"; name: string; at?: string; checkout?: boolean }
@@ -33,7 +33,29 @@ export type GitOp =
   | { op: "cherry-pick"; sha: string; force?: boolean }
   | { op: "revert"; sha: string; force?: boolean }
   // SPEC-206 · local (default true) dan/atau origin (remote)
-  | { op: "delete-branch"; name: string; force?: boolean; local?: boolean; remote?: boolean };
+  | { op: "delete-branch"; name: string; force?: boolean; local?: boolean; remote?: boolean }
+  // SPEC-233 · reset branch current ke commit (soft/mixed/hard)
+  | { op: "reset"; sha: string; mode: "soft" | "mixed" | "hard"; force?: boolean }
+  // SPEC-233 · tag: buat (annotated bila message, di `at` bila ada, push opsional), hapus, push
+  | { op: "tag"; name: string; message?: string; at?: string; push?: boolean; force?: boolean }
+  | { op: "delete-tag"; name: string; remote?: boolean; force?: boolean }
+  | { op: "push-tag"; name: string; force?: boolean }
+  // SPEC-233 · operasi baris uncommitted
+  | { op: "reset-worktree"; mode: "mixed" | "hard"; force?: boolean }
+  | { op: "clean"; directories?: boolean; ignored?: boolean; force?: boolean }
+  // SPEC-233 · stash (server: PR4)
+  | { op: "stash"; message?: string; includeUntracked?: boolean; force?: boolean }
+  | { op: "stash-apply"; ref: string; index?: boolean; force?: boolean }
+  | { op: "stash-pop"; ref: string; index?: boolean; force?: boolean }
+  | { op: "stash-drop"; ref: string; force?: boolean }
+  | { op: "stash-branch"; ref: string; name: string; force?: boolean }
+  // SPEC-233 · branch ref-only ops
+  | { op: "rename-branch"; from: string; to: string; force?: boolean }
+  | { op: "push-branch"; name: string; setUpstream?: boolean; force?: boolean }
+  | { op: "fetch"; prune?: boolean; pruneTags?: boolean; force?: boolean };
+export type RepoStatus = { branch: string; ahead: number; behind: number; staged: string[]; unstaged: string[]; untracked: string[]; clean: boolean };
+export type Stash = { ref: string; message: string; at: string };
+export type Remote = { name: string; fetch: string; push: string };
 export type GitOpResult = { ok: boolean; stdout: string; stderr: string; current: string; error?: string };
 // SPEC-229 · hasil merge via git graph: bersih → detail; konflik → sesi claude (sessionId).
 export type GraphMergeResult = { status: "clean"; detail: string } | { status: "conflict"; sessionId: string };
@@ -109,15 +131,34 @@ export const api = {
   ideFile: (id: string, path: string, ref = "") => j<RepoFile>(paths.ideFile(id, path, ref)),
   putIdeFile: (id: string, path: string, content: string) =>
     j<{ path: string; content: string }>(paths.ideFile(id), { method: "PUT", ...body({ path, content }) }),
-  ideGraph: (id: string, limit = 200) => j<{ commits: GraphCommit[]; current: string }>(paths.ideGraph(id, limit)),
+  ideGraph: (id: string, limit = 200, opts?: { branches?: string[]; showRemote?: boolean; showTags?: boolean }) =>
+    j<{ commits: GraphCommit[]; current: string }>(paths.ideGraph(id, limit, opts)),
+  // SPEC-233 · status working tree (baris uncommitted changes)
+  ideStatus: (id: string) => j<RepoStatus>(paths.ideStatus(id)),
+  ideSearch: (id: string, q: string, by = "all") => j<{ shas: string[] }>(paths.ideSearch(id, q, by)), // SPEC-233
+  ideStashes: (id: string) => j<Stash[]>(paths.ideStashes(id)), // SPEC-233 · daftar stash
+  // SPEC-233 · remote mgmt + pr-url + archive
+  ideRemotes: (id: string) => j<Remote[]>(paths.ideRemotes(id)),
+  ideAddRemote: (id: string, name: string, url: string) => j<Remote[]>(paths.ideRemotes(id), { method: "POST", ...body({ name, url }) }),
+  idePatchRemote: (id: string, name: string, url: string) => j<Remote[]>(paths.ideRemote(id, name), { method: "PATCH", ...body({ url }) }),
+  ideDeleteRemote: (id: string, name: string) => j<Remote[]>(paths.ideRemote(id, name), { method: "DELETE" }),
+  idePrUrl: (id: string, branch: string, base?: string) => j<{ url: string | null }>(paths.idePrUrl(id, branch, base)),
+  ideArchiveUrl: (id: string, ref: string, format = "zip") => paths.ideArchive(id, ref, format),
   ideCommit: (id: string, sha: string) => j<CommitDetail>(paths.ideCommit(id, sha)),
+  ideCommitFile: (id: string, sha: string, path: string) => j<ReviewFile>(paths.ideCommitFile(id, sha, path)), // SPEC-233
+  ideCompare: (id: string, from: string, to: string) => j<{ from: string; to: string; changed: ChangedFile[] }>(paths.ideCompare(id, from, to)),
+  ideCompareFile: (id: string, from: string, to: string, path: string) => j<ReviewFile>(paths.ideCompareFile(id, from, to, path)),
   ideGit: (id: string, op: GitOp) => j<GitOpResult>(paths.ideGit(id), { method: "POST", ...body(op) }),
   // SPEC-229 · merge via git graph: deterministik di worktree isolasi; conflict → sesi claude.
   ideGitMerge: (id: string, b: { source: string; ff?: "no-ff" | "ff-only"; deleteBranch?: string }) =>
     j<GraphMergeResult>(paths.ideGitMerge(id), { method: "POST", ...body(b) }),
-  // SPEC-234 · status working tree + diff satu file working tree.
-  ideStatus: (id: string) => j<WorkingStatus>(paths.ideStatus(id)),
+  // SPEC-234 · status working tree + diff satu file working tree (endpoint /working-status, beda dari ideStatus SPEC-233).
+  ideWorkingStatus: (id: string) => j<WorkingStatus>(paths.ideWorkingStatus(id)),
   ideFileDiff: (id: string, path: string, staged: boolean) => j<ReviewFile>(paths.ideFileDiff(id, path, staged)),
+  // SPEC-233 · rebase/pull/drop via git graph: isolasi + conflict → sesi claude (bentuk sama).
+  ideGitRebase: (id: string, onto: string) => j<GraphMergeResult>(paths.ideGitRebase(id), { method: "POST", ...body({ onto }) }),
+  ideGitPull: (id: string, b: { source: string; ff?: "no-ff" | "ff-only" }) => j<GraphMergeResult>(paths.ideGitPull(id), { method: "POST", ...body(b) }),
+  ideGitDrop: (id: string, sha: string) => j<GraphMergeResult>(paths.ideGitDrop(id), { method: "POST", ...body({ sha }) }),
   browseFs: (path?: string) =>
     j<{ path: string; parent: string | null; entries: { name: string; path: string }[] }>(paths.fsBrowse(path)),
   listTerminals: () => j<TerminalSession[]>(paths.terminalSessions),

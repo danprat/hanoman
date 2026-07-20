@@ -27,4 +27,16 @@ describe("config-registry", () => {
     expect(maskSecret("abcdefgh")).toBe("••••efgh");
     expect(maskSecret("ab")).toBe("••••");
   });
+  it("gitGraph namespace terdaftar + parse valid (SPEC-233)", () => {
+    const style = configEntry("gitGraph.style");
+    expect(style?.group).toBe("gitGraph");
+    expect(style?.default).toBe("rounded");
+    expect(parseConfigValue(style!, "angular")).toEqual({ ok: true, value: "angular" });
+    const avatars = configEntry("gitGraph.fetchAvatars")!;
+    expect(avatars.default).toBe("0");
+    expect(parseConfigValue(avatars, "1")).toEqual({ ok: true, value: "1" });
+    const load = configEntry("gitGraph.commitsInitialLoad")!;
+    expect(parseConfigValue(load, "0")).toEqual({ ok: false, error: "min 1" });
+    expect(CONFIG_REGISTRY.filter((e) => e.group === "gitGraph").length).toBeGreaterThanOrEqual(14);
+  });
 });

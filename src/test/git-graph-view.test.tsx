@@ -4,32 +4,34 @@ import { GitGraph } from "../src/screens/GitGraph";
 import { api } from "../src/api/client";
 
 const commits = [
-  { sha: "aaaa111", parents: ["bbbb222"], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["main"] },
-  { sha: "bbbb222", parents: [], author: "t", at: "2026-01-01T00:00:00Z", subject: "pertama", refs: [] },
+  { sha: "aaaa111", parents: ["bbbb222"], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["main"], tags: [] },
+  { sha: "bbbb222", parents: [], author: "t", at: "2026-01-01T00:00:00Z", subject: "pertama", refs: [], tags: [] },
 ];
 
 beforeEach(() => {
   vi.restoreAllMocks();
   vi.spyOn(api, "ideGraph").mockResolvedValue({ commits, current: "main" });
   vi.spyOn(api, "ideCommit").mockResolvedValue({ sha: "aaaa111", parents: ["bbbb222"], author: "t", at: "",
-    subject: "kedua", body: "", changed: [{ path: "a.ts", add: 1, del: 0, status: "M", binary: false }] });
+    subject: "kedua", body: "", changed: [{ path: "a.ts", add: 1, del: 0, status: "M", binary: false }],
+    signed: false, committer: "t", committedAt: "", authorEmail: "t@t" });
 });
 
 describe("GitGraph", () => {
   it("menggambar baris commit dari ideGraph", async () => {
-    render(<GitGraph projectId="p1" onRunGit={vi.fn()} onMerge={vi.fn()} onOpenFile={vi.fn()} />);
+    render(<GitGraph projectId="p1" onRunGit={vi.fn()} onMerge={vi.fn()} onRebase={vi.fn()} onPull={vi.fn()} onDrop={vi.fn()} onOpenFile={vi.fn()} />);
     expect(await screen.findByText("kedua")).toBeInTheDocument();
-    expect(screen.getByText("main")).toBeInTheDocument(); // chip ref
+    // "main" muncul sbg chip ref DAN opsi filter branch (SPEC-233) → minimal satu.
+    expect(screen.getAllByText("main").length).toBeGreaterThanOrEqual(1);
   });
   it("klik commit memuat detail file berubah", async () => {
-    render(<GitGraph projectId="p1" onRunGit={vi.fn()} onMerge={vi.fn()} onOpenFile={vi.fn()} />);
+    render(<GitGraph projectId="p1" onRunGit={vi.fn()} onMerge={vi.fn()} onRebase={vi.fn()} onPull={vi.fn()} onDrop={vi.fn()} onOpenFile={vi.fn()} />);
     fireEvent.click(await screen.findByText("kedua"));
     await waitFor(() => expect(api.ideCommit).toHaveBeenCalledWith("p1", "aaaa111"));
     expect(await screen.findByText("a.ts")).toBeInTheDocument();
   });
   it("context-menu Checkout memanggil onRunGit", async () => {
     const onRunGit = vi.fn().mockResolvedValue({});
-    render(<GitGraph projectId="p1" onRunGit={onRunGit} onMerge={vi.fn()} onOpenFile={vi.fn()} />);
+    render(<GitGraph projectId="p1" onRunGit={onRunGit} onMerge={vi.fn()} onRebase={vi.fn()} onPull={vi.fn()} onDrop={vi.fn()} onOpenFile={vi.fn()} />);
     fireEvent.contextMenu(await screen.findByText("kedua"));
     fireEvent.click(await screen.findByText(/checkout/i));
     await waitFor(() => expect(onRunGit).toHaveBeenCalledWith({ op: "checkout", ref: "aaaa111" }));
@@ -39,10 +41,10 @@ describe("GitGraph", () => {
   it("branch local+origin: tawarkan hapus local+origin, local, dan origin", async () => {
     const onRunGit = vi.fn().mockResolvedValue({});
     vi.spyOn(api, "ideGraph").mockResolvedValue({
-      commits: [{ sha: "aaaa111", parents: [], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["feat", "origin/feat"] }],
+      commits: [{ sha: "aaaa111", parents: [], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["feat", "origin/feat"], tags: [] }],
       current: "main",
     });
-    render(<GitGraph projectId="p1" onRunGit={onRunGit} onMerge={vi.fn()} onOpenFile={vi.fn()} />);
+    render(<GitGraph projectId="p1" onRunGit={onRunGit} onMerge={vi.fn()} onRebase={vi.fn()} onPull={vi.fn()} onDrop={vi.fn()} onOpenFile={vi.fn()} />);
     fireEvent.contextMenu(await screen.findByText("kedua"));
 
     fireEvent.click(await screen.findByText("Hapus feat (local + origin)"));
@@ -60,10 +62,10 @@ describe("GitGraph", () => {
   it("ref origin saja (tanpa local): hanya tawarkan hapus origin", async () => {
     const onRunGit = vi.fn().mockResolvedValue({});
     vi.spyOn(api, "ideGraph").mockResolvedValue({
-      commits: [{ sha: "aaaa111", parents: [], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["origin/gone"] }],
+      commits: [{ sha: "aaaa111", parents: [], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["origin/gone"], tags: [] }],
       current: "main",
     });
-    render(<GitGraph projectId="p1" onRunGit={onRunGit} onMerge={vi.fn()} onOpenFile={vi.fn()} />);
+    render(<GitGraph projectId="p1" onRunGit={onRunGit} onMerge={vi.fn()} onRebase={vi.fn()} onPull={vi.fn()} onDrop={vi.fn()} onOpenFile={vi.fn()} />);
     fireEvent.contextMenu(await screen.findByText("kedua"));
     expect(screen.queryByText(/Hapus gone \(local/)).toBeNull();
     fireEvent.click(await screen.findByText("Hapus origin/gone"));
@@ -74,10 +76,10 @@ describe("GitGraph", () => {
   it("merge commit (termasuk origin) memanggil onMerge dengan sha, bukan onRunGit", async () => {
     const onRunGit = vi.fn().mockResolvedValue({}), onMerge = vi.fn().mockResolvedValue(undefined);
     vi.spyOn(api, "ideGraph").mockResolvedValue({
-      commits: [{ sha: "aaaa111", parents: [], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["origin/feat"] }],
+      commits: [{ sha: "aaaa111", parents: [], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["origin/feat"], tags: [] }],
       current: "main",
     });
-    render(<GitGraph projectId="p1" onRunGit={onRunGit} onMerge={onMerge} onOpenFile={vi.fn()} />);
+    render(<GitGraph projectId="p1" onRunGit={onRunGit} onMerge={onMerge} onRebase={vi.fn()} onPull={vi.fn()} onDrop={vi.fn()} onOpenFile={vi.fn()} />);
     fireEvent.contextMenu(await screen.findByText("kedua"));
     fireEvent.click(await screen.findByText("Merge (fast-forward bila bisa)"));
     await waitFor(() => expect(onMerge).toHaveBeenCalledWith("aaaa111", undefined));
@@ -87,10 +89,10 @@ describe("GitGraph", () => {
   it("merge --no-ff & 'Merge <branch> lalu hapus' meneruskan opsi ke onMerge", async () => {
     const onMerge = vi.fn().mockResolvedValue(undefined);
     vi.spyOn(api, "ideGraph").mockResolvedValue({
-      commits: [{ sha: "aaaa111", parents: [], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["feat"] }],
+      commits: [{ sha: "aaaa111", parents: [], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["feat"], tags: [] }],
       current: "main",
     });
-    render(<GitGraph projectId="p1" onRunGit={vi.fn()} onMerge={onMerge} onOpenFile={vi.fn()} />);
+    render(<GitGraph projectId="p1" onRunGit={vi.fn()} onMerge={onMerge} onRebase={vi.fn()} onPull={vi.fn()} onDrop={vi.fn()} onOpenFile={vi.fn()} />);
     fireEvent.contextMenu(await screen.findByText("kedua"));
     fireEvent.click(await screen.findByText("Merge tanpa fast-forward"));
     await waitFor(() => expect(onMerge).toHaveBeenCalledWith("aaaa111", { ff: "no-ff" }));
