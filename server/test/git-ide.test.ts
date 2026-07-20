@@ -445,3 +445,24 @@ describe("git-ide search (SPEC-233)", () => {
     expect(await searchCommits(makeRepoWithSpecCommits({ "a": "1" }, []), "", "all")).toEqual([]);
   });
 });
+
+describe("git-ide graph filter (SPEC-233)", () => {
+  it("listGraph branches filter membatasi ke ref tertentu", async () => {
+    const dir = makeRepoWithBranches("dev");
+    const g = (...a: string[]) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });
+    g("checkout", "-q", "dev"); writeFileSync(`${dir}/d.txt`, "d"); g("add", "-A"); g("commit", "-qm", "hanya dev"); g("checkout", "-q", "main");
+    const only = await listGraph(dir, 200, { branches: ["main"] });
+    expect(only.commits.some((c) => c.subject === "hanya dev")).toBe(false);
+    const all = await listGraph(dir, 200);
+    expect(all.commits.some((c) => c.subject === "hanya dev")).toBe(true);
+  });
+  it("listGraph showTags:false mengecualikan commit yang hanya dijangkau tag", async () => {
+    const dir = makeRepoWithSpecCommits({ "a": "1" }, []);
+    const g = (...a: string[]) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });
+    // commit lepas hanya ditunjuk tag (tak di branch mana pun)
+    g("checkout", "-q", "--detach"); writeFileSync(`${dir}/loose.txt`, "x"); g("add", "-A"); g("commit", "-qm", "loose commit");
+    g("tag", "onlytag"); g("checkout", "-q", "main");
+    expect((await listGraph(dir, 200)).commits.some((c) => c.subject === "loose commit")).toBe(true);
+    expect((await listGraph(dir, 200, { showTags: false })).commits.some((c) => c.subject === "loose commit")).toBe(false);
+  });
+});

@@ -7,7 +7,7 @@ import { sessionModel } from "../services/settings";
 import { mergeIntoCurrent, rebaseOntoCurrent, pullIntoCurrent, dropCommit, type GraphMergeResult } from "../services/integrate";
 import {
   listRepoTree, readRepoFile, writeRepoFile, listGraph, commitDetail, commitFileDiff, compareCommits, compareFile,
-  searchCommits, runGitOp, validateGitOp, touchesTree, repoStatus, listStashes, type GitOp,
+  searchCommits, runGitOp, validateGitOp, touchesTree, repoStatus, listStashes, type GitOp, type GraphOpts,
 } from "../services/git-ide";
 
 // undefined = project tak ada (→404); null = ada tapi tanpa checkout lokal; string = repoDir.
@@ -51,8 +51,14 @@ export default async function (app: FastifyInstance) {
   app.get("/projects/:id/graph", async (req, reply) => {
     const repoDir = await repoOf((req.params as { id: string }).id);
     if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
-    const limit = Number((req.query as { limit?: string }).limit) || 200;
-    return listGraph(repoDir, limit);
+    const q = req.query as { limit?: string; branches?: string; showRemote?: string; showTags?: string };
+    const limit = Number(q.limit) || 200;
+    const opts: GraphOpts = {
+      branches: q.branches ? q.branches.split(",").filter(Boolean) : undefined,
+      showRemote: q.showRemote === "false" ? false : undefined,
+      showTags: q.showTags === "false" ? false : undefined,
+    };
+    return listGraph(repoDir, limit, opts);
   });
 
   // SPEC-233 · cari commit (message/author/hash/all) lintas semua ref.

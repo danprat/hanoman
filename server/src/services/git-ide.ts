@@ -107,14 +107,22 @@ export async function listStashes(repoDir: string | null): Promise<Stash[]> {
   } catch { return []; }
 }
 
-// git log --all seluruh ref. `%D` = ref names ("HEAD -> main, origin/main, tag: v1"); buang
+// git log seluruh ref (default --all). `%D` = ref names ("HEAD -> main, origin/main, tag: v1"); buang
 // prefix "HEAD -> ". Satu commit = satu baris (subject/refs tanpa newline).
-export async function listGraph(repoDir: string | null, limit = 200): Promise<{ commits: GraphCommit[]; current: string }> {
+// SPEC-233 · opts: `branches` batasi ke ref tertentu (bukan --all); `showRemote`/`showTags` false →
+// exclude glob ref dari walk (default = perilaku lama).
+export type GraphOpts = { branches?: string[]; showRemote?: boolean; showTags?: boolean };
+export async function listGraph(repoDir: string | null, limit = 200, opts: GraphOpts = {}): Promise<{ commits: GraphCommit[]; current: string }> {
   if (!repoDir || !existsSync(repoDir)) return { commits: [], current: "" };
   try {
     const fmt = ["%H", "%P", "%an", "%aI", "%s", "%D"].join(US);
+    // ref selector: branch spesifik (--end-of-options cegah flag-injection) atau --all + exclude glob.
+    const refArgs = opts.branches?.length
+      ? ["--end-of-options", ...opts.branches]
+      : [...(opts.showRemote === false ? ["--exclude=refs/remotes/*"] : []),
+         ...(opts.showTags === false ? ["--exclude=refs/tags/*"] : []), "--all"];
     const { stdout } = await exec("git",
-      ["log", "--all", "--date-order", `--max-count=${limit}`, `--pretty=format:${fmt}`], { cwd: repoDir, ...GIT });
+      ["log", "--date-order", `--max-count=${limit}`, `--pretty=format:${fmt}`, ...refArgs], { cwd: repoDir, ...GIT });
     const commits = stdout.split("\n").filter(Boolean).map((line) => {
       const [sha, parents, author, at, subject, refs] = line.split(US);
       // SPEC-233 · pisahkan tag (`tag: v1`) dari ref branch agar client bisa merender/menuinya beda.

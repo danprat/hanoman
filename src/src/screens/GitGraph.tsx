@@ -28,21 +28,24 @@ const rel = (iso: string): string => {
   return new Date(iso).toLocaleDateString();
 };
 
-// Segmen edge → path SVG. Kurva-S (bezier) saat pindah lane, garis lurus saat sejajar.
-function edgePath(e: Edge): string {
+// Segmen edge → path SVG. SPEC-233 · style "rounded" (bezier) atau "angular" (siku) saat pindah lane.
+function edgePath(e: Edge, style: "rounded" | "angular"): string {
   const x = (i: number) => LANE_W / 2 + i * LANE_W;
   const y1 = e.half === "bottom" ? ROW_H / 2 : 0;
   const y2 = e.half === "top" ? ROW_H / 2 : ROW_H;
   const x1 = x(e.fromLane), x2 = x(e.toLane), ym = (y1 + y2) / 2;
-  return x1 === x2 ? `M${x1} ${y1}V${y2}` : `M${x1} ${y1}C${x1} ${ym},${x2} ${ym},${x2} ${y2}`;
+  if (x1 === x2) return `M${x1} ${y1}V${y2}`;
+  return style === "angular"
+    ? `M${x1} ${y1}V${ym}H${x2}V${y2}`
+    : `M${x1} ${y1}C${x1} ${ym},${x2} ${ym},${x2} ${y2}`;
 }
 
-function RowSvg({ row, edges, maxLanes }: { row: GraphRow; edges: Edge[]; maxLanes: number }) {
+function RowSvg({ row, edges, maxLanes, style }: { row: GraphRow; edges: Edge[]; maxLanes: number; style: "rounded" | "angular" }) {
   const cx = LANE_W / 2 + row.lane * LANE_W;
   return (
     <svg width={maxLanes * LANE_W} height={ROW_H} style={{ flex: "0 0 auto" }}>
       {edges.map((e, i) => (
-        <path key={i} d={edgePath(e)} fill="none" stroke={laneColor(e.colorLane)} strokeWidth={1.5} />
+        <path key={i} d={edgePath(e, style)} fill="none" stroke={laneColor(e.colorLane)} strokeWidth={1.5} />
       ))}
       <circle cx={cx} cy={ROW_H / 2} r={DOT} fill={laneColor(row.lane)} stroke="var(--surface-card)" strokeWidth={1.5} />
     </svg>
@@ -202,6 +205,11 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
     const r = rows.find((x) => x.commit.refs.includes(current));
     if (r) scrollToSha(r.commit.sha);
   }, [rows, current, scrollToSha]);
+  // SPEC-233 · kontrol tampilan: filter branch, show/hide remote/tag (refetch), muted & style (client).
+  const [gopts, setGopts] = React.useState<{ branch: string; showRemote: boolean; showTags: boolean }>({ branch: "", showRemote: true, showTags: true });
+  const [muted, setMuted] = React.useState(true);
+  const [style, setStyle] = React.useState<"rounded" | "angular">("rounded");
+  const localBranches = React.useMemo(() => [...new Set(rows.flatMap((r) => r.commit.refs).filter((x) => !x.startsWith("origin/")))].sort(), [rows]);
   const onRowClick = React.useCallback((e: React.MouseEvent, sha: string) => {
     if (e.metaKey || e.ctrlKey) {
       if (!compareFrom) { setCompareFrom(sha); return; }
@@ -213,11 +221,12 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
 
   const load = React.useCallback(() => {
     setState("loading");
-    api.ideGraph(projectId).then((g) => { setRows(computeLanes(g.commits)); setCurrent(g.current); setState("ready"); })
+    api.ideGraph(projectId, 200, { branches: gopts.branch ? [gopts.branch] : undefined, showRemote: gopts.showRemote ? undefined : false, showTags: gopts.showTags ? undefined : false })
+      .then((g) => { setRows(computeLanes(g.commits)); setCurrent(g.current); setState("ready"); })
       .catch(() => setState("error"));
     api.ideStatus(projectId).then(setStatus).catch(() => setStatus(null));
     api.ideStashes(projectId).then(setStashes).catch(() => setStashes([]));
-  }, [projectId]);
+  }, [projectId, gopts]);
   React.useEffect(() => { load(); }, [load]);
   // SPEC-233 · shortcut: Esc tutup panel; Ctrl/Cmd-F find; Ctrl/Cmd-H center HEAD.
   React.useEffect(() => {
@@ -278,6 +287,27 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
             </>
           )}
         </div>
+        {/* SPEC-233 · kontrol tampilan: filter branch, show/hide remote/tag, muted, style */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "6px 12px", borderBottom: "1px solid var(--border-hair)", fontSize: 12 }}>
+          <select value={gopts.branch} onChange={(e) => setGopts((o) => ({ ...o, branch: e.target.value }))}
+            style={{ fontSize: 12, padding: "3px 6px", border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", background: "var(--surface-card)", color: "var(--text-body)" }}>
+            <option value="">semua branch</option>
+            {localBranches.map((b) => <option key={b} value={b}>{b}</option>)}
+          </select>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", color: "var(--text-muted)" }}>
+            <input type="checkbox" checked={gopts.showRemote} onChange={(e) => setGopts((o) => ({ ...o, showRemote: e.target.checked }))} /> remote
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", color: "var(--text-muted)" }}>
+            <input type="checkbox" checked={gopts.showTags} onChange={(e) => setGopts((o) => ({ ...o, showTags: e.target.checked }))} /> tag
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", color: "var(--text-muted)" }}>
+            <input type="checkbox" checked={muted} onChange={(e) => setMuted(e.target.checked)} /> muted merge
+          </label>
+          <button onClick={() => setStyle((s) => (s === "rounded" ? "angular" : "rounded"))}
+            style={{ border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", background: "var(--surface-card)", cursor: "pointer", padding: "3px 8px", fontSize: 12, color: "var(--text-muted)" }}>
+            style: {style}
+          </button>
+        </div>
         {/* SPEC-233 · baris uncommitted changes (lingkaran terbuka) di puncak bila working tree kotor */}
         {status && !status.clean && (() => {
           const n = status.staged.length + status.unstaged.length + status.untracked.length;
@@ -332,7 +362,7 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
               style={{ display: "flex", alignItems: "center", gap: 10, height: ROW_H, padding: "0 12px",
                 cursor: "pointer", borderBottom: "1px solid var(--border-hair)",
                 background: rowBg }}>
-              <RowSvg row={r} edges={allEdges[i] ?? []} maxLanes={maxLanes} />
+              <RowSvg row={r} edges={allEdges[i] ?? []} maxLanes={maxLanes} style={style} />
               <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1 }}>
                 {c.refs.map((ref) => (
                   <span key={ref} title="branch — klik-kanan untuk aksi"
@@ -349,7 +379,7 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
                       display: "inline-flex", alignItems: "center", gap: 3, background: "var(--leaf-100, #e6efe9)",
                       color: "var(--leaf-600, #3b7a57)", flex: "0 0 auto" }}>⌂{t}</span>
                 ))}
-                <span style={{ fontSize: 12.5, color: "var(--text-body)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.subject}</span>
+                <span style={{ fontSize: 12.5, color: muted && c.parents.length > 1 ? "var(--text-subtle)" : "var(--text-body)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.subject}</span>
               </div>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)",
                 flex: "0 0 auto", width: 88, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "right" }}>{c.author}</span>

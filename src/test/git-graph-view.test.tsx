@@ -20,7 +20,8 @@ describe("GitGraph", () => {
   it("menggambar baris commit dari ideGraph", async () => {
     render(<GitGraph projectId="p1" onRunGit={vi.fn()} onMerge={vi.fn()} onRebase={vi.fn()} onPull={vi.fn()} onDrop={vi.fn()} onOpenFile={vi.fn()} />);
     expect(await screen.findByText("kedua")).toBeInTheDocument();
-    expect(screen.getByText("main")).toBeInTheDocument(); // chip ref
+    // "main" muncul sbg chip ref DAN opsi filter branch (SPEC-233) → minimal satu.
+    expect(screen.getAllByText("main").length).toBeGreaterThanOrEqual(1);
   });
   it("klik commit memuat detail file berubah", async () => {
     render(<GitGraph projectId="p1" onRunGit={vi.fn()} onMerge={vi.fn()} onRebase={vi.fn()} onPull={vi.fn()} onDrop={vi.fn()} onOpenFile={vi.fn()} />);

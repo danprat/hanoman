@@ -198,6 +198,16 @@ describe("ide routes", () => {
     expect(r.statusCode).toBe(200);
     expect(r.json().status).toBe("clean");
   });
+  it("GET /graph?branches=main membatasi walk (SPEC-233)", async () => {
+    const dir = makeRepoWithBranches("dev");
+    const g = (...a: string[]) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });
+    g("checkout", "-q", "dev"); writeFileSync(`${dir}/d.txt`, "d"); g("add", "-A"); g("commit", "-qm", "hanya dev"); g("checkout", "-q", "main");
+    await makeProject({ id: "filterrepo", repoDir: dir });
+    const all = (await app.inject({ url: "/api/projects/filterrepo/graph" })).json();
+    const onlyMain = (await app.inject({ url: "/api/projects/filterrepo/graph?branches=main" })).json();
+    expect(all.commits.some((c: { subject: string }) => c.subject === "hanya dev")).toBe(true);
+    expect(onlyMain.commits.some((c: { subject: string }) => c.subject === "hanya dev")).toBe(false);
+  });
   it("GET /graph/search by message → shas (SPEC-233)", async () => {
     const dir = makeRepoWithBranches();
     const g = (...a: string[]) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });

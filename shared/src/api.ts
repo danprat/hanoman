@@ -26,7 +26,13 @@ export const paths = {
   ideTree: (id: string, ref = "") => `${API}/projects/${id}/tree${ref ? `?ref=${encodeURIComponent(ref)}` : ""}`,
   ideFile: (id: string, path?: string, ref = "") =>
     `${API}/projects/${id}/file${path ? `?path=${encodeURIComponent(path)}${ref ? `&ref=${encodeURIComponent(ref)}` : ""}` : ""}`,
-  ideGraph: (id: string, limit = 200) => `${API}/projects/${id}/graph?limit=${limit}`,
+  ideGraph: (id: string, limit = 200, opts?: { branches?: string[]; showRemote?: boolean; showTags?: boolean }) => {
+    const p = new URLSearchParams({ limit: String(limit) });
+    if (opts?.branches?.length) p.set("branches", opts.branches.join(","));
+    if (opts?.showRemote === false) p.set("showRemote", "false");
+    if (opts?.showTags === false) p.set("showTags", "false");
+    return `${API}/projects/${id}/graph?${p.toString()}`;
+  },
   ideStatus: (id: string) => `${API}/projects/${id}/status`, // SPEC-233 · status working tree
   ideSearch: (id: string, q: string, by = "all") => `${API}/projects/${id}/graph/search?q=${encodeURIComponent(q)}&by=${by}`, // SPEC-233
   ideStashes: (id: string) => `${API}/projects/${id}/stashes`, // SPEC-233 · daftar stash

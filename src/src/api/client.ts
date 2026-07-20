@@ -128,7 +128,8 @@ export const api = {
   ideFile: (id: string, path: string, ref = "") => j<RepoFile>(paths.ideFile(id, path, ref)),
   putIdeFile: (id: string, path: string, content: string) =>
     j<{ path: string; content: string }>(paths.ideFile(id), { method: "PUT", ...body({ path, content }) }),
-  ideGraph: (id: string, limit = 200) => j<{ commits: GraphCommit[]; current: string }>(paths.ideGraph(id, limit)),
+  ideGraph: (id: string, limit = 200, opts?: { branches?: string[]; showRemote?: boolean; showTags?: boolean }) =>
+    j<{ commits: GraphCommit[]; current: string }>(paths.ideGraph(id, limit, opts)),
   // SPEC-233 · status working tree (baris uncommitted changes)
   ideStatus: (id: string) => j<RepoStatus>(paths.ideStatus(id)),
   ideSearch: (id: string, q: string, by = "all") => j<{ shas: string[] }>(paths.ideSearch(id, q, by)), // SPEC-233
