@@ -29,7 +29,7 @@
 **Interfaces:**
 - Produces: `zSpecSource` menerima `"audit"`; `zFlow` menerima `"audit"`; `flowForSource(source: string): FlowName` (`"qa"→"qa"`, `"audit"→"audit"`, selain itu `"feature"`), diekspor dari `@hanoman/shared`.
 
-- [ ] **Step 1: Tulis test yang gagal (enums + flowForSource)**
+- [x] **Step 1: Tulis test yang gagal (enums + flowForSource)**
 
 Tambah di `shared/test/enums.test.ts` (setelah blok describe yang ada):
 ```ts
@@ -50,12 +50,12 @@ describe("SPEC-237 · source audit", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan gagal**
+- [x] **Step 2: Jalankan test — pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/shared exec vitest run test/enums.test.ts`
 Expected: FAIL (`flowForSource` belum ada / `audit` ditolak).
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 `shared/src/enums.ts:3` ganti jadi:
 ```ts
@@ -73,12 +73,12 @@ export function flowForSource(source: string): FlowName {
 }
 ```
 
-- [ ] **Step 4: Jalankan test — pastikan lolos**
+- [x] **Step 4: Jalankan test — pastikan lolos**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/shared exec vitest run test/enums.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add shared/src/enums.ts shared/src/dto.ts shared/test/enums.test.ts

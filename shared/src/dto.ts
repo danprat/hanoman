@@ -75,7 +75,13 @@ export const zProjectView = zProject.extend({
   activity: z.string(), commit: z.string() });
 export type ProjectView = z.infer<typeof zProjectView>;
 
-export const zFlow = z.enum(["feature", "qa", "scaffold", "reverse", "prd"]);
+export const zFlow = z.enum(["feature", "qa", "scaffold", "reverse", "prd", "audit"]);
+export type FlowName = z.infer<typeof zFlow>;
+// SPEC-237 · satu-satunya pemetaan source → flow (client memakainya saat start sesi).
+// qa → audit lalu execute perbaikan; audit → dokumen saja (Audit → Laporan, tanpa Execute).
+export function flowForSource(source: string): FlowName {
+  return source === "qa" ? "qa" : source === "audit" ? "audit" : "feature";
+}
 
 // SPEC-210 · brief awal PRD (sesi prd project-level, tanpa Spec). Disisipkan ke prompt sesi.
 export const zPrdBrief = z.object({
