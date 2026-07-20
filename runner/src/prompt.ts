@@ -23,15 +23,17 @@ export function resolvePhaseModels(
     model: overrides?.[phase]?.model ?? fallback.model,
     effort: overrides?.[phase]?.effort ?? fallback.effort,
   }));
-  const launch = perPhase.length ? { model: perPhase[0].model, effort: perPhase[0].effort } : { ...fallback };
+  const first = perPhase[0];
+  const launch = first ? { model: first.model, effort: first.effort } : { ...fallback };
   return { launch, perPhase };
 }
 
 // Instruksi hanya di-emit bila ADA VARIASI (≥1 fase beda dari fase pertama). Seragam → "" (prompt
 // tak berubah — regresi nol). `/effort` best-effort di Opus/Fable (ADR-0057), agen diberi tahu.
 const phaseModelInstruction = (perPhase?: PhaseModel[]): string => {
-  if (!perPhase || perPhase.length === 0) return "";
-  const varied = perPhase.some((p) => p.model !== perPhase[0].model || p.effort !== perPhase[0].effort);
+  const first = perPhase?.[0];
+  if (!first) return "";
+  const varied = perPhase.some((p) => p.model !== first.model || p.effort !== first.effort);
   if (!varied) return "";
   const rows = perPhase.map((p) => `- ${p.phase} → \`/model ${p.model}\` · \`/effort ${p.effort}\``);
   return "Model & effort per fase (SPEC-238): di AWAL tiap fase, sebelum mengerjakannya, set model & "

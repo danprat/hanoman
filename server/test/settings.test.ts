@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { prisma } from "../src/db";
 import { resetDb } from "./factory";
-import { getSetting, sessionModel, DEFAULT_SETTING } from "../src/services/settings";
+import { getSetting, sessionModel, DEFAULT_SETTING, phaseModelsForFlow } from "../src/services/settings";
 
 // Baris Setting adalah `Json` bebas bentuk. Baris yang ditulis SEBELUM SPEC-162 menyimpan
 // `steps` per fase dan tak punya `model` maupun `effort` — dikembalikan mentah, sesi lahir
@@ -57,5 +57,26 @@ describe("settings", () => {
     expect(s.model).toBe("claude-sonnet-5");
     expect(s.effort).toBe("low");
     expect(s.autoDefault).toBe(false);
+  });
+
+  // SPEC-238 · ADR-0057 — model & effort per fase
+  describe("phaseModelsForFlow", () => {
+    it("DEFAULT_SETTING punya phaseModels {}", () => {
+      expect(DEFAULT_SETTING.phaseModels).toEqual({});
+    });
+    it("tanpa override → semua fase pakai default global; fallback = global", async () => {
+      await prisma.setting.create({ data: { id: 1, data: { ...DEFAULT_SETTING } } });
+      const { fallback, perPhase } = await phaseModelsForFlow("feature");
+      expect(fallback).toEqual({ model: "claude-opus-4-8", effort: "xhigh" });
+      expect(perPhase.every((p) => p.model === "claude-opus-4-8" && p.effort === "xhigh")).toBe(true);
+    });
+    it("override per fase terbawa; sel kosong fallback ke global", async () => {
+      await prisma.setting.create({ data: { id: 1, data: {
+        ...DEFAULT_SETTING, phaseModels: { feature: { Execute: { model: "claude-opus-4-8", effort: "max" } } },
+      } } });
+      const { perPhase } = await phaseModelsForFlow("feature");
+      expect(perPhase.find((p) => p.phase === "Execute")!.effort).toBe("max");
+      expect(perPhase.find((p) => p.phase === "Brainstorm")!.effort).toBe("xhigh");
+    });
   });
 });

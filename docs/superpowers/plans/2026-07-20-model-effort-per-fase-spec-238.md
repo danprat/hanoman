@@ -245,7 +245,7 @@ git commit -m "feat(runner): resolvePhaseModels + prompt per-fase /model+/effort
 - Consumes: `resolvePhaseModels`, `PhaseModel`, `Flow` dari `@hanoman/runner`; `getSetting` (sudah ada).
 - Produces: `DEFAULT_SETTING.phaseModels = {}`; helper `phaseModelsForFlow(flow) → { fallback:{model,effort}; perPhase: PhaseModel[] }`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Di `server/test/settings.test.ts` tambahkan (import `phaseModelsForFlow` dari `../src/services/settings`):
 
@@ -273,12 +273,12 @@ describe("phaseModelsForFlow (SPEC-238)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run test/settings.test.ts -t "phaseModelsForFlow"`
 Expected: FAIL — `phaseModelsForFlow` tidak ada / `DEFAULT_SETTING.phaseModels` undefined.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Di `server/src/services/settings.ts`:
 
@@ -314,12 +314,12 @@ export async function phaseModelsForFlow(flow: Flow): Promise<{
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run test/settings.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Wire the spec-flow branch (terminal.ts ~76-104)**
+- [x] **Step 5: Wire the spec-flow branch (terminal.ts ~76-104)**
 
 Import di atas file (`terminal.ts` baris ~9): ganti/lengkapi menjadi
 `import { sessionModel, phaseModelsForFlow } from "../services/settings";`
@@ -352,7 +352,7 @@ return reply.code(201).send({ id: s.id });
 
 (Pertahankan urutan asli: hitung `launch` sebelum `addWorktree`; `addWorktree`/`prisma.spec.update` tak berubah.)
 
-- [ ] **Step 6: Wire reverse / scaffold / prd branches**
+- [x] **Step 6: Wire reverse / scaffold / prd branches**
 
 Untuk masing-masing cabang, ganti `const { model, effort } = await sessionModel();` dengan pola launch=perPhase[0] dan serahkan `perPhase` ke prompt builder:
 
@@ -374,13 +374,13 @@ prd (~185): `phaseModelsForFlow("prd")`, launch=perPhase[0], `startPrdPrompt({..
 
 (JANGAN ubah cabang integrate-conflict ~258 maupun `createSession(project.id, repoDir)` plain terminal ~203 — keduanya tanpa fase.)
 
-- [ ] **Step 7: Run full server + runner + shared test**
+- [x] **Step 7: Run full server + runner + shared test**
 
 Run: `cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run --no-file-parallelism`
 Then: `cd ../runner && npx vitest run` and `cd ../shared && npx vitest run`
 Expected: PASS semuanya (termasuk `pty.test.ts`, `terminal.route.test.ts` yang tak berubah perilaku default).
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/src/services/settings.ts server/src/routes/terminal.ts server/test/settings.test.ts
