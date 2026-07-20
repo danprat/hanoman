@@ -399,7 +399,7 @@ git commit -m "feat(server): phaseModelsForFlow + wire per-fase model/effort ke 
 - Consumes: `Setting.phaseModels` (dari `@hanoman/shared`), `Select` (DS), `api.putSettings`.
 - Produces: UI matrix per-fase di tab `model`; `save({ phaseModels })` mem-PUT blob penuh.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Cek pola render test yang ada di `src/test/config-panel.test.tsx` (mock `api.getSettings`/`api.putSettings`, render `SettingsScreen`, klik tab "Model sesi"). Tambah test yang mengecek matrix per-fase muncul dan pilihan baru ada. Contoh (sesuaikan helper render/mocks yang sudah dipakai file itu):
 
@@ -415,12 +415,12 @@ it("tab Model menampilkan matrix per-fase + pilihan Fable/max/ultracode (SPEC-23
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd src && npx vitest run test/config-panel.test.tsx -t "per-fase"` (atau path file test barumu)
 Expected: FAIL — teks "Model & effort per fase" / "Fable 5" belum ada.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Di `src/src/screens/SettingsScreen.tsx`:
 
@@ -532,17 +532,17 @@ Perluas blok `if (tab === "model")` (baris 380-396): pertahankan Card default gl
     );
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd src && npx vitest run test/config-panel.test.tsx` (atau file test barumu)
 Expected: PASS.
 
-- [ ] **Step 5: Typecheck + build frontend**
+- [x] **Step 5: Typecheck + build frontend**
 
 Run: `pnpm -w build` (atau `cd src && npx tsc --noEmit` jika ada script terpisah)
 Expected: tanpa error TS. `Setting` kini mewajibkan `phaseModels` — pastikan `S_DEFAULTS` sudah memuatnya.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/src/screens/SettingsScreen.tsx src/test/
