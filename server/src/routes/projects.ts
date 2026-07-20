@@ -7,6 +7,7 @@ import { listRepoBranches, listRepoRemoteBranches } from "../services/branches";
 import { resolveRepoDir } from "../services/local-binding";
 import { listSessions } from "../services/pty";
 import { paginate } from "../services/paginate";
+import { generateIngestKey, dsnUrl } from "../services/ingest-key";
 import { realGit } from "@hanoman/runner";
 
 export default async function (app: FastifyInstance) {
@@ -85,5 +86,31 @@ export default async function (app: FastifyInstance) {
     // SPEC-217 · path efektif (binding lokal per-mesin ?? Project.repoDir).
     const repoDir = await resolveRepoDir(id);
     return { branches: await listRepoBranches(repoDir), remotes: await listRepoRemoteBranches(repoDir) };
+  });
+
+  // SPEC-249 · ADR-0060 · DSN ingest key per project. Hash-at-rest; plaintext hanya di POST (sekali).
+  app.get("/projects/:id/ingest-key", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const p = await prisma.project.findUnique({ where: { id } });
+    if (!p) return reply.code(404).send({ error: "not found" });
+    return { enabled: !!p.ingestKeyHash, prefix: p.ingestKeyPrefix ?? null };
+  });
+  app.post("/projects/:id/ingest-key", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const p = await prisma.project.findUnique({ where: { id } });
+    if (!p) return reply.code(404).send({ error: "not found" });
+    const { key, hash, prefix } = generateIngestKey();
+    await prisma.project.update({ where: { id }, data: { ingestKeyHash: hash, ingestKeyPrefix: prefix } });
+    await enqueueOutbox("project", id); // SPEC-213 · antre push sync
+    const base = `${req.protocol}://${req.headers.host ?? "localhost"}`;
+    return reply.code(201).send({ enabled: true, prefix, key, dsnUrl: dsnUrl(id, key, base) });
+  });
+  app.delete("/projects/:id/ingest-key", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const p = await prisma.project.findUnique({ where: { id } });
+    if (!p) return reply.code(404).send({ error: "not found" });
+    await prisma.project.update({ where: { id }, data: { ingestKeyHash: null, ingestKeyPrefix: null } });
+    await enqueueOutbox("project", id); // SPEC-213 · antre push sync
+    return reply.code(204).send();
   });
 }

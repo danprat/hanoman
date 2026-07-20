@@ -1,4 +1,4 @@
-import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type ConfigResponse, type ConfigEntryView } from "@hanoman/shared";
+import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type ConfigResponse, type ConfigEntryView, type IngestKeyView, type ErrorGroupView, type ErrorGroupDetail } from "@hanoman/shared";
 export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit";
 // SPEC-210 · dokumen PRD project (freshest-wins: worktree sesi prd hidup > repoDir). Tipe di @hanoman/shared.
@@ -239,5 +239,16 @@ export const api = {
   listSessionResults: (projectId?: string) => j<SessionResultView[]>(paths.sessionResults(projectId)),
   purgeSessionResults: (projectId: string, before?: string) =>
     j<{ purged: number }>(`${paths.sessionResults(projectId)}${before ? `&before=${encodeURIComponent(before)}` : ""}`, { method: "DELETE" }),
+  // SPEC-249 · error monitoring — DSN ingest key (plaintext hanya balik di rotate, sekali).
+  getIngestKey: (id: string) => j<IngestKeyView>(paths.projectIngestKey(id)),
+  rotateIngestKey: (id: string) => j<IngestKeyView>(paths.projectIngestKey(id), { method: "POST" }),
+  revokeIngestKey: (id: string) => j<void>(paths.projectIngestKey(id), { method: "DELETE" }),
+  // SPEC-249 · error monitoring — grup + detail + eskalasi
+  listErrors: (params: Record<string, string | undefined> = {}) =>
+    j<Paginated<ErrorGroupView>>(paths.errors + qs(params)),
+  getError: (id: string) => j<ErrorGroupDetail>(paths.error(id)),
+  escalateError: (id: string) => j<{ spec: Spec; alreadyEscalated?: boolean }>(paths.errorEscalate(id), { method: "POST" }),
+  patchError: (id: string, status: string) =>
+    j<{ id: string; status: string }>(paths.error(id), { method: "PATCH", ...body({ status }) }),
 };
 

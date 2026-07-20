@@ -266,7 +266,7 @@ git commit -m "feat(spec-249): schema ErrorGroup/ErrorEvent + ingest key + share
 - Consumes: `Project.ingestKeyHash/ingestKeyPrefix` (Task 1).
 - Produces: `generateIngestKey(): { key, hash, prefix }`; `hashKey(key): string`; `verifyKey(key, hash): boolean` (timing-safe); `dsnUrl(slug, key, base): string`. Route: `POST/DELETE/GET /api/projects/:id/ingest-key`. `ProjectView.monitoringEnabled: boolean`, `ProjectView.ingestKeyPrefix: string | null`.
 
-- [ ] **Step 1: Test service** `ingest-key.test.ts`:
+- [x] **Step 1: Test service** `ingest-key.test.ts`:
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -290,9 +290,9 @@ describe("ingest-key", () => {
 });
 ```
 
-- [ ] **Step 2: Run → fail** `pnpm -C server exec vitest run src/services/ingest-key.test.ts` → FAIL (module not found).
+- [x] **Step 2: Run → fail** `pnpm -C server exec vitest run src/services/ingest-key.test.ts` → FAIL (module not found).
 
-- [ ] **Step 3: Implement `ingest-key.ts`**:
+- [x] **Step 3: Implement `ingest-key.ts`**:
 
 ```ts
 import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
@@ -318,11 +318,11 @@ export function dsnUrl(slug: string, key: string, base: string): string {
 }
 ```
 
-- [ ] **Step 4: Run → pass** `pnpm -C server exec vitest run src/services/ingest-key.test.ts` → PASS.
+- [x] **Step 4: Run → pass** `pnpm -C server exec vitest run src/services/ingest-key.test.ts` → PASS.
 
-- [ ] **Step 5: Expose di ProjectView.** `server/src/services/project-view.ts` `toProjectView` — tambah `monitoringEnabled: !!p.ingestKeyHash`, `ingestKeyPrefix: p.ingestKeyPrefix ?? null`. **Jangan** ikutkan `ingestKeyHash`. `shared/src/dto.ts` `zProjectView` (atau turunan) — tambah `monitoringEnabled: z.boolean()`, `ingestKeyPrefix: z.string().nullable()`. `src/screens/types.ts` `ProjectVM` — tambah dua field itu.
+- [x] **Step 5: Expose di ProjectView.** `server/src/services/project-view.ts` `toProjectView` — tambah `monitoringEnabled: !!p.ingestKeyHash`, `ingestKeyPrefix: p.ingestKeyPrefix ?? null`. **Jangan** ikutkan `ingestKeyHash`. `shared/src/dto.ts` `zProjectView` (atau turunan) — tambah `monitoringEnabled: z.boolean()`, `ingestKeyPrefix: z.string().nullable()`. `src/screens/types.ts` `ProjectVM` — tambah dua field itu.
 
-- [ ] **Step 6: Endpoints project.** `server/src/routes/projects.ts` — tambah:
+- [x] **Step 6: Endpoints project.** `server/src/routes/projects.ts` — tambah:
 
 ```ts
 import { generateIngestKey, dsnUrl } from "../services/ingest-key";
@@ -353,9 +353,9 @@ app.delete("/projects/:id/ingest-key", async (req, reply) => {
 });
 ```
 
-- [ ] **Step 7: Test route** `projects-ingest-key.test.ts` (pola test route lain, `buildApp({ requireAuth:false })`): POST membuat key (201, `key` + `dsnUrl` + `prefix`, `enabled:true`); GET setelahnya `{ enabled:true, prefix }` **tanpa** `key`; project view `monitoringEnabled:true`; DELETE → 204, GET `{ enabled:false, prefix:null }`; POST kedua (rotate) menghasilkan prefix berbeda. Verifikasi `ingestKeyHash` tak muncul di response project.
+- [x] **Step 7: Test route** `projects-ingest-key.test.ts` (pola test route lain, `buildApp({ requireAuth:false })`): POST membuat key (201, `key` + `dsnUrl` + `prefix`, `enabled:true`); GET setelahnya `{ enabled:true, prefix }` **tanpa** `key`; project view `monitoringEnabled:true`; DELETE → 204, GET `{ enabled:false, prefix:null }`; POST kedua (rotate) menghasilkan prefix berbeda. Verifikasi `ingestKeyHash` tak muncul di response project.
 
-- [ ] **Step 8: Client methods** `src/api/client.ts`:
+- [x] **Step 8: Client methods** `src/api/client.ts`:
 
 ```ts
 getIngestKey: (id: string) => j<IngestKeyView>(paths.projectIngestKey(id)),
@@ -363,7 +363,7 @@ rotateIngestKey: (id: string) => j<IngestKeyView>(paths.projectIngestKey(id), { 
 revokeIngestKey: (id: string) => j<void>(paths.projectIngestKey(id), { method: "DELETE" }),
 ```
 
-- [ ] **Step 9: Run all + curl.** `env -u NODE_ENV -u DATABASE_URL pnpm -C server exec vitest run` → PASS. Boot server lokal (DB throwaway migrated), curl:
+- [x] **Step 9: Run all + curl.** `env -u NODE_ENV -u DATABASE_URL pnpm -C server exec vitest run` → PASS. Boot server lokal (DB throwaway migrated), curl:
 
 ```bash
 curl -sS -XPOST localhost:8799/api/projects/<slug>/ingest-key | jq   # {enabled,prefix,key,dsnUrl}
@@ -371,7 +371,7 @@ curl -sS localhost:8799/api/projects/<slug>/ingest-key | jq          # {enabled:
 curl -sS -XDELETE localhost:8799/api/projects/<slug>/ingest-key -i   # 204
 ```
 
-- [ ] **Step 10: Commit** `git commit -m "feat(spec-249): DSN ingest key service + project endpoints + ProjectView exposure"`
+- [x] **Step 10: Commit** `git commit -m "feat(spec-249): DSN ingest key service + project endpoints + ProjectView exposure"`
 
 ---
 
