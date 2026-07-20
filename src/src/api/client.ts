@@ -23,7 +23,7 @@ export type ReviewFile = {
 // SPEC-182 · IDE Visual
 export type RepoFile = { path: string; content: string | null; binary: boolean; truncated: boolean };
 export type GraphCommit = { sha: string; parents: string[]; author: string; at: string; subject: string; refs: string[]; tags: string[] };
-export type CommitDetail = { sha: string; parents: string[]; author: string; at: string; subject: string; body: string; changed: ChangedFile[]; signed: boolean; committer: string; committedAt: string };
+export type CommitDetail = { sha: string; parents: string[]; author: string; at: string; subject: string; body: string; changed: ChangedFile[]; signed: boolean; committer: string; committedAt: string; authorEmail: string };
 export type GitOp =
   | { op: "checkout"; ref: string; force?: boolean }
   | { op: "branch"; name: string; at?: string; checkout?: boolean }

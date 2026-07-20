@@ -6,18 +6,11 @@ import { api, type GraphCommit, type CommitDetail, type GitOp, type RepoStatus, 
 import { computeLanes, rowEdges, type GraphRow, type Edge } from "./git-graph";
 import { buildFileTree, TreeRow } from "./file-tree";
 import { DiffView } from "./diff-view";
-
-// SPEC-233 · linkify URL http(s) di body commit → anchor. (emoji/markdown/issue → PR12)
-function linkifyBody(text: string): React.ReactNode[] {
-  return text.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
-    /^https?:\/\//.test(part)
-      ? <a key={i} href={part} target="_blank" rel="noreferrer" style={{ color: "var(--brass-700)" }}>{part}</a>
-      : <React.Fragment key={i}>{part}</React.Fragment>);
-}
+import { emojify, renderMessage, gravatarUrl } from "./git-graph-render";
 
 const LANE_W = 14, ROW_H = 30, DOT = 4;
 const COLORS = ["#a9791c", "#3b7a57", "#8a5a44", "#4a6fa5", "#7d5ba6", "#b0503a"]; // brass-leaf-clay-ink
-const laneColor = (i: number) => COLORS[i % COLORS.length];
+const laneColor = (i: number, palette: string[] = COLORS) => palette[i % palette.length];
 const rel = (iso: string): string => {
   const t = new Date(iso).getTime();
   if (!t) return "";
@@ -40,14 +33,14 @@ function edgePath(e: Edge, style: "rounded" | "angular"): string {
     : `M${x1} ${y1}C${x1} ${ym},${x2} ${ym},${x2} ${y2}`;
 }
 
-function RowSvg({ row, edges, maxLanes, style }: { row: GraphRow; edges: Edge[]; maxLanes: number; style: "rounded" | "angular" }) {
+function RowSvg({ row, edges, maxLanes, style, palette }: { row: GraphRow; edges: Edge[]; maxLanes: number; style: "rounded" | "angular"; palette: string[] }) {
   const cx = LANE_W / 2 + row.lane * LANE_W;
   return (
     <svg width={maxLanes * LANE_W} height={ROW_H} style={{ flex: "0 0 auto" }}>
       {edges.map((e, i) => (
-        <path key={i} d={edgePath(e, style)} fill="none" stroke={laneColor(e.colorLane)} strokeWidth={1.5} />
+        <path key={i} d={edgePath(e, style)} fill="none" stroke={laneColor(e.colorLane, palette)} strokeWidth={1.5} />
       ))}
-      <circle cx={cx} cy={ROW_H / 2} r={DOT} fill={laneColor(row.lane)} stroke="var(--surface-card)" strokeWidth={1.5} />
+      <circle cx={cx} cy={ROW_H / 2} r={DOT} fill={laneColor(row.lane, palette)} stroke="var(--surface-card)" strokeWidth={1.5} />
     </svg>
   );
 }
@@ -214,6 +207,24 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
   const [muted, setMuted] = React.useState(true);
   const [style, setStyle] = React.useState<"rounded" | "angular">("rounded");
   const localBranches = React.useMemo(() => [...new Set(rows.flatMap((r) => r.commit.refs).filter((x) => !x.startsWith("origin/")))].sort(), [rows]);
+  // SPEC-233 · preferensi dari CONFIG_REGISTRY grup gitGraph (ADR-0049): warna/emoji/markdown/issue/avatar.
+  const [cfg, setCfg] = React.useState<Record<string, string>>({});
+  React.useEffect(() => {
+    api.getConfig().then((r) => {
+      const m: Record<string, string> = {};
+      for (const e of r.entries) { const v = (e as { value?: string | null }).value; if (e.key.startsWith("gitGraph.") && v != null) m[e.key] = v; }
+      setCfg(m);
+      if (m["gitGraph.style"]) setStyle(m["gitGraph.style"] === "angular" ? "angular" : "rounded");
+      if (m["gitGraph.muteMergeCommits"]) setMuted(m["gitGraph.muteMergeCommits"] !== "0");
+      setGopts((o) => ({ ...o, showRemote: m["gitGraph.showRemoteBranches"] !== "0", showTags: m["gitGraph.showTags"] !== "0" }));
+    }).catch(() => {});
+  }, []);
+  const palette = React.useMemo(() => {
+    const c = cfg["gitGraph.colours"]?.split(",").map((s) => s.trim()).filter(Boolean);
+    return c && c.length ? c : COLORS;
+  }, [cfg]);
+  const msgOpts = { emoji: cfg["gitGraph.emoji"] !== "0", markdown: cfg["gitGraph.markdown"] !== "0", issuePattern: cfg["gitGraph.issueLinkPattern"] || undefined };
+  const fetchAvatars = cfg["gitGraph.fetchAvatars"] === "1";
   const onRowClick = React.useCallback((e: React.MouseEvent, sha: string) => {
     if (e.metaKey || e.ctrlKey) {
       if (!compareFrom) { setCompareFrom(sha); return; }
@@ -372,7 +383,7 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
               style={{ display: "flex", alignItems: "center", gap: 10, height: ROW_H, padding: "0 12px",
                 cursor: "pointer", borderBottom: "1px solid var(--border-hair)",
                 background: rowBg }}>
-              <RowSvg row={r} edges={allEdges[i] ?? []} maxLanes={maxLanes} style={style} />
+              <RowSvg row={r} edges={allEdges[i] ?? []} maxLanes={maxLanes} style={style} palette={palette} />
               <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1 }}>
                 {c.refs.map((ref) => (
                   <span key={ref} title="branch — klik-kanan untuk aksi"
@@ -389,7 +400,7 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
                       display: "inline-flex", alignItems: "center", gap: 3, background: "var(--leaf-100, #e6efe9)",
                       color: "var(--leaf-600, #3b7a57)", flex: "0 0 auto" }}>⌂{t}</span>
                 ))}
-                <span style={{ fontSize: 12.5, color: muted && c.parents.length > 1 ? "var(--text-subtle)" : "var(--text-body)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.subject}</span>
+                <span style={{ fontSize: 12.5, color: muted && c.parents.length > 1 ? "var(--text-subtle)" : "var(--text-body)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{msgOpts.emoji ? emojify(c.subject) : c.subject}</span>
               </div>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)",
                 flex: "0 0 auto", width: 88, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "right" }}>{c.author}</span>
@@ -410,11 +421,12 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
               <Button size="sm" variant="ghost" leftIcon="x" onClick={() => setDetail(null)}>Tutup</Button>
             </div>
           </div>
-          <div style={{ fontSize: 13, color: "var(--text-strong)", fontWeight: 600, marginBottom: 4 }}>{detail.subject}</div>
-          <div style={{ fontSize: 11, color: "var(--text-subtle)", marginBottom: 6 }}>
-            {detail.author}{detail.committer && detail.committer !== detail.author ? ` · committed by ${detail.committer}` : ""}
+          <div style={{ fontSize: 13, color: "var(--text-strong)", fontWeight: 600, marginBottom: 4 }}>{msgOpts.emoji ? emojify(detail.subject) : detail.subject}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text-subtle)", marginBottom: 6 }}>
+            {fetchAvatars && detail.authorEmail && <img src={gravatarUrl(detail.authorEmail, 20)} width={18} height={18} alt="" style={{ borderRadius: 999 }} />}
+            <span>{detail.author}{detail.committer && detail.committer !== detail.author ? ` · committed by ${detail.committer}` : ""}</span>
           </div>
-          {detail.body && <pre style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, whiteSpace: "pre-wrap", color: "var(--text-muted)", marginBottom: 10 }}>{linkifyBody(detail.body)}</pre>}
+          {detail.body && <pre style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, whiteSpace: "pre-wrap", color: "var(--text-muted)", marginBottom: 10 }}>{renderMessage(detail.body, msgOpts)}</pre>}
           <div className="hn-eyebrow" style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
             <span style={{ flex: 1 }}>{detail.changed.length} file berubah</span>
             {(["list", "tree"] as const).map((v) => (

@@ -144,8 +144,8 @@ export async function listGraph(repoDir: string | null, limit = 200, opts: Graph
 
 export type CommitDetail = {
   sha: string; parents: string[]; author: string; at: string; subject: string; body: string; changed: ChangedFile[];
-  // SPEC-233 · signature GPG/X.509 (bukan "N") + committer terpisah dari author.
-  signed: boolean; committer: string; committedAt: string;
+  // SPEC-233 · signature GPG/X.509 (bukan "N") + committer + email author (gravatar).
+  signed: boolean; committer: string; committedAt: string; authorEmail: string;
 };
 
 // Gabung numstat (-z) + name-status (-z) → ChangedFile[]. Dipakai commit tunggal (git show) &
@@ -223,14 +223,14 @@ export async function commitDetail(repoDir: string | null, sha: string): Promise
   if (!repoDir) return null;
   if (!/^[0-9a-fA-F]{4,40}$/.test(sha)) return null; // gerbang: hanya sha hex
   try {
-    // %G? = status signature (N = tak ditandatangani); %cn/%cI = committer + tanggalnya.
-    const fmt = ["%H", "%P", "%an", "%aI", "%s", "%G?", "%cn", "%cI", "%b"].join(US);
+    // %G? = status signature (N = tak ditandatangani); %cn/%cI = committer + tanggalnya; %ae = email author.
+    const fmt = ["%H", "%P", "%an", "%aI", "%s", "%G?", "%cn", "%cI", "%ae", "%b"].join(US);
     const parts = (await exec("git", ["show", "-s", `--pretty=format:${fmt}`, sha], { cwd: repoDir, ...GIT })).stdout.split(US);
-    const [h, parents, author, at, subject, gsig, committer, committedAt] = parts;
+    const [h, parents, author, at, subject, gsig, committer, committedAt, authorEmail] = parts;
     return {
       sha: h!, parents: parents ? parents.split(" ") : [], author: author ?? "", at: at ?? "",
-      subject: subject ?? "", body: parts.slice(8).join(US), changed: await changedOf(repoDir, sha),
-      signed: !!gsig && gsig !== "N", committer: committer ?? "", committedAt: committedAt ?? "",
+      subject: subject ?? "", body: parts.slice(9).join(US), changed: await changedOf(repoDir, sha),
+      signed: !!gsig && gsig !== "N", committer: committer ?? "", committedAt: committedAt ?? "", authorEmail: authorEmail ?? "",
     };
   } catch { return null; }
 }
