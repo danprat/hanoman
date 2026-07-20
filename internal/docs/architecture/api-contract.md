@@ -42,6 +42,11 @@ GET    /projects/:id/binding  -> { repoDir: string | null }   # nilai override m
 PUT    /projects/:id/binding  { repoDir }   # 200 { repoDir }; set override; 400 kosong; 404 project.
 DELETE /projects/:id/binding  # 204 · kosongkan override → path efektif jatuh ke Project.repoDir (SPEC-217). 404 project.
 POST   /projects/:id/clone    { dir }   # 201 { repoDir } · git clone gitRemote→dir lalu set binding; 409 tanpa gitRemote / clone gagal.
+
+# SPEC-249 · ADR-0060 · DSN ingest error per project (hash-at-rest; plaintext hanya di POST, sekali).
+GET    /projects/:id/ingest-key   -> { enabled, prefix }   # tanpa plaintext. 404 project.
+POST   /projects/:id/ingest-key   -> 201 { enabled:true, prefix, key, dsnUrl }   # generate/rotate (ganti key lama; no grace). 404.
+DELETE /projects/:id/ingest-key   # 204 · revoke (kosongkan hash → monitoring off). 404.
 ```
 
 > **Path efektif** project = `resolveRepoDir(projectId)` = **binding per-mesin ?? `Project.repoDir`** (null-safe).
@@ -269,3 +274,30 @@ POST   /vps/:id/remediate            # 200 { steps, audit, scoreTotal, scoreBySe
 >
 > Password tak pernah disimpan, di-log, atau dikembalikan; ia diserahkan ke ssh lewat
 > SSH_ASKPASS (bukan argv) dan hidup beberapa detik di env proses anak (ADR-0025, SPEC-165).
+
+## Error monitoring (SPEC-249 · ADR-0060)
+```
+# Ingest PUBLIK ber-DSN — pengecualian sah gate /api (bypass cookie, otentikasi DSN sendiri).
+POST    /api/ingest/:slug?key=<dsn>   { type, message, stack?, environment?, release?, context? }
+#   key via ?key= ATAU header x-hanoman-dsn. 202 { ok, groupId, new }.
+#   401 generik (project tak ada / DSN salah / revoked — tak enumerasi project). 400 payload invalid.
+#   413 body > 64 KB. 429 rate-limit per project (token-bucket in-memory, default 120/min).
+#   message ≤ 2 KB, stack ≤ 16 KB (di-truncate). PII disimpan apa adanya (scrub pasca-MVP).
+OPTIONS /api/ingest/:slug   # 204 + CORS (Access-Control-Allow-Origin: * ) untuk snippet browser.
+
+# Area Error — di belakang gate cookie. Query selalu ber-scope projectId (isolasi antar-project).
+GET   /errors?project=&environment=&status=&q=&page=&limit=  -> { items: ErrorGroupView[], total, page, pageSize }
+#   urut lastSeen desc; q atas type+message; paginasi response-layer (ADR-0038).
+GET   /errors/:id            -> ErrorGroupDetail { ...group, sampleStack, events: ErrorEventView[] (≤50 terakhir) } · 404
+POST  /errors/:id/escalate   # 201 { spec } — buat Spec qa prefilled (title/actual/fromErrorGroup) + tandai grup
+#   escalated + specId (tautan dua arah). Idempoten: sudah escalated → 200 { alreadyEscalated:true, spec }. 404.
+PATCH /errors/:id            { status }   # 200 { id, status } — status ∈ new|escalated|resolved. 400 invalid. 404.
+```
+
+> **Grouping** deterministik: `fingerprint(type, normalizeMessage(message), topFrame(stack))`
+> (`server/src/services/error-fingerprint.ts`) → varian dari error yang sama jatuh ke satu grup.
+> **Notifikasi** grup PRODUKSI baru → `Notification { type:"error", key:"error:<groupId>" }` (dedup),
+> tersiar lewat grup `notifications` WS existing. **Retensi** opportunistic-on-write: cap event per grup
+> (default 50) + umur (default 30 hari) — tanpa scheduler global. **SDK/snippet** in-repo di `sdk/**`
+> (Node + browser; DSN gaya Sentry). Model `ErrorGroup`/`ErrorEvent` server-local (tanpa sync). Realtime
+> area Error = **HTTP polling** (silent poll, pola GitGraph), bukan kanal WS baru (ADR-0039).

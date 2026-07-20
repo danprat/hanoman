@@ -1,6 +1,6 @@
 # Log Error Monitoring (Sentry ringan) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use markdown task-checkbox syntax for tracking (unchecked → checked as each step completes). **STATUS: semua task selesai & terverifikasi.**
 
 **Goal:** Jadikan hanoman Sentry ringan satu-workspace: ingest error ber-DSN per-project → grouping otomatis → area Error di dashboard → notifikasi grup baru → eskalasi 1-klik ke `Spec`.
 
@@ -870,7 +870,7 @@ patchError: (id: string, status: string) => j<{ id: string; status: string }>(pa
 **Interfaces:**
 - Produces: `initHanomanErrors({ dsn, environment?, release? })` + `captureError(err, ctx?)` (Node); snippet browser IIFE.
 
-- [ ] **Step 1: `sdk/node/hanoman-error.ts`**:
+- [x] **Step 1: `sdk/node/hanoman-error.ts`**:
 
 ```ts
 type InitOpts = { dsn: string; environment?: string; release?: string };
@@ -899,7 +899,7 @@ export function initHanomanErrors(opts: InitOpts): void {
 }
 ```
 
-- [ ] **Step 2: `sdk/browser/hanoman-error.js`** (IIFE snippet):
+- [x] **Step 2: `sdk/browser/hanoman-error.js`** (IIFE snippet):
 
 ```js
 (function (dsn, opts) {
@@ -924,15 +924,15 @@ export function initHanomanErrors(opts: InitOpts): void {
 })(window.HANOMAN_DSN, window.HANOMAN_OPTS);
 ```
 
-- [ ] **Step 3: `sdk/README.md`** — cara pasang Node (`initHanomanErrors({ dsn: process.env.HANOMAN_DSN, environment: "production" })`) & browser (set `window.HANOMAN_DSN` + muat snippet), payload shape, catatan fire-and-forget + DSN dari hanoman project detail.
+- [x] **Step 3: `sdk/README.md`** — cara pasang Node (`initHanomanErrors({ dsn: process.env.HANOMAN_DSN, environment: "production" })`) & browser (set `window.HANOMAN_DSN` + muat snippet), payload shape, catatan fire-and-forget + DSN dari hanoman project detail.
 
-- [ ] **Step 4: Update docs SoT** — `api-contract.md` (ingest + errors + ingest-key, tabel status), `security-standard.md` (pengecualian DSN gate + rate-limit + caps + isolasi antar-project), `frontend-implementation.md` (area Errors + DSN card + notif error), `README.md` index (pastikan ADR-0060 ter-link — sudah di Task 1; tambah link `sdk/README.md` bila kategori cocok, atau catat di api-contract).
+- [x] **Step 4: Update docs SoT** — `api-contract.md` (ingest + errors + ingest-key, tabel status), `security-standard.md` (pengecualian DSN gate + rate-limit + caps + isolasi antar-project), `frontend-implementation.md` (area Errors + DSN card + notif error), `README.md` index (pastikan ADR-0060 ter-link — sudah di Task 1; tambah link `sdk/README.md` bila kategori cocok, atau catat di api-contract).
 
-- [ ] **Step 5: Verifikasi coverage docs** `pnpm -C shared exec tsc --noEmit && node -e "require('child_process')"` — jalankan `hanoman docs scan` bila tersedia; minimal pastikan tak ada doc yatim yang baru.
+- [x] **Step 5: Verifikasi coverage docs** `pnpm -C shared exec tsc --noEmit && node -e "require('child_process')"` — jalankan `hanoman docs scan` bila tersedia; minimal pastikan tak ada doc yatim yang baru.
 
-- [ ] **Step 6: Full suite hijau** `env -u NODE_ENV -u DATABASE_URL pnpm test` (atau per-workspace) → PASS. `pnpm -C src build` hijau.
+- [x] **Step 6: Full suite hijau** `env -u NODE_ENV -u DATABASE_URL pnpm test` (atau per-workspace) → PASS. `pnpm -C src build` hijau.
 
-- [ ] **Step 7: Commit** `git commit -m "feat(spec-249): in-repo SDK (node+browser) + docs SoT (api-contract, security, frontend)"`
+- [x] **Step 7: Commit** `git commit -m "feat(spec-249): in-repo SDK (node+browser) + docs SoT (api-contract, security, frontend)"`
 
 ---
 

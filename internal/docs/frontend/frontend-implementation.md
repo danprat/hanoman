@@ -352,3 +352,30 @@ force (op menyentuh working tree) atau worktree isolasi + handoff sesi claude (o
   Preferensi dari **CONFIG_REGISTRY grup `gitGraph`** (`api.getConfig`): warna lane, style, tanggal, show/hide, mute,
   fetchAvatars, emoji/markdown, issue-link pattern.
 - **Modal Remotes** (`IdeScreen`): list/add/hapus remote (`api.ideRemotes`/`ideAddRemote`/`ideDeleteRemote`); tombol **Fetch** (`--prune`).
+
+## Error monitoring — area Errors + DSN (SPEC-249 · ADR-0060)
+
+Area **Errors** (nav `triangle-alert`, `ds/shell.tsx` `HN_NAV` + cabang `section === "errors"` di `App.tsx`,
+pola VPS — screen mandiri, tak lewat `gate`). `screens/ErrorsScreen.tsx`:
+
+- **Self-fetch + silent poll** tiap 5 dtk (pola `GitGraph`: `!document.hidden`, poll senyap tak pernah
+  mem-blank data). Realtime lewat **HTTP polling**, bukan kanal WS baru (ADR-0039).
+- **Master → detail** (state seleksi lokal, pola `review`): daftar grup (`Badge` status + count, env,
+  last-seen relatif) → detail grup (message, `sampleStack` mono scroll, env, first/last seen, count).
+- **Filter** environment/project/status (`Select`), warna via token DS (`--status-err`/`--clay-*`/`--bone-*`).
+- **Eskalasi**: tombol "Eskalasi ke backlog" → `api.escalateError(id)` → `onEscalated(spec, already)` →
+  App `setProjectFilter(spec.projectId)` + `setSection("backlog")` + toast. Grup sudah escalated → tampil
+  `→ SPEC-N` (Badge) alih-alih tombol. "Tandai resolved" → `api.patchError(id, "resolved")`.
+
+**DSN mgmt** (`screens/ProjectDetailScreen.tsx` → `DsnCard`): kartu "DSN ingest" — bila aktif tampil prefix
+(mono) + **Rotate**/**Revoke**; bila belum **Generate DSN**. Generate/rotate → `api.rotateIngestKey` →
+tampilkan `dsnUrl` **sekali** di kotak `--brass-100` + tombol **Salin** (pola `DeviceTokensPanel`). Revoke →
+`window.confirm` → `api.revokeIngestKey`. `ProjectDetailScreen` menerima `onToast` dari App.
+
+**Notifikasi error** (reuse jalur existing): `zNotification.type` menerima `error`; `NotificationsContext.toastFor`
+→ tone `err` + icon `triangle-alert` + msg = `title`; `NotificationBell` per-tipe (icon/warna clay, label
+"error baru", aksi "Lihat error"); `notifTarget` → `{ section: "errors", projectFilter }`. Server hanya
+menotifikasi **grup produksi baru** (dedup `key`), tersiar lewat grup `notifications` WS existing.
+
+**SDK/snippet** copy-paste di `sdk/**` (Node `sdk/node/hanoman-error.ts`, browser `sdk/browser/hanoman-error.js`,
+`sdk/README.md`) — DSN gaya Sentry, fire-and-forget.
