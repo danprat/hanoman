@@ -68,15 +68,13 @@ function DsnCard({ p, onToast }: { p: ProjectVM; onToast: (msg: string, kind?: s
 // Project.id (slug), stabil. Init dari VM, update lokal saat aksi.
 function HelpCenterCard({ p, onToast }: { p: ProjectVM; onToast: (msg: string, kind?: string, icon?: string) => void }) {
   const [enabled, setEnabled] = React.useState(p.helpEnabled);
-  const [publicUrl, setPublicUrl] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
-
-  // Ambil publicUrl (butuh base server) sekali saat mount.
-  React.useEffect(() => { api.getHelpCenter(p.id).then((r) => { setEnabled(r.enabled); setPublicUrl(r.publicUrl); }).catch(() => {}); }, [p.id]);
+  // Link publik same-origin — dibangun di klien (setara publicUrl server), tanpa fetch saat mount.
+  const publicUrl = `${window.location.origin}/help/${encodeURIComponent(p.id)}`;
 
   async function enable() {
     setBusy(true);
-    try { const r = await api.enableHelpCenter(p.id); setEnabled(true); setPublicUrl(r.publicUrl); onToast("Help Center aktif", "ok", "inbox"); }
+    try { await api.enableHelpCenter(p.id); setEnabled(true); onToast("Help Center aktif", "ok", "inbox"); }
     catch { onToast("Gagal mengaktifkan Help Center", "err", "x-circle"); }
     finally { setBusy(false); }
   }
