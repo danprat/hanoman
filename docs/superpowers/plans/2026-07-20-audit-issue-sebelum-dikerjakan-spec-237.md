@@ -405,7 +405,7 @@ git commit -m "feat(web): source→flow lewat flowForSource (dukung audit) — S
 **Interfaces:**
 - Produces: helper `sourceMeta(source)` → `{ label, icon, tone }` dipakai badge; item audit tampil label "Audit"; tab filter punya entri audit.
 
-- [ ] **Step 1: Tulis test yang gagal (badge audit)**
+- [x] **Step 1: Tulis test yang gagal (badge audit)**
 
 Tambah di `src/test/backlog-board.test.tsx` sebuah kasus render spec `source:"audit"` dan assert teks "Audit" muncul (samakan gaya render/query dengan test yang ada di file itu):
 ```ts
@@ -419,12 +419,12 @@ it("SPEC-237 · spec audit menampilkan badge Audit", () => {
 ```
 > Sesuaikan props wajib `BacklogScreen` dengan signature nyata (`:507`); bila test file punya factory spec, pakai itu dan set `source:"audit"`.
 
-- [ ] **Step 2: Jalankan test — pastikan gagal**
+- [x] **Step 2: Jalankan test — pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/web exec vitest run test/backlog-board.test.tsx`
 Expected: FAIL (badge masih "feature brief" untuk source tak dikenal).
 
-- [ ] **Step 3: Implementasi helper + ganti ternari**
+- [x] **Step 3: Implementasi helper + ganti ternari**
 
 Tambah di atas komponen `BacklogScreen.tsx` (mis. dekat import ikon):
 ```ts
@@ -449,12 +449,12 @@ Filter tabs `:561` tambahkan entri:
 ```
 `OverviewScreen.tsx:109-110,:120` — bila menghitung `briefN`/`qaN`, tambahkan `auditN` (`source === "audit"`) ke ringkasan count (mis. `` `${briefN} brief · ${qaN} QA · ${auditN} audit` ``).
 
-- [ ] **Step 4: Jalankan test — pastikan lolos**
+- [x] **Step 4: Jalankan test — pastikan lolos**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/web exec vitest run test/backlog-board.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/BacklogScreen.tsx src/src/screens/TerminalScreen.tsx src/src/screens/OverviewScreen.tsx src/test/backlog-board.test.tsx
