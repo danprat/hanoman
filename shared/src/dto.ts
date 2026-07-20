@@ -102,8 +102,12 @@ export type PrdDoc = z.infer<typeof zPrdDoc>;
 // Sesi terminal dibuka untuk sebuah project (repoDir-nya, terminal biasa) atau untuk sebuah
 // backlog item — yang terakhir lahir di worktree-nya sendiri, dengan prompt awal (SPEC-162).
 export const zTerminalSession = z.union([
+  // SPEC-236 · terminal biasa NON-claude: shell mentah di repoDir project. Tanpa flow (bukan
+  // pipeline claude). DIDAHULUKAN: z.object non-strict membuang key asing, jadi bila varian
+  // longgar {project,flow?} lebih dulu, {project,shell:true} akan lolos sbg plain (shell dibuang).
+  z.object({ project: z.string(), shell: z.literal(true) }),
   // flow opsional (SPEC-166): "reverse" = sesi project-level di worktree-nya sendiri,
-  // menyusun Source of Truth dari kode. Tanpa flow = terminal biasa di repoDir.
+  // menyusun Source of Truth dari kode. Tanpa flow = terminal biasa (claude) di repoDir.
   z.object({ project: z.string(), flow: z.literal("reverse").optional() }),
   // SPEC-210 · sesi prd project-level di worktree sendiri; menghasilkan dokumen PRD dari brief.
   z.object({ project: z.string(), flow: z.literal("prd"), brief: zPrdBrief }),

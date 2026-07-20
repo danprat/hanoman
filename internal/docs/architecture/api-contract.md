@@ -153,6 +153,9 @@ GET      /health                        # publik; liveness
 GET    /terminal/sessions            # [{ id, projectId, specId?, flow?, cwd, branch?, exited, decision }]
 #   branch? (SPEC-230): branch integrasi sesi project-level (PRD = prd/<slug>) — menyalakan review+merge di sel
 POST   /terminal/sessions  {project, flow?} # 201 { id } · 404 project · 400 tanpa repoDir
+#   {project, shell:true} (SPEC-236, ADR-0056): terminal biasa NON-claude — shell mentah
+#     (HANOMAN_SHELL ?? $SHELL ?? /bin/bash) di repoDir project, tanpa flow (tak menggerakkan stage,
+#     tak buat worktree). 201 { id } · 404 project · 400 tanpa repoDir (needsBind).
 #   {spec, flow} (SPEC-162): sesi backlog item di worktree .worktrees/<spec>, prompt pipeline penuh
 #   SPEC-172: bila Spec.stage === "done", sesi baru dibuka dengan prompt LANJUTAN (fase Execute
 #     saja, continuePrompt) alih-alih pipeline penuh — reopen backlog yang keburu selesai.

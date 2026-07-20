@@ -10,6 +10,7 @@ vi.mock("../src/screens/TerminalPane", () => ({
 }));
 const listTerminals = vi.fn();
 const createTerminal = vi.fn();
+const createShell = vi.fn();
 const deleteTerminal = vi.fn();
 const startSession = vi.fn();
 const listSpecs = vi.fn();   // SPEC-198 · picker startable via API
@@ -18,6 +19,7 @@ vi.mock("../src/api/client", () => ({
   api: {
     listTerminals: (...a: unknown[]) => listTerminals(...a),
     createTerminal: (...a: unknown[]) => createTerminal(...a),
+    createShell: (...a: unknown[]) => createShell(...a),
     deleteTerminal: (...a: unknown[]) => deleteTerminal(...a),
     listBranches: vi.fn(async () => ({ branches: [], remotes: [] })),
     startSession: (...a: unknown[]) => startSession(...a),
@@ -45,7 +47,7 @@ const backlog: Spec[] = [
 
 beforeEach(() => {
   localStorage.clear();
-  listTerminals.mockReset(); createTerminal.mockReset(); deleteTerminal.mockReset();
+  listTerminals.mockReset(); createTerminal.mockReset(); createShell.mockReset(); deleteTerminal.mockReset();
   startSession.mockReset(); listSpecs.mockReset();
   deleteTerminal.mockResolvedValue(undefined);
 });
@@ -56,6 +58,15 @@ describe("TerminalScreen (grid)", () => {
     render(<TerminalScreen projects={projects} />);
     expect(await screen.findByText("Belum ada sesi terminal")).toBeInTheDocument();
     expect(screen.queryByTestId("pane")).toBeNull();
+  });
+
+  it("tombol 'Terminal biasa' membuka shell non-claude untuk project terpilih (SPEC-236)", async () => {
+    listTerminals.mockResolvedValue([]);
+    createShell.mockResolvedValue({ id: "shell-abc123" });
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByText("Belum ada sesi terminal");
+    fireEvent.click(screen.getByText("Terminal biasa"));
+    await waitFor(() => expect(createShell).toHaveBeenCalledWith("p1"));
   });
 
   it("me-mount satu pane per sel terisi — beberapa sekaligus", async () => {

@@ -102,7 +102,8 @@ Dibuat oleh **flow sesi `prd`** (project-level, tanpa `Spec`; pipeline `Brainsto
 List/preview **freshest-wins** (worktree sesi `prd` hidup > `repoDir`). "Take ke backlog" membuat
 `Spec` (source `brief`) ter-prefill dari PRD; tautan balik dibawa teks Konteks brief ("Dari PRD: <path>"),
 bukan field payload (zBriefPayload strip key tak dikenal). Set flow sesi kini:
-`feature | qa | scaffold | reverse | prd`.
+`feature | qa | scaffold | reverse | prd`. Sesi shell "terminal biasa" (SPEC-236/ADR-0056) **tanpa
+flow** — bukan pipeline, tak menggerakkan stage; ditandai wire `{project, shell:true}`.
 
 ## Docs sebagai konvensi, bukan lagi gerbang
 Fase Execute **tidak** lagi diverifikasi terhadap DocIndex sebelum jalan — guardrail Source of
