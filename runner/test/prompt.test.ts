@@ -79,6 +79,17 @@ describe("startPrompt", () => {
     expect(p).not.toContain("Plan skipped");
   });
 
+  // SPEC-244 · ADR-0059: qa dinaikkan dari audit (payload.fromAudit) → lewati fase Audit, baca dokumen audit.
+  it("qa dinaikkan dari audit: lewati fase Audit, baca dokumen audit", () => {
+    const p = startPrompt("qa", { ...spec, payload: { severity: "major", steps: "", expected: "", actual: "", env: "", fromAudit: "SPEC-237" } }, "hanoman/spec-244");
+    expect(p).toContain("LANJUTAN dari audit SPEC-237");
+    expect(p).toContain("Audit skipped");
+    expect(p).toContain("audit-spec-237-");
+  });
+  it("qa tanpa fromAudit: TIDAK membawa klausa lanjutan audit", () => {
+    expect(startPrompt("qa", spec, "b")).not.toContain("LANJUTAN dari audit");
+  });
+
   it("payload ikut saat ada, dan tak menghasilkan 'undefined' saat tak ada", () => {
     expect(startPrompt("qa", { ...spec, payload: { severity: "major" } }, "b")).toContain("severity");
     expect(startPrompt("qa", spec, "b")).not.toContain("undefined");

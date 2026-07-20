@@ -97,6 +97,7 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
   }) {
   // Hook HARUS mendahului early-return `if (!spec)` — rules-of-hooks.
   const [branches, setBranches] = React.useState<string[]>([]);
+  const [remoteOnly, setRemoteOnly] = React.useState<Set<string>>(new Set());   // SPEC-244 · branch origin-only
   const [confirm, setConfirm] = React.useState<{ target: string; files: string[] } | null>(null);
   const [showIntegrate, setShowIntegrate] = React.useState(false);
   // SPEC-186 · konten hanya boleh diubah selagi item masih di backlog & belum pernah dimulai.
@@ -120,11 +121,12 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
   };
   const projectId = spec?.projectId;
   React.useEffect(() => {
-    if (!projectId) { setBranches([]); return; }
+    if (!projectId) { setBranches([]); setRemoteOnly(new Set()); return; }
     let alive = true;
     api.listBranches(projectId)
-      .then((r) => { if (alive) setBranches(r.branches); })
-      .catch(() => { if (alive) setBranches([]); });
+      .then((r) => { if (alive) { const combined = [...new Set([...r.branches, ...r.remotes])].sort();
+        setBranches(combined); setRemoteOnly(new Set(r.remotes.filter((b) => !r.branches.includes(b)))); } })
+      .catch(() => { if (alive) { setBranches([]); setRemoteOnly(new Set()); } });
     return () => { alive = false; };
   }, [projectId]);
   // SPEC-167 · revert backward-only. Dry-run mengembalikan { pending } → tampilkan dialog.
@@ -212,7 +214,7 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
         <div className="hn-eyebrow" style={{ marginBottom: 4 }}>Branch worktree</div>
         <Select size="sm" value={spec.branchFrom ?? ""} disabled={!branches.length}
           onChange={(e) => onEditBranch && onEditBranch(spec, e.target.value || null)}
-          options={branchOptions(branches)} />
+          options={branchOptions(branches, remoteOnly)} />
       </div>
       {editing ? (
         <>

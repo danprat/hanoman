@@ -17,7 +17,8 @@ export const zBriefPayload = z.object({
   context: z.string(), outcome: z.string(), constraints: z.string(), priority: zPriority });
 export const zQaPayload = z.object({
   severity: z.enum(["critical","major","minor"]), steps: z.string(),
-  expected: z.string(), actual: z.string(), env: z.string() });
+  expected: z.string(), actual: z.string(), env: z.string(),
+  fromAudit: z.string().optional() });   // SPEC-244 · qa dinaikkan dari audit → sinyal skip fase Audit (ADR-0059)
 
 export const zSpec = z.object({
   id: z.string(), projectId: z.string(), title: z.string(), source: zSpecSource,

@@ -86,6 +86,19 @@ describe("git worktree ops", () => {
     realGit.removeWorktree(repo, wt);
   });
 
+  // SPEC-244 · branch PRD/audit di-push dari worktree detached → hanya refs/remotes/origin/<b>
+  // tersisa di mesin. resolveCommit harus fallback ke origin/<rev>.
+  it("resolves a branchFrom that exists only on origin", () => {
+    const { repo } = seedRepo();
+    writeFileSync(join(repo, "f.txt"), "1"); g(repo, "add", "-A"); g(repo, "commit", "-qm", "c");
+    const sha = g(repo, "rev-parse", "HEAD").stdout.trim();
+    g(repo, "branch", "prd/x"); g(repo, "push", "-q", "origin", "prd/x");
+    g(repo, "branch", "-D", "prd/x");                 // lokal hilang; origin/prd/x tetap
+    const wt = join(repo, ".worktrees", "spec-origin");
+    expect(realGit.addWorktree(repo, wt, "prd/x")).toBe(sha);
+    realGit.removeWorktree(repo, wt);
+  });
+
   // ADR-0009: branch yang dihapus sebelum sesi dibuka gagal keras dan menyebut namanya,
   // bukan mundur diam-diam ke main.
   it("fails loud and names the missing branch", () => {

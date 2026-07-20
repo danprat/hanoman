@@ -15,8 +15,18 @@ const tryGit = (cwd: string, args: string[]) => { spawnSync("git", args, { cwd, 
 // `--verify` harus mendahului `--end-of-options` (diverifikasi terhadap git 2.50.1). Melempar dengan
 // stderr git yang menyebut revisinya bila tidak resolve (ADR-0009), dan tetap menjaga DWIM sehingga
 // branch remote-tracking masih resolve.
-const resolveCommit = (repo: string, rev: string) =>
-  git(repo, ["rev-parse", "--verify", "--end-of-options", `${rev}^{commit}`]).trim();
+const resolveCommit = (repo: string, rev: string) => {
+  // SPEC-244 · lokal dulu (DWIM refs/heads), lalu origin/<rev> untuk branch remote-only (worktree
+  // PRD/audit di-push detached, ADR-0059). Cermin resolveSource di services/integrate.ts. Prefix
+  // `origin/` konstan → tak bisa terbaca sebagai flag; keamanan argumen ADR-0032 utuh.
+  const tryRev = (r: string) => {
+    const res = spawnSync("git", ["rev-parse", "--verify", "--end-of-options", `${r}^{commit}`], { cwd: repo, encoding: "utf8" });
+    return res.status === 0 ? res.stdout.trim() : null;
+  };
+  // Gagal keras menyebut rev asli (ADR-0009) bila lokal maupun origin tak resolve.
+  return tryRev(rev) ?? tryRev(`origin/${rev}`) ??
+    git(repo, ["rev-parse", "--verify", "--end-of-options", `${rev}^{commit}`]).trim();
+};
 
 export const realGit: GitOps = {
   // --detach: checkout commit milik branchFrom dalam detached HEAD, sehingga sebuah sesi bisa

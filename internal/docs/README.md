@@ -24,6 +24,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 - [audit SPEC-229 — merge via git graph selalu gagal (buntu tanpa sesi claude)](research/audit-spec-229-merge-git-graph-selalu-gagal.md) — jalur git graph (`runGitOp`) tak pernah warisi ADR-0031: konflik merusak working tree utama & "Force" gagal senyap, gerbang sesi aktif balas 409 di tiap merge. Fix: deterministik dulu, konflik/409 → sesi claude di worktree isolasi (pola integrate)
 - [audit SPEC-230 — PRD jalan tanpa aksi lanjutan (review, merge/rebase)](research/audit-spec-230-prd-review-merge.md) — sesi PRD project-level tak punya `specId`; review+integrate terkopel `Spec` (frontend & server) → sel PRD polos. Fix: jalur review+integrate ber-skop sesi (branch `prd/<slug>` disimpan di sesi), tanpa perubahan skema (ADR-0054)
 - [audit SPEC-242 — Setting model & effort sesi audit tak ada di UI](research/audit-spec-242-setting-model-sesi-audit.md) — `FLOW_PHASES` di `SettingsScreen.tsx` (cerminan runner `PIPELINES`) tak ikut menambah flow `audit` (ADR-0057); server/runner sudah dukung `phaseModelsForFlow("audit")`, hanya UI yang drift. Fix: tambah baris `audit → [Audit, Laporan]`
+- [audit SPEC-244 — kontinuitas branch PRD→brief & audit→Finding QA + picker origin](research/audit-spec-244-branch-continuity-take-to-backlog.md) — take/promote tak set `branchFrom`; modal & whitelist server lokal-only, `resolveCommit` tak fallback `origin/`; `prd/<slug>` & `hanoman/<audit-id>` hidup hanya di origin. Fix: prefill branch + remote first-class + fallback `origin/<rev>` + klausa prompt skip-audit untuk qa-lanjutan-audit (ADR-0059)
 - [audit SPEC-245 — interaksi git graph tak realtime](research/audit-spec-245-git-graph-realtime.md) — `GitGraph.tsx` hanya `load()` saat mount/opsi/aksi sinkron sendiri; tanpa polling, perubahan async (sesi claude commit, konflik diselesaikan di Terminal, commit terminal) tak tampil sampai refresh manual. Fix: silent live-refresh poll `load(true)` tiap 4 dtk (`!document.hidden`), tanpa perubahan skema/API/server
 
 ## architecture
@@ -32,6 +33,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 
 ## adr
 > Nomor unik & imutable. ADR usang tidak dihapus — ditandai statusnya di bawah dan di header masing-masing.
+- [0059 — Kontinuitas branch take-to-backlog (PRD→brief, audit→QA) + skip-audit qa lanjutan audit](adr/0059-kontinuitas-branch-take-to-backlog-dan-skip-audit.md) — **memperluas 0032/0040/0041/0057** (SPEC-244)
 - [0058 — Model & effort per fase, lewat `/model`+`/effort` in-session](adr/0058-model-effort-per-fase.md) — **mengamandemen 0024, sebagian menghidupkan 0003** (SPEC-238)
 - [0057 — Audit-only sebagai source + flow (dokumen, tanpa perbaikan)](adr/0057-audit-only-source-flow.md) — SPEC-237
 - [0056 — Terminal biasa = shell mentah di repoDir project (bukan claude)](adr/0056-terminal-shell-non-claude.md) — SPEC-236, pola ADR-0042

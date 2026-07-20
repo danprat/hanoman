@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { zProject, zSpec, zStage, zCreateSpec, zPatchSpec, zProjectView, zNotification, zSetting, MODELS, EFFORTS } from "../src/index";
+import { zProject, zSpec, zStage, zCreateSpec, zPatchSpec, zProjectView, zNotification, zSetting, zQaPayload, MODELS, EFFORTS } from "../src/index";
+
+describe("zQaPayload fromAudit (SPEC-244)", () => {
+  it("menerima fromAudit opsional", () => {
+    const r = zQaPayload.parse({ severity: "major", steps: "", expected: "", actual: "", env: "", fromAudit: "SPEC-237" });
+    expect(r.fromAudit).toBe("SPEC-237");
+    const r2 = zQaPayload.parse({ severity: "major", steps: "", expected: "", actual: "", env: "" });
+    expect(r2.fromAudit).toBeUndefined();
+  });
+});
 
 describe("schemas", () => {
   it("parses a valid project", () => {
