@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
 import { GitGraph } from "../src/screens/GitGraph";
 import { api } from "../src/api/client";
 
@@ -84,6 +84,26 @@ describe("GitGraph", () => {
     fireEvent.click(await screen.findByText("Merge (fast-forward bila bisa)"));
     await waitFor(() => expect(onMerge).toHaveBeenCalledWith("aaaa111", undefined));
     expect(onRunGit).not.toHaveBeenCalled();
+  });
+
+  // SPEC-245 · live-refresh: graph mem-poll ideGraph ulang tanpa aksi manual
+  // supaya perubahan async (sesi claude commit, konflik diselesaikan di Terminal,
+  // commit terminal) tampil tanpa refresh halaman.
+  it("mem-poll ideGraph ulang secara live tanpa aksi manual (SPEC-245)", async () => {
+    vi.useFakeTimers();
+    try {
+      const graph = vi.spyOn(api, "ideGraph").mockResolvedValue({ commits, current: "main" });
+      vi.spyOn(api, "ideStatus").mockResolvedValue({ clean: true, branch: "main", ahead: 0, behind: 0, staged: [], unstaged: [], untracked: [] });
+      vi.spyOn(api, "ideStashes").mockResolvedValue([]);
+      render(<GitGraph projectId="p1" onRunGit={vi.fn()} onMerge={vi.fn()} onRebase={vi.fn()} onPull={vi.fn()} onDrop={vi.fn()} onOpenFile={vi.fn()} />);
+      await act(async () => { await vi.advanceTimersByTimeAsync(0); }); // flush effect mount + initial load
+      const before = graph.mock.calls.length;
+      expect(before).toBeGreaterThanOrEqual(1);
+      await act(async () => { await vi.advanceTimersByTimeAsync(4100); }); // satu tick poll
+      expect(graph.mock.calls.length).toBeGreaterThan(before);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("merge --no-ff & 'Merge <branch> lalu hapus' meneruskan opsi ke onMerge", async () => {

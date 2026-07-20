@@ -9,6 +9,7 @@ import { DiffView } from "./diff-view";
 import { emojify, renderMessage, gravatarUrl } from "./git-graph-render";
 
 const LANE_W = 14, ROW_H = 30, DOT = 4;
+const POLL_MS = 4000; // SPEC-245 · kadens live-refresh git graph (HTTP polling, ADR-stack)
 const COLORS = ["#a9791c", "#3b7a57", "#8a5a44", "#4a6fa5", "#7d5ba6", "#b0503a"]; // brass-leaf-clay-ink
 const laneColor = (i: number, palette: string[] = COLORS) => palette[i % palette.length];
 const rel = (iso: string): string => {
@@ -234,15 +235,26 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
     api.ideCommit(projectId, sha).then(setDetail).catch(() => {});
   }, [projectId, compareFrom]);
 
-  const load = React.useCallback(() => {
-    setState("loading");
+  // SPEC-245 · `silent` = live-refresh (poll): jangan flip ke loading/error supaya
+  // graph yang sudah tampil tak berkedip/tertutup StateBlock tiap tick, dan kegagalan
+  // poll transien tak menghapus data yang ada.
+  const load = React.useCallback((silent = false) => {
+    if (!silent) setState("loading");
     api.ideGraph(projectId, 200, { branches: gopts.branch ? [gopts.branch] : undefined, showRemote: gopts.showRemote ? undefined : false, showTags: gopts.showTags ? undefined : false })
       .then((g) => { setRows(computeLanes(g.commits)); setCurrent(g.current); setState("ready"); })
-      .catch(() => setState("error"));
-    api.ideStatus(projectId).then(setStatus).catch(() => setStatus(null));
-    api.ideStashes(projectId).then(setStashes).catch(() => setStashes([]));
+      .catch(() => { if (!silent) setState("error"); });
+    api.ideStatus(projectId).then(setStatus).catch(() => { if (!silent) setStatus(null); });
+    api.ideStashes(projectId).then(setStashes).catch(() => { if (!silent) setStashes([]); });
   }, [projectId, gopts]);
   React.useEffect(() => { load(); }, [load]);
+  // SPEC-245 · live-refresh: perubahan repo yang datang di luar aksi sinkron sendiri
+  // (sesi claude yang commit, konflik merge/rebase diselesaikan di Terminal, commit
+  // dari terminal) muncul tanpa refresh manual. Poll diam tiap POLL_MS; berhenti saat
+  // tab browser tak aktif (hemat) dan saat unmount.
+  React.useEffect(() => {
+    const t = setInterval(() => { if (!document.hidden) load(true); }, POLL_MS);
+    return () => clearInterval(t);
+  }, [load]);
   // SPEC-233 · shortcut: Esc tutup panel; Ctrl/Cmd-F find; Ctrl/Cmd-H center HEAD.
   React.useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -257,15 +269,16 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
     e.preventDefault();
     setMenu({ x: e.clientX, y: e.clientY, c });
   }
-  async function act(op: GitOp) { setMenu(null); await onRunGit(op).then(load).catch(() => {}); }
+  // SPEC-245 · `() => load()` (bukan `.then(load)`) supaya nilai resolve tak tersalur ke param `silent`.
+  async function act(op: GitOp) { setMenu(null); await onRunGit(op).then(() => load()).catch(() => {}); }
   // SPEC-229 · merge lewat jalur isolasi; sukses → reload graph, konflik/error ditangani onMerge (toast/nav).
   async function mergeAct(source: string, opts?: { ff?: "no-ff" | "ff-only"; deleteBranch?: string }) {
-    setMenu(null); await onMerge(source, opts).then(load).catch(() => {});
+    setMenu(null); await onMerge(source, opts).then(() => load()).catch(() => {});
   }
   // SPEC-233 · rebase/pull/drop lewat jalur isolasi (pola merge); konflik/error ditangani host (toast/nav).
-  async function rebaseAct(onto: string) { setMenu(null); setBranchMenu(null); await onRebase(onto).then(load).catch(() => {}); }
-  async function pullAct(source: string) { setMenu(null); setBranchMenu(null); await onPull(source).then(load).catch(() => {}); }
-  async function dropAct(sha: string) { setMenu(null); await onDrop(sha).then(load).catch(() => {}); }
+  async function rebaseAct(onto: string) { setMenu(null); setBranchMenu(null); await onRebase(onto).then(() => load()).catch(() => {}); }
+  async function pullAct(source: string) { setMenu(null); setBranchMenu(null); await onPull(source).then(() => load()).catch(() => {}); }
+  async function dropAct(sha: string) { setMenu(null); await onDrop(sha).then(() => load()).catch(() => {}); }
   // SPEC-233 · Create PR (buka URL provider dari origin) & Create archive (unduh git archive).
   function prAct(branch: string) {
     setBranchMenu(null);
