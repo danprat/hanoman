@@ -341,13 +341,13 @@ git commit -m "feat(spec-254): build pipeline (esbuild ESM/CJS/IIFE + tsc types)
 
 ---
 
-### Task 3: Docs — README npm-first, LICENSE, SoT updates, ADR-0062
+### Task 3: Docs — README npm-first, LICENSE, SoT updates, ADR-0063
 
 **Files:**
 - Rewrite: `sdk/README.md`
 - Create: `sdk/LICENSE`
-- Create: `internal/docs/adr/0062-hanoman-sdk-npm-package.md`
-- Modify: `internal/docs/README.md` (baris integrasi + entri ADR-0062)
+- Create: `internal/docs/adr/0063-hanoman-sdk-npm-package.md`
+- Modify: `internal/docs/README.md` (baris integrasi + entri ADR-0063)
 - Modify: `internal/docs/architecture/api-contract.md` (catatan npm package)
 - Modify: `internal/docs/frontend/frontend-implementation.md` (SDK/snippet → npm `hanoman-sdk`)
 - Modify: `internal/docs/security/security-standard.md` (DSN semi-publik di bundle npm)
@@ -357,7 +357,7 @@ git commit -m "feat(spec-254): build pipeline (esbuild ESM/CJS/IIFE + tsc types)
 - [x] **Step 1: Rewrite `sdk/README.md`** (npm-first; struktur: intro → install → Node/TS → browser (npm + CDN global) → payload → grouping/eskalasi → rilis). Isi lengkap:
 
 ````markdown
-# hanoman-sdk — error monitoring untuk project apa pun (SPEC-249/254 · ADR-0060/0062)
+# hanoman-sdk — error monitoring untuk project apa pun (SPEC-249/254 · ADR-0060/0063)
 
 Kirim error dari project-mu ke **hanoman** (Sentry ringan). hanoman mengelompokkan error identik jadi grup, menampilkannya di area **Errors**, memberi notifikasi saat grup produksi baru muncul, dan bisa dieskalasikan sekali klik jadi backlog (`Spec`).
 
@@ -480,10 +480,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-- [x] **Step 3: Tulis ADR** `internal/docs/adr/0062-hanoman-sdk-npm-package.md`
+- [x] **Step 3: Tulis ADR** `internal/docs/adr/0063-hanoman-sdk-npm-package.md`
 
 ```markdown
-# ADR-0062 — hanoman-sdk sebagai npm package publik (extensible, errors dulu)
+# ADR-0063 — hanoman-sdk sebagai npm package publik (extensible, errors dulu)
 
 **Status:** accepted · **Tanggal:** 2026-07-20 · **Spec:** SPEC-254
 **Terkait:** [ADR-0060](0060-error-monitoring-ingest-ber-dsn.md) (ingest ber-DSN — kontrak yang di-consume)
@@ -526,18 +526,18 @@ ADR-0060 (SPEC-249) menyediakan endpoint ingest publik `POST /api/ingest/:slug` 
 Ganti baris integrasi (bagian "integrasi (untuk project yang memakai hanoman)") jadi menyebut npm package:
 ```markdown
 ## integrasi (untuk project yang memakai hanoman)
-- [SDK error monitoring — npm `hanoman-sdk`](../../sdk/README.md) — cara project lain mengirim error ke hanoman: `npm i hanoman-sdk` → `init({ dsn })` + `captureError()` (Node/browser) atau POST JSON generik langsung → grouping & eskalasi ke backlog (SPEC-249/254 · ADR-0060/0062)
+- [SDK error monitoring — npm `hanoman-sdk`](../../sdk/README.md) — cara project lain mengirim error ke hanoman: `npm i hanoman-sdk` → `init({ dsn })` + `captureError()` (Node/browser) atau POST JSON generik langsung → grouping & eskalasi ke backlog (SPEC-249/254 · ADR-0060/0063)
 ```
 Tambah entri ADR di bawah baris ADR-0060 (paling atas daftar adr):
 ```markdown
-- [0062 — hanoman-sdk sebagai npm package publik (extensible, errors dulu)](adr/0062-hanoman-sdk-npm-package.md) — **memperluas 0060** (SPEC-254)
+- [0063 — hanoman-sdk sebagai npm package publik (extensible, errors dulu)](adr/0063-hanoman-sdk-npm-package.md) — **memperluas 0060** (SPEC-254)
 ```
 
 - [x] **Step 5: Update `internal/docs/architecture/api-contract.md`**
 
 Di baris ~303-304 (blok catatan error monitoring) ganti frasa `**SDK/snippet** in-repo di `sdk/**`` jadi:
 ```markdown
-> **SDK** = npm package publik `hanoman-sdk` (SPEC-254 · ADR-0062; source di `sdk/**`, Node + browser,
+> **SDK** = npm package publik `hanoman-sdk` (SPEC-254 · ADR-0063; source di `sdk/**`, Node + browser,
 > DSN gaya Sentry). `GET /errors/integration-guide` tetap menyajikan `sdk/README.md` apa adanya.
 ```
 (Sesuaikan wording agar menyatu dengan kalimat sekitarnya; inti: SDK kini npm `hanoman-sdk`, guide masih dari README.)
@@ -546,7 +546,7 @@ Di baris ~303-304 (blok catatan error monitoring) ganti frasa `**SDK/snippet** i
 
 Ganti blok ~380-381:
 ```markdown
-**SDK** = npm package publik **`hanoman-sdk`** (SPEC-254 · ADR-0062; `npm i hanoman-sdk` → `init`/`captureError`,
+**SDK** = npm package publik **`hanoman-sdk`** (SPEC-254 · ADR-0063; `npm i hanoman-sdk` → `init`/`captureError`,
 Node + browser, DSN gaya Sentry, fire-and-forget). Source di `sdk/src/**`; panduan (`sdk/README.md`) disajikan
 apa adanya di web via modal `IntegrationGuideModal` (`GET /api/errors/integration-guide`).
 ```
@@ -563,13 +563,13 @@ Di baris ~41-43 (DSN semi-publik), sesuaikan agar menyebut npm bundle:
 - [x] **Step 8: Verifikasi konsistensi index & link**
 
 Run: `pnpm --filter @hanoman/cli exec hanoman docs index --check` (atau `node cli/dist/index.js docs index --check` bila sudah ter-build)
-Expected: index konsisten (tak ada broken link). Bila CLI tak ter-build, lewati dan verifikasi manual bahwa `internal/docs/README.md` menaut `adr/0062-hanoman-sdk-npm-package.md` dan file itu ada.
+Expected: index konsisten (tak ada broken link). Bila CLI tak ter-build, lewati dan verifikasi manual bahwa `internal/docs/README.md` menaut `adr/0063-hanoman-sdk-npm-package.md` dan file itu ada.
 
 - [x] **Step 9: Commit**
 
 ```bash
-git add sdk/README.md sdk/LICENSE internal/docs/adr/0062-hanoman-sdk-npm-package.md internal/docs/README.md internal/docs/architecture/api-contract.md internal/docs/frontend/frontend-implementation.md internal/docs/security/security-standard.md
-git commit -m "docs(spec-254): hanoman-sdk npm-first README + ADR-0062 + SoT updates"
+git add sdk/README.md sdk/LICENSE internal/docs/adr/0063-hanoman-sdk-npm-package.md internal/docs/README.md internal/docs/architecture/api-contract.md internal/docs/frontend/frontend-implementation.md internal/docs/security/security-standard.md
+git commit -m "docs(spec-254): hanoman-sdk npm-first README + ADR-0063 + SoT updates"
 ```
 
 ---

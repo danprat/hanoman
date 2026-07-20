@@ -1,4 +1,4 @@
-# ADR-0062 — hanoman-sdk sebagai npm package publik (extensible, errors dulu)
+# ADR-0063 — hanoman-sdk sebagai npm package publik (extensible, errors dulu)
 
 **Status:** accepted · **Tanggal:** 2026-07-20 · **Spec:** SPEC-254
 **Terkait:** [ADR-0060](0060-error-monitoring-ingest-ber-dsn.md) (ingest ber-DSN — kontrak yang di-consume)

@@ -2,7 +2,7 @@
 
 **Tanggal:** 2026-07-20 · **Prioritas:** tinggi · **Sumber:** brief
 **Membangun di atas:** SPEC-249 / [ADR-0060](../../../internal/docs/adr/0060-error-monitoring-ingest-ber-dsn.md)
-**ADR baru:** ADR-0062 (hanoman-sdk sebagai npm package publik, extensible, errors dulu)
+**ADR baru:** ADR-0063 (hanoman-sdk sebagai npm package publik, extensible, errors dulu)
 
 ## Objective
 
@@ -24,7 +24,7 @@ ikut ter-update karena bersumber dari `sdk/README.md` yang sama.
   disiapkan untuk kapabilitas berikutnya (logs/monitoring) **tanpa** menyiratkan itu sudah ada.
 - **Publish ke npm publik** sebagai `hanoman-sdk@0.1.0` (nama tersedia; akun `denameidina` sudah login).
 - **Docs**: rewrite `sdk/README.md` (install npm sebagai jalur utama, copy-paste sebagai fallback),
-  update `internal/docs` yang tersentuh + index, tambah ADR-0062.
+  update `internal/docs` yang tersentuh + index, tambah ADR-0063.
 
 ## Non-Goals (YAGNI)
 
@@ -140,10 +140,10 @@ Runbook + langkah rilis versi berikutnya ditulis di `sdk/README.md` bagian "Rili
 - `internal/docs/architecture/api-contract.md` — catatan: SDK kini npm `hanoman-sdk`, integration-guide masih dari `sdk/README.md`.
 - `internal/docs/frontend/frontend-implementation.md` — update baris "SDK/snippet ... copy-paste" → npm package `hanoman-sdk` (+ file lama tetap sebagai source).
 - `internal/docs/security/security-standard.md` — DSN semi-publik di bundle npm/browser (catatan tak berubah maknanya, sebut package).
-- `internal/docs/adr/0062-hanoman-sdk-npm-package.md` — ADR baru.
-- `internal/docs/README.md` — update baris integrasi + tambah ADR-0062 ke daftar.
+- `internal/docs/adr/0063-hanoman-sdk-npm-package.md` — ADR baru.
+- `internal/docs/README.md` — update baris integrasi + tambah ADR-0063 ke daftar.
 
-## ADR-0062 (ringkas)
+## ADR-0063 (ringkas)
 
 **Keputusan:** SDK error hanoman diterbitkan sebagai npm package publik `hanoman-sdk` (isomorphic Node+browser,
 fire-and-forget), sebagai client murni endpoint ingest ADR-0060 — **tanpa** perubahan server. Permukaan API

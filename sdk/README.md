@@ -1,4 +1,4 @@
-# hanoman-sdk — error monitoring untuk project apa pun (SPEC-249/254 · ADR-0060/0062)
+# hanoman-sdk — error monitoring untuk project apa pun (SPEC-249/254 · ADR-0060/0063)
 
 Kirim error dari project-mu ke **hanoman** (Sentry ringan). hanoman mengelompokkan error identik jadi grup, menampilkannya di area **Errors**, memberi notifikasi saat grup produksi baru muncul, dan bisa dieskalasikan sekali klik jadi backlog (`Spec`).
 
