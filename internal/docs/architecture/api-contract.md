@@ -114,6 +114,8 @@ GET    /projects/:id/prds/*path         # SPEC-210 · isi PRD; 404 bila path buk
 ```
 GET    /projects/:id/tree?ref=          # { ref, files:string[] }  ref kosong=working tree (ls-files), isi=ls-tree <ref>; 404 project tak ada
 GET    /projects/:id/file?path=&ref=    # { path, content, binary, truncated }  disk / git show <ref>:<path>; 400 path keluar repo/.git; 404 file tak ada
+GET    /projects/:id/status             # (SPEC-234) { branch, staged:ChangedFile[], unstaged:ChangedFile[] }  staged=index vs HEAD, unstaged=working tree vs index+untracked (temp-index); read-only, TAK digerbang sesi; repoDir kosong → {branch:"",staged:[],unstaged:[]}; 404 project tak ada
+GET    /projects/:id/file-diff?path=&staged=  # (SPEC-234) ReviewFile diff satu file working tree; staged=1 → index vs HEAD, else working tree vs index; 400 path buruk/kosong; 404 file tak dalam changeset
 PUT    /projects/:id/file               { path, content }   # tulis file ke working tree; 400 guard path. TAK digerbang sesi.
 GET    /projects/:id/graph?limit=200    # { commits:{sha,parents,author,at,subject,refs}[], current }  git log --all --date-order
 GET    /projects/:id/commit/:sha        # { sha,parents,author,at,subject,body, changed:{path,add,del,status,binary}[] }  404 sha bukan hex / tak ada

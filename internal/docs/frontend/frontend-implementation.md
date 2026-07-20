@@ -291,11 +291,19 @@ Nav entri **IDE** (`code-2`) membuka `IdeScreen` (`screens/IdeScreen.tsx`), difi
   `origin/<b>` dari `api.listBranches`) + tombol **Checkout**. Memilih ref hanya mengubah **sudut
   pandang** (drives `GET /tree`/`/file` lewat `?ref=`) — melihat branch origin **tanpa** checkout.
   Tombol Checkout memanggil `POST /git {op:"checkout"}` yang memindah HEAD working tree sungguhan.
-- **Explorer**: grid `288px 1fr`. Kiri **pohon folder** (`buildFileTree`+`TreeRow` dari
-  `screens/file-tree.tsx`, `api.ideTree`) — folder **default collapse** ala Review (SPEC-189, tanpa
-  `meta`/`defaultOpen` → ikon file biasa, tertutup). Kanan pane isi (`api.ideFile`).
-  Preview = `<pre><code class="hljs">` di-highlight **highlight.js** (bahasa dari ekstensi, fallback
-  `highlightAuto`); edit = `<textarea>` mono + Simpan (`api.putIdeFile`). File biner → placeholder.
+- **Explorer**: grid `300px 1fr`. Kiri, dari atas ke bawah: dua section SCM **Staged** & **Changed**
+  lalu **pohon folder Files** (`buildFileTree`+`TreeRow` dari `screens/file-tree.tsx`, `api.ideTree`) —
+  folder **default collapse** ala Review (SPEC-189, tanpa `meta`/`defaultOpen` → ikon file biasa,
+  tertutup). Kanan pane isi (`api.ideFile`): Preview = `<pre><code class="hljs">` di-highlight
+  **highlight.js** (bahasa dari ekstensi, fallback `highlightAuto`); edit = `<textarea>` mono + Simpan
+  (`api.putIdeFile`). File biner → placeholder.
+  - **Staged & Changed (SPEC-234)**: **Staged** = index vs HEAD, **Changed** = working tree vs index +
+    untracked; masing-masing toggle **List | Tree** lewat `ChangedSection` shared di `file-tree.tsx`
+    (dipakai Review juga). Data `api.ideStatus` (`GET /projects/:id/status`), **independen** dari
+    dropdown ref (status inheren milik working tree utama). Klik file → pane kanan **diff** read-only
+    (toggle Diff | Source, `DiffView` shared di `screens/diff-view.tsx`) via `api.ideFileDiff`; klik
+    file dari pohon Files tetap membuka **editor**. Header kiri menampilkan branch aktif; **Muat ulang**
+    & tiap git op (checkout/merge) menyegarkan status. Read-only — tak ada stage/unstage dari UI.
 - **Git Graph** (`screens/GitGraph.tsx`): DAG commit dari `api.ideGraph`, lane dihitung **client-side**
   murni oleh `computeLanes` (`screens/git-graph.ts`, nol dep, diuji terpisah). Segmen penyambung
   diturunkan `rowEdges` (in/out/through per-baris) → digambar **cubic-bezier** (SPEC-189) sehingga
