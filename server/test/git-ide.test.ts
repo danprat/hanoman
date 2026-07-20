@@ -362,3 +362,31 @@ describe("git-ide stash (SPEC-233)", () => {
     expect(touchesTree({ op: "stash-apply", ref: "stash@{0}" })).toBe(true);
   });
 });
+
+describe("git-ide branch ops (SPEC-233)", () => {
+  const branches = (dir: string) => spawnSync("git", ["branch", "--format=%(refname:short)"], { cwd: dir, encoding: "utf8" }).stdout.trim().split("\n");
+  it("rename-branch mengganti nama", async () => {
+    const dir = makeRepoWithBranches("dev");
+    const r = await runGitOp(dir, { op: "rename-branch", from: "dev", to: "develop" });
+    expect(r.ok).toBe(true);
+    expect(branches(dir)).toContain("develop"); expect(branches(dir)).not.toContain("dev");
+  });
+  it("push-branch ke origin memperbarui remote", async () => {
+    const { repoDir } = makeRepoWithSpecBranch("pb"); // punya origin
+    const g = (...a: string[]) => spawnSync("git", a, { cwd: repoDir, encoding: "utf8" });
+    g("checkout", "-q", "-b", "extra"); writeFileSync(`${repoDir}/e.txt`, "e"); g("add", "-A"); g("commit", "-qm", "e");
+    const r = await runGitOp(repoDir, { op: "push-branch", name: "extra", setUpstream: true });
+    expect(r.ok).toBe(true);
+    expect(spawnSync("git", ["ls-remote", "origin", "extra"], { cwd: repoDir, encoding: "utf8" }).stdout).toMatch(/extra/);
+  });
+  it("fetch prune tak melempar", async () => {
+    const { repoDir } = makeRepoWithSpecBranch("fp");
+    expect((await runGitOp(repoDir, { op: "fetch", prune: true })).ok).toBe(true);
+  });
+  it("validateGitOp rename/push/fetch", () => {
+    expect(validateGitOp({ op: "rename-branch", from: "a" })).toBeTruthy();
+    expect(validateGitOp({ op: "rename-branch", from: "a", to: "b" })).toBeNull();
+    expect(validateGitOp({ op: "push-branch", name: "x" })).toBeNull();
+    expect(validateGitOp({ op: "fetch" })).toBeNull();
+  });
+});

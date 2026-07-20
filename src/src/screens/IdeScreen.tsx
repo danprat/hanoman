@@ -125,6 +125,8 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
         options={projects.map((p) => ({ value: p.id, label: p.name }))} />
       <Select size="sm" value={viewRef} onChange={(e) => setViewRef(e.target.value)} options={refOptions} />
       <Button size="sm" variant="secondary" leftIcon="git-branch" onClick={checkout} disabled={!viewRef}>Checkout</Button>
+      {/* SPEC-233 · fetch --all --prune; ref-only → tak digerbang sesi */}
+      <Button size="sm" variant="ghost" leftIcon="download-cloud" onClick={() => { void runGit({ op: "fetch", prune: true }).then(() => api.listBranches(projectId).then(setBranches)).catch(() => {}); }}>Fetch</Button>
     </div>
   );
 

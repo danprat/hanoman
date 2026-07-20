@@ -204,7 +204,11 @@ export type GitOp =
   | { op: "stash-apply"; ref: string; index?: boolean }
   | { op: "stash-pop"; ref: string; index?: boolean }
   | { op: "stash-drop"; ref: string }
-  | { op: "stash-branch"; ref: string; name: string };
+  | { op: "stash-branch"; ref: string; name: string }
+  // SPEC-233 · branch ref-only: rename, push (dgn upstream/force-with-lease), fetch (prune).
+  | { op: "rename-branch"; from: string; to: string }
+  | { op: "push-branch"; name: string; setUpstream?: boolean; force?: boolean }
+  | { op: "fetch"; prune?: boolean; pruneTags?: boolean };
 
 export type GitOpResult = { ok: boolean; stdout: string; stderr: string; current: string };
 
@@ -235,6 +239,9 @@ export function validateGitOp(op: unknown): string | null {
     case "stash": return null;
     case "stash-apply": case "stash-pop": case "stash-drop": return need("ref");
     case "stash-branch": return need("ref") || need("name");
+    case "rename-branch": return need("from") || need("to");
+    case "push-branch": return need("name");
+    case "fetch": return null;
     default: return `op tak dikenal: ${String(o.op)}`;
   }
 }
@@ -269,6 +276,9 @@ function gitArgs(op: GitOp): string[] {
     case "stash-pop": return ["stash", "pop", ...(op.index ? ["--index"] : []), "--end-of-options", op.ref];
     case "stash-drop": return ["stash", "drop", "--end-of-options", op.ref];
     case "stash-branch": return ["stash", "branch", "--end-of-options", op.name, op.ref];
+    case "rename-branch": return ["branch", "-m", "--end-of-options", op.from, op.to];
+    case "push-branch": return ["push", ...(op.setUpstream ? ["-u"] : []), ...(op.force ? ["--force-with-lease"] : []), "origin", "--end-of-options", op.name];
+    case "fetch": return ["fetch", "--all", ...(op.prune ? ["--prune"] : []), ...(op.pruneTags ? ["--prune-tags"] : [])];
   }
 }
 

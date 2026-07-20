@@ -103,6 +103,33 @@ function menuItems(c: GraphCommit, current: string, act: (op: GitOp) => void, me
   ];
 }
 
+// SPEC-233 · menu klik-kanan pada pill branch. Local vs origin dibedakan prefix `origin/`.
+// Branch aktif (== current) hanya Rename/Push/Copy (tak boleh checkout/merge/hapus diri sendiri).
+function branchMenuItems(ref: string, current: string, allRefs: string[], act: (op: GitOp) => void, merge: MergeFn): MenuItem[] {
+  const isOrigin = ref.startsWith("origin/");
+  const name = isOrigin ? ref.slice("origin/".length) : ref;
+  const copy = () => { void navigator.clipboard?.writeText(ref); };
+  if (isOrigin) return [
+    { label: `Checkout ${ref}`, run: () => act({ op: "checkout", ref }) },
+    { label: `Merge ${ref} → current`, run: () => merge(ref) },
+    { label: `Hapus origin/${name}`, run: () => act({ op: "delete-branch", name, local: false, remote: true }) },
+    { label: "Copy nama branch", run: copy },
+  ];
+  const self = ref === current;
+  const hasOrigin = allRefs.includes(`origin/${name}`);
+  const items: MenuItem[] = [];
+  if (!self) items.push({ label: `Checkout ${ref}`, run: () => act({ op: "checkout", ref }) });
+  items.push({ label: "Rename…", run: () => { const to = window.prompt(`Nama baru untuk ${ref}:`, ref); if (to && to !== ref) act({ op: "rename-branch", from: ref, to }); } });
+  items.push({ label: "Push ke origin", run: () => act({ op: "push-branch", name: ref, setUpstream: true }) });
+  if (!self) items.push({ label: `Merge ${ref} → current`, run: () => merge(ref) });
+  if (!self) {
+    items.push({ label: hasOrigin ? `Hapus ${ref} (local + origin)` : `Hapus ${ref} (local)`, run: () => act({ op: "delete-branch", name: ref, remote: hasOrigin }) });
+    if (hasOrigin) items.push({ label: `Hapus ${ref} (local saja)`, run: () => act({ op: "delete-branch", name: ref }) });
+  }
+  items.push({ label: "Copy nama branch", run: copy });
+  return items;
+}
+
 export function GitGraph({ projectId, onRunGit, onMerge, onOpenFile }:
   { projectId: string; onRunGit: (op: GitOp) => Promise<unknown>;
     onMerge: (source: string, opts?: { ff?: "no-ff" | "ff-only"; deleteBranch?: string }) => Promise<void>;
@@ -117,6 +144,8 @@ export function GitGraph({ projectId, onRunGit, onMerge, onOpenFile }:
   const [uncMenu, setUncMenu] = React.useState<{ x: number; y: number } | null>(null);
   const [stashes, setStashes] = React.useState<Stash[]>([]);
   const [stashMenu, setStashMenu] = React.useState<{ x: number; y: number; s: Stash } | null>(null);
+  const [branchMenu, setBranchMenu] = React.useState<{ x: number; y: number; ref: string } | null>(null);
+  const allRefs = React.useMemo(() => rows.flatMap((r) => r.commit.refs), [rows]);
 
   const load = React.useCallback(() => {
     setState("loading");
@@ -199,7 +228,9 @@ export function GitGraph({ projectId, onRunGit, onMerge, onOpenFile }:
               <RowSvg row={r} edges={allEdges[i] ?? []} maxLanes={maxLanes} />
               <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1 }}>
                 {c.refs.map((ref) => (
-                  <span key={ref} style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, padding: "1px 6px",
+                  <span key={ref} title="branch — klik-kanan untuk aksi"
+                    onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setBranchMenu({ x: e.clientX, y: e.clientY, ref }); }}
+                    style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, padding: "1px 6px", cursor: "context-menu",
                     borderRadius: 999, background: isHead && ref === current ? "var(--brass-500)" : "var(--brass-100)",
                     color: isHead && ref === current ? "#fff" : "var(--brass-700)", flex: "0 0 auto" }}>{ref}</span>
                 ))}
@@ -262,6 +293,8 @@ export function GitGraph({ projectId, onRunGit, onMerge, onOpenFile }:
         { label: "Buat branch dari stash…", run: () => { const s = stashMenu.s; setStashMenu(null); const name = window.prompt("Nama branch baru:"); if (name) void act({ op: "stash-branch", ref: s.ref, name }); } },
         { label: "Copy nama stash", run: () => { const s = stashMenu.s; setStashMenu(null); void navigator.clipboard?.writeText(s.ref); } },
       ]} />}
+      {branchMenu && <Menu x={branchMenu.x} y={branchMenu.y} onClose={() => setBranchMenu(null)}
+        items={branchMenuItems(branchMenu.ref, current, allRefs, act, mergeAct)} />}
     </div>
   );
 }

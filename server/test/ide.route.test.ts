@@ -174,4 +174,15 @@ describe("ide routes", () => {
     expect(list.length).toBe(1);
     expect(list[0].ref).toBe("stash@{0}");
   });
+
+  it("POST /git rename-branch (ref-only) tak digerbang sesi aktif; fetch valid (SPEC-233)", async () => {
+    await makeProject({ id: "renrepo", repoDir: makeRepoWithBranches("dev") });
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    createSession("renrepo", process.cwd()); // sesi aktif — rename tetap 200 (touchesTree=false)
+    const r = await app.inject({ method: "POST", url: "/api/projects/renrepo/git", payload: { op: "rename-branch", from: "dev", to: "develop" } });
+    expect(r.statusCode).toBe(200);
+    const b = (await app.inject({ url: "/api/projects/renrepo/branches" })).json();
+    expect(b.branches).toContain("develop"); expect(b.branches).not.toContain("dev");
+    killAll();
+  });
 });

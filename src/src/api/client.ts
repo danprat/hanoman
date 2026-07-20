@@ -46,7 +46,11 @@ export type GitOp =
   | { op: "stash-apply"; ref: string; index?: boolean; force?: boolean }
   | { op: "stash-pop"; ref: string; index?: boolean; force?: boolean }
   | { op: "stash-drop"; ref: string; force?: boolean }
-  | { op: "stash-branch"; ref: string; name: string; force?: boolean };
+  | { op: "stash-branch"; ref: string; name: string; force?: boolean }
+  // SPEC-233 · branch ref-only ops
+  | { op: "rename-branch"; from: string; to: string; force?: boolean }
+  | { op: "push-branch"; name: string; setUpstream?: boolean; force?: boolean }
+  | { op: "fetch"; prune?: boolean; pruneTags?: boolean; force?: boolean };
 export type RepoStatus = { branch: string; ahead: number; behind: number; staged: string[]; unstaged: string[]; untracked: string[]; clean: boolean };
 export type Stash = { ref: string; message: string; at: string };
 export type GitOpResult = { ok: boolean; stdout: string; stderr: string; current: string; error?: string };
