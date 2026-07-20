@@ -79,6 +79,24 @@ export function makeRepoWithSpecCommits(
   return dir;
 }
 
+// SPEC-234 · repo dengan satu commit base lalu keadaan working tree bercampur:
+//   staged.txt  = tracked, dimodifikasi & `git add` (STAGED, index vs HEAD)
+//   tracked.txt = tracked, dimodifikasi TANPA add (CHANGED unstaged, working tree vs index)
+//   new.txt     = untracked (CHANGED unstaged, muncul via temp-index intent-to-add)
+// HEAD di main. Mengembalikan repoDir.
+export function makeRepoWithChanges(): string {
+  const dir = mkdtempSync(join(tmpdir(), "hanoman-chg-"));
+  const g = (...a: string[]) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });
+  g("init", "-q", "-b", "main"); g("config", "user.email", "t@t"); g("config", "user.name", "t");
+  writeFileSync(join(dir, "staged.txt"), "one\n");
+  writeFileSync(join(dir, "tracked.txt"), "keep\n");
+  g("add", "-A"); g("commit", "-qm", "base");
+  writeFileSync(join(dir, "staged.txt"), "one\ntwo\n"); g("add", "staged.txt"); // staged M
+  writeFileSync(join(dir, "tracked.txt"), "keep\nmore\n");                       // unstaged M
+  writeFileSync(join(dir, "new.txt"), "brand\nnew\n");                            // untracked → A
+  return dir;
+}
+
 // Repo dengan bare origin + branch main (base) + branch hanoman/<id> berisi kerja spec, keduanya
 // di-push ke origin (refs/remotes/origin/* terisi). Persis keadaan sebuah done spec: kerja ada di
 // origin/hanoman/<id>. Opsi:

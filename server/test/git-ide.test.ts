@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { makeTempRepo, makeRepoWithBranches, makeRepoWithSpecCommits, makeRepoWithSpecBranch } from "./factory";
-import { listRepoTree, readRepoFile, repoAbsPath, listGraph, commitDetail, writeRepoFile, runGitOp, validateGitOp } from "../src/services/git-ide";
+import { makeTempRepo, makeRepoWithBranches, makeRepoWithSpecCommits, makeRepoWithSpecBranch, makeRepoWithChanges } from "./factory";
+import { listRepoTree, readRepoFile, repoAbsPath, listGraph, commitDetail, writeRepoFile, runGitOp, validateGitOp, workingStatus, workingFileDiff } from "../src/services/git-ide";
 import { readFileSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
@@ -225,5 +225,54 @@ describe("git-ide hapus branch local &/atau origin standalone (SPEC-206)", () =>
     const r = await runGitOp(dir, { op: "delete-branch", name: "dev", remote: true });
     expect(r.ok).toBe(false);                                          // push --delete gagal (no origin)
     expect(list(dir, "branch", "--list", "dev")).toBe("");             // local sudah terhapus lebih dulu
+  });
+});
+
+describe("git-ide working status (SPEC-234)", () => {
+  it("memisah staged (index vs HEAD) dari unstaged (working tree vs index) + untracked", async () => {
+    const s = await workingStatus(makeRepoWithChanges());
+    expect(s.branch).toBe("main");
+    expect(s.staged.map((c) => c.path)).toEqual(["staged.txt"]);
+    expect(s.staged[0]!).toMatchObject({ status: "M", add: 1, del: 0, binary: false });
+    // unstaged terurut path: new.txt (untracked→A), tracked.txt (M)
+    expect(s.unstaged.map((c) => c.path)).toEqual(["new.txt", "tracked.txt"]);
+    expect(s.unstaged.find((c) => c.path === "new.txt")!).toMatchObject({ status: "A", add: 2, del: 0 });
+    expect(s.unstaged.find((c) => c.path === "tracked.txt")!).toMatchObject({ status: "M", add: 1, del: 0 });
+  });
+  it("repoDir null / bukan repo → kosong, tak throw", async () => {
+    expect(await workingStatus(null)).toEqual({ branch: "", staged: [], unstaged: [] });
+    expect(await workingStatus(makeTempRepo({}) + "/nope")).toEqual({ branch: "", staged: [], unstaged: [] });
+  });
+  it("working tree bersih → staged & unstaged kosong", async () => {
+    expect(await workingStatus(makeRepoWithBranches())).toMatchObject({ branch: "main", staged: [], unstaged: [] });
+  });
+});
+
+describe("git-ide working file-diff (SPEC-234)", () => {
+  it("staged: diff index vs HEAD + isi index", async () => {
+    const f = await workingFileDiff(makeRepoWithChanges(), "staged.txt", true);
+    expect(f!.status).toBe("M");
+    expect(f!.diff).toMatch(/\+two/);
+    expect(f!.content).toBe("one\ntwo\n");
+  });
+  it("unstaged untracked: diff new-file penuh + isi disk", async () => {
+    const f = await workingFileDiff(makeRepoWithChanges(), "new.txt", false);
+    expect(f!.status).toBe("A");
+    expect(f!.diff).toMatch(/\+brand/);
+    expect(f!.diff).toMatch(/\+new/);
+    expect(f!.content).toBe("brand\nnew\n");
+  });
+  it("unstaged tracked: diff working tree vs index", async () => {
+    const f = await workingFileDiff(makeRepoWithChanges(), "tracked.txt", false);
+    expect(f!.status).toBe("M");
+    expect(f!.diff).toMatch(/\+more/);
+  });
+  it("file tak dalam changeset → null (gerbang 404)", async () => {
+    expect(await workingFileDiff(makeRepoWithChanges(), "staged.txt", false)).toBeNull();
+    expect(await workingFileDiff(makeRepoWithChanges(), "ghost.txt", true)).toBeNull();
+  });
+  it("path keluar repo / .git → throw (gerbang 400)", async () => {
+    await expect(workingFileDiff(makeRepoWithChanges(), "../evil", true)).rejects.toThrow();
+    await expect(workingFileDiff(makeRepoWithChanges(), ".git/config", false)).rejects.toThrow();
   });
 });

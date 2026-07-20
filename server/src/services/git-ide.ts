@@ -3,7 +3,7 @@ import { promisify } from "node:util";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve, sep, dirname } from "node:path";
-import type { ChangedFile } from "./spec-review";
+import { changedFiles, withTempIndex, type ChangedFile, type ReviewFile } from "./spec-review";
 
 const exec = promisify(execFile);
 const GIT = { maxBuffer: 1 << 24 } as const;
@@ -221,4 +221,53 @@ export async function runGitOp(repoDir: string, op: GitOp): Promise<GitOpResult>
     const err = e as { stdout?: string; stderr?: string };
     return { ok: false, stdout: err.stdout ?? "", stderr: err.stderr ?? String(e), current: await currentBranch(repoDir) };
   }
+}
+
+// SPEC-234 · status working tree utama, diturunkan dari git (tak dipersist). staged = index vs HEAD;
+// unstaged = working tree vs index memakai pola temp-index specReview (SPEC-144) → file untracked
+// tampil "A" dgn hitungan baris nyata, index asli tak tersentuh. Independen dari ref yang dilihat.
+export async function workingStatus(
+  repoDir: string | null,
+): Promise<{ branch: string; staged: ChangedFile[]; unstaged: ChangedFile[] }> {
+  if (!repoDir || !existsSync(repoDir)) return { branch: "", staged: [], unstaged: [] };
+  const [branch, staged, unstaged] = await Promise.all([
+    currentBranch(repoDir),
+    changedFiles(repoDir, ["--cached"]),
+    withTempIndex(repoDir, (env) => changedFiles(repoDir, [], env)),
+  ]);
+  return { branch, staged, unstaged };
+}
+
+// SPEC-234 · diff satu file working tree. staged=true → git diff --cached (index vs HEAD), isi = index
+// (`git show :path`). staged=false → working tree vs index lewat temp-index (untracked jadi diff
+// new-file), isi = disk. status D → content null. Bentuk = ReviewFile (dipakai DiffView bersama).
+export async function workingFileDiff(
+  repoDir: string | null, path: string, staged: boolean,
+): Promise<ReviewFile | null> {
+  if (!repoDir || !existsSync(repoDir)) return null;
+  repoAbsPath(repoDir, path); // throws → route 400
+  const changed = staged
+    ? await changedFiles(repoDir, ["--cached"])
+    : await withTempIndex(repoDir, (env) => changedFiles(repoDir, [], env));
+  const cf = changed.find((c) => c.path === path);
+  if (!cf) return null; // file bukan bagian changeset → route 404
+  if (cf.binary) return { path, status: cf.status, binary: true, truncated: false, diff: null, content: null };
+  const diffRaw = staged
+    ? (await exec("git", ["diff", "--cached", "--", path], { cwd: repoDir, ...GIT })).stdout
+    : await withTempIndex(repoDir, async (env) =>
+        (await exec("git", ["diff", "--", path], { cwd: repoDir, env, ...GIT })).stdout);
+  let contentRaw: string | null = null;
+  if (cf.status !== "D") {
+    try {
+      contentRaw = staged
+        ? (await exec("git", ["show", `:${path}`], { cwd: repoDir, ...GIT })).stdout
+        : await readFile(repoAbsPath(repoDir, path), "utf8");
+    } catch { contentRaw = null; }
+  }
+  return {
+    path, status: cf.status, binary: false,
+    truncated: diffRaw.length > MAX || (contentRaw?.length ?? 0) > MAX,
+    diff: diffRaw.slice(0, MAX),
+    content: contentRaw === null ? null : contentRaw.slice(0, MAX),
+  };
 }

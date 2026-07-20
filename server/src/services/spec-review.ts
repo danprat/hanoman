@@ -27,7 +27,7 @@ export const worktreeDir = (repoDir: string, specId: string): string =>
 
 // `git add -A -N` (intent-to-add) di salinan index sementara: file untracked masuk hitungan
 // diff TANPA menghash isi ke object database, dan index worktree hidup tak tersentuh (SPEC-144).
-async function withTempIndex<T>(wt: string, fn: (env: NodeJS.ProcessEnv) => Promise<T>): Promise<T> {
+export async function withTempIndex<T>(wt: string, fn: (env: NodeJS.ProcessEnv) => Promise<T>): Promise<T> {
   const idx = (await exec("git", ["rev-parse", "--git-path", "index"], { cwd: wt, ...GIT })).stdout.trim();
   const dir = await mkdtemp(join(tmpdir(), "hanoman-idx-"));
   const tmp = join(dir, "index");
@@ -82,7 +82,7 @@ async function allFiles(wt: string): Promise<string[]> {
 }
 
 // revs = [base] (base vs working-tree lewat temp index) ATAU [base, head] (dua commit).
-async function changedFiles(cwd: string, revs: string[], env?: NodeJS.ProcessEnv): Promise<ChangedFile[]> {
+export async function changedFiles(cwd: string, revs: string[], env?: NodeJS.ProcessEnv): Promise<ChangedFile[]> {
   const opts = { cwd, ...(env ? { env } : {}), ...GIT };
   const [num, name] = await Promise.all([
     exec("git", ["diff", "--numstat", "-z", "--no-renames", ...revs], opts),
