@@ -45,7 +45,7 @@ describe("ReviewScreen collapse & tree (SPEC-177)", () => {
       changed: [{ path: "src/deep/a.ts", add: 3, del: 1, status: "M", binary: false }],
     });
     render(<ReviewScreen specId="SPEC-177" title="X" onBack={() => {}} />);
-    fireEvent.click(await screen.findByLabelText("Tree changed"));
+    fireEvent.click(await screen.findByLabelText("Tree Changed"));
     // Rantai folder induk tampil + file changed di bawahnya (auto-expand).
     await waitFor(() => expect(screen.getByText("deep/")).toBeInTheDocument());
     expect(screen.getByText("a.ts")).toBeInTheDocument();

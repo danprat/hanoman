@@ -68,3 +68,55 @@ export function TreeRow({ node, selected, onSelect, depth = 0, meta, defaultOpen
     </div>
   );
 }
+
+// SPEC-234 · satu baris file changed (status + path + +add/−del) — list view Changed/Staged.
+export function ChangedRow({ cf, selected, onSelect }:
+  { cf: ChangedFile; selected: string; onSelect: (p: string) => void }) {
+  const on = cf.path === selected;
+  return (
+    <button onClick={() => onSelect(cf.path)} style={{
+      display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "5px 10px",
+      border: "none", cursor: "pointer", textAlign: "left",
+      background: on ? "var(--brass-100)" : "transparent",
+    }}>
+      <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: ST_COLOR[cf.status] }}>{cf.status}</span>
+      <span style={{ flex: 1, minWidth: 0, fontFamily: "var(--font-mono)", fontSize: 12,
+        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        color: on ? "var(--brass-700)" : "var(--text-body)" }}>{cf.path}</span>
+      {!cf.binary && <span style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>
+        <span style={{ color: "var(--leaf-600)" }}>+{cf.add}</span>{" "}
+        <span style={{ color: "var(--clay-500)" }}>−{cf.del}</span>
+      </span>}
+    </button>
+  );
+}
+
+// SPEC-234 · section changed files dgn toggle List | Tree — dipakai ReviewScreen (Changed) &
+// IdeScreen (Staged + Changed). Tree = buildFileTree + TreeRow (meta+defaultOpen); list = ChangedRow.
+export function ChangedSection({ label, changed, selected, onSelect, view, onView, emptyText = "Tak ada file berubah." }:
+  { label: string; changed: ChangedFile[]; selected: string; onSelect: (p: string) => void;
+    view: "list" | "tree"; onView: (v: "list" | "tree") => void; emptyText?: string }) {
+  const tree = React.useMemo(() => buildFileTree(changed.map((c) => c.path)), [changed]);
+  const meta = React.useMemo(
+    () => Object.fromEntries(changed.map((c) => [c.path, c])) as Record<string, ChangedFile>, [changed]);
+  return (
+    <>
+      <div className="hn-eyebrow" style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
+        <span style={{ flex: 1 }}>{label} · {changed.length}</span>
+        {changed.length > 0 && (["list", "tree"] as const).map((v) => (
+          <button key={v} aria-label={`${v === "list" ? "List" : "Tree"} ${label}`} onClick={() => onView(v)}
+            style={{ display: "flex", padding: 3, border: "none", cursor: "pointer", borderRadius: 4,
+              background: view === v ? "var(--brass-100)" : "transparent" }}>
+            <Icon name={v === "list" ? "list" : "folder-tree"} size={14}
+              color={view === v ? "var(--brass-700)" : "var(--text-subtle)"} />
+          </button>
+        ))}
+      </div>
+      {changed.length === 0
+        ? <div style={{ padding: "4px 10px", fontSize: 12, color: "var(--text-subtle)" }}>{emptyText}</div>
+        : view === "tree"
+        ? tree.map((n) => <TreeRow key={n.path} node={n} selected={selected} onSelect={onSelect} meta={meta} defaultOpen />)
+        : changed.map((c) => <ChangedRow key={c.path} cf={c} selected={selected} onSelect={onSelect} />)}
+    </>
+  );
+}

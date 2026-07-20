@@ -2,26 +2,9 @@
    sidebar CHANGED (SCM) + FILES (tree), viewer Diff|Source. Read-only. */
 import React from "react";
 import { Card, Badge, Button, Icon, StateBlock } from "../ds";
-import { api, type SpecReview, type ReviewFile, type ChangedFile } from "../api/client";
-import { buildFileTree, TreeRow, ST_COLOR } from "./file-tree";
-
-function DiffView({ diff }: { diff: string }) {
-  if (!diff) return <StateBlock kind="empty" icon="check" title="Tidak ada perubahan pada file ini"
-    hint="File ini bagian dari project tapi tak diubah backlog ini." />;
-  return (
-    <pre style={{ margin: 0, fontFamily: "var(--font-mono)", fontSize: 12.5, lineHeight: 1.6 }}>
-      {diff.split("\n").map((line, i) => {
-        const plus = line.startsWith("+") && !line.startsWith("+++");
-        const minus = line.startsWith("-") && !line.startsWith("---");
-        const hunk = line.startsWith("@@");
-        const color = plus ? "var(--leaf-600)" : minus ? "var(--clay-600)" : hunk ? "var(--brass-700)" : "var(--text-body)";
-        const bg = plus ? "color-mix(in srgb, var(--leaf-500) 10%, transparent)"
-          : minus ? "color-mix(in srgb, var(--clay-500) 10%, transparent)" : "transparent";
-        return <div key={i} style={{ color, background: bg, padding: "0 12px", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{line || " "}</div>;
-      })}
-    </pre>
-  );
-}
+import { api, type SpecReview, type ReviewFile } from "../api/client";
+import { buildFileTree, TreeRow, ChangedSection } from "./file-tree";
+import { DiffView } from "./diff-view";
 
 // SPEC-171/230 · review worktree. kind="spec" (backlog item) atau "session" (sesi project-level
 // PRD, tanpa Spec) memilih endpoint yang dipakai — bentuk data & UI identik.
@@ -66,9 +49,6 @@ export function ReviewScreen({ specId, title, onBack, kind = "spec" }:
 
   const tree = React.useMemo(() => buildFileTree(review?.files ?? []), [review]);
   const changed = review?.changed ?? [];
-  const changedTree = React.useMemo(() => buildFileTree(changed.map((c) => c.path)), [review]);
-  const changedMeta = React.useMemo(
-    () => Object.fromEntries(changed.map((c) => [c.path, c])) as Record<string, ChangedFile>, [review]);
 
   if (state === "loading") return <StateBlock kind="loading" title="Memuat review…" hint={specId} />;
   if (state === "error") return <StateBlock kind="error" title="Gagal memuat review" hint={specId} action={() => setTries((n) => n + 1)} />;
@@ -83,40 +63,8 @@ export function ReviewScreen({ specId, title, onBack, kind = "spec" }:
           <Button size="sm" variant="ghost" leftIcon="rotate-ccw" onClick={() => setTries((n) => n + 1)}>Muat ulang</Button>
         </div>
         <div style={{ maxHeight: 640, overflow: "auto", padding: "6px 4px" }}>
-          <div className="hn-eyebrow" style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
-            <span style={{ flex: 1 }}>Changed · {changed.length}</span>
-            {changed.length > 0 && (["list", "tree"] as const).map((v) => (
-              <button key={v} aria-label={v === "list" ? "List changed" : "Tree changed"} onClick={() => setChView(v)}
-                style={{ display: "flex", padding: 3, border: "none", cursor: "pointer", borderRadius: 4,
-                  background: chView === v ? "var(--brass-100)" : "transparent" }}>
-                <Icon name={v === "list" ? "list" : "folder-tree"} size={14}
-                  color={chView === v ? "var(--brass-700)" : "var(--text-subtle)"} />
-              </button>
-            ))}
-          </div>
-          {changed.length === 0
-            ? <div style={{ padding: "4px 10px", fontSize: 12, color: "var(--text-subtle)" }}>Tak ada file berubah.</div>
-            : chView === "tree"
-            ? changedTree.map((n) => <TreeRow key={n.path} node={n} selected={selected} onSelect={setSelected} meta={changedMeta} defaultOpen />)
-            : changed.map((c: ChangedFile) => {
-              const on = c.path === selected;
-              return (
-                <button key={c.path} onClick={() => setSelected(c.path)} style={{
-                  display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "5px 10px",
-                  border: "none", cursor: "pointer", textAlign: "left",
-                  background: on ? "var(--brass-100)" : "transparent",
-                }}>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: ST_COLOR[c.status] }}>{c.status}</span>
-                  <span style={{ flex: 1, minWidth: 0, fontFamily: "var(--font-mono)", fontSize: 12,
-                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                    color: on ? "var(--brass-700)" : "var(--text-body)" }}>{c.path}</span>
-                  {!c.binary && <span style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>
-                    <span style={{ color: "var(--leaf-600)" }}>+{c.add}</span>{" "}
-                    <span style={{ color: "var(--clay-500)" }}>−{c.del}</span>
-                  </span>}
-                </button>
-              );
-            })}
+          <ChangedSection label="Changed" changed={changed} selected={selected} onSelect={setSelected}
+            view={chView} onView={setChView} />
           <div className="hn-eyebrow" style={{ padding: "6px 8px", marginTop: 8, borderTop: "1px solid var(--border-hair)" }}>Files</div>
           {tree.map((n) => <TreeRow key={n.path} node={n} selected={selected} onSelect={setSelected} />)}
         </div>
