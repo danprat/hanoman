@@ -9,6 +9,7 @@ import type { ProjectVM } from "./types";
 import { GitGraph } from "./GitGraph";
 import { buildFileTree, TreeRow, ChangedSection } from "./file-tree";
 import { DiffView } from "./diff-view";
+import { MarkdownView } from "../ds/markdown";
 
 const langOf = (p: string): string => {
   const ext = p.slice(p.lastIndexOf(".") + 1);
@@ -16,6 +17,9 @@ const langOf = (p: string): string => {
     json: "json", md: "markdown", css: "css", html: "xml", sh: "bash", py: "python", yml: "yaml", yaml: "yaml", sql: "sql" };
   return map[ext] ?? "";
 };
+
+// SPEC-240 · berkas markdown mendapat toggle Preview | Source (default preview).
+const isMarkdown = (p: string): boolean => /\.md$/i.test(p);
 
 // Dialog "Paksa": muncul saat mutasi git balas 409. Mengulang op dengan force:true.
 function ForceDialog({ msg, onForce, onCancel }: { msg: string; onForce: () => void; onCancel: () => void }) {
@@ -84,6 +88,7 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
   const [file, setFile] = React.useState<RepoFile | null>(null);
   const [mode, setMode] = React.useState<"view" | "edit">("view");
   const [draft, setDraft] = React.useState("");
+  const [mdView, setMdView] = React.useState<"preview" | "source">("preview"); // SPEC-240 · .md preview vs source
   const [pendingForce, setPendingForce] = React.useState<{ op: GitOp; msg: string } | null>(null);
   // SPEC-234 · status working tree (staged/unstaged) + diff file terpilih.
   const [status, setStatus] = React.useState<WorkingStatus | null>(null);
@@ -112,7 +117,7 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
     let alive = true;
     if (selKind === "file") {
       setDiff(null);
-      api.ideFile(projectId, selected, viewRef).then((f) => { if (alive) { setFile(f); setMode("view"); } })
+      api.ideFile(projectId, selected, viewRef).then((f) => { if (alive) { setFile(f); setMode("view"); setMdView("preview"); } })
         .catch(() => { if (alive) setFile(null); });
     } else {
       setFile(null); setDiffTab("diff");
@@ -257,8 +262,23 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
                     ))}
                   </div>
                 : mode === "view"
-                  ? <Button size="sm" variant="secondary" leftIcon="pencil" onClick={startEdit}
-                      disabled={!file || file.binary}>Edit</Button>
+                  ? <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {/* SPEC-240 · toggle Preview | Source hanya untuk .md */}
+                      {file && !file.binary && isMarkdown(selected) && (
+                        <div style={{ display: "flex", gap: 2, background: "var(--bone-100)", borderRadius: "var(--radius-pill)", padding: 2 }}>
+                          {(["preview", "source"] as const).map((t) => (
+                            <button key={t} onClick={() => setMdView(t)} style={{
+                              padding: "4px 12px", border: "none", cursor: "pointer", borderRadius: "var(--radius-pill)",
+                              fontSize: 12,
+                              background: mdView === t ? "var(--surface-card)" : "transparent",
+                              color: mdView === t ? "var(--text-strong)" : "var(--text-muted)", fontWeight: mdView === t ? 600 : 400,
+                            }}>{t === "preview" ? "Preview" : "Source"}</button>
+                          ))}
+                        </div>
+                      )}
+                      <Button size="sm" variant="secondary" leftIcon="pencil" onClick={startEdit}
+                        disabled={!file || file.binary}>Edit</Button>
+                    </div>
                   : <div style={{ display: "flex", gap: 8 }}>
                       <Button size="sm" variant="ghost" onClick={() => setMode("view")}>Batal</Button>
                       <Button size="sm" leftIcon="check" onClick={save}>Simpan</Button>
@@ -282,10 +302,12 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
                           width: "100%", minHeight: 560, boxSizing: "border-box", resize: "vertical", border: "none",
                           outline: "none", padding: "16px 18px", fontFamily: "var(--font-mono)", fontSize: 12.5,
                           lineHeight: 1.7, color: "var(--text-body)", background: "var(--surface-card)" }} />
-                      : <pre style={{ margin: 0, padding: "16px 18px", overflow: "auto" }}>
-                          <code className="hljs" style={{ fontFamily: "var(--font-mono)", fontSize: 12.5, lineHeight: 1.7 }}
-                            dangerouslySetInnerHTML={{ __html: highlighted }} />
-                        </pre>)}
+                      : isMarkdown(selected) && mdView === "preview"
+                        ? <div style={{ padding: "16px 20px" }}><MarkdownView text={file.content ?? ""} name={selected} /></div>
+                        : <pre style={{ margin: 0, padding: "16px 18px", overflow: "auto" }}>
+                            <code className="hljs" style={{ fontFamily: "var(--font-mono)", fontSize: 12.5, lineHeight: 1.7 }}
+                              dangerouslySetInnerHTML={{ __html: highlighted }} />
+                          </pre>)}
             </div>
           </Card>
         </div>

@@ -29,7 +29,7 @@
 - Consumes: `MarkdownView` dari `../ds/markdown` (`{ text: string; name: string } => JSX`); `api.ideFile(id, path, ref) => Promise<RepoFile>` di mana `RepoFile = { path; content: string|null; binary; truncated }`.
 - Produces: perilaku UI baru (tak ada API baru). State internal `mdView: "preview" | "source"`, helper `isMarkdown(path: string): boolean`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan blok berikut ke akhir `src/test/ide-screen.test.tsx` (import `MarkdownView` tak diperlukan — kita assert lewat DOM):
 
@@ -96,12 +96,12 @@ describe("IdeScreen preview .md (SPEC-240)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan gagal**
+- [x] **Step 2: Jalankan test, pastikan gagal**
 
 Run: `cd src && env -u NODE_ENV -u DATABASE_URL pnpm vitest run test/ide-screen.test.tsx`
 Expected: FAIL — keempat test baru gagal (`.hn-md` tak ada karena `.md` masih dirender sebagai raw `<code class="hljs">`; tombol `Preview`/`Source` belum ada).
 
-- [ ] **Step 3: Implementasi — helper + state + reset**
+- [x] **Step 3: Implementasi — helper + state + reset**
 
 Di `src/src/screens/IdeScreen.tsx`:
 
@@ -134,7 +134,7 @@ menjadi:
       api.ideFile(projectId, selected, viewRef).then((f) => { if (alive) { setFile(f); setMode("view"); setMdView("preview"); } })
 ```
 
-- [ ] **Step 4: Implementasi — toggle di header + render body**
+- [x] **Step 4: Implementasi — toggle di header + render body**
 
 Di `src/src/screens/IdeScreen.tsx`, pane kanan cabang `!inDiff`.
 
@@ -185,21 +185,21 @@ menjadi:
                           </pre>)}
 ```
 
-- [ ] **Step 5: Jalankan test, pastikan lulus**
+- [x] **Step 5: Jalankan test, pastikan lulus**
 
 Run: `cd src && env -u NODE_ENV -u DATABASE_URL pnpm vitest run test/ide-screen.test.tsx`
 Expected: PASS — semua test di file (lama + 4 baru) hijau.
 
-- [ ] **Step 6: Typecheck**
+- [x] **Step 6: Typecheck**
 
 Run: `cd src && pnpm tsc --noEmit` (atau skrip typecheck project bila ada)
 Expected: tanpa error.
 
-- [ ] **Step 7: Perbarui docs SoT**
+- [x] **Step 7: Perbarui docs SoT**
 
 Di `internal/docs/frontend/frontend-implementation.md`, section **IDE Visual (SPEC-182 · ADR-0034)**, pada bullet Explorer yang menjelaskan pane kanan (`api.ideFile … Preview = <pre><code class="hljs"> …`), tambahkan catatan SPEC-240: untuk `.md`, pane kanan **default preview terender** (`MarkdownView`/`.hn-md`, renderer bersama Docs·SoT) dengan toggle **Preview | Source** di samping Edit; file non-`.md` tetap highlighted source. Index `internal/docs/README.md` sudah men-link frontend-implementation (tak perlu link baru).
 
-- [ ] **Step 8: Verifikasi nyata di local**
+- [x] **Step 8: Verifikasi nyata di local**
 
 Boot server + frontend, buka **IDE → Explorer**, pilih project, klik `README.md`:
 - default menampilkan preview terender (heading/list ter-styling `.hn-md`);
@@ -207,7 +207,7 @@ Boot server + frontend, buka **IDE → Explorer**, pilih project, klik `README.m
 - klik file `.ts` → tak ada toggle, source highlighted;
 - **Edit** `.md` → ubah → **Simpan** → kembali ke preview terender.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/src/screens/IdeScreen.tsx src/test/ide-screen.test.tsx internal/docs/frontend/frontend-implementation.md
