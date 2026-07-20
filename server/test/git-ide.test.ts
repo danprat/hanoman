@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { makeTempRepo, makeRepoWithBranches, makeRepoWithSpecCommits, makeRepoWithSpecBranch } from "./factory";
-import { listRepoTree, readRepoFile, repoAbsPath, listGraph, commitDetail, writeRepoFile, runGitOp, validateGitOp, touchesTree, repoStatus, listStashes } from "../src/services/git-ide";
+import { listRepoTree, readRepoFile, repoAbsPath, listGraph, commitDetail, writeRepoFile, runGitOp, validateGitOp, touchesTree, repoStatus, listStashes, commitFileDiff } from "../src/services/git-ide";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
@@ -388,5 +388,29 @@ describe("git-ide branch ops (SPEC-233)", () => {
     expect(validateGitOp({ op: "rename-branch", from: "a", to: "b" })).toBeNull();
     expect(validateGitOp({ op: "push-branch", name: "x" })).toBeNull();
     expect(validateGitOp({ op: "fetch" })).toBeNull();
+  });
+});
+
+describe("git-ide commit detail diff + signature (SPEC-233)", () => {
+  it("commitFileDiff mengembalikan diff satu file vs parent", async () => {
+    const dir = makeRepoWithSpecCommits({ "a.txt": "satu\n" }, [{ msg: "ubah", changes: { "a.txt": "dua\n" } }]);
+    const head = (await listGraph(dir)).commits[0]!.sha;
+    const f = await commitFileDiff(dir, head, "a.txt");
+    expect(f!.diff).toMatch(/-satu/); expect(f!.diff).toMatch(/\+dua/);
+    expect(f!.status).toBe("M");
+  });
+  it("commitFileDiff sha bukan hex → null; path keluar repo → throw", async () => {
+    const dir = makeRepoWithSpecCommits({ "a": "1" }, []);
+    expect(await commitFileDiff(dir, "../etc", "a")).toBeNull();
+    const head = (await listGraph(dir)).commits[0]!.sha;
+    await expect(async () => { await commitFileDiff(dir, head, "../evil"); }).rejects.toThrow();
+  });
+  it("commitDetail memuat signed(false unsigned) + committer", async () => {
+    const dir = makeRepoWithSpecCommits({ "a": "1" }, []);
+    const head = (await listGraph(dir)).commits[0]!.sha;
+    const d = await commitDetail(dir, head);
+    expect(d!.signed).toBe(false);
+    expect(typeof d!.committer).toBe("string");
+    expect(d!.subject).toBe("base");
   });
 });

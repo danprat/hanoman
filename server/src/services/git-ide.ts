@@ -3,7 +3,7 @@ import { promisify } from "node:util";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve, sep, dirname } from "node:path";
-import type { ChangedFile } from "./spec-review";
+import type { ChangedFile, ReviewFile } from "./spec-review";
 
 const exec = promisify(execFile);
 const GIT = { maxBuffer: 1 << 24 } as const;
@@ -136,6 +136,8 @@ export async function listGraph(repoDir: string | null, limit = 200): Promise<{ 
 
 export type CommitDetail = {
   sha: string; parents: string[]; author: string; at: string; subject: string; body: string; changed: ChangedFile[];
+  // SPEC-233 · signature GPG/X.509 (bukan "N") + committer terpisah dari author.
+  signed: boolean; committer: string; committedAt: string;
 };
 
 // ponytail: parse numstat+name-status cermin spec-review.changedFiles; ~12 baris, tak refactor
@@ -165,12 +167,35 @@ export async function commitDetail(repoDir: string | null, sha: string): Promise
   if (!repoDir) return null;
   if (!/^[0-9a-fA-F]{4,40}$/.test(sha)) return null; // gerbang: hanya sha hex
   try {
-    const fmt = ["%H", "%P", "%an", "%aI", "%s", "%b"].join(US);
+    // %G? = status signature (N = tak ditandatangani); %cn/%cI = committer + tanggalnya.
+    const fmt = ["%H", "%P", "%an", "%aI", "%s", "%G?", "%cn", "%cI", "%b"].join(US);
     const parts = (await exec("git", ["show", "-s", `--pretty=format:${fmt}`, sha], { cwd: repoDir, ...GIT })).stdout.split(US);
-    const [h, parents, author, at, subject] = parts;
+    const [h, parents, author, at, subject, gsig, committer, committedAt] = parts;
     return {
       sha: h!, parents: parents ? parents.split(" ") : [], author: author ?? "", at: at ?? "",
-      subject: subject ?? "", body: parts.slice(5).join(US), changed: await changedOf(repoDir, sha),
+      subject: subject ?? "", body: parts.slice(8).join(US), changed: await changedOf(repoDir, sha),
+      signed: !!gsig && gsig !== "N", committer: committer ?? "", committedAt: committedAt ?? "",
+    };
+  } catch { return null; }
+}
+
+// SPEC-233 · diff satu file di sebuah commit (vs parent) + isinya, untuk viewer detail commit.
+// Bentuk = ReviewFile (reuse DiffView). Path-guard cermin readRepoFile (throw → route 400).
+export async function commitFileDiff(repoDir: string | null, sha: string, rel: string): Promise<ReviewFile | null> {
+  if (!repoDir) return null;
+  if (!/^[0-9a-fA-F]{4,40}$/.test(sha)) return null;
+  repoAbsPath(repoDir, rel); // throws → route 400
+  try {
+    const [diffR, nameR] = await Promise.all([
+      exec("git", ["show", "--format=", "--no-renames", "--end-of-options", sha, "--", rel], { cwd: repoDir, ...GIT }),
+      exec("git", ["show", "--format=", "--name-status", "--no-renames", "--end-of-options", sha, "--", rel], { cwd: repoDir, ...GIT }),
+    ]);
+    const status = ((nameR.stdout.trim()[0] as "A" | "M" | "D") || "M");
+    const contentRaw = await exec("git", ["show", `${sha}:${rel}`], { cwd: repoDir, ...GIT }).then((r) => r.stdout).catch(() => null);
+    const binary = /Binary files/.test(diffR.stdout) || (contentRaw?.includes("\u0000") ?? false);
+    return {
+      path: rel, status, binary, truncated: (contentRaw?.length ?? 0) > MAX,
+      diff: diffR.stdout.slice(0, MAX), content: binary || contentRaw === null ? null : contentRaw.slice(0, MAX),
     };
   } catch { return null; }
 }

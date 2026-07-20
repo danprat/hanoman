@@ -6,7 +6,7 @@ import { listSessions, createSession } from "../services/pty";
 import { sessionModel } from "../services/settings";
 import { mergeIntoCurrent, rebaseOntoCurrent, pullIntoCurrent, dropCommit, type GraphMergeResult } from "../services/integrate";
 import {
-  listRepoTree, readRepoFile, writeRepoFile, listGraph, commitDetail, runGitOp, validateGitOp, touchesTree, repoStatus, listStashes, type GitOp,
+  listRepoTree, readRepoFile, writeRepoFile, listGraph, commitDetail, commitFileDiff, runGitOp, validateGitOp, touchesTree, repoStatus, listStashes, type GitOp,
 } from "../services/git-ide";
 
 // undefined = project tak ada (→404); null = ada tapi tanpa checkout lokal; string = repoDir.
@@ -74,6 +74,19 @@ export default async function (app: FastifyInstance) {
     if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
     const d = await commitDetail(repoDir, sha);
     return d === null ? reply.code(404).send({ error: "not found" }) : d;
+  });
+
+  // SPEC-233 · diff satu file di sebuah commit (vs parent), untuk viewer detail commit.
+  app.get("/projects/:id/commit/:sha/file", async (req, reply) => {
+    const { id, sha } = req.params as { id: string; sha: string };
+    const repoDir = await repoOf(id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    const { path } = req.query as { path?: string };
+    if (!path) return reply.code(400).send({ error: "path wajib" });
+    try {
+      const f = await commitFileDiff(repoDir, sha, path);
+      return f === null ? reply.code(404).send({ error: "not found" }) : f;
+    } catch (e) { return reply.code(400).send({ error: (e as Error).message }); }
   });
 
   // Mutasi git. Gerbang sesi aktif (persis DELETE /projects); force melewatinya + menambah -f/-D.

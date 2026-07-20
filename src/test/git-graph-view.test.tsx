@@ -12,7 +12,8 @@ beforeEach(() => {
   vi.restoreAllMocks();
   vi.spyOn(api, "ideGraph").mockResolvedValue({ commits, current: "main" });
   vi.spyOn(api, "ideCommit").mockResolvedValue({ sha: "aaaa111", parents: ["bbbb222"], author: "t", at: "",
-    subject: "kedua", body: "", changed: [{ path: "a.ts", add: 1, del: 0, status: "M", binary: false }] });
+    subject: "kedua", body: "", changed: [{ path: "a.ts", add: 1, del: 0, status: "M", binary: false }],
+    signed: false, committer: "t", committedAt: "" });
 });
 
 describe("GitGraph", () => {

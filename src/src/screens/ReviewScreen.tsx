@@ -4,24 +4,7 @@ import React from "react";
 import { Card, Badge, Button, Icon, StateBlock } from "../ds";
 import { api, type SpecReview, type ReviewFile, type ChangedFile } from "../api/client";
 import { buildFileTree, TreeRow, ST_COLOR } from "./file-tree";
-
-function DiffView({ diff }: { diff: string }) {
-  if (!diff) return <StateBlock kind="empty" icon="check" title="Tidak ada perubahan pada file ini"
-    hint="File ini bagian dari project tapi tak diubah backlog ini." />;
-  return (
-    <pre style={{ margin: 0, fontFamily: "var(--font-mono)", fontSize: 12.5, lineHeight: 1.6 }}>
-      {diff.split("\n").map((line, i) => {
-        const plus = line.startsWith("+") && !line.startsWith("+++");
-        const minus = line.startsWith("-") && !line.startsWith("---");
-        const hunk = line.startsWith("@@");
-        const color = plus ? "var(--leaf-600)" : minus ? "var(--clay-600)" : hunk ? "var(--brass-700)" : "var(--text-body)";
-        const bg = plus ? "color-mix(in srgb, var(--leaf-500) 10%, transparent)"
-          : minus ? "color-mix(in srgb, var(--clay-500) 10%, transparent)" : "transparent";
-        return <div key={i} style={{ color, background: bg, padding: "0 12px", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{line || " "}</div>;
-      })}
-    </pre>
-  );
-}
+import { DiffView } from "./diff-view";
 
 // SPEC-171/230 · review worktree. kind="spec" (backlog item) atau "session" (sesi project-level
 // PRD, tanpa Spec) memilih endpoint yang dipakai — bentuk data & UI identik.
@@ -143,7 +126,7 @@ export function ReviewScreen({ specId, title, onBack, kind = "spec" }:
           {!selected ? <StateBlock kind="empty" icon="file-text" title="Pilih file" hint="Pilih file dari changed atau tree." />
             : !file ? <StateBlock kind="loading" title="Memuat file…" hint={selected} />
             : file.binary ? <StateBlock kind="empty" icon="file" title="Berkas biner" hint="Tak dapat di-review dari dashboard." />
-            : tab === "diff" ? <div style={{ padding: "10px 0" }}><DiffView diff={file.diff ?? ""} />
+            : tab === "diff" ? <div style={{ padding: "10px 0" }}><DiffView diff={file.diff ?? ""} emptyHint="File ini bagian dari project tapi tak diubah backlog ini." />
                 {file.truncated && <div style={{ padding: "8px 12px", fontSize: 11, color: "var(--text-subtle)" }}>… dipotong pada 256 KB.</div>}</div>
             : file.content === null ? <StateBlock kind="empty" icon="trash-2" title="File dihapus" hint="Tak ada isi untuk ditampilkan." />
             : <pre style={{ margin: 0, padding: "12px 16px", fontFamily: "var(--font-mono)", fontSize: 12.5,

@@ -198,6 +198,17 @@ describe("ide routes", () => {
     expect(r.statusCode).toBe(200);
     expect(r.json().status).toBe("clean");
   });
+  it("GET /commit/:sha/file diff satu file; path kosong → 400 (SPEC-233)", async () => {
+    const dir = makeRepoWithBranches();
+    const g = (...a: string[]) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });
+    writeFileSync(`${dir}/README.md`, "berubah"); g("add", "-A"); g("commit", "-qm", "ubah");
+    await makeProject({ id: "cfrepo", repoDir: dir });
+    const sha = g("rev-parse", "HEAD").stdout.trim();
+    expect((await app.inject({ url: `/api/projects/cfrepo/commit/${sha}/file` })).statusCode).toBe(400);
+    const r = await app.inject({ url: `/api/projects/cfrepo/commit/${sha}/file?path=README.md` });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().diff).toMatch(/berubah/);
+  });
   it("POST /git/drop clean → 200 {status:clean}; sha kosong → 400 (SPEC-233)", async () => {
     const dir = makeRepoWithBranches();
     const g = (...a: string[]) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });

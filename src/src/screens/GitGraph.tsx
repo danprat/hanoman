@@ -1,9 +1,19 @@
 /* GitGraph — DAG commit read + aksi (SPEC-182). Lane dihitung computeLanes (nol dep).
    Baris = grid [svg lane | subject | refs | meta]; klik = detail; klik-kanan = context-menu. */
 import React from "react";
-import { Card, Button, StateBlock, Badge } from "../ds";
-import { api, type GraphCommit, type CommitDetail, type GitOp, type RepoStatus, type Stash } from "../api/client";
+import { Card, Button, StateBlock, Badge, Icon } from "../ds";
+import { api, type GraphCommit, type CommitDetail, type GitOp, type RepoStatus, type Stash, type ReviewFile } from "../api/client";
 import { computeLanes, rowEdges, type GraphRow, type Edge } from "./git-graph";
+import { buildFileTree, TreeRow } from "./file-tree";
+import { DiffView } from "./diff-view";
+
+// SPEC-233 · linkify URL http(s) di body commit → anchor. (emoji/markdown/issue → PR12)
+function linkifyBody(text: string): React.ReactNode[] {
+  return text.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
+    /^https?:\/\//.test(part)
+      ? <a key={i} href={part} target="_blank" rel="noreferrer" style={{ color: "var(--brass-700)" }}>{part}</a>
+      : <React.Fragment key={i}>{part}</React.Fragment>);
+}
 
 const LANE_W = 14, ROW_H = 30, DOT = 4;
 const COLORS = ["#a9791c", "#3b7a57", "#8a5a44", "#4a6fa5", "#7d5ba6", "#b0503a"]; // brass-leaf-clay-ink
@@ -155,6 +165,13 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
   const [stashMenu, setStashMenu] = React.useState<{ x: number; y: number; s: Stash } | null>(null);
   const [branchMenu, setBranchMenu] = React.useState<{ x: number; y: number; ref: string } | null>(null);
   const allRefs = React.useMemo(() => rows.flatMap((r) => r.commit.refs), [rows]);
+  // SPEC-233 · detail commit: toggle tree/flat + diff per-file (modal, reuse DiffView).
+  const [detailView, setDetailView] = React.useState<"list" | "tree">("list");
+  const [fileDiff, setFileDiff] = React.useState<{ path: string; sha: string; data: ReviewFile | null; tab: "diff" | "source" } | null>(null);
+  const openFileDiff = React.useCallback((path: string, sha: string) => {
+    setFileDiff({ path, sha, data: null, tab: "diff" });
+    api.ideCommitFile(projectId, sha, path).then((d) => setFileDiff((s) => (s && s.path === path ? { ...s, data: d } : s))).catch(() => {});
+  }, [projectId]);
 
   const load = React.useCallback(() => {
     setState("loading");
@@ -270,18 +287,43 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
         <Card padding={16}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <span className="hn-eyebrow">commit {detail.sha.slice(0, 8)}</span>
-            <Button size="sm" variant="ghost" leftIcon="x" onClick={() => setDetail(null)}>Tutup</Button>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {detail.signed && <Badge tone="ok" size="sm">signed</Badge>}
+              <Button size="sm" variant="ghost" leftIcon="copy" onClick={() => void navigator.clipboard?.writeText(detail.sha)}>Hash</Button>
+              <Button size="sm" variant="ghost" leftIcon="x" onClick={() => setDetail(null)}>Tutup</Button>
+            </div>
           </div>
           <div style={{ fontSize: 13, color: "var(--text-strong)", fontWeight: 600, marginBottom: 4 }}>{detail.subject}</div>
-          {detail.body && <pre style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, whiteSpace: "pre-wrap", color: "var(--text-muted)", marginBottom: 10 }}>{detail.body}</pre>}
-          <div className="hn-eyebrow" style={{ marginBottom: 6 }}>{detail.changed.length} file berubah</div>
-          {detail.changed.map((f) => (
-            <button key={f.path} onClick={() => onOpenFile(f.path, detail.sha)} style={{ display: "flex", alignItems: "center", gap: 8,
-              width: "100%", textAlign: "left", padding: "4px 6px", border: "none", background: "transparent", cursor: "pointer" }}>
-              <Badge tone={f.status === "A" ? "ok" : f.status === "D" ? "err" : "warn"} size="sm">{f.status}</Badge>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--text-body)" }}>{f.path}</span>
-            </button>
-          ))}
+          <div style={{ fontSize: 11, color: "var(--text-subtle)", marginBottom: 6 }}>
+            {detail.author}{detail.committer && detail.committer !== detail.author ? ` · committed by ${detail.committer}` : ""}
+          </div>
+          {detail.body && <pre style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, whiteSpace: "pre-wrap", color: "var(--text-muted)", marginBottom: 10 }}>{linkifyBody(detail.body)}</pre>}
+          <div className="hn-eyebrow" style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+            <span style={{ flex: 1 }}>{detail.changed.length} file berubah</span>
+            {(["list", "tree"] as const).map((v) => (
+              <button key={v} aria-label={v} onClick={() => setDetailView(v)} style={{ display: "flex", padding: 3, border: "none",
+                cursor: "pointer", borderRadius: 4, background: detailView === v ? "var(--brass-100)" : "transparent" }}>
+                <Icon name={v === "list" ? "list" : "folder-tree"} size={13} color={detailView === v ? "var(--brass-700)" : "var(--text-subtle)"} />
+              </button>
+            ))}
+          </div>
+          {detailView === "tree"
+            ? buildFileTree(detail.changed.map((f) => f.path)).map((nd) =>
+                <TreeRow key={nd.path} node={nd} selected={fileDiff?.path ?? ""} onSelect={(p) => openFileDiff(p, detail.sha)} defaultOpen />)
+            : detail.changed.map((f) => (
+              <div key={f.path} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 6px" }}>
+                <Badge tone={f.status === "A" ? "ok" : f.status === "D" ? "err" : "warn"} size="sm">{f.status}</Badge>
+                <button onClick={() => openFileDiff(f.path, detail.sha)} title="lihat diff" style={{ flex: 1, minWidth: 0, textAlign: "left",
+                  border: "none", background: "transparent", cursor: "pointer", fontFamily: "var(--font-mono)", fontSize: 11.5,
+                  color: "var(--text-body)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.path}</button>
+                <Icon name="git-commit" size={12} color="var(--text-subtle)" title="view at revision"
+                  onClick={() => onOpenFile(f.path, detail.sha)} style={{ cursor: "pointer" }} />
+                <Icon name="external-link" size={12} color="var(--text-subtle)" title="open (working tree)"
+                  onClick={() => onOpenFile(f.path, "")} style={{ cursor: "pointer" }} />
+                <Icon name="copy" size={12} color="var(--text-subtle)" title="copy path"
+                  onClick={() => void navigator.clipboard?.writeText(f.path)} style={{ cursor: "pointer" }} />
+              </div>
+            ))}
         </Card>
       )}
 
@@ -308,6 +350,36 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
       ]} />}
       {branchMenu && <Menu x={branchMenu.x} y={branchMenu.y} onClose={() => setBranchMenu(null)}
         items={branchMenuItems(branchMenu.ref, current, allRefs, act, mergeAct, rebaseAct, pullAct)} />}
+
+      {/* SPEC-233 · modal diff satu file di commit (reuse DiffView), tab Diff|Source */}
+      {fileDiff && (
+        <div onClick={() => setFileDiff(null)} style={{ position: "fixed", inset: 0, zIndex: 160, background: "rgba(0,0,0,.35)",
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <Card padding={0} onClick={(e: React.MouseEvent) => e.stopPropagation()} style={{ width: "min(900px, 92vw)", maxHeight: "86vh", display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderBottom: "1px solid var(--border-hair)" }}>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 12.5, color: "var(--text-strong)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {fileDiff.path} <span style={{ color: "var(--text-subtle)" }}>@ {fileDiff.sha.slice(0, 8)}</span>
+              </span>
+              <div style={{ display: "flex", gap: 2, background: "var(--bone-100)", borderRadius: "var(--radius-pill)", padding: 2 }}>
+                {(["diff", "source"] as const).map((t) => (
+                  <button key={t} onClick={() => setFileDiff((s) => (s ? { ...s, tab: t } : s))} style={{ padding: "4px 12px", border: "none",
+                    cursor: "pointer", borderRadius: "var(--radius-pill)", fontSize: 12, textTransform: "capitalize",
+                    background: fileDiff.tab === t ? "var(--surface-card)" : "transparent",
+                    color: fileDiff.tab === t ? "var(--text-strong)" : "var(--text-muted)", fontWeight: fileDiff.tab === t ? 600 : 400 }}>{t}</button>
+                ))}
+              </div>
+              <Button size="sm" variant="ghost" leftIcon="x" onClick={() => setFileDiff(null)}>Tutup</Button>
+            </div>
+            <div style={{ overflow: "auto", padding: "10px 0" }}>
+              {!fileDiff.data ? <StateBlock kind="loading" title="Memuat diff…" hint={fileDiff.path} />
+                : fileDiff.data.binary ? <StateBlock kind="empty" icon="file" title="Berkas biner" />
+                : fileDiff.tab === "diff" ? <DiffView diff={fileDiff.data.diff ?? ""} emptyHint="File tak berubah di commit ini." />
+                : <pre style={{ margin: 0, padding: "0 16px", fontFamily: "var(--font-mono)", fontSize: 12.5, lineHeight: 1.6,
+                    whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-body)" }}>{fileDiff.data.content ?? "(kosong / dihapus)"}</pre>}
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

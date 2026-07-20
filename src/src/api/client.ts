@@ -23,7 +23,7 @@ export type ReviewFile = {
 // SPEC-182 · IDE Visual
 export type RepoFile = { path: string; content: string | null; binary: boolean; truncated: boolean };
 export type GraphCommit = { sha: string; parents: string[]; author: string; at: string; subject: string; refs: string[]; tags: string[] };
-export type CommitDetail = { sha: string; parents: string[]; author: string; at: string; subject: string; body: string; changed: ChangedFile[] };
+export type CommitDetail = { sha: string; parents: string[]; author: string; at: string; subject: string; body: string; changed: ChangedFile[]; signed: boolean; committer: string; committedAt: string };
 export type GitOp =
   | { op: "checkout"; ref: string; force?: boolean }
   | { op: "branch"; name: string; at?: string; checkout?: boolean }
@@ -133,6 +133,7 @@ export const api = {
   ideStatus: (id: string) => j<RepoStatus>(paths.ideStatus(id)),
   ideStashes: (id: string) => j<Stash[]>(paths.ideStashes(id)), // SPEC-233 · daftar stash
   ideCommit: (id: string, sha: string) => j<CommitDetail>(paths.ideCommit(id, sha)),
+  ideCommitFile: (id: string, sha: string, path: string) => j<ReviewFile>(paths.ideCommitFile(id, sha, path)), // SPEC-233
   ideGit: (id: string, op: GitOp) => j<GitOpResult>(paths.ideGit(id), { method: "POST", ...body(op) }),
   // SPEC-229 · merge via git graph: deterministik di worktree isolasi; conflict → sesi claude.
   ideGitMerge: (id: string, b: { source: string; ff?: "no-ff" | "ff-only"; deleteBranch?: string }) =>
