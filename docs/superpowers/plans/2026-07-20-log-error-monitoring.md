@@ -471,15 +471,15 @@ export function fingerprint(type: string, message: string, stack?: string): stri
 - Consumes: `verifyKey` (Task 2), `fingerprint` (Task 3), models (Task 1).
 - Produces: `ingestError(projectId, payload): Promise<{ groupId, new }>`; `rateLimitOk(projectId): boolean` (in-memory); `recordNewErrorGroup(groupId, projectId, projectName, type, message): Promise<void>`. Route: `POST /api/ingest/:slug`, `OPTIONS /api/ingest/:slug`.
 
-- [ ] **Step 1: Test service** `error-ingest.test.ts` (DB-backed, buat Project fixture): 
+- [x] **Step 1: Test service** `error-ingest.test.ts` (DB-backed, buat Project fixture): 
   - kejadian pertama → grup baru (`new:true`, count 1); kejadian identik kedua → grup sama (`new:false`, count 2, `lastSeenAt` maju);
   - environment production + grup baru → 1 Notification `key="error:<groupId>"`; kejadian kedua tak menambah notif; environment non-production → tak ada notif;
   - retensi: setelah > cap (mis. set cap kecil via arg/const) kejadian, `errorEvent.count` untuk grup ≤ cap;
   - `message`/`stack` di-truncate ke caps.
 
-- [ ] **Step 2: Run → fail.**
+- [x] **Step 2: Run → fail.**
 
-- [ ] **Step 3: Implement `error-ingest.ts`** (caps + rate-limit + upsert + retensi + notif). Konstanta tunable via `effectiveInt` (config) dengan default:
+- [x] **Step 3: Implement `error-ingest.ts`** (caps + rate-limit + upsert + retensi + notif). Konstanta tunable via `effectiveInt` (config) dengan default:
 
 ```ts
 import { prisma } from "../db";
@@ -557,7 +557,7 @@ async function pruneGroup(groupId: string): Promise<void> {
 }
 ```
 
-- [ ] **Step 4: `recordNewErrorGroup`** di `notifications.ts` (dedup `key`):
+- [x] **Step 4: `recordNewErrorGroup`** di `notifications.ts` (dedup `key`):
 
 ```ts
 export async function recordNewErrorGroup(
@@ -571,9 +571,9 @@ export async function recordNewErrorGroup(
 }
 ```
 
-- [ ] **Step 5: Run service test → pass.**
+- [x] **Step 5: Run service test → pass.**
 
-- [ ] **Step 6: Route `ingest.ts`** (CORS + DSN auth + validasi + rate-limit + caps + panggil service). Error generik (tak bocorkan project):
+- [x] **Step 6: Route `ingest.ts`** (CORS + DSN auth + validasi + rate-limit + caps + panggil service). Error generik (tak bocorkan project):
 
 ```ts
 import type { FastifyInstance } from "fastify";
@@ -609,7 +609,7 @@ export default async function (app: FastifyInstance) {
 }
 ```
 
-- [ ] **Step 7: Wire `app.ts`** — import `ingest`, register di scope `/api`, dan bypass gate:
+- [x] **Step 7: Wire `app.ts`** — import `ingest`, register di scope `/api`, dan bypass gate:
 
 ```ts
 // di PUBLIC bypass block, setelah cek /api/sync:
@@ -618,9 +618,9 @@ export default async function (app: FastifyInstance) {
     await api.register(ingest);
 ```
 
-- [ ] **Step 8: Test route `ingest.test.ts`** (`requireAuth:true` untuk buktikan bypass): buat Project + set ingest key (via service); POST `?key=` valid → 202 `{ok,groupId,new}`; key salah → 401; tanpa key → 401; slug tak ada → 401 (generik); payload invalid → 400; OPTIONS → 204 + header CORS; body > cap → 413; rate-limit (turunkan `HANOMAN_INGEST_RATE_PER_MIN` via config) → 429.
+- [x] **Step 8: Test route `ingest.test.ts`** (`requireAuth:true` untuk buktikan bypass): buat Project + set ingest key (via service); POST `?key=` valid → 202 `{ok,groupId,new}`; key salah → 401; tanpa key → 401; slug tak ada → 401 (generik); payload invalid → 400; OPTIONS → 204 + header CORS; body > cap → 413; rate-limit (turunkan `HANOMAN_INGEST_RATE_PER_MIN` via config) → 429.
 
-- [ ] **Step 9: Run all + curl real ingest.** Boot server; generate DSN (Task 2 curl); lalu:
+- [x] **Step 9: Run all + curl real ingest.** Boot server; generate DSN (Task 2 curl); lalu:
 
 ```bash
 KEY=<key dari POST ingest-key>
@@ -631,7 +631,7 @@ curl -sS -XPOST "localhost:8799/api/ingest/<slug>?key=$KEY" \
 curl -sS -XPOST "localhost:8799/api/ingest/<slug>?key=bad" -d '{}' -i | head -1  # 401
 ```
 
-- [ ] **Step 10: Commit** `git commit -m "feat(spec-249): public DSN-authed ingest endpoint + grouping + rate-limit + retention + new-group notification"`
+- [x] **Step 10: Commit** `git commit -m "feat(spec-249): public DSN-authed ingest endpoint + grouping + rate-limit + retention + new-group notification"`
 
 ---
 

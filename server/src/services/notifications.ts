@@ -31,6 +31,18 @@ export async function recordCompletion(specId: string, title: string, projectId:
   }).catch(() => { /* P2002: sudah ada */ });
 }
 
+// SPEC-249 · ADR-0060 · notif saat grup error PRODUKSI baru muncul. Dedup `key: error:<groupId>`
+// idempoten (insert kedua kena P2002, diabaikan) — grup lama tak menotifikasi ulang tiap kejadian.
+export async function recordNewErrorGroup(
+  groupId: string, projectId: string, projectName: string, type: string, message: string,
+): Promise<void> {
+  const short = message.length > 80 ? message.slice(0, 77) + "…" : message;
+  const title = `Error baru di "${projectName}": ${type}: ${short}`;
+  await prisma.notification.create({
+    data: { type: "error", key: `error:${groupId}`, projectId, title },
+  }).catch(() => { /* P2002: sudah ada untuk grup ini */ });
+}
+
 type DecisionSession = { id: string; specId?: string; projectId: string; decisionFile: string };
 
 // SPEC-184 · episode per-sesi. Di-rebuild tiap scan dari kondisi marker: sesi mati hilang dari

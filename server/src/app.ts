@@ -22,6 +22,7 @@ import bindings from "./routes/bindings";
 import sync from "./routes/sync";
 import sessionResults from "./routes/session-results";
 import config from "./routes/config";
+import ingest from "./routes/ingest";
 import authRoutes from "./routes/auth";
 import { COOKIE_NAME, lookupSession } from "./services/auth";
 import { detachAll } from "./services/pty";
@@ -69,6 +70,9 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
         // SPEC-213 · ADR-0044/0046 · surface sync mesin-ke-mesin di-bypass gate cookie; tiap
         // route /api/sync di-enforce device token (Bearer / ?token= pada upgrade WS) sendiri.
         if (path.startsWith("/api/sync")) return;
+        // SPEC-249 · ADR-0060 · ingest error dipanggil project eksternal tanpa sesi login;
+        // route /api/ingest di-otorisasi DSN per-project sendiri (pengecualian sah gate).
+        if (path.startsWith("/api/ingest")) return;
         if (!user) return reply.code(401).send({ error: "unauthorized" });
       });
     }
@@ -91,6 +95,7 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
     await api.register(sync);
     await api.register(sessionResults);
     await api.register(config);
+    await api.register(ingest);   // SPEC-249 · ingest publik ber-DSN (gate di-bypass di atas)
   }, { prefix: "/api" });
 
   // Prod: serve the built dashboard from one process; SPA-fallback to
