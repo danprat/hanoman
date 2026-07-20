@@ -472,7 +472,7 @@ git commit -m "feat(web): label/badge/filter source audit — SPEC-237"
 - Consumes: `zCreateSpec` audit (Task 1/5).
 - Produces: tab source ketiga "Audit"; audit mengirim `source:"audit"` + payload brief-shaped; toast audit.
 
-- [ ] **Step 1: Tambah tab + salin copy audit**
+- [x] **Step 1: Tambah tab + salin copy audit**
 
 Di `NewSpecModal` (`App.tsx`):
 - `const isQa = f.kind === "qa";` biarkan; tambah `const isAudit = f.kind === "audit";`.
@@ -486,7 +486,7 @@ Di `NewSpecModal` (`App.tsx`):
 - Teks penjelas (`:76-77`): tambah cabang audit: `isAudit ? "Audit hanya menghasilkan dokumen (audit → laporan). Tak ada perbaikan; bisa dinaikkan jadi Finding QA." : …`.
 - Field body: audit memakai cabang brief (`isQa ?  … : …` → gunakan `!isQa` yang sudah mencakup audit). Beri label ber-nuansa audit bila `isAudit`: "Apa yang diaudit / pertanyaan" (context), "Temuan/jawaban yang diharapkan" (outcome). Boleh sederhana: pakai label brief yang ada — tetap fungsional (YAGNI). Minimal ubah label context/outcome bila `isAudit`.
 
-- [ ] **Step 2: createSpec — payload audit = brief-shaped, toast**
+- [x] **Step 2: createSpec — payload audit = brief-shaped, toast**
 
 `App.tsx:619-633`:
 ```ts
@@ -508,12 +508,12 @@ Di `NewSpecModal` (`App.tsx`):
 ```
 (Payload audit otomatis brief-shaped karena `isQa` false → lolos `superRefine`.)
 
-- [ ] **Step 3: Typecheck + build web**
+- [x] **Step 3: Typecheck + build web**
 
 Run: `pnpm --filter @hanoman/web exec tsc --noEmit`
 Expected: PASS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/src/App.tsx

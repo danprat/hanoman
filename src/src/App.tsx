@@ -58,23 +58,26 @@ function NewSpecModal({ open, onClose, projects, defaultProject, onCreate, prefi
   }, [open, f.project]);
   const set = (k: keyof SpecForm) => (e: React.ChangeEvent<any>) => setF((s) => ({ ...s, [k]: e.target.value }));
   const isQa = f.kind === "qa";
+  const isAudit = f.kind === "audit";                       // SPEC-237 · audit-only (dokumen, tanpa perbaikan)
   const submit = () => { if (!f.title.trim()) return; onCreate(f); };
   return (
-    <Modal open={open} onClose={onClose} icon={isQa ? "bug" : "lightbulb"} eyebrow="human → hanoman"
-      title={isQa ? "QA finding baru" : "Feature brief baru"}
+    <Modal open={open} onClose={onClose} icon={isQa ? "bug" : isAudit ? "search" : "lightbulb"} eyebrow="human → hanoman"
+      title={isQa ? "QA finding baru" : isAudit ? "Audit baru" : "Feature brief baru"}
       footer={<>
         <Button variant="ghost" size="sm" onClick={onClose}>Batal</Button>
-        <Button size="sm" leftIcon={isQa ? "radar" : "messages-square"} onClick={submit}>
-          {isQa ? "Filekan finding → audit" : "Buat brief → brainstorm"}
+        <Button size="sm" leftIcon={isQa ? "radar" : isAudit ? "search" : "messages-square"} onClick={submit}>
+          {isQa ? "Filekan finding → audit" : isAudit ? "Buat audit → investigasi" : "Buat brief → brainstorm"}
         </Button>
       </>}>
       <div style={{ marginBottom: 16 }}>
         <Tabs variant="pill" value={f.kind} onChange={(v) => setF((s) => ({ ...s, kind: v }))} tabs={[
           { value: "brief", label: "Feature brief", icon: "lightbulb" },
           { value: "qa", label: "QA finding", icon: "bug" },
+          { value: "audit", label: "Audit", icon: "search" },
         ]} />
         <div style={{ fontSize: 12, color: "var(--text-subtle)", marginTop: 8, lineHeight: 1.5 }}>
           {isQa ? "Finding masuk lewat alur audit → spec → plan → execute. hanoman menelusuri akar masalah dulu."
+            : isAudit ? "Audit HANYA menghasilkan dokumen (audit → laporan) — tanpa perbaikan kode. Bisa dinaikkan jadi Finding QA bila perlu diperbaiki."
             : "Brief masuk lewat alur brainstorm → objective → spec → plan → execute."}
         </div>
       </div>
@@ -109,11 +112,14 @@ function NewSpecModal({ open, onClose, projects, defaultProject, onCreate, prefi
         </>
       ) : (
         <>
-          <Field label="Konteks" hint="Latar belakang & alasan fitur ini dibutuhkan">
-            <HnTextarea value={f.context} onChange={set("context")} rows={3} placeholder="Situasi & motivasi…" />
+          <Field label={isAudit ? "Apa yang diaudit / pertanyaan" : "Konteks"}
+            hint={isAudit ? "Isu atau pertanyaan yang mau ditelusuri" : "Latar belakang & alasan fitur ini dibutuhkan"}>
+            <HnTextarea value={f.context} onChange={set("context")} rows={3}
+              placeholder={isAudit ? "mis. apakah funnel double-count? cek log sesi lintas tengah malam…" : "Situasi & motivasi…"} />
           </Field>
-          <Field label="Hasil yang diharapkan">
-            <HnTextarea value={f.outcome} onChange={set("outcome")} rows={2} placeholder="Kondisi setelah selesai…" />
+          <Field label={isAudit ? "Temuan/jawaban yang diharapkan" : "Hasil yang diharapkan"}>
+            <HnTextarea value={f.outcome} onChange={set("outcome")} rows={2}
+              placeholder={isAudit ? "Jawaban/kepastian yang dicari…" : "Kondisi setelah selesai…"} />
           </Field>
           <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 12 }}>
             <Field label="Batasan" hint="opsional">
@@ -629,7 +635,9 @@ export default function App() {
         priority: f.priority, payload, branchFrom: f.branchFrom || undefined });
       setBacklog((b) => [created, ...b]);
       setModal(null); setSpecPrefill(null); setSection("backlog");
-      showToast(created.id + (isQa ? " difilekan · masuk audit" : " dibuat · masuk brainstorm"), "ok", isQa ? "bug" : "lightbulb");
+      const toastMsg = f.kind === "audit" ? " dibuat · audit-only (dokumen)"
+        : isQa ? " difilekan · masuk audit" : " dibuat · masuk brainstorm";
+      showToast(created.id + toastMsg, "ok", f.kind === "audit" ? "search" : isQa ? "bug" : "lightbulb");
     } catch { showToast("Gagal membuat spec", "err", "x-circle"); }
   }
 
