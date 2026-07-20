@@ -10,6 +10,40 @@ export const PIPELINES: Record<Flow, readonly string[]> = {
   audit: ["Audit", "Laporan"],
 };
 
+// SPEC-238 · ADR-0057 — model/effort per fase. launch = config fase pertama (argv --model/--effort
+// saat sesi lahir); perPhase = tiap fase + nilai efektif (override ?? fallback global). Sesi tetap
+// satu proses: fase berikutnya diganti agen via /model+/effort (aman terhadap konteks).
+export type PhaseModel = { phase: string; model: string; effort: string };
+export function resolvePhaseModels(
+  flow: Flow,
+  overrides: Record<string, { model?: string; effort?: string }> | undefined,
+  fallback: { model: string; effort: string },
+): { launch: { model: string; effort: string }; perPhase: PhaseModel[] } {
+  const perPhase = PIPELINES[flow].map((phase) => ({
+    phase,
+    model: overrides?.[phase]?.model ?? fallback.model,
+    effort: overrides?.[phase]?.effort ?? fallback.effort,
+  }));
+  const first = perPhase[0];
+  const launch = first ? { model: first.model, effort: first.effort } : { ...fallback };
+  return { launch, perPhase };
+}
+
+// Instruksi hanya di-emit bila ADA VARIASI (≥1 fase beda dari fase pertama). Seragam → "" (prompt
+// tak berubah — regresi nol). `/effort` best-effort di Opus/Fable (ADR-0057), agen diberi tahu.
+const phaseModelInstruction = (perPhase?: PhaseModel[]): string => {
+  const first = perPhase?.[0];
+  if (!first) return "";
+  const varied = perPhase.some((p) => p.model !== first.model || p.effort !== first.effort);
+  if (!varied) return "";
+  const rows = perPhase.map((p) => `- ${p.phase} → \`/model ${p.model}\` · \`/effort ${p.effort}\``);
+  return "Model & effort per fase (SPEC-238): di AWAL tiap fase, sebelum mengerjakannya, set model & "
+    + "effort dengan mengetik di terminalmu — `/model <id>` lalu `/effort <level>` — sesuai tabel di bawah. "
+    + "Mengganti model TIDAK menghapus konteks (riwayat percakapan tetap terbawa). Bila `/effort` "
+    + "dilaporkan \"Not applied\" (wajar di Opus/Fable), abaikan dan lanjutkan — effort mengikuti nilai "
+    + "saat sesi lahir. Fase pertama sudah lahir dengan model & effort yang benar.\n" + rows.join("\n");
+};
+
 // SPEC-187 · ADR-0035 — sesi spec-flow menggerakkan dirinya sendiri melewati seluruh fase
 // (ADR-0024): tak ada runner yang menyuntik giliran berikutnya. Skill superpowers punya
 // checkpoint "review/approval"; di sesi tak-berpenunggu itu BUKAN titik berhenti, dan agen
@@ -92,12 +126,13 @@ const auditOnlyInstruction = (flow: Flow): string =>
     + "issue terdefinisi baik, dan REKOMENDASI — 'cukup jawaban, tak perlu perbaikan' ATAU 'perlu "
     + "dinaikkan jadi Finding QA untuk diperbaiki'. Commit dokumen itu lalu push. Tak ada kode fitur.";
 
-export function startPrompt(flow: Flow, spec: SpecBrief, branchTo: string): string {
+export function startPrompt(flow: Flow, spec: SpecBrief, branchTo: string, perPhase?: PhaseModel[]): string {
   const detail = spec.payload ? `\nDetail: ${JSON.stringify(spec.payload)}` : "";
   return [
     `hanoman ${flow}. Ikuti internal/docs sebagai Source of Truth; perbarui docs yang tersentuh `
       + `dan link-nya di index, dalam commit yang sama.`,
     phaseInstruction(PIPELINES[flow]),
+    phaseModelInstruction(perPhase),
     auditDecisionInstruction(flow),
     auditOnlyInstruction(flow),
     AUTONOMY_CLAUSE,
@@ -149,11 +184,12 @@ const REVERSE_PHASE_GUIDE = [
     + "+ daftar pertanyaan yang belum terjawab ke terminal.",
 ].join("\n");
 
-export function startProjectPrompt(flow: Flow, project: ProjectBrief, branchTo: string): string {
+export function startProjectPrompt(flow: Flow, project: ProjectBrief, branchTo: string, perPhase?: PhaseModel[]): string {
   return [
     `hanoman ${flow}. Susun Source of Truth repo ini dari kodenya di internal/docs/**, `
       + `mengikuti STANDAR DOCS di bagian bawah prompt ini.`,
     phaseInstruction(PIPELINES[flow]),
+    phaseModelInstruction(perPhase),
     REVERSE_PHASE_GUIDE,
     `Setiap fase selesai: commit hasilnya, lalu \`git push origin HEAD:refs/heads/${branchTo}\` — `
       + `push per fase, supaya pekerjaan tak hilang bila worktree lenyap. Bila remote origin tidak ada, `
@@ -169,12 +205,13 @@ export function startProjectPrompt(flow: Flow, project: ProjectBrief, branchTo: 
 // kode fitur. Brainstorm interaktif (satu pertanyaan per giliran; PM menonton terminal), lalu
 // tulis PRD terstruktur, commit, push ke branch prd/<slug>; manusia yang merge. Tak membawa
 // AUTONOMY_CLAUSE: seperti Wawancara reverse, brainstorm PRD memang berjalan bergiliran dgn PM.
-export function startPrdPrompt(project: ProjectBrief, brief: PrdBrief, branchTo: string): string {
+export function startPrdPrompt(project: ProjectBrief, brief: PrdBrief, branchTo: string, perPhase?: PhaseModel[]): string {
   const slug = branchTo.slice(branchTo.lastIndexOf("/") + 1);
   return [
     `hanoman prd. Kamu memandu PM/PO menyusun SATU dokumen PRD untuk project ini dari brief + `
       + `brainstorm. Keluaranmu HANYA dokumen PRD — JANGAN menulis kode fitur.`,
     phaseInstruction(PIPELINES.prd),
+    phaseModelInstruction(perPhase),
     `- Brainstorm: pandu PM secara interaktif. Ajukan SATU pertanyaan per giliran ke manusia di `
       + `terminal ini, tunggu jawabannya, perdalam brief sampai jelas (masalah, pengguna, scope, `
       + `metrik sukses). Jangan mengarang; topik yang PM belum jawab tandai sebagai open question.`,
@@ -210,11 +247,12 @@ const SCAFFOLD_PHASE_GUIDE = [
 // SPEC-222 · sesi scaffold: dari ide → Source of Truth penuh untuk project from-scratch. Meniru
 // startProjectPrompt (reverse) tetapi diseed oleh ide (project.desc), tanpa fase Scan. Tanpa
 // AUTONOMY_CLAUSE: Brainstorm interaktif, manusia menjawab di terminal (seperti Wawancara reverse).
-export function startScaffoldPrompt(project: ProjectBrief, branchTo: string): string {
+export function startScaffoldPrompt(project: ProjectBrief, branchTo: string, perPhase?: PhaseModel[]): string {
   return [
     `hanoman scaffold. Susun Source of Truth LENGKAP untuk project from-scratch ini di internal/docs/** `
       + `DARI IDE-nya, mengikuti STANDAR DOCS di bagian bawah prompt ini. Belum ada kode — docs dulu.`,
     phaseInstruction(PIPELINES.scaffold),
+    phaseModelInstruction(perPhase),
     SCAFFOLD_PHASE_GUIDE,
     `Setiap fase selesai: commit hasilnya, lalu \`git push origin HEAD:refs/heads/${branchTo}\` — `
       + `push per fase, supaya pekerjaan tak hilang bila worktree lenyap. Bila remote origin tidak ada, `

@@ -6,7 +6,7 @@ import { realGit, startPrompt, continuePrompt, startProjectPrompt, startPrdPromp
 import { phaseFilePath, decisionFilePath, readPhases, stageForRun } from "../services/session-phases";
 import { specReview, reviewFile } from "../services/spec-review";
 import { integrateBranch } from "../services/integrate";
-import { sessionModel } from "../services/settings";
+import { sessionModel, phaseModelsForFlow } from "../services/settings";
 import { resolveRepoDir } from "../services/local-binding";
 import { recordSessionResult } from "../services/session-result";
 import { recordCompletion } from "../services/notifications";
@@ -73,7 +73,15 @@ export default async function (app: FastifyInstance) {
       const live = getSession(id);
       if (live) return reply.code(201).send({ id: live.id });
 
-      const { model, effort } = await sessionModel();
+      // SPEC-238 · ADR-0057 · model/effort per fase. Sesi lahir dengan config fase pertama;
+      // fase berikutnya diganti agen via /model+/effort. continue (spec done) → hanya fase
+      // Execute, launch = config Execute.
+      const flow = parsed.data.flow;
+      const { fallback, perPhase } = await phaseModelsForFlow(flow);
+      const isContinue = spec.stage === "done";
+      const launch = isContinue
+        ? (perPhase.find((p) => p.phase === "Execute") ?? perPhase[perPhase.length - 1] ?? { phase: "Execute", ...fallback })
+        : (perPhase[0] ?? { phase: "", ...fallback });
       // Worktree lahir `--detach` di commit branchFrom: sesi tak pernah berjalan di working
       // tree utama, dan `main` boleh tetap ter-checkout di sana (ADR-0002).
       // baseSha = commit detach worktree; disimpan agar review backlog done men-diff
@@ -92,15 +100,17 @@ export default async function (app: FastifyInstance) {
       // SPEC-172 · spec yang keburu `done` di-reopen untuk melanjutkan (lanjut di Execute,
       // tak mengulang pipeline). Deteksi dari stage — satu-satunya jalur yang men-start spec
       // `done` adalah tombol "Buka sesi lagi" di detail; list/grid/board menyembunyikan start.
-      const mkPrompt = spec.stage === "done" ? continuePrompt : startPrompt;
+      const brief = {
+        id: spec.id, title: spec.title, source: spec.source,
+        priority: spec.priority, objective: spec.objective, payload: spec.payload ?? undefined,
+      };
       const s = createSession(spec.projectId, `${repoDir}/.worktrees/${id}`, {
-        specId: spec.id, flow: parsed.data.flow, model, effort,
+        specId: spec.id, flow, model: launch.model, effort: launch.effort,
         phaseFile: phaseFilePath(repoDir, id),
         decisionFile: decisionFilePath(repoDir, id),
-        prompt: mkPrompt(parsed.data.flow, {
-          id: spec.id, title: spec.title, source: spec.source,
-          priority: spec.priority, objective: spec.objective, payload: spec.payload ?? undefined,
-        }, `hanoman/${id}`),
+        prompt: isContinue
+          ? continuePrompt(flow, brief, `hanoman/${id}`)
+          : startPrompt(flow, brief, `hanoman/${id}`, perPhase),
       });
       return reply.code(201).send({ id: s.id });
     }
@@ -137,7 +147,8 @@ export default async function (app: FastifyInstance) {
       const live = getSession(id);
       if (live) return reply.code(201).send({ id: live.id });
 
-      const { model, effort } = await sessionModel();
+      const { fallback, perPhase } = await phaseModelsForFlow("reverse"); // SPEC-238 · ADR-0057
+      const launch = perPhase[0] ?? { phase: "", ...fallback };
       try {
         // HEAD, bukan "main": repo target bukan milik hanoman — default branch-nya bebas.
         realGit.addWorktree(repoDir, `${repoDir}/.worktrees/${id}`, "HEAD");
@@ -145,12 +156,12 @@ export default async function (app: FastifyInstance) {
         return reply.code(422).send({ error: `gagal membuat worktree: ${(e as Error).message}` });
       }
       const s = createSession(project.id, `${repoDir}/.worktrees/${id}`, {
-        id, flow: "reverse", model, effort,
+        id, flow: "reverse", model: launch.model, effort: launch.effort,
         phaseFile: phaseFilePath(repoDir, id),
         decisionFile: decisionFilePath(repoDir, id),
         prompt: startProjectPrompt("reverse", {
           id: project.id, name: project.name, desc: project.desc, stack: project.stack,
-        }, "reverse-docs"),
+        }, "reverse-docs", perPhase),
       });
       return reply.code(201).send({ id: s.id });
     }
@@ -162,7 +173,8 @@ export default async function (app: FastifyInstance) {
       const live = getSession(id);
       if (live) return reply.code(201).send({ id: live.id });
 
-      const { model, effort } = await sessionModel();
+      const { fallback, perPhase } = await phaseModelsForFlow("scaffold"); // SPEC-238 · ADR-0057
+      const launch = perPhase[0] ?? { phase: "", ...fallback };
       try {
         // SPEC-223 · "project baru pasti kosongan": repoDir bisa BELUM ada di disk saat scaffold
         // (project di-sync dari device lain, folder dipindah/hapus, atau init-saat-create tak jalan).
@@ -175,12 +187,12 @@ export default async function (app: FastifyInstance) {
         return reply.code(422).send({ error: `gagal membuat worktree: ${(e as Error).message}` });
       }
       const s = createSession(project.id, `${repoDir}/.worktrees/${id}`, {
-        id, flow: "scaffold", model, effort,
+        id, flow: "scaffold", model: launch.model, effort: launch.effort,
         phaseFile: phaseFilePath(repoDir, id),
         decisionFile: decisionFilePath(repoDir, id),
         prompt: startScaffoldPrompt(
           { id: project.id, name: project.name, desc: project.desc, stack: project.stack },
-          "scaffold-docs"),
+          "scaffold-docs", perPhase),
       });
       return reply.code(201).send({ id: s.id });
     }
@@ -197,7 +209,8 @@ export default async function (app: FastifyInstance) {
       const live = getSession(id);
       if (live) return reply.code(201).send({ id: live.id });
 
-      const { model, effort } = await sessionModel();
+      const { fallback, perPhase } = await phaseModelsForFlow("prd"); // SPEC-238 · ADR-0057
+      const launch = perPhase[0] ?? { phase: "", ...fallback };
       try {
         // HEAD, bukan "main": repo target bukan milik hanoman — default branch-nya bebas.
         realGit.addWorktree(repoDir, `${repoDir}/.worktrees/${id}`, "HEAD");
@@ -205,12 +218,12 @@ export default async function (app: FastifyInstance) {
         return reply.code(422).send({ error: `gagal membuat worktree: ${(e as Error).message}` });
       }
       const s = createSession(project.id, `${repoDir}/.worktrees/${id}`, {
-        id, flow: "prd", branch: `prd/${slug}`, model, effort,
+        id, flow: "prd", branch: `prd/${slug}`, model: launch.model, effort: launch.effort,
         phaseFile: phaseFilePath(repoDir, id),
         decisionFile: decisionFilePath(repoDir, id),
         prompt: startPrdPrompt(
           { id: project.id, name: project.name, desc: project.desc, stack: project.stack },
-          brief, `prd/${slug}`),
+          brief, `prd/${slug}`, perPhase),
       });
       return reply.code(201).send({ id: s.id });
     }

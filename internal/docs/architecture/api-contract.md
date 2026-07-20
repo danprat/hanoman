@@ -166,6 +166,8 @@ POST   /projects/:id/remotes  {name,url} · PATCH /projects/:id/remotes/:name {u
 ```
 GET/PUT  /settings                      # Setting blob (zSetting): model, effort, autoDefault, autoScaffold,
 #                                         notifyFail, notifyDone (bool), notifySound — SPEC-180. Tanpa dailyBudget/maxConcurrent.
+#                                         phaseModels: { [flow]: { [phase]: {model?,effort?} } } — override per fase (SPEC-238/ADR-0058);
+#                                         sel kosong → fallback model/effort global. PUT ganti seluruh blob (full replace).
 GET      /notifications                 # { items:Notification[] (≤50 terbaru dulu), unread:int }  (SPEC-180)
 #   Notification dibuat server-side saat backlog masuk `done` (advanceStage + write-through GET /specs).
 POST     /notifications/read            # 204; tandai semua unread jadi terbaca
