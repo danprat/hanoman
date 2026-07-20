@@ -98,7 +98,7 @@ git commit -m "feat(shared): source+flow audit + flowForSource — SPEC-237"
 - Consumes: `Flow` (Task-lokal), `PIPELINES` (session-phases Task 3 mengindeks `PIPELINES.audit`).
 - Produces: `PIPELINES.audit = ["Audit","Laporan"]`; `startPrompt("audit", …)` memuat instruksi "investigasi saja, tulis dokumen audit, jangan perbaiki".
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambah di `runner/test/prompt.test.ts` (dalam `describe("startPrompt")` atau describe baru):
 ```ts
@@ -117,12 +117,12 @@ describe("SPEC-237 · flow audit-only", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan gagal**
+- [x] **Step 2: Jalankan test — pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/runner exec vitest run test/prompt.test.ts`
 Expected: FAIL (`PIPELINES.audit` undefined).
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 `runner/src/types.ts:1`:
 ```ts
@@ -156,12 +156,12 @@ const auditOnlyInstruction = (flow: Flow): string =>
     auditOnlyInstruction(flow),
 ```
 
-- [ ] **Step 4: Jalankan test — pastikan lolos**
+- [x] **Step 4: Jalankan test — pastikan lolos**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/runner exec vitest run test/prompt.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runner/src/types.ts runner/src/prompt.ts runner/test/prompt.test.ts

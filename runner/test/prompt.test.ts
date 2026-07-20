@@ -24,6 +24,19 @@ describe("startPrompt", () => {
     expect(p).not.toContain("Brainstorm");
   });
 
+  // SPEC-237 · flow audit-only: Audit → Laporan, dokumen saja, tanpa Execute.
+  it("pipeline audit = Audit → Laporan, tanpa Plan/Execute", () => {
+    expect(PIPELINES.audit).toEqual(["Audit", "Laporan"]);
+  });
+  it("startPrompt audit menginstruksikan dokumen audit tanpa perbaikan kode", () => {
+    const p = startPrompt("audit", spec, "hanoman/spec-237");
+    expect(p).toContain("Audit");
+    expect(p).toContain("Laporan");
+    expect(p).not.toContain("Execute");
+    expect(p.toLowerCase()).toContain("jangan");
+    expect(p.toLowerCase()).toContain("dokumen audit");
+  });
+
   it("menginstruksikan append ke $HANOMAN_PHASE_FILE, bukan tulis-timpa", () => {
     const p = startPrompt("feature", spec, "hanoman/spec-162");
     expect(p).toContain("$HANOMAN_PHASE_FILE");

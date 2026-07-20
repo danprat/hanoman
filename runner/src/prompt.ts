@@ -7,6 +7,7 @@ export const PIPELINES: Record<Flow, readonly string[]> = {
   scaffold: ["Brainstorm", "Objective", "Doc index"],
   reverse: ["Scan", "Docs teknis", "Wawancara", "Konvensi & index", "Serah terima"],
   prd: ["Brainstorm", "PRD"],
+  audit: ["Audit", "Laporan"],
 };
 
 // SPEC-187 · ADR-0035 — sesi spec-flow menggerakkan dirinya sendiri melewati seluruh fase
@@ -79,6 +80,18 @@ const auditDecisionInstruction = (flow: Flow): string =>
     + "jalankan Spec → Plan → Execute penuh. Keputusan ini milikmu berdasarkan hasil Audit, "
     + "bukan default — jangan bayar perencanaan yang tak perlu untuk perbaikan sepele.";
 
+// SPEC-237 · ADR-0057 — flow audit-only: investigasi + dokumen, TANPA perbaikan kode. Deliverable =
+// dokumen audit SoT yang menilai apakah issue terdefinisi baik + rekomendasi (cukup jawaban / naik jadi QA).
+const auditOnlyInstruction = (flow: Flow): string =>
+  flow !== "audit" ? "" :
+    "Ini audit-only: investigasi SAJA, JANGAN menulis perbaikan kode apa pun. Fase Audit "
+    + "(systematic-debugging): telusuri akar masalah / log / jawaban dan nilai apakah issue "
+    + "terdefinisi dengan baik. Fase Laporan: tulis DOKUMEN AUDIT ke Source of Truth "
+    + "`internal/docs/research/audit-<spec-id>-<slug>.md` (ikuti konvensi audit yang ada), tautkan "
+    + "di `internal/docs/README.md`, memuat: keluhan/pertanyaan, temuan (dengan bukti/log), apakah "
+    + "issue terdefinisi baik, dan REKOMENDASI — 'cukup jawaban, tak perlu perbaikan' ATAU 'perlu "
+    + "dinaikkan jadi Finding QA untuk diperbaiki'. Commit dokumen itu lalu push. Tak ada kode fitur.";
+
 export function startPrompt(flow: Flow, spec: SpecBrief, branchTo: string): string {
   const detail = spec.payload ? `\nDetail: ${JSON.stringify(spec.payload)}` : "";
   return [
@@ -86,6 +99,7 @@ export function startPrompt(flow: Flow, spec: SpecBrief, branchTo: string): stri
       + `dan link-nya di index, dalam commit yang sama.`,
     phaseInstruction(PIPELINES[flow]),
     auditDecisionInstruction(flow),
+    auditOnlyInstruction(flow),
     AUTONOMY_CLAUSE,
     skillInstruction(PIPELINES[flow]),
     `Setelah fase terakhir: commit, lalu \`git push origin HEAD:refs/heads/${branchTo}\`. `
