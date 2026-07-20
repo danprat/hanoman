@@ -112,7 +112,9 @@ export default async function (app: FastifyInstance) {
     // createSession({command}) (ADR-0042/0056). Tanpa flow → tak menggerakkan stage; cwd=repoDir
     // (bukan .worktrees) → DELETE hanya kill pane, tak menyentuh working tree. Ditaruh sebelum
     // guard repoDir lama supaya TS menyempitkan varian shell keluar sebelum `parsed.data.flow`.
-    if ("shell" in parsed.data && parsed.data.shell) {
+    // `shell` = z.literal(true), jadi keberadaannya cukup mengidentifikasi varian (tanpa `&&
+    // parsed.data.shell` yang menggagalkan penyempitan control-flow di cabang else).
+    if ("shell" in parsed.data) {
       const repoDir = await resolveRepoDir(project.id);
       if (!repoDir) return reply.code(400)
         .send({ error: `project "${project.id}" belum di-bind ke checkout lokal`, needsBind: true });

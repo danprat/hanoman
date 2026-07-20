@@ -209,7 +209,8 @@ Then insert the shell branch immediately after the project-404 guard (currently 
     // createSession({command}) (ADR-0042/0056). Tanpa flow → tak menggerakkan stage; cwd=repoDir
     // (bukan .worktrees) → DELETE hanya kill pane, tak menyentuh working tree. Ditaruh sebelum
     // guard repoDir lama supaya TS menyempitkan varian shell keluar sebelum `parsed.data.flow`.
-    if ("shell" in parsed.data && parsed.data.shell) {
+    if ("shell" in parsed.data) {   // shell=z.literal(true) → keberadaannya cukup; JANGAN
+      // `&& parsed.data.shell` — menggagalkan penyempitan control-flow TS di else (terbukti typecheck).
       const repoDir = await resolveRepoDir(project.id);
       if (!repoDir) return reply.code(400)
         .send({ error: `project "${project.id}" belum di-bind ke checkout lokal`, needsBind: true });
