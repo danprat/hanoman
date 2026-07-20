@@ -77,6 +77,15 @@ export function TerminalScreen({ projects, backlog = [], focusSession, onOpenRev
     setWs((w) => W.placeFirstEmptyInActive(w, id));
   }
 
+  // SPEC-236 · terminal biasa non-claude: shell mentah di repoDir project terpilih. Cermin
+  // openNew, tapi memanggil createShell — server men-spawn $SHELL, bukan claude.
+  async function openShell() {
+    if (!project) return;
+    const { id } = await api.createShell(project);
+    setSessions((s) => [...s, { id, projectId: project, cwd: "", exited: false }]);
+    setWs((w) => W.placeFirstEmptyInActive(w, id));
+  }
+
   // SPEC-179 · ambil backlog item tanpa pindah page. Reuse start API idempoten +
   // placeFirstEmptyInActive — sesi baru langsung masuk grid aktif.
   async function pickBacklog(spec: Spec) {
@@ -158,6 +167,9 @@ export function TerminalScreen({ projects, backlog = [], focusSession, onOpenRev
             options={projects.map((p) => ({ value: p.id, label: p.name }))} />
           <Button size="sm" variant="secondary" leftIcon="inbox"
             onClick={() => { setPickError(null); setPicking(true); }}>Ambil backlog</Button>
+          <Button size="sm" variant="secondary" leftIcon="terminal"
+            title="Buka shell tmux tanpa Claude di project terpilih — jalankan command di project"
+            onClick={() => void openShell()}>Terminal biasa</Button>
           <Button size="sm" leftIcon="plus" onClick={() => void openNew()}>Sesi baru</Button>
           <IconButton size="sm" icon={maxed ? "minimize-2" : "maximize-2"}
             label={maxed ? "Keluar layar penuh" : "Layar penuh"}
@@ -189,7 +201,7 @@ export function TerminalScreen({ projects, backlog = [], focusSession, onOpenRev
         // Tanpa `action`: toolbar di atas sudah menawarkan "Sesi baru" — tombol kedua
         // dengan label identik hanya duplikasi, bukan affordance tambahan.
         <StateBlock kind="empty" icon="terminal" title="Belum ada sesi terminal"
-          hint="Pilih project lalu buka sesi — hanoman menjalankan claude --dangerously-skip-permissions di direktori project itu." />
+          hint="Pilih project lalu buka sesi — 'Sesi baru' menjalankan claude --dangerously-skip-permissions di direktori project; 'Terminal biasa' membuka shell tmux polos untuk menjalankan command." />
       ) : (
         <div style={{
           flex: 1, minHeight: 0, display: "grid", gap: 8,

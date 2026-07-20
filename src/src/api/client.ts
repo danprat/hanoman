@@ -117,6 +117,8 @@ export const api = {
     j<{ path: string; parent: string | null; entries: { name: string; path: string }[] }>(paths.fsBrowse(path)),
   listTerminals: () => j<TerminalSession[]>(paths.terminalSessions),
   createTerminal: (project: string) => j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project }) }),
+  // SPEC-236 · terminal biasa non-claude: shell mentah di repoDir project (tanpa flow).
+  createShell: (project: string) => j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, shell: true }) }),
   // SPEC-162 · sesi claude interaktif untuk sebuah backlog item, di worktree-nya sendiri.
   startSession: (b: { spec: string; flow: Flow }) =>
     j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body(b) }),

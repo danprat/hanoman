@@ -248,7 +248,7 @@ git commit -m "feat(server): POST /terminal/sessions {project,shell:true} spawns
 - Consumes: `POST { project, shell: true }` (Task 2).
 - Produces: `api.createShell(project: string): Promise<{ id: string }>`; a "Terminal biasa" button in `TerminalScreen` toolbar that calls it and places the session in the active grid.
 
-- [ ] **Step 1: Write the failing test** — add to `src/test/terminal-screen.test.tsx`. First add the mock fn (top, beside `createTerminal`): add `const createShell = vi.fn();` next to the other `vi.fn()` decls, and `createShell: (...a: unknown[]) => createShell(...a),` inside the mocked `api` object; add `createShell.mockReset();` in `beforeEach`. Then add the test inside the `describe("TerminalScreen (grid)"` block:
+- [x] **Step 1: Write the failing test** — add to `src/test/terminal-screen.test.tsx`. First add the mock fn (top, beside `createTerminal`): add `const createShell = vi.fn();` next to the other `vi.fn()` decls, and `createShell: (...a: unknown[]) => createShell(...a),` inside the mocked `api` object; add `createShell.mockReset();` in `beforeEach`. Then add the test inside the `describe("TerminalScreen (grid)"` block:
 
 ```ts
   it("tombol 'Terminal biasa' membuka shell non-claude untuk project terpilih (SPEC-236)", async () => {
@@ -261,14 +261,14 @@ git commit -m "feat(server): POST /terminal/sessions {project,shell:true} spawns
   });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter hanoman-web exec vitest run test/terminal-screen.test.tsx -t "SPEC-236"`
 Expected: FAIL — no "Terminal biasa" button / `api.createShell` undefined.
 
 > If the web package name differs, discover it: `node -p "require('./src/package.json').name"` and substitute in the `--filter`.
 
-- [ ] **Step 3: Add `createShell` to the API client** — `src/src/api/client.ts`, right after `createTerminal` (line 119):
+- [x] **Step 3: Add `createShell` to the API client** — `src/src/api/client.ts`, right after `createTerminal` (line 119):
 
 ```ts
   createTerminal: (project: string) => j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project }) }),
@@ -276,7 +276,7 @@ Expected: FAIL — no "Terminal biasa" button / `api.createShell` undefined.
   createShell: (project: string) => j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, shell: true }) }),
 ```
 
-- [ ] **Step 4: Add `openShell` + button + hint** — `src/src/screens/TerminalScreen.tsx`.
+- [x] **Step 4: Add `openShell` + button + hint** — `src/src/screens/TerminalScreen.tsx`.
 
 Add `openShell` right after `openNew` (line 78):
 
@@ -307,17 +307,17 @@ Update the empty-state hint (line 191-192) so it names both options:
           hint="Pilih project lalu buka sesi — 'Sesi baru' menjalankan claude --dangerously-skip-permissions di direktori project; 'Terminal biasa' membuka shell tmux polos untuk menjalankan command." />
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter hanoman-web exec vitest run test/terminal-screen.test.tsx -t "SPEC-236"`
 Expected: PASS.
 
-- [ ] **Step 6: Full terminal-screen suite (no regression)**
+- [x] **Step 6: Full terminal-screen suite (no regression)**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter hanoman-web exec vitest run test/terminal-screen.test.tsx`
 Expected: PASS (all).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/src/api/client.ts src/src/screens/TerminalScreen.tsx src/test/terminal-screen.test.tsx
