@@ -36,6 +36,12 @@ export const paths = {
   ideStatus: (id: string) => `${API}/projects/${id}/status`, // SPEC-233 · status working tree
   ideSearch: (id: string, q: string, by = "all") => `${API}/projects/${id}/graph/search?q=${encodeURIComponent(q)}&by=${by}`, // SPEC-233
   ideStashes: (id: string) => `${API}/projects/${id}/stashes`, // SPEC-233 · daftar stash
+  // SPEC-233 · remote mgmt + pr-url + archive
+  ideRemotes: (id: string) => `${API}/projects/${id}/remotes`,
+  ideRemote: (id: string, name: string) => `${API}/projects/${id}/remotes/${encodeURIComponent(name)}`,
+  idePrUrl: (id: string, branch: string, base?: string) =>
+    `${API}/projects/${id}/pr-url?branch=${encodeURIComponent(branch)}${base ? `&base=${encodeURIComponent(base)}` : ""}`,
+  ideArchive: (id: string, ref: string, format = "zip") => `${API}/projects/${id}/archive?ref=${encodeURIComponent(ref)}&format=${format}`,
 
   ideCommit: (id: string, sha: string) => `${API}/projects/${id}/commit/${sha}`,
   // SPEC-233 · diff satu file di commit (vs parent)

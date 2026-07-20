@@ -198,6 +198,27 @@ describe("ide routes", () => {
     expect(r.statusCode).toBe(200);
     expect(r.json().status).toBe("clean");
   });
+  it("remotes CRUD + archive + pr-url (SPEC-233)", async () => {
+    const { repoDir } = makeRepoWithSpecBranch("intg"); // origin ada
+    await makeProject({ id: "intgrepo", repoDir });
+    const list = (await app.inject({ url: "/api/projects/intgrepo/remotes" })).json();
+    expect(list.map((r: { name: string }) => r.name)).toContain("origin");
+    // add + delete
+    const added = await app.inject({ method: "POST", url: "/api/projects/intgrepo/remotes", payload: { name: "up", url: "https://example.com/x/y.git" } });
+    expect(added.statusCode).toBe(200);
+    expect(added.json().map((r: { name: string }) => r.name)).toContain("up");
+    expect((await app.inject({ method: "POST", url: "/api/projects/intgrepo/remotes", payload: { name: "" } })).statusCode).toBe(400);
+    const del = await app.inject({ method: "DELETE", url: "/api/projects/intgrepo/remotes/up" });
+    expect(del.json().map((r: { name: string }) => r.name)).not.toContain("up");
+    // archive
+    const arc = await app.inject({ url: "/api/projects/intgrepo/archive?ref=main&format=zip" });
+    expect(arc.statusCode).toBe(200);
+    expect(arc.headers["content-disposition"]).toMatch(/\.zip/);
+    // pr-url (origin adalah path lokal bare → bukan provider → url null, tapi 200)
+    const pr = await app.inject({ url: "/api/projects/intgrepo/pr-url?branch=hanoman/intg" });
+    expect(pr.statusCode).toBe(200);
+    expect("url" in pr.json()).toBe(true);
+  });
   it("GET /graph?branches=main membatasi walk (SPEC-233)", async () => {
     const dir = makeRepoWithBranches("dev");
     const g = (...a: string[]) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });

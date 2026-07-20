@@ -122,7 +122,7 @@ function menuItems(c: GraphCommit, current: string, act: (op: GitOp) => void, me
 
 // SPEC-233 · menu klik-kanan pada pill branch. Local vs origin dibedakan prefix `origin/`.
 // Branch aktif (== current) hanya Rename/Push/Copy (tak boleh checkout/merge/hapus diri sendiri).
-function branchMenuItems(ref: string, current: string, allRefs: string[], act: (op: GitOp) => void, merge: MergeFn, rebase: RefFn, pull: RefFn): MenuItem[] {
+function branchMenuItems(ref: string, current: string, allRefs: string[], act: (op: GitOp) => void, merge: MergeFn, rebase: RefFn, pull: RefFn, pr: RefFn, archive: RefFn): MenuItem[] {
   const isOrigin = ref.startsWith("origin/");
   const name = isOrigin ? ref.slice("origin/".length) : ref;
   const copy = () => { void navigator.clipboard?.writeText(ref); };
@@ -130,6 +130,8 @@ function branchMenuItems(ref: string, current: string, allRefs: string[], act: (
     { label: `Checkout ${ref}`, run: () => act({ op: "checkout", ref }) },
     { label: `Merge ${ref} → current`, run: () => merge(ref) },
     { label: `Pull ${name} → current`, run: () => pull(name) },
+    { label: "Create Pull Request", run: () => pr(name) },
+    { label: "Create archive", run: () => archive(ref) },
     { label: `Hapus origin/${name}`, run: () => act({ op: "delete-branch", name, local: false, remote: true }) },
     { label: "Copy nama branch", run: copy },
   ];
@@ -141,6 +143,8 @@ function branchMenuItems(ref: string, current: string, allRefs: string[], act: (
   items.push({ label: "Push ke origin", run: () => act({ op: "push-branch", name: ref, setUpstream: true }) });
   if (!self) items.push({ label: `Merge ${ref} → current`, run: () => merge(ref) });
   if (!self) items.push({ label: `Rebase current → ${ref}`, run: () => rebase(ref) });
+  items.push({ label: "Create Pull Request", run: () => pr(ref) });
+  items.push({ label: "Create archive", run: () => archive(ref) });
   if (!self) {
     items.push({ label: hasOrigin ? `Hapus ${ref} (local + origin)` : `Hapus ${ref} (local)`, run: () => act({ op: "delete-branch", name: ref, remote: hasOrigin }) });
     if (hasOrigin) items.push({ label: `Hapus ${ref} (local saja)`, run: () => act({ op: "delete-branch", name: ref }) });
@@ -251,6 +255,12 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
   async function rebaseAct(onto: string) { setMenu(null); setBranchMenu(null); await onRebase(onto).then(load).catch(() => {}); }
   async function pullAct(source: string) { setMenu(null); setBranchMenu(null); await onPull(source).then(load).catch(() => {}); }
   async function dropAct(sha: string) { setMenu(null); await onDrop(sha).then(load).catch(() => {}); }
+  // SPEC-233 · Create PR (buka URL provider dari origin) & Create archive (unduh git archive).
+  function prAct(branch: string) {
+    setBranchMenu(null);
+    api.idePrUrl(projectId, branch).then((r) => { if (r.url) window.open(r.url, "_blank", "noreferrer"); else window.alert("origin bukan github/gitlab/bitbucket — tak bisa buat PR otomatis"); }).catch(() => {});
+  }
+  function archiveAct(ref: string) { setBranchMenu(null); window.open(api.ideArchiveUrl(projectId, ref), "_blank"); }
 
   const maxLanes = Math.max(1, ...rows.map((r) => r.width));
   const allEdges = React.useMemo(() => rowEdges(rows), [rows]);
@@ -484,7 +494,7 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
         { label: "Copy nama stash", run: () => { const s = stashMenu.s; setStashMenu(null); void navigator.clipboard?.writeText(s.ref); } },
       ]} />}
       {branchMenu && <Menu x={branchMenu.x} y={branchMenu.y} onClose={() => setBranchMenu(null)}
-        items={branchMenuItems(branchMenu.ref, current, allRefs, act, mergeAct, rebaseAct, pullAct)} />}
+        items={branchMenuItems(branchMenu.ref, current, allRefs, act, mergeAct, rebaseAct, pullAct, prAct, archiveAct)} />}
 
       {/* SPEC-233 · modal diff satu file di commit (reuse DiffView), tab Diff|Source */}
       {fileDiff && (

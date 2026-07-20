@@ -4,7 +4,7 @@ import React from "react";
 import hljs from "highlight.js";
 import "highlight.js/styles/github.css";
 import { Card, Button, Select, Icon, StateBlock, Tabs, Badge } from "../ds";
-import { api, ApiError, type RepoFile, type GitOp } from "../api/client";
+import { api, ApiError, type RepoFile, type GitOp, type Remote } from "../api/client";
 import type { ProjectVM } from "./types";
 import { GitGraph } from "./GitGraph";
 import { buildFileTree, TreeRow } from "./file-tree";
@@ -37,6 +37,38 @@ function ForceDialog({ msg, onForce, onCancel }: { msg: string; onForce: () => v
   );
 }
 
+// SPEC-233 · kelola remote (list/add/hapus) — modal ringkas dari toolbar IDE.
+function RemotesModal({ projectId, onClose }: { projectId: string; onClose: () => void }) {
+  const [remotes, setRemotes] = React.useState<Remote[]>([]);
+  const [name, setName] = React.useState(""); const [url, setUrl] = React.useState("");
+  const reload = React.useCallback(() => { api.ideRemotes(projectId).then(setRemotes).catch(() => setRemotes([])); }, [projectId]);
+  React.useEffect(() => { reload(); }, [reload]);
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 160, background: "rgba(0,0,0,.35)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <Card padding={20} onClick={(e: React.MouseEvent) => e.stopPropagation()} style={{ width: "min(560px, 92vw)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <span className="hn-eyebrow">remotes</span>
+          <Button size="sm" variant="ghost" leftIcon="x" onClick={onClose}>Tutup</Button>
+        </div>
+        {remotes.length === 0 && <div style={{ fontSize: 12.5, color: "var(--text-subtle)", marginBottom: 10 }}>Belum ada remote.</div>}
+        {remotes.map((r) => (
+          <div key={r.name} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderBottom: "1px solid var(--border-hair)" }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 12.5, fontWeight: 600, width: 90 }}>{r.name}</span>
+            <span style={{ flex: 1, minWidth: 0, fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.fetch}</span>
+            <Button size="sm" variant="ghost" leftIcon="trash-2" onClick={() => api.ideDeleteRemote(projectId, r.name).then(setRemotes).catch(() => {})} />
+          </div>
+        ))}
+        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="nama" style={{ width: 100, padding: "5px 8px", border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", fontSize: 12.5 }} />
+          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="url" style={{ flex: 1, padding: "5px 8px", border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", fontSize: 12.5 }} />
+          <Button size="sm" leftIcon="plus" disabled={!name || !url}
+            onClick={() => api.ideAddRemote(projectId, name, url).then((rs) => { setRemotes(rs); setName(""); setUrl(""); }).catch(() => {})}>Tambah</Button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTerminal }:
   { projects: ProjectVM[]; projectId: string; onProject: (id: string) => void;
     onToast?: (msg: string, tone: "ok" | "warn" | "err" | "info", icon?: string) => void;
@@ -51,6 +83,7 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
   const [mode, setMode] = React.useState<"view" | "edit">("view");
   const [draft, setDraft] = React.useState("");
   const [pendingForce, setPendingForce] = React.useState<{ op: GitOp; msg: string } | null>(null);
+  const [showRemotes, setShowRemotes] = React.useState(false);
 
   const reloadTree = React.useCallback(() => {
     setTreeState("loading");
@@ -141,6 +174,7 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
       <Button size="sm" variant="secondary" leftIcon="git-branch" onClick={checkout} disabled={!viewRef}>Checkout</Button>
       {/* SPEC-233 · fetch --all --prune; ref-only → tak digerbang sesi */}
       <Button size="sm" variant="ghost" leftIcon="download-cloud" onClick={() => { void runGit({ op: "fetch", prune: true }).then(() => api.listBranches(projectId).then(setBranches)).catch(() => {}); }}>Fetch</Button>
+      <Button size="sm" variant="ghost" leftIcon="git-branch" onClick={() => setShowRemotes(true)}>Remotes</Button>
     </div>
   );
 
@@ -203,6 +237,7 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
       )}
 
       {pendingForce && <ForceDialog msg={pendingForce.msg} onForce={confirmForce} onCancel={() => setPendingForce(null)} />}
+      {showRemotes && <RemotesModal projectId={projectId} onClose={() => setShowRemotes(false)} />}
     </div>
   );
 }

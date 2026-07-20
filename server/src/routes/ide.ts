@@ -1,5 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { basename } from "node:path";
+import { spawn } from "node:child_process";
+import { listRemotes, addRemote, setRemoteUrl, removeRemote, prUrl } from "../services/git-remotes";
 import { prisma } from "../db";
 import { resolveRepoDir } from "../services/local-binding";
 import { listSessions, createSession } from "../services/pty";
@@ -82,6 +84,65 @@ export default async function (app: FastifyInstance) {
     const repoDir = await repoOf((req.params as { id: string }).id);
     if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
     return listStashes(repoDir);
+  });
+
+  // SPEC-233 · kelola remote (list/add/edit/hapus).
+  app.get("/projects/:id/remotes", async (req, reply) => {
+    const repoDir = await repoOf((req.params as { id: string }).id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    return listRemotes(repoDir);
+  });
+  app.post("/projects/:id/remotes", async (req, reply) => {
+    const repoDir = await repoOf((req.params as { id: string }).id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    if (!repoDir) return reply.code(400).send({ error: "project tidak punya repoDir" });
+    const b = req.body as { name?: string; url?: string };
+    if (!b?.name || !b?.url) return reply.code(400).send({ error: "name & url wajib" });
+    const r = await addRemote(repoDir, b.name, b.url);
+    return r.ok ? listRemotes(repoDir) : reply.code(409).send({ error: r.error });
+  });
+  app.patch("/projects/:id/remotes/:name", async (req, reply) => {
+    const { id, name } = req.params as { id: string; name: string };
+    const repoDir = await repoOf(id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    if (!repoDir) return reply.code(400).send({ error: "project tidak punya repoDir" });
+    const b = req.body as { url?: string };
+    if (!b?.url) return reply.code(400).send({ error: "url wajib" });
+    const r = await setRemoteUrl(repoDir, name, b.url);
+    return r.ok ? listRemotes(repoDir) : reply.code(409).send({ error: r.error });
+  });
+  app.delete("/projects/:id/remotes/:name", async (req, reply) => {
+    const { id, name } = req.params as { id: string; name: string };
+    const repoDir = await repoOf(id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    if (!repoDir) return reply.code(400).send({ error: "project tidak punya repoDir" });
+    const r = await removeRemote(repoDir, name);
+    return r.ok ? listRemotes(repoDir) : reply.code(409).send({ error: r.error });
+  });
+
+  // SPEC-233 · URL "Create Pull Request" diturunkan dari remote origin project.
+  app.get("/projects/:id/pr-url", async (req, reply) => {
+    const repoDir = await repoOf((req.params as { id: string }).id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    const { branch, base } = req.query as { branch?: string; base?: string };
+    if (!branch) return reply.code(400).send({ error: "branch wajib" });
+    const origin = (await listRemotes(repoDir)).find((r) => r.name === "origin");
+    return { url: origin ? prUrl(origin.push || origin.fetch, branch, base || "main") : null };
+  });
+
+  // SPEC-233 · unduh arsip (git archive) sebuah ref. format ∈ zip|tar. Stream langsung.
+  app.get("/projects/:id/archive", async (req, reply) => {
+    const repoDir = await repoOf((req.params as { id: string }).id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    if (!repoDir) return reply.code(400).send({ error: "project tidak punya repoDir" });
+    const q = req.query as { ref?: string; format?: string };
+    const ref = q.ref || "HEAD";
+    if (!/^[\w./@{}-]+$/.test(ref)) return reply.code(400).send({ error: "ref tidak valid" });
+    const fmt = q.format === "tar" ? "tar" : "zip";
+    const child = spawn("git", ["archive", `--format=${fmt}`, "--end-of-options", ref], { cwd: repoDir });
+    reply.header("content-type", fmt === "zip" ? "application/zip" : "application/x-tar");
+    reply.header("content-disposition", `attachment; filename="${basename(repoDir)}-${ref.replace(/[^\w.-]/g, "_")}.${fmt}"`);
+    return reply.send(child.stdout);
   });
 
   app.get("/projects/:id/commit/:sha", async (req, reply) => {

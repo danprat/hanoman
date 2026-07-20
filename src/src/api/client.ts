@@ -53,6 +53,7 @@ export type GitOp =
   | { op: "fetch"; prune?: boolean; pruneTags?: boolean; force?: boolean };
 export type RepoStatus = { branch: string; ahead: number; behind: number; staged: string[]; unstaged: string[]; untracked: string[]; clean: boolean };
 export type Stash = { ref: string; message: string; at: string };
+export type Remote = { name: string; fetch: string; push: string };
 export type GitOpResult = { ok: boolean; stdout: string; stderr: string; current: string; error?: string };
 // SPEC-229 · hasil merge via git graph: bersih → detail; konflik → sesi claude (sessionId).
 export type GraphMergeResult = { status: "clean"; detail: string } | { status: "conflict"; sessionId: string };
@@ -134,6 +135,13 @@ export const api = {
   ideStatus: (id: string) => j<RepoStatus>(paths.ideStatus(id)),
   ideSearch: (id: string, q: string, by = "all") => j<{ shas: string[] }>(paths.ideSearch(id, q, by)), // SPEC-233
   ideStashes: (id: string) => j<Stash[]>(paths.ideStashes(id)), // SPEC-233 · daftar stash
+  // SPEC-233 · remote mgmt + pr-url + archive
+  ideRemotes: (id: string) => j<Remote[]>(paths.ideRemotes(id)),
+  ideAddRemote: (id: string, name: string, url: string) => j<Remote[]>(paths.ideRemotes(id), { method: "POST", ...body({ name, url }) }),
+  idePatchRemote: (id: string, name: string, url: string) => j<Remote[]>(paths.ideRemote(id, name), { method: "PATCH", ...body({ url }) }),
+  ideDeleteRemote: (id: string, name: string) => j<Remote[]>(paths.ideRemote(id, name), { method: "DELETE" }),
+  idePrUrl: (id: string, branch: string, base?: string) => j<{ url: string | null }>(paths.idePrUrl(id, branch, base)),
+  ideArchiveUrl: (id: string, ref: string, format = "zip") => paths.ideArchive(id, ref, format),
   ideCommit: (id: string, sha: string) => j<CommitDetail>(paths.ideCommit(id, sha)),
   ideCommitFile: (id: string, sha: string, path: string) => j<ReviewFile>(paths.ideCommitFile(id, sha, path)), // SPEC-233
   ideCompare: (id: string, from: string, to: string) => j<{ from: string; to: string; changed: ChangedFile[] }>(paths.ideCompare(id, from, to)),
