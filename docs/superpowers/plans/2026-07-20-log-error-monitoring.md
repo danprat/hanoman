@@ -829,13 +829,13 @@ patchError: (id: string, status: string) => j<{ id: string; status: string }>(pa
 - Consumes: `api.getIngestKey`, `api.rotateIngestKey`, `api.revokeIngestKey`; `ProjectVM.monitoringEnabled`, `ProjectVM.ingestKeyPrefix`.
 - Produces: kartu DSN di ProjectDetail.
 
-- [ ] **Step 1: Kartu DSN** di `ProjectDetailScreen.tsx`: bila `monitoringEnabled` tampil prefix (`hnm_ing_…` + mono) + tombol **Rotate** + **Revoke**; bila belum tampil tombol **Generate DSN**. On generate/rotate → panggil `api.rotateIngestKey(id)`, tampil `dsnUrl` **sekali** di kotak `--brass-100` + tombol **Salin** (pola `DeviceTokensPanel`), peringatan "hanya ditampilkan sekali". Revoke → konfirmasi → `api.revokeIngestKey`.
+- [x] **Step 1: Kartu DSN** di `ProjectDetailScreen.tsx`: bila `monitoringEnabled` tampil prefix (`hnm_ing_…` + mono) + tombol **Rotate** + **Revoke**; bila belum tampil tombol **Generate DSN**. On generate/rotate → panggil `api.rotateIngestKey(id)`, tampil `dsnUrl` **sekali** di kotak `--brass-100` + tombol **Salin** (pola `DeviceTokensPanel`), peringatan "hanya ditampilkan sekali". Revoke → konfirmasi → `api.revokeIngestKey`.
 
-- [ ] **Step 2: Test `project-dsn.test.tsx`** (mock api): project tanpa monitoring → tombol Generate; klik → `rotateIngestKey` + `dsnUrl` tampil sekali + copy; project dengan monitoring → prefix + Rotate/Revoke; Revoke → `revokeIngestKey` terpanggil.
+- [x] **Step 2: Test `project-dsn.test.tsx`** (mock api): project tanpa monitoring → tombol Generate; klik → `rotateIngestKey` + `dsnUrl` tampil sekali + copy; project dengan monitoring → prefix + Rotate/Revoke; Revoke → `revokeIngestKey` terpanggil.
 
-- [ ] **Step 3: Run** test → PASS; `pnpm -C src build` hijau.
+- [x] **Step 3: Run** test → PASS; `pnpm -C src build` hijau.
 
-- [ ] **Step 4: Commit** `git commit -m "feat(spec-249): DSN management UI in project detail (generate/rotate/revoke, show-once)"`
+- [x] **Step 4: Commit** `git commit -m "feat(spec-249): DSN management UI in project detail (generate/rotate/revoke, show-once)"`
 
 ---
 

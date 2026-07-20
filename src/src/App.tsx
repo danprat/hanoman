@@ -704,7 +704,7 @@ export default function App() {
       <Shell active="projects" title={proj ? proj.name : "Project"}
         breadcrumb={proj ? "projects · " + proj.id : "projects"} onNavigate={setSection}>
         {gate(proj
-          ? <ProjectDetailScreen p={proj} onEdit={() => setModal("project-edit")}
+          ? <ProjectDetailScreen p={proj} onEdit={() => setModal("project-edit")} onToast={showToast}
               onGotoDocs={() => setSection("docs")}
               onGotoTerminal={() => { setProjectFilter(proj.id); setSection("terminal"); }}
               onGotoBacklog={() => { setProjectFilter(proj.id); setSection("backlog"); }}
