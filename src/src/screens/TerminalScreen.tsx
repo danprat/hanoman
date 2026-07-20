@@ -2,6 +2,7 @@ import React from "react";
 import { Button, IconButton, Icon, Select, StateBlock, Modal, Input, Badge, StatusPill } from "../ds";
 import { api, ApiError, type TerminalSession, type Phase, type Flow } from "../api/client";
 import { subscribe } from "../api/events";
+import { flowForSource } from "@hanoman/shared";
 import { TerminalPane } from "./TerminalPane";
 import { SpecDocsModal } from "./SpecDocsModal";
 import { IntegrateDialog } from "./IntegrateDialog";
@@ -80,7 +81,7 @@ export function TerminalScreen({ projects, backlog = [], focusSession, onOpenRev
   // SPEC-179 · ambil backlog item tanpa pindah page. Reuse start API idempoten +
   // placeFirstEmptyInActive — sesi baru langsung masuk grid aktif.
   async function pickBacklog(spec: Spec) {
-    const flow: Flow = spec.source === "qa" ? "qa" : "feature";
+    const flow: Flow = flowForSource(spec.source);
     try {
       const { id } = await api.startSession({ spec: spec.id, flow });
       setSessions((s) => s.some((x) => x.id === id)

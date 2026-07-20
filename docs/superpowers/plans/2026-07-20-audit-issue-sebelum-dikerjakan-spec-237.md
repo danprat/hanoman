@@ -361,14 +361,14 @@ git commit -m "feat(server): POST /specs menerima source audit + author Audit· 
 - Consumes: `flowForSource` dari `@hanoman/shared` (Task 1).
 - Produces: kedua situs start-sesi memakai `flowForSource(spec.source)`.
 
-- [ ] **Step 1: `Flow` type + import helper**
+- [x] **Step 1: `Flow` type + import helper**
 
 `src/src/api/client.ts:3`:
 ```ts
 export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit";
 ```
 
-- [ ] **Step 2: Ganti kedua situs source→flow**
+- [x] **Step 2: Ganti kedua situs source→flow**
 
 `src/src/App.tsx:497` (di dalam `startSession`):
 ```ts
@@ -380,12 +380,12 @@ export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit";
 ```
 Tambahkan `flowForSource` ke import `@hanoman/shared` di kedua file (mis. `import { flowForSource } from "@hanoman/shared";`).
 
-- [ ] **Step 3: Typecheck**
+- [x] **Step 3: Typecheck**
 
 Run: `pnpm --filter @hanoman/web exec tsc --noEmit` (atau perintah typecheck web yang berlaku di repo)
 Expected: PASS (tak ada error tipe `Flow`).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/src/api/client.ts src/src/App.tsx src/src/screens/TerminalScreen.tsx

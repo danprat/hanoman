@@ -8,6 +8,7 @@ import { Shell, Modal, Field, HnTextarea, Button, StatusPill, Select, Input, Tab
 import { api, ApiError, type TerminalSession } from "./api/client";
 import { subscribe } from "./api/events";
 import type { ProjectView, Spec, AuthStatus, UserView, Notification } from "@hanoman/shared";
+import { flowForSource } from "@hanoman/shared";
 import { AuthScreen } from "./screens/AuthScreen";
 import { AuthProvider } from "./auth/AuthContext";
 import type { ProjectVM } from "./screens/types";
@@ -494,7 +495,7 @@ export default function App() {
   // `branchFrom` tak dikirim — server membacanya dari baris Spec (SPEC-143).
   async function startSession(spec: Spec) {
     try {
-      const { id } = await api.startSession({ spec: spec.id, flow: spec.source === "qa" ? "qa" : "feature" });
+      const { id } = await api.startSession({ spec: spec.id, flow: flowForSource(spec.source) });
       setSection("terminal");
       showToast(spec.id + " · sesi " + id + " dimulai", "info", "play");
     } catch (e) {
