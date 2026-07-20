@@ -1,13 +1,14 @@
 /* IdeScreen — IDE Visual (SPEC-182): Explorer (pohon file + editor highlight) & Git Graph,
-   satu toolbar (project + branch switcher). Pola tree/editor meniru DocsWorkspace. */
+   satu toolbar (project + branch switcher). SPEC-234: section Staged/Changed + diff pane. */
 import React from "react";
 import hljs from "highlight.js";
 import "highlight.js/styles/github.css";
 import { Card, Button, Select, Icon, StateBlock, Tabs, Badge } from "../ds";
-import { api, ApiError, type RepoFile, type GitOp } from "../api/client";
+import { api, ApiError, type RepoFile, type ReviewFile, type WorkingStatus, type GitOp } from "../api/client";
 import type { ProjectVM } from "./types";
 import { GitGraph } from "./GitGraph";
-import { buildFileTree, TreeRow } from "./file-tree";
+import { buildFileTree, TreeRow, ChangedSection } from "./file-tree";
+import { DiffView } from "./diff-view";
 
 const langOf = (p: string): string => {
   const ext = p.slice(p.lastIndexOf(".") + 1);
@@ -47,26 +48,50 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
   const [files, setFiles] = React.useState<string[]>([]);
   const [treeState, setTreeState] = React.useState<"loading" | "ready" | "error">("loading");
   const [selected, setSelected] = React.useState("");
+  const [selKind, setSelKind] = React.useState<"file" | "staged" | "unstaged">("file"); // sumber seleksi → viewer vs diff
   const [file, setFile] = React.useState<RepoFile | null>(null);
   const [mode, setMode] = React.useState<"view" | "edit">("view");
   const [draft, setDraft] = React.useState("");
   const [pendingForce, setPendingForce] = React.useState<{ op: GitOp; msg: string } | null>(null);
+  // SPEC-234 · status working tree (staged/unstaged) + diff file terpilih.
+  const [status, setStatus] = React.useState<WorkingStatus | null>(null);
+  const [stagedView, setStagedView] = React.useState<"list" | "tree">("list");
+  const [changedView, setChangedView] = React.useState<"list" | "tree">("list");
+  const [diff, setDiff] = React.useState<ReviewFile | null>(null);
+  const [diffTab, setDiffTab] = React.useState<"diff" | "source">("diff");
 
   const reloadTree = React.useCallback(() => {
     setTreeState("loading");
     api.ideTree(projectId, viewRef).then((t) => { setFiles(t.files); setTreeState("ready"); })
       .catch(() => setTreeState("error"));
   }, [projectId, viewRef]);
+  // Status working tree independen dari ref yang dilihat (staged/unstaged inheren milik working tree).
+  const reloadStatus = React.useCallback(() => {
+    api.ideStatus(projectId).then(setStatus).catch(() => setStatus(null));
+  }, [projectId]);
 
   React.useEffect(() => { reloadTree(); }, [reloadTree]);
+  React.useEffect(() => { reloadStatus(); }, [reloadStatus]);
   React.useEffect(() => { api.listBranches(projectId).then(setBranches).catch(() => {}); }, [projectId]);
+  // selKind "file" → isi file (editable, honor viewRef). staged/unstaged → diff read-only.
   React.useEffect(() => {
-    if (!selected) { setFile(null); return; }
+    if (!selected) { setFile(null); setDiff(null); return; }
     let alive = true;
-    api.ideFile(projectId, selected, viewRef).then((f) => { if (alive) { setFile(f); setMode("view"); } })
-      .catch(() => { if (alive) setFile(null); });
+    if (selKind === "file") {
+      setDiff(null);
+      api.ideFile(projectId, selected, viewRef).then((f) => { if (alive) { setFile(f); setMode("view"); } })
+        .catch(() => { if (alive) setFile(null); });
+    } else {
+      setFile(null); setDiffTab("diff");
+      api.ideFileDiff(projectId, selected, selKind === "staged").then((d) => { if (alive) setDiff(d); })
+        .catch(() => { if (alive) setDiff(null); });
+    }
     return () => { alive = false; };
-  }, [selected, projectId, viewRef]);
+  }, [selected, selKind, projectId, viewRef]);
+
+  const selectFile = (p: string) => { setSelKind("file"); setSelected(p); };
+  const selectStaged = (p: string) => { setSelKind("staged"); setSelected(p); };
+  const selectChanged = (p: string) => { setSelKind("unstaged"); setSelected(p); };
 
   // Semua ref: local + origin (prefix "origin/") untuk dilihat/checkout.
   const refOptions = [
@@ -78,7 +103,7 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
   async function runGit(op: GitOp) {
     try {
       const r = await api.ideGit(projectId, op);
-      setViewRef(""); reloadTree();
+      setViewRef(""); reloadTree(); reloadStatus();
       return r;
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) setPendingForce({ op, msg: e.message });
@@ -86,13 +111,12 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
     }
   }
   async function checkout() { if (viewRef) await runGit({ op: "checkout", ref: viewRef }).catch(() => {}); }
-  // SPEC-229 · merge via git graph: deterministik di worktree isolasi. Konflik → pindah Terminal
-  // (sesi claude), bersih → toast + reload, error → toast. Melempar ulang agar mergeAct tak reload salah.
+  // SPEC-229 · merge via git graph: konflik → pindah Terminal (sesi claude), bersih → toast + reload.
   async function mergeGraph(source: string, opts?: { ff?: "no-ff" | "ff-only"; deleteBranch?: string }) {
     try {
       const r = await api.ideGitMerge(projectId, { source, ...opts });
       if (r.status === "conflict") { onGotoTerminal?.(r.sessionId); onToast?.("konflik merge — selesaikan di Terminal", "warn", "git-merge"); }
-      else { setViewRef(""); reloadTree(); onToast?.(`merge berhasil · ${r.detail}`, "ok", "git-merge"); }
+      else { setViewRef(""); reloadTree(); reloadStatus(); onToast?.(`merge berhasil · ${r.detail}`, "ok", "git-merge"); }
     } catch (e) {
       const code = e instanceof ApiError ? e.status : 0;
       onToast?.("gagal merge" + (code === 409 ? " · cek branch/target" : ""), "err", "x-circle");
@@ -103,13 +127,14 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
     if (!pendingForce) return;
     const op = { ...pendingForce.op, force: true } as GitOp;
     setPendingForce(null);
-    await api.ideGit(projectId, op).then(() => { setViewRef(""); reloadTree(); }).catch(() => {});
+    await api.ideGit(projectId, op).then(() => { setViewRef(""); reloadTree(); reloadStatus(); }).catch(() => {});
   }
 
   function startEdit() { setDraft(file?.content ?? ""); setMode("edit"); }
   async function save() {
     await api.putIdeFile(projectId, selected, draft);
     setFile((f) => (f ? { ...f, content: draft } : f)); setMode("view");
+    reloadStatus(); // menyimpan file mengubah status working tree
   }
 
   const highlighted = React.useMemo(() => {
@@ -128,6 +153,8 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
     </div>
   );
 
+  const inDiff = selKind !== "file"; // pane kanan mode diff (dari Staged/Changed)
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
@@ -136,53 +163,85 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
       </div>
 
       {tab === "explorer" ? (
-        <div style={{ display: "grid", gridTemplateColumns: "288px 1fr", gap: 20, alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 20, alignItems: "start" }}>
           <Card padding={0}>
-            <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--border-hair)" }}>
-              <span className="hn-eyebrow">files · {viewRef || "working tree"}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderBottom: "1px solid var(--border-hair)" }}>
+              <span className="hn-eyebrow" style={{ flex: 1 }}>changes{status?.branch ? ` · ${status.branch}` : ""}</span>
+              <Button size="sm" variant="ghost" leftIcon="rotate-ccw" onClick={() => { reloadTree(); reloadStatus(); }}>Muat ulang</Button>
             </div>
             <div style={{ padding: 8, maxHeight: 620, overflow: "auto" }}>
+              <ChangedSection label="Staged" changed={status?.staged ?? []}
+                selected={selKind === "staged" ? selected : ""} onSelect={selectStaged}
+                view={stagedView} onView={setStagedView} emptyText="Tak ada file staged." />
+              <div style={{ borderTop: "1px solid var(--border-hair)", margin: "6px 0" }} />
+              <ChangedSection label="Changed" changed={status?.unstaged ?? []}
+                selected={selKind === "unstaged" ? selected : ""} onSelect={selectChanged}
+                view={changedView} onView={setChangedView} emptyText="Tak ada file berubah." />
+              <div className="hn-eyebrow" style={{ padding: "6px 8px", marginTop: 8, borderTop: "1px solid var(--border-hair)" }}>
+                Files · {viewRef || "working tree"}
+              </div>
               {treeState === "loading" ? <StateBlock kind="loading" compact title="Memuat file…" />
                 : treeState === "error" ? <StateBlock kind="error" compact title="Gagal memuat file" action={reloadTree} />
                 : files.length === 0 ? <StateBlock kind="empty" compact icon="folder-open" title="Tak ada file" />
                 : buildFileTree(files).map((n) => (
-                    <TreeRow key={n.path} node={n} selected={selected} onSelect={setSelected} />
+                    <TreeRow key={n.path} node={n} selected={selKind === "file" ? selected : ""} onSelect={selectFile} />
                   ))}
             </div>
           </Card>
           <Card padding={0}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderBottom: "1px solid var(--border-hair)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderBottom: "1px solid var(--border-hair)", flexWrap: "wrap" }}>
               <Icon name="file-text" size={15} color="var(--text-muted)" />
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--text-strong)" }}>{selected || "—"}</span>
-              {file?.truncated && <Badge tone="warn" size="sm">terpotong</Badge>}
+              {!inDiff && file?.truncated && <Badge tone="warn" size="sm">terpotong</Badge>}
+              {inDiff && diff?.status && <Badge tone={diff.status === "D" ? "err" : diff.status === "A" ? "ok" : "brass"} size="sm">{diff.status}</Badge>}
               <span style={{ flex: 1 }} />
-              {mode === "view"
-                ? <Button size="sm" variant="secondary" leftIcon="pencil" onClick={startEdit}
-                    disabled={!file || file.binary}>Edit</Button>
-                : <div style={{ display: "flex", gap: 8 }}>
-                    <Button size="sm" variant="ghost" onClick={() => setMode("view")}>Batal</Button>
-                    <Button size="sm" leftIcon="check" onClick={save}>Simpan</Button>
-                  </div>}
+              {inDiff
+                ? <div style={{ display: "flex", gap: 2, background: "var(--bone-100)", borderRadius: "var(--radius-pill)", padding: 2 }}>
+                    {(["diff", "source"] as const).map((t) => (
+                      <button key={t} onClick={() => setDiffTab(t)} style={{
+                        padding: "4px 12px", border: "none", cursor: "pointer", borderRadius: "var(--radius-pill)",
+                        fontSize: 12, textTransform: "capitalize",
+                        background: diffTab === t ? "var(--surface-card)" : "transparent",
+                        color: diffTab === t ? "var(--text-strong)" : "var(--text-muted)", fontWeight: diffTab === t ? 600 : 400,
+                      }}>{t}</button>
+                    ))}
+                  </div>
+                : mode === "view"
+                  ? <Button size="sm" variant="secondary" leftIcon="pencil" onClick={startEdit}
+                      disabled={!file || file.binary}>Edit</Button>
+                  : <div style={{ display: "flex", gap: 8 }}>
+                      <Button size="sm" variant="ghost" onClick={() => setMode("view")}>Batal</Button>
+                      <Button size="sm" leftIcon="check" onClick={save}>Simpan</Button>
+                    </div>}
             </div>
             <div style={{ maxHeight: 620, overflow: "auto" }}>
-              {!selected ? <StateBlock kind="empty" icon="file-text" title="Pilih file dari pohon di kiri" />
-                : file === null ? <StateBlock kind="loading" title="Memuat…" hint={selected} />
-                : file.binary ? <StateBlock kind="empty" icon="file" title="File biner" hint={selected} />
-                : mode === "edit"
-                  ? <textarea value={draft} onChange={(e) => setDraft(e.target.value)} spellCheck={false} style={{
-                      width: "100%", minHeight: 560, boxSizing: "border-box", resize: "vertical", border: "none",
-                      outline: "none", padding: "16px 18px", fontFamily: "var(--font-mono)", fontSize: 12.5,
-                      lineHeight: 1.7, color: "var(--text-body)", background: "var(--surface-card)" }} />
-                  : <pre style={{ margin: 0, padding: "16px 18px", overflow: "auto" }}>
-                      <code className="hljs" style={{ fontFamily: "var(--font-mono)", fontSize: 12.5, lineHeight: 1.7 }}
-                        dangerouslySetInnerHTML={{ __html: highlighted }} />
-                    </pre>}
+              {inDiff
+                ? (!selected ? <StateBlock kind="empty" icon="file-text" title="Pilih file dari Staged/Changed" />
+                    : diff === null ? <StateBlock kind="loading" title="Memuat…" hint={selected} />
+                    : diff.binary ? <StateBlock kind="empty" icon="file" title="Berkas biner" hint={selected} />
+                    : diffTab === "diff" ? <div style={{ padding: "10px 0" }}><DiffView diff={diff.diff ?? ""} />
+                        {diff.truncated && <div style={{ padding: "8px 12px", fontSize: 11, color: "var(--text-subtle)" }}>… dipotong pada 256 KB.</div>}</div>
+                    : diff.content === null ? <StateBlock kind="empty" icon="trash-2" title="File dihapus" hint="Tak ada isi untuk ditampilkan." />
+                    : <pre style={{ margin: 0, padding: "12px 16px", fontFamily: "var(--font-mono)", fontSize: 12.5,
+                        lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-body)" }}>{diff.content}</pre>)
+                : (!selected ? <StateBlock kind="empty" icon="file-text" title="Pilih file dari pohon di kiri" />
+                    : file === null ? <StateBlock kind="loading" title="Memuat…" hint={selected} />
+                    : file.binary ? <StateBlock kind="empty" icon="file" title="File biner" hint={selected} />
+                    : mode === "edit"
+                      ? <textarea value={draft} onChange={(e) => setDraft(e.target.value)} spellCheck={false} style={{
+                          width: "100%", minHeight: 560, boxSizing: "border-box", resize: "vertical", border: "none",
+                          outline: "none", padding: "16px 18px", fontFamily: "var(--font-mono)", fontSize: 12.5,
+                          lineHeight: 1.7, color: "var(--text-body)", background: "var(--surface-card)" }} />
+                      : <pre style={{ margin: 0, padding: "16px 18px", overflow: "auto" }}>
+                          <code className="hljs" style={{ fontFamily: "var(--font-mono)", fontSize: 12.5, lineHeight: 1.7 }}
+                            dangerouslySetInnerHTML={{ __html: highlighted }} />
+                        </pre>)}
             </div>
           </Card>
         </div>
       ) : (
         <GitGraph projectId={projectId} onRunGit={runGit} onMerge={mergeGraph}
-          onOpenFile={(p, ref) => { setViewRef(ref); setSelected(p); setTab("explorer"); }} />
+          onOpenFile={(p, ref) => { setViewRef(ref); selectFile(p); setTab("explorer"); }} />
       )}
 
       {pendingForce && <ForceDialog msg={pendingForce.msg} onForce={confirmForce} onCancel={() => setPendingForce(null)} />}
