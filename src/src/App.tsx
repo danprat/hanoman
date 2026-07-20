@@ -17,6 +17,7 @@ import { OverviewScreen } from "./screens/OverviewScreen";
 import { ProjectsScreen } from "./screens/ProjectsScreen";
 import { ProjectDetailScreen } from "./screens/ProjectDetailScreen";
 import { BacklogScreen } from "./screens/BacklogScreen";
+import { ErrorsScreen } from "./screens/ErrorsScreen";
 import { PrdScreen, type PrdPrefill, type PrdBriefForm } from "./screens/PrdScreen";
 import { TerminalScreen } from "./screens/TerminalScreen";
 import { IdeScreen } from "./screens/IdeScreen";
@@ -725,6 +726,19 @@ export default function App() {
           onEditBranch={editBranch} onRevertStage={revertStage} onIntegrate={integrateSpec} onEditSpec={editSpec}
           onPromoteToQa={promoteToQa}
           projectFilter={projectFilter} onProjectFilter={setProjectFilter} dataVersion={dataVersion} />)}
+      </Shell>
+    );
+  } else if (section === "errors") {
+    // SPEC-249 · Error monitoring (Sentry ringan): daftar grup + detail + eskalasi ke backlog.
+    // Screen mandiri (pola VPS) — memuat datanya sendiri (HTTP polling), tak lewat `gate`.
+    screen = (
+      <Shell active="errors" title="Errors" breadcrumb="monitoring · ingest → group → escalate" onNavigate={setSection}>
+        <ErrorsScreen projects={projectsView} onToast={showToast}
+          onEscalated={(spec, already) => {
+            showToast(already ? `Sudah dieskalasi ke ${spec.id}` : `Dieskalasi ke ${spec.id}`, "ok", "arrow-up-right");
+            setProjectFilter(spec.projectId);
+            setSection("backlog");
+          }} />
       </Shell>
     );
   } else if (section === "prd") {

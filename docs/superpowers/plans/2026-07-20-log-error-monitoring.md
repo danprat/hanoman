@@ -803,19 +803,19 @@ patchError: (id: string, status: string) => j<{ id: string; status: string }>(pa
 - Consumes: `api.listErrors`, `api.getError`, `api.escalateError` (Tasks 5-6).
 - Produces: nav key `errors`; `ErrorsScreen` (self-fetch + silent poll pola `GitGraph`).
 
-- [ ] **Step 1: Nav** `src/ds/shell.tsx` `HN_NAV` — tambah `{ key: "errors", label: "Errors", icon: "triangle-alert" }` (mis. setelah backlog).
+- [x] **Step 1: Nav** `src/ds/shell.tsx` `HN_NAV` — tambah `{ key: "errors", label: "Errors", icon: "triangle-alert" }` (mis. setelah backlog).
 
-- [ ] **Step 2: `ErrorsScreen.tsx`** — daftar grup (silent poll 5s, `!document.hidden`), filter environment + project, `Card`+`Badge`(count)+`StatusPill`(status)+relative last-seen; klik row → detail (state selection lokal): message, `sampleStack` (mono), env, first/last seen, count, tombol **"Eskalasi ke backlog"** (`api.escalateError` → callback `onEscalated(spec)`; jika `alreadyEscalated` tampil "→ SPEC-N"), tombol "Kembali". Pakai token DS (`--status-err`, `--bone-*`). StateBlock loading/error/empty.
+- [x] **Step 2: `ErrorsScreen.tsx`** — daftar grup (silent poll 5s, `!document.hidden`), filter environment + project, `Card`+`Badge`(count)+`StatusPill`(status)+relative last-seen; klik row → detail (state selection lokal): message, `sampleStack` (mono), env, first/last seen, count, tombol **"Eskalasi ke backlog"** (`api.escalateError` → callback `onEscalated(spec)`; jika `alreadyEscalated` tampil "→ SPEC-N"), tombol "Kembali". Pakai token DS (`--status-err`, `--bone-*`). StateBlock loading/error/empty.
 
-- [ ] **Step 3: Wire `App.tsx`** — `section === "errors"` branch render `<Shell active="errors" title="Errors" onNavigate={setSection}><ErrorsScreen projects={...} onEscalated={(spec)=>{ setSection("backlog"); ... }} /></Shell>` (pola VPS, tanpa `gate`).
+- [x] **Step 3: Wire `App.tsx`** — `section === "errors"` branch render `<Shell active="errors" title="Errors" onNavigate={setSection}><ErrorsScreen projects={...} onEscalated={(spec)=>{ setSection("backlog"); ... }} /></Shell>` (pola VPS, tanpa `gate`).
 
-- [ ] **Step 4: Test `errors-screen.test.tsx`** (mock `api`): render daftar dari `listErrors` mock; klik row → detail (getError mock) tampil stack; klik "Eskalasi" → `escalateError` terpanggil + UI menandai escalated. Filter environment mengubah params `listErrors`.
+- [x] **Step 4: Test `errors-screen.test.tsx`** (mock `api`): render daftar dari `listErrors` mock; klik row → detail (getError mock) tampil stack; klik "Eskalasi" → `escalateError` terpanggil + UI menandai escalated. Filter environment mengubah params `listErrors`.
 
-- [ ] **Step 5: Run** `env -u NODE_ENV -u DATABASE_URL pnpm -C src exec vitest run src/test/errors-screen.test.tsx` → PASS. Build front: `pnpm -C src build`.
+- [x] **Step 5: Run** `env -u NODE_ENV -u DATABASE_URL pnpm -C src exec vitest run src/test/errors-screen.test.tsx` → PASS. Build front: `pnpm -C src build`.
 
-- [ ] **Step 6: Smoke UI** (opsional CDP / manual): boot dev, buka Errors, verifikasi daftar + detail + escalate. Minimal: `pnpm -C src build` hijau + test hijau.
+- [x] **Step 6: Smoke UI** (opsional CDP / manual): boot dev, buka Errors, verifikasi daftar + detail + escalate. Minimal: `pnpm -C src build` hijau + test hijau.
 
-- [ ] **Step 7: Commit** `git commit -m "feat(spec-249): Errors area — group list, detail, escalate button"`
+- [x] **Step 7: Commit** `git commit -m "feat(spec-249): Errors area — group list, detail, escalate button"`
 
 ---
 
