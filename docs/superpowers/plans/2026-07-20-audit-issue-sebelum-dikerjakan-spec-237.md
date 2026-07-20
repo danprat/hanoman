@@ -280,12 +280,12 @@ git commit -m "feat(server): klasifikasi audit doc SoT (research/audit-*) di pre
 - Consumes: `zCreateSpec` (Task 1 sudah menerima `audit` + payload brief), `deriveSpecFields` (audit → cabang brief, tak berubah).
 - Produces: `POST /specs {source:"audit", payload:brief}` → 201, `author` berawalan `Audit · `.
 
-- [ ] **Step 1: Baca blok author saat ini**
+- [x] **Step 1: Baca blok author saat ini**
 
 Run: `sed -n '78,96p' server/src/routes/specs.ts`
 Catat ekspresi `author` (mis. `const author = isQa ? \`QA · ${email}\` : email;`).
 
-- [ ] **Step 2: Tulis test yang gagal**
+- [x] **Step 2: Tulis test yang gagal**
 
 Buat `server/test/specs-audit.route.test.ts` (pola factory seperti `spec-docs.route.test.ts`):
 ```ts
@@ -323,12 +323,12 @@ describe("SPEC-237 · POST /specs source audit", () => {
 ```
 > Catatan: samakan import (`buildApp`/`authHeaders`/`makeProject`) dengan yang benar-benar diekspor `server/test/factory.ts`. Bila helper berbeda nama, sesuaikan; bila route spec test yang ada sudah menyediakan pola inject+auth, tumpangi file itu.
 
-- [ ] **Step 3: Jalankan test — pastikan gagal**
+- [x] **Step 3: Jalankan test — pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run test/specs-audit.route.test.ts`
 Expected: FAIL (author belum berawalan Audit; atau perlu penyesuaian helper).
 
-- [ ] **Step 4: Implementasi author**
+- [x] **Step 4: Implementasi author**
 
 Di `server/src/routes/specs.ts` ganti ekspresi `author` `POST /specs` agar menyertakan audit, mis.:
 ```ts
@@ -337,12 +337,12 @@ Di `server/src/routes/specs.ts` ganti ekspresi `author` `POST /specs` agar menye
 ```
 (`isQa` untuk hal lain tetap; hanya `author` yang ditambah cabang audit. `deriveSpecFields` tak diubah — audit sudah jatuh ke cabang brief.)
 
-- [ ] **Step 5: Jalankan test — pastikan lolos**
+- [x] **Step 5: Jalankan test — pastikan lolos**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run test/specs-audit.route.test.ts`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/routes/specs.ts server/test/specs-audit.route.test.ts

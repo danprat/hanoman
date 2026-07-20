@@ -122,6 +122,28 @@ describe("specs routes", () => {
     expect(res.statusCode).toBe(201); expect(res.json().id).toMatch(/^SPEC-\d+$/); expect(res.json().stage).toBe("brainstorming");
   });
 
+  // SPEC-237 · source audit (audit-only) memakai payload brief-shaped; author berawalan `Audit ·`.
+  it("creates an audit spec with a brief-shaped payload", async () => {
+    const res = await app.inject({
+      method: "POST", url: "/api/specs", payload: {
+        project: "p1", source: "audit", title: "Audit funnel", priority: "tinggi",
+        payload: { context: "cek double count", outcome: "akar masalah", constraints: "", priority: "tinggi" }
+      }
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().source).toBe("audit");
+    expect(res.json().author).toContain("Audit");
+  });
+  it("rejects an audit spec that carries a qa payload (severity)", async () => {
+    const res = await app.inject({
+      method: "POST", url: "/api/specs", payload: {
+        project: "p1", source: "audit", title: "salah", priority: "tinggi",
+        payload: { severity: "major", steps: "s", expected: "e", actual: "a", env: "prod" }
+      }
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
   // SPEC-143
   it("stores a valid branchFrom", async () => {
     const res = await app.inject({

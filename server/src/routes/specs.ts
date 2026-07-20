@@ -89,7 +89,8 @@ export default async function (app: FastifyInstance) {
         spec = await prisma.spec.create({
           data: {
             id, projectId: b.project, title: b.title, source: b.source, stage: "brainstorming",
-            priority, author: isQa ? `QA · ${author}` : author, objective, payload: b.payload,
+            priority, author: isQa ? `QA · ${author}` : b.source === "audit" ? `Audit · ${author}` : author,
+            objective, payload: b.payload,
             branchFrom: b.branchFrom ?? null
           }
         });
