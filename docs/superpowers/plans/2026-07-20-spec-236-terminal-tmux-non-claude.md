@@ -111,7 +111,7 @@ git commit -m "feat(shared): zTerminalSession menerima varian shell non-claude �
 - Consumes: `createSession(projectId, cwd, { command })` (pty.ts), `resolveRepoDir(projectId)` (local-binding), `zTerminalSession` shell variant (Task 1).
 - Produces: `export const shellBin: () => string` in `pty.ts`. `POST /terminal/sessions {project, shell:true}` → 201 `{id}`; the session has no `flow` and `cwd === repoDir`; 404 unknown project; 400 project without repoDir.
 
-- [ ] **Step 1: Create the fake shell fixture**
+- [x] **Step 1: Create the fake shell fixture**
 
 Create `server/test/fixtures/fake-shell.sh`:
 
@@ -129,7 +129,7 @@ Then make it executable:
 chmod +x server/test/fixtures/fake-shell.sh
 ```
 
-- [ ] **Step 2: Write the failing test** — append to `server/test/terminal.route.test.ts` a new describe block after the existing `terminal routes` block. Add the fixture path constant near the top-of-file `FAKE_CLAUDE` const if convenient, or inline in the block:
+- [x] **Step 2: Write the failing test** — append to `server/test/terminal.route.test.ts` a new describe block after the existing `terminal routes` block. Add the fixture path constant near the top-of-file `FAKE_CLAUDE` const if convenient, or inline in the block:
 
 ```ts
 // SPEC-236 · terminal biasa NON-claude: shell mentah di repoDir project (bukan TUI Claude).
@@ -175,12 +175,12 @@ describe("terminal routes · shell non-claude (SPEC-236)", () => {
 });
 ```
 
-- [ ] **Step 3: Run test to verify it fails**
+- [x] **Step 3: Run test to verify it fails**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run test/terminal.route.test.ts -t "SPEC-236"`
 Expected: FAIL — `{project,shell:true}` currently falls through to the line-203 fallback which spawns claude, so `s.flow` is undefined but data contains claude flags / no "SHELL-BIASA-SIAP", and `shellBin` doesn't exist (compile error) once the route references it.
 
-- [ ] **Step 4: Add `shellBin()` to `pty.ts`** — right after the `claudeBin` definition (`server/src/services/pty.ts:53`):
+- [x] **Step 4: Add `shellBin()` to `pty.ts`** — right after the `claudeBin` definition (`server/src/services/pty.ts:53`):
 
 ```ts
 const claudeBin = () => effectiveStr("HANOMAN_CLAUDE_BIN") ?? "claude";
@@ -190,7 +190,7 @@ const claudeBin = () => effectiveStr("HANOMAN_CLAUDE_BIN") ?? "claude";
 export const shellBin = (): string => effectiveStr("HANOMAN_SHELL") ?? process.env.SHELL ?? "/bin/bash";
 ```
 
-- [ ] **Step 5: Add the shell branch to the route** — `server/src/routes/terminal.ts`. First extend the pty import (line 14-17) to include `shellBin`:
+- [x] **Step 5: Add the shell branch to the route** — `server/src/routes/terminal.ts`. First extend the pty import (line 14-17) to include `shellBin`:
 
 ```ts
 import {
@@ -218,17 +218,17 @@ Then insert the shell branch immediately after the project-404 guard (currently 
     }
 ```
 
-- [ ] **Step 6: Run test to verify it passes**
+- [x] **Step 6: Run test to verify it passes**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run test/terminal.route.test.ts -t "SPEC-236"`
 Expected: PASS (4 tests).
 
-- [ ] **Step 7: Full terminal route + pty suites (no regression)**
+- [x] **Step 7: Full terminal route + pty suites (no regression)**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run test/terminal.route.test.ts test/pty.test.ts`
 Expected: PASS (all).
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/src/services/pty.ts server/src/routes/terminal.ts server/test/terminal.route.test.ts server/test/fixtures/fake-shell.sh

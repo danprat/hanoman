@@ -142,6 +142,48 @@ describe("terminal routes", () => {
   });
 });
 
+// SPEC-236 · terminal biasa NON-claude: shell mentah di repoDir project (bukan TUI Claude).
+describe("terminal routes · shell non-claude (SPEC-236)", () => {
+  const FAKE_SHELL = fileURLToPath(new URL("./fixtures/fake-shell.sh", import.meta.url));
+  const startShell = (project: string) =>
+    app.inject({ method: "POST", url: "/api/terminal/sessions", payload: { project, shell: true } });
+
+  it("POST { project, shell:true } → 201, sesi tanpa flow di repoDir, menjalankan shell (bukan claude)", async () => {
+    process.env.HANOMAN_SHELL = FAKE_SHELL;
+    const res = await startShell("p1");
+    expect(res.statusCode).toBe(201);
+    const id = res.json().id as string;
+    const s = listSessions().find((x) => x.id === id)!;
+    expect(s.flow).toBeUndefined();          // shell bukan flow → mesin stage tak tersentuh
+    expect(s.cwd).toBe(repoDir);             // jalan di working tree project, bukan .worktrees
+    const c = connect(id);
+    await c.opened;
+    await waitFor(() => c.data().includes("SHELL-BIASA-SIAP"));
+    expect(c.data()).not.toContain("--dangerously-skip-permissions"); // bukan argv claude
+    c.ws.close();
+    await app.inject({ method: "DELETE", url: `/api/terminal/sessions/${id}` });
+  });
+
+  it("shell untuk project tanpa repoDir → 400 (bukan 422)", async () => {
+    const res = await startShell("p2");   // p2.repoDir = null
+    expect(res.statusCode).toBe(400);
+    expect(res.json().needsBind).toBe(true);
+  });
+
+  it("shell untuk project tak dikenal → 404", async () => {
+    expect((await startShell("nope")).statusCode).toBe(404);
+  });
+
+  it("DELETE sesi shell tidak menghapus/mengganggu working tree project", async () => {
+    process.env.HANOMAN_SHELL = FAKE_SHELL;
+    const id = (await startShell("p1")).json().id as string;
+    expect(existsSync(repoDir)).toBe(true);
+    expect((await app.inject({ method: "DELETE", url: `/api/terminal/sessions/${id}` })).statusCode).toBe(204);
+    expect(existsSync(repoDir)).toBe(true);           // repoDir utuh
+    expect(existsSync(join(repoDir, ".git"))).toBe(true);
+  });
+});
+
 // SPEC-230: sesi project-level (PRD) mendapat review + integrate ber-skop sesi (keyed ke
 // worktree + branch sesi, tanpa Spec).
 describe("terminal routes · sesi PRD review + integrate", () => {

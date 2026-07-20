@@ -13,7 +13,7 @@ import { recordCompletion } from "../services/notifications";
 import { STAGES } from "../services/stage-machine";
 import {
   createSession, getSession, listSessions, killSession, sessionPhases,
-  attach, detach, writeTo, resize, type Client,
+  attach, detach, writeTo, resize, shellBin, type Client,
 } from "../services/pty";
 
 // Sebuah PTY di atas WebSocket adalah remote code execution secara desain — identik
@@ -107,6 +107,19 @@ export default async function (app: FastifyInstance) {
 
     const project = await prisma.project.findUnique({ where: { id: parsed.data.project } });
     if (!project) return reply.code(404).send({ error: "project not found" });
+
+    // SPEC-236 · terminal biasa non-claude: shell mentah di repoDir project. Reuse cabang
+    // createSession({command}) (ADR-0042/0056). Tanpa flow → tak menggerakkan stage; cwd=repoDir
+    // (bukan .worktrees) → DELETE hanya kill pane, tak menyentuh working tree. Ditaruh sebelum
+    // guard repoDir lama supaya TS menyempitkan varian shell keluar sebelum `parsed.data.flow`.
+    if ("shell" in parsed.data && parsed.data.shell) {
+      const repoDir = await resolveRepoDir(project.id);
+      if (!repoDir) return reply.code(400)
+        .send({ error: `project "${project.id}" belum di-bind ke checkout lokal`, needsBind: true });
+      const s = createSession(project.id, repoDir, { command: [shellBin()] });
+      return reply.code(201).send({ id: s.id });
+    }
+
     // SPEC-213 · binding lokal per-device menang atas Project.repoDir (AC-8). Kode status
     // dipertahankan (flow → 422, non-flow → 400) untuk parity; `needsBind` memberi sinyal UI.
     const repoDir = await resolveRepoDir(project.id);

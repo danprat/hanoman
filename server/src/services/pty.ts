@@ -51,6 +51,10 @@ const attached = new Map<string, Attachment>();
 
 // Variabel yang sama yang dipakai runner/src/claude-cli.ts.
 const claudeBin = () => effectiveStr("HANOMAN_CLAUDE_BIN") ?? "claude";
+// SPEC-236 · shell untuk "terminal biasa" non-claude. HANOMAN_SHELL menang (dipakai test),
+// lalu $SHELL operator, lalu /bin/bash. Diserahkan ke createSession({command:[shellBin()]}) —
+// cabang argv mentah yang sama dipakai Console VPS (ADR-0042).
+export const shellBin = (): string => effectiveStr("HANOMAN_SHELL") ?? process.env.SHELL ?? "/bin/bash";
 
 const frame = (f: Frame): string => JSON.stringify(f);
 const name = (id: string): string => PREFIX + id;
