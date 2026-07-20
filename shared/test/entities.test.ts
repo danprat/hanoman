@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { zProject, zSpec, zStage, zCreateSpec, zPatchSpec, zProjectView, zNotification, zSetting } from "../src/index";
+import { zProject, zSpec, zStage, zCreateSpec, zPatchSpec, zProjectView, zNotification, zSetting, MODELS, EFFORTS } from "../src/index";
 
 describe("schemas", () => {
   it("parses a valid project", () => {
@@ -77,5 +77,26 @@ describe("schemas", () => {
     const s = zSetting.parse({ autoDefault: true, autoScaffold: true, notifyFail: true });
     expect(s.notifyDecision).toBe(true);
     expect(s.notifyDecisionSound).toBe("alert");
+  });
+
+  // SPEC-238 · ADR-0057 — model & effort per fase
+  describe("zSetting.phaseModels", () => {
+    const base = { autoDefault: true, autoScaffold: true, notifyFail: true };
+    it("phaseModels hilang → default {}", () => {
+      expect(zSetting.parse(base).phaseModels).toEqual({});
+    });
+    it("menyimpan override per flow/phase", () => {
+      const s = zSetting.parse({ ...base, phaseModels: { feature: { Brainstorm: { model: "claude-sonnet-5", effort: "high" } } } });
+      expect(s.phaseModels.feature.Brainstorm).toEqual({ model: "claude-sonnet-5", effort: "high" });
+    });
+    it("override boleh sebagian (hanya effort)", () => {
+      const s = zSetting.parse({ ...base, phaseModels: { qa: { Execute: { effort: "max" } } } });
+      expect(s.phaseModels.qa.Execute).toEqual({ effort: "max" });
+    });
+    it("MODELS memuat Fable; EFFORTS memuat max & ultracode", () => {
+      expect(MODELS.map((m) => m.id)).toContain("claude-fable-5");
+      expect(EFFORTS).toContain("max");
+      expect(EFFORTS).toContain("ultracode");
+    });
   });
 });
