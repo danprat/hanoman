@@ -121,3 +121,64 @@ describe("IdeScreen Staged & Changed", () => {
     expect(await screen.findByText("docs/")).toBeInTheDocument(); // folder node muncul
   });
 });
+
+// SPEC-240 · .md default preview + toggle Preview | Source
+describe("IdeScreen preview .md (SPEC-240)", () => {
+  it("memilih .md → render preview (.hn-md), bukan raw source", async () => {
+    vi.spyOn(api, "ideFile").mockResolvedValue({ path: "README.md", content: "# Judul Preview", binary: false, truncated: false });
+    const { container } = render(<IdeScreen projects={projects} projectId="p1" onProject={() => {}} />);
+    fireEvent.click(await screen.findByText("README.md"));
+    // preview terender: heading <h1> di dalam wrapper .hn-md
+    await waitFor(() => {
+      const md = container.querySelector(".hn-md");
+      expect(md).not.toBeNull();
+      expect(md!.querySelector("h1")?.textContent).toBe("Judul Preview");
+    });
+    // toggle Preview | Source hadir
+    expect(screen.getByRole("button", { name: /^Source$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Preview$/i })).toBeInTheDocument();
+  });
+
+  it("toggle Source → raw source; balik Preview → terender", async () => {
+    vi.spyOn(api, "ideFile").mockResolvedValue({ path: "README.md", content: "# Judul Preview", binary: false, truncated: false });
+    const { container } = render(<IdeScreen projects={projects} projectId="p1" onProject={() => {}} />);
+    fireEvent.click(await screen.findByText("README.md"));
+    await screen.findByRole("button", { name: /^Source$/i });
+    fireEvent.click(screen.getByRole("button", { name: /^Source$/i }));
+    // source: <code class="hljs"> muncul, wrapper .hn-md hilang
+    await waitFor(() => {
+      expect(container.querySelector("code.hljs")).not.toBeNull();
+      expect(container.querySelector(".hn-md")).toBeNull();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Preview$/i }));
+    await waitFor(() => expect(container.querySelector(".hn-md")).not.toBeNull());
+  });
+
+  it("file non-.md → tak ada toggle Preview|Source, source tampil", async () => {
+    vi.spyOn(api, "ideFile").mockResolvedValue({ path: "src/a.ts", content: "const x = 1;", binary: false, truncated: false });
+    const { container } = render(<IdeScreen projects={projects} projectId="p1" onProject={() => {}} />);
+    fireEvent.click(await screen.findByText("src/")); // buka folder
+    fireEvent.click(await screen.findByText("a.ts"));
+    await waitFor(() => expect(container.querySelector("code.hljs")).not.toBeNull());
+    expect(screen.queryByRole("button", { name: /^Preview$/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Source$/i })).toBeNull();
+    expect(container.querySelector(".hn-md")).toBeNull();
+  });
+
+  it("edit .md → Simpan → kembali ke preview", async () => {
+    vi.spyOn(api, "ideFile").mockResolvedValue({ path: "README.md", content: "# Judul Preview", binary: false, truncated: false });
+    vi.spyOn(api, "putIdeFile").mockResolvedValue({ path: "README.md", content: "# Judul Baru" });
+    vi.spyOn(api, "ideWorkingStatus").mockResolvedValue({ branch: "main", staged: [], unstaged: [] });
+    const { container } = render(<IdeScreen projects={projects} projectId="p1" onProject={() => {}} />);
+    fireEvent.click(await screen.findByText("README.md"));
+    fireEvent.click(await screen.findByRole("button", { name: /^Edit$/i }));
+    const ta = await screen.findByRole("textbox");
+    fireEvent.change(ta, { target: { value: "# Judul Baru" } });
+    fireEvent.click(screen.getByRole("button", { name: /simpan/i }));
+    await waitFor(() => {
+      const md = container.querySelector(".hn-md");
+      expect(md).not.toBeNull();
+      expect(md!.querySelector("h1")?.textContent).toBe("Judul Baru");
+    });
+  });
+});

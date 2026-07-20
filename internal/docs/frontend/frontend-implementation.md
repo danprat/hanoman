@@ -299,9 +299,16 @@ Nav entri **IDE** (`code-2`) membuka `IdeScreen` (`screens/IdeScreen.tsx`), difi
 - **Explorer**: grid `300px 1fr`. Kiri, dari atas ke bawah: dua section SCM **Staged** & **Changed**
   lalu **pohon folder Files** (`buildFileTree`+`TreeRow` dari `screens/file-tree.tsx`, `api.ideTree`) —
   folder **default collapse** ala Review (SPEC-189, tanpa `meta`/`defaultOpen` → ikon file biasa,
-  tertutup). Kanan pane isi (`api.ideFile`): Preview = `<pre><code class="hljs">` di-highlight
+  tertutup). Kanan pane isi (`api.ideFile`): view source = `<pre><code class="hljs">` di-highlight
   **highlight.js** (bahasa dari ekstensi, fallback `highlightAuto`); edit = `<textarea>` mono + Simpan
   (`api.putIdeFile`). File biner → placeholder.
+  - **Preview `.md` (SPEC-240)**: berkas `.md` **default menampilkan markdown terender** — bukan raw
+    source — lewat `MarkdownView` (`ds/markdown.tsx`, marked + `.hn-md`, renderer **bersama** Docs·SoT
+    & `SpecDocsModal`). Header pane memberi toggle **Preview | Source** di samping **Edit** (pola pill
+    yang sama dengan toggle Diff|Source); **Source** menampilkan raw source highlighted seperti biasa.
+    State `mdView` (default `"preview"`) di-reset ke preview tiap `.md` baru dipilih; **Edit** tetap
+    mengubah raw source, dan sesudah **Simpan** kembali ke preview. File **non-`.md`** tak punya toggle
+    (tetap highlighted source + Edit). Helper `isMarkdown(path) = /\.md$/i`. Frontend-only, tanpa endpoint baru.
   - **Staged & Changed (SPEC-234)**: **Staged** = index vs HEAD, **Changed** = working tree vs index +
     untracked; masing-masing toggle **List | Tree** lewat `ChangedSection` shared di `file-tree.tsx`
     (dipakai Review juga). Data `api.ideStatus` (`GET /projects/:id/status`), **independen** dari
