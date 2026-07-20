@@ -140,27 +140,57 @@ export type CommitDetail = {
   signed: boolean; committer: string; committedAt: string;
 };
 
-// ponytail: parse numstat+name-status cermin spec-review.changedFiles; ~12 baris, tak refactor
-// file bertest itu. `git show --format=` menekan header commit, menyisakan diff saja.
-async function changedOf(repoDir: string, sha: string): Promise<ChangedFile[]> {
-  const [num, name] = await Promise.all([
-    exec("git", ["show", "--format=", "--numstat", "-z", "--no-renames", sha], { cwd: repoDir, ...GIT }),
-    exec("git", ["show", "--format=", "--name-status", "-z", "--no-renames", sha], { cwd: repoDir, ...GIT }),
-  ]);
+// Gabung numstat (-z) + name-status (-z) → ChangedFile[]. Dipakai commit tunggal (git show) &
+// compare dua commit (git diff). `git show/diff --format=` menyisakan bodi diff saja.
+function mergeNumName(numOut: string, nameOut: string): ChangedFile[] {
   const map = new Map<string, ChangedFile>();
-  for (const rec of splitZ(num.stdout)) {
+  for (const rec of splitZ(numOut)) {
     const t1 = rec.indexOf("\t"), t2 = rec.indexOf("\t", t1 + 1);
     const add = rec.slice(0, t1), del = rec.slice(t1 + 1, t2), path = rec.slice(t2 + 1);
     const binary = add === "-" && del === "-";
     map.set(path, { path, add: binary ? 0 : Number(add), del: binary ? 0 : Number(del), status: "M", binary });
   }
-  const toks = splitZ(name.stdout);
+  const toks = splitZ(nameOut);
   for (let i = 0; i + 1 < toks.length; i += 2) {
     const st = toks[i]![0] as "A" | "M" | "D", path = toks[i + 1]!;
     const cf = map.get(path) ?? { path, add: 0, del: 0, status: st, binary: false };
     cf.status = st; map.set(path, cf);
   }
   return [...map.values()].sort((a, b) => a.path.localeCompare(b.path));
+}
+
+async function changedOf(repoDir: string, sha: string): Promise<ChangedFile[]> {
+  const [num, name] = await Promise.all([
+    exec("git", ["show", "--format=", "--numstat", "-z", "--no-renames", sha], { cwd: repoDir, ...GIT }),
+    exec("git", ["show", "--format=", "--name-status", "-z", "--no-renames", sha], { cwd: repoDir, ...GIT }),
+  ]);
+  return mergeNumName(num.stdout, name.stdout);
+}
+
+// SPEC-233 · compare dua commit: file yang beda + per-file diff (reuse DiffView). from/to bisa
+// ref/sha; `--end-of-options` cegah flag-injection.
+export async function compareCommits(repoDir: string | null, from: string, to: string): Promise<{ from: string; to: string; changed: ChangedFile[] }> {
+  const empty = { from, to, changed: [] as ChangedFile[] };
+  if (!repoDir || !existsSync(repoDir)) return empty;
+  try {
+    const [num, name] = await Promise.all([
+      exec("git", ["diff", "--numstat", "-z", "--no-renames", "--end-of-options", from, to], { cwd: repoDir, ...GIT }),
+      exec("git", ["diff", "--name-status", "-z", "--no-renames", "--end-of-options", from, to], { cwd: repoDir, ...GIT }),
+    ]);
+    return { from, to, changed: mergeNumName(num.stdout, name.stdout) };
+  } catch { return empty; }
+}
+
+export async function compareFile(repoDir: string | null, from: string, to: string, rel: string): Promise<ReviewFile | null> {
+  if (!repoDir) return null;
+  repoAbsPath(repoDir, rel); // throws → route 400
+  try {
+    const diff = (await exec("git", ["diff", "--no-renames", "--end-of-options", from, to, "--", rel], { cwd: repoDir, ...GIT })).stdout;
+    const contentRaw = await exec("git", ["show", `${to}:${rel}`], { cwd: repoDir, ...GIT }).then((r) => r.stdout).catch(() => null);
+    const binary = /Binary files/.test(diff) || (contentRaw?.includes("\u0000") ?? false);
+    const status: "A" | "M" | "D" = contentRaw === null ? "D" : "M";
+    return { path: rel, status, binary, truncated: (contentRaw?.length ?? 0) > MAX, diff: diff.slice(0, MAX), content: binary || contentRaw === null ? null : contentRaw.slice(0, MAX) };
+  } catch { return null; }
 }
 
 export async function commitDetail(repoDir: string | null, sha: string): Promise<CommitDetail | null> {

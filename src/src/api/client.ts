@@ -134,6 +134,8 @@ export const api = {
   ideStashes: (id: string) => j<Stash[]>(paths.ideStashes(id)), // SPEC-233 · daftar stash
   ideCommit: (id: string, sha: string) => j<CommitDetail>(paths.ideCommit(id, sha)),
   ideCommitFile: (id: string, sha: string, path: string) => j<ReviewFile>(paths.ideCommitFile(id, sha, path)), // SPEC-233
+  ideCompare: (id: string, from: string, to: string) => j<{ from: string; to: string; changed: ChangedFile[] }>(paths.ideCompare(id, from, to)),
+  ideCompareFile: (id: string, from: string, to: string, path: string) => j<ReviewFile>(paths.ideCompareFile(id, from, to, path)),
   ideGit: (id: string, op: GitOp) => j<GitOpResult>(paths.ideGit(id), { method: "POST", ...body(op) }),
   // SPEC-229 · merge via git graph: deterministik di worktree isolasi; conflict → sesi claude.
   ideGitMerge: (id: string, b: { source: string; ff?: "no-ff" | "ff-only"; deleteBranch?: string }) =>

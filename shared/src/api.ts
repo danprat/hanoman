@@ -33,6 +33,10 @@ export const paths = {
   ideCommit: (id: string, sha: string) => `${API}/projects/${id}/commit/${sha}`,
   // SPEC-233 · diff satu file di commit (vs parent)
   ideCommitFile: (id: string, sha: string, path: string) => `${API}/projects/${id}/commit/${sha}/file?path=${encodeURIComponent(path)}`,
+  // SPEC-233 · compare dua commit
+  ideCompare: (id: string, from: string, to: string) => `${API}/projects/${id}/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+  ideCompareFile: (id: string, from: string, to: string, path: string) =>
+    `${API}/projects/${id}/compare/file?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&path=${encodeURIComponent(path)}`,
   ideGit: (id: string) => `${API}/projects/${id}/git`,
   ideGitMerge: (id: string) => `${API}/projects/${id}/git/merge`, // SPEC-229 · merge git graph isolasi
   ideGitRebase: (id: string) => `${API}/projects/${id}/git/rebase`, // SPEC-233 · rebase isolasi

@@ -198,6 +198,18 @@ describe("ide routes", () => {
     expect(r.statusCode).toBe(200);
     expect(r.json().status).toBe("clean");
   });
+  it("GET /compare dua commit; from/to kosong → 400 (SPEC-233)", async () => {
+    const dir = makeRepoWithBranches();
+    const g = (...a: string[]) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });
+    writeFileSync(`${dir}/x.txt`, "1"); g("add", "-A"); g("commit", "-qm", "c2");
+    writeFileSync(`${dir}/y.txt`, "2"); g("add", "-A"); g("commit", "-qm", "c3");
+    await makeProject({ id: "cmprepo", repoDir: dir });
+    const shas = g("log", "--format=%H").stdout.trim().split("\n"); // c3, c2, base
+    expect((await app.inject({ url: "/api/projects/cmprepo/compare" })).statusCode).toBe(400);
+    const r = await app.inject({ url: `/api/projects/cmprepo/compare?from=${shas[2]}&to=${shas[0]}` });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().changed.map((c: { path: string }) => c.path).sort()).toEqual(["x.txt", "y.txt"]);
+  });
   it("GET /commit/:sha/file diff satu file; path kosong → 400 (SPEC-233)", async () => {
     const dir = makeRepoWithBranches();
     const g = (...a: string[]) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });

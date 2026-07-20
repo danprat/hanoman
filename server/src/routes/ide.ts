@@ -6,7 +6,8 @@ import { listSessions, createSession } from "../services/pty";
 import { sessionModel } from "../services/settings";
 import { mergeIntoCurrent, rebaseOntoCurrent, pullIntoCurrent, dropCommit, type GraphMergeResult } from "../services/integrate";
 import {
-  listRepoTree, readRepoFile, writeRepoFile, listGraph, commitDetail, commitFileDiff, runGitOp, validateGitOp, touchesTree, repoStatus, listStashes, type GitOp,
+  listRepoTree, readRepoFile, writeRepoFile, listGraph, commitDetail, commitFileDiff, compareCommits, compareFile,
+  runGitOp, validateGitOp, touchesTree, repoStatus, listStashes, type GitOp,
 } from "../services/git-ide";
 
 // undefined = project tak ada (→404); null = ada tapi tanpa checkout lokal; string = repoDir.
@@ -74,6 +75,26 @@ export default async function (app: FastifyInstance) {
     if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
     const d = await commitDetail(repoDir, sha);
     return d === null ? reply.code(404).send({ error: "not found" }) : d;
+  });
+
+  // SPEC-233 · compare dua commit: file yang beda + per-file diff.
+  app.get("/projects/:id/compare", async (req, reply) => {
+    const repoDir = await repoOf((req.params as { id: string }).id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    const { from, to } = req.query as { from?: string; to?: string };
+    if (!from || !to) return reply.code(400).send({ error: "from & to wajib" });
+    return compareCommits(repoDir, from, to);
+  });
+
+  app.get("/projects/:id/compare/file", async (req, reply) => {
+    const repoDir = await repoOf((req.params as { id: string }).id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    const { from, to, path } = req.query as { from?: string; to?: string; path?: string };
+    if (!from || !to || !path) return reply.code(400).send({ error: "from, to & path wajib" });
+    try {
+      const f = await compareFile(repoDir, from, to, path);
+      return f === null ? reply.code(404).send({ error: "not found" }) : f;
+    } catch (e) { return reply.code(400).send({ error: (e as Error).message }); }
   });
 
   // SPEC-233 · diff satu file di sebuah commit (vs parent), untuk viewer detail commit.

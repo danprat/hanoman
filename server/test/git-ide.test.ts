@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { makeTempRepo, makeRepoWithBranches, makeRepoWithSpecCommits, makeRepoWithSpecBranch } from "./factory";
-import { listRepoTree, readRepoFile, repoAbsPath, listGraph, commitDetail, writeRepoFile, runGitOp, validateGitOp, touchesTree, repoStatus, listStashes, commitFileDiff } from "../src/services/git-ide";
+import { listRepoTree, readRepoFile, repoAbsPath, listGraph, commitDetail, writeRepoFile, runGitOp, validateGitOp, touchesTree, repoStatus, listStashes, commitFileDiff, compareCommits, compareFile } from "../src/services/git-ide";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
@@ -412,5 +412,20 @@ describe("git-ide commit detail diff + signature (SPEC-233)", () => {
     expect(d!.signed).toBe(false);
     expect(typeof d!.committer).toBe("string");
     expect(d!.subject).toBe("base");
+  });
+});
+
+describe("git-ide compare (SPEC-233)", () => {
+  it("compareCommits mendaftar file yang beda antar dua commit", async () => {
+    const dir = makeRepoWithSpecCommits({ "a.txt": "1" }, [{ msg: "c2", changes: { "b.txt": "2" } }, { msg: "c3", changes: { "c.txt": "3" } }]);
+    const cs = (await listGraph(dir)).commits; const from = cs[2]!.sha, to = cs[0]!.sha;
+    const r = await compareCommits(dir, from, to);
+    expect(r.changed.map((c) => c.path).sort()).toEqual(["b.txt", "c.txt"]);
+  });
+  it("compareFile mengembalikan diff terarah from→to", async () => {
+    const dir = makeRepoWithSpecCommits({ "a.txt": "satu\n" }, [{ msg: "c2", changes: { "a.txt": "dua\n" } }]);
+    const cs = (await listGraph(dir)).commits;
+    const f = await compareFile(dir, cs[1]!.sha, cs[0]!.sha, "a.txt");
+    expect(f!.diff).toMatch(/-satu/); expect(f!.diff).toMatch(/\+dua/);
   });
 });

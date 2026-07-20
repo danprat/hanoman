@@ -167,11 +167,23 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
   const allRefs = React.useMemo(() => rows.flatMap((r) => r.commit.refs), [rows]);
   // SPEC-233 · detail commit: toggle tree/flat + diff per-file (modal, reuse DiffView).
   const [detailView, setDetailView] = React.useState<"list" | "tree">("list");
-  const [fileDiff, setFileDiff] = React.useState<{ path: string; sha: string; data: ReviewFile | null; tab: "diff" | "source" } | null>(null);
-  const openFileDiff = React.useCallback((path: string, sha: string) => {
-    setFileDiff({ path, sha, data: null, tab: "diff" });
-    api.ideCommitFile(projectId, sha, path).then((d) => setFileDiff((s) => (s && s.path === path ? { ...s, data: d } : s))).catch(() => {});
+  const [fileDiff, setFileDiff] = React.useState<{ path: string; sha: string; from?: string; data: ReviewFile | null; tab: "diff" | "source" } | null>(null);
+  const openFileDiff = React.useCallback((path: string, sha: string, from?: string) => {
+    setFileDiff({ path, sha, from, data: null, tab: "diff" });
+    const p = from ? api.ideCompareFile(projectId, from, sha, path) : api.ideCommitFile(projectId, sha, path);
+    p.then((d) => setFileDiff((s) => (s && s.path === path ? { ...s, data: d } : s))).catch(() => {});
   }, [projectId]);
+  // SPEC-233 · compare dua commit: Ctrl/Cmd-klik commit kedua. compareFrom = commit pertama.
+  const [compareFrom, setCompareFrom] = React.useState<string | null>(null);
+  const [compare, setCompare] = React.useState<{ from: string; to: string; changed: import("../api/client").ChangedFile[] } | null>(null);
+  const onRowClick = React.useCallback((e: React.MouseEvent, sha: string) => {
+    if (e.metaKey || e.ctrlKey) {
+      if (!compareFrom) { setCompareFrom(sha); return; }
+      if (compareFrom !== sha) { api.ideCompare(projectId, compareFrom, sha).then((c) => { setCompare(c); setDetail(null); }).catch(() => {}); }
+      setCompareFrom(null); return;
+    }
+    api.ideCommit(projectId, sha).then(setDetail).catch(() => {});
+  }, [projectId, compareFrom]);
 
   const load = React.useCallback(() => {
     setState("loading");
@@ -181,6 +193,11 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
     api.ideStashes(projectId).then(setStashes).catch(() => setStashes([]));
   }, [projectId]);
   React.useEffect(() => { load(); }, [load]);
+  // SPEC-233 · Esc menutup compare/fileDiff/compareFrom.
+  React.useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") { setFileDiff(null); setCompare(null); setCompareFrom(null); } };
+    window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h);
+  }, []);
 
   function openMenu(e: React.MouseEvent, c: GraphCommit) {
     e.preventDefault();
@@ -204,7 +221,7 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
   if (rows.length === 0) return <StateBlock kind="empty" icon="git-commit" title="Belum ada commit" />;
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: detail ? "1fr 340px" : "1fr", gap: 16, alignItems: "start" }}>
+    <div style={{ display: "grid", gridTemplateColumns: (detail || compare) ? "1fr 340px" : "1fr", gap: 16, alignItems: "start" }}>
       <Card padding={0}>
         {/* SPEC-233 · baris uncommitted changes (lingkaran terbuka) di puncak bila working tree kotor */}
         {status && !status.clean && (() => {
@@ -248,8 +265,9 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
           const isHead = c.refs.includes(current);
           const sel = detail?.sha === c.sha;
           return (
-            <div key={c.sha} onClick={() => api.ideCommit(projectId, c.sha).then(setDetail).catch(() => {})}
+            <div key={c.sha} onClick={(e) => onRowClick(e, c.sha)}
               onContextMenu={(e) => openMenu(e, c)}
+              title={compareFrom ? "Ctrl/Cmd-klik untuk bandingkan dengan commit pertama" : "Ctrl/Cmd-klik untuk mulai compare"}
               onMouseEnter={(e) => { if (!sel) e.currentTarget.style.background = "var(--bone-100)"; }}
               onMouseLeave={(e) => { if (!sel) e.currentTarget.style.background = "transparent"; }}
               style={{ display: "flex", alignItems: "center", gap: 10, height: ROW_H, padding: "0 12px",
@@ -325,6 +343,34 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
               </div>
             ))}
         </Card>
+      )}
+
+      {compare && (
+        <Card padding={16}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <span className="hn-eyebrow">compare {compare.from.slice(0, 7)} … {compare.to.slice(0, 7)}</span>
+            <Button size="sm" variant="ghost" leftIcon="x" onClick={() => setCompare(null)}>Tutup</Button>
+          </div>
+          <div className="hn-eyebrow" style={{ marginBottom: 6 }}>{compare.changed.length} file berbeda</div>
+          {compare.changed.length === 0 && <div style={{ fontSize: 12, color: "var(--text-subtle)" }}>Tak ada perbedaan.</div>}
+          {compare.changed.map((f) => (
+            <div key={f.path} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 6px" }}>
+              <Badge tone={f.status === "A" ? "ok" : f.status === "D" ? "err" : "warn"} size="sm">{f.status}</Badge>
+              <button onClick={() => openFileDiff(f.path, compare.to, compare.from)} style={{ flex: 1, minWidth: 0, textAlign: "left",
+                border: "none", background: "transparent", cursor: "pointer", fontFamily: "var(--font-mono)", fontSize: 11.5,
+                color: "var(--text-body)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.path}</button>
+            </div>
+          ))}
+        </Card>
+      )}
+
+      {compareFrom && (
+        <div style={{ position: "fixed", bottom: 16, left: "50%", transform: "translateX(-50%)", zIndex: 140,
+          background: "var(--brass-500)", color: "#fff", padding: "6px 14px", borderRadius: 999, fontSize: 12.5,
+          boxShadow: "var(--shadow-pop, 0 6px 24px rgba(0,0,0,.15))", display: "flex", alignItems: "center", gap: 10 }}>
+          Compare dari {compareFrom.slice(0, 7)} — Ctrl/Cmd-klik commit kedua
+          <button onClick={() => setCompareFrom(null)} style={{ border: "none", background: "transparent", color: "#fff", cursor: "pointer", fontWeight: 700 }}>✕</button>
+        </div>
       )}
 
       {menu && <Menu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={menuItems(menu.c, current, act, mergeAct, rebaseAct, dropAct)} />}
