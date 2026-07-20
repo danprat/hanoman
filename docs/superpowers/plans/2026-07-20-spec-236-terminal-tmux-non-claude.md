@@ -437,17 +437,17 @@ Per CLAUDE.md: prove the endpoint on a live server, not just unit tests.
 
 **Files:** none (verification only).
 
-- [ ] **Step 1: Full repo test suite green**
+- [x] **Step 1: Full repo test suite green**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism`
 Expected: PASS (all packages). Fix any regression before continuing.
 
-- [ ] **Step 2: Typecheck + build the server**
+- [x] **Step 2: Typecheck + build the server**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server build`
 Expected: builds clean (TS strict passes for the new `shellBin` + route branch).
 
-- [ ] **Step 3: Boot a server against a throwaway migrated DB, register a project with a real repoDir, and curl the shell endpoint**
+- [x] **Step 3: Boot a server against a throwaway migrated DB, register a project with a real repoDir, and curl the shell endpoint**
 
 Follow the live-smoke pattern (dedicated DB, not `hanoman_test`; see memory "Live smoke: dedicated DB"). Concretely:
 - Prepare a temp git repo dir (`git init -b main && git commit --allow-empty -m init`).
@@ -460,9 +460,9 @@ Follow the live-smoke pattern (dedicated DB, not `hanoman_test`; see memory "Liv
 
 Expected: 201 on create, session listed with no flow + cwd=repoDir, shell marker present, 204 on delete, repoDir untouched. Record the actual curl output in the session.
 
-- [ ] **Step 4: Tear down** the throwaway server, DB, tmux socket, and temp repo.
+- [x] **Step 4: Tear down** the throwaway server, DB, tmux socket, and temp repo.
 
-- [ ] **Step 5: Final commit (if verification produced any fix)**
+- [x] **Step 5: Final commit (if verification produced any fix)**
 
 ```bash
 git add -A
