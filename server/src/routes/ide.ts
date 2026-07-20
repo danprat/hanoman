@@ -6,7 +6,7 @@ import { listSessions, createSession } from "../services/pty";
 import { sessionModel } from "../services/settings";
 import { mergeIntoCurrent } from "../services/integrate";
 import {
-  listRepoTree, readRepoFile, writeRepoFile, listGraph, commitDetail, runGitOp, validateGitOp, touchesTree, type GitOp,
+  listRepoTree, readRepoFile, writeRepoFile, listGraph, commitDetail, runGitOp, validateGitOp, touchesTree, repoStatus, type GitOp,
 } from "../services/git-ide";
 
 // undefined = project tak ada (→404); null = ada tapi tanpa checkout lokal; string = repoDir.
@@ -52,6 +52,13 @@ export default async function (app: FastifyInstance) {
     if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
     const limit = Number((req.query as { limit?: string }).limit) || 200;
     return listGraph(repoDir, limit);
+  });
+
+  // SPEC-233 · status working tree untuk baris "uncommitted changes" di graph.
+  app.get("/projects/:id/status", async (req, reply) => {
+    const repoDir = await repoOf((req.params as { id: string }).id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    return repoStatus(repoDir);
   });
 
   app.get("/projects/:id/commit/:sha", async (req, reply) => {

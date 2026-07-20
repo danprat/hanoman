@@ -27,6 +27,8 @@ export const paths = {
   ideFile: (id: string, path?: string, ref = "") =>
     `${API}/projects/${id}/file${path ? `?path=${encodeURIComponent(path)}${ref ? `&ref=${encodeURIComponent(ref)}` : ""}` : ""}`,
   ideGraph: (id: string, limit = 200) => `${API}/projects/${id}/graph?limit=${limit}`,
+  ideStatus: (id: string) => `${API}/projects/${id}/status`, // SPEC-233 · status working tree
+
   ideCommit: (id: string, sha: string) => `${API}/projects/${id}/commit/${sha}`,
   ideGit: (id: string) => `${API}/projects/${id}/git`,
   ideGitMerge: (id: string) => `${API}/projects/${id}/git/merge`, // SPEC-229 · merge git graph isolasi

@@ -37,7 +37,17 @@ export type GitOp =
   // SPEC-233 · tag: buat (annotated bila message, di `at` bila ada, push opsional), hapus, push
   | { op: "tag"; name: string; message?: string; at?: string; push?: boolean; force?: boolean }
   | { op: "delete-tag"; name: string; remote?: boolean; force?: boolean }
-  | { op: "push-tag"; name: string; force?: boolean };
+  | { op: "push-tag"; name: string; force?: boolean }
+  // SPEC-233 · operasi baris uncommitted
+  | { op: "reset-worktree"; mode: "mixed" | "hard"; force?: boolean }
+  | { op: "clean"; directories?: boolean; ignored?: boolean; force?: boolean }
+  // SPEC-233 · stash (server: PR4)
+  | { op: "stash"; message?: string; includeUntracked?: boolean; force?: boolean }
+  | { op: "stash-apply"; ref: string; index?: boolean; force?: boolean }
+  | { op: "stash-pop"; ref: string; index?: boolean; force?: boolean }
+  | { op: "stash-drop"; ref: string; force?: boolean }
+  | { op: "stash-branch"; ref: string; name: string; force?: boolean };
+export type RepoStatus = { branch: string; ahead: number; behind: number; staged: string[]; unstaged: string[]; untracked: string[]; clean: boolean };
 export type GitOpResult = { ok: boolean; stdout: string; stderr: string; current: string; error?: string };
 // SPEC-229 · hasil merge via git graph: bersih → detail; konflik → sesi claude (sessionId).
 export type GraphMergeResult = { status: "clean"; detail: string } | { status: "conflict"; sessionId: string };
@@ -114,6 +124,8 @@ export const api = {
   putIdeFile: (id: string, path: string, content: string) =>
     j<{ path: string; content: string }>(paths.ideFile(id), { method: "PUT", ...body({ path, content }) }),
   ideGraph: (id: string, limit = 200) => j<{ commits: GraphCommit[]; current: string }>(paths.ideGraph(id, limit)),
+  // SPEC-233 · status working tree (baris uncommitted changes)
+  ideStatus: (id: string) => j<RepoStatus>(paths.ideStatus(id)),
   ideCommit: (id: string, sha: string) => j<CommitDetail>(paths.ideCommit(id, sha)),
   ideGit: (id: string, op: GitOp) => j<GitOpResult>(paths.ideGit(id), { method: "POST", ...body(op) }),
   // SPEC-229 · merge via git graph: deterministik di worktree isolasi; conflict → sesi claude.

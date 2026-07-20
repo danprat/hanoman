@@ -148,4 +148,17 @@ describe("ide routes", () => {
     expect(r.json().ok).toBe(true);
     expect(r.json().current).toBe("main");
   });
+
+  it("GET /status melaporkan clean; POST /git tag (ref-only) TIDAK digerbang sesi (SPEC-233)", async () => {
+    const s = await app.inject({ url: "/api/projects/ide/status" });
+    expect(s.statusCode).toBe(200);
+    expect(typeof s.json().clean).toBe("boolean");
+    // tag = ref-only → walau ada sesi aktif, tak 409 (touchesTree=false, ADR-0055)
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    createSession("ide", process.cwd());
+    const t = await app.inject({ method: "POST", url: "/api/projects/ide/git", payload: { op: "tag", name: "vtest" } });
+    expect(t.statusCode).toBe(200);
+    expect(t.json().ok).toBe(true);
+    killAll();
+  });
 });

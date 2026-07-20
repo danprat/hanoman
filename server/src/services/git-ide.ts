@@ -58,6 +58,41 @@ async function currentBranch(repoDir: string): Promise<string> {
     .then((r) => r.stdout.trim()).catch(() => "");
 }
 
+export type RepoStatus = {
+  branch: string; ahead: number; behind: number;
+  staged: string[]; unstaged: string[]; untracked: string[]; clean: boolean;
+};
+
+// SPEC-233 · status working tree untuk baris "uncommitted changes" di graph. `git status --porcelain=v1
+// -z -b`: record `## <branch>...<up> [ahead N, behind M]` lalu tiap entri `XY<space>path` (rename →
+// path sumber di token NUL berikut, dilewati). X=index (staged), Y=worktree (unstaged), ?? = untracked.
+export async function repoStatus(repoDir: string | null): Promise<RepoStatus> {
+  const empty: RepoStatus = { branch: "", ahead: 0, behind: 0, staged: [], unstaged: [], untracked: [], clean: true };
+  if (!repoDir || !existsSync(repoDir)) return empty;
+  try {
+    const { stdout } = await exec("git", ["status", "--porcelain=v1", "-z", "-b"], { cwd: repoDir, ...GIT });
+    const parts = stdout.split("\0");
+    let branch = "", ahead = 0, behind = 0;
+    const staged: string[] = [], unstaged: string[] = [], untracked: string[] = [];
+    for (let i = 0; i < parts.length; i++) {
+      const rec = parts[i]; if (!rec) continue;
+      if (rec.startsWith("## ")) {
+        const head = rec.slice(3);
+        const am = head.match(/ahead (\d+)/); if (am) ahead = Number(am[1]);
+        const bm = head.match(/behind (\d+)/); if (bm) behind = Number(bm[1]);
+        branch = head.replace(/^No commits yet on /, "").split(/\.\.\.| \[/)[0]!.trim();
+        continue;
+      }
+      const x = rec[0], y = rec[1], path = rec.slice(3);
+      if (x === "R" || y === "R") i++; // lewati token path sumber untuk rename
+      if (x === "?" && y === "?") { untracked.push(path); continue; }
+      if (x !== " " && x !== "?") staged.push(path);
+      if (y !== " " && y !== "?") unstaged.push(path);
+    }
+    return { branch, ahead, behind, staged, unstaged, untracked, clean: !staged.length && !unstaged.length && !untracked.length };
+  } catch { return empty; }
+}
+
 // git log --all seluruh ref. `%D` = ref names ("HEAD -> main, origin/main, tag: v1"); buang
 // prefix "HEAD -> ". Satu commit = satu baris (subject/refs tanpa newline).
 export async function listGraph(repoDir: string | null, limit = 200): Promise<{ commits: GraphCommit[]; current: string }> {
@@ -146,7 +181,10 @@ export type GitOp =
   // SPEC-233 · tag: annotated bila `message`, di `at` bila ada; `push` → dorong ke origin sesudahnya.
   | { op: "tag"; name: string; message?: string; at?: string; push?: boolean }
   | { op: "delete-tag"; name: string; remote?: boolean }
-  | { op: "push-tag"; name: string };
+  | { op: "push-tag"; name: string }
+  // SPEC-233 · operasi baris uncommitted: reset working tree ke HEAD, atau clean untracked.
+  | { op: "reset-worktree"; mode: "mixed" | "hard" }
+  | { op: "clean"; directories?: boolean; ignored?: boolean };
 
 export type GitOpResult = { ok: boolean; stdout: string; stderr: string; current: string };
 
@@ -172,6 +210,8 @@ export function validateGitOp(op: unknown): string | null {
       return o.mode === "soft" || o.mode === "mixed" || o.mode === "hard" ? null : "mode harus soft/mixed/hard";
     }
     case "tag": case "delete-tag": case "push-tag": return need("name");
+    case "reset-worktree": return o.mode === "mixed" || o.mode === "hard" ? null : "mode harus mixed/hard";
+    case "clean": return null;
     default: return `op tak dikenal: ${String(o.op)}`;
   }
 }
@@ -199,6 +239,8 @@ function gitArgs(op: GitOp): string[] {
     case "tag": return ["tag", ...(op.message ? ["-a", "-m", op.message] : []), "--end-of-options", op.name, ...(op.at ? [op.at] : [])];
     case "delete-tag": return ["tag", "-d", "--end-of-options", op.name];
     case "push-tag": return ["push", "origin", "--end-of-options", op.name];
+    case "reset-worktree": return ["reset", `--${op.mode}`];
+    case "clean": return ["clean", "-f", ...(op.directories ? ["-d"] : []), ...(op.ignored ? ["-x"] : [])];
   }
 }
 

@@ -2,7 +2,7 @@
    Baris = grid [svg lane | subject | refs | meta]; klik = detail; klik-kanan = context-menu. */
 import React from "react";
 import { Card, Button, StateBlock, Badge } from "../ds";
-import { api, type GraphCommit, type CommitDetail, type GitOp } from "../api/client";
+import { api, type GraphCommit, type CommitDetail, type GitOp, type RepoStatus } from "../api/client";
 import { computeLanes, rowEdges, type GraphRow, type Edge } from "./git-graph";
 
 const LANE_W = 14, ROW_H = 30, DOT = 4;
@@ -113,11 +113,14 @@ export function GitGraph({ projectId, onRunGit, onMerge, onOpenFile }:
   const [detail, setDetail] = React.useState<CommitDetail | null>(null);
   const [menu, setMenu] = React.useState<{ x: number; y: number; c: GraphCommit } | null>(null);
   const [tagMenu, setTagMenu] = React.useState<{ x: number; y: number; tag: string } | null>(null);
+  const [status, setStatus] = React.useState<RepoStatus | null>(null);
+  const [uncMenu, setUncMenu] = React.useState<{ x: number; y: number } | null>(null);
 
   const load = React.useCallback(() => {
     setState("loading");
     api.ideGraph(projectId).then((g) => { setRows(computeLanes(g.commits)); setCurrent(g.current); setState("ready"); })
       .catch(() => setState("error"));
+    api.ideStatus(projectId).then(setStatus).catch(() => setStatus(null));
   }, [projectId]);
   React.useEffect(() => { load(); }, [load]);
 
@@ -141,6 +144,28 @@ export function GitGraph({ projectId, onRunGit, onMerge, onOpenFile }:
   return (
     <div style={{ display: "grid", gridTemplateColumns: detail ? "1fr 340px" : "1fr", gap: 16, alignItems: "start" }}>
       <Card padding={0}>
+        {/* SPEC-233 · baris uncommitted changes (lingkaran terbuka) di puncak bila working tree kotor */}
+        {status && !status.clean && (() => {
+          const n = status.staged.length + status.unstaged.length + status.untracked.length;
+          const first = status.unstaged[0] ?? status.untracked[0] ?? status.staged[0];
+          return (
+            <div onClick={() => { if (first) onOpenFile(first, ""); }}
+              onContextMenu={(e) => { e.preventDefault(); setUncMenu({ x: e.clientX, y: e.clientY }); }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bone-100)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              style={{ display: "flex", alignItems: "center", gap: 10, height: ROW_H, padding: "0 12px",
+                cursor: "pointer", borderBottom: "1px solid var(--border-hair)" }}>
+              <svg width={maxLanes * LANE_W} height={ROW_H} style={{ flex: "0 0 auto" }}>
+                <circle cx={LANE_W / 2} cy={ROW_H / 2} r={DOT} fill="none" stroke={laneColor(0)} strokeWidth={1.5} />
+              </svg>
+              <span style={{ fontSize: 12.5, fontStyle: "italic", color: "var(--text-muted)", flex: 1 }}>
+                Uncommitted changes · {n} file
+              </span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)", flex: "0 0 auto", width: 88, textAlign: "right" }}>working tree</span>
+              <span style={{ width: 40, flex: "0 0 auto" }} />
+            </div>
+          );
+        })()}
         {rows.map((r, i) => {
           const c = r.commit;
           const isHead = c.refs.includes(current);
@@ -204,6 +229,13 @@ export function GitGraph({ projectId, onRunGit, onMerge, onOpenFile }:
         { label: `Hapus tag ${tagMenu.tag} (local + origin)`, run: () => { setTagMenu(null); void act({ op: "delete-tag", name: tagMenu.tag, remote: true }); } },
         { label: "Push tag ke origin", run: () => { setTagMenu(null); void act({ op: "push-tag", name: tagMenu.tag }); } },
         { label: "Copy nama tag", run: () => { setTagMenu(null); void navigator.clipboard?.writeText(tagMenu.tag); } },
+      ]} />}
+      {uncMenu && <Menu x={uncMenu.x} y={uncMenu.y} onClose={() => setUncMenu(null)} items={[
+        // SPEC-233 · aksi baris uncommitted. reset --hard & clean ireversibel → gate force via act.
+        { label: "Stash perubahan…", run: () => { setUncMenu(null); const m = window.prompt("Pesan stash (opsional):") || undefined; void act({ op: "stash", message: m, includeUntracked: true }); } },
+        { label: "Reset working tree (mixed — unstage)", run: () => { setUncMenu(null); void act({ op: "reset-worktree", mode: "mixed" }); } },
+        { label: "Reset working tree (hard — buang semua)", run: () => { setUncMenu(null); void act({ op: "reset-worktree", mode: "hard" }); } },
+        { label: "Clean untracked", run: () => { setUncMenu(null); void act({ op: "clean", directories: true }); } },
       ]} />}
     </div>
   );

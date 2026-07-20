@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { makeTempRepo, makeRepoWithBranches, makeRepoWithSpecCommits, makeRepoWithSpecBranch } from "./factory";
-import { listRepoTree, readRepoFile, repoAbsPath, listGraph, commitDetail, writeRepoFile, runGitOp, validateGitOp, touchesTree } from "../src/services/git-ide";
+import { listRepoTree, readRepoFile, repoAbsPath, listGraph, commitDetail, writeRepoFile, runGitOp, validateGitOp, touchesTree, repoStatus } from "../src/services/git-ide";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
@@ -287,5 +287,40 @@ describe("git-ide tag (SPEC-233)", () => {
     expect(validateGitOp({ op: "tag", name: "v1" })).toBeNull();
     expect(validateGitOp({ op: "delete-tag", name: "v1" })).toBeNull();
     expect(validateGitOp({ op: "push-tag", name: "v1" })).toBeNull();
+  });
+});
+
+describe("git-ide status + worktree ops (SPEC-233)", () => {
+  it("repoStatus melaporkan untracked + unstaged + clean flag", async () => {
+    const dir = makeRepoWithBranches(); // README.md ter-commit, main
+    writeFileSync(`${dir}/README.md`, "berubah"); writeFileSync(`${dir}/baru.txt`, "x");
+    const s = await repoStatus(dir);
+    expect(s.branch).toBe("main");
+    expect(s.clean).toBe(false);
+    expect(s.untracked).toContain("baru.txt");
+    expect(s.unstaged).toContain("README.md");
+  });
+  it("repoStatus repo bersih → clean:true", async () => {
+    expect((await repoStatus(makeRepoWithBranches())).clean).toBe(true);
+    expect((await repoStatus(null)).clean).toBe(true);
+  });
+  it("reset-worktree hard mengembalikan file terlacak", async () => {
+    const dir = makeRepoWithBranches();
+    writeFileSync(`${dir}/README.md`, "berubah");
+    const r = await runGitOp(dir, { op: "reset-worktree", mode: "hard" });
+    expect(r.ok).toBe(true);
+    expect(readFileSync(`${dir}/README.md`, "utf8")).toBe("x");
+  });
+  it("clean membuang untracked", async () => {
+    const dir = makeRepoWithBranches();
+    writeFileSync(`${dir}/sampah.txt`, "x");
+    const r = await runGitOp(dir, { op: "clean", directories: true });
+    expect(r.ok).toBe(true);
+    expect(existsSync(`${dir}/sampah.txt`)).toBe(false);
+  });
+  it("validateGitOp reset-worktree butuh mode mixed/hard; clean valid", () => {
+    expect(validateGitOp({ op: "reset-worktree", mode: "soft" })).toBeTruthy();
+    expect(validateGitOp({ op: "reset-worktree", mode: "hard" })).toBeNull();
+    expect(validateGitOp({ op: "clean" })).toBeNull();
   });
 });
