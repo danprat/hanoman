@@ -6,6 +6,7 @@ import { Button, Badge, Select, StateBlock, Icon } from "../ds";
 import { api } from "../api/client";
 import type { ErrorGroupView, ErrorGroupDetail, Spec } from "@hanoman/shared";
 import type { ProjectVM } from "./types";
+import { IntegrationGuideModal } from "./IntegrationGuideModal";
 
 const POLL_MS = 5000;
 
@@ -125,6 +126,7 @@ export function ErrorsScreen({ projects, onEscalated, onToast }:
   const [project, setProject] = React.useState("");
   const [environment, setEnvironment] = React.useState("");
   const [status, setStatus] = React.useState("");
+  const [guideOpen, setGuideOpen] = React.useState(false);
 
   const load = React.useCallback((silent = false) => {
     if (!silent) setState("loading");
@@ -146,18 +148,22 @@ export function ErrorsScreen({ projects, onEscalated, onToast }:
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, minHeight: 0, flex: 1 }}>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
         <Select size="sm" value={project} onChange={(e) => setProject(e.target.value)}
           options={[{ value: "", label: "Semua project" }, ...projects.map((p) => ({ value: p.id, label: p.name }))]} />
         <Select size="sm" value={environment} onChange={(e) => setEnvironment(e.target.value)}
           options={[{ value: "", label: "Semua environment" }, ...envs.map((e) => ({ value: e, label: e }))]} />
         <Select size="sm" value={status} onChange={(e) => setStatus(e.target.value)}
           options={[{ value: "", label: "Semua status" }, { value: "new", label: "new" }, { value: "escalated", label: "escalated" }, { value: "resolved", label: "resolved" }]} />
+        <span style={{ flex: 1 }} />
+        <Button size="sm" variant="secondary" leftIcon="book-open" onClick={() => setGuideOpen(true)}>Panduan integrasi</Button>
       </div>
+      <IntegrationGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />
       {state === "loading" ? <StateBlock kind="loading" />
         : state === "error" ? <StateBlock kind="error" hint="Gagal memuat error." action={() => load()} actionLabel="Coba lagi" />
         : list.length === 0 ? <StateBlock kind="empty" icon="triangle-alert" title="Belum ada error"
-            hint="Pasang SDK/snippet di project (DSN dari detail project) agar error mulai terkirim." />
+            hint="Pasang SDK/snippet di project (DSN dari detail project) agar error mulai terkirim."
+            action={() => setGuideOpen(true)} actionLabel="Panduan integrasi" />
         : <div style={{ overflowY: "auto", minHeight: 0 }}>
             {list.map((g) => <GroupRow key={g.id} g={g} onOpen={setOpenId} />)}
           </div>}

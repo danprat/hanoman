@@ -5,6 +5,7 @@ import React from "react";
 import { Card, Badge, StatusPill, ProgressBar, Button, Icon } from "../ds";
 import { api } from "../api/client";
 import type { ProjectVM } from "./types";
+import { IntegrationGuideModal } from "./IntegrationGuideModal";
 
 const COV_TONE = (s: string) => (s === "broken" ? "err" : s === "drift" ? "warn" : "ok");
 
@@ -15,6 +16,7 @@ function DsnCard({ p, onToast }: { p: ProjectVM; onToast: (msg: string, kind?: s
   const [prefix, setPrefix] = React.useState<string | null>(p.ingestKeyPrefix);
   const [freshDsn, setFreshDsn] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
+  const [guideOpen, setGuideOpen] = React.useState(false);
 
   async function rotate() {
     setBusy(true);
@@ -42,8 +44,13 @@ function DsnCard({ p, onToast }: { p: ProjectVM; onToast: (msg: string, kind?: s
           </div>
         : <Button size="sm" leftIcon="key-round" onClick={rotate} disabled={busy}>Generate DSN</Button>}>
       <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.5 }}>
-        Pasang DSN di SDK/snippet project agar error terkirim ke hanoman. Plaintext hanya tampil sekali saat generate/rotate.
+        Pasang DSN di SDK/snippet project agar error terkirim ke hanoman. Plaintext hanya tampil sekali saat generate/rotate.{" "}
+        <a onClick={() => setGuideOpen(true)}
+          style={{ color: "var(--brass-700)", cursor: "pointer", fontWeight: 600, textDecoration: "underline" }}>
+          Lihat panduan integrasi
+        </a>
       </div>
+      <IntegrationGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />
       {freshDsn && (
         <div style={{ padding: 12, marginBottom: 12, border: "1px solid var(--brass-300)", borderRadius: "var(--radius-sm)", background: "var(--brass-100)" }}>
           <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>DSN — salin sekarang, tak akan ditampilkan lagi:</div>

@@ -250,5 +250,7 @@ export const api = {
   escalateError: (id: string) => j<{ spec: Spec; alreadyEscalated?: boolean }>(paths.errorEscalate(id), { method: "POST" }),
   patchError: (id: string, status: string) =>
     j<{ id: string; status: string }>(paths.error(id), { method: "PATCH", ...body({ status }) }),
+  // SPEC-249 · panduan integrasi SDK (markdown) untuk ditampilkan di web
+  getIntegrationGuide: () => j<{ text: string }>(paths.errorsGuide),
 };
 

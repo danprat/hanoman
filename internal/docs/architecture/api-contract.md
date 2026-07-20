@@ -286,6 +286,8 @@ POST    /api/ingest/:slug?key=<dsn>   { type, message, stack?, environment?, rel
 OPTIONS /api/ingest/:slug   # 204 + CORS (Access-Control-Allow-Origin: * ) untuk snippet browser.
 
 # Area Error — di belakang gate cookie. Query selalu ber-scope projectId (isolasi antar-project).
+GET   /errors/integration-guide  -> { text }   # isi mentah sdk/README.md (markdown), utk ditampilkan di web
+#   (modal "Panduan integrasi" di area Errors + link kartu DSN). Static route > /errors/:id. 404 bila file hilang.
 GET   /errors?project=&environment=&status=&q=&page=&limit=  -> { items: ErrorGroupView[], total, page, pageSize }
 #   urut lastSeen desc; q atas type+message; paginasi response-layer (ADR-0038).
 GET   /errors/:id            -> ErrorGroupDetail { ...group, sampleStack, events: ErrorEventView[] (≤50 terakhir) } · 404

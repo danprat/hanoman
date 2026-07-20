@@ -54,6 +54,23 @@ describe("GET /api/errors", () => {
   });
 });
 
+describe("GET /api/errors/integration-guide", () => {
+  it("serves the SDK integration guide markdown (from sdk/README.md)", async () => {
+    const r = await app.inject({ method: "GET", url: "/api/errors/integration-guide" });
+    expect(r.statusCode).toBe(200);
+    const { text } = r.json();
+    expect(typeof text).toBe("string");
+    expect(text).toContain("DSN");           // panduan menyebut cara dapat DSN
+    expect(text.length).toBeGreaterThan(100);
+  });
+
+  it("is matched as a static route, not as /errors/:id", async () => {
+    // regresi: pastikan tak diperlakukan sebagai id grup (yang akan 404)
+    const r = await app.inject({ method: "GET", url: "/api/errors/integration-guide" });
+    expect(r.statusCode).not.toBe(404);
+  });
+});
+
 describe("GET /api/errors/:id", () => {
   it("returns group detail with sample events (newest first)", async () => {
     const g = await prisma.errorGroup.findFirst({ where: { fingerprint: "f1" } });

@@ -103,6 +103,7 @@ export const paths = {
   // SPEC-249 · error monitoring. ingest publik ber-DSN (bypass gate cookie, ADR-0060).
   ingest: (slug: string) => `${API}/ingest/${encodeURIComponent(slug)}`,
   errors: `${API}/errors`,
+  errorsGuide: `${API}/errors/integration-guide`,
   error: (id: string) => `${API}/errors/${id}`,
   errorEscalate: (id: string) => `${API}/errors/${id}/escalate`,
   projectIngestKey: (id: string) => `${API}/projects/${encodeURIComponent(id)}/ingest-key`,

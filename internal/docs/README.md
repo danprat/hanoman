@@ -31,6 +31,9 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 - [stack](architecture/stack.md) · [data-model](architecture/data-model.md) · [api-contract](architecture/api-contract.md) · [nfr](architecture/nfr.md)
 - [vps-compliance](architecture/vps-compliance.md) — kerangka kepatuhan checklist 232 item (SPEC-220 · ADR-0050)
 
+## integrasi (untuk project yang memakai hanoman)
+- [SDK/snippet error monitoring](../../sdk/README.md) — cara project lain mengirim error ke hanoman: dapatkan DSN → helper Node/TS (`sdk/node/hanoman-error.ts`) atau browser (`sdk/browser/hanoman-error.js`) → payload JSON generik (bahasa apa pun) → grouping & eskalasi ke backlog (SPEC-249 · ADR-0060)
+
 ## adr
 > Nomor unik & imutable. ADR usang tidak dihapus — ditandai statusnya di bawah dan di header masing-masing.
 - [0060 — Error monitoring: model baru + ingest ber-DSN sebagai pengecualian auth](adr/0060-error-monitoring-ingest-ber-dsn.md) — **memperluas 0028/0033/0039/0040** (SPEC-249)

@@ -1,12 +1,15 @@
 // SPEC-249 · ADR-0060 · area Error: daftar grup + detail. Query selalu ber-scope projectId
 // (isolasi antar-project). Escalate + patch ditambah SPEC-249 Task 6.
 import type { FastifyInstance } from "fastify";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { zErrorStatus } from "@hanoman/shared";
 import { prisma } from "../db";
 import { paginate } from "../services/paginate";
 import { nextSpecId } from "../services/id";
 import { resolveRepoDir } from "../services/local-binding";
 import { enqueueOutbox } from "../services/outbox";
+import { repoRoot } from "../runner/deps";
 import type { ErrorGroup, ErrorEvent } from "@prisma/client";
 
 const groupView = (g: ErrorGroup) => ({
@@ -19,6 +22,17 @@ const eventView = (e: ErrorEvent) => ({
 });
 
 export default async function (app: FastifyInstance) {
+  // SPEC-249 · panduan integrasi SDK (isi `sdk/README.md`) disajikan apa adanya agar bisa
+  // dibaca di web (modal di area Errors + kartu DSN). Sumber tunggal tetap file di repo.
+  app.get("/errors/integration-guide", async (_req, reply) => {
+    try {
+      const text = await readFile(join(repoRoot(), "sdk", "README.md"), "utf8");
+      return { text };
+    } catch {
+      return reply.code(404).send({ error: "panduan integrasi tidak ditemukan" });
+    }
+  });
+
   app.get("/errors", async (req) => {
     const { project, environment, status, q, page, limit } = req.query as Record<string, string | undefined>;
     const where: { projectId?: string; environment?: string; status?: string } = {};
