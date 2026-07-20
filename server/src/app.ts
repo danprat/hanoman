@@ -23,6 +23,7 @@ import sync from "./routes/sync";
 import sessionResults from "./routes/session-results";
 import config from "./routes/config";
 import ingest from "./routes/ingest";
+import errors from "./routes/errors";
 import authRoutes from "./routes/auth";
 import { COOKIE_NAME, lookupSession } from "./services/auth";
 import { detachAll } from "./services/pty";
@@ -96,6 +97,7 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
     await api.register(sessionResults);
     await api.register(config);
     await api.register(ingest);   // SPEC-249 · ingest publik ber-DSN (gate di-bypass di atas)
+    await api.register(errors);   // SPEC-249 · area Error (di belakang gate cookie)
   }, { prefix: "/api" });
 
   // Prod: serve the built dashboard from one process; SPA-fallback to

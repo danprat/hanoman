@@ -646,11 +646,11 @@ curl -sS -XPOST "localhost:8799/api/ingest/<slug>?key=bad" -d '{}' -i | head -1 
 - Consumes: models (Task 1), `paginate` (`server/src/services/paginate.ts`).
 - Produces: `GET /api/errors` (paginated `ErrorGroupView[]`), `GET /api/errors/:id` (`ErrorGroupDetail`). Client: `listErrors`, `getError`.
 
-- [ ] **Step 1: Test** `errors.test.ts`: seed 2 project + beberapa grup/event; `GET /errors` → semua grup urut lastSeenAt desc; `?project=` → filter; `?environment=production` → filter; `?status=new`; `?q=` cocok type/message; paginasi `page/limit`; `GET /errors/:id` → detail + array events (≤ N terakhir, urut desc); `GET /errors/unknown` → 404.
+- [x] **Step 1: Test** `errors.test.ts`: seed 2 project + beberapa grup/event; `GET /errors` → semua grup urut lastSeenAt desc; `?project=` → filter; `?environment=production` → filter; `?status=new`; `?q=` cocok type/message; paginasi `page/limit`; `GET /errors/:id` → detail + array events (≤ N terakhir, urut desc); `GET /errors/unknown` → 404.
 
-- [ ] **Step 2: Run → fail.**
+- [x] **Step 2: Run → fail.**
 
-- [ ] **Step 3: Implement `errors.ts` (list + detail)**:
+- [x] **Step 3: Implement `errors.ts` (list + detail)**:
 
 ```ts
 import type { FastifyInstance } from "fastify";
@@ -693,16 +693,16 @@ export default async function (app: FastifyInstance) {
 }
 ```
 
-- [ ] **Step 4: Register + client.** `app.ts`: `await api.register(errors);`. `client.ts`:
+- [x] **Step 4: Register + client.** `app.ts`: `await api.register(errors);`. `client.ts`:
 
 ```ts
 listErrors: (params = {}) => j<Paginated<ErrorGroupView>>(paths.errors + qs(params)),
 getError: (id: string) => j<ErrorGroupDetail>(paths.error(id)),
 ```
 
-- [ ] **Step 5: Run all + curl.** `GET /api/errors | jq`, `GET /api/errors/<id> | jq` (setelah ingest Task 4).
+- [x] **Step 5: Run all + curl.** `GET /api/errors | jq`, `GET /api/errors/<id> | jq` (setelah ingest Task 4).
 
-- [ ] **Step 6: Commit** `git commit -m "feat(spec-249): errors list + detail API"`
+- [x] **Step 6: Commit** `git commit -m "feat(spec-249): errors list + detail API"`
 
 ---
 
@@ -716,11 +716,11 @@ getError: (id: string) => j<ErrorGroupDetail>(paths.error(id)),
 - Consumes: `nextSpecId` (`services/id.ts`), `resolveRepoDir` (`services/local-binding.ts`), `enqueueOutbox` (`services/outbox.ts`), models.
 - Produces: `POST /api/errors/:id/escalate` → `{ spec, alreadyEscalated? }`; `PATCH /api/errors/:id` `{ status }`. Client: `escalateError`, `patchError`.
 
-- [ ] **Step 1: Test** `errors-escalate.test.ts`: buat project + grup (count 7, env production, message+stack); `POST /errors/:id/escalate` → 201 Spec (`source:"qa"`, title memuat type, payload `fromErrorGroup=<id>`, `actual` memuat message); grup jadi `status:"escalated"` + `specId=spec.id`; escalate kedua → `{ alreadyEscalated:true, spec:{ id: <same> } }` (tanpa buat Spec baru); `PATCH /errors/:id { status:"resolved" }` → grup resolved; grup tak ada → 404.
+- [x] **Step 1: Test** `errors-escalate.test.ts`: buat project + grup (count 7, env production, message+stack); `POST /errors/:id/escalate` → 201 Spec (`source:"qa"`, title memuat type, payload `fromErrorGroup=<id>`, `actual` memuat message); grup jadi `status:"escalated"` + `specId=spec.id`; escalate kedua → `{ alreadyEscalated:true, spec:{ id: <same> } }` (tanpa buat Spec baru); `PATCH /errors/:id { status:"resolved" }` → grup resolved; grup tak ada → 404.
 
-- [ ] **Step 2: Run → fail.**
+- [x] **Step 2: Run → fail.**
 
-- [ ] **Step 3: Implement escalate + patch di `errors.ts`**:
+- [x] **Step 3: Implement escalate + patch di `errors.ts`**:
 
 ```ts
 import { nextSpecId } from "../services/id";
@@ -779,16 +779,16 @@ import { zErrorStatus } from "@hanoman/shared";
   });
 ```
 
-- [ ] **Step 4: Client** `client.ts`:
+- [x] **Step 4: Client** `client.ts`:
 
 ```ts
 escalateError: (id: string) => j<{ spec: Spec; alreadyEscalated?: boolean }>(paths.errorEscalate(id), { method: "POST" }),
 patchError: (id: string, status: string) => j<{ id: string; status: string }>(paths.error(id), { method: "PATCH", ...body({ status }) }),
 ```
 
-- [ ] **Step 5: Run all + curl.** `POST /api/errors/<id>/escalate | jq` → Spec; ulangi → `alreadyEscalated:true`; `PATCH /api/errors/<id>` `{"status":"resolved"}`.
+- [x] **Step 5: Run all + curl.** `POST /api/errors/<id>/escalate | jq` → Spec; ulangi → `alreadyEscalated:true`; `PATCH /api/errors/<id>` `{"status":"resolved"}`.
 
-- [ ] **Step 6: Commit** `git commit -m "feat(spec-249): escalate error group → Spec (qa) + status patch"`
+- [x] **Step 6: Commit** `git commit -m "feat(spec-249): escalate error group → Spec (qa) + status patch"`
 
 ---
 
