@@ -24,6 +24,9 @@ import sessionResults from "./routes/session-results";
 import config from "./routes/config";
 import ingest from "./routes/ingest";
 import errors from "./routes/errors";
+import help from "./routes/help";
+import tickets from "./routes/tickets";
+import fastifyMultipart from "@fastify/multipart";
 import authRoutes from "./routes/auth";
 import { COOKIE_NAME, lookupSession } from "./services/auth";
 import { detachAll } from "./services/pty";
@@ -59,6 +62,12 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
   app.register(async (api) => {
     // Cookie parser lebih dulu supaya req.cookies terisi sebelum gate berjalan.
     await api.register(cookie);
+    // SPEC-253 · lampiran tiket Help Center (multipart). throwFileSizeLimit:false → berkas oversize
+    // di-truncate & di-skip di route (bukan menggagalkan seluruh submit). Batas final ditegakkan route.
+    await api.register(fastifyMultipart, {
+      throwFileSizeLimit: false,
+      limits: { fileSize: 5 * 1024 * 1024, files: 12, fields: 20, fieldSize: 20_000 },
+    });
     if (requireAuth) {
       api.addHook("onRequest", async (req, reply) => {
         // Isi req.user best-effort dulu (juga untuk endpoint publik spt /auth/status
@@ -74,6 +83,9 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
         // SPEC-249 · ADR-0060 · ingest error dipanggil project eksternal tanpa sesi login;
         // route /api/ingest di-otorisasi DSN per-project sendiri (pengecualian sah gate).
         if (path.startsWith("/api/ingest")) return;
+        // SPEC-253 · ADR-0061 · halaman/submit/status Help Center dipanggil pengguna akhir tanpa sesi
+        // login; route /api/help di-otorisasi helpEnabled + kunci opaque tiket sendiri (pengecualian sah).
+        if (path.startsWith("/api/help")) return;
         if (!user) return reply.code(401).send({ error: "unauthorized" });
       });
     }
@@ -98,6 +110,8 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
     await api.register(config);
     await api.register(ingest);   // SPEC-249 · ingest publik ber-DSN (gate di-bypass di atas)
     await api.register(errors);   // SPEC-249 · area Error (di belakang gate cookie)
+    await api.register(help);     // SPEC-253 · Help Center publik (gate di-bypass di atas)
+    await api.register(tickets);  // SPEC-253 · triase (di belakang gate cookie)
   }, { prefix: "/api" });
 
   // Prod: serve the built dashboard from one process; SPA-fallback to

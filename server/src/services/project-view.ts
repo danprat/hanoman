@@ -52,5 +52,7 @@ export async function toProjectView(p: Project, sessions: SessionInfo[]): Promis
     // SPEC-249 · error monitoring: ekspos status + hint prefix. ingestKeyHash TAK PERNAH ke client.
     monitoringEnabled: !!p.ingestKeyHash,
     ingestKeyPrefix: p.ingestKeyPrefix ?? null,
+    // SPEC-253 · Help Center publik aktif.
+    helpEnabled: p.helpEnabled,
   };
 }
