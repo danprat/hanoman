@@ -1109,17 +1109,17 @@ git commit -m "feat(spec-257): Settings Akses AI Agent panel + agent token api c
 
 **Interfaces:** none (dokumentasi + verifikasi end-to-end).
 
-- [ ] **Step 1: Write ADR-0065** — `internal/docs/adr/0065-ai-agent-capability-agent-token.md`. Isi: Konteks (seluruh fitur sudah REST /api, digerbang cookie; kebutuhan agen eksternal full-control opt-in per fitur). Keputusan: Agent Token (Bearer, hash-at-rest, server-local, cermin DeviceToken) sebagai jalur auth kedua; capability per-domain read/write (write⊇read); master switch `Setting.agentAccessEnabled`; peta route→capability; tak-boleh-didelegasikan (auth/agent-tokens/device-tokens/sync); tanpa MCP (follow-on), tanpa RBAC (satu workspace), tanpa audit log per-aksi (cukup lastUsedAt). Konsekuensi: agent token memperluas permukaan auth tapi bukan permukaan eksekusi; `sessions:write`=RCE tetap dibatasi isolasi worktree (ADR-0037); privilege-escalation dicegah (kelola token cookie-only). Header: status Accepted, memperluas 0028 (auth), terkait 0037/0044/0060/0062.
+- [x] **Step 1: Write ADR-0065** — `internal/docs/adr/0065-ai-agent-capability-agent-token.md`. Isi: Konteks (seluruh fitur sudah REST /api, digerbang cookie; kebutuhan agen eksternal full-control opt-in per fitur). Keputusan: Agent Token (Bearer, hash-at-rest, server-local, cermin DeviceToken) sebagai jalur auth kedua; capability per-domain read/write (write⊇read); master switch `Setting.agentAccessEnabled`; peta route→capability; tak-boleh-didelegasikan (auth/agent-tokens/device-tokens/sync); tanpa MCP (follow-on), tanpa RBAC (satu workspace), tanpa audit log per-aksi (cukup lastUsedAt). Konsekuensi: agent token memperluas permukaan auth tapi bukan permukaan eksekusi; `sessions:write`=RCE tetap dibatasi isolasi worktree (ADR-0037); privilege-escalation dicegah (kelola token cookie-only). Header: status Accepted, memperluas 0028 (auth), terkait 0037/0044/0060/0062.
 
-- [ ] **Step 2: Link ADR di index** — `internal/docs/README.md`, di bagian `## adr` (paling atas daftar):
+- [x] **Step 2: Link ADR di index** — `internal/docs/README.md`, di bagian `## adr` (paling atas daftar):
 
 ```markdown
 - [0065 — AI agent capability: agent token + capability scope per-domain gating /api](adr/0065-ai-agent-capability-agent-token.md) — **memperluas 0028**, terkait 0037/0044 (SPEC-257)
 ```
 
-- [ ] **Step 3: Update SKILL** — `internal/skills/hanoman/SKILL.md`: di daftar model pendukung/ADR yang sering diacu, sebut `AgentToken` (SPEC-257/ADR-0065) sebagai kredensial AI agent + capability scope; di Aturan Keamanan tambah satu baris jalur auth kedua agent token (Bearer, capability, master switch, tak-boleh-didelegasikan).
+- [x] **Step 3: Update SKILL** — `internal/skills/hanoman/SKILL.md`: di daftar model pendukung/ADR yang sering diacu, sebut `AgentToken` (SPEC-257/ADR-0065) sebagai kredensial AI agent + capability scope; di Aturan Keamanan tambah satu baris jalur auth kedua agent token (Bearer, capability, master switch, tak-boleh-didelegasikan).
 
-- [ ] **Step 4: Full test suite (server + shared + frontend)**
+- [x] **Step 4: Full test suite (server + shared + frontend)**
 
 Run:
 ```bash
@@ -1129,12 +1129,12 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run
 ```
 Expected: semua hijau. Perbaiki regresi sampai hijau sebelum lanjut.
 
-- [ ] **Step 5: Docs index integrity + coverage**
+- [x] **Step 5: Docs index integrity + coverage**
 
 Run: `pnpm --filter ./server exec tsx -e "1" >/dev/null 2>&1; node -e "1"` (noop) lalu `hanoman docs index --check` bila CLI tersedia, else lewati.
 Expected: index konsisten (ADR-0065 ter-link).
 
-- [ ] **Step 6: Build + boot server + LIVE curl**
+- [x] **Step 6: Build + boot server + LIVE curl**
 
 Boot server lokal terhadap DB migrated (bukan hanoman_test — pakai DB dev), lalu:
 ```bash
@@ -1162,7 +1162,7 @@ curl -s -o /dev/null -w "agent-tokens(agent): %{http_code}\n" -H "authorization:
 ```
 Expected: capability catalog JSON tampil; `projects(agent): 200`; `specs(agent): 403`; `agent-tokens(agent): 403`. (Bonus: matikan master switch lalu ulangi #5 → `401`.)
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add internal/docs/adr/0065-ai-agent-capability-agent-token.md internal/docs/README.md internal/skills/hanoman/SKILL.md

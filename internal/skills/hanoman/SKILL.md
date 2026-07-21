@@ -79,6 +79,7 @@ Pakai skill lebih sempit saat task cocok:
 ## Aturan Keamanan
 
 - Auth (ADR-0028): login email/password menggerbangi **seluruh `/api`** (gate `onRequest`, 401 tanpa sesi, termasuk upgrade WebSocket `/api/terminal`). Publik hanya `GET /health`, `GET /auth/status`, `POST /auth/login`, `POST /auth/setup`.
+- **Agent token — akses AI agent** (SPEC-257/ADR-0065): jalur auth **kedua** ke `/api` untuk AI agent eksternal (`Authorization: Bearer` / `?agent_token=` di WS), ditegakkan **capability per-domain read/write** (write⊇read; katalog `@hanoman/shared`). `AgentToken` server-local (hash-at-rest, cermin DeviceToken); master switch `Setting.agentAccessEnabled` (default off) menolak semua. Tak-boleh-didelegasikan (agent → 403): `/auth`, `/agent-tokens`, `/device-tokens`, `/sync`. Cookie = akses penuh (tak ada RBAC). Bukan perluasan permukaan eksekusi — `sessions:write` RCE tetap dibatasi isolasi worktree.
 - Password: `crypto.scrypt` (stdlib) + salt acak + `timingSafeEqual`; tak pernah dikembalikan ke client. Sesi: token opaque 256-bit di cookie `httpOnly`; DB menyimpan `sha256(token)`, revocable. Login di-throttle per IP; error selalu generic.
 - Tanpa RBAC — semua user setara; `DELETE /auth/users/:id` menolak menghapus user terakhir. Bootstrap: `POST /auth/setup` membuat akun pertama lalu tertutup (409). Lakukan `setup` segera pada deploy pertama.
 - **Guardrail perintah berbahaya DICABUT sepenuhnya** (SPEC-197, ADR-0037): sesi jalan `--dangerously-skip-permissions` tanpa hook deny apa pun — agen dipercaya penuh, setara developer yang menjalankan `claude` di mesinnya sendiri. `runner/src/safety.ts` sudah dihapus. **Jangan hidupkan kembali tanpa ADR baru.**
@@ -87,7 +88,7 @@ Pakai skill lebih sempit saat task cocok:
 
 ## Aturan Data & Skema
 
-- **Tujuh model** (Postgres via Prisma): `Project`, `Spec`, `Setting`, `Notification`, `User`, `Session`, `Vps`. Tidak ada `Run` maupun `Trigger` — di-drop saat pindah ke sesi interaktif (ADR-0024).
+- **Tujuh model** (Postgres via Prisma): `Project`, `Spec`, `Setting`, `Notification`, `User`, `Session`, `Vps`. Tidak ada `Run` maupun `Trigger` — di-drop saat pindah ke sesi interaktif (ADR-0024). Model pendukung mencakup `DeviceToken`, **`AgentToken`** (kredensial AI agent + capability, SPEC-257/ADR-0065, server-local), `SessionResult`, sync (`SyncLog`/`SyncOutbox`/`SyncState`/`LocalBinding`/`RuntimeConfig`), error monitoring (`ErrorGroup`/`ErrorEvent`), Help Center (`Ticket`/`TicketAttachment`), VPS compliance (`VpsAuditSnapshot`/`VpsItemState`).
 - Enum stage/source/priority disimpan sebagai **`String` + divalidasi zod** di `@hanoman/shared` (`enums.ts`), bukan enum Prisma.
 - `Project.id` (slug) **kekal**, tak ada endpoint rename; `repoDir` OPSIONAL & tak disync. **`LocalBinding`** (`projectId → repoDir`, per-mesin, LOCAL-ONLY) meng-override path; `resolveRepoDir = binding ?? Project.repoDir` dipakai **seluruh** jalur baca (spawn/IDE/coverage/branches/specs/docs).
 - `docStatus`/`coverage`/**Docs**/**PRD** **bukan kolom & tidak dipersist** — docs live dari disk via `git ls-files`, coverage diturunkan tiap `toProjectView` (ADR-0018), PRD = dokumen `docs/prd/<slug>.md` (ADR-0041). Tabel `DocFile` sudah di-drop (ADR-0011).

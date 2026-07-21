@@ -37,6 +37,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 
 ## adr
 > Nomor unik & imutable. ADR usang tidak dihapus — ditandai statusnya di bawah dan di header masing-masing.
+- [0065 — AI agent capability: agent token + capability scope per-domain gating `/api`](adr/0065-ai-agent-capability-agent-token.md) — **memperluas 0028**, cermin 0044, terkait 0037 (SPEC-257)
 - [0064 — `Project.id` renameable lewat operasi rename khusus (cascade + merambat sync)](adr/0064-project-id-renameable.md) — **mencabut sebagian SPEC-146**, memperluas 0045/0046/0060/0062 (SPEC-255)
 - [0063 — hanoman-sdk sebagai npm package publik (extensible, errors dulu)](adr/0063-hanoman-sdk-npm-package.md) — **memperluas 0060** (SPEC-254)
 - [0062 — Help Center: model tiket + endpoint publik ber-scope-project + jembatan triase→backlog](adr/0062-help-center-tiket-publik-triase.md) — **memperluas 0060/0028/0033/0039** (SPEC-253)
