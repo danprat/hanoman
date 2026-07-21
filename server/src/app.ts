@@ -29,6 +29,8 @@ import tickets from "./routes/tickets";
 import fastifyMultipart from "@fastify/multipart";
 import authRoutes from "./routes/auth";
 import { COOKIE_NAME, lookupSession } from "./services/auth";
+import { agentTokenFromReq, authenticateAgent } from "./services/agent-auth";
+import { checkAgentCapability } from "./services/agent-capabilities";
 import { detachAll } from "./services/pty";
 
 // Endpoint yang boleh diakses tanpa sesi (path lengkap termasuk prefix /api).
@@ -86,7 +88,23 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
         // SPEC-253 · ADR-0062 · halaman/submit/status Help Center dipanggil pengguna akhir tanpa sesi
         // login; route /api/help di-otorisasi helpEnabled + kunci opaque tiket sendiri (pengecualian sah).
         if (path.startsWith("/api/help")) return;
-        if (!user) return reply.code(401).send({ error: "unauthorized" });
+        if (user) return; // cookie sesi = akses penuh (tak ada RBAC, konsisten model sekarang)
+        // SPEC-257 · ADR-0065 · jalur auth kedua: agent token (Bearer / ?agent_token= untuk WS).
+        const agentTok = agentTokenFromReq(req);
+        if (agentTok) {
+          const agent = await authenticateAgent(agentTok);
+          if (agent) {
+            req.agent = agent;
+            const verdict = checkAgentCapability(agent.capabilities, req.method, path);
+            if (verdict.ok) return;
+            return reply.code(403).send(
+              verdict.reason === "cookie-only"
+                ? { error: "cookie session required" }
+                : { error: "capability required", need: verdict.need },
+            );
+          }
+        }
+        return reply.code(401).send({ error: "unauthorized" });
       });
     }
     await api.register(authRoutes);

@@ -59,3 +59,22 @@
   - **Ketahanan**: rate-limit token-bucket in-memory **per IP & per project** (429) + **honeypot** (`hp`
     terisi → 200 palsu, tak buat tiket) + caps field. **Bukan** anti-spam berat (tanpa CAPTCHA/verifikasi
     email) — spam disaring saat triase (Non-goal PRD). PII isi/lampiran disimpan apa adanya (scrub pasca-MVP).
+- **Agent token — akses AI agent (SPEC-257, [ADR-0065](../adr/0065-ai-agent-capability-agent-token.md))**:
+  **jalur auth kedua** ke seluruh `/api` di samping cookie sesi. Agen eksternal mengirim
+  `Authorization: Bearer <token>` (upgrade WebSocket: `?agent_token=`); gate `onRequest` yang sama
+  memverifikasi lalu menegakkan **capability**. Cookie sesi tetap = **akses penuh** (tak ada RBAC).
+  - **Master switch**: `Setting.agentAccessEnabled` (default **false**). Off → semua agent token ditolak
+    **401**, apa pun `enabled`/capability-nya. Human menyalakannya di Settings.
+  - **Token hash-at-rest**: `AgentToken.tokenHash = sha256(token)` + `timingSafeEqual` (pola `DeviceToken`).
+    Plaintext (`hnm_agt_<hex>`) hanya ditampilkan **sekali** saat create; `tokenHash` **tak pernah** ke
+    client/log (`AgentTokenView` hanya `tokenPrefix`). Revocable instan (`revokedAt`) + disable per-token
+    (`enabled`). `lastUsedAt` = audit ringan.
+  - **Capability per-domain read/write** (`"<domain>:<access>"`, write⊇read; 9 domain, katalog di
+    `@hanoman/shared`). Route→capability dipetakan `services/agent-capabilities.ts`; agen tanpa capability
+    → **403** `{ need }`. Read-only global (`/limits`,`/update`,`/events`,`/fs`) → token ber-capability apa pun.
+  - **Tak-boleh-didelegasikan** (agent token → **403** apa pun capability): `/auth/*` (kelola user),
+    `/agent-tokens*` (**anti privilege-escalation** — agen tak mencetak/menaikkan token), `/device-tokens*`,
+    `/sync*`. Kelola token & master switch = **cookie-only**. Route tak dikenal peta → default cookie-only.
+  - **Bukan perluasan permukaan eksekusi**: `sessions:write` = RCE (spawn `claude --dangerously-skip-permissions`)
+    & `vps:write` = remote exec tetap dibatasi **isolasi worktree** (ADR-0037) — agent token hanya membuka
+    pintu API yang sama lewat auth berbeda, bukan menambah kemampuan baru.

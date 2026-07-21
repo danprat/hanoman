@@ -646,7 +646,7 @@ git commit -m "feat(spec-257): route→capability map + checkAgentCapability"
   - `req.agent?: { id: string; capabilities: string[] }` (module augmentation).
   - Gate: cookie user → akses penuh; agent token valid+ber-capability → lanjut; agent tanpa capability / cookie-only → **403**; token invalid/master off → **401**.
 
-- [ ] **Step 1: Write the failing test** — `server/test/agent-gate.test.ts`
+- [x] **Step 1: Write the failing test** — `server/test/agent-gate.test.ts`
 
 ```ts
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
@@ -707,12 +707,12 @@ describe("agent token gate", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter ./server exec vitest run test/agent-gate.test.ts`
 Expected: FAIL — agent token ignored, `/api/projects` returns 401 even with valid token+master on (jalur agent belum ada).
 
-- [ ] **Step 3: Create `server/src/services/agent-auth.ts`**
+- [x] **Step 3: Create `server/src/services/agent-auth.ts`**
 
 ```ts
 import type { FastifyRequest } from "fastify";
@@ -738,14 +738,14 @@ export async function authenticateAgent(token: string): Promise<{ id: string; ca
 }
 ```
 
-- [ ] **Step 4: Add `agentAccessEnabled` to `DEFAULT_SETTING`** — `server/src/services/settings.ts`, di objek `DEFAULT_SETTING`:
+- [x] **Step 4: Add `agentAccessEnabled` to `DEFAULT_SETTING`** — `server/src/services/settings.ts`, di objek `DEFAULT_SETTING`:
 
 ```ts
   notifyDecision: true, notifyDecisionSound: "alert",
   agentAccessEnabled: false,   // SPEC-257 · akses AI agent off sampai dibuka manusia
 ```
 
-- [ ] **Step 5: Wire the gate** — `server/src/app.ts`. Tambah import di dekat import auth:
+- [x] **Step 5: Wire the gate** — `server/src/app.ts`. Tambah import di dekat import auth:
 
 ```ts
 import { agentTokenFromReq, authenticateAgent } from "./services/agent-auth";
@@ -777,19 +777,19 @@ Ganti akhir hook `onRequest` (baris `if (!user) return reply.code(401)...`) deng
 
 (Catatan: baris `const path = ...` untuk PUBLIC/bypass di atasnya tetap; `path2` dihitung ulang di scope ini agar jelas.)
 
-- [ ] **Step 6: Run test to verify it passes**
+- [x] **Step 6: Run test to verify it passes**
 
 Run: `pnpm --filter ./server exec vitest run test/agent-gate.test.ts`
 Expected: PASS (5 test).
 
-- [ ] **Step 7: Run the full server auth suite (no regression)**
+- [x] **Step 7: Run the full server auth suite (no regression)**
 
 Run: `pnpm --filter ./server exec vitest run test/auth-routes.test.ts test/app.test.ts test/agent-gate.test.ts`
 Expected: PASS — cookie flow tak berubah.
 
-- [ ] **Step 8: Update security-standard doc** — `internal/docs/security/security-standard.md`: tambah bagian "Agent token (SPEC-257/ADR-0065)": jalur auth kedua Bearer/`?agent_token=`; hash-at-rest; master switch `Setting.agentAccessEnabled` (default off); capability per-domain read/write (write⊇read); tak-boleh-didelegasikan (auth/agent-tokens/device-tokens/sync → 403); `sessions:write`=RCE & `vps:write`=remote exec; revoke/disable/master instan. Cookie sesi = akses penuh (tak ada RBAC).
+- [x] **Step 8: Update security-standard doc** — `internal/docs/security/security-standard.md`: tambah bagian "Agent token (SPEC-257/ADR-0065)": jalur auth kedua Bearer/`?agent_token=`; hash-at-rest; master switch `Setting.agentAccessEnabled` (default off); capability per-domain read/write (write⊇read); tak-boleh-didelegasikan (auth/agent-tokens/device-tokens/sync → 403); `sessions:write`=RCE & `vps:write`=remote exec; revoke/disable/master instan. Cookie sesi = akses penuh (tak ada RBAC).
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add server/src/services/agent-auth.ts server/src/services/settings.ts server/src/app.ts server/test/agent-gate.test.ts internal/docs/security/security-standard.md
