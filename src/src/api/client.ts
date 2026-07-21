@@ -1,6 +1,6 @@
-import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type ConfigResponse, type ConfigEntryView, type IngestKeyView, type ErrorGroupView, type ErrorGroupDetail, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView } from "@hanoman/shared";
+import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type ConfigResponse, type ConfigEntryView, type IngestKeyView, type ErrorGroupView, type ErrorGroupDetail, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem } from "@hanoman/shared";
 export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
-export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit";
+export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit" | "breakdown";
 // SPEC-210 · dokumen PRD project (freshest-wins: worktree sesi prd hidup > repoDir). Tipe di @hanoman/shared.
 export type { PrdDoc };
 export type Phase = { name: string; state: "done" | "skipped" | "active" | "pending" };
@@ -193,6 +193,14 @@ export const api = {
     j<{ path: string; content: string }>(paths.prdFile(project, path)),
   startPrd: (project: string, brief: { title: string; context: string; outcome: string; constraints?: string }) =>
     j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, flow: "prd", brief }) }),
+  // SPEC-273 · breakdown PRD → N backlog. startBreakdown buka sesi; getBreakdown baca manifest;
+  // createSpecsBatch materialize usulan (review manusia) jadi N spec independen.
+  startBreakdown: (project: string, prdPath: string) =>
+    j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, flow: "breakdown", prdPath }) }),
+  getBreakdown: (project: string, prdPath: string) =>
+    j<BreakdownDoc>(paths.breakdown(project, prdPath)),
+  createSpecsBatch: (b: { project: string; items: BreakdownItem[]; branchFrom?: string; prdPath?: string }) =>
+    j<{ created: Spec[] }>(paths.specsBatch, { method: "POST", ...body(b) }),
   deleteTerminal: (id: string) => j<void>(paths.terminalSession(id), { method: "DELETE" }),
   // SPEC-230 · review + integrate ber-skop sesi (sesi project-level PRD, tanpa Spec).
   sessionReview: (id: string) => j<SpecReview>(paths.sessionReview(id)),

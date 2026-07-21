@@ -29,4 +29,26 @@ describe("api client · sesi backlog", () => {
     await api.getSpecDocFile("SPEC-170", "docs/superpowers/plans/x.md");
     expect(fetchMock).toHaveBeenCalledWith(paths.specDocFile("SPEC-170", "docs/superpowers/plans/x.md"), expect.anything());
   });
+
+  // SPEC-273 · breakdown PRD → backlog
+  it("getBreakdown memanggil endpoint breakdown ber-query prd", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ items: [], live: false }), { status: 200, headers: { "content-type": "application/json" } }));
+    await api.getBreakdown("p1", "docs/prd/x.md");
+    expect(fetchMock).toHaveBeenCalledWith(paths.breakdown("p1", "docs/prd/x.md"), expect.anything());
+  });
+  it("startBreakdown mem-POST flow breakdown + prdPath ke sesi terminal", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ id: "breakdown-x" }), { status: 201, headers: { "content-type": "application/json" } }));
+    await api.startBreakdown("p1", "docs/prd/x.md");
+    expect(fetchMock).toHaveBeenCalledWith(paths.terminalSessions, expect.objectContaining({
+      method: "POST", body: JSON.stringify({ project: "p1", flow: "breakdown", prdPath: "docs/prd/x.md" }),
+    }));
+  });
+  it("createSpecsBatch mem-POST ke /api/specs/batch", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ created: [] }), { status: 201, headers: { "content-type": "application/json" } }));
+    await api.createSpecsBatch({ project: "p1", items: [{ title: "A", context: "", outcome: "", priority: "sedang" }] });
+    expect(fetchMock).toHaveBeenCalledWith(paths.specsBatch, expect.objectContaining({ method: "POST" }));
+  });
 });
