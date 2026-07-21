@@ -428,21 +428,21 @@ git commit -m "feat(spec-272): readUploadOrFetch fetch-through byte lampiran dar
 - Consumes: `readUploadOrFetch` (Task 4), `notifySynced` (sudah dipakai di help.ts).
 - Produces: route `GET /tickets/:id/attachments/:attId` memakai fetch-through; tiap lampiran baru → `notifySynced("ticketAttachment", att.id)`.
 
-- [ ] **Step 1: Ganti import di tickets.ts**
+- [x] **Step 1: Ganti import di tickets.ts**
 
 Baris 9:
 ```ts
 import { readUploadOrFetch, deleteUpload } from "../services/uploads";
 ```
 
-- [ ] **Step 2: Pakai readUploadOrFetch di route serve lampiran**
+- [x] **Step 2: Pakai readUploadOrFetch di route serve lampiran**
 
 Di handler `GET /tickets/:id/attachments/:attId` ganti baris `readUpload`:
 ```ts
     const buf = await readUploadOrFetch(a.storageKey).catch(() => null);
 ```
 
-- [ ] **Step 3: Publish lampiran baru ke feed di help.ts**
+- [x] **Step 3: Publish lampiran baru ke feed di help.ts**
 
 Di loop upload (`for (const f of files)`), setelah `prisma.ticketAttachment.create`, tangkap hasilnya & notifikasi:
 ```ts
@@ -456,7 +456,7 @@ Di loop upload (`for (const f of files)`), setelah `prisma.ticketAttachment.crea
 ```
 Pastikan `notifySynced` sudah di-import di help.ts (bila belum: `import { notifySynced } from "../services/sync-notify";`).
 
-- [ ] **Step 4: Tulis test serve lokal (failing bila regresi) di tickets.test.ts**
+- [x] **Step 4: Tulis test serve lokal (failing bila regresi) di tickets.test.ts**
 
 Tambah test di dalam `describe("SPEC-253 · triase tiket", ...)`:
 ```ts
@@ -473,7 +473,7 @@ Tambah test di dalam `describe("SPEC-253 · triase tiket", ...)`:
   });
 ```
 
-- [ ] **Step 5: Jalankan test terkait**
+- [x] **Step 5: Jalankan test terkait**
 
 Run:
 ```bash
@@ -482,7 +482,7 @@ env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman
 ```
 Expected: PASS (serve pakai fetch-through; di test SYNC_SERVER_URL kosong → sama seperti readUpload).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/routes/tickets.ts server/src/routes/help.ts server/test/tickets.test.ts

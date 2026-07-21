@@ -155,4 +155,15 @@ describe("SPEC-269 · edit & hapus tiket", () => {
     expect(await prisma.ticketAttachment.count({ where: { ticketId: ticket.id } })).toBe(0);
     expect((await app.inject({ method: "DELETE", url: "/api/tickets/tak-ada" })).statusCode).toBe(404);
   });
+
+  it("serve lampiran membaca byte lokal (fetch-through no-op di hub) (SPEC-272)", async () => {
+    const { storageKey, size } = await saveUpload(Buffer.from("IMG"), "image/png");
+    const att = await prisma.ticketAttachment.create({
+      data: { ticketId: tId, projectId: "tri-proj", filename: "a.png", mimeType: "image/png", size, storageKey },
+    });
+    const res = await app.inject({ method: "GET", url: `/api/tickets/${tId}/attachments/${att.id}` });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toContain("image/png");
+    expect(res.rawPayload.equals(Buffer.from("IMG"))).toBe(true);
+  });
 });
