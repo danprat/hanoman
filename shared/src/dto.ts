@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { zProject, zBriefPayload, zQaPayload } from "./entities";
 import type { Spec, Notification } from "./entities";
-import { zProjectKind, zSpecSource, zPriority, zStage, zErrorStatus } from "./enums";
+import { zProjectKind, zSpecSource, zPriority, zStage, zErrorStatus, zTicketCategory, zTicketStatus } from "./enums";
 
 // SPEC-198 · amplop daftar via API: search/filter/paginasi dilakukan server-side.
 export type Paginated<T> = { items: T[]; total: number; page: number; pageSize: number };
@@ -315,6 +315,17 @@ export const zTicketDetail = zTicketView.extend({
   attachments: z.array(zTicketAttachmentView),
 });
 export type TicketDetail = z.infer<typeof zTicketDetail>;
+// SPEC-269 · input edit tiket (triase). Semua field opsional; minimal satu.
+export const zTicketEditInput = z
+  .object({
+    title: z.string().min(1).max(200),
+    detail: z.string().min(1).max(20000),
+    category: zTicketCategory,
+    status: zTicketStatus,
+  })
+  .partial()
+  .refine((o) => Object.keys(o).length > 0, { message: "tak ada field yang diubah" });
+export type TicketEditInput = z.infer<typeof zTicketEditInput>;
 // halaman publik (tak butuh auth)
 export const zHelpInfo = z.object({ projectName: z.string(), categories: z.array(z.string()) });
 export type HelpInfo = z.infer<typeof zHelpInfo>;
