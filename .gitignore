@@ -11,3 +11,5 @@ docker-compose.override.yml
 docker-compose.override.yaml
 .worktrees
 *.tsbuildinfo
+# HANOMAN_UPLOAD_DIR default — lampiran tiket Help Center (runtime, server-local, tak disync)
+server/data/
