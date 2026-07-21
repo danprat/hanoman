@@ -691,7 +691,7 @@ git commit -m "docs(spec-268): SoT — ADR-0066 link + data-model/api-contract (
 
 **Files:** (tak ada perubahan kode; hanya jika ada temuan)
 
-- [ ] **Step 1: Seluruh suite server hijau**
+- [x] **Step 1: Seluruh suite server hijau**
 
 Run:
 ```bash
@@ -699,7 +699,7 @@ env -u NODE_ENV DATABASE_URL='postgresql://hanoman:hanoman@localhost:5432/hanoma
 ```
 Expected: semua PASS. (Fix regresi bila ada sebelum lanjut.)
 
-- [ ] **Step 2: Seluruh suite frontend hijau**
+- [x] **Step 2: Seluruh suite frontend hijau**
 
 Run:
 ```bash
@@ -707,7 +707,7 @@ env -u NODE_ENV pnpm -C src exec vitest run
 ```
 Expected: semua PASS.
 
-- [ ] **Step 3: Build server + shared (type-check)**
+- [x] **Step 3: Build server + shared (type-check)**
 
 Run:
 ```bash
@@ -715,7 +715,7 @@ pnpm -C shared build && pnpm -C server build
 ```
 Expected: exit 0 (strict TS bersih).
 
-- [ ] **Step 4: Smoke API nyata — boot + curl**
+- [x] **Step 4: Smoke API nyata — boot + curl**
 
 Boot server terhadap DB hanoman268 (bukan prod), lalu:
 ```bash
@@ -727,7 +727,7 @@ curl -s -X POST localhost:8787/api/sync/now | head
 Expected: `{"ok":false,"reason":"not-configured"}` (instance ini hub). Verifikasi juga `GET /api/sync/pull?since=0` memuat baris `errorGroup`/`ticket` setelah ingest/tiket dummy (opsional).
 > Gunakan port/DB/socket khusus agar tak bentrok sesi dev lain (memory: jangan port 8787 dgn DB dev bersama — pakai DB hanoman268 + socket khusus).
 
-- [ ] **Step 5: Ceklis plan penuh & pastikan tak ada `- [ ]` tersisa**
+- [x] **Step 5: Ceklis plan penuh & pastikan tak ada `- [x]` tersisa**
 
 Verifikasi semua kotak Task 1-7 tercentang.
 

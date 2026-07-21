@@ -16,8 +16,8 @@ describe("sync exclusions — preferensi lokal tak tersync (SPEC-213 AC-30)", ()
     }
   });
 
-  it("SYNCED is exactly the four authoritative entities", () => {
-    expect([...SYNCED].sort()).toEqual(["project", "sessionResult", "spec", "vps"]);
+  it("SYNCED is exactly the authoritative entities (SPEC-268: +errorGroup, +ticket)", () => {
+    expect([...SYNCED].sort()).toEqual(["errorGroup", "project", "sessionResult", "spec", "ticket", "vps"]);
   });
 
   it("mutating settings does NOT enqueue outbox (settings are per-device)", async () => {
