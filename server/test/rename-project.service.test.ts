@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { prisma } from "../src/db";
-import { renameProjectCore } from "../src/services/rename-project";
+import { renameProjectCore, renameProject, RENAME_SEP } from "../src/services/rename-project";
 
 const clean = async () => {
   await prisma.syncOutbox.deleteMany();
@@ -47,5 +47,28 @@ describe("renameProjectCore (SPEC-255)", () => {
     expect(await prisma.localBinding.findUnique({ where: { projectId: "old" } })).toBeNull();
     expect((await prisma.localBinding.findUnique({ where: { projectId: "new" } }))?.repoDir).toBe("/local/only");
     expect(affected).toMatchObject({ spec: 1, notification: 1, sessionResult: 1, errorEvent: 1, ticketAttachment: 1, localBinding: 1 });
+  });
+});
+
+describe("renameProject guard (SPEC-255)", () => {
+  it("404 bila project tak ada", async () => {
+    expect(await renameProject("ghost", "x")).toMatchObject({ ok: false, code: 404 });
+  });
+  it("409 bila newId sudah dipakai", async () => {
+    await prisma.project.create({ data: { id: "a", name: "a", desc: "d", kind: "existing" } });
+    await prisma.project.create({ data: { id: "b", name: "b", desc: "d", kind: "existing" } });
+    expect(await renameProject("a", "b")).toMatchObject({ ok: false, code: 409 });
+  });
+  it("400 bila slug tak sah", async () => {
+    await prisma.project.create({ data: { id: "a", name: "a", desc: "d", kind: "existing" } });
+    expect(await renameProject("a", "Bad Slug")).toMatchObject({ ok: false, code: 400 });
+  });
+  it("sukses: rename + naikkan version + enqueue outbox projectRename", async () => {
+    await prisma.project.create({ data: { id: "a", name: "a", desc: "d", kind: "existing", version: 3 } });
+    const r = await renameProject("a", "a2");
+    expect(r).toMatchObject({ ok: true });
+    expect((await prisma.project.findUnique({ where: { id: "a2" } }))?.version).toBe(4);
+    const ob = await prisma.syncOutbox.findFirst({ where: { entity: "projectRename" } });
+    expect(ob?.recordId).toBe(`a${RENAME_SEP}a2`);
   });
 });
