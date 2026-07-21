@@ -157,6 +157,27 @@ export async function publishLocal(entity: Entity, id: string): Promise<void> {
   onAccepted?.({ entity, recordId: id, version: newVersion, data: snap.data ?? {}, seq: String(log.seq) });
 }
 
+// SPEC-270 · ADR-0067 · reconciler boot HUB: publish tiap row SYNCED yang belum terwakili di
+// feed pada version terkininya (mencakup semua version=0 pra-entitas-tersync). Idempoten:
+// row yang sudah punya SyncLog untuk version-nya dilewati. Kembalikan jumlah yang dipublish.
+export async function backfillFeed(): Promise<number> {
+  let published = 0;
+  for (const entity of SYNCED) {
+    const rows = await (DELEGATE[entity] as unknown as {
+      findMany: (a: { select: { id: true; version: true } }) => Promise<{ id: string; version: number }[]>;
+    }).findMany({ select: { id: true, version: true } });
+    for (const row of rows) {
+      const has = await prisma.syncLog.findFirst({
+        where: { entity, recordId: row.id, version: Number(row.version) }, select: { seq: true },
+      });
+      if (has) continue;
+      await publishLocal(entity, row.id);
+      published++;
+    }
+  }
+  return published;
+}
+
 // Terapkan record dari server ke DB LOKAL (server-authoritative): set version/data apa adanya,
 // TANPA menulis SyncLog/outbox (bukan write lokal). Dipakai sync-client saat pull/WS (Fase 4).
 export async function upsertLocal(entity: Entity, id: string, version: number, data: Record<string, unknown>): Promise<void> {

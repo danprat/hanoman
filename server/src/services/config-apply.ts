@@ -30,4 +30,11 @@ export async function applyConfigSideEffect(key: string): Promise<void> {
 export async function applyConfigOnBoot(): Promise<void> {
   for (const e of CONFIG_REGISTRY) if (e.inheritEnv) mirrorInheritEnv(e.key);
   await applySyncConfig();
+  // SPEC-270 · ADR-0067 · reconciler feed hanya bila peran HUB (tak ada SYNC_SERVER_URL).
+  const { effectiveStr } = await import("../config");
+  if (!effectiveStr("SYNC_SERVER_URL")) {
+    const { backfillFeed } = await import("./sync");
+    try { const n = await backfillFeed(); if (n) console.log(`sync backfill: ${n} record ke feed`); }
+    catch (e) { console.error("sync backfill gagal:", e); }
+  }
 }

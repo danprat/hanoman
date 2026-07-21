@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { prisma } from "../src/db";
-import { applyPush, pull, snapshot, publishLocal } from "../src/services/sync";
+import { applyPush, pull, snapshot, publishLocal, backfillFeed } from "../src/services/sync";
 
 const clean = async () => {
   await prisma.syncLog.deleteMany();
@@ -134,5 +134,19 @@ describe("sync service (SPEC-213 AC-9..15)", () => {
     expect(row!.updatedAt.toISOString()).toBe(origin.toISOString());
     const s = await snapshot("spec", "SPEC-1");
     expect((s!.data as Record<string, unknown>).updatedAt).toBe(origin.toISOString());
+  });
+
+  it("SPEC-270: backfillFeed mempublish row yang belum ter-feed, idempoten", async () => {
+    await project();
+    await prisma.errorGroup.create({ data: { id: "g1", projectId: "p1", fingerprint: "fp", type: "E",
+      message: "m", environment: "prod" } });
+    const n1 = await backfillFeed();
+    expect(n1).toBeGreaterThanOrEqual(1);
+    const feed1 = (await pull("0")).records.filter((r) => r.recordId === "g1");
+    expect(feed1).toHaveLength(1);
+    const n2 = await backfillFeed();
+    const feed2 = (await pull("0")).records.filter((r) => r.recordId === "g1");
+    expect(feed2).toHaveLength(1);
+    expect(n2).toBe(0);
   });
 });
