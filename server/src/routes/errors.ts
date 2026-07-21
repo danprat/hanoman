@@ -10,11 +10,14 @@ import { nextSpecId } from "../services/id";
 import { resolveRepoDir } from "../services/local-binding";
 import { notifySynced } from "../services/sync-notify";
 import { repoRoot } from "../runner/deps";
+import { symbolicateFrames, type FrameLike } from "../services/symbolicate";
+import { findSourceMap } from "../services/sourcemap-store";
 import type { ErrorGroup, ErrorEvent } from "@prisma/client";
 
 const groupView = (g: ErrorGroup) => ({
   id: g.id, projectId: g.projectId, type: g.type, message: g.message, environment: g.environment,
   status: g.status, count: g.count, firstSeenAt: g.firstSeenAt, lastSeenAt: g.lastSeenAt, specId: g.specId,
+  release: g.release,   // SPEC-276 · korelasi build
 });
 const eventView = (e: ErrorEvent) => ({
   id: e.id, type: e.type, message: e.message, stack: e.stack, environment: e.environment,
@@ -54,7 +57,13 @@ export default async function (app: FastifyInstance) {
     const events = await prisma.errorEvent.findMany({
       where: { groupId: id }, orderBy: { receivedAt: "desc" }, take: 50,
     });
-    return { ...groupView(g), sampleStack: g.sampleStack, events: events.map(eventView) };
+    // SPEC-276 · symbolication lazy: frame sample mentah → posisi sumber pakai map yang tersedia
+    // saat ini. Map absen → frame apa adanya (symbolicated:false). Tak pernah menggagalkan detail.
+    const sampleFrames = Array.isArray(g.sampleFrames)
+      ? await symbolicateFrames(g.sampleFrames as unknown as FrameLike[],
+          (fn) => findSourceMap(g.projectId, g.release ?? "", fn))
+      : null;
+    return { ...groupView(g), sampleStack: g.sampleStack, sampleFrames, events: events.map(eventView) };
   });
 
   // SPEC-249 · ADR-0060 · eskalasi grup → Spec qa prefilled + tautan dua arah. Idempoten.
