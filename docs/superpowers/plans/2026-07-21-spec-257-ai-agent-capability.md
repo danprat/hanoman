@@ -487,7 +487,7 @@ git commit -m "feat(spec-257): agent-token service (issue/verify/revoke/list/pat
   - `capabilityForRoute(method: string, path: string): Capability | "COOKIE_ONLY" | "GLOBAL_READ" | null` — path adalah `req.url` tanpa query (mis. `/api/projects/foo/docs/x.md`).
   - `checkAgentCapability(caps: string[], method: string, path: string): { ok: true } | { ok: false; status: 403; need?: string; reason: "cookie-only" | "capability" }`
 
-- [ ] **Step 1: Write the failing test** — `server/test/agent-capabilities.test.ts`
+- [x] **Step 1: Write the failing test** — `server/test/agent-capabilities.test.ts`
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -558,12 +558,12 @@ describe("checkAgentCapability", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter ./server exec vitest run test/agent-capabilities.test.ts`
 Expected: FAIL — cannot find module `../src/services/agent-capabilities`.
 
-- [ ] **Step 3: Create `server/src/services/agent-capabilities.ts`**
+- [x] **Step 3: Create `server/src/services/agent-capabilities.ts`**
 
 ```ts
 import { grantsCapability, type Capability } from "@hanoman/shared";
@@ -616,12 +616,12 @@ export function checkAgentCapability(caps: string[], method: string, path: strin
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm --filter ./server exec vitest run test/agent-capabilities.test.ts`
 Expected: PASS (all `it.each` rows + checkAgentCapability).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/agent-capabilities.ts server/test/agent-capabilities.test.ts
