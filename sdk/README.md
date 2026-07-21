@@ -67,17 +67,55 @@ Bahasa apa pun bisa POST tanpa perubahan server:
   "type": "TypeError",              // wajib
   "message": "x is undefined",       // wajib
   "stack": "TypeError...\n  at f()", // opsional (dipakai grouping)
+  "frames": [                        // opsional — SDK JS mengisinya otomatis (SPEC-276)
+    { "function": "handleClick", "filename": "index-4f3a2b.js", "lineno": 1, "colno": 88421, "in_app": true }
+  ],
   "environment": "production",       // opsional (default "unknown")
-  "release": "1.2.3",                // opsional
+  "release": "1.2.3",                // opsional (WAJIB bila mau symbolication — lihat §6)
   "context": { "url": "/checkout" }  // opsional
 }
 ```
 
-`POST <DSN>` (atau `POST /api/ingest/<slug>` dengan header `x-hanoman-dsn: <key>`). Balasan: `202 { ok, groupId, new }`. Batas: pesan ≤ 2 KB, stack ≤ 16 KB, body ≤ 64 KB; rate-limit per project. **Catatan privasi:** payload disimpan apa adanya (redaksi PII pasca-MVP) — jangan kirim rahasia/PII di `message`/`context`.
+`POST <DSN>` (atau `POST /api/ingest/<slug>` dengan header `x-hanoman-dsn: <key>`). Balasan: `202 { ok, groupId, new }`. Batas: pesan ≤ 2 KB, stack ≤ 16 KB, body ≤ 64 KB; rate-limit per project. **Catatan privasi:** payload disimpan apa adanya (redaksi PII pasca-MVP) — jangan kirim rahasia/PII di `message`/`context`. SDK JS otomatis mem-parse `stack` → `frames[]` (dengan `in_app`) dan meng-unwrap rantai `error.cause`.
+
+## 6. Source-map — stack jelas untuk build minified (SPEC-276 · ADR-0070)
+
+Build produksi (Vite/webpack: minified + content-hash) membuat stack menunjuk `index-4f3a2b.js:1:88421`, bukan `.ts/.tsx` sumber. Agar hanoman men-**symbolicate**-nya (de-minify ke posisi sumber + cuplikan baris + penanda `in_app`, seperti Sentry), **upload source-map per `release`**:
+
+1. Set `release` yang **sama** di `init({ release })` dan saat upload (kunci pencocokan).
+2. Build dengan source-map aktif (Vite: `build.sourcemap: true` → menghasilkan `dist/assets/*.js.map`).
+3. Upload tiap `.map` (auth pakai DSN key yang sama):
+
+```bash
+# curl per artifact (map = isi berkas .map)
+curl -X POST "https://hanoman.example/api/ingest/my-project/sourcemaps?key=hnm_ing_..." \
+  -H "content-type: application/json" \
+  -d "{\"release\":\"1.2.3\",\"artifacts\":[{\"filename\":\"index-4f3a2b.js\",\"map\":$(jq -Rs . < dist/assets/index-4f3a2b.js.map)}]}"
+```
+
+```js
+// atau Node kecil (upload semua .map di dist/assets sekaligus)
+import { readFileSync, readdirSync } from "node:fs";
+const dir = "dist/assets", release = process.env.RELEASE;
+const artifacts = readdirSync(dir).filter(f => f.endsWith(".js.map")).map(f => ({
+  filename: f.replace(/\.map$/, ""),                 // basename artifact hasil-build (tanpa .map)
+  map: readFileSync(`${dir}/${f}`, "utf8"),
+}));
+await fetch(`${process.env.HANOMAN_DSN_BASE}/sourcemaps?key=${process.env.HANOMAN_INGEST_KEY}`, {
+  method: "POST", headers: { "content-type": "application/json" },
+  body: JSON.stringify({ release, artifacts }),
+});
+```
+
+- `filename` = **basename artifact hasil-build** yang dipetakan map (mis. `index-4f3a2b.js`), bukan nama `.map`-nya.
+- Balasan `202 { ok, stored }`. Batas total body 30 MB. Byte map disimpan server-local (tak disync); retensi menyimpan N release terbaru.
+- Symbolication berjalan **lazy saat kamu membuka grup** di area Errors — jadi urutan upload map & datangnya error tidak kritis (upload saat deploy sudah cukup). Map belum ada → stack tampil apa adanya (raw), tak error.
+
+**Backend Node/TS:** jika app menjalankan `dist` JS terkompilasi, jalankan dengan `node --enable-source-maps` agar `error.stack` sudah menunjuk `.ts` sumber (fidelity gratis, tanpa upload apa pun).
 
 ## Grouping & eskalasi
 
-Error identik (tipe + pesan ternormalisasi + frame stack teratas) digabung jadi satu grup dengan hitungan, first/last-seen. Di area **Errors** hanoman, buka grup → **Eskalasi ke backlog** membuat `Spec` (QA) prefilled dari pesan + stack + tautan balik ke grup, lalu masuk alur backlog (audit → plan → execute).
+Error identik (tipe + pesan ternormalisasi + frame teratas) digabung jadi satu grup dengan hitungan, first/last-seen. **SPEC-276:** frame teratas dinormalisasi dari content-hash bundle (`index-4f3a2b.js`→`index.js`) sehingga error browser yang sama **tak pecah jadi grup baru tiap deploy**. Di area **Errors** hanoman, buka grup → frame tersimbolikasi (bila map ter-upload) + **Eskalasi ke backlog** membuat `Spec` (QA) prefilled dari pesan + stack + tautan balik ke grup, lalu masuk alur backlog (audit → plan → execute).
 
 ## Rilis (maintainer hanoman)
 
