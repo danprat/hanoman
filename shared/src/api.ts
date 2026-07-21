@@ -104,6 +104,10 @@ export const paths = {
   configKey: (key: string) => `${API}/config/${encodeURIComponent(key)}`,
   // SPEC-268 · ADR-0066 · pemicu sync manual (cookie-authed)
   syncNow: `${API}/sync/now`,
+  // SPEC-270 · ADR-0067 · antrean konflik rekonsil (cookie-authed)
+  syncConflicts: `${API}/sync/conflicts`,
+  syncConflictResolve: (entity: string, recordId: string) =>
+    `${API}/sync/conflicts/${encodeURIComponent(entity)}/${encodeURIComponent(recordId)}/resolve`,
   // SPEC-257 · ADR-0065 · agent token (kelola cookie-only) + katalog capability
   agentTokens: `${API}/agent-tokens`,
   agentToken: (id: string) => `${API}/agent-tokens/${id}`,
@@ -142,3 +146,10 @@ export type ConfigEntryView = {
   hasValue?: boolean;           // secret: apakah ada nilai efektif
 };
 export type ConfigResponse = { entries: ConfigEntryView[]; sync: { running: boolean; connected: boolean } };
+
+// SPEC-270 · ADR-0067 · konflik sync dua-sisi menunggu keputusan manusia (modal rekonsil).
+export type SyncConflictView = {
+  entity: string; recordId: string;
+  localData: unknown; localVersion: number; localUpdatedAt: string;
+  serverData: unknown; serverVersion: number; serverUpdatedAt: string; detectedAt: string;
+};

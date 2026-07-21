@@ -1,4 +1,4 @@
-import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type ConfigResponse, type ConfigEntryView, type IngestKeyView, type ErrorGroupView, type ErrorGroupDetail, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo } from "@hanoman/shared";
+import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type ConfigResponse, type ConfigEntryView, type IngestKeyView, type ErrorGroupView, type ErrorGroupDetail, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView } from "@hanoman/shared";
 export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit";
 // SPEC-210 · dokumen PRD project (freshest-wins: worktree sesi prd hidup > repoDir). Tipe di @hanoman/shared.
@@ -121,6 +121,10 @@ export const api = {
   deleteConfig: (key: string) => j<void>(paths.configKey(key), { method: "DELETE" }),
   // SPEC-268 · ADR-0066 · pemicu sync manual (tombol Backlog/Errors/Triase)
   syncNow: () => j<{ ok: boolean; reason?: string; pulled?: number; pushed?: number; conflicts?: number }>(paths.syncNow, { method: "POST" }),
+  // SPEC-270 · ADR-0067 · rekonsil konflik
+  listConflicts: () => j<{ conflicts: SyncConflictView[] }>(paths.syncConflicts),
+  resolveConflict: (entity: string, recordId: string, choice: "local" | "server") =>
+    j<{ ok: boolean; reason?: string }>(paths.syncConflictResolve(entity, recordId), { method: "POST", ...body({ choice }) }),
   // SPEC-180 · notifikasi backlog selesai
   listNotifications: () => j<{ items: Notification[]; unread: number }>(paths.notifications),
   markNotificationsRead: () => j<void>(paths.notifications + "/read", { method: "POST" }),

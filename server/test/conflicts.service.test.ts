@@ -23,7 +23,7 @@ describe("conflicts service (SPEC-270)", () => {
     await recordConflict("spec", "SPEC-1", L, S);
     const list = await listConflicts();
     expect(list).toHaveLength(1);
-    expect(list[0]).toMatchObject({ entity: "spec", recordId: "SPEC-1", localVersion: 2, serverVersion: 3 });
+    expect(list[0]!).toMatchObject({ entity: "spec", recordId: "SPEC-1", localVersion: 2, serverVersion: 3 });
   });
 
   it("record idempoten per (entity,recordId) — update snapshot, bukan duplikat", async () => {
@@ -31,7 +31,7 @@ describe("conflicts service (SPEC-270)", () => {
     await recordConflict("spec", "SPEC-1", { ...L, version: 4 }, S);
     const list = await listConflicts();
     expect(list).toHaveLength(1);
-    expect(list[0].localVersion).toBe(4);
+    expect(list[0]!.localVersion).toBe(4);
   });
 
   it("resolve(server) mengadopsi data server ke lokal & menuntaskan", async () => {

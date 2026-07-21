@@ -6,6 +6,7 @@ import { issueDeviceToken } from "../src/services/device-token";
 // Gate cookie aktif (default) — surface /api/sync di-bypass gate cookie, di-enforce device token.
 const app = buildApp();
 const clean = async () => {
+  await prisma.syncConflict.deleteMany();
   await prisma.syncLog.deleteMany(); await prisma.spec.deleteMany(); await prisma.project.deleteMany();
   await prisma.deviceToken.deleteMany(); await prisma.session.deleteMany(); await prisma.user.deleteMany();
 };
@@ -62,5 +63,47 @@ describe("sync routes /pull /push (SPEC-213)", () => {
     const r = await noAuth.inject({ method: "POST", url: "/api/sync/now" });
     expect(r.statusCode).toBe(200);
     expect(r.json()).toMatchObject({ ok: false, reason: "not-configured" });
+  });
+});
+
+// SPEC-270 · ADR-0067 · endpoint antrean konflik rekonsil (cookie-only).
+describe("sync routes /conflicts (SPEC-270)", () => {
+  it("GET /api/sync/conflicts tanpa sesi → 401 (dikecualikan dari bypass /api/sync)", async () => {
+    const r = await app.inject({ method: "GET", url: "/api/sync/conflicts" });
+    expect(r.statusCode).toBe(401);
+  });
+
+  it("GET /api/sync/conflicts kosong saat tak ada konflik", async () => {
+    const noAuth = buildApp({ requireAuth: false });
+    const res = await noAuth.inject({ method: "GET", url: "/api/sync/conflicts" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().conflicts).toEqual([]);
+  });
+
+  it("resolve entitas tak dikenal → ok:false", async () => {
+    const noAuth = buildApp({ requireAuth: false });
+    const res = await noAuth.inject({ method: "POST", url: "/api/sync/conflicts/nope/x/resolve",
+      payload: { choice: "server" } });
+    expect(res.json().ok).toBe(false);
+  });
+
+  it("resolve(server) menuntaskan konflik yang tercatat", async () => {
+    const noAuth = buildApp({ requireAuth: false });
+    await prisma.project.create({ data: { id: "p1", name: "p1", desc: "d", kind: "existing", repoDir: null } });
+    await prisma.spec.create({ data: { id: "SPEC-7", projectId: "p1", title: "lokal", source: "brief",
+      stage: "planned", priority: "sedang", author: "a", objective: "o", version: 2 } });
+    await prisma.syncConflict.create({ data: { entity: "spec", recordId: "SPEC-7",
+      localData: { projectId: "p1", title: "lokal", source: "brief", stage: "planned", priority: "sedang",
+        author: "a", objective: "o", payload: null, branchFrom: null, baseSha: null, headSha: null,
+        updatedAt: "2020-01-02T00:00:00.000Z" }, localVersion: 2, localUpdatedAt: new Date("2020-01-02T00:00:00.000Z"),
+      serverData: { projectId: "p1", title: "server", source: "brief", stage: "planned", priority: "sedang",
+        author: "a", objective: "o", payload: null, branchFrom: null, baseSha: null, headSha: null,
+        updatedAt: "2020-01-03T00:00:00.000Z" }, serverVersion: 3, serverUpdatedAt: new Date("2020-01-03T00:00:00.000Z") } });
+    const res = await noAuth.inject({ method: "POST", url: "/api/sync/conflicts/spec/SPEC-7/resolve",
+      payload: { choice: "server" } });
+    expect(res.json().ok).toBe(true);
+    expect((await prisma.spec.findUnique({ where: { id: "SPEC-7" } }))!.title).toBe("server");
+    const list = await noAuth.inject({ method: "GET", url: "/api/sync/conflicts" });
+    expect(list.json().conflicts).toEqual([]);
   });
 });

@@ -84,7 +84,8 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
         // route /api/sync di-enforce device token (Bearer / ?token= pada upgrade WS) sendiri.
         // SPEC-268 · KECUALI POST /api/sync/now — pemicu manual = aksi UI, digerbangi cookie gate
         // (dan agent-deny "cookie-only" untuk /sync), bukan device token.
-        if (path.startsWith("/api/sync") && path !== "/api/sync/now") return;
+        // SPEC-270 · KECUALI /api/sync/conflicts* — antrean rekonsil = aksi UI, cookie-only juga.
+        if (path.startsWith("/api/sync") && path !== "/api/sync/now" && !path.startsWith("/api/sync/conflicts")) return;
         // SPEC-249 · ADR-0060 · ingest error dipanggil project eksternal tanpa sesi login;
         // route /api/ingest di-otorisasi DSN per-project sendiri (pengecualian sah gate).
         if (path.startsWith("/api/ingest")) return;

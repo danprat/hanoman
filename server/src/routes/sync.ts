@@ -6,7 +6,9 @@ import { verifyDeviceToken } from "../services/device-token";
 import { attachSync, detachSync } from "../services/sync-hub";
 import type { Client } from "../services/pty";
 import { applyPush, pull, isEntity, type Entity } from "../services/sync";
-import { syncNow } from "../services/sync-client";
+import { syncNow, fetchTransport } from "../services/sync-client";
+import { listConflicts, resolveConflict } from "../services/conflicts";
+import { effectiveStr } from "../config";
 
 // SPEC-213 · ADR-0045/0046 · surface sync mesin-ke-mesin (device-token). Isi file dokumen
 // TIDAK lewat sini — hanya record (project/spec/vps/sessionResult).
@@ -48,6 +50,23 @@ export default async function (app: FastifyInstance) {
     const stats = await syncNow();
     if (!stats) return { ok: false as const, reason: "not-configured" as const };
     return { ok: true as const, ...stats };
+  });
+
+  // SPEC-270 · ADR-0067 · antrean konflik rekonsil (cookie-authed; dikecualikan dari gate agent-token).
+  app.get("/sync/conflicts", async () => ({ conflicts: await listConflicts() }));
+
+  const zResolve = z.object({ choice: z.enum(["local", "server"]) });
+  app.post("/sync/conflicts/:entity/:recordId/resolve", async (req, reply) => {
+    const { entity, recordId } = req.params as { entity: string; recordId: string };
+    const p = zResolve.safeParse(req.body);
+    if (!p.success) return reply.code(400).send({ ok: false, reason: "bad-choice" });
+    const base = effectiveStr("SYNC_SERVER_URL"); const token = effectiveStr("SYNC_DEVICE_TOKEN");
+    const push = async (records: unknown[]) => {
+      if (!base || !token) return { results: [{ ok: false as const }] };
+      const res = await fetchTransport(base, token)("POST", "/api/sync/push", { records });
+      return res.body as { results: { ok?: boolean; version?: number; conflict?: boolean }[] };
+    };
+    return resolveConflict(entity, recordId, p.data.choice, push);
   });
 
   // SPEC-213 · ADR-0046 · kanal siar changefeed. Auth via ?token= pada upgrade (cookie tak ada

@@ -91,8 +91,8 @@ export async function syncOnce(transport: Transport): Promise<SyncStats> {
     if (r?.ok) {
       // SPEC-270 · naikkan versi lokal = versi hub agar tak nyimpang di edit berikutnya.
       if (typeof r.version === "number") {
-        await (prisma as unknown as Record<string, { update: (a: unknown) => Promise<unknown> }>)[item.entity]
-          .update({ where: { id: item.recordId }, data: { version: r.version } }).catch(() => {});
+        const delegate = (prisma as unknown as Record<string, { update: (a: unknown) => Promise<unknown> } | undefined>)[item.entity];
+        await delegate?.update({ where: { id: item.recordId }, data: { version: r.version } }).catch(() => {});
       }
       await clearOutbox(item.entity, item.recordId); pushed++;
     } else if (r?.conflict) {
