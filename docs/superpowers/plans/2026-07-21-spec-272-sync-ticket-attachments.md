@@ -40,7 +40,7 @@
 **Interfaces:**
 - Produces: kolom `TicketAttachment.version: Int (default 0)` dan `TicketAttachment.updatedAt: DateTime (@updatedAt)`. Prisma client meng-expose `prisma.ticketAttachment` dengan kedua field ini.
 
-- [ ] **Step 1: Tambah kolom di schema.prisma**
+- [x] **Step 1: Tambah kolom di schema.prisma**
 
 Di model `TicketAttachment`, setelah baris `ticket Ticket @relation(...)`, tambahkan:
 
@@ -62,7 +62,7 @@ model TicketAttachment {
 }
 ```
 
-- [ ] **Step 2: Tulis migration.sql**
+- [x] **Step 2: Tulis migration.sql**
 
 Buat file `server/prisma/migrations/2026072103_spec272_ticket_attachment_sync/migration.sql`:
 
@@ -72,7 +72,7 @@ ALTER TABLE "TicketAttachment" ADD COLUMN "version" INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE "TicketAttachment" ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
 ```
 
-- [ ] **Step 3: Terapkan migration ke DB dev + generate client**
+- [x] **Step 3: Terapkan migration ke DB dev + generate client**
 
 Run:
 ```bash
@@ -83,7 +83,7 @@ env -u NODE_ENV pnpm --filter ./server exec prisma generate
 ```
 Expected: "Applying migration `2026072103_spec272_ticket_attachment_sync`" lalu "Generated Prisma Client".
 
-- [ ] **Step 4: Terapkan migration ke DB test (base unik hanoman272_test)**
+- [x] **Step 4: Terapkan migration ke DB test (base unik hanoman272_test)**
 
 Run:
 ```bash
@@ -92,7 +92,7 @@ env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman
 ```
 Expected: semua migration ter-apply (DB baru), exit 0. (Jika DB belum ada, buat dulu: `docker exec hanoman-db-1 createdb -U hanoman hanoman272_test` atau biarkan `migrate deploy` gagal → buat lalu ulangi.)
 
-- [ ] **Step 5: Verifikasi kolom ada**
+- [x] **Step 5: Verifikasi kolom ada**
 
 Run:
 ```bash
@@ -100,7 +100,7 @@ docker exec hanoman-db-1 psql -U hanoman -d hanoman -tAc "\d \"TicketAttachment\
 ```
 Expected: dua baris menampilkan `version` dan `updatedAt`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/prisma/schema.prisma server/prisma/migrations/2026072103_spec272_ticket_attachment_sync/migration.sql

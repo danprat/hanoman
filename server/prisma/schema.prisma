@@ -318,6 +318,8 @@ model TicketAttachment {
   size       Int
   storageKey String   // nama berkas opaque di upload dir (uuid+ext)
   createdAt  DateTime @default(now())
+  version    Int      @default(0) // SPEC-272 · version-stamp sync (ADR-0068)
+  updatedAt  DateTime @updatedAt  // SPEC-272 · jam LWW (lampiran immutable → praktis konstan)
   ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@index([ticketId])
