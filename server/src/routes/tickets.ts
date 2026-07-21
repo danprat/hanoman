@@ -1,14 +1,31 @@
 // SPEC-253 · ADR-0062 · antrean triase (di belakang gate cookie). Query selalu ber-scope projectId
 // (isolasi antar-project). Accept = jembatan ke Spec (source help) — cermin errors/escalate.
 import type { FastifyInstance } from "fastify";
+import { join } from "node:path";
 import { prisma } from "../db";
 import { paginate } from "../services/paginate";
 import { nextSpecId } from "../services/id";
 import { resolveRepoDir } from "../services/local-binding";
 import { notifySynced } from "../services/sync-notify";
-import { readUploadOrFetch, deleteUpload } from "../services/uploads";
+import { readUploadOrFetch, deleteUpload, uploadDir } from "../services/uploads";
 import { zTicketEditInput } from "@hanoman/shared";
-import type { Ticket } from "@prisma/client";
+import type { Ticket, TicketAttachment } from "@prisma/client";
+
+// SPEC-286 · saat eskalasi triase → backlog, ubah lampiran dari catatan pasif ("N berkas")
+// jadi DIREKTIF aktif: agen wajib memeriksa isinya (biasanya screenshot bug) sebelum bekerja,
+// dengan nama asli + jalur akses konkret. Tanpa ini konteks keluhan pelapor tak pernah dibaca
+// agen (payload ini mengalir apa adanya ke prompt sesi via runner startPrompt → `Detail:`).
+const attachmentInstruction = (t: Ticket, atts: TicketAttachment[]): string => {
+  if (atts.length === 0) return "Tanpa lampiran.";
+  const list = atts
+    .map((a) => `- ${a.filename} (${a.mimeType}) → ${join(uploadDir(), a.storageKey)}`)
+    .join("\n");
+  return `LAMPIRAN (${atts.length}) dari pelapor — biasanya screenshot yang menunjukkan masalah. `
+    + `PERIKSA setiap lampiran untuk memahami konteks keluhan sebelum bekerja; jangan berasumsi `
+    + `dari teks saja. Berkas ada di direktori upload server (baca langsung dengan tool Read):\n${list}\n`
+    + `Bila berkas tak ada di path itu (sesi jalan di mesin lain), buka lampiran lewat triase `
+    + `tiket #${t.number} atau API GET /api/tickets/${t.id}/attachments/<id>.`;
+};
 
 const view = (t: Ticket & { _count?: { attachments: number } }) => ({
   id: t.id, projectId: t.projectId, number: t.number, category: t.category, title: t.title,
@@ -62,7 +79,7 @@ export default async function (app: FastifyInstance) {
   app.post("/tickets/:id/accept", async (req, reply) => {
     const { id } = req.params as { id: string };
     const t = await prisma.ticket.findUnique({
-      where: { id }, include: { _count: { select: { attachments: true } } },
+      where: { id }, include: { attachments: true },
     });
     if (!t) return reply.code(404).send({ error: "not found" });
     if (t.specId) {
@@ -72,9 +89,9 @@ export default async function (app: FastifyInstance) {
     const priority = (req.body as { priority?: string } | undefined)?.priority ?? "sedang";
     const author = req.user?.email ?? "system";
     const backlink = `Dari tiket Help Center #${t.number} (projek ${t.projectId}).`;
-    const nAtt = t._count?.attachments ?? 0;
     const payload = {
-      context: `${t.detail}\n\nKategori: ${t.category}\nPelapor: ${t.reporterEmail}\nLampiran: ${nAtt} berkas (lihat tiket di triase).\n${backlink}`,
+      context: `${t.detail}\n\nKategori: ${t.category}\nPelapor: ${t.reporterEmail}\n${backlink}\n\n`
+        + attachmentInstruction(t, t.attachments),
       outcome: "",
       constraints: "",
     };

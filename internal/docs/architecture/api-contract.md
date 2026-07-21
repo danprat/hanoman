@@ -419,6 +419,8 @@ GET   /tickets/:id/attachments/:attId    # stream berkas gambar (Content-Type mi
       # SPEC-272 · di CLIENT byte ditarik lazy dari hub (readUploadOrFetch → /sync/attachments) bila absen lokal, lalu di-cache
 POST  /tickets/:id/accept  { priority? }  # 201 { spec } — buat Spec source help prefilled + tandai tiket
 #   accepted + specId (tautan dua arah). Idempoten: sudah promoted → 200 { alreadyPromoted:true, spec }. 404.
+#   SPEC-286 · payload.context memuat DIREKTIF periksa lampiran: bila tiket berlampiran → daftar nama+mime+path
+#   upload (agar agen membaca isinya, biasanya screenshot) + cadangan API attachments; tanpa lampiran → "Tanpa lampiran".
 POST  /tickets/:id/unlink                 # 200 { id, status:"new", specId:null } — lepas tautan backlog (kebalikan accept).
 #   Non-destruktif: Spec dibiarkan (hapus manual). Reset status→new → bisa diterima lagi (Spec baru). Idempoten. 404. (SPEC-271)
 POST  /tickets/:id/reject                 # 200 { id, status:"rejected" } — tutup tanpa Spec · 404
