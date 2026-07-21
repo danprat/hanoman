@@ -86,6 +86,10 @@ export const api = {
   // SPEC-217 · `repoDir` = path default/server editable (null = kosongkan).
   updateProject: (id: string, b: { name?: string; desc?: string; gitRemote?: string; repoDir?: string | null }) =>
     j<ProjectView>(paths.project(id), { method: "PATCH", ...body(b) }),
+  // SPEC-255 · ADR-0064 · rename slug project. Balik: id baru + DSN/Help URL baru (bila aktif) + affected.
+  renameProject: (id: string, newId: string) =>
+    j<{ id: string; dsnUrl?: string; helpUrl?: string; affected: Record<string, number> }>(
+      paths.projectRename(id), { method: "POST", ...body({ newId }) }),
   // SPEC-217 · path per-mesin (LocalBinding, tak disync). put/delete = set/kosongkan override.
   getBinding: (id: string) => j<{ repoDir: string | null }>(paths.binding(id)),
   putBinding: (id: string, repoDir: string) =>

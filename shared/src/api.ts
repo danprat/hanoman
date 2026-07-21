@@ -2,6 +2,8 @@ export const API = "/api";
 export const paths = {
   projects: `${API}/projects`,
   project: (id: string) => `${API}/projects/${id}`,
+  // SPEC-255 · ADR-0064 · rename slug project (efek: DSN, Help Center, sync).
+  projectRename: (id: string) => `${API}/projects/${encodeURIComponent(id)}/rename`,
   branches: (id: string) => `${API}/projects/${id}/branches`,
   // SPEC-217 · path per-mesin (LocalBinding, tak disync) + clone dari gitRemote
   binding: (id: string) => `${API}/projects/${id}/binding`,
