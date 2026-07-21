@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { zDocFileContent } from "@hanoman/shared";
 import { docIndex, readDoc, writeDoc, deleteDoc } from "../services/docs";
 import { listPrds, listAllPrds, readPrd } from "../services/project-prds";
+import { readBreakdown } from "../services/project-breakdowns";
 
 export default async function (app: FastifyInstance) {
   app.get("/projects/:id/docs", async (req) => docIndex((req.params as { id: string }).id));
@@ -18,6 +19,14 @@ export default async function (app: FastifyInstance) {
     const path = (req.params as Record<string, string>)["*"] ?? "";
     const content = await readPrd(id, path);
     return content === null ? reply.code(404).send({ error: "not found" }) : { path, content };
+  });
+
+  // SPEC-273 · manifest breakdown sebuah PRD (freshest-wins). prd absen / tak-PRD / manifest belum
+  // ada → { items: [] } (bukan 404): UI memakainya untuk memutuskan "mulai sesi" vs "review usulan".
+  app.get("/projects/:id/breakdown", async (req) => {
+    const { id } = req.params as { id: string };
+    const { prd } = req.query as { prd?: string };
+    return readBreakdown(id, prd ?? "");
   });
 
   app.get("/projects/:id/docs/*", async (req, reply) => {

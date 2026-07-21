@@ -9,7 +9,9 @@ import { listSessions } from "./pty";
 export type { PrdDoc };
 
 const PRD_DIR = "docs/prd/";
-const isPrd = (rel: string) => rel.startsWith(PRD_DIR) && rel.endsWith(".md");
+// SPEC-273 · manifest breakdown (docs/prd/<slug>.breakdown.md) hidup di samping PRD tapi BUKAN PRD —
+// jangan tampilkan di daftar/preview PRD, dan jangan gerbangkan readPrd untuknya.
+const isPrd = (rel: string) => rel.startsWith(PRD_DIR) && rel.endsWith(".md") && !rel.endsWith(".breakdown.md");
 const slugOf = (rel: string) => rel.slice(PRD_DIR.length, -3);
 // Judul = heading `# ...` pertama; fallback slug.
 const titleOf = (content: string | null, slug: string) => {

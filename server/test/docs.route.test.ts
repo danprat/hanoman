@@ -12,6 +12,8 @@ beforeEach(async () => {
   dir = makeTempRepo({
     "internal/docs/README.md": "- [prd](product/prd.md)",
     "internal/docs/product/prd.md": "# prd",
+    "docs/prd/x.md": "# x prd",
+    "docs/prd/x.breakdown.md": '# Breakdown: x\n\n```json\n{ "items": [ { "title": "satu" }, { "title": "dua" } ] }\n```',
   });
   await makeProject({ id: "p1", repoDir: dir });
 });
@@ -73,5 +75,22 @@ describe("prds all route", () => {
     expect(items.map((i) => i.slug).sort()).toEqual(["x", "y"]);
     expect(items.find((i) => i.slug === "y")!.projectName).toBe("Proyek B");
     expect(items.find((i) => i.slug === "x")!.projectId).toBe("p1");
+  });
+});
+
+// SPEC-273 · manifest breakdown sebuah PRD (freshest-wins). Seed di beforeEach global.
+describe("SPEC-273 · GET /projects/:id/breakdown", () => {
+  it("mengembalikan items dari manifest", async () => {
+    const res = await app.inject({ url: "/api/projects/p1/breakdown?prd=docs/prd/x.md" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().items.map((i: any) => i.title)).toEqual(["satu", "dua"]);
+    expect(res.json().live).toBe(false);
+  });
+  it("prd tanpa manifest → items []", async () => {
+    const res = await app.inject({ url: "/api/projects/p1/breakdown?prd=docs/prd/none.md" });
+    expect(res.json().items).toEqual([]);
+  });
+  it("tanpa query prd → items []", async () => {
+    expect((await app.inject({ url: "/api/projects/p1/breakdown" })).json().items).toEqual([]);
   });
 });
