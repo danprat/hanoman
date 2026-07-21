@@ -1,4 +1,4 @@
-import type { Flow, SpecBrief, ProjectBrief, PrdBrief } from "./types";
+import type { Flow, SpecBrief, ProjectBrief, PrdBrief, BreakdownPrd } from "./types";
 import { REVERSE_STANDARD } from "./reverse-standard";
 
 export const PIPELINES: Record<Flow, readonly string[]> = {
@@ -8,6 +8,7 @@ export const PIPELINES: Record<Flow, readonly string[]> = {
   reverse: ["Scan", "Docs teknis", "Wawancara", "Konvensi & index", "Serah terima"],
   prd: ["Brainstorm", "PRD"],
   audit: ["Audit", "Laporan"],
+  breakdown: ["Analisis", "Breakdown"],
 };
 
 // SPEC-252 · ADR-0061 — model & effort kini PER SESI (dipilih saat Start, argv saat lahir), bukan per
@@ -208,6 +209,40 @@ export function startPrdPrompt(project: ProjectBrief, brief: PrdBrief, branchTo:
       + `ini detached HEAD — memang disengaja. Manusia yang me-review lalu merge branch ${branchTo}.`,
     `Project ${project.id} · ${project.name}\nBrief — Judul: ${brief.title}\nKonteks: ${brief.context}\n`
       + `Outcome: ${brief.outcome}${brief.constraints ? `\nBatasan: ${brief.constraints}` : ""}`,
+  ].filter(Boolean).join("\n\n");
+}
+
+// SPEC-273 · sesi breakdown: pecah SATU PRD kompleks → BEBERAPA backlog kecil yang PARALEL-aman
+// (tanpa saling bergantung). Project-level (tanpa Spec), meniru startPrdPrompt. Isi PRD disematkan
+// (lepas dari status merge). Keluaran HANYA manifest doc — tak menulis kode fitur. Autonomous
+// (analisis, bukan brainstorm bergiliran) → memakai AUTONOMY_CLAUSE.
+export function startBreakdownPrompt(project: ProjectBrief, prd: BreakdownPrd, branchTo: string): string {
+  const slug = branchTo.slice(branchTo.lastIndexOf("/") + 1);
+  return [
+    `hanoman breakdown. Kamu memecah SATU PRD kompleks menjadi BEBERAPA backlog kecil yang bisa `
+      + `dikerjakan PARALEL tanpa saling bergantung. Keluaranmu HANYA dokumen manifest — `
+      + `JANGAN menulis kode fitur.`,
+    phaseInstruction(PIPELINES.breakdown),
+    `- Analisis: baca PRD (di bawah) sampai paham SELURUH scope in-PRD. Petakan pekerjaan menjadi `
+      + `unit-unit yang: (a) kecil & terukur — tiap unit tuntas dalam satu sesi; (b) non-overlapping `
+      + `— cakupan tak tumpang tindih; (c) TANPA cross-dependency — urutan bebas, bisa jalan bersamaan; `
+      + `(d) gabungannya MENUTUP seluruh scope PRD. Bila dua unit terpaksa berurutan, gabung jadi satu.`,
+    `- Breakdown: tulis manifest ke \`docs/prd/${slug}.breakdown.md\`. Awali heading `
+      + `\`# Breakdown: ${prd.title}\`, lalu prosa: ringkasan + untuk TIAP backlog satu paragraf `
+      + `(judul, cakupan, dan SATU kalimat kenapa aman-paralel / tak bergantung yang lain). `
+      + `Di AKHIR dokumen sertakan TEPAT SATU blok kode berpagar json berisi kontrak mesin PERSIS `
+      + `bentuk ini (tanpa komentar, priority ∈ tinggi|sedang|rendah):\n`
+      + "```json\n"
+      + `{ "items": [ { "title": "…", "context": "…", "outcome": "…", "priority": "sedang" } ] }\n`
+      + "```\n"
+      + `\`context\` = bagian PRD yang dicakup; \`outcome\` = kondisi selesai terukur; \`title\` ringkas. `
+      + `Minimal 2 item bila PRD memang kompleks; bila PRD ternyata sekecil 1 unit, katakan itu di `
+      + `prosa dan tetap tulis 1 item.`,
+    AUTONOMY_CLAUSE,
+    `Setelah manifest ditulis: commit, lalu \`git push origin HEAD:refs/heads/${branchTo}\`. Bila remote `
+      + `origin tidak ada, lewati push dan catat itu di terminal — jangan gagal diam-diam. Worktree `
+      + `ini detached HEAD — memang disengaja. Manusia me-review manifest lalu materialize backlog darinya.`,
+    `Project ${project.id} · ${project.name}\n=== PRD: ${prd.title} (${prd.path}) ===\n${prd.content}`,
   ].filter(Boolean).join("\n\n");
 }
 

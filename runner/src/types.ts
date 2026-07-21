@@ -1,4 +1,4 @@
-export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit";
+export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit" | "breakdown";
 
 // Backlog item yang dikerjakan sebuah sesi. Id-nya saja tak berarti apa-apa di dalam
 // worktree yang masih segar (spec hidup di Postgres, bukan di repo), jadi ia harus
@@ -14,6 +14,10 @@ export type ProjectBrief = { id: string; name: string; desc: string; stack: stri
 
 // SPEC-210 · brief awal PRD (sesi prd project-level). Disisipkan ke prompt sesi.
 export type PrdBrief = { title: string; context: string; outcome: string; constraints?: string };
+
+// SPEC-273 · PRD yang dipecah sesi breakdown. content = isi PRD tersemat langsung ke prompt,
+// jadi breakdown lepas dari status merge PRD (tak perlu PRD sudah ada di default branch).
+export type BreakdownPrd = { title: string; path: string; content: string };
 
 export interface GitOps {
   /** Mengembalikan baseSha — commit tempat worktree ini lahir. */

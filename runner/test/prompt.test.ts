@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { PIPELINES, startPrompt, startProjectPrompt, continuePrompt, startPrdPrompt, startScaffoldPrompt } from "../src/prompt";
+import { PIPELINES, startPrompt, startProjectPrompt, continuePrompt, startPrdPrompt, startScaffoldPrompt, startBreakdownPrompt } from "../src/prompt";
 
 const spec = { id: "SPEC-162", title: "Sesi interaktif", source: "brief",
   priority: "high", objective: "Ganti runOne dengan tmux" };
@@ -315,5 +315,29 @@ describe("prompt tanpa instruksi model/effort per-fase (SPEC-252)", () => {
     expect(startProjectPrompt("reverse", proj, "reverse-docs")).not.toContain("Model & effort per fase");
     expect(startScaffoldPrompt(proj, "scaffold-docs")).not.toContain("Model & effort per fase");
     expect(startPrdPrompt(proj, { title: "t", context: "c", outcome: "o" }, "prd/t")).not.toContain("Model & effort per fase");
+  });
+});
+
+describe("startBreakdownPrompt (SPEC-273)", () => {
+  const project = { id: "acme", name: "Acme", desc: "", stack: "" };
+  const prd = { title: "Jadwal Invoice Berulang", path: "docs/prd/jadwal-invoice.md",
+    content: "# Jadwal Invoice Berulang\n\nScope: A, B, C." };
+  const p = startBreakdownPrompt(project, prd, "breakdown/jadwal-invoice");
+
+  it("pipeline breakdown = Analisis → Breakdown", () => {
+    expect(PIPELINES.breakdown).toEqual(["Analisis", "Breakdown"]);
+  });
+  it("menyematkan isi PRD dan path manifest", () => {
+    expect(p).toContain("Scope: A, B, C.");
+    expect(p).toContain("docs/prd/jadwal-invoice.breakdown.md");
+  });
+  it("mewajibkan backlog non-overlapping tanpa cross-dependency", () => {
+    expect(p.toLowerCase()).toContain("non-overlapping");
+    expect(p.toLowerCase()).toContain("dependency");
+    expect(p).toContain("```json");
+  });
+  it("push ke branch breakdown + tak menulis kode fitur", () => {
+    expect(p).toContain("git push origin HEAD:refs/heads/breakdown/jadwal-invoice");
+    expect(p).toContain("JANGAN menulis kode fitur");
   });
 });
