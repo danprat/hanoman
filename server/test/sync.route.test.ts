@@ -2,11 +2,13 @@ import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { buildApp } from "../src/app";
 import { prisma } from "../src/db";
 import { issueDeviceToken } from "../src/services/device-token";
+import { saveUpload } from "../src/services/uploads";
 
 // Gate cookie aktif (default) — surface /api/sync di-bypass gate cookie, di-enforce device token.
 const app = buildApp();
 const clean = async () => {
   await prisma.syncConflict.deleteMany();
+  await prisma.ticketAttachment.deleteMany(); await prisma.ticket.deleteMany();
   await prisma.syncLog.deleteMany(); await prisma.spec.deleteMany(); await prisma.project.deleteMany();
   await prisma.deviceToken.deleteMany(); await prisma.session.deleteMany(); await prisma.user.deleteMany();
 };
@@ -105,5 +107,22 @@ describe("sync routes /conflicts (SPEC-270)", () => {
     expect((await prisma.spec.findUnique({ where: { id: "SPEC-7" } }))!.title).toBe("server");
     const list = await noAuth.inject({ method: "GET", url: "/api/sync/conflicts" });
     expect(list.json().conflicts).toEqual([]);
+  });
+
+  it("GET /sync/attachments/:key — 401 tanpa token, 404 key asing, 200 byte untuk lampiran nyata (SPEC-272)", async () => {
+    const { auth } = await tokenFor();
+    await prisma.project.create({ data: { id: "p1", name: "p1", desc: "d", kind: "existing", repoDir: null } });
+    // 401 tanpa Bearer
+    expect((await app.inject({ method: "GET", url: "/api/sync/attachments/x.png" })).statusCode).toBe(401);
+    // 404 key asing
+    expect((await app.inject({ method: "GET", url: "/api/sync/attachments/tidak-ada.png", headers: auth })).statusCode).toBe(404);
+    // siapkan tiket + lampiran nyata
+    const t = await prisma.ticket.create({ data: { id: "TCK-1", projectId: "p1", number: 1, category: "bug", title: "t", detail: "d", reporterEmail: "r@e.co", status: "new", accessKeyHash: "h" } });
+    const { storageKey, size } = await saveUpload(Buffer.from("PNGBYTES"), "image/png");
+    await prisma.ticketAttachment.create({ data: { ticketId: t.id, projectId: "p1", filename: "s.png", mimeType: "image/png", size, storageKey } });
+    const ok = await app.inject({ method: "GET", url: `/api/sync/attachments/${storageKey}`, headers: auth });
+    expect(ok.statusCode).toBe(200);
+    expect(ok.headers["content-type"]).toContain("image/png");
+    expect(ok.rawPayload.equals(Buffer.from("PNGBYTES"))).toBe(true);
   });
 });

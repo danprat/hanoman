@@ -232,7 +232,7 @@ git commit -m "feat(spec-272): ticketAttachment jadi entity SYNCED (metadata rou
 - Consumes: `requireDeviceToken` preHandler (sudah ada), `readUpload` dari `../services/uploads`.
 - Produces: `GET /api/sync/attachments/:storageKey` → 200 byte (content-type mime) untuk storageKey milik `TicketAttachment`; 404 bila tak dikenal/hilang; 401 tanpa device token.
 
-- [ ] **Step 1: Tulis test (failing) di sync.route.test.ts**
+- [x] **Step 1: Tulis test (failing) di sync.route.test.ts**
 
 Tambah import di atas:
 ```ts
@@ -258,7 +258,7 @@ Tambah `prisma.ticketAttachment.deleteMany()` di awal `clean()`. Tambah test:
   });
 ```
 
-- [ ] **Step 2: Jalankan → gagal**
+- [x] **Step 2: Jalankan → gagal**
 
 Run:
 ```bash
@@ -267,7 +267,7 @@ env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman
 ```
 Expected: FAIL — route belum ada (404 untuk case 200).
 
-- [ ] **Step 3: Tambah route di sync.ts**
+- [x] **Step 3: Tambah route di sync.ts**
 
 Tambah import di atas (setelah import lain):
 ```ts
@@ -288,7 +288,7 @@ Tambah route tepat setelah handler `/sync/pull`:
   });
 ```
 
-- [ ] **Step 4: Jalankan → lulus**
+- [x] **Step 4: Jalankan → lulus**
 
 Run:
 ```bash
@@ -297,7 +297,7 @@ env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman
 ```
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/routes/sync.ts server/test/sync.route.test.ts
