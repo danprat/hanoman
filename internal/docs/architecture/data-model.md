@@ -217,9 +217,14 @@ Dibuat oleh **flow sesi `prd`** (project-level, tanpa `Spec`; pipeline `Brainsto
 List/preview **freshest-wins** (worktree sesi `prd` hidup > `repoDir`). "Take ke backlog" membuat
 `Spec` (source `brief`) ter-prefill dari PRD; tautan balik dibawa teks Konteks brief ("Dari PRD: <path>"),
 bukan field payload (zBriefPayload strip key tak dikenal). Set flow sesi kini:
-`feature | qa | scaffold | reverse | prd | audit` (audit = SPEC-237/ADR-0057). Sesi shell "terminal
-biasa" (SPEC-236/ADR-0056) **tanpa flow** — bukan pipeline, tak menggerakkan stage; ditandai wire
-`{project, shell:true}`.
+`feature | qa | scaffold | reverse | prd | audit | breakdown` (audit = SPEC-237/ADR-0057; breakdown =
+SPEC-273/ADR-0069). Sesi shell "terminal biasa" (SPEC-236/ADR-0056) **tanpa flow** — bukan pipeline,
+tak menggerakkan stage; ditandai wire `{project, shell:true}`.
+
+**Breakdown PRD (SPEC-273 · [ADR-0069](../adr/0069-breakdown-prd-ke-backlog-paralel.md))** — juga **bukan
+model DB**. Manifest = dokumen `docs/prd/<slug>.breakdown.md` (sibling PRD, dikecualikan dari daftar PRD);
+backlog hasil = baris `Spec` biasa (`source:"brief"`) dibuat lewat `POST /specs/batch`. Provenance PRD di
+teks Konteks payload, bukan kolom. **Tanpa migration.**
 
 ## Docs sebagai konvensi, bukan lagi gerbang
 Fase Execute **tidak** lagi diverifikasi terhadap DocIndex sebelum jalan — guardrail Source of

@@ -79,6 +79,10 @@ GET  /specs?project=&source=&q=&stage=&priority=&startable=&page=&limit=
 #   & paginasi diterapkan DI MEMORI SETELAH overlay — filter stage cocok ke stage LIVE, bukan DB.
 #   Tanpa page/limit → seluruh item terfilter (page 1, pageSize=total). Lihat ADR-0038.
 POST /specs               { project, source, ...payload, branchFrom? }  -> SPEC-n
+POST /specs/batch         { project, items:[BreakdownItem], branchFrom?, prdPath? } -> {created:[Spec]}
+#   SPEC-273 · ADR-0069 · materialize breakdown: N spec `source:"brief"` independen (id berurutan via
+#   nextSpecId+retry), provenance PRD di teks Konteks. 400 items kosong / branch tak dikenal; 404 project.
+#   BreakdownItem = { title, context, outcome, priority:"tinggi"|"sedang"|"rendah" }.
 #   source ∈ brief|qa|audit (SPEC-237). audit = audit-only (payload brief-shaped, author `Audit ·`);
 #   qa payload ber-severity (superRefine mengikat source↔bentuk payload). audit → flow `audit`
 #   (Audit → Laporan, dokumen SoT tanpa Execute; ADR-0057). Client memetakan source→flow via flowForSource.
@@ -119,6 +123,9 @@ DELETE /projects/:id/docs/*path         # hapus file .md asli di disk; 204 sukse
 GET    /prds                            # SPEC-210 · { items:[PrdDoc] } daftar PRD LINTAS-project (filter "Semua project")
 GET    /projects/:id/prds               # SPEC-210 · { items:[PrdDoc] } dokumen docs/prd/*.md project itu
 GET    /projects/:id/prds/*path         # SPEC-210 · isi PRD; 404 bila path bukan docs/prd/*.md
+GET    /projects/:id/breakdown?prd=<path> # SPEC-273 · ADR-0069 · { items:[BreakdownItem], live } dari
+#   manifest docs/prd/<slug>.breakdown.md (freshest-wins). Manifest belum ada / prd non-PRD → { items:[] }.
+#   Manifest bukan PRD → dikecualikan dari daftar/isi PRD di atas.
 ```
 
 > **PRD (SPEC-210 · ADR-0041):** PRD = dokumen `docs/prd/<slug>.md` (bukan entitas DB). `PrdDoc` =
@@ -270,6 +277,9 @@ POST   /terminal/sessions  {project, flow?} # 201 { id } · 404 project · 400 t
 #     menyusun SoT penuh dari ide (Project.desc), pipeline Brainstorm→Objective→Doc index; 422 bila repoDir kosong/worktree gagal
 #   {project, flow:"prd", brief} (SPEC-210, ADR-0041): sesi project-level di .worktrees/prd-<slug>;
 #     brainstorm interaktif → dokumen docs/prd/<slug>.md, push branch prd/<slug>; 400 judul kosong, 422 worktree
+#   {project, flow:"breakdown", prdPath} (SPEC-273, ADR-0069): sesi project-level di .worktrees/breakdown-<slug>;
+#     baca PRD (tersemat, freshest-wins) → manifest docs/prd/<slug>.breakdown.md, push branch breakdown/<slug>;
+#     400 PRD tak terbaca / path tak valid, 422 worktree gagal
 GET    /terminal/sessions/:id/phases # fase yang sudah dilaporkan sesi (dari $HANOMAN_PHASE_FILE) → stage live
 GET    /terminal/sessions/:id/review        # (SPEC-230, ADR-0054) diff worktree HIDUP sesi project-level (PRD);
 #   bentuk = /specs/:id/review; kunci worktree = id sesi; 409 bila worktree lenyap (sesi ditutup) — bukan 500
