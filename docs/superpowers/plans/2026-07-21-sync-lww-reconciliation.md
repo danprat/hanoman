@@ -1,6 +1,6 @@
 # Sync Self-Healing + Rekonsil Konflik Manual — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Bikin sync antar-instance hanoman self-healing — tiap row masuk feed (backfill), divergensi sepihak auto-apply, divergensi dua-sisi mendarat di antrean konflik yang diselesaikan manusia lewat modal side-by-side (default LWW pada `updatedAt`).
 
@@ -30,13 +30,13 @@
 **Interfaces:**
 - Produces: model Prisma `SyncConflict` (delegate `prisma.syncConflict`); perilaku `@updatedAt` pada `Project/Spec/Vps/SessionResult/ErrorGroup/Ticket`.
 
-- [ ] **Step 1: Ubah `updatedAt` 6 model synced ke `@updatedAt`**
+- [x] **Step 1: Ubah `updatedAt` 6 model synced ke `@updatedAt`**
 
 Di `server/prisma/schema.prisma`, ganti pada model `Project`, `Spec`, `Vps`, `SessionResult`, `ErrorGroup`, `Ticket` baris:
 `updatedAt DateTime @default(now())` → `updatedAt DateTime @updatedAt`
 (Jangan sentuh `updatedAt` pada model LOCAL-only `RuntimeConfig` yang sudah `@updatedAt`, dan jangan sentuh `createdAt`.)
 
-- [ ] **Step 2: Tambah model `SyncConflict` (LOCAL-only)**
+- [x] **Step 2: Tambah model `SyncConflict` (LOCAL-only)**
 
 Tambahkan setelah model `SyncState` di `schema.prisma`:
 
@@ -59,7 +59,7 @@ model SyncConflict {
 }
 ```
 
-- [ ] **Step 3: Tulis migration.sql**
+- [x] **Step 3: Tulis migration.sql**
 
 Buat `server/prisma/migrations/2026072102_spec270_sync_conflict/migration.sql`:
 
@@ -90,7 +90,7 @@ ALTER TABLE "ErrorGroup"    ALTER COLUMN "updatedAt" DROP DEFAULT;
 ALTER TABLE "Ticket"        ALTER COLUMN "updatedAt" DROP DEFAULT;
 ```
 
-- [ ] **Step 4: Terapkan migration ke DB dev + test, generate client**
+- [x] **Step 4: Terapkan migration ke DB dev + test, generate client**
 
 Run:
 ```bash
@@ -102,7 +102,7 @@ pnpm --filter ./server exec prisma generate
 Expected: kedua `migrate deploy` melaporkan migration `2026072102_spec270_sync_conflict` applied; `generate` sukses.
 (Password DB: pakai nilai asli dari `.env` bila beda dari `hanoman`.)
 
-- [ ] **Step 5: Verifikasi tabel & delegate ada**
+- [x] **Step 5: Verifikasi tabel & delegate ada**
 
 Run:
 ```bash
@@ -111,7 +111,7 @@ node -e 'const{PrismaClient}=require("./server/node_modules/@prisma/client");new
 ```
 Expected: deskripsi tabel tampil; script cetak `syncConflict ok 0`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/prisma/schema.prisma server/prisma/migrations/2026072102_spec270_sync_conflict
@@ -130,7 +130,7 @@ git commit -m "feat(spec-270): tabel SyncConflict + updatedAt @updatedAt (migrat
 - Consumes: `SYNCED`, `snapshot()`, `applyPush()`, `upsertLocal()` (sudah ada).
 - Produces: `snapshot()` kini menyertakan `updatedAt` (ISO string) di `data`; `applyPush`/`upsertLocal` menulis `updatedAt` dari `data` (bukan `new Date()`) bila ada.
 
-- [ ] **Step 1: Tulis test gagal — snapshot menyertakan updatedAt & apply menjaga asal**
+- [x] **Step 1: Tulis test gagal — snapshot menyertakan updatedAt & apply menjaga asal**
 
 Tambah di `server/test/sync.service.test.ts` (ikuti gaya import/clean file itu):
 
@@ -150,16 +150,16 @@ it("SPEC-270: snapshot menyertakan updatedAt & applyPush menjaga updatedAt asal"
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan gagal**
+- [x] **Step 2: Jalankan test — pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- sync.service`
 Expected: FAIL (`updatedAt` bukan origin; `s.data.updatedAt` undefined).
 
-- [ ] **Step 3: Tambah `updatedAt` ke FIELDS & DATE_FIELDS**
+- [x] **Step 3: Tambah `updatedAt` ke FIELDS & DATE_FIELDS**
 
 Di `server/src/services/sync.ts`, dalam `const FIELDS`, tambahkan `"updatedAt"` di akhir array tiap entitas (`project`, `spec`, `vps`, `sessionResult`, `errorGroup`, `ticket`). Dalam `const DATE_FIELDS`, tambahkan `"updatedAt"` ke tiap array (mis. `project: ["updatedAt"]`, `spec: ["updatedAt"]`, `vps: ["lastSeenAt","lastAuditAt","updatedAt"]`, `sessionResult: ["createdAt","updatedAt"]`, `errorGroup: ["firstSeenAt","lastSeenAt","updatedAt"]`, `ticket: ["createdAt","updatedAt"]`).
 
-- [ ] **Step 4: Jaga updatedAt asal saat apply**
+- [x] **Step 4: Jaga updatedAt asal saat apply**
 
 Di `applyPush` (upsert sekitar baris 114-118) dan `upsertLocal` (upsert sekitar baris 176-180), `writeData` kini sudah memuat `updatedAt` (dari coerce). Ubah agar TIDAK menimpanya: ganti `updatedAt: new Date()` pada `create`/`update` menjadi memakai nilai dari writeData bila ada, else now:
 
@@ -185,12 +185,12 @@ Di `upsertLocal` (blok upsert non-rename di akhir):
 ```
 (Blok rename `project` di kedua fungsi biarkan pakai `new Date()` — rename struktural, bukan LWW.)
 
-- [ ] **Step 5: Jalankan test — pastikan lolos**
+- [x] **Step 5: Jalankan test — pastikan lolos**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- sync.service`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/services/sync.ts server/test/sync.service.test.ts
@@ -210,7 +210,7 @@ git commit -m "feat(spec-270): updatedAt ikut wire & terjaga saat apply (jam LWW
 - Consumes: `SYNCED`, `DELEGATE`, `snapshot`, `publishLocal`, `prisma.syncLog`.
 - Produces: `export async function backfillFeed(): Promise<number>` — jumlah row yang di-publish.
 
-- [ ] **Step 1: Tulis test gagal — row tanpa feed dipublish sekali (idempoten)**
+- [x] **Step 1: Tulis test gagal — row tanpa feed dipublish sekali (idempoten)**
 
 Tambah di `server/test/sync.service.test.ts`:
 
@@ -232,12 +232,12 @@ it("SPEC-270: backfillFeed mempublish row yang belum ter-feed, idempoten", async
 ```
 Tambahkan `backfillFeed` ke import dari `../src/services/sync`.
 
-- [ ] **Step 2: Jalankan test — pastikan gagal**
+- [x] **Step 2: Jalankan test — pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- sync.service`
 Expected: FAIL (`backfillFeed` belum ada).
 
-- [ ] **Step 3: Implementasi `backfillFeed`**
+- [x] **Step 3: Implementasi `backfillFeed`**
 
 Tambahkan di `server/src/services/sync.ts` (setelah `publishLocal`):
 
@@ -264,12 +264,12 @@ export async function backfillFeed(): Promise<number> {
 }
 ```
 
-- [ ] **Step 4: Jalankan test — pastikan lolos**
+- [x] **Step 4: Jalankan test — pastikan lolos**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- sync.service`
 Expected: PASS.
 
-- [ ] **Step 5: Panggil backfill saat boot bila peran HUB**
+- [x] **Step 5: Panggil backfill saat boot bila peran HUB**
 
 Di `server/src/services/config-apply.ts`, dalam `applyConfigOnBoot`, setelah `await applySyncConfig();` tambahkan:
 
@@ -283,7 +283,7 @@ Di `server/src/services/config-apply.ts`, dalam `applyConfigOnBoot`, setelah `aw
   }
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/services/sync.ts server/src/services/config-apply.ts server/test/sync.service.test.ts
@@ -305,7 +305,7 @@ git commit -m "feat(spec-270): backfillFeed idempoten + panggil saat boot hub"
   - `listConflicts(): Promise<ConflictView[]>` di mana `ConflictView = { entity:string; recordId:string; localData:unknown; localVersion:number; localUpdatedAt:string; serverData:unknown; serverVersion:number; serverUpdatedAt:string; detectedAt:string }`
   - `resolveConflict(entity: string, recordId: string, choice: "local"|"server", push: (records: unknown[]) => Promise<{results:{ok?:boolean;version?:number;conflict?:boolean}[]}> ): Promise<{ ok: true } | { ok: false; reason: "not-found" | "still-conflict" }>`
 
-- [ ] **Step 1: Tulis test gagal — record, list, resolve(server), resolve(local)**
+- [x] **Step 1: Tulis test gagal — record, list, resolve(server), resolve(local)**
 
 Buat `server/test/conflicts.service.test.ts`:
 
@@ -374,12 +374,12 @@ function fullSpec(title: string) {
 }
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan gagal**
+- [x] **Step 2: Jalankan test — pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- conflicts.service`
 Expected: FAIL (`../src/services/conflicts` belum ada).
 
-- [ ] **Step 3: Implementasi `conflicts.ts`**
+- [x] **Step 3: Implementasi `conflicts.ts`**
 
 Buat `server/src/services/conflicts.ts`:
 
@@ -453,12 +453,12 @@ export async function resolveConflict(
 }
 ```
 
-- [ ] **Step 4: Jalankan test — pastikan lolos**
+- [x] **Step 4: Jalankan test — pastikan lolos**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- conflicts.service`
 Expected: PASS (4 test).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/conflicts.ts server/test/conflicts.service.test.ts
@@ -477,7 +477,7 @@ git commit -m "feat(spec-270): service store konflik (record/list/resolve)"
 - Consumes: `recordConflict` (Task 4), `snapshot`, `pull`, `upsertLocal`, `listOutbox`, `clearOutbox`.
 - Produces: `SyncStats` tetap `{ pulled, pushed, conflicts }`; `conflicts` kini = jumlah baris `SyncConflict` yang dicatat siklus ini.
 
-- [ ] **Step 1: Tulis test gagal — konflik dua-sisi dicatat & versi lokal naik setelah push**
+- [x] **Step 1: Tulis test gagal — konflik dua-sisi dicatat & versi lokal naik setelah push**
 
 Tambah di `server/test/sync-client.test.ts`:
 
@@ -525,12 +525,12 @@ async function advanceHub(t: Transport, id: string, title: string) {
 ```
 Impor `recordConflict` tak perlu di test; impor `prisma.syncConflict` sudah lewat `prisma`. Tambah `prisma.syncConflict.deleteMany()` di `clean()` file ini.
 
-- [ ] **Step 2: Jalankan test — pastikan gagal**
+- [x] **Step 2: Jalankan test — pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- sync-client`
 Expected: FAIL (konflik tak tercatat / versi lokal tak naik).
 
-- [ ] **Step 3: Ganti logika pull-skip & push di `syncOnce`**
+- [x] **Step 3: Ganti logika pull-skip & push di `syncOnce`**
 
 Di `server/src/services/sync-client.ts`:
 
@@ -590,12 +590,12 @@ Return tetap `{ pulled, pushed, conflicts }` seperti semula (deklarasi tunggal d
 
 Catatan: `applyPush` di hub sudah mengembalikan `server: snapshot` saat konflik (`sync.ts:110`) — struktur `{ version, data }` cocok.
 
-- [ ] **Step 4: Jalankan test — pastikan lolos**
+- [x] **Step 4: Jalankan test — pastikan lolos**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- sync-client`
 Expected: PASS (termasuk test lama file ini).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/sync-client.ts server/test/sync-client.test.ts
@@ -621,7 +621,7 @@ git commit -m "feat(spec-270): syncOnce catat konflik dua-sisi + fix versi lokal
   - `SyncConflictView` (shared) sama bentuk `ConflictView`.
   - `paths.syncConflicts`, `paths.syncConflictResolve(entity, recordId)`.
 
-- [ ] **Step 1: Tulis test gagal — list kosong & resolve not-found**
+- [x] **Step 1: Tulis test gagal — list kosong & resolve not-found**
 
 Tambah di `server/test/sync.route.test.ts` (ikuti pola auth cookie file itu; kalau file pakai device-token, tambahkan test cookie sesuai helper yang ada — gunakan helper login yang sudah dipakai route cookie lain di repo):
 
@@ -639,12 +639,12 @@ it("SPEC-270: resolve entitas tak dikenal → 404/not-found", async () => {
 ```
 (`authCookie` = cara file ini mengautentikasi request cookie; reuse yang sudah ada. Jika belum ada, tiru helper login dari `server/test/*.route.test.ts` lain.)
 
-- [ ] **Step 2: Jalankan test — pastikan gagal**
+- [x] **Step 2: Jalankan test — pastikan gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- sync.route`
 Expected: FAIL (route belum ada / 404 rute).
 
-- [ ] **Step 3: Tambah route di `server/src/routes/sync.ts`**
+- [x] **Step 3: Tambah route di `server/src/routes/sync.ts`**
 
 Tambah import di atas:
 ```ts
@@ -674,7 +674,7 @@ Dalam `export default async function (app)`, setelah route `/sync/now`:
   });
 ```
 
-- [ ] **Step 4: Kecualikan path konflik dari gate agent-token**
+- [x] **Step 4: Kecualikan path konflik dari gate agent-token**
 
 Di `server/src/app.ts`, temukan pengecualian untuk `/sync/now` (memory: path `/sync` di-bypass gate, tapi `/sync/now` dikecualikan dari bypass supaya cookie-only). Terapkan aturan sama untuk `/sync/conflicts` dan `/sync/conflicts/.../resolve`: keduanya harus cookie-only (bukan bypass device-token, bukan agent-token). Cari string `"/sync/now"` di `app.ts` dan tambahkan pola `/sync/conflicts` di daftar yang sama.
 
@@ -684,7 +684,7 @@ grep -n "sync/now\|/sync" server/src/app.ts
 ```
 Terapkan pengecualian identik untuk prefix `/api/sync/conflicts`.
 
-- [ ] **Step 5: Shared paths + tipe**
+- [x] **Step 5: Shared paths + tipe**
 
 Di `shared/src/api.ts`, dekat `syncNow`:
 ```ts
@@ -702,7 +702,7 @@ export type SyncConflictView = {
 };
 ```
 
-- [ ] **Step 6: Client api**
+- [x] **Step 6: Client api**
 
 Di `src/src/api/client.ts`, setelah `syncNow`:
 ```ts
@@ -713,7 +713,7 @@ Di `src/src/api/client.ts`, setelah `syncNow`:
 ```
 Tambah `SyncConflictView` ke import `@hanoman/shared` di baris 1.
 
-- [ ] **Step 7: Jalankan test + typecheck**
+- [x] **Step 7: Jalankan test + typecheck**
 
 Run:
 ```bash
@@ -722,7 +722,7 @@ pnpm --filter ./shared build && pnpm -r exec tsc --noEmit
 ```
 Expected: test PASS; tsc tanpa error.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/src/routes/sync.ts server/src/app.ts shared/src/api.ts src/src/api/client.ts server/test/sync.route.test.ts
@@ -742,7 +742,7 @@ git commit -m "feat(spec-270): endpoint /sync/conflicts + resolve (cookie-authed
 - Consumes: `api.listConflicts`, `api.resolveConflict`, `SyncConflictView`, DS `Modal`/`Button`.
 - Produces: komponen `ReconcileModal({ open, onClose, onResolved })`.
 
-- [ ] **Step 1: Tulis test gagal — render side-by-side + default sisi updatedAt terbaru**
+- [x] **Step 1: Tulis test gagal — render side-by-side + default sisi updatedAt terbaru**
 
 Buat `src/test/reconcile-modal.test.tsx`:
 
@@ -783,12 +783,12 @@ describe("ReconcileModal (SPEC-270)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan gagal**
+- [x] **Step 2: Jalankan test — pastikan gagal**
 
 Run: `pnpm --filter ./src test -- reconcile-modal` (atau perintah test frontend repo: cek `package.json` `src`)
 Expected: FAIL (komponen belum ada).
 
-- [ ] **Step 3: Implementasi `ReconcileModal.tsx`**
+- [x] **Step 3: Implementasi `ReconcileModal.tsx`**
 
 Buat `src/src/screens/ReconcileModal.tsx`:
 
@@ -862,7 +862,7 @@ function Side({ label, data, at, ver, active }:
 ```
 (Sesuaikan import `Modal`/`Button` dengan lokasi asli — cek `src/src/ds/index` untuk export; `ConfirmDialog` mengimpor `{ Modal } from "./kit"` dan `{ Button } from "./components/forms"`.)
 
-- [ ] **Step 4: Picu modal dari `SyncButton`**
+- [x] **Step 4: Picu modal dari `SyncButton`**
 
 Modifikasi `src/src/screens/SyncButton.tsx`: tambah state `showModal`, buka saat hasil `syncNow` punya `conflicts>0`, dan render `<ReconcileModal>`:
 
@@ -881,12 +881,12 @@ return (<>
 </>);
 ```
 
-- [ ] **Step 5: Jalankan test — pastikan lolos**
+- [x] **Step 5: Jalankan test — pastikan lolos**
 
 Run: `pnpm --filter ./src test -- reconcile-modal`
 Expected: PASS (2 test).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/src/screens/ReconcileModal.tsx src/src/screens/SyncButton.tsx src/test/reconcile-modal.test.tsx
@@ -903,19 +903,19 @@ git commit -m "feat(spec-270): ReconcileModal side-by-side + picu dari SyncButto
 - Modify: `internal/docs/data-model/*` (kolom `updatedAt @updatedAt`, tabel `SyncConflict`)
 - Modify: `internal/docs/api-contract/*` (`/sync/conflicts`, resolve)
 
-- [ ] **Step 1: Tulis ADR-0067**
+- [x] **Step 1: Tulis ADR-0067**
 
 Buat `internal/docs/adr/0067-sync-lww-reconciliation.md` mengikuti format ADR repo (lihat `0066-*.md`). Isi keputusan: (a) `updatedAt @updatedAt` jadi jam LWW yang ikut wire & terjaga saat apply; (b) divergensi dua-sisi → antrean `SyncConflict` + resolusi manusia per-record (default LWW), bukan auto-overwrite; (c) `backfillFeed()` idempoten saat boot hub; (d) asumsi **tepat satu hub (VPS)**, clock NTP; (e) konsekuensi: `stage` forward-only bisa diregres manual lewat modal (diterima v1).
 
-- [ ] **Step 2: Update data-model & api-contract SoT**
+- [x] **Step 2: Update data-model & api-contract SoT**
 
 Tambahkan di doc data-model: model `SyncConflict` (LOCAL-only) + catatan `updatedAt` kini `@updatedAt` pada 6 model synced dan ikut disync sebagai jam LWW. Di api-contract: `GET /api/sync/conflicts` dan `POST /api/sync/conflicts/:entity/:recordId/resolve` (cookie-authed). Tautkan ADR-0067 di `internal/docs/README.md`.
 
-- [ ] **Step 3: Verifikasi coverage SoT (dep-free)**
+- [x] **Step 3: Verifikasi coverage SoT (dep-free)**
 
 Run: `node --experimental-strip-types shared/src/coverage.ts` (atau perintah coverage yang dipakai repo; lihat memory "verify coverage without server"). Expected: tak ada file baru yang tak tertaut.
 
-- [ ] **Step 4: Smoke API nyata — boot server + curl siklus konflik**
+- [x] **Step 4: Smoke API nyata — boot server + curl siklus konflik**
 
 Boot server prod-lokal lalu uji endpoint baru (DB throwaway termigrate, jangan hanoman_test):
 ```bash
@@ -926,12 +926,12 @@ curl -s -b cookie.txt -X POST localhost:8787/api/sync/conflicts/spec/SPEC-1/reso
 ```
 Expected: list mengembalikan konflik; resolve `{ok:true}`; konflik hilang dari list berikutnya.
 
-- [ ] **Step 5: Jalankan seluruh test server + centang plan**
+- [x] **Step 5: Jalankan seluruh test server + centang plan**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test`
-Expected: semua hijau. Centang semua `- [ ]` yang selesai di plan ini.
+Expected: semua hijau. Centang semua `- [x]` yang selesai di plan ini.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/docs docs/superpowers/plans/2026-07-21-sync-lww-reconciliation.md

@@ -2,7 +2,7 @@
 
 Entitas inti (Postgres via Prisma). **Tujuh model inti**: Project, Spec, Setting, Notification, User,
 Session, Vps — plus model pendukung (VpsAuditSnapshot/VpsItemState, DeviceToken, **AgentToken**, SessionResult, SyncLog,
-LocalBinding, SyncOutbox, SyncState, RuntimeConfig), **model error monitoring** (`ErrorGroup`,
+LocalBinding, SyncOutbox, SyncState, SyncConflict, RuntimeConfig), **model error monitoring** (`ErrorGroup`,
 `ErrorEvent`, SPEC-249/[ADR-0060](../adr/0060-error-monitoring-ingest-ber-dsn.md)) dan **model Help
 Center** (`Ticket`, `TicketAttachment`, SPEC-253/[ADR-0062](../adr/0062-help-center-tiket-publik-triase.md)).
 Tidak ada model `Run` maupun `Trigger` — keduanya di-drop saat pindah ke sesi interaktif (ADR-0024; migrasi
@@ -184,6 +184,18 @@ default — kunci **plaintext** tak pernah menyeberang). **Lampiran** (`TicketAt
   Tiket baru → `Notification` type `ticket`. Promosi (`POST /tickets/:id/accept`) → `Spec` source `help`
   (payload brief-shaped + backlink). Status publik **diturunkan** (`publicStatus`) dari status tiket +
   `stage` Spec. Rate-limit token-bucket in-memory (per IP & per project) + honeypot + retensi opportunistic.
+
+## Sync — konflik & jam LWW (SPEC-270 · [ADR-0067](../adr/0067-sync-lww-reconciliation-manual.md))
+- **`updatedAt` = jam LWW.** Enam model synced (`Project`, `Spec`, `Vps`, `SessionResult`,
+  `ErrorGroup`, `Ticket`) kini `updatedAt @updatedAt` (dulu `@default(now())`) — auto-bump tiap edit;
+  masuk `FIELDS`/`DATE_FIELDS` → **ikut menyeberang**; layer sync **mempertahankan `updatedAt` asal**
+  saat apply dari peer (bukan menstempel ulang), jadi basis last-write-wins konsisten lintas node.
+- **`SyncConflict`** (LOCAL-only, tak disync): antrean divergensi **dua-sisi sejati** menunggu
+  keputusan manusia. Kolom `entity`, `recordId`, `localData`/`localVersion`/`localUpdatedAt`,
+  `serverData`/`serverVersion`/`serverUpdatedAt`, `detectedAt`, `resolvedAt?`. Unik `(entity,recordId)`
+  (idempoten). Diselesaikan via modal side-by-side (default = sisi `updatedAt` terbaru).
+- **Backfill feed:** saat boot HUB, `backfillFeed()` mem-`publishLocal` tiap row SYNCED yang belum
+  ter-feed (mencakup `version=0` pra-entitas-tersync) — idempoten.
 
 ## Docs (Source of Truth) — TIDAK dipersist
 Docs bukan entitas DB. Tabel `DocFile` sudah di-drop (ADR-0011). Docs dibaca **live dari path

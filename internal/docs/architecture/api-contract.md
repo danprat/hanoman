@@ -235,6 +235,15 @@ DELETE /agent-tokens/:id             # 204 · revoke (set revokedAt); 404 tak ad
 > instance non-client (hub) → `200 { ok:false, reason:"not-configured" }`. Tombol muncul hanya di client
 > (`GET /config`.`sync.running`).
 
+> **Rekonsil konflik** (SPEC-270 · ADR-0067) — **cookie-only** (dikecualikan dari bypass `/api/sync`,
+> non-delegatable ke agent):
+> - `GET /api/sync/conflicts` → `{ conflicts: SyncConflictView[] }` (divergensi dua-sisi pending;
+>   tiap item punya `localData`/`serverData` + `localVersion`/`serverVersion` + `localUpdatedAt`/`serverUpdatedAt`).
+> - `POST /api/sync/conflicts/:entity/:recordId/resolve` `{ choice: "local" | "server" }` →
+>   `{ ok:true }` | `{ ok:false, reason }`. `local` = force-push data lokal ke hub (`baseVersion=serverVersion`);
+>   `server` = adopsi data hub secara lokal. Modal `ReconcileModal` (dipicu saat `conflicts>0`) menyajikan
+>   side-by-side; default = sisi `updatedAt` terbaru (LWW). Keputusan per-record.
+
 ## Terminal
 ```
 GET    /terminal/sessions            # [{ id, projectId, specId?, flow?, cwd, branch?, exited, decision }]
