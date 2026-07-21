@@ -10,8 +10,8 @@ describe("api.renameProject (SPEC-255)", () => {
   });
 
   it("POST ke /projects/:id/rename dengan { newId }", async () => {
-    const fetchMock = vi.fn(async () =>
-      new Response(JSON.stringify({ id: "new", affected: {} }), { status: 200, headers: { "content-type": "application/json" } }));
+    const fetchMock = vi.fn((_url: string, _init?: RequestInit) =>
+      Promise.resolve(new Response(JSON.stringify({ id: "new", affected: {} }), { status: 200, headers: { "content-type": "application/json" } })));
     vi.stubGlobal("fetch", fetchMock);
     const r = await api.renameProject("old", "new");
     expect(r.id).toBe("new");

@@ -31,8 +31,13 @@ POST /projects            { name, kind, repoDir?, desc, gitRemote? }   # repoDir
 #   SPEC-222 · kind "from-scratch" + repoDir → hanoman `git init` + commit awal (siap scaffold); gagal init → 400
 GET  /projects/:id        # view memuat `repoDir` (default project) + `binding` (override per-mesin | null)
 PATCH /projects/:id       { name?, desc?, gitRemote?, repoDir? }   # 200 view; 400 name kosong; 404 tak ada.
-#   `id` tak pernah berubah (kunci asing spec) — tak ada endpoint rename.
+#   `id` tak tersentuh oleh PATCH — rename lewat endpoint khusus di bawah (SPEC-255/ADR-0064).
 #   SPEC-217 · `repoDir` (path default/server) kini editable; `null` mengosongkan.
+POST /projects/:id/rename { newId }   # 200 { id, dsnUrl?, helpUrl?, affected } · rename slug (SPEC-255/ADR-0064).
+#   Transaksional: Project.id + cascade FK OTOMATIS (spec/errorGroup/ticket sudah ON UPDATE CASCADE) + update manual ref longgar
+#   (notification/sessionResult/errorEvent/ticketAttachment) + pindah LocalBinding + naikkan version. Merambat ke
+#   hub sync (penanda renamedFrom) → DSN /api/ingest/<id> & Help /help/<id> ikut ganti. `affected` = jumlah record
+#   tersentuh per tabel. 400 slug invalid (^[a-z0-9][a-z0-9-]*$); 404 project; 409 id terpakai / ada sesi aktif.
 GET  /projects/:id/branches  -> { branches: string[], remotes: string[] }   # dari path EFEKTIF (resolveRepoDir). [] bila tanpa repo. 404 project tak ada. remotes memasok target rebase/merge (SPEC-175).
 DELETE /projects/:id      # 409 bila ada sesi tmux aktif milik project; cascade ke spec.
 #   Worktree on-disk di <repoDir>/.worktrees/ tidak ikut dibersihkan.

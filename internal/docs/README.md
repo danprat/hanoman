@@ -26,6 +26,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 - [audit SPEC-242 — Setting model & effort sesi audit tak ada di UI](research/audit-spec-242-setting-model-sesi-audit.md) — `FLOW_PHASES` di `SettingsScreen.tsx` (cerminan runner `PIPELINES`) tak ikut menambah flow `audit` (ADR-0057); server/runner sudah dukung `phaseModelsForFlow("audit")`, hanya UI yang drift. Fix: tambah baris `audit → [Audit, Laporan]`
 - [audit SPEC-244 — kontinuitas branch PRD→brief & audit→Finding QA + picker origin](research/audit-spec-244-branch-continuity-take-to-backlog.md) — take/promote tak set `branchFrom`; modal & whitelist server lokal-only, `resolveCommit` tak fallback `origin/`; `prd/<slug>` & `hanoman/<audit-id>` hidup hanya di origin. Fix: prefill branch + remote first-class + fallback `origin/<rev>` + klausa prompt skip-audit untuk qa-lanjutan-audit (ADR-0059)
 - [audit SPEC-245 — interaksi git graph tak realtime](research/audit-spec-245-git-graph-realtime.md) — `GitGraph.tsx` hanya `load()` saat mount/opsi/aksi sinkron sendiri; tanpa polling, perubahan async (sesi claude commit, konflik diselesaikan di Terminal, commit terminal) tak tampil sampai refresh manual. Fix: silent live-refresh poll `load(true)` tiap 4 dtk (`!document.hidden`), tanpa perubahan skema/API/server
+- [audit SPEC-255 — edit id project (rename slug) berpengaruh DSN/Help Center/sync](research/audit-spec-255-edit-id-project.md) — `Project.id` invariant kekal (SPEC-146) di 3 lapis (skema PK+FK, `PATCH` tak sentuh id, UI tanpa input); slug meng-embed DSN (`/api/ingest/<id>`) & Help URL (`/help/<id>`) + jadi `recordId` sync. Rename butuh `ON UPDATE CASCADE` + update 4 ref longgar + `LocalBinding` + operasi rename lintas node sync (hub publik menyajikan DSN/Help). Fix penuh: ADR-0064 → migration + service transaksi + endpoint + sync rename + UI konfirmasi
 
 ## architecture
 - [stack](architecture/stack.md) · [data-model](architecture/data-model.md) · [api-contract](architecture/api-contract.md) · [nfr](architecture/nfr.md)
@@ -36,6 +37,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 
 ## adr
 > Nomor unik & imutable. ADR usang tidak dihapus — ditandai statusnya di bawah dan di header masing-masing.
+- [0064 — `Project.id` renameable lewat operasi rename khusus (cascade + merambat sync)](adr/0064-project-id-renameable.md) — **mencabut sebagian SPEC-146**, memperluas 0045/0046/0060/0062 (SPEC-255)
 - [0063 — hanoman-sdk sebagai npm package publik (extensible, errors dulu)](adr/0063-hanoman-sdk-npm-package.md) — **memperluas 0060** (SPEC-254)
 - [0062 — Help Center: model tiket + endpoint publik ber-scope-project + jembatan triase→backlog](adr/0062-help-center-tiket-publik-triase.md) — **memperluas 0060/0028/0033/0039** (SPEC-253)
 - [0061 — Model & effort per sesi (picker saat Start), mencabut matrix per-fase](adr/0061-model-effort-per-sesi-picker-start.md) — **mengamandemen 0058** (SPEC-252)

@@ -10,7 +10,13 @@ Tidak ada model `Run` maupun `Trigger` — keduanya di-drop saat pindah ke sesi 
 sebagai `String` dan divalidasi zod di `@hanoman/shared` (`enums.ts`), bukan enum Prisma.
 
 ## Project
-- `id` (slug) — **kekal**. Kunci asing `Spec` (`onDelete: Cascade`); tidak ada endpoint rename.
+- `id` (slug) — **renameable lewat operasi khusus** `POST /projects/:id/rename { newId }` (SPEC-255/ADR-0064,
+  mencabut sebagian invariant "kekal" SPEC-146). Kunci asing `Spec`/`ErrorGroup`/`Ticket` **sudah**
+  `ON UPDATE CASCADE` **dan** `ON DELETE CASCADE` (bawaan Prisma → cascade otomatis, tanpa migration); referensi
+  longgar (`Notification/SessionResult/ErrorEvent/TicketAttachment`) + `LocalBinding` di-update manual dalam
+  transaksi rename. Id **tetap tak tersentuh** oleh
+  `PATCH`/`zUpdateProject`. Rename merambat ke hub sync (penanda `renamedFrom`) → DSN `/api/ingest/<id>` &
+  URL Help `/help/<id>` (derived) ikut berganti. Guard: 409 bila id baru terpakai / ada sesi aktif.
 - `name`, `desc` — label tampilan; dapat diubah lewat `PATCH /projects/:id` (SPEC-146) dan boleh
   menyimpang dari `id`. Tak ada jalur git/worktree/filesystem yang membacanya.
 - `kind` ("from-scratch" | "existing"), `repoDir?` (absolut, OPSIONAL; path default/server, editable via
