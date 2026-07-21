@@ -377,6 +377,11 @@ export function AgentAccessPanel({ onToast }: { onToast?: ShowToast } = {}) {
           Beri AI agent eksternal kendali hanoman lewat token (header <code>Authorization: Bearer</code>).
           Tiap fitur dibuka per <b>capability</b>. Selagi master switch mati, semua token ditolak.
         </div>
+        <div style={{ marginBottom: 12 }}>
+          <a href="https://github.com/denameidina/hanoman/blob/main/docs/agent-integration.md" target="_blank" rel="noreferrer">
+            <Button size="sm" variant="ghost" leftIcon="book-open">Dokumentasi integrasi</Button>
+          </a>
+        </div>
         <SettingRow title="Aktifkan akses AI agent" last
           desc="Master switch. Nonaktif → semua agent token 401, apa pun capability-nya.">
           <Switch checked={!!setting?.agentAccessEnabled} onChange={(v: boolean) => void toggleMaster(v)} />

@@ -204,6 +204,9 @@ GET      /health                        # publik; liveness
 ```
 
 ## Agent tokens (SPEC-257 · ADR-0065)
+
+> Panduan berhadapan-agen (cara AI agent eksternal terhubung, langkah demi langkah + contoh `curl`): [`docs/agent-integration.md`](../../../docs/agent-integration.md) — ditaut juga dari panel "Akses AI Agent" di UI (SPEC-265).
+
 ```
 # Kelola kredensial AI agent — COOKIE-ONLY (agent token sendiri → 403; anti privilege-escalation).
 GET    /agent-tokens/capabilities   -> { capabilities: CapabilityInfo[] }   # katalog 18 (9 domain × read/write) untuk UI
