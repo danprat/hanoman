@@ -337,6 +337,7 @@ GET   /errors/:id            -> ErrorGroupDetail { ...group, sampleStack, events
 POST  /errors/:id/escalate   # 201 { spec } — buat Spec qa prefilled (title/actual/fromErrorGroup) + tandai grup
 #   escalated + specId (tautan dua arah). Idempoten: sudah escalated → 200 { alreadyEscalated:true, spec }. 404.
 PATCH /errors/:id            { status }   # 200 { id, status } — status ∈ new|escalated|resolved. 400 invalid. 404.
+DELETE /errors/:id           # 200 { ok:true } — hapus grup; ErrorEvent cascade (onDelete: Cascade). 404. (SPEC-269)
 ```
 
 > **Grouping** deterministik: `fingerprint(type, normalizeMessage(message), topFrame(stack))`
@@ -372,6 +373,11 @@ GET   /tickets/:id/attachments/:attId    # stream berkas gambar (Content-Type mi
 POST  /tickets/:id/accept  { priority? }  # 201 { spec } — buat Spec source help prefilled + tandai tiket
 #   accepted + specId (tautan dua arah). Idempoten: sudah promoted → 200 { alreadyPromoted:true, spec }. 404.
 POST  /tickets/:id/reject                 # 200 { id, status:"rejected" } — tutup tanpa Spec · 404
+PATCH /tickets/:id  { title?, detail?, category?, status? }  # 200 TicketDetail — edit isi tiket; field opsional,
+#   minimal satu (zTicketEditInput). category ∈ bug|fitur|pertanyaan|lainnya, status ∈ new|accepted|rejected.
+#   400 body kosong/enum invalid. 404. (SPEC-269)
+DELETE /tickets/:id                       # 200 { ok:true } — hapus tiket; TicketAttachment cascade (DB) +
+#   file fisik di HANOMAN_UPLOAD_DIR dibersihkan best-effort (deleteUpload). 404. (SPEC-269)
 ```
 
 > **Status publik** `publicStatus(ticket.status, spec.stage?)`: new→"Sedang ditinjau", rejected→"Ditutup",
