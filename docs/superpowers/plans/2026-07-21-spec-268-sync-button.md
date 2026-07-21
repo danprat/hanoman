@@ -110,7 +110,7 @@ git commit -m "feat(spec-268): kolom version ErrorGroup & Ticket (record-sync, A
   - `SYNCED` kini memuat `"errorGroup"`, `"ticket"`.
   - `publishLocal(entity: Entity, id: string): Promise<void>` — append `SyncLog` (version+1) + siar.
 
-- [ ] **Step 1: Tulis test gagal (append di `sync.service.test.ts`)**
+- [x] **Step 1: Tulis test gagal (append di `sync.service.test.ts`)**
 
 Tambah di dalam `describe(...)` (setelah test terakhir). Perluas `clean()` di atas file jadi ikut menghapus errorGroup/ticket:
 ```ts
@@ -157,7 +157,7 @@ it("publishLocal: append SyncLog + naikkan version + panggil hook (SPEC-268)", a
 });
 ```
 
-- [ ] **Step 2: Run test → verifikasi GAGAL**
+- [x] **Step 2: Run test → verifikasi GAGAL**
 
 Run:
 ```bash
@@ -165,7 +165,7 @@ env -u NODE_ENV DATABASE_URL='postgresql://hanoman:hanoman@localhost:5432/hanoma
 ```
 Expected: FAIL (`publishLocal` tak ada / entity errorGroup tak dikenal).
 
-- [ ] **Step 3: Implement di `sync.ts`**
+- [x] **Step 3: Implement di `sync.ts`**
 
 `SYNCED`:
 ```ts
@@ -211,7 +211,7 @@ export async function publishLocal(entity: Entity, id: string): Promise<void> {
 }
 ```
 
-- [ ] **Step 4: Run test → verifikasi LULUS**
+- [x] **Step 4: Run test → verifikasi LULUS**
 
 Run:
 ```bash
@@ -219,7 +219,7 @@ env -u NODE_ENV DATABASE_URL='postgresql://hanoman:hanoman@localhost:5432/hanoma
 ```
 Expected: PASS semua.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/sync.ts server/test/sync.service.test.ts

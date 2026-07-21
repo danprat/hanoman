@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { prisma } from "../src/db";
-import { applyPush, pull, snapshot } from "../src/services/sync";
+import { applyPush, pull, snapshot, publishLocal } from "../src/services/sync";
 
 const clean = async () => {
   await prisma.syncLog.deleteMany();
+  await prisma.ticket.deleteMany(); await prisma.errorEvent.deleteMany(); await prisma.errorGroup.deleteMany();
   await prisma.spec.deleteMany(); await prisma.vps.deleteMany(); await prisma.project.deleteMany();
 };
 beforeEach(clean); afterAll(clean);
@@ -88,5 +89,39 @@ describe("sync service (SPEC-213 AC-9..15)", () => {
     await applyPush("project", "p1b", 0, { name: "p1", desc: "d", kind: "existing", stack: "", gitRemote: null, renamedFrom: "p1" });
     const again = await applyPush("project", "p1b", 0, { name: "p1", desc: "d", kind: "existing", stack: "", gitRemote: null, renamedFrom: "p1" });
     expect(again).toMatchObject({ ok: true });
+  });
+
+  it("errorGroup: snapshot berisi field bisnis, applyPush insert→v1 (SPEC-268)", async () => {
+    await project();
+    const r = await applyPush("errorGroup", "eg1", 0, {
+      projectId: "p1", fingerprint: "fp", type: "TypeError", message: "boom",
+      environment: "production", status: "new", count: 3,
+      firstSeenAt: new Date().toISOString(), lastSeenAt: new Date().toISOString(), specId: null,
+    });
+    expect(r).toMatchObject({ ok: true, version: 1 });
+    const snap = await snapshot("errorGroup", "eg1");
+    expect(snap?.data).toMatchObject({ type: "TypeError", status: "new", count: 3, fingerprint: "fp" });
+  });
+
+  it("ticket: snapshot menyertakan accessKeyHash, TIDAK ada lampiran (SPEC-268)", async () => {
+    await project();
+    await applyPush("ticket", "tk1", 0, {
+      projectId: "p1", number: 1, category: "bug", title: "judul", detail: "isi",
+      reporterEmail: "r@x.co", status: "new", accessKeyHash: "hashval", specId: null,
+      createdAt: new Date().toISOString(),
+    });
+    const snap = await snapshot("ticket", "tk1");
+    expect(snap?.data).toMatchObject({ number: 1, title: "judul", accessKeyHash: "hashval" });
+    expect(snap?.data).not.toHaveProperty("attachments");
+  });
+
+  it("publishLocal: append SyncLog + naikkan version + panggil hook (SPEC-268)", async () => {
+    await project();
+    await prisma.errorGroup.create({ data: { id: "eg2", projectId: "p1", fingerprint: "fp2", type: "E", message: "m", environment: "production", count: 1 } });
+    await publishLocal("errorGroup", "eg2");
+    const log = await prisma.syncLog.findFirst({ where: { entity: "errorGroup", recordId: "eg2" }, orderBy: { seq: "desc" } });
+    expect(log?.version).toBe(1);
+    expect((log?.data as Record<string, unknown>).type).toBe("E");
+    expect((await prisma.errorGroup.findUnique({ where: { id: "eg2" } }))?.version).toBe(1);
   });
 });
