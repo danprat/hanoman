@@ -228,7 +228,12 @@ DELETE /agent-tokens/:id             # 204 · revoke (set revokedAt); 404 tak ad
 > dikenal peta → cookie-only. Master switch `Setting.agentAccessEnabled` (PUT /settings) mematikan semua.
 
 > **Sync mesin-ke-mesin** (SPEC-213 · ADR-0043/0045/0046): surface `/api/sync/{pull,push,ws}` diotorisasi
-> **device token** (Bearer / `?token=` WS), di-**bypass** gate cookie. **KECUALI `POST /api/sync/now`**
+> **device token** (Bearer / `?token=` WS), di-**bypass** gate cookie.
+> **Byte lampiran** (SPEC-272 · ADR-0068): `GET /api/sync/attachments/:storageKey` — **device-token**
+> (bukan cookie), stream byte biner lampiran (`Content-Type` mime) untuk fetch-through client → `200` |
+> `404` (storageKey bukan milik `TicketAttachment`/file hilang) | `401` (tanpa device token). Metadata
+> lampiran sendiri menyeberang via feed `pull` (entitas `ticketAttachment`); byte **tidak** masuk feed.
+> **KECUALI `POST /api/sync/now`**
 > (SPEC-268 · ADR-0066) — pemicu **manual** dari tombol UI (Backlog/Errors/Triase): **cookie-authed**
 > (dikecualikan dari bypass di `app.ts`), tetap **non-delegatable** ke agent (`/sync` cookie-only → 403).
 > Menjalankan satu siklus `syncOnce` (pull-before-push) → `200 { ok:true, pulled, pushed, conflicts }`;
@@ -390,6 +395,7 @@ GET   /tickets?project=&status=&q=&page=&limit=  -> { items: TicketView[], total
 #   urut createdAt desc; q atas title+reporterEmail; paginasi response-layer (ADR-0038); unreviewed = jumlah status new.
 GET   /tickets/:id            -> TicketDetail { ...ticket, detail, attachments:[{id,filename,mimeType,size}], spec? } · 404
 GET   /tickets/:id/attachments/:attId    # stream berkas gambar (Content-Type mimeType) ber-auth · 404 (att bukan milik tiket)
+      # SPEC-272 · di CLIENT byte ditarik lazy dari hub (readUploadOrFetch → /sync/attachments) bila absen lokal, lalu di-cache
 POST  /tickets/:id/accept  { priority? }  # 201 { spec } — buat Spec source help prefilled + tandai tiket
 #   accepted + specId (tautan dua arah). Idempoten: sudah promoted → 200 { alreadyPromoted:true, spec }. 404.
 POST  /tickets/:id/unlink                 # 200 { id, status:"new", specId:null } — lepas tautan backlog (kebalikan accept).

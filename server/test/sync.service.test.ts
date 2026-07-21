@@ -4,6 +4,7 @@ import { applyPush, pull, snapshot, publishLocal, backfillFeed } from "../src/se
 
 const clean = async () => {
   await prisma.syncLog.deleteMany();
+  await prisma.ticketAttachment.deleteMany();
   await prisma.ticket.deleteMany(); await prisma.errorEvent.deleteMany(); await prisma.errorGroup.deleteMany();
   await prisma.spec.deleteMany(); await prisma.vps.deleteMany(); await prisma.project.deleteMany();
 };
@@ -148,5 +149,24 @@ describe("sync service (SPEC-213 AC-9..15)", () => {
     const feed2 = (await pull("0")).records.filter((r) => r.recordId === "g1");
     expect(feed2).toHaveLength(1);
     expect(n2).toBe(0);
+  });
+
+  it("ticketAttachment metadata roundtrip: push→pull membawa metadata, bukan byte (SPEC-272)", async () => {
+    await project();
+    await applyPush("ticket", "TCK-1", 0, {
+      projectId: "p1", number: 1, category: "bug", title: "t", detail: "d",
+      reporterEmail: "r@e.co", status: "new", accessKeyHash: "h", specId: null,
+    });
+    const r = await applyPush("ticketAttachment", "ATT-1", 0, {
+      ticketId: "TCK-1", projectId: "p1", filename: "shot.png",
+      mimeType: "image/png", size: 42, storageKey: "uuid-abc.png",
+    });
+    expect(r).toMatchObject({ ok: true, version: 1 });
+    const snap = await snapshot("ticketAttachment", "ATT-1");
+    expect(snap?.data).toMatchObject({ filename: "shot.png", storageKey: "uuid-abc.png", size: 42 });
+    // metadata di feed, tak ada field byte/isi biner
+    expect(Object.keys(snap!.data)).not.toContain("data");
+    const feed = await pull("0");
+    expect(feed.records.map((x) => x.recordId)).toContain("ATT-1");
   });
 });

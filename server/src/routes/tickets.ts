@@ -6,7 +6,7 @@ import { paginate } from "../services/paginate";
 import { nextSpecId } from "../services/id";
 import { resolveRepoDir } from "../services/local-binding";
 import { notifySynced } from "../services/sync-notify";
-import { readUpload, deleteUpload } from "../services/uploads";
+import { readUploadOrFetch, deleteUpload } from "../services/uploads";
 import { zTicketEditInput } from "@hanoman/shared";
 import type { Ticket } from "@prisma/client";
 
@@ -52,7 +52,7 @@ export default async function (app: FastifyInstance) {
     const { id, attId } = req.params as { id: string; attId: string };
     const a = await prisma.ticketAttachment.findUnique({ where: { id: attId } });
     if (!a || a.ticketId !== id) return reply.code(404).send({ error: "not found" });
-    const buf = await readUpload(a.storageKey).catch(() => null);
+    const buf = await readUploadOrFetch(a.storageKey).catch(() => null);
     if (!buf) return reply.code(404).send({ error: "not found" });
     reply.header("content-type", a.mimeType);
     return reply.send(buf);

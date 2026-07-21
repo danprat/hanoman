@@ -168,8 +168,11 @@ Enum `status` = `String` + zod (`zErrorStatus`), bukan enum Prisma.
 Help Center: keluhan pengguna akhir → antrean triase → promosi ke backlog. **SPEC-268/[ADR-0066](../adr/0066-errors-tickets-masuk-record-sync-plus-pemicu-manual.md):**
 **metadata** `Ticket` kini **tersync** (kolom `version`, entitas `ticket` di `SYNCED`); publish
 asal-hub pada create/accept/reject. `accessKeyHash` ikut snapshot (kolom `required @unique` tanpa
-default — kunci **plaintext** tak pernah menyeberang). **Lampiran** (`TicketAttachment`, file biner)
-**tetap server-local, tak disync**. `status`/`category` = `String` + zod (`zTicketStatus`/`zTicketCategory`), bukan enum Prisma.
+default — kunci **plaintext** tak pernah menyeberang). **SPEC-272/[ADR-0068](../adr/0068-lampiran-tiket-masuk-record-sync.md):**
+**metadata lampiran** (`TicketAttachment`) kini **tersync** (kolom `version`+`updatedAt`, entitas
+`ticketAttachment` di `SYNCED`); **byte biner tetap TIDAK masuk feed** — ditarik lazy dari hub saat
+lampiran pertama dibuka di client (`readUploadOrFetch` → `GET /api/sync/attachments/:storageKey`) lalu
+di-cache lokal. `status`/`category` = `String` + zod (`zTicketStatus`/`zTicketCategory`), bukan enum Prisma.
 - **`Ticket`** — tiket keluhan per project: `id` (cuid), `projectId`→Project (cascade), `number` (nomor
   pendek human-readable per project), `category` (`bug|fitur|pertanyaan|lainnya`), `title`, `detail`,
   `reporterEmail`, `status` (`new`|`accepted`|`rejected`, default `new`), `accessKeyHash` (**@unique**,
@@ -178,7 +181,9 @@ default — kunci **plaintext** tak pernah menyeberang). **Lampiran** (`TicketAt
   `(projectId, createdAt)`. Nomor dihitung `max+1` per project (retry P2002, cermin `nextSpecId`).
 - **`TicketAttachment`** — lampiran gambar: `id`, `ticketId`→Ticket (cascade), `projectId` (denormal,
   isolasi), `filename` (display), `mimeType`, `size`, `storageKey` (nama opaque `uuid+ext` di
-  `HANOMAN_UPLOAD_DIR` — server-local, **di luar repoDir, tak disync**), `createdAt`. Index `(ticketId)`.
+  `HANOMAN_UPLOAD_DIR` — **berkas biner** server-local, di luar repoDir, **tak masuk feed**), `createdAt`,
+  `updatedAt`, `version` (sync — SPEC-272). **Metadata** menyeberang lewat entitas `ticketAttachment`
+  di `SYNCED`; `storageKey` menyeberang sebagai **pointer opaque** (bukan isi file). Index `(ticketId)`.
 - Submit publik `POST /api/help/:slug/tickets` (multipart) diotorisasi **`Project.helpEnabled`**; cek status
   `GET /api/help/:slug/tickets/:key` diotorisasi **kunci opaque** — pengecualian sah gate `/api` (ADR-0062).
   Tiket baru → `Notification` type `ticket`. Promosi (`POST /tickets/:id/accept`) → `Spec` source `help`

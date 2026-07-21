@@ -8,6 +8,7 @@ import type { Client } from "../services/pty";
 import { applyPush, pull, isEntity, type Entity } from "../services/sync";
 import { syncNow, fetchTransport } from "../services/sync-client";
 import { listConflicts, resolveConflict } from "../services/conflicts";
+import { readUpload } from "../services/uploads";
 import { effectiveStr } from "../config";
 
 // SPEC-213 · ADR-0045/0046 · surface sync mesin-ke-mesin (device-token). Isi file dokumen
@@ -26,6 +27,18 @@ export default async function (app: FastifyInstance) {
   app.get("/sync/pull", { preHandler: requireDeviceToken }, async (req) => {
     const since = (req.query as { since?: string }).since ?? "0";
     return pull(since);
+  });
+
+  // SPEC-272 · ADR-0068 · byte lampiran untuk fetch-through client (device-token, bukan cookie).
+  // Divalidasi milik TicketAttachment → cegah baca file arbitrer di upload dir.
+  app.get("/sync/attachments/:storageKey", { preHandler: requireDeviceToken }, async (req, reply) => {
+    const { storageKey } = req.params as { storageKey: string };
+    const a = await prisma.ticketAttachment.findFirst({ where: { storageKey } });
+    if (!a) return reply.code(404).send({ error: "not found" });
+    const buf = await readUpload(a.storageKey).catch(() => null);
+    if (!buf) return reply.code(404).send({ error: "not found" });
+    reply.header("content-type", a.mimeType);
+    return reply.send(buf);
   });
 
   app.post("/sync/push", { preHandler: requireDeviceToken }, async (req, reply) => {

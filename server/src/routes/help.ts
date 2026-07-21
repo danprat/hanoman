@@ -73,12 +73,13 @@ export default async function (app: FastifyInstance) {
     });
     for (const f of files) {
       const { storageKey, size } = await saveUpload(f.buf, f.mime);
-      await prisma.ticketAttachment.create({
+      const att = await prisma.ticketAttachment.create({
         data: { ticketId: ticket.id, projectId: slug, filename: f.name.slice(0, 200), mimeType: f.mime, size, storageKey },
       });
+      await notifySynced("ticketAttachment", att.id); // SPEC-272 · metadata lampiran → feed
     }
     await recordNewTicket(ticket.id, slug, p.name, parsed.data.category, parsed.data.title);
-    await notifySynced("ticket", ticket.id); // SPEC-268 · tiket baru → feed (metadata; lampiran tak disync)
+    await notifySynced("ticket", ticket.id); // SPEC-268 · tiket baru → feed (metadata; SPEC-272 · lampiran metadata disync terpisah, byte lazy-fetch)
     void pruneOldTickets(); // retensi opportunistic-on-write (tanpa scheduler global)
 
     const statusPath = `/help/${encodeURIComponent(slug)}/status/${encodeURIComponent(key)}`;

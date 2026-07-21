@@ -40,7 +40,7 @@
 **Interfaces:**
 - Produces: kolom `TicketAttachment.version: Int (default 0)` dan `TicketAttachment.updatedAt: DateTime (@updatedAt)`. Prisma client meng-expose `prisma.ticketAttachment` dengan kedua field ini.
 
-- [ ] **Step 1: Tambah kolom di schema.prisma**
+- [x] **Step 1: Tambah kolom di schema.prisma**
 
 Di model `TicketAttachment`, setelah baris `ticket Ticket @relation(...)`, tambahkan:
 
@@ -62,7 +62,7 @@ model TicketAttachment {
 }
 ```
 
-- [ ] **Step 2: Tulis migration.sql**
+- [x] **Step 2: Tulis migration.sql**
 
 Buat file `server/prisma/migrations/2026072103_spec272_ticket_attachment_sync/migration.sql`:
 
@@ -72,7 +72,7 @@ ALTER TABLE "TicketAttachment" ADD COLUMN "version" INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE "TicketAttachment" ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
 ```
 
-- [ ] **Step 3: Terapkan migration ke DB dev + generate client**
+- [x] **Step 3: Terapkan migration ke DB dev + generate client**
 
 Run:
 ```bash
@@ -83,7 +83,7 @@ env -u NODE_ENV pnpm --filter ./server exec prisma generate
 ```
 Expected: "Applying migration `2026072103_spec272_ticket_attachment_sync`" lalu "Generated Prisma Client".
 
-- [ ] **Step 4: Terapkan migration ke DB test (base unik hanoman272_test)**
+- [x] **Step 4: Terapkan migration ke DB test (base unik hanoman272_test)**
 
 Run:
 ```bash
@@ -92,7 +92,7 @@ env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman
 ```
 Expected: semua migration ter-apply (DB baru), exit 0. (Jika DB belum ada, buat dulu: `docker exec hanoman-db-1 createdb -U hanoman hanoman272_test` atau biarkan `migrate deploy` gagal → buat lalu ulangi.)
 
-- [ ] **Step 5: Verifikasi kolom ada**
+- [x] **Step 5: Verifikasi kolom ada**
 
 Run:
 ```bash
@@ -100,7 +100,7 @@ docker exec hanoman-db-1 psql -U hanoman -d hanoman -tAc "\d \"TicketAttachment\
 ```
 Expected: dua baris menampilkan `version` dan `updatedAt`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/prisma/schema.prisma server/prisma/migrations/2026072103_spec272_ticket_attachment_sync/migration.sql
@@ -120,7 +120,7 @@ git commit -m "feat(spec-272): kolom version+updatedAt TicketAttachment (migrati
 - Consumes: kolom `version`/`updatedAt` dari Task 1.
 - Produces: `SYNCED` memuat `"ticketAttachment"`; `applyPush`/`pull`/`snapshot`/`backfillFeed` bekerja untuk entity ini. `FIELDS.ticketAttachment = ["ticketId","projectId","filename","mimeType","size","storageKey","createdAt","updatedAt"]`.
 
-- [ ] **Step 1: Update assertion di sync-exclusions.test.ts (failing test)**
+- [x] **Step 1: Update assertion di sync-exclusions.test.ts (failing test)**
 
 Ganti assertion daftar SYNCED (sekitar baris 22-24) menjadi:
 
@@ -132,7 +132,7 @@ Ganti assertion daftar SYNCED (sekitar baris 22-24) menjadi:
   });
 ```
 
-- [ ] **Step 2: Jalankan test → gagal**
+- [x] **Step 2: Jalankan test → gagal**
 
 Run:
 ```bash
@@ -141,7 +141,7 @@ env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman
 ```
 Expected: FAIL — SYNCED belum memuat `ticketAttachment`.
 
-- [ ] **Step 3: Tambah ticketAttachment ke sync.ts**
+- [x] **Step 3: Tambah ticketAttachment ke sync.ts**
 
 Di `server/src/services/sync.ts`:
 
@@ -166,7 +166,7 @@ export const SYNCED = ["project", "spec", "vps", "sessionResult", "errorGroup", 
   ticketAttachment: ["createdAt", "updatedAt"],
 ```
 
-- [ ] **Step 4: Jalankan exclusions test → lulus**
+- [x] **Step 4: Jalankan exclusions test → lulus**
 
 Run:
 ```bash
@@ -175,7 +175,7 @@ env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman
 ```
 Expected: PASS.
 
-- [ ] **Step 5: Tulis roundtrip metadata test (failing) di sync.service.test.ts**
+- [x] **Step 5: Tulis roundtrip metadata test (failing) di sync.service.test.ts**
 
 Tambah `ticketAttachment` ke `clean()` (baris sebelum `prisma.ticket.deleteMany()`):
 ```ts
@@ -204,7 +204,7 @@ Tambah test baru di dalam `describe`:
   });
 ```
 
-- [ ] **Step 6: Jalankan → gagal lalu (dengan Step 3 sudah ada) lulus**
+- [x] **Step 6: Jalankan → gagal lalu (dengan Step 3 sudah ada) lulus**
 
 Run:
 ```bash
@@ -213,7 +213,7 @@ env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman
 ```
 Expected: PASS (implementasi Step 3 sudah menopang roundtrip).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/services/sync.ts server/test/sync-exclusions.test.ts server/test/sync.service.test.ts
@@ -232,7 +232,7 @@ git commit -m "feat(spec-272): ticketAttachment jadi entity SYNCED (metadata rou
 - Consumes: `requireDeviceToken` preHandler (sudah ada), `readUpload` dari `../services/uploads`.
 - Produces: `GET /api/sync/attachments/:storageKey` → 200 byte (content-type mime) untuk storageKey milik `TicketAttachment`; 404 bila tak dikenal/hilang; 401 tanpa device token.
 
-- [ ] **Step 1: Tulis test (failing) di sync.route.test.ts**
+- [x] **Step 1: Tulis test (failing) di sync.route.test.ts**
 
 Tambah import di atas:
 ```ts
@@ -258,7 +258,7 @@ Tambah `prisma.ticketAttachment.deleteMany()` di awal `clean()`. Tambah test:
   });
 ```
 
-- [ ] **Step 2: Jalankan → gagal**
+- [x] **Step 2: Jalankan → gagal**
 
 Run:
 ```bash
@@ -267,7 +267,7 @@ env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman
 ```
 Expected: FAIL — route belum ada (404 untuk case 200).
 
-- [ ] **Step 3: Tambah route di sync.ts**
+- [x] **Step 3: Tambah route di sync.ts**
 
 Tambah import di atas (setelah import lain):
 ```ts
@@ -288,7 +288,7 @@ Tambah route tepat setelah handler `/sync/pull`:
   });
 ```
 
-- [ ] **Step 4: Jalankan → lulus**
+- [x] **Step 4: Jalankan → lulus**
 
 Run:
 ```bash
@@ -297,7 +297,7 @@ env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman
 ```
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/routes/sync.ts server/test/sync.route.test.ts
@@ -316,7 +316,7 @@ git commit -m "feat(spec-272): endpoint biner hub /sync/attachments/:key (device
 - Consumes: `effectiveStr("SYNC_SERVER_URL")`, `effectiveStr("SYNC_DEVICE_TOKEN")` dari `../config`; endpoint Task 3.
 - Produces: `readUploadOrFetch(storageKey: string): Promise<Buffer>` — baca lokal; bila ENOENT & client sync → tarik dari hub, cache ke upload dir, kembalikan buffer; else throw.
 
-- [ ] **Step 1: Tulis test (failing) di uploads.test.ts**
+- [x] **Step 1: Tulis test (failing) di uploads.test.ts**
 
 Tambah import:
 ```ts
@@ -362,7 +362,7 @@ Tambah test di dalam `describe("uploads")`:
   });
 ```
 
-- [ ] **Step 2: Jalankan → gagal**
+- [x] **Step 2: Jalankan → gagal**
 
 Run:
 ```bash
@@ -371,7 +371,7 @@ env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman
 ```
 Expected: FAIL — `readUploadOrFetch` belum diekspor.
 
-- [ ] **Step 3: Implementasi readUploadOrFetch**
+- [x] **Step 3: Implementasi readUploadOrFetch**
 
 Di `server/src/services/uploads.ts`, tambah setelah `readUpload`:
 ```ts
@@ -399,7 +399,7 @@ export async function readUploadOrFetch(storageKey: string): Promise<Buffer> {
 }
 ```
 
-- [ ] **Step 4: Jalankan → lulus**
+- [x] **Step 4: Jalankan → lulus**
 
 Run:
 ```bash
@@ -408,7 +408,7 @@ env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman
 ```
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/uploads.ts server/src/services/uploads.test.ts
@@ -428,21 +428,21 @@ git commit -m "feat(spec-272): readUploadOrFetch fetch-through byte lampiran dar
 - Consumes: `readUploadOrFetch` (Task 4), `notifySynced` (sudah dipakai di help.ts).
 - Produces: route `GET /tickets/:id/attachments/:attId` memakai fetch-through; tiap lampiran baru → `notifySynced("ticketAttachment", att.id)`.
 
-- [ ] **Step 1: Ganti import di tickets.ts**
+- [x] **Step 1: Ganti import di tickets.ts**
 
 Baris 9:
 ```ts
 import { readUploadOrFetch, deleteUpload } from "../services/uploads";
 ```
 
-- [ ] **Step 2: Pakai readUploadOrFetch di route serve lampiran**
+- [x] **Step 2: Pakai readUploadOrFetch di route serve lampiran**
 
 Di handler `GET /tickets/:id/attachments/:attId` ganti baris `readUpload`:
 ```ts
     const buf = await readUploadOrFetch(a.storageKey).catch(() => null);
 ```
 
-- [ ] **Step 3: Publish lampiran baru ke feed di help.ts**
+- [x] **Step 3: Publish lampiran baru ke feed di help.ts**
 
 Di loop upload (`for (const f of files)`), setelah `prisma.ticketAttachment.create`, tangkap hasilnya & notifikasi:
 ```ts
@@ -456,7 +456,7 @@ Di loop upload (`for (const f of files)`), setelah `prisma.ticketAttachment.crea
 ```
 Pastikan `notifySynced` sudah di-import di help.ts (bila belum: `import { notifySynced } from "../services/sync-notify";`).
 
-- [ ] **Step 4: Tulis test serve lokal (failing bila regresi) di tickets.test.ts**
+- [x] **Step 4: Tulis test serve lokal (failing bila regresi) di tickets.test.ts**
 
 Tambah test di dalam `describe("SPEC-253 · triase tiket", ...)`:
 ```ts
@@ -473,7 +473,7 @@ Tambah test di dalam `describe("SPEC-253 · triase tiket", ...)`:
   });
 ```
 
-- [ ] **Step 5: Jalankan test terkait**
+- [x] **Step 5: Jalankan test terkait**
 
 Run:
 ```bash
@@ -482,7 +482,7 @@ env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman
 ```
 Expected: PASS (serve pakai fetch-through; di test SYNC_SERVER_URL kosong → sama seperti readUpload).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/routes/tickets.ts server/src/routes/help.ts server/test/tickets.test.ts
@@ -502,24 +502,24 @@ git commit -m "feat(spec-272): serve lampiran via fetch-through + publish lampir
 - Consumes: seluruh perubahan Task 1-5.
 - Produces: SoT selaras dengan implementasi.
 
-- [ ] **Step 1: Tulis ADR-0068**
+- [x] **Step 1: Tulis ADR-0068**
 
 Buat `internal/docs/adr/0068-lampiran-tiket-masuk-record-sync.md` mengikuti format ADR-0066/0067 (Konteks / Keputusan / Konsekuensi). Isi inti:
 - Konteks: ADR-0066 mengecualikan `TicketAttachment` dari sync → lampiran tak terlihat di local.
 - Keputusan: `ticketAttachment` jadi entity SYNCED (metadata via `SyncLog`); byte biner **tidak** masuk feed, ditarik lazy dari hub lewat `GET /api/sync/attachments/:storageKey` (device-token), di-cache lokal. Arah hub→local.
 - Konsekuensi: mencabut kalimat "lampiran biner tak disync" ADR-0066; kolom `version`/`updatedAt` ditambah; delete/tombstone & dua-arah tetap di luar scope.
 
-- [ ] **Step 2: Update doc data-model & api-contract & architecture**
+- [x] **Step 2: Update doc data-model & api-contract & architecture**
 
 - data-model: dokumentasikan kolom baru `TicketAttachment.version`/`updatedAt` + statusnya sebagai entity SYNCED.
 - api-contract: tambah `GET /api/sync/attachments/:storageKey` (device-token, 200 byte/401/404) + catatan serve lampiran local kini fetch-through.
 - architecture/sync: catat lazy fetch-through & backfillFeed mencakup ticketAttachment.
 
-- [ ] **Step 3: Tautkan di README SoT**
+- [x] **Step 3: Tautkan di README SoT**
 
 Tambah baris untuk ADR-0068 & doc tersentuh di `internal/docs/README.md`.
 
-- [ ] **Step 4: Verifikasi coverage SoT (dep-free)**
+- [x] **Step 4: Verifikasi coverage SoT (dep-free)**
 
 Run:
 ```bash
@@ -527,7 +527,7 @@ env -u NODE_ENV pnpm --filter ./shared exec tsx src/coverage.ts 2>/dev/null || n
 ```
 Expected: tak ada doc yatim/unreferenced baru (sesuaikan bila tool beda — lihat memory "Verify coverage without server").
 
-- [ ] **Step 5: Smoke API nyata di local (WAJIB)**
+- [x] **Step 5: Smoke API nyata di local (WAJIB)**
 
 Boot server terhadap DB throwaway lalu uji alur nyata:
 ```bash
@@ -543,7 +543,7 @@ sleep 2
 ```
 Uji: buat project + tiket + lampiran (via prisma atau route help), lalu `curl -s http://127.0.0.1:8799/api/tickets/<id>/attachments/<attId> -o /tmp/att.png -w "%{http_code}\n"` → 200 & file byte benar. Matikan server smoke setelahnya (`kill %1`).
 
-- [ ] **Step 6: Full suite (regresi) + commit docs**
+- [x] **Step 6: Full suite (regresi) + commit docs**
 
 Run:
 ```bash
