@@ -1,6 +1,6 @@
 # SPEC-269 — Edit & hapus Errors/Triase + modal konfirmasi — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Tambah edit (status untuk Errors; title/detail/category/status untuk Triase) + delete untuk kedua area, dengan modal konfirmasi hapus reusable.
 
@@ -27,7 +27,7 @@
 **Interfaces:**
 - Produces: `zTicketEditInput` (zod, partial, refine non-empty), `type TicketEditInput`.
 
-- [ ] **Step 1: Tambah DTO di `shared/src/dto.ts`** setelah `zTicketDetail` (sekitar line 317). Pastikan `zTicketCategory` & `zTicketStatus` ter-import dari `./enums` di atas file (tambahkan bila belum).
+- [x] **Step 1: Tambah DTO di `shared/src/dto.ts`** setelah `zTicketDetail` (sekitar line 317). Pastikan `zTicketCategory` & `zTicketStatus` ter-import dari `./enums` di atas file (tambahkan bila belum).
 
 ```ts
 // SPEC-269 · input edit tiket (triase). Semua field opsional; minimal satu.
@@ -43,11 +43,11 @@ export const zTicketEditInput = z
 export type TicketEditInput = z.infer<typeof zTicketEditInput>;
 ```
 
-- [ ] **Step 2: Verifikasi import enum.** Cek baris import di atas `dto.ts`; jika `zTicketCategory`/`zTicketStatus` belum diimpor, tambahkan ke import dari `./enums`.
+- [x] **Step 2: Verifikasi import enum.** Cek baris import di atas `dto.ts`; jika `zTicketCategory`/`zTicketStatus` belum diimpor, tambahkan ke import dari `./enums`.
 
-- [ ] **Step 3: Build shared** — `pnpm --filter @hanoman/shared build`. Expected: exit 0.
+- [x] **Step 3: Build shared** — `pnpm --filter @hanoman/shared build`. Expected: exit 0.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add shared/src/dto.ts
@@ -65,7 +65,7 @@ git commit -m "feat(spec-269): shared zTicketEditInput DTO"
 **Interfaces:**
 - Produces: `DELETE /api/errors/:id` → `{ ok: true }`; 404 bila tak ada. Events cascade.
 
-- [ ] **Step 1: Tulis test gagal** di `server/test/errors.route.test.ts` (tambah `it` di describe yang ada; sesuaikan helper pembuat grup dengan yang sudah dipakai file itu):
+- [x] **Step 1: Tulis test gagal** di `server/test/errors.route.test.ts` (tambah `it` di describe yang ada; sesuaikan helper pembuat grup dengan yang sudah dipakai file itu):
 
 ```ts
 it("DELETE /errors/:id menghapus grup + events; 404 id asing", async () => {
@@ -83,9 +83,9 @@ it("DELETE /errors/:id menghapus grup + events; 404 id asing", async () => {
 ```
 > Catatan eksekusi: baca file test dulu untuk `PROJECT_ID`/helper yang benar; sesuaikan nama.
 
-- [ ] **Step 2: Jalankan test → gagal** (route belum ada). Expected: FAIL 404/501.
+- [x] **Step 2: Jalankan test → gagal** (route belum ada). Expected: FAIL 404/501.
 
-- [ ] **Step 3: Implementasi** — tambah handler di `errors.ts` setelah `patch`:
+- [x] **Step 3: Implementasi** — tambah handler di `errors.ts` setelah `patch`:
 
 ```ts
   // SPEC-269 · hapus grup error (events cascade via onDelete: Cascade).
@@ -98,9 +98,9 @@ it("DELETE /errors/:id menghapus grup + events; 404 id asing", async () => {
   });
 ```
 
-- [ ] **Step 4: Jalankan test → lulus.**
+- [x] **Step 4: Jalankan test → lulus.**
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/routes/errors.ts server/test/errors.route.test.ts
@@ -119,7 +119,7 @@ git commit -m "feat(spec-269): DELETE /errors/:id (cascade events)"
 - Consumes: `zTicketEditInput` (Task 1), `deleteUpload` (services/uploads).
 - Produces: `PATCH /api/tickets/:id` → `TicketDetail`(+spec); `DELETE /api/tickets/:id` → `{ ok: true }`.
 
-- [ ] **Step 1: Tulis test gagal** — tambah describe di `server/test/tickets.test.ts`:
+- [x] **Step 1: Tulis test gagal** — tambah describe di `server/test/tickets.test.ts`:
 
 ```ts
 describe("SPEC-269 · edit & hapus tiket", () => {
@@ -151,9 +151,9 @@ describe("SPEC-269 · edit & hapus tiket", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test → gagal.**
+- [x] **Step 2: Jalankan test → gagal.**
 
-- [ ] **Step 3: Implementasi** — di `tickets.ts`: (a) ubah import uploads jadi `import { readUpload, deleteUpload } from "../services/uploads";`; (b) tambah import `import { zTicketEditInput } from "@hanoman/shared";`; (c) tambah handler setelah `reject`:
+- [x] **Step 3: Implementasi** — di `tickets.ts`: (a) ubah import uploads jadi `import { readUpload, deleteUpload } from "../services/uploads";`; (b) tambah import `import { zTicketEditInput } from "@hanoman/shared";`; (c) tambah handler setelah `reject`:
 
 ```ts
   // SPEC-269 · edit isi tiket (triase). Field opsional; minimal satu.
@@ -186,9 +186,9 @@ describe("SPEC-269 · edit & hapus tiket", () => {
   });
 ```
 
-- [ ] **Step 4: Jalankan test → lulus.**
+- [x] **Step 4: Jalankan test → lulus.**
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/routes/tickets.ts server/test/tickets.test.ts
@@ -206,9 +206,9 @@ git commit -m "feat(spec-269): PATCH + DELETE /tickets/:id (edit & hapus + clean
 - Consumes: `TicketEditInput` (Task 1).
 - Produces: `api.deleteError(id)`, `api.editTicket(id, input)`, `api.deleteTicket(id)`.
 
-- [ ] **Step 1: Tambah `TicketEditInput` ke import `@hanoman/shared`** di header `client.ts` (cari import type yang memuat `TicketDetail`).
+- [x] **Step 1: Tambah `TicketEditInput` ke import `@hanoman/shared`** di header `client.ts` (cari import type yang memuat `TicketDetail`).
 
-- [ ] **Step 2: Tambah metode.** Setelah `patchError` (line 265) tambah:
+- [x] **Step 2: Tambah metode.** Setelah `patchError` (line 265) tambah:
 
 ```ts
   deleteError: (id: string) => j<{ ok: boolean }>(paths.error(id), { method: "DELETE" }),
@@ -221,9 +221,9 @@ Setelah `rejectTicket` (line 278) tambah:
   deleteTicket: (id: string) => j<{ ok: boolean }>(paths.ticket(id), { method: "DELETE" }),
 ```
 
-- [ ] **Step 3: Typecheck** — `pnpm --filter @hanoman/app exec tsc --noEmit` (atau build client). Expected: exit 0.
+- [x] **Step 3: Typecheck** — `pnpm --filter @hanoman/app exec tsc --noEmit` (atau build client). Expected: exit 0.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/src/api/client.ts
@@ -242,7 +242,7 @@ git commit -m "feat(spec-269): client api deleteError/editTicket/deleteTicket"
 **Interfaces:**
 - Produces: `<ConfirmDialog open title message eyebrow confirmLabel cancelLabel tone busy onConfirm onCancel />`.
 
-- [ ] **Step 1: Tulis test gagal** `src/test/confirm-dialog.test.tsx` (samakan setup render dengan test DS/screen lain — `@testing-library/react`, `vitest`):
+- [x] **Step 1: Tulis test gagal** `src/test/confirm-dialog.test.tsx` (samakan setup render dengan test DS/screen lain — `@testing-library/react`, `vitest`):
 
 ```tsx
 import { describe, it, expect, vi } from "vitest";
@@ -268,9 +268,9 @@ describe("ConfirmDialog", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test → gagal** (modul belum ada).
+- [x] **Step 2: Jalankan test → gagal** (modul belum ada).
 
-- [ ] **Step 3: Buat `src/src/ds/ConfirmDialog.tsx`:**
+- [x] **Step 3: Buat `src/src/ds/ConfirmDialog.tsx`:**
 
 ```tsx
 // SPEC-269 · dialog konfirmasi reusable (di atas Modal). Dipakai untuk aksi hapus data.
@@ -304,15 +304,15 @@ export function ConfirmDialog({
 }
 ```
 
-- [ ] **Step 4: Ekspor** — tambah ke `src/src/ds/index.ts`:
+- [x] **Step 4: Ekspor** — tambah ke `src/src/ds/index.ts`:
 
 ```ts
 export { ConfirmDialog } from "./ConfirmDialog";
 ```
 
-- [ ] **Step 5: Jalankan test → lulus.**
+- [x] **Step 5: Jalankan test → lulus.**
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/src/ds/ConfirmDialog.tsx src/src/ds/index.ts src/test/confirm-dialog.test.tsx
@@ -330,10 +330,10 @@ git commit -m "feat(spec-269): ConfirmDialog DS component"
 **Interfaces:**
 - Consumes: `api.patchError`, `api.deleteError`, `ConfirmDialog`.
 
-- [ ] **Step 1: Import ConfirmDialog** — ubah baris import DS jadi menyertakan `ConfirmDialog`:
+- [x] **Step 1: Import ConfirmDialog** — ubah baris import DS jadi menyertakan `ConfirmDialog`:
 `import { Button, Badge, Select, StateBlock, Icon, ConfirmDialog } from "../ds";`
 
-- [ ] **Step 2: Ubah signature `GroupDetail`** untuk menerima `onDeleted`:
+- [x] **Step 2: Ubah signature `GroupDetail`** untuk menerima `onDeleted`:
 
 ```tsx
 function GroupDetail({ id, onBack, onEscalated, onDeleted, onToast }:
@@ -342,13 +342,13 @@ function GroupDetail({ id, onBack, onEscalated, onDeleted, onToast }:
     onToast: (msg: string, kind?: string, icon?: string) => void }) {
 ```
 
-- [ ] **Step 3: Tambah state confirm** di dalam `GroupDetail` (dekat `const [busy, setBusy] = ...`):
+- [x] **Step 3: Tambah state confirm** di dalam `GroupDetail` (dekat `const [busy, setBusy] = ...`):
 
 ```tsx
   const [confirm, setConfirm] = React.useState(false);
 ```
 
-- [ ] **Step 4: Ganti fungsi `resolve()`** dengan `changeStatus` + `remove`:
+- [x] **Step 4: Ganti fungsi `resolve()`** dengan `changeStatus` + `remove`:
 
 ```tsx
   async function changeStatus(status: string) {
@@ -364,7 +364,7 @@ function GroupDetail({ id, onBack, onEscalated, onDeleted, onToast }:
   }
 ```
 
-- [ ] **Step 5: Ganti baris aksi** (baris `{g.status !== "resolved" && <Button ... resolve>...}` di ~line 93) dengan selector status + tombol hapus:
+- [x] **Step 5: Ganti baris aksi** (baris `{g.status !== "resolved" && <Button ... resolve>...}` di ~line 93) dengan selector status + tombol hapus:
 
 ```tsx
         <Select size="sm" value={g.status} disabled={busy}
@@ -373,7 +373,7 @@ function GroupDetail({ id, onBack, onEscalated, onDeleted, onToast }:
         <Button size="sm" variant="ghost" leftIcon="trash-2" onClick={() => setConfirm(true)} disabled={busy}>Hapus</Button>
 ```
 
-- [ ] **Step 6: Tambah `<ConfirmDialog>`** sebelum penutup `</div>` root `GroupDetail` (setelah blok `sampleStack`):
+- [x] **Step 6: Tambah `<ConfirmDialog>`** sebelum penutup `</div>` root `GroupDetail` (setelah blok `sampleStack`):
 
 ```tsx
       <ConfirmDialog open={confirm} title="Hapus grup error?" eyebrow={g.type}
@@ -381,13 +381,13 @@ function GroupDetail({ id, onBack, onEscalated, onDeleted, onToast }:
         busy={busy} onCancel={() => setConfirm(false)} onConfirm={remove} />
 ```
 
-- [ ] **Step 7: Teruskan `onDeleted`** di pemanggilan `GroupDetail` dalam `ErrorsScreen` (~line 144):
+- [x] **Step 7: Teruskan `onDeleted`** di pemanggilan `GroupDetail` dalam `ErrorsScreen` (~line 144):
 
 ```tsx
   if (openId) return <GroupDetail id={openId} onBack={() => { setOpenId(null); load(true); }} onEscalated={onEscalated} onDeleted={() => { setOpenId(null); load(true); }} onToast={onToast} />;
 ```
 
-- [ ] **Step 8: Tambah/perbarui test** `src/test/errors-screen.test.tsx` — baca file dulu untuk gaya mock `api`; tambah kasus: buka detail → klik "Hapus" → modal muncul → klik konfirmasi "Hapus" → `api.deleteError` terpanggil. Contoh assertion:
+- [x] **Step 8: Tambah/perbarui test** `src/test/errors-screen.test.tsx` — baca file dulu untuk gaya mock `api`; tambah kasus: buka detail → klik "Hapus" → modal muncul → klik konfirmasi "Hapus" → `api.deleteError` terpanggil. Contoh assertion:
 
 ```tsx
   // dalam test yang membuka GroupDetail:
@@ -396,9 +396,9 @@ function GroupDetail({ id, onBack, onEscalated, onDeleted, onToast }:
   await waitFor(() => expect(api.deleteError).toHaveBeenCalledWith("grp-1"));
 ```
 
-- [ ] **Step 9: Jalankan test errors-screen → lulus.**
+- [x] **Step 9: Jalankan test errors-screen → lulus.**
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add src/src/screens/ErrorsScreen.tsx src/test/errors-screen.test.tsx
@@ -416,10 +416,10 @@ git commit -m "feat(spec-269): ErrorsScreen status selector + hapus grup (modal 
 **Interfaces:**
 - Consumes: `api.editTicket`, `api.deleteTicket`, `ConfirmDialog`, DS `Input`/`Field`/`HnTextarea`.
 
-- [ ] **Step 1: Import** — ubah baris import DS:
+- [x] **Step 1: Import** — ubah baris import DS:
 `import { Button, Badge, Select, StateBlock, Icon, Input, Field, HnTextarea, ConfirmDialog } from "../ds";`
 
-- [ ] **Step 2: Ubah signature `TicketDetailView`** untuk menerima `onDeleted`:
+- [x] **Step 2: Ubah signature `TicketDetailView`** untuk menerima `onDeleted`:
 
 ```tsx
 function TicketDetailView({ id, onBack, onAccepted, onDeleted, onToast }:
@@ -428,7 +428,7 @@ function TicketDetailView({ id, onBack, onAccepted, onDeleted, onToast }:
     onToast: (msg: string, kind?: string, icon?: string) => void }) {
 ```
 
-- [ ] **Step 3: Tambah state** dekat `const [priority, ...]`:
+- [x] **Step 3: Tambah state** dekat `const [priority, ...]`:
 
 ```tsx
   const [editing, setEditing] = React.useState(false);
@@ -436,7 +436,7 @@ function TicketDetailView({ id, onBack, onAccepted, onDeleted, onToast }:
   const [form, setForm] = React.useState({ title: "", detail: "", category: "bug", status: "new" });
 ```
 
-- [ ] **Step 4: Tambah fungsi** setelah `reject()`:
+- [x] **Step 4: Tambah fungsi** setelah `reject()`:
 
 ```tsx
   function startEdit() {
@@ -458,7 +458,7 @@ function TicketDetailView({ id, onBack, onAccepted, onDeleted, onToast }:
   }
 ```
 
-- [ ] **Step 5: Render mode edit** — tepat sebelum `const done = t.status !== "new";` tambahkan early-return form:
+- [x] **Step 5: Render mode edit** — tepat sebelum `const done = t.status !== "new";` tambahkan early-return form:
 
 ```tsx
   if (editing) {
@@ -482,14 +482,14 @@ function TicketDetailView({ id, onBack, onAccepted, onDeleted, onToast }:
   }
 ```
 
-- [ ] **Step 6: Tambah tombol Ubah + Hapus** di baris aksi header — sisipkan setelah `<span style={{ flex: 1 }} />` (line ~93), sebelum blok `{t.specId ? ...}`:
+- [x] **Step 6: Tambah tombol Ubah + Hapus** di baris aksi header — sisipkan setelah `<span style={{ flex: 1 }} />` (line ~93), sebelum blok `{t.specId ? ...}`:
 
 ```tsx
         <Button size="sm" variant="ghost" leftIcon="pencil" onClick={startEdit} disabled={busy}>Ubah</Button>
         <Button size="sm" variant="ghost" leftIcon="trash-2" onClick={() => setConfirm(true)} disabled={busy}>Hapus</Button>
 ```
 
-- [ ] **Step 7: Tambah `<ConfirmDialog>`** sebelum penutup `</div>` root (setelah blok `attachments`):
+- [x] **Step 7: Tambah `<ConfirmDialog>`** sebelum penutup `</div>` root (setelah blok `attachments`):
 
 ```tsx
       <ConfirmDialog open={confirm} title="Hapus tiket?" eyebrow={`#${t.number}`}
@@ -497,17 +497,17 @@ function TicketDetailView({ id, onBack, onAccepted, onDeleted, onToast }:
         busy={busy} onCancel={() => setConfirm(false)} onConfirm={remove} />
 ```
 
-- [ ] **Step 8: Teruskan `onDeleted`** di pemanggilan `TicketDetailView` (~line 161):
+- [x] **Step 8: Teruskan `onDeleted`** di pemanggilan `TicketDetailView` (~line 161):
 
 ```tsx
   if (openId) return <TicketDetailView id={openId} onBack={() => { setOpenId(null); load(true); }} onAccepted={onAccepted} onDeleted={() => { setOpenId(null); load(true); }} onToast={onToast} />;
 ```
 
-- [ ] **Step 9: Tambah test** `src/test/triage.test.tsx` — baca dulu; tambah: (a) buka tiket → "Ubah" → ubah judul → "Simpan" → `api.editTicket` terpanggil; (b) buka tiket → "Hapus" → konfirmasi → `api.deleteTicket` terpanggil.
+- [x] **Step 9: Tambah test** `src/test/triage.test.tsx` — baca dulu; tambah: (a) buka tiket → "Ubah" → ubah judul → "Simpan" → `api.editTicket` terpanggil; (b) buka tiket → "Hapus" → konfirmasi → `api.deleteTicket` terpanggil.
 
-- [ ] **Step 10: Jalankan test triage → lulus.**
+- [x] **Step 10: Jalankan test triage → lulus.**
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add src/src/screens/TriageScreen.tsx src/test/triage.test.tsx
@@ -524,11 +524,11 @@ git commit -m "feat(spec-269): TriageScreen edit tiket + hapus (modal konfirmasi
 
 **Interfaces:** —
 
-- [ ] **Step 1: Dokumentasikan** endpoint baru di `api-contract.md` di bagian Errors & Help Center/triase: `DELETE /api/errors/:id`, `PATCH /api/tickets/:id`, `DELETE /api/tickets/:id` (sertakan body & response ringkas + catatan cascade & cleanup lampiran + capability `support:write`).
+- [x] **Step 1: Dokumentasikan** endpoint baru di `api-contract.md` di bagian Errors & Help Center/triase: `DELETE /api/errors/:id`, `PATCH /api/tickets/:id`, `DELETE /api/tickets/:id` (sertakan body & response ringkas + catatan cascade & cleanup lampiran + capability `support:write`).
 
-- [ ] **Step 2: Verifikasi index** — `api-contract.md` sudah ter-link di `README.md`; tambah baris riwayat bila konvensi file menghendaki.
+- [x] **Step 2: Verifikasi index** — `api-contract.md` sudah ter-link di `README.md`; tambah baris riwayat bila konvensi file menghendaki.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add internal/docs/architecture/api-contract.md internal/docs/README.md
@@ -539,13 +539,13 @@ git commit -m "docs(spec-269): api-contract DELETE errors + PATCH/DELETE tickets
 
 ### Task 9: Verifikasi menyeluruh
 
-- [ ] **Step 1: Test server** — `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server vitest run --no-file-parallelism` (atau perintah repo). Expected: hijau, termasuk `agent-capabilities.test.ts`.
-- [ ] **Step 2: Test client** — jalankan vitest client (errors-screen, triage, confirm-dialog). Expected: hijau.
-- [ ] **Step 3: Boot server + curl nyata** — boot terhadap DB throwaway (bukan `hanoman_test`; lihat memory "Live smoke: dedicated DB"), seed 1 grup error + 1 tiket, lalu:
+- [x] **Step 1: Test server** — `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server vitest run --no-file-parallelism` (atau perintah repo). Expected: hijau, termasuk `agent-capabilities.test.ts`.
+- [x] **Step 2: Test client** — jalankan vitest client (errors-screen, triage, confirm-dialog). Expected: hijau.
+- [x] **Step 3: Boot server + curl nyata** — boot terhadap DB throwaway (bukan `hanoman_test`; lihat memory "Live smoke: dedicated DB"), seed 1 grup error + 1 tiket, lalu:
   - `DELETE /api/errors/:id` → 200 `{ok:true}`, GET → 404.
   - `PATCH /api/tickets/:id {title}` → 200 title berubah.
   - `DELETE /api/tickets/:id` → 200 `{ok:true}`, GET → 404.
-- [ ] **Step 4:** Bila ada yang merah, fix sampai hijau sebelum menutup Execute.
+- [x] **Step 4:** Bila ada yang merah, fix sampai hijau sebelum menutup Execute.
 
 ## Self-Review
 
