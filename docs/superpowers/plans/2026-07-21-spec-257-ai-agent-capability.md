@@ -235,7 +235,7 @@ git commit -m "feat(spec-257): shared capability catalog + agent token DTOs + Se
 **Interfaces:**
 - Produces: `prisma.agentToken` model with fields `id, name, tokenHash(unique), tokenPrefix, capabilities(Json), enabled(default true), createdBy?, createdAt, lastUsedAt?, revokedAt?`.
 
-- [ ] **Step 1: Add model to `server/prisma/schema.prisma`** (setelah `model DeviceToken { ... }`):
+- [x] **Step 1: Add model to `server/prisma/schema.prisma`** (setelah `model DeviceToken { ... }`):
 
 ```prisma
 // SPEC-257 · ADR-0065 · kredensial AI agent eksternal. Server-local (cermin DeviceToken, TAK disync).
@@ -254,7 +254,7 @@ model AgentToken {
 }
 ```
 
-- [ ] **Step 2: Hand-write migration** — `server/prisma/migrations/2026072100_spec257_agent_token/migration.sql`:
+- [x] **Step 2: Hand-write migration** — `server/prisma/migrations/2026072100_spec257_agent_token/migration.sql`:
 
 ```sql
 -- SPEC-257 · ADR-0065 · AgentToken (kredensial AI agent, server-local) + Setting.agentAccessEnabled (blob Json, tanpa DDL)
@@ -274,7 +274,7 @@ CREATE TABLE "AgentToken" (
 CREATE UNIQUE INDEX "AgentToken_tokenHash_key" ON "AgentToken"("tokenHash");
 ```
 
-- [ ] **Step 3: Apply migration to dev + test DB, then generate**
+- [x] **Step 3: Apply migration to dev + test DB, then generate**
 
 Run (dev DB = `DATABASE_URL` di root `.env`; test DB = sibling `_test`):
 ```bash
@@ -286,17 +286,17 @@ pnpm --filter ./server exec prisma generate
 Expected: kedua DB melaporkan migration `2026072100_spec257_agent_token` applied; generate sukses (Prisma Client memuat `AgentToken`).
 (Bila `prisma migrate deploy` menolak karena drift sibling worktree, terapkan `migration.sql` langsung: `docker exec -i hanoman-db-1 psql -U hanoman -d hanoman < server/prisma/migrations/2026072100_spec257_agent_token/migration.sql` dan sekali lagi untuk `-d hanoman_test`, lalu `prisma generate`.)
 
-- [ ] **Step 4: Verify Prisma Client sees the model**
+- [x] **Step 4: Verify Prisma Client sees the model**
 
 Run: `pnpm --filter ./server exec tsx -e "import {PrismaClient} from '@prisma/client'; const p=new PrismaClient(); p.agentToken.count().then(n=>{console.log('agentToken rows:',n);process.exit(0)}).catch(e=>{console.error(e);process.exit(1)})"`
 Expected: prints `agentToken rows: 0` (table exists, empty).
 
-- [ ] **Step 5: Update data-model doc** — `internal/docs/architecture/data-model.md`:
+- [x] **Step 5: Update data-model doc** — `internal/docs/architecture/data-model.md`:
   - Di paragraf pembuka, tambahkan `AgentToken` ke daftar model pendukung (dekat `DeviceToken`).
   - Di bagian `## Setting`, tambah butir: `agentAccessEnabled` (Boolean, default false, SPEC-257/ADR-0065) — master switch akses AI agent; false → semua agent token ditolak.
   - Tambah section baru `## AgentToken (SPEC-257 · ADR-0065)` menjelaskan: server-local tanpa sync (cermin DeviceToken); `tokenHash=sha256` hash-at-rest tak pernah ke client; `capabilities` Json string[] divalidasi zod; `enabled`/`revokedAt` revocable; `createdBy` jejak audit; `lastUsedAt` audit ringan; capability = per-domain read/write, write⊇read; tak-boleh-didelegasikan (auth/agent-tokens/device-tokens/sync).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/prisma/schema.prisma server/prisma/migrations/2026072100_spec257_agent_token internal/docs/architecture/data-model.md

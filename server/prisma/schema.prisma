@@ -149,6 +149,21 @@ model DeviceToken {
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+// SPEC-257 · ADR-0065 · kredensial AI agent eksternal. Server-local (cermin DeviceToken, TAK disync).
+// capabilities = Json string[] divalidasi zod (@hanoman/shared). tokenHash = sha256(plaintext).
+model AgentToken {
+  id           String    @id @default(cuid())
+  name         String
+  tokenHash    String    @unique
+  tokenPrefix  String
+  capabilities Json
+  enabled      Boolean   @default(true)
+  createdBy    String?
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+  revokedAt    DateTime?
+}
+
 // SPEC-213 · ADR-0047 · ringkasan hasil sesi (activity log). Append-only; whitelist field.
 model SessionResult {
   id        String   @id
