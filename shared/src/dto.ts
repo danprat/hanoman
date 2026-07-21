@@ -26,6 +26,10 @@ export const zCreateProject = z.object({
 // SPEC-146: hanya label tampilan. `id` memikul kunci asing Spec; `kind`,
 // `repoDir` dan `stack` menentukan tempat sesi/scan/terminal hidup. Body
 // kosong `{}` sah dan berarti no-op — refinement "minimal satu field" tak menjaga apa pun.
+// SPEC-255 · ADR-0064 · slug project: huruf-kecil/angka, tanda hubung hanya di tengah (tak boleh
+// awal/akhir). Dipakai operasi rename id (bukan field PATCH). Regex = gate 400 endpoint rename.
+export const zProjectId = z.string().regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/, "slug tak sah");
+export const zRenameProject = z.object({ newId: zProjectId });
 export const zUpdateProject = z.object({
   name: z.string().min(1).optional(),
   desc: z.string().optional(),
