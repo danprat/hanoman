@@ -102,6 +102,10 @@ export const paths = {
   // SPEC-215 · config runtime
   config: `${API}/config`,
   configKey: (key: string) => `${API}/config/${encodeURIComponent(key)}`,
+  // SPEC-257 · ADR-0065 · agent token (kelola cookie-only) + katalog capability
+  agentTokens: `${API}/agent-tokens`,
+  agentToken: (id: string) => `${API}/agent-tokens/${id}`,
+  agentCapabilities: `${API}/agent-tokens/capabilities`,
   // SPEC-249 · error monitoring. ingest publik ber-DSN (bypass gate cookie, ADR-0060).
   ingest: (slug: string) => `${API}/ingest/${encodeURIComponent(slug)}`,
   errors: `${API}/errors`,

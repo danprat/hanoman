@@ -9,6 +9,12 @@ WebSocket per-sesi tersendiri. Endpoint HTTP GET tiap sumber tetap ada untuk pai
 > **Auth (SPEC-169, ADR-0028):** semua endpoint butuh sesi valid (cookie `hn_session`) — gate
 > `onRequest` membalas **401** tanpa sesi. Publik tanpa sesi hanya: `GET /health`,
 > `GET /auth/status`, `POST /auth/login`, `POST /auth/setup`.
+>
+> **Agent token (SPEC-257 · ADR-0065):** jalur auth **kedua** untuk AI agent eksternal —
+> `Authorization: Bearer <token>` (upgrade WebSocket: `?agent_token=`) digerbang gate yang sama,
+> lalu ditegakkan **capability per-domain read/write** (write⊇read). Cookie sesi = akses penuh (tak
+> ada RBAC); agen tanpa capability → **403** `{ need }`; master switch `Setting.agentAccessEnabled` off →
+> **401**. Lihat `## Agent tokens` di bawah.
 
 ## Auth
 ```
@@ -196,6 +202,27 @@ GET      /update                        # UpdateStatus — status auto-update; r
 GET      /fs/browse?path=               # directory picker sisi server (untuk memilih repoDir project)
 GET      /health                        # publik; liveness
 ```
+
+## Agent tokens (SPEC-257 · ADR-0065)
+```
+# Kelola kredensial AI agent — COOKIE-ONLY (agent token sendiri → 403; anti privilege-escalation).
+GET    /agent-tokens/capabilities   -> { capabilities: CapabilityInfo[] }   # katalog 18 (9 domain × read/write) untuk UI
+GET    /agent-tokens                 -> { items: AgentTokenView[] }          # tanpa hash/plaintext
+POST   /agent-tokens { name, capabilities[] }  -> 201 { ...AgentTokenView, token }   # plaintext hnm_agt_… SEKALI
+#   400 nama kosong / capability asing (divalidasi vs CAPABILITY_IDS). createdBy = user pemanggil.
+PATCH  /agent-tokens/:id { name?, capabilities?, enabled? }  -> 200 AgentTokenView   # 400 body cacat; 404 tak ada
+DELETE /agent-tokens/:id             # 204 · revoke (set revokedAt); 404 tak ada
+#   AgentTokenView = { id, name, tokenPrefix, capabilities[], enabled, createdBy|null, createdAt, lastUsedAt|null, revokedAt|null }
+```
+
+> **Capability** = `"<domain>:<access>"`, `access ∈ {read,write}`, **write⊇read**. 9 domain: `projects`,
+> `backlog`, `sessions` (spawn claude = RCE), `docs`, `ide`, `vps` (remote exec), `settings`, `support`
+> (errors+tickets), `notifications`. Peta route→capability di `server/src/services/agent-capabilities.ts`:
+> GET/HEAD → `:read`, selainnya → `:write`; sub-path `/projects/:id/{docs,prds}` → `docs`,
+> `/projects/:id/{tree,file,git,status,graph,commit,compare,remotes,…}` → `ide`; WS terminal → `sessions:write`.
+> **Read-only global** (`/limits`,`/update`,`/events/ws`,`/fs/browse`,`/health`) → token ber-capability apa pun.
+> **Tak-boleh-didelegasikan** (agent → 403): `/auth`, `/agent-tokens`, `/device-tokens`, `/sync`; route tak
+> dikenal peta → cookie-only. Master switch `Setting.agentAccessEnabled` (PUT /settings) mematikan semua.
 
 ## Terminal
 ```

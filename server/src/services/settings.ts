@@ -10,6 +10,7 @@ export const DEFAULT_SETTING: Setting = {
   autoDefault: true, autoScaffold: true, notifyFail: true,
   notifyDone: true, notifySound: "short",
   notifyDecision: true, notifyDecisionSound: "alert",
+  agentAccessEnabled: false,   // SPEC-257 · akses AI agent off sampai dibuka manusia
 };
 
 // Baris Setting adalah `Json` bebas bentuk, dan baris yang ditulis SEBELUM SPEC-162 masih

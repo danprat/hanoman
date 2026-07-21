@@ -1,7 +1,7 @@
 # Data model
 
 Entitas inti (Postgres via Prisma). **Tujuh model inti**: Project, Spec, Setting, Notification, User,
-Session, Vps — plus model pendukung (VpsAuditSnapshot/VpsItemState, DeviceToken, SessionResult, SyncLog,
+Session, Vps — plus model pendukung (VpsAuditSnapshot/VpsItemState, DeviceToken, **AgentToken**, SessionResult, SyncLog,
 LocalBinding, SyncOutbox, SyncState, RuntimeConfig), **model error monitoring** (`ErrorGroup`,
 `ErrorEvent`, SPEC-249/[ADR-0060](../adr/0060-error-monitoring-ingest-ber-dsn.md)) dan **model Help
 Center** (`Ticket`, `TicketAttachment`, SPEC-253/[ADR-0062](../adr/0062-help-center-tiket-publik-triase.md)).
@@ -82,6 +82,8 @@ Singleton `id = 1`, kolom `data` (Json) berbentuk `zSetting`:
 - `autoDefault`, `autoScaffold`, `notifyFail`
 - `notifyDone` (SPEC-180, default true) — toast+sound saat backlog selesai
 - `notifySound` (SPEC-180, default `short`) — `off` atau salah satu nada; durasi/varian bunyi notifikasi
+- `agentAccessEnabled` (SPEC-257/[ADR-0065](../adr/0065-ai-agent-capability-agent-token.md), Boolean, default **false**) —
+  **master switch** akses AI agent. `false` → semua `AgentToken` ditolak (401), apa pun `enabled`/capability-nya.
 
 ## User / Session (auth — SPEC-169, [ADR-0028](../adr/0028-auth-sesi-opaque-di-db.md))
 - **User**: `id` (cuid), `email` (unique), `passwordHash` (`scrypt` "saltHex:hashHex"), `createdAt`.
@@ -91,6 +93,24 @@ Singleton `id = 1`, kolom `data` (Json) berbentuk `zSetting`:
   `userId`, `createdAt`, `expiresAt`. `onDelete: Cascade` dari User. Revocable: logout menghapus
   baris; ganti password menghapus semua sesi user; hapus user meng-cascade sesinya. Sesi kedaluwarsa
   (`expiresAt < now`) diperlakukan tak valid dan dibersihkan saat di-lookup.
+
+## AgentToken (SPEC-257 · [ADR-0065](../adr/0065-ai-agent-capability-agent-token.md))
+Kredensial **AI agent eksternal** — jalur auth kedua ke seluruh `/api` (di samping cookie sesi & device
+token). **Server-local**, TANPA `version`/sync (cermin `DeviceToken` — kredensial mengontrol instance INI).
+- `id` (cuid), `name`, `tokenHash` (**@unique**, `sha256(token)` — plaintext hanya lahir & tampil **sekali**
+  saat create; **TAK PERNAH** ke client/log), `tokenPrefix` (hint UI, mis. `hnm_agt_ab12cd`), `createdAt`.
+- `capabilities` (Json string[]) — subset `CAPABILITY_IDS` (`@hanoman/shared`), divalidasi zod. Bentuk
+  `"<domain>:<access>"` (9 domain × `read`/`write`; `write` **meng-implikasikan** `read`). Domain: projects,
+  backlog, sessions, docs, ide, vps, settings, support, notifications. Dibuka manusia di Settings.
+- `enabled` (default true) — master switch per-token; `revokedAt` (nullable) — revoke instan. Verifikasi
+  gagal (disabled/revoked/tak ada/hash beda) → auth ditolak.
+- `createdBy` (nullable, `User.id` pembuat — jejak audit), `lastUsedAt` (nullable, best-effort bump tiap
+  request ter-auth — audit ringan; cermin `DeviceToken.lastSeenAt`).
+- `AgentTokenView` (ke client) = `{ id, name, tokenPrefix, capabilities, enabled, createdBy, createdAt,
+  lastUsedAt, revokedAt }` — **tanpa** `tokenHash`/plaintext.
+- **Tak-boleh-didelegasikan** (agent token → 403, apa pun capability): `/auth/*` (user), `/agent-tokens*`
+  (anti privilege-escalation — agen tak mencetak/menaikkan token), `/device-tokens*`, `/sync*`. Kelola token
+  & master switch = **cookie-only**. Route→capability dipetakan di `services/agent-capabilities.ts`.
 
 ## Notification (SPEC-180/184, [ADR-0033](../adr/0033-notifikasi-backlog-selesai.md), [ADR-0036](../adr/0036-notifikasi-human-decision.md))
 Dua tipe: `done` (backlog masuk `done`, dibuat di `advanceStage()` & write-through `GET /specs`)

@@ -3,7 +3,7 @@
 import React from "react";
 import { Card, Switch, Select, Button, Input, Field, Icon, StateBlock } from "../ds";
 import { api, ApiError } from "../api/client";
-import type { Setting, UserView, DeviceTokenView, SessionResultView, ConfigResponse, ConfigEntryView } from "@hanoman/shared";
+import type { Setting, UserView, DeviceTokenView, SessionResultView, ConfigResponse, ConfigEntryView, AgentTokenView, CapabilityInfo } from "@hanoman/shared";
 import type { ShowToast } from "../ds";
 import { playNotifySound, type NotifySound } from "../notifications/sound";
 
@@ -38,6 +38,7 @@ const S_DEFAULTS: Setting = {
   autoDefault: true, autoScaffold: true, notifyFail: true,
   notifyDone: true, notifySound: "short",
   notifyDecision: true, notifyDecisionSound: "alert",
+  agentAccessEnabled: false,
 };
 
 function SettingRow({ title, desc, children, last }: { title: string; desc?: string; children?: React.ReactNode; last?: boolean }) {
@@ -320,12 +321,125 @@ function ConfigField({ entry, draft, onDraft, onSave, onReset }: {
     {entry.source === "db" && <Button size="sm" variant="ghost" leftIcon="rotate-ccw" onClick={onReset}>Reset</Button>}</div>;
 }
 
+// SPEC-257 · ADR-0065 · Akses AI Agent: master switch + agent token + capability per-domain.
+export function AgentAccessPanel({ onToast }: { onToast?: ShowToast } = {}) {
+  const [caps, setCaps] = React.useState<CapabilityInfo[]>([]);
+  const [items, setItems] = React.useState<AgentTokenView[] | null>(null);
+  const [setting, setSetting] = React.useState<Setting | null>(null);
+  const [name, setName] = React.useState("");
+  const [picked, setPicked] = React.useState<string[]>([]);
+  const [fresh, setFresh] = React.useState<{ name: string; token: string } | null>(null);
+  const [busy, setBusy] = React.useState(false);
+  const load = React.useCallback(() => { api.listAgentTokens().then((r) => setItems(r.items)).catch(() => setItems([])); }, []);
+  React.useEffect(() => {
+    api.getSettings().then(setSetting).catch(() => {});
+    api.getAgentCapabilities().then((r) => setCaps(r.capabilities)).catch(() => {});
+    load();
+  }, [load]);
+
+  async function toggleMaster(next: boolean) {
+    if (!setting) return;
+    const updated = { ...setting, agentAccessEnabled: next };
+    setSetting(updated);
+    try { await api.putSettings(updated); onToast?.("Akses AI agent " + (next ? "aktif" : "nonaktif"), next ? "ok" : "warn", "bot"); }
+    catch { onToast?.("Gagal menyimpan", "err", "x-circle"); setSetting(setting); }
+  }
+  const toggleCap = (id: string) => setPicked((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id]);
+  async function create() {
+    if (name.trim().length < 1 || busy) return;
+    setBusy(true);
+    try {
+      const t = await api.createAgentToken({ name: name.trim(), capabilities: picked });
+      setFresh({ name: t.name, token: t.token }); setName(""); setPicked([]); load();
+      onToast?.("Agent token dibuat — salin sekarang", "ok", "key-round");
+    } catch { onToast?.("Gagal membuat token", "err", "x-circle"); }
+    finally { setBusy(false); }
+  }
+  async function revoke(t: AgentTokenView) {
+    if (!window.confirm(`Cabut agent token "${t.name}"? Agen itu langsung kehilangan akses.`)) return;
+    try { await api.revokeAgentToken(t.id); load(); onToast?.("Token dicabut", "warn", "trash-2"); }
+    catch { onToast?.("Gagal mencabut token", "err", "x-circle"); }
+  }
+  async function setEnabled(t: AgentTokenView, enabled: boolean) {
+    try { await api.patchAgentToken(t.id, { enabled }); load(); }
+    catch { onToast?.("Gagal mengubah token", "err", "x-circle"); }
+  }
+
+  // Kelompokkan capability per domain → baris {domain, read?, write?} untuk grid checkbox.
+  const domains = Array.from(new Set(caps.map((c) => c.domain)));
+  const active = (items ?? []).filter((t) => !t.revokedAt);
+
+  return (
+    <>
+      <Card eyebrow="ai agent" title="Akses AI Agent">
+        <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.5 }}>
+          Beri AI agent eksternal kendali hanoman lewat token (header <code>Authorization: Bearer</code>).
+          Tiap fitur dibuka per <b>capability</b>. Selagi master switch mati, semua token ditolak.
+        </div>
+        <SettingRow title="Aktifkan akses AI agent" last
+          desc="Master switch. Nonaktif → semua agent token 401, apa pun capability-nya.">
+          <Switch checked={!!setting?.agentAccessEnabled} onChange={(v: boolean) => void toggleMaster(v)} />
+        </SettingRow>
+      </Card>
+
+      <Card eyebrow="token" title="Agent tokens">
+        {fresh && (
+          <div style={{ padding: 12, marginBottom: 12, border: "1px solid var(--brass-300)", borderRadius: "var(--radius-sm)", background: "var(--brass-100)" }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>Token “{fresh.name}” — salin sekarang, tak akan ditampilkan lagi:</div>
+            <code style={{ display: "block", wordBreak: "break-all", fontSize: 12 }}>{fresh.token}</code>
+            <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+              <Button size="sm" leftIcon="copy" onClick={() => { void navigator.clipboard?.writeText(fresh.token); onToast?.("Disalin", "ok", "copy"); }}>Salin</Button>
+              <Button size="sm" variant="ghost" onClick={() => setFresh(null)}>Tutup</Button>
+            </div>
+          </div>
+        )}
+        {items === null ? <StateBlock kind="loading" compact title="Memuat token…" />
+          : active.length === 0 ? <div style={{ fontSize: 13, color: "var(--text-subtle)", padding: "8px 0" }}>Belum ada agent token.</div>
+          : active.map((t, i) => (
+            <SettingRow key={t.id} title={t.name} last={i === active.length - 1}
+              desc={`${t.tokenPrefix}… · ${t.capabilities.length} capability · ` + (t.lastUsedAt ? "terpakai " + new Date(t.lastUsedAt).toLocaleString("id-ID") : "belum dipakai")}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <Switch size="sm" checked={t.enabled} onChange={(v: boolean) => void setEnabled(t, v)} />
+                <Button size="sm" variant="ghost" leftIcon="trash-2" onClick={() => revoke(t)}>Cabut</Button>
+              </div>
+            </SettingRow>
+          ))}
+
+        <div style={{ paddingTop: 14 }}>
+          <Field label="Nama token"><Input value={name} placeholder="mis. nama token (agent-ci)"
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)} style={{ width: "100%" }} /></Field>
+          <div style={{ marginTop: 12, fontSize: 12.5, fontWeight: 600, color: "var(--text-strong)" }}>Capability</div>
+          <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr auto auto", gap: "6px 14px", alignItems: "center" }}>
+            <div /><div style={{ fontSize: 11.5, color: "var(--text-subtle)", textAlign: "center" }}>baca</div>
+            <div style={{ fontSize: 11.5, color: "var(--text-subtle)", textAlign: "center" }}>tulis</div>
+            {domains.map((d) => {
+              const r = caps.find((c) => c.domain === d && c.access === "read");
+              const w = caps.find((c) => c.domain === d && c.access === "write");
+              return (
+                <React.Fragment key={d}>
+                  <div style={{ fontSize: 13, color: "var(--text-muted)" }}>{d}{w?.risk ? " ⚠" : ""}</div>
+                  <div style={{ textAlign: "center" }}>{r && <input type="checkbox" aria-label={r.id} checked={picked.includes(r.id)} onChange={() => toggleCap(r.id)} />}</div>
+                  <div style={{ textAlign: "center" }}>{w && <input type="checkbox" aria-label={w.id} checked={picked.includes(w.id)} onChange={() => toggleCap(w.id)} />}</div>
+                </React.Fragment>
+              );
+            })}
+          </div>
+          <div style={{ marginTop: 14 }}>
+            <Button size="sm" leftIcon="plus" disabled={name.trim().length < 1 || busy} onClick={() => void create()}>Buat token</Button>
+          </div>
+        </div>
+      </Card>
+    </>
+  );
+}
+
 // Grup navigasi settings — sidebar kiri. Akun & Users tak bergantung GET /settings; umum/model/
 // sesi bergantung dan menampilkan loading/error-nya sendiri.
 const S_SECTIONS = [
   { key: "akun", label: "Akun", icon: "user-round" },
   { key: "users", label: "Users", icon: "users" },
   { key: "perangkat", label: "Perangkat", icon: "key-round" },   // SPEC-213 · device tokens
+  { key: "agent", label: "Akses AI Agent", icon: "bot" },        // SPEC-257 · agent token + capability
   { key: "aktivitas", label: "Aktivitas", icon: "activity" },    // SPEC-213 · activity log
   { key: "konfigurasi", label: "Konfigurasi", icon: "sliders" }, // SPEC-215 · env runtime
   { key: "umum", label: "Umum", icon: "sliders-horizontal" },
@@ -436,6 +550,7 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
   const content = tab === "akun" ? <AccountPanel me={me} onLoggedOut={onLoggedOut} onToast={onToast} />
     : tab === "users" ? <UsersPanel me={me} onToast={onToast} />
     : tab === "perangkat" ? <DeviceTokensPanel onToast={onToast} />
+    : tab === "agent" ? <AgentAccessPanel onToast={onToast} />
     : tab === "aktivitas" ? <ActivityPanel onToast={onToast} />
     : tab === "konfigurasi" ? <ConfigPanel onToast={onToast} />
     : prefs();
