@@ -261,11 +261,45 @@ export type EventMsg =
   | { t: "update"; update: UpdateStatus };
 
 // SPEC-249 · ADR-0060 · Error monitoring (Sentry ringan).
+// SPEC-276 · ADR-0070 · frame terstruktur (SDK→server) untuk symbolication.
+export const zStackFrame = z.object({
+  function: z.string().max(500).optional(),
+  filename: z.string().max(2000).optional(),
+  lineno: z.number().int().optional(),
+  colno: z.number().int().optional(),
+  in_app: z.boolean().optional(),
+});
+export type StackFrame = z.infer<typeof zStackFrame>;
+
+// SPEC-276 · frame hasil symbolication (server→UI): + posisi sumber + context lines.
+export const zSymbolicatedFrame = zStackFrame.extend({
+  source: z.string().optional(),
+  sourceLine: z.number().int().optional(),
+  sourceColumn: z.number().int().optional(),
+  contextLine: z.string().optional(),
+  preContext: z.array(z.string()).optional(),
+  postContext: z.array(z.string()).optional(),
+  symbolicated: z.boolean(),
+});
+export type SymbolicatedFrame = z.infer<typeof zSymbolicatedFrame>;
+
+// SPEC-276 · upload source-map per release (auth DSN key). Byte map di server-local upload dir.
+export const zSourceMapUpload = z.object({
+  release: z.string().min(1).max(200),
+  artifacts: z.array(z.object({
+    filename: z.string().min(1).max(2000),
+    map: z.string().min(1),
+    debugId: z.string().max(200).optional(),
+  })).min(1).max(200),
+});
+export type SourceMapUpload = z.infer<typeof zSourceMapUpload>;
+
 // Payload ingest generik: bahasa apa pun bisa POST tanpa perubahan server.
 export const zIngestPayload = z.object({
   type: z.string().min(1).max(500),
   message: z.string().min(1),
   stack: z.string().optional(),
+  frames: z.array(zStackFrame).max(200).optional(),   // SPEC-276 · opsional → kompatibel mundur
   environment: z.string().max(120).optional(),
   release: z.string().max(200).optional(),
   context: z.record(z.string(), z.unknown()).optional(),
@@ -276,6 +310,7 @@ export const zErrorGroupView = z.object({
   id: z.string(), projectId: z.string(), type: z.string(), message: z.string(),
   environment: z.string(), status: zErrorStatus, count: z.number().int(),
   firstSeenAt: z.string(), lastSeenAt: z.string(), specId: z.string().nullable(),
+  release: z.string().nullable(),   // SPEC-276 · release terakhir grup (korelasi build)
 });
 export type ErrorGroupView = z.infer<typeof zErrorGroupView>;
 
@@ -287,6 +322,7 @@ export type ErrorEventView = z.infer<typeof zErrorEventView>;
 
 export const zErrorGroupDetail = zErrorGroupView.extend({
   sampleStack: z.string().nullable(),
+  sampleFrames: z.array(zSymbolicatedFrame).nullable(),   // SPEC-276 · frame tersimbolikasi (bila map ada)
   events: z.array(zErrorEventView),
 });
 export type ErrorGroupDetail = z.infer<typeof zErrorGroupDetail>;
