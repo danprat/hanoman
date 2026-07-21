@@ -321,7 +321,7 @@ git commit -m "feat(spec-257): AgentToken model + migration + data-model doc"
   - `revokeAgentToken(id): Promise<boolean>`
   - `toAgentTokenView(row): AgentTokenView`
 
-- [ ] **Step 1: Write the failing test** — `server/test/agent-token.service.test.ts`
+- [x] **Step 1: Write the failing test** — `server/test/agent-token.service.test.ts`
 
 ```ts
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
@@ -375,12 +375,12 @@ describe("agent-token service", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter ./server exec vitest run test/agent-token.service.test.ts`
 Expected: FAIL — cannot find module `../src/services/agent-token`.
 
-- [ ] **Step 3: Create `server/src/services/agent-token.ts`**
+- [x] **Step 3: Create `server/src/services/agent-token.ts`**
 
 ```ts
 import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
@@ -461,12 +461,12 @@ export async function revokeAgentToken(id: string): Promise<boolean> {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm --filter ./server exec vitest run test/agent-token.service.test.ts`
 Expected: PASS (3 test).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/agent-token.ts server/test/agent-token.service.test.ts
