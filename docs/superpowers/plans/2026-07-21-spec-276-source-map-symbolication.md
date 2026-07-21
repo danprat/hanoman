@@ -36,7 +36,7 @@
   - `framesFromStack(stack?: string): Frame[]` — `parseStack` lalu set `in_app`.
   - `collectStack(err: unknown, maxDepth?: number): string | undefined` — `err.stack` + rangkai `err.cause` ("Caused by: …") sampai maxDepth (default 5).
 
-- [ ] **Step 1: Failing test** `sdk/test/stack.test.ts`
+- [x] **Step 1: Failing test** `sdk/test/stack.test.ts`
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -94,9 +94,9 @@ describe("collectStack", () => {
 });
 ```
 
-- [ ] **Step 2: Run → FAIL** `pnpm --filter hanoman-sdk test` (module not found)
+- [x] **Step 2: Run → FAIL** `pnpm --filter hanoman-sdk test` (module not found)
 
-- [ ] **Step 3: Implement** `sdk/src/stack.ts`
+- [x] **Step 3: Implement** `sdk/src/stack.ts`
 
 ```ts
 // hanoman-sdk stack parsing — dependency-free, isomorphic. Ubah stack string → frame terstruktur.
@@ -156,7 +156,7 @@ export function collectStack(err: unknown, maxDepth = 5): string | undefined {
 }
 ```
 
-- [ ] **Step 4: Wire into `sdk/src/core.ts`** — `captureError` pakai `collectStack` + `framesFromStack`:
+- [x] **Step 4: Wire into `sdk/src/core.ts`** — `captureError` pakai `collectStack` + `framesFromStack`:
 
 ```ts
 import { collectStack, framesFromStack } from "./stack";
@@ -177,7 +177,7 @@ export function captureError(err: unknown, context?: Record<string, unknown>): v
 }
 ```
 
-- [ ] **Step 5: `sdk/src/index.ts`** — lempar error asli (bukan sintetik) agar `cause` ada:
+- [x] **Step 5: `sdk/src/index.ts`** — lempar error asli (bukan sintetik) agar `cause` ada:
 
 ```ts
 // installBrowserHandlers: pakai ev.error bila ada (Error asli → punya .cause/.stack)
@@ -192,9 +192,9 @@ g.addEventListener("unhandledrejection", (e: unknown) => {
 });
 ```
 
-- [ ] **Step 6: Run → PASS** `pnpm --filter hanoman-sdk test`; build `pnpm --filter hanoman-sdk build`
-- [ ] **Step 7: Bump SDK version** `sdk/package.json` `"version": "0.2.0"`
-- [ ] **Step 8: Commit** `feat(spec-276): SDK kirim frame terstruktur + in_app + unwrap error.cause`
+- [x] **Step 6: Run → PASS** `pnpm --filter hanoman-sdk test`; build `pnpm --filter hanoman-sdk build`
+- [x] **Step 7: Bump SDK version** `sdk/package.json` `"version": "0.2.0"`
+- [x] **Step 8: Commit** `feat(spec-276): SDK kirim frame terstruktur + in_app + unwrap error.cause`
 
 ---
 
@@ -207,7 +207,7 @@ g.addEventListener("unhandledrejection", (e: unknown) => {
 **Interfaces:**
 - Produces: `zStackFrame`, `StackFrame`, `zSymbolicatedFrame`, `SymbolicatedFrame`, `zSourceMapUpload`, `SourceMapUpload`; `zIngestPayload` +`frames?`; `zErrorGroupView` +`release`; `zErrorGroupDetail` +`sampleFrames`.
 
-- [ ] **Step 1: Failing test** `shared/test/dto.test.ts`
+- [x] **Step 1: Failing test** `shared/test/dto.test.ts`
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -236,8 +236,8 @@ describe("dto SPEC-276", () => {
 });
 ```
 
-- [ ] **Step 2: Run → FAIL** `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/shared test`
-- [ ] **Step 3: Implement** — edit `shared/src/dto.ts`:
+- [x] **Step 2: Run → FAIL** `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/shared test`
+- [x] **Step 3: Implement** — edit `shared/src/dto.ts`:
 
 ```ts
 // SPEC-276 · frame terstruktur (SDK→server) + symbolicated (server→UI) + upload source-map.
@@ -276,8 +276,8 @@ Ubah `zIngestPayload` → tambah `frames: z.array(zStackFrame).max(200).optional
 Ubah `zErrorGroupView` → tambah `release: z.string().nullable(),`.
 Ubah `zErrorGroupDetail` → `.extend({ sampleStack: z.string().nullable(), sampleFrames: z.array(zSymbolicatedFrame).nullable(), events: z.array(zErrorEventView) })`.
 
-- [ ] **Step 4: Run → PASS**; build `pnpm --filter @hanoman/shared build`
-- [ ] **Step 5: Commit** `feat(spec-276): DTO frames + symbolicated + sourcemap upload + release`
+- [x] **Step 4: Run → PASS**; build `pnpm --filter @hanoman/shared build`
+- [x] **Step 5: Commit** `feat(spec-276): DTO frames + symbolicated + sourcemap upload + release`
 
 ---
 
@@ -290,7 +290,7 @@ Ubah `zErrorGroupDetail` → `.extend({ sampleStack: z.string().nullable(), samp
 **Interfaces:**
 - Produces: model `SourceMapArtifact`; `ErrorEvent.frames Json?`; `ErrorGroup.sampleFrames Json?` + `release String?`; `Project.sourceMaps SourceMapArtifact[]`.
 
-- [ ] **Step 1: Edit `schema.prisma`** — tambah kolom & model:
+- [x] **Step 1: Edit `schema.prisma`** — tambah kolom & model:
   - `ErrorGroup`: tambah `sampleFrames Json?` dan `release String?` (setelah `sampleStack`).
   - `ErrorEvent`: tambah `frames Json?` (setelah `stack`).
   - `Project`: tambah relasi balik `sourceMaps SourceMapArtifact[]` (di daftar relasi).
@@ -315,7 +315,7 @@ model SourceMapArtifact {
 }
 ```
 
-- [ ] **Step 2: Hand-write** `migration.sql`:
+- [x] **Step 2: Hand-write** `migration.sql`:
 
 ```sql
 -- SPEC-276 · ADR-0070 · symbolication source-map (additive, aman VPS live)
@@ -339,7 +339,7 @@ ALTER TABLE "ErrorGroup" ADD COLUMN "sampleFrames" JSONB;
 ALTER TABLE "ErrorGroup" ADD COLUMN "release" TEXT;
 ```
 
-- [ ] **Step 3: Apply per DB + generate** (dev + test base). Contoh:
+- [x] **Step 3: Apply per DB + generate** (dev + test base). Contoh:
 
 ```bash
 cd server
@@ -348,8 +348,8 @@ DATABASE_URL=postgresql://hanoman:hanoman@localhost:5433/hanoman npx prisma migr
 npx prisma generate
 ```
 
-- [ ] **Step 4: Verify** `npx prisma migrate status` → up to date; `node -e "require('@prisma/client'); console.log('ok')"`.
-- [ ] **Step 5: Commit** `feat(spec-276): migration additif SourceMapArtifact + frames/sampleFrames/release`
+- [x] **Step 4: Verify** `npx prisma migrate status` → up to date; `node -e "require('@prisma/client'); console.log('ok')"`.
+- [x] **Step 5: Commit** `feat(spec-276): migration additif SourceMapArtifact + frames/sampleFrames/release`
 
 ---
 
@@ -367,7 +367,7 @@ npx prisma generate
   - `findSourceMap(projectId: string, release: string, frameFilename: string): Promise<string | null>` — cocokkan `basenameOf(frameFilename)`; baca byte → string; null bila tak ada.
   - `pruneReleases(projectId: string, keep?: number): Promise<void>` — sisakan `keep` release terbaru (default 10) per project; hapus row + berkas release lama.
 
-- [ ] **Step 1: Failing test** `server/src/services/sourcemap-store.test.ts` (pakai base DB unik; import prisma; bersih-bersih project test di afterEach).
+- [x] **Step 1: Failing test** `server/src/services/sourcemap-store.test.ts` (pakai base DB unik; import prisma; bersih-bersih project test di afterEach).
 
 ```ts
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
@@ -409,8 +409,8 @@ describe("retention", () => {
 });
 ```
 
-- [ ] **Step 2: Run → FAIL**
-- [ ] **Step 3: Implement** `sourcemap-store.ts`:
+- [x] **Step 2: Run → FAIL**
+- [x] **Step 3: Implement** `sourcemap-store.ts`:
 
 ```ts
 // SPEC-276 · ADR-0070 · simpan/temukan source-map per release. Byte di HANOMAN_UPLOAD_DIR (pola
@@ -479,8 +479,8 @@ export async function pruneReleases(projectId: string, keep = 10): Promise<void>
 }
 ```
 
-- [ ] **Step 4: Run → PASS**
-- [ ] **Step 5: Commit** `feat(spec-276): sourcemap-store save/find/retention`
+- [x] **Step 4: Run → PASS**
+- [x] **Step 5: Commit** `feat(spec-276): sourcemap-store save/find/retention`
 
 ---
 
@@ -497,9 +497,9 @@ export async function pruneReleases(projectId: string, keep = 10): Promise<void>
   - `type MapLookup = (frameFilename: string) => string | null | Promise<string | null>`
   - `symbolicateFrames(frames: FrameLike[], lookup: MapLookup): Promise<SymbolicatedFrame[]>` — per frame: cari map via `lookup(filename)`; `originalPositionFor(tracer, { line: lineno, column: (colno ?? 1) - 1 })`; isi `source/sourceLine/sourceColumn`, `function = name || function`, `in_app = !source.includes("node_modules")`, context lines dari `sourceContentFor`. Gagal/map absen → frame apa adanya + `symbolicated:false`.
 
-- [ ] **Step 1: Add dep** `server/package.json` dependencies: `"@jridgewell/trace-mapping": "^0.3.25"`, lalu `pnpm install`.
+- [x] **Step 1: Add dep** `server/package.json` dependencies: `"@jridgewell/trace-mapping": "^0.3.25"`, lalu `pnpm install`.
 
-- [ ] **Step 2: Failing test** `server/src/services/symbolicate.test.ts` — pakai source-map buatan tangan. Bangun map dari sumber "known" via `@jridgewell/gen-mapping`? Hindari dep test tambahan: tulis map minimal manual dengan satu mapping.
+- [x] **Step 2: Failing test** `server/src/services/symbolicate.test.ts` — pakai source-map buatan tangan. Bangun map dari sumber "known" via `@jridgewell/gen-mapping`? Hindari dep test tambahan: tulis map minimal manual dengan satu mapping.
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -543,8 +543,8 @@ describe("symbolicateFrames", () => {
 
 > Catatan eksekusi: verifikasi `mappings` di atas benar-benar memetakan (genCol 10 → src line 1/0-based col 0 name 0) SAAT implement; bila VLQ tak cocok, generate map yang benar dengan `@jridgewell/gen-mapping` di test (dep sudah transitive dari trace-mapping) lalu `encodedMappings`/`toEncodedMap`. Yang WAJIB lulus adalah perilaku (source/line/context/col-1), bukan string mappings spesifik.
 
-- [ ] **Step 3: Run → FAIL**
-- [ ] **Step 4: Implement** `symbolicate.ts`:
+- [x] **Step 3: Run → FAIL**
+- [x] **Step 4: Implement** `symbolicate.ts`:
 
 ```ts
 // SPEC-276 · ADR-0070 · symbolication server-side: frame minified → posisi sumber + context lines.
@@ -598,8 +598,8 @@ export async function symbolicateFrames(frames: FrameLike[], lookup: MapLookup):
 }
 ```
 
-- [ ] **Step 5: Run → PASS**
-- [ ] **Step 6: Commit** `feat(spec-276): symbolicate resolver + @jridgewell/trace-mapping`
+- [x] **Step 5: Run → PASS**
+- [x] **Step 6: Commit** `feat(spec-276): symbolicate resolver + @jridgewell/trace-mapping`
 
 ---
 
@@ -614,7 +614,7 @@ export async function symbolicateFrames(frames: FrameLike[], lookup: MapLookup):
 - Consumes: `StackFrame` (shared).
 - Produces: `normalizeBundleName(name: string): string`; `fingerprint(type, message, stack?, frames?)` (param `frames?: {function?;filename?;in_app?}[]`).
 
-- [ ] **Step 1: Failing test** — tambah ke `error-fingerprint.test.ts`:
+- [x] **Step 1: Failing test** — tambah ke `error-fingerprint.test.ts`:
 
 ```ts
 import { normalizeBundleName } from "./error-fingerprint";
@@ -644,8 +644,8 @@ it("fingerprint prefers in_app frame when frames present", () => {
 });
 ```
 
-- [ ] **Step 2: Run → FAIL**
-- [ ] **Step 3: Implement** — `error-fingerprint.ts` (ganti `topFrame`, tambah helper, ubah `fingerprint`):
+- [x] **Step 2: Run → FAIL**
+- [x] **Step 3: Implement** — `error-fingerprint.ts` (ganti `topFrame`, tambah helper, ubah `fingerprint`):
 
 ```ts
 // Buang segmen content-hash pada basename bundle: "index-4f3a2b.js" → "index.js" (grup stabil
@@ -691,15 +691,15 @@ export function fingerprint(type: string, message: string, stack?: string, frame
 }
 ```
 
-- [ ] **Step 4: Wire `error-ingest.ts`** — pakai frames + simpan release/sampleFrames/frames:
+- [x] **Step 4: Wire `error-ingest.ts`** — pakai frames + simpan release/sampleFrames/frames:
   - `const frames = payload.frames;`
   - `const fp = fingerprint(type, message, stack ?? undefined, frames);`
   - create group: tambah `sampleFrames: frames as object | undefined, release: payload.release ?? null` ke `data`.
   - update group (dua jalur: existing + P2002): tambah `release: payload.release ?? undefined` (undefined = tak ubah bila event ini tanpa release).
   - create event: tambah `frames: frames as object | undefined` ke `data`.
 
-- [ ] **Step 5: Run → PASS** (fingerprint tests + ingest tests hijau)
-- [ ] **Step 6: Commit** `fix(spec-276): fingerprint stabil lintas deploy (Temuan B) + ingest simpan frames/release`
+- [x] **Step 5: Run → PASS** (fingerprint tests + ingest tests hijau)
+- [x] **Step 6: Commit** `fix(spec-276): fingerprint stabil lintas deploy (Temuan B) + ingest simpan frames/release`
 
 ---
 
@@ -713,10 +713,10 @@ export function fingerprint(type: string, message: string, stack?: string, frame
 **Interfaces:**
 - Consumes: `zSourceMapUpload` (shared), `saveSourceMap`/`pruneReleases`/`findSourceMap` (sourcemap-store), `symbolicateFrames` (symbolicate).
 
-- [ ] **Step 1: Failing route test** — buat/extend test yang: (a) POST ingest dengan frames + release lalu POST sourcemaps map valid → 202; (b) GET /errors/:id → `sampleFrames` tersimbolikasi (`symbolicated:true`, `source` benar) + `release` muncul. Pakai app builder yang ada (lihat pola test route lain: `buildApp`/`inject`).
+- [x] **Step 1: Failing route test** — buat/extend test yang: (a) POST ingest dengan frames + release lalu POST sourcemaps map valid → 202; (b) GET /errors/:id → `sampleFrames` tersimbolikasi (`symbolicated:true`, `source` benar) + `release` muncul. Pakai app builder yang ada (lihat pola test route lain: `buildApp`/`inject`).
 
-- [ ] **Step 2: Run → FAIL**
-- [ ] **Step 3: Implement upload route** — `ingest.ts`, tambah setelah handler ingest:
+- [x] **Step 2: Run → FAIL**
+- [x] **Step 3: Implement upload route** — `ingest.ts`, tambah setelah handler ingest:
 
 ```ts
 import { zSourceMapUpload } from "@hanoman/shared";
@@ -742,7 +742,7 @@ app.post("/ingest/:slug/sourcemaps", { bodyLimit: SOURCEMAP_CAP }, async (req, r
 ```
 (`import { verifyKey } from "../services/ingest-key";` sudah ada.)
 
-- [ ] **Step 4: Implement errors symbolication** — `errors.ts`:
+- [x] **Step 4: Implement errors symbolication** — `errors.ts`:
   - `groupView` += `release: g.release`.
   - Ganti handler `GET /errors/:id`:
 
@@ -766,8 +766,8 @@ app.get("/errors/:id", async (req, reply) => {
 ```
 (`import type { FrameLike } from "../services/symbolicate";`)
 
-- [ ] **Step 5: Run → PASS**
-- [ ] **Step 6: Commit** `feat(spec-276): route upload source-map + symbolication di detail grup`
+- [x] **Step 5: Run → PASS**
+- [x] **Step 6: Commit** `feat(spec-276): route upload source-map + symbolication di detail grup`
 
 ---
 
@@ -779,7 +779,7 @@ app.get("/errors/:id", async (req, reply) => {
 **Interfaces:**
 - Consumes: `ErrorGroupDetail.sampleFrames: SymbolicatedFrame[] | null`, `.release`, `ErrorGroupView.release` (via shared).
 
-- [ ] **Step 1: Implement `FrameList`** komponen dalam `ErrorsScreen.tsx` (render bila `g.sampleFrames?.length`, else fallback `<pre>{g.sampleStack}</pre>`):
+- [x] **Step 1: Implement `FrameList`** komponen dalam `ErrorsScreen.tsx` (render bila `g.sampleFrames?.length`, else fallback `<pre>{g.sampleStack}</pre>`):
 
 ```tsx
 function FrameList({ frames }: { frames: import("@hanoman/shared").SymbolicatedFrame[] }) {
@@ -811,7 +811,7 @@ function FrameList({ frames }: { frames: import("@hanoman/shared").SymbolicatedF
 }
 ```
 
-- [ ] **Step 2: Ganti blok "Stack sampel"** di `GroupDetail` → render `FrameList` bila ada, else `<pre>`:
+- [x] **Step 2: Ganti blok "Stack sampel"** di `GroupDetail` → render `FrameList` bila ada, else `<pre>`:
 
 ```tsx
 {g.sampleFrames && g.sampleFrames.length > 0 ? (
@@ -827,9 +827,9 @@ function FrameList({ frames }: { frames: import("@hanoman/shared").SymbolicatedF
 ) : null}
 ```
 
-- [ ] **Step 3: Tambah badge `release`** di baris meta `GroupDetail` (setelah env): `{g.release && <span>release: <b>{g.release}</b></span>}`. Di `GroupRow` meta tambahkan `{g.release ? ` · ${g.release}` : ""}`.
-- [ ] **Step 4: Typecheck build** `pnpm --filter @hanoman/web build` (atau tsc) → hijau.
-- [ ] **Step 5: Commit** `feat(spec-276): tampilkan frame symbolicated + release di Errors`
+- [x] **Step 3: Tambah badge `release`** di baris meta `GroupDetail` (setelah env): `{g.release && <span>release: <b>{g.release}</b></span>}`. Di `GroupRow` meta tambahkan `{g.release ? ` · ${g.release}` : ""}`.
+- [x] **Step 4: Typecheck build** `pnpm --filter @hanoman/web build` (atau tsc) → hijau.
+- [x] **Step 5: Commit** `feat(spec-276): tampilkan frame symbolicated + release di Errors`
 
 ---
 
@@ -840,12 +840,12 @@ function FrameList({ frames }: { frames: import("@hanoman/shared").SymbolicatedF
 - Modify: `internal/docs/architecture/data-model.md`
 - Modify: `internal/docs/architecture/api-contract.md`
 
-- [ ] **Step 1: `sdk/README.md`** — tambah bagian "Source-map (stack jelas untuk build minified)": wajib set `release` sama di `init()` & saat upload; contoh upload `curl`/Node kecil ke `POST /api/ingest/<slug>/sourcemaps?key=...` body `{ release, artifacts:[{ filename, map }] }`; catatan Node `node --enable-source-maps` untuk fidelity backend.
-- [ ] **Step 2: `data-model.md`** — dokumentasikan `SourceMapArtifact` + kolom baru `ErrorEvent.frames`, `ErrorGroup.sampleFrames/release`; tegaskan server-local/tak disync.
-- [ ] **Step 3: `api-contract.md`** — dokumentasikan `POST /api/ingest/:slug/sourcemaps`, payload `frames?`, response `GET /errors` +`release`, `GET /errors/:id` +`sampleFrames`.
-- [ ] **Step 4: Full test suite** `env -u NODE_ENV -u DATABASE_URL pnpm -r test` (server pakai base DB unik) → hijau.
-- [ ] **Step 5: Live smoke** — boot server ke DB throwaway ter-migrate; buat project + DSN; `curl` POST ingest (dengan frames+release) → POST sourcemaps (map valid untuk filename frame) → GET /errors → GET /errors/:id; verifikasi `sampleFrames[].symbolicated=true`, `source` menunjuk `.ts`, `release` muncul. Simpan transcript ke scratchpad.
-- [ ] **Step 6: Commit** `docs(spec-276): SDK README source-map upload + data-model/api-contract + verify`
+- [x] **Step 1: `sdk/README.md`** — tambah bagian "Source-map (stack jelas untuk build minified)": wajib set `release` sama di `init()` & saat upload; contoh upload `curl`/Node kecil ke `POST /api/ingest/<slug>/sourcemaps?key=...` body `{ release, artifacts:[{ filename, map }] }`; catatan Node `node --enable-source-maps` untuk fidelity backend.
+- [x] **Step 2: `data-model.md`** — dokumentasikan `SourceMapArtifact` + kolom baru `ErrorEvent.frames`, `ErrorGroup.sampleFrames/release`; tegaskan server-local/tak disync.
+- [x] **Step 3: `api-contract.md`** — dokumentasikan `POST /api/ingest/:slug/sourcemaps`, payload `frames?`, response `GET /errors` +`release`, `GET /errors/:id` +`sampleFrames`.
+- [x] **Step 4: Full test suite** `env -u NODE_ENV -u DATABASE_URL pnpm -r test` (server pakai base DB unik) → hijau.
+- [x] **Step 5: Live smoke** — boot server ke DB throwaway ter-migrate; buat project + DSN; `curl` POST ingest (dengan frames+release) → POST sourcemaps (map valid untuk filename frame) → GET /errors → GET /errors/:id; verifikasi `sampleFrames[].symbolicated=true`, `source` menunjuk `.ts`, `release` muncul. Simpan transcript ke scratchpad.
+- [x] **Step 6: Commit** `docs(spec-276): SDK README source-map upload + data-model/api-contract + verify`
 
 ---
 
