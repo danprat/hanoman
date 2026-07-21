@@ -111,4 +111,13 @@ export default async function (app: FastifyInstance) {
     const updated = await prisma.errorGroup.update({ where: { id }, data: { status: parsed.data } });
     return { id: updated.id, status: updated.status };
   });
+
+  // SPEC-269 · hapus grup error (events cascade via onDelete: Cascade).
+  app.delete("/errors/:id", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const g = await prisma.errorGroup.findUnique({ where: { id } });
+    if (!g) return reply.code(404).send({ error: "not found" });
+    await prisma.errorGroup.delete({ where: { id } });
+    return { ok: true };
+  });
 }

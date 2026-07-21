@@ -86,3 +86,16 @@ describe("GET /api/errors/:id", () => {
     expect((await app.inject({ method: "GET", url: "/api/errors/nope" })).statusCode).toBe(404);
   });
 });
+
+describe("DELETE /api/errors/:id (SPEC-269)", () => {
+  it("menghapus grup + events; 404 id asing", async () => {
+    const g = await prisma.errorGroup.findFirst({ where: { fingerprint: "f1" } });
+    expect(await prisma.errorEvent.count({ where: { groupId: g!.id } })).toBe(2);
+    const res = await app.inject({ method: "DELETE", url: "/api/errors/" + g!.id });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().ok).toBe(true);
+    expect(await prisma.errorGroup.findUnique({ where: { id: g!.id } })).toBeNull();
+    expect(await prisma.errorEvent.count({ where: { groupId: g!.id } })).toBe(0); // cascade
+    expect((await app.inject({ method: "DELETE", url: "/api/errors/tak-ada" })).statusCode).toBe(404);
+  });
+});
