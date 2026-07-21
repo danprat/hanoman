@@ -436,6 +436,16 @@ export default function App() {
   // ProjectVM dulu membawa daftar tipe trigger per project; trigger sudah tak ada (SPEC-162).
   const projectsView: ProjectVM[] = projects;
 
+  // SPEC-258 · refetch satu VM project ke state sesudah mutasi in-card (DSN/Help). State `projects`
+  // hanya dimuat saat login (WS cuma dorong specs/sessions), jadi tanpa ini status DSN yang baru
+  // di-generate "hilang" saat layar re-mount/refresh (baca prop basi). Cermin updateProject().
+  const refreshProject = React.useCallback(async (id: string) => {
+    try {
+      const fresh = await api.getProject(id);
+      setProjects((list) => list.map((x) => (x.id === fresh.id ? fresh : x)));
+    } catch { /* biarkan; load()/refresh berikutnya menyusul */ }
+  }, []);
+
   // Spec yang punya sesi claude hidup. Kartunya menawarkan "Buka sesi", bukan "Mulai".
   const activeSpecs = React.useMemo(
     () => new Set(sessions.filter((s) => s.specId && !s.exited).map((s) => s.specId as string)),
@@ -768,6 +778,7 @@ export default function App() {
         breadcrumb={proj ? "projects · " + proj.id : "projects"} onNavigate={setSection}>
         {gate(proj
           ? <ProjectDetailScreen p={proj} onEdit={() => setModal("project-edit")} onToast={showToast}
+              onProjectChanged={refreshProject}
               onGotoDocs={() => setSection("docs")}
               onGotoTerminal={() => { setProjectFilter(proj.id); setSection("terminal"); }}
               onGotoBacklog={() => { setProjectFilter(proj.id); setSection("backlog"); }}

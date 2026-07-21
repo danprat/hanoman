@@ -11,7 +11,9 @@ const COV_TONE = (s: string) => (s === "broken" ? "err" : s === "drift" ? "warn"
 
 // SPEC-249 · kartu DSN error monitoring: generate/rotate/revoke. Plaintext DSN URL hanya
 // ditampilkan SEKALI (pola DeviceTokensPanel). Init dari VM, update lokal saat aksi.
-function DsnCard({ p, onToast }: { p: ProjectVM; onToast: (msg: string, kind?: string, icon?: string) => void }) {
+function DsnCard({ p, onToast, onProjectChanged }:
+  { p: ProjectVM; onToast: (msg: string, kind?: string, icon?: string) => void;
+    onProjectChanged?: (id: string) => void | Promise<void> }) {
   const [enabled, setEnabled] = React.useState(p.monitoringEnabled);
   const [prefix, setPrefix] = React.useState<string | null>(p.ingestKeyPrefix);
   const [freshDsn, setFreshDsn] = React.useState<string | null>(null);
@@ -24,13 +26,20 @@ function DsnCard({ p, onToast }: { p: ProjectVM; onToast: (msg: string, kind?: s
       const r = await api.rotateIngestKey(p.id);
       setEnabled(true); setPrefix(r.prefix); setFreshDsn(r.dsnUrl ?? null);
       onToast(enabled ? "DSN dirotasi" : "DSN dibuat", "ok", "key-round");
+      // SPEC-258 · rambatkan status yang di-persist ke state project App. Tanpa ini, state lokal
+      // kartu ini hilang saat layar re-mount (refresh) → tampil "belum ada DSN" yang ambigu.
+      await onProjectChanged?.(p.id);
     } catch { onToast("Gagal membuat DSN", "err", "x-circle"); }
     finally { setBusy(false); }
   }
   async function revoke() {
     if (!window.confirm(`Revoke DSN project "${p.name}"? Ingest yang memakai key lama akan ditolak.`)) return;
     setBusy(true);
-    try { await api.revokeIngestKey(p.id); setEnabled(false); setPrefix(null); setFreshDsn(null); onToast("DSN dicabut", "ok", "key-round"); }
+    try {
+      await api.revokeIngestKey(p.id); setEnabled(false); setPrefix(null); setFreshDsn(null);
+      onToast("DSN dicabut", "ok", "key-round");
+      await onProjectChanged?.(p.id); // SPEC-258 · status revoke ikut persist ke state App
+    }
     catch { onToast("Gagal revoke DSN", "err", "x-circle"); }
     finally { setBusy(false); }
   }
@@ -73,7 +82,9 @@ function DsnCard({ p, onToast }: { p: ProjectVM; onToast: (msg: string, kind?: s
 
 // SPEC-253 · kartu Help Center: toggle aktif + link publik yang bisa disalin & disebar. Link terikat
 // Project.id (slug), stabil. Init dari VM, update lokal saat aksi.
-function HelpCenterCard({ p, onToast }: { p: ProjectVM; onToast: (msg: string, kind?: string, icon?: string) => void }) {
+function HelpCenterCard({ p, onToast, onProjectChanged }:
+  { p: ProjectVM; onToast: (msg: string, kind?: string, icon?: string) => void;
+    onProjectChanged?: (id: string) => void | Promise<void> }) {
   const [enabled, setEnabled] = React.useState(p.helpEnabled);
   const [busy, setBusy] = React.useState(false);
   // Link publik same-origin — dibangun di klien (setara publicUrl server), tanpa fetch saat mount.
@@ -81,14 +92,20 @@ function HelpCenterCard({ p, onToast }: { p: ProjectVM; onToast: (msg: string, k
 
   async function enable() {
     setBusy(true);
-    try { await api.enableHelpCenter(p.id); setEnabled(true); onToast("Help Center aktif", "ok", "inbox"); }
+    try {
+      await api.enableHelpCenter(p.id); setEnabled(true); onToast("Help Center aktif", "ok", "inbox");
+      await onProjectChanged?.(p.id); // SPEC-258 · cacat kembar DsnCard: status persist ke state App
+    }
     catch { onToast("Gagal mengaktifkan Help Center", "err", "x-circle"); }
     finally { setBusy(false); }
   }
   async function disable() {
     if (!window.confirm(`Nonaktifkan Help Center project "${p.name}"? Link publik berhenti menerima keluhan baru (tiket lama tetap ada).`)) return;
     setBusy(true);
-    try { await api.disableHelpCenter(p.id); setEnabled(false); onToast("Help Center nonaktif", "ok", "inbox"); }
+    try {
+      await api.disableHelpCenter(p.id); setEnabled(false); onToast("Help Center nonaktif", "ok", "inbox");
+      await onProjectChanged?.(p.id); // SPEC-258 · status persist ke state App
+    }
     catch { onToast("Gagal menonaktifkan Help Center", "err", "x-circle"); }
     finally { setBusy(false); }
   }
@@ -142,10 +159,12 @@ function Door({ icon, title, hint, onClick }:
   );
 }
 
-export function ProjectDetailScreen({ p, onEdit, onGotoDocs, onGotoTerminal, onGotoBacklog, onDelete, onReverse, onScaffold, onToast }:
+export function ProjectDetailScreen({ p, onEdit, onGotoDocs, onGotoTerminal, onGotoBacklog, onDelete, onReverse, onScaffold, onToast, onProjectChanged }:
   { p: ProjectVM; onEdit: () => void; onGotoDocs: () => void; onGotoTerminal: () => void;
     onGotoBacklog: () => void; onDelete: () => void; onReverse?: () => void; onScaffold?: () => void;
-    onToast: (msg: string, kind?: string, icon?: string) => void }) {
+    onToast: (msg: string, kind?: string, icon?: string) => void;
+    // SPEC-258 · dipanggil sesudah mutasi in-card (DSN/Help) agar App refetch VM & status persist.
+    onProjectChanged?: (id: string) => void | Promise<void> }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <Card>
@@ -182,8 +201,8 @@ export function ProjectDetailScreen({ p, onEdit, onGotoDocs, onGotoTerminal, onG
         </div>
       </Card>
 
-      <DsnCard p={p} onToast={onToast} />
-      <HelpCenterCard p={p} onToast={onToast} />
+      <DsnCard p={p} onToast={onToast} onProjectChanged={onProjectChanged} />
+      <HelpCenterCard p={p} onToast={onToast} onProjectChanged={onProjectChanged} />
 
       <div style={{ display: "grid", gridTemplateColumns: `repeat(${onReverse || onScaffold ? 4 : 3}, 1fr)`, gap: 12 }}>
         <Door icon="book-open" title="Source of Truth" hint="baca & sunting docs" onClick={onGotoDocs} />

@@ -1,3 +1,4 @@
+import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -46,5 +47,34 @@ describe("DSN management (SPEC-249)", () => {
     render(<ProjectDetailScreen p={vm({ monitoringEnabled: true, ingestKeyPrefix: "hnm_ing_zzz" })} {...props} />);
     fireEvent.click(screen.getByText("Revoke"));
     await waitFor(() => expect(revokeIngestKey).toHaveBeenCalledWith("a"));
+  });
+
+  // SPEC-258 · Regresi: DSN yang baru di-generate tak boleh "hilang" saat layar di-refresh
+  // (re-mount). Akar: mutasi lokal kartu tak dirambatkan ke state project App, jadi re-mount
+  // membaca prop basi (monitoringEnabled=false). Fix: onProjectChanged → App refetch VM.
+  it("keeps DSN status after a screen re-mount once the parent refreshes the VM (SPEC-258)", async () => {
+    function Harness() {
+      // Meniru state `projects` App: awalnya belum ada DSN.
+      const [proj, setProj] = React.useState(vm({ monitoringEnabled: false, ingestKeyPrefix: null }));
+      const [nav, setNav] = React.useState(0); // pindah section lalu balik = re-mount
+      // Meniru App.refreshProject: fetch VM segar dari server (server sudah persist enabled=true).
+      const onProjectChanged = async () =>
+        setProj(vm({ monitoringEnabled: true, ingestKeyPrefix: "hnm_ing_abc123" }));
+      return (
+        <>
+          <button onClick={() => setNav((n) => n + 1)}>renav</button>
+          <ProjectDetailScreen key={nav} p={proj} {...props} onProjectChanged={onProjectChanged} />
+        </>
+      );
+    }
+    render(<Harness />);
+    fireEvent.click(screen.getByText("Generate DSN"));
+    await waitFor(() => expect(rotateIngestKey).toHaveBeenCalledWith("a"));
+    // Re-mount layar (refresh). Tanpa perbaikan, prop tetap basi → balik ke "Generate DSN".
+    fireEvent.click(screen.getByText("renav"));
+    expect(await screen.findByText("Rotate")).toBeInTheDocument();
+    expect(screen.getByText("Revoke")).toBeInTheDocument();
+    expect(screen.getByText(/hnm_ing_abc123/)).toBeInTheDocument();
+    expect(screen.queryByText("Generate DSN")).not.toBeInTheDocument();
   });
 });
