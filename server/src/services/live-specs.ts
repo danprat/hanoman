@@ -4,6 +4,7 @@ import { sessionPhasesBySpec } from "./pty";
 import { stageForRun } from "./session-phases";
 import { STAGES } from "./stage-machine";
 import { recordCompletion } from "./notifications";
+import { enqueueOutbox } from "./outbox";
 
 // SPEC-199 · dulu inline di GET /specs; kini dipakai route HTTP DAN hub siar (services/events.ts)
 // supaya push WS dan pull HTTP tak pernah drift. Stage live diturunkan dari berkas fase sesi
@@ -28,9 +29,16 @@ export async function liveSpecs(filter: { project?: string; source?: string } = 
   });
   // Write-through pada kemajuan (forward-only dijamin guard di atas). CAS `stage = from`: revert
   // konkuren (PATCH mundur + hapus docs) tak boleh ter-overwrite maju lagi (SPEC-197).
+  // SPEC-267 · CAS yang benar-benar menulis (count > 0) HARUS mengantre outbox — kemajuan stage
+  // otomatis adalah cara dominan status backlog berubah; tanpa ini ia tak pernah ter-push ke hub
+  // dan status lokal vs server desync. Best-effort seperti call-site outbox lain.
   if (advanced.length)
-    await Promise.all(advanced.map((a) =>
-      prisma.spec.updateMany({ where: { id: a.id, stage: a.from }, data: { stage: a.stage } }).catch(() => { })));
+    await Promise.all(advanced.map(async (a) => {
+      const res = await prisma.spec
+        .updateMany({ where: { id: a.id, stage: a.from }, data: { stage: a.stage } })
+        .catch(() => ({ count: 0 }));
+      if (res.count > 0) await enqueueOutbox("spec", a.id);
+    }));
   // SPEC-180 · notif dibuat sesudah persist stage; recordCompletion idempoten (key unik).
   await Promise.all(doneNow.map((d) => recordCompletion(d.specId, d.title, d.projectId)));
   return out;

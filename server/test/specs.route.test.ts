@@ -113,6 +113,18 @@ describe("specs routes", () => {
     const row = await prisma.spec.findUnique({ where: { id: "SPEC-500" } });
     expect(row?.stage).toBe("planned"); // write-through jalan walau item di luar halaman
   });
+  // SPEC-267 · kemajuan stage otomatis (write-through liveSpecs) HARUS mengantre outbox, kalau tidak
+  // status backlog lokal maju tapi tak pernah ter-push ke hub → local & server desync.
+  it("advancing stage via write-through enqueues outbox(spec) so it syncs to hub", async () => {
+    await prisma.syncOutbox.deleteMany();
+    await makeProject({ id: "psync", repoDir: makeTempRepo({}) });
+    await makeSpec({ id: "SPEC-267A", projectId: "psync", stage: "brainstorming" });
+    vi.mocked(sessionPhasesBySpec).mockReturnValueOnce(
+      new Map([["SPEC-267A", { phases: [{ name: "Plan", state: "done" }], cwd: "/tmp/none" }]]) as any);
+    await app.inject({ url: "/api/specs?project=psync" });
+    const out = await prisma.syncOutbox.findMany();
+    expect(out.find((o) => o.entity === "spec" && o.recordId === "SPEC-267A")).toBeTruthy();
+  });
   it("creates a brief spec with next id", async () => {
     const res = await app.inject({
       method: "POST", url: "/api/specs", payload: {
