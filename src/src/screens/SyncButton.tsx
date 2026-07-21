@@ -4,6 +4,7 @@
 import React from "react";
 import { Button } from "../ds";
 import { api } from "../api/client";
+import { ReconcileModal } from "./ReconcileModal";
 
 // Status "instance ini client sync?" — di-cache modul (satu fetch config, dibagi 3 layar).
 let cached: Promise<boolean> | null = null;
@@ -24,6 +25,7 @@ export function SyncButton({ onDone, onToast }:
   { onDone: () => void; onToast: (msg: string, kind?: string, icon?: string) => void }) {
   const active = useSyncActive();
   const [busy, setBusy] = React.useState(false);
+  const [showModal, setShowModal] = React.useState(false);
   if (!active) return null;
   async function run() {
     setBusy(true);
@@ -33,13 +35,18 @@ export function SyncButton({ onDone, onToast }:
       else onToast(
         `Sinkron: ↓${r.pulled ?? 0} ↑${r.pushed ?? 0}${r.conflicts ? ` · ${r.conflicts} konflik` : ""}`,
         r.conflicts ? "warn" : "ok", r.conflicts ? "triangle-alert" : "check");
+      // SPEC-270 · ADR-0067 · ada konflik → buka modal rekonsil side-by-side.
+      if (r.ok && r.conflicts) setShowModal(true);
       onDone();
     } catch { onToast("Gagal sync", "err", "x-circle"); }
     finally { setBusy(false); }
   }
   return (
-    <Button size="sm" variant="secondary" leftIcon="rotate-ccw" onClick={run} disabled={busy}>
-      {busy ? "Menyinkron…" : "Sync"}
-    </Button>
+    <>
+      <Button size="sm" variant="secondary" leftIcon="rotate-ccw" onClick={run} disabled={busy}>
+        {busy ? "Menyinkron…" : "Sync"}
+      </Button>
+      <ReconcileModal open={showModal} onClose={() => setShowModal(false)} onResolved={onDone} />
+    </>
   );
 }
