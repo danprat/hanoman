@@ -2,7 +2,7 @@
    memuat datanya sendiri + silent poll (pola GitGraph). Master (daftar tiket) → detail dengan
    lampiran + aksi Terima (→ Spec source help) / Tolak. Realtime via HTTP polling (ADR-0062), bukan WS. */
 import React from "react";
-import { Button, Badge, Select, StateBlock, Icon } from "../ds";
+import { Button, Badge, Select, StateBlock, Icon, Input, Field, HnTextarea, ConfirmDialog } from "../ds";
 import { paths, type TicketView, type TicketDetail, type Spec } from "@hanoman/shared";
 import { api } from "../api/client";
 import type { ProjectVM } from "./types";
@@ -52,13 +52,17 @@ function TicketRow({ t, onOpen }: { t: TicketView; onOpen: (id: string) => void 
   );
 }
 
-function TicketDetailView({ id, onBack, onAccepted, onToast }:
+function TicketDetailView({ id, onBack, onAccepted, onDeleted, onToast }:
   { id: string; onBack: () => void; onAccepted: (spec: Spec, already: boolean) => void;
+    onDeleted: () => void;
     onToast: (msg: string, kind?: string, icon?: string) => void }) {
   const [t, setT] = React.useState<(TicketDetail & { spec: Spec | null }) | null>(null);
   const [state, setState] = React.useState<"loading" | "ready" | "error">("loading");
   const [busy, setBusy] = React.useState(false);
   const [priority, setPriority] = React.useState("sedang");
+  const [editing, setEditing] = React.useState(false);
+  const [confirm, setConfirm] = React.useState(false);
+  const [form, setForm] = React.useState({ title: "", detail: "", category: "bug", status: "new" });
 
   const load = React.useCallback(() => {
     api.getTicket(id).then((d) => { setT(d); setState("ready"); }).catch(() => setState("error"));
@@ -83,6 +87,43 @@ function TicketDetailView({ id, onBack, onAccepted, onToast }:
     catch { onToast("Gagal menolak tiket", "err", "x-circle"); }
     finally { setBusy(false); }
   }
+  function startEdit() {
+    setForm({ title: t!.title, detail: t!.detail, category: t!.category, status: t!.status });
+    setEditing(true);
+  }
+  async function save() {
+    setBusy(true);
+    try {
+      const d = await api.editTicket(id, { title: form.title, detail: form.detail, category: form.category as never, status: form.status as never });
+      setT(d); setEditing(false); onToast("Tiket diperbarui", "ok");
+    } catch { onToast("Gagal menyimpan", "err", "x-circle"); }
+    finally { setBusy(false); }
+  }
+  async function remove() {
+    setBusy(true);
+    try { await api.deleteTicket(id); onToast("Tiket dihapus", "ok", "trash-2"); onDeleted(); }
+    catch { onToast("Gagal menghapus", "err", "x-circle"); setBusy(false); }
+  }
+
+  if (editing) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <Button size="sm" variant="ghost" leftIcon="arrow-left" onClick={() => setEditing(false)} disabled={busy}>Batal</Button>
+          <span style={{ flex: 1 }} />
+          <Button size="sm" variant="primary" leftIcon="check" onClick={save} disabled={busy}>Simpan</Button>
+        </div>
+        <Field label="Judul"><Input value={form.title} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, title: e.target.value })} /></Field>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <Field label="Kategori"><Select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
+            options={[{ value: "bug", label: "bug" }, { value: "fitur", label: "fitur" }, { value: "pertanyaan", label: "pertanyaan" }, { value: "lainnya", label: "lainnya" }]} /></Field>
+          <Field label="Status"><Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}
+            options={[{ value: "new", label: "belum ditinjau" }, { value: "accepted", label: "diterima" }, { value: "rejected", label: "ditutup" }]} /></Field>
+        </div>
+        <Field label="Detail keluhan"><HnTextarea value={form.detail} rows={6} onChange={(e) => setForm({ ...form, detail: e.target.value })} /></Field>
+      </div>
+    );
+  }
 
   const done = t.status !== "new";
   return (
@@ -91,6 +132,8 @@ function TicketDetailView({ id, onBack, onAccepted, onToast }:
         <Button size="sm" variant="ghost" leftIcon="arrow-left" onClick={onBack}>Kembali</Button>
         <Badge tone={STATUS_TONE[t.status as TStatus] ?? "neutral"}>{STATUS_LABEL[t.status as TStatus] ?? t.status}</Badge>
         <span style={{ flex: 1 }} />
+        <Button size="sm" variant="ghost" leftIcon="pencil" onClick={startEdit} disabled={busy}>Ubah</Button>
+        <Button size="sm" variant="ghost" leftIcon="trash-2" onClick={() => setConfirm(true)} disabled={busy}>Hapus</Button>
         {t.specId
           ? <Badge tone="ok" icon="link">→ {t.specId}</Badge>
           : !done && <>
@@ -130,6 +173,9 @@ function TicketDetailView({ id, onBack, onAccepted, onToast }:
           </div>
         </div>
       )}
+      <ConfirmDialog open={confirm} title="Hapus tiket?" eyebrow={`#${t.number}`}
+        message={`Tiket "${t.title}" dan seluruh lampirannya akan dihapus permanen. Tindakan ini tak bisa dibatalkan.`}
+        busy={busy} onCancel={() => setConfirm(false)} onConfirm={remove} />
     </div>
   );
 }
@@ -158,7 +204,7 @@ export function TriageScreen({ projects, onAccepted, onToast }:
     return () => clearInterval(t);
   }, [load]);
 
-  if (openId) return <TicketDetailView id={openId} onBack={() => { setOpenId(null); load(true); }} onAccepted={onAccepted} onToast={onToast} />;
+  if (openId) return <TicketDetailView id={openId} onBack={() => { setOpenId(null); load(true); }} onAccepted={onAccepted} onDeleted={() => { setOpenId(null); load(true); }} onToast={onToast} />;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, minHeight: 0, flex: 1 }}>

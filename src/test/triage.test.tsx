@@ -7,14 +7,16 @@ const TICKET: any = {
 };
 const DETAIL: any = { ...TICKET, detail: "Detil keluhan", attachments: [], spec: null };
 
-const { listTickets, getTicket, acceptTicket, rejectTicket } = vi.hoisted(() => ({
+const { listTickets, getTicket, acceptTicket, rejectTicket, editTicket, deleteTicket } = vi.hoisted(() => ({
   listTickets: vi.fn(async () => ({ items: [TICKET], total: 1, page: 1, pageSize: 1, unreviewed: 1 })),
   getTicket: vi.fn(async () => DETAIL),
   acceptTicket: vi.fn(async () => ({ spec: { id: "SPEC-300", projectId: "demo" } })),
   rejectTicket: vi.fn(async () => ({ id: "t1", status: "rejected" })),
+  editTicket: vi.fn(async () => ({ ...DETAIL, title: "Judul baru" })),
+  deleteTicket: vi.fn(async () => ({ ok: true })),
 }));
 vi.mock("../src/api/client", () => ({
-  api: { listTickets, getTicket, acceptTicket, rejectTicket },
+  api: { listTickets, getTicket, acceptTicket, rejectTicket, editTicket, deleteTicket },
   ApiError: class extends Error {},
 }));
 import { TriageScreen } from "../src/screens/TriageScreen";
@@ -36,5 +38,24 @@ describe("SPEC-253 · TriageScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: /terima/i }));
     await waitFor(() => expect(acceptTicket).toHaveBeenCalledWith("t1", "sedang"));
     await waitFor(() => expect(onAccepted).toHaveBeenCalled());
+  });
+
+  it("Ubah → ubah judul → Simpan memanggil editTicket (SPEC-269)", async () => {
+    render(<TriageScreen projects={projects} onAccepted={() => {}} onToast={() => {}} />);
+    fireEvent.click(await screen.findByText("Tak bisa login"));
+    fireEvent.click(await screen.findByRole("button", { name: /ubah/i }));
+    const titleInput = await screen.findByDisplayValue("Tak bisa login");
+    fireEvent.change(titleInput, { target: { value: "Judul baru" } });
+    fireEvent.click(screen.getByRole("button", { name: /simpan/i }));
+    await waitFor(() => expect(editTicket).toHaveBeenCalledWith("t1", expect.objectContaining({ title: "Judul baru" })));
+  });
+
+  it("Hapus → konfirmasi memanggil deleteTicket (SPEC-269)", async () => {
+    render(<TriageScreen projects={projects} onAccepted={() => {}} onToast={() => {}} />);
+    fireEvent.click(await screen.findByText("Tak bisa login"));
+    fireEvent.click(await screen.findByRole("button", { name: /hapus/i }));   // tombol aksi → buka modal
+    const confirmBtn = screen.getAllByRole("button", { name: /hapus/i }).pop()!;
+    fireEvent.click(confirmBtn);                                              // konfirmasi
+    await waitFor(() => expect(deleteTicket).toHaveBeenCalledWith("t1"));
   });
 });
