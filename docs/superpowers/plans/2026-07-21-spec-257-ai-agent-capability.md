@@ -61,7 +61,7 @@
 **Interfaces:**
 - Produces: `CAPABILITY_IDS: readonly string[]`, `zCapability`, `type Capability`, `CAPABILITIES: CapabilityInfo[]`, `grantsCapability(granted: string[], need: Capability): boolean`, `zAgentTokenView`/`AgentTokenView`, `zAgentTokenCreate`, `zAgentTokenPatch`, `zCapabilityInfo`/`CapabilityInfo`. `zSetting` gains `agentAccessEnabled: boolean` (default false). `paths.agentTokens`, `paths.agentToken(id)`, `paths.agentCapabilities`.
 
-- [ ] **Step 1: Write the failing test** — `shared/test/agent.test.ts`
+- [x] **Step 1: Write the failing test** — `shared/test/agent.test.ts`
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -109,12 +109,12 @@ describe("agent capabilities", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter @hanoman/shared exec vitest run test/agent.test.ts`
 Expected: FAIL — module `../src` has no export `CAPABILITY_IDS`.
 
-- [ ] **Step 3: Create `shared/src/agent.ts`**
+- [x] **Step 3: Create `shared/src/agent.ts`**
 
 ```ts
 import { z } from "zod";
@@ -189,14 +189,14 @@ export const zAgentTokenPatch = z.object({
 });
 ```
 
-- [ ] **Step 4: Add `agentAccessEnabled` to `zSetting`** — `shared/src/entities.ts`, dalam objek `zSetting` (setelah `notifyDecisionSound`):
+- [x] **Step 4: Add `agentAccessEnabled` to `zSetting`** — `shared/src/entities.ts`, dalam objek `zSetting` (setelah `notifyDecisionSound`):
 
 ```ts
   notifyDecisionSound: z.enum(NOTIFY_SOUNDS).default("alert"),            // SPEC-184
   agentAccessEnabled: z.boolean().default(false),                        // SPEC-257 · master switch akses AI agent
 ```
 
-- [ ] **Step 5: Add paths** — `shared/src/api.ts`, setelah blok `config`:
+- [x] **Step 5: Add paths** — `shared/src/api.ts`, setelah blok `config`:
 
 ```ts
   // SPEC-257 · ADR-0065 · agent token (kelola cookie-only) + katalog capability
@@ -205,18 +205,18 @@ export const zAgentTokenPatch = z.object({
   agentCapabilities: `${API}/agent-tokens/capabilities`,
 ```
 
-- [ ] **Step 6: Export** — `shared/src/index.ts`, tambah baris:
+- [x] **Step 6: Export** — `shared/src/index.ts`, tambah baris:
 
 ```ts
 export * from "./agent";
 ```
 
-- [ ] **Step 7: Run test to verify it passes**
+- [x] **Step 7: Run test to verify it passes**
 
 Run: `pnpm --filter @hanoman/shared exec vitest run test/agent.test.ts && pnpm --filter @hanoman/shared typecheck`
 Expected: PASS (5 test) + typecheck clean.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add shared/src/agent.ts shared/src/entities.ts shared/src/api.ts shared/src/index.ts shared/test/agent.test.ts

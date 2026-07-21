@@ -57,6 +57,7 @@ export const zSetting = z.object({
   notifySound: z.enum(NOTIFY_SOUNDS).default("short"),                     // SPEC-180
   notifyDecision: z.boolean().default(true),                              // SPEC-184
   notifyDecisionSound: z.enum(NOTIFY_SOUNDS).default("alert"),            // SPEC-184
+  agentAccessEnabled: z.boolean().default(false),                        // SPEC-257 · master switch akses AI agent
 });
 export type Setting = z.infer<typeof zSetting>;
 
