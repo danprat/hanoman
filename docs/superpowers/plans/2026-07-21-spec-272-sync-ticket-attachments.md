@@ -316,7 +316,7 @@ git commit -m "feat(spec-272): endpoint biner hub /sync/attachments/:key (device
 - Consumes: `effectiveStr("SYNC_SERVER_URL")`, `effectiveStr("SYNC_DEVICE_TOKEN")` dari `../config`; endpoint Task 3.
 - Produces: `readUploadOrFetch(storageKey: string): Promise<Buffer>` — baca lokal; bila ENOENT & client sync → tarik dari hub, cache ke upload dir, kembalikan buffer; else throw.
 
-- [ ] **Step 1: Tulis test (failing) di uploads.test.ts**
+- [x] **Step 1: Tulis test (failing) di uploads.test.ts**
 
 Tambah import:
 ```ts
@@ -362,7 +362,7 @@ Tambah test di dalam `describe("uploads")`:
   });
 ```
 
-- [ ] **Step 2: Jalankan → gagal**
+- [x] **Step 2: Jalankan → gagal**
 
 Run:
 ```bash
@@ -371,7 +371,7 @@ env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman
 ```
 Expected: FAIL — `readUploadOrFetch` belum diekspor.
 
-- [ ] **Step 3: Implementasi readUploadOrFetch**
+- [x] **Step 3: Implementasi readUploadOrFetch**
 
 Di `server/src/services/uploads.ts`, tambah setelah `readUpload`:
 ```ts
@@ -399,7 +399,7 @@ export async function readUploadOrFetch(storageKey: string): Promise<Buffer> {
 }
 ```
 
-- [ ] **Step 4: Jalankan → lulus**
+- [x] **Step 4: Jalankan → lulus**
 
 Run:
 ```bash
@@ -408,7 +408,7 @@ env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman
 ```
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/uploads.ts server/src/services/uploads.test.ts
