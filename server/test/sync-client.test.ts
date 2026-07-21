@@ -9,6 +9,7 @@ import { clearConfig } from "../src/config";
 
 const app = buildApp();
 const clean = async () => {
+  await prisma.syncConflict.deleteMany();
   await prisma.syncLog.deleteMany(); await prisma.syncOutbox.deleteMany(); await prisma.syncState.deleteMany();
   await prisma.spec.deleteMany(); await prisma.project.deleteMany();
   await prisma.deviceToken.deleteMany(); await prisma.session.deleteMany(); await prisma.user.deleteMany();
@@ -92,5 +93,40 @@ describe("sync-client syncOnce (SPEC-213 AC-18/19)", () => {
     await prisma.runtimeConfig.deleteMany();
     await clearConfig("SYNC_SERVER_URL"); await clearConfig("SYNC_DEVICE_TOKEN");
     expect(await syncNow()).toBeNull();
+  });
+});
+
+// SPEC-270 · ADR-0067 · klasifikasi konflik + fix versi setelah push (stub transport: hub=lokal
+// berbagi satu DB, jadi divergensi disimulasikan via respons stub, bukan seed nyata).
+describe("sync-client konflik (SPEC-270)", () => {
+  const hub = { ...specData({ title: "judul-hub2" }), updatedAt: "2020-01-03T00:00:00.000Z" };
+
+  it("edit dua-sisi → SyncConflict dicatat, tak clobber lokal", async () => {
+    await prisma.project.create({ data: { id: "p1", name: "p1", desc: "d", kind: "existing", repoDir: null } });
+    await prisma.spec.create({ data: { id: "SPEC-1", ...specData({ title: "judul-lokal" }), version: 1,
+      updatedAt: new Date("2020-01-02T00:00:00.000Z") } });
+    await enqueueOutbox("spec", "SPEC-1");
+    const stub: Transport = async (method) => {
+      if (method === "GET") return { status: 200, body: { cursor: "5",
+        records: [{ entity: "spec", recordId: "SPEC-1", version: 2, data: hub }] } };
+      return { status: 200, body: { results: [{ id: "SPEC-1", ok: false, conflict: true,
+        server: { version: 2, data: hub } }] } };
+    };
+    const res = await syncOnce(stub);
+    expect(res.conflicts).toBe(1);
+    expect(await prisma.syncConflict.count({ where: { resolvedAt: null } })).toBe(1);
+    expect((await prisma.spec.findUnique({ where: { id: "SPEC-1" } }))!.title).toBe("judul-lokal");
+  });
+
+  it("push sukses menaikkan versi lokal = versi hub", async () => {
+    await prisma.project.create({ data: { id: "p1", name: "p1", desc: "d", kind: "existing", repoDir: null } });
+    await prisma.spec.create({ data: { id: "SPEC-9", ...specData(), version: 0 } });
+    await enqueueOutbox("spec", "SPEC-9");
+    const stub: Transport = async (method) => {
+      if (method === "GET") return { status: 200, body: { cursor: "0", records: [] } };
+      return { status: 200, body: { results: [{ id: "SPEC-9", ok: true, version: 1 }] } };
+    };
+    await syncOnce(stub);
+    expect((await prisma.spec.findUnique({ where: { id: "SPEC-9" } }))!.version).toBe(1);
   });
 });

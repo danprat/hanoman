@@ -1,5 +1,6 @@
 import { prisma } from "../db";
-import { pull as _pull, snapshot, upsertLocal, isEntity } from "./sync";
+import { pull as _pull, snapshot, upsertLocal, isEntity, type Entity } from "./sync";
+import { recordConflict } from "./conflicts";
 import { listOutbox, clearOutbox } from "./outbox";
 import { RENAME_SEP } from "./rename-project";
 import { effectiveStr, effectiveInt } from "../config";
@@ -37,11 +38,29 @@ export async function syncOnce(transport: Transport): Promise<SyncStats> {
   const cursor = await getCursor();
   const outbox = await listOutbox();
   const pending = new Set(outbox.map((o) => `${o.entity}:${o.recordId}`));
+  // SPEC-270 · dedupe hitungan konflik per record (feed bisa punya banyak baris satu recordId).
+  const conflicted = new Set<string>();
+  const markConflict = async (entity: string, recordId: string, local: { version: number; data: Record<string, unknown> },
+    server: { version: number; data: Record<string, unknown> }) => {
+    await recordConflict(entity, recordId, local, server);
+    const key = `${entity}:${recordId}`;
+    if (!conflicted.has(key)) { conflicted.add(key); conflicts++; }
+  };
 
   const pullRes = await transport("GET", `/api/sync/pull?since=${cursor}`);
   const records: { entity: string; recordId: string; version: number; data: Record<string, unknown> }[] = pullRes.body?.records ?? [];
   for (const rec of records) {
-    if (pending.has(`${rec.entity}:${rec.recordId}`)) continue; // edit lokal pending — jangan clobber
+    if (!isEntity(rec.entity)) continue;
+    if (pending.has(`${rec.entity}:${rec.recordId}`)) {
+      // SPEC-270 · ada edit lokal pending — klasifikasi: data sama → biarkan (push nanti),
+      // beda → catat konflik untuk keputusan manusia. Jangan clobber edit lokal.
+      const local = await snapshot(rec.entity as Entity, rec.recordId);
+      if (local && JSON.stringify(local.data) !== JSON.stringify(rec.data)) {
+        await markConflict(rec.entity, rec.recordId,
+          { version: local.version, data: local.data }, { version: rec.version, data: rec.data });
+      }
+      continue;
+    }
     await applyRemote(rec.entity, rec.recordId, rec.version, rec.data);
     pulled++;
   }
@@ -69,8 +88,24 @@ export async function syncOnce(transport: Transport): Promise<SyncStats> {
       records: [{ entity: item.entity, id: item.recordId, baseVersion: snap.version, data: snap.data }],
     });
     const r = res.body?.results?.[0];
-    if (r?.ok) { await clearOutbox(item.entity, item.recordId); pushed++; }
-    else if (r?.conflict) { conflicts++; } // biarkan di outbox untuk pull-rebase manusia (AC-13)
+    if (r?.ok) {
+      // SPEC-270 · naikkan versi lokal = versi hub agar tak nyimpang di edit berikutnya.
+      if (typeof r.version === "number") {
+        await (prisma as unknown as Record<string, { update: (a: unknown) => Promise<unknown> }>)[item.entity]
+          .update({ where: { id: item.recordId }, data: { version: r.version } }).catch(() => {});
+      }
+      await clearOutbox(item.entity, item.recordId); pushed++;
+    } else if (r?.conflict) {
+      // SPEC-270 · hub menolak → catat konflik dua-sisi bila datanya beda; else konvergen (adopsi hub).
+      const server = r.server as { version: number; data: Record<string, unknown> } | null;
+      if (server && JSON.stringify(server.data) !== JSON.stringify(snap.data)) {
+        await markConflict(item.entity, item.recordId,
+          { version: snap.version, data: snap.data }, { version: server.version, data: server.data });
+      } else if (server) {
+        await applyRemote(item.entity, item.recordId, server.version, server.data);
+        await clearOutbox(item.entity, item.recordId);
+      }
+    }
   }
   return { pulled, pushed, conflicts };
 }
