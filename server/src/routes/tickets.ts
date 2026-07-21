@@ -102,6 +102,17 @@ export default async function (app: FastifyInstance) {
     return reply.code(201).send({ spec });
   });
 
+  // SPEC-271 · lepas tautan tiket dari backlog (kebalikan accept). Non-destruktif: Spec
+  // dibiarkan (bisa dihapus manual). Reset status→"new" agar tiket bisa diterima lagi. Idempoten.
+  app.post("/tickets/:id/unlink", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const t = await prisma.ticket.findUnique({ where: { id } });
+    if (!t) return reply.code(404).send({ error: "not found" });
+    const updated = await prisma.ticket.update({ where: { id }, data: { status: "new", specId: null } });
+    await notifySynced("ticket", id); // SPEC-268 · perubahan status tiket ke feed
+    return { id: updated.id, status: updated.status, specId: updated.specId };
+  });
+
   // Tolak → tutup tiket tanpa Spec, tanpa memengaruhi backlog.
   app.post("/tickets/:id/reject", async (req, reply) => {
     const { id } = req.params as { id: string };

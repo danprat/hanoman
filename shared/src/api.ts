@@ -118,6 +118,7 @@ export const paths = {
   errorsGuide: `${API}/errors/integration-guide`,
   error: (id: string) => `${API}/errors/${id}`,
   errorEscalate: (id: string) => `${API}/errors/${id}/escalate`,
+  errorUnlink: (id: string) => `${API}/errors/${id}/unlink`,  // SPEC-271 · lepas tautan backlog
   projectIngestKey: (id: string) => `${API}/projects/${encodeURIComponent(id)}/ingest-key`,
   // SPEC-253 · Help Center publik (bypass gate cookie; otorisasi helpEnabled + kunci opaque tiket).
   help: (slug: string) => `${API}/help/${encodeURIComponent(slug)}`,
@@ -130,6 +131,7 @@ export const paths = {
   ticket: (id: string) => `${API}/tickets/${id}`,
   ticketAttachment: (id: string, attId: string) => `${API}/tickets/${id}/attachments/${attId}`,
   ticketAccept: (id: string) => `${API}/tickets/${id}/accept`,
+  ticketUnlink: (id: string) => `${API}/tickets/${id}/unlink`,  // SPEC-271 · lepas tautan backlog
   ticketReject: (id: string) => `${API}/tickets/${id}/reject`,
 } as const;
 

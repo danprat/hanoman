@@ -77,6 +77,15 @@ function GroupDetail({ id, onBack, onEscalated, onDeleted, onToast }:
     } catch { onToast("Gagal eskalasi", "err", "x-circle"); }
     finally { setBusy(false); }
   }
+  async function unlink() {
+    setBusy(true);
+    try {
+      const r = await api.unlinkError(id);
+      setG({ ...g!, specId: r.specId, status: r.status as ErrorGroupDetail["status"] });
+      onToast("Tautan backlog dilepas", "ok", "unlink");
+    } catch { onToast("Gagal melepas tautan", "err", "x-circle"); }
+    finally { setBusy(false); }
+  }
   async function changeStatus(status: string) {
     setBusy(true);
     try { await api.patchError(id, status); setG({ ...g!, status: status as ErrorGroupDetail["status"] }); onToast("Status diperbarui", "ok"); }
@@ -96,7 +105,10 @@ function GroupDetail({ id, onBack, onEscalated, onDeleted, onToast }:
         <Badge tone={STATUS_TONE[g.status]}>{g.status}</Badge>
         <span style={{ flex: 1 }} />
         {g.specId
-          ? <Badge tone="warn" icon="link">→ {g.specId}</Badge>
+          ? <>
+              <Badge tone="warn" icon="link">→ {g.specId}</Badge>
+              <Button size="sm" variant="ghost" leftIcon="unlink" onClick={unlink} disabled={busy}>Lepas tautan</Button>
+            </>
           : <Button size="sm" leftIcon="arrow-up-right" onClick={escalate} disabled={busy}>Eskalasi ke backlog</Button>}
         <Select size="sm" value={g.status} disabled={busy}
           onChange={(e) => changeStatus(e.target.value)}

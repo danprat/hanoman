@@ -52,6 +52,40 @@ describe("POST /api/errors/:id/escalate", () => {
   });
 });
 
+describe("POST /api/errors/:id/unlink", () => {
+  it("resets specId + status back to new, keeping the Spec (non-destructive)", async () => {
+    const spec = (await app.inject({ method: "POST", url: `/api/errors/${groupId}/escalate` })).json().spec;
+    const r = await app.inject({ method: "POST", url: `/api/errors/${groupId}/unlink` });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().specId).toBeNull();
+    expect(r.json().status).toBe("new");
+    const g = await prisma.errorGroup.findUnique({ where: { id: groupId } });
+    expect(g!.specId).toBeNull();
+    expect(g!.status).toBe("new");
+    // Spec dibiarkan (bisa dihapus manual)
+    expect(await prisma.spec.findUnique({ where: { id: spec.id } })).not.toBeNull();
+  });
+
+  it("lets the group be escalated again into a fresh Spec after unlink", async () => {
+    const first = (await app.inject({ method: "POST", url: `/api/errors/${groupId}/escalate` })).json().spec;
+    await app.inject({ method: "POST", url: `/api/errors/${groupId}/unlink` });
+    const again = await app.inject({ method: "POST", url: `/api/errors/${groupId}/escalate` });
+    expect(again.statusCode).toBe(201);
+    expect(again.json().spec.id).not.toBe(first.id);
+    expect(await prisma.spec.count()).toBe(2);
+  });
+
+  it("is idempotent when already unlinked", async () => {
+    const r = await app.inject({ method: "POST", url: `/api/errors/${groupId}/unlink` });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().specId).toBeNull();
+  });
+
+  it("404 for unknown group", async () => {
+    expect((await app.inject({ method: "POST", url: "/api/errors/nope/unlink" })).statusCode).toBe(404);
+  });
+});
+
 describe("PATCH /api/errors/:id", () => {
   it("updates status to resolved", async () => {
     const r = await app.inject({ method: "PATCH", url: `/api/errors/${groupId}`, payload: { status: "resolved" } });
