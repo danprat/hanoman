@@ -713,3 +713,46 @@ describe("terminal DELETE — integrate session cleanup (SPEC-175)", () => {
     expect(existsSync(wt)).toBe(false);
   });
 });
+
+// SPEC-273: sesi breakdown — pecah SATU PRD → manifest N backlog paralel. Project-level, tanpa Spec.
+describe("terminal routes · sesi breakdown", () => {
+  const start = (project: string, prdPath?: unknown) =>
+    app.inject({ method: "POST", url: "/api/terminal/sessions",
+      payload: { project, flow: "breakdown", ...(prdPath === undefined ? {} : { prdPath }) } });
+  const seedPrd = () => {
+    mkdirSync(join(repoDir, "docs", "prd"), { recursive: true });
+    writeFileSync(join(repoDir, "docs", "prd", "jadwal-invoice.md"),
+      "# Jadwal Invoice Berulang\n\nSCOPE-MARKER");
+  };
+
+  it("POST { flow: breakdown, prdPath } → worktree + sesi breakdown-<slug>", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    seedPrd();
+    const res = await start("p1", "docs/prd/jadwal-invoice.md");
+    expect(res.statusCode).toBe(201);
+    expect(res.json().id).toBe("breakdown-jadwal-invoice");
+    expect(existsSync(join(repoDir, ".worktrees", "breakdown-jadwal-invoice"))).toBe(true);
+    const s = listSessions().find((x) => x.id === "breakdown-jadwal-invoice")!;
+    expect(s.flow).toBe("breakdown");
+    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/breakdown-jadwal-invoice" });
+  });
+
+  it("prdPath yang tak terbaca → 400", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    expect((await start("p1", "docs/prd/tidak-ada.md")).statusCode).toBe(400);
+  });
+
+  it("prompt sesi breakdown memuat isi PRD + path manifest", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+    seedPrd();
+    const res = await start("p1", "docs/prd/jadwal-invoice.md");
+    expect(res.statusCode).toBe(201);
+    const c = connect("breakdown-jadwal-invoice");
+    await c.opened;
+    await waitFor(() => c.frames.some((f) => f.t === "exit"));
+    expect(c.data()).toContain("docs/prd/jadwal-invoice.breakdown.md");
+    expect(c.data()).toContain("SCOPE-MARKER");
+    c.ws.close();
+    await app.inject({ method: "DELETE", url: "/api/terminal/sessions/breakdown-jadwal-invoice" });
+  });
+});

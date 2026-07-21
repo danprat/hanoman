@@ -2,12 +2,13 @@ import type { FastifyInstance } from "fastify";
 import { existsSync } from "node:fs";
 import { prisma } from "../db";
 import { zTerminalSession, zIntegrate, type Stage } from "@hanoman/shared";
-import { realGit, startPrompt, continuePrompt, startProjectPrompt, startPrdPrompt, startScaffoldPrompt, type Flow } from "@hanoman/runner";
+import { realGit, startPrompt, continuePrompt, startProjectPrompt, startPrdPrompt, startScaffoldPrompt, startBreakdownPrompt, type Flow } from "@hanoman/runner";
 import { phaseFilePath, decisionFilePath, readPhases, stageForRun } from "../services/session-phases";
 import { specReview, reviewFile } from "../services/spec-review";
 import { integrateBranch } from "../services/integrate";
 import { sessionModel } from "../services/settings";
 import { resolveRepoDir } from "../services/local-binding";
+import { readPrd } from "../services/project-prds";
 import { recordSessionResult } from "../services/session-result";
 import { recordCompletion } from "../services/notifications";
 import { STAGES } from "../services/stage-machine";
@@ -219,6 +220,39 @@ export default async function (app: FastifyInstance) {
         prompt: startPrdPrompt(
           { id: project.id, name: project.name, desc: project.desc, stack: project.stack },
           brief, `prd/${slug}`),
+      });
+      return reply.code(201).send({ id: s.id });
+    }
+
+    // SPEC-273 · sesi breakdown project-level: pecah SATU PRD → manifest N backlog paralel-independen.
+    // Meniru prd (worktree isolasi dari HEAD, push branch breakdown/<slug>, manusia review→materialize).
+    // Isi PRD disematkan ke prompt (freshest-wins), jadi breakdown lepas dari status merge PRD.
+    if (parsed.data.flow === "breakdown") {
+      const { prdPath } = parsed.data;
+      const content = await readPrd(project.id, prdPath); // gate: hanya docs/prd/*.md, freshest-wins
+      if (content === null) return reply.code(400).send({ error: "PRD tak terbaca" });
+      const base = prdPath.slice(prdPath.lastIndexOf("/") + 1).replace(/\.md$/, "");
+      const slug = base.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+      if (!slug) return reply.code(400).send({ error: "path PRD tak valid" });
+      const id = `breakdown-${slug}`;
+      const live = getSession(id);
+      if (live) return reply.code(201).send({ id: live.id });
+
+      const { model, effort } = await sessionModel(); // SPEC-252 · ADR-0061 · default global (per sesi)
+      try {
+        realGit.addWorktree(repoDir, `${repoDir}/.worktrees/${id}`, "HEAD");
+      } catch (e) {
+        return reply.code(422).send({ error: `gagal membuat worktree: ${(e as Error).message}` });
+      }
+      const titleM = content.match(/^#\s+(.+)$/m);
+      const title = titleM ? titleM[1]!.trim() : slug;
+      const s = createSession(project.id, `${repoDir}/.worktrees/${id}`, {
+        id, flow: "breakdown", branch: `breakdown/${slug}`, model, effort,
+        phaseFile: phaseFilePath(repoDir, id),
+        decisionFile: decisionFilePath(repoDir, id),
+        prompt: startBreakdownPrompt(
+          { id: project.id, name: project.name, desc: project.desc, stack: project.stack },
+          { title, path: prdPath, content }, `breakdown/${slug}`),
       });
       return reply.code(201).send({ id: s.id });
     }

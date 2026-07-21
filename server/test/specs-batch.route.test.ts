@@ -11,7 +11,7 @@ beforeEach(async () => {
   await makeProject({ id: "p1", repoDir: dir });
 });
 
-const post = (body: unknown) =>
+const post = (body: object) =>
   app.inject({ method: "POST", url: "/api/specs/batch", payload: body });
 
 describe("SPEC-273 · POST /specs/batch", () => {
