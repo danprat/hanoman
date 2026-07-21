@@ -102,3 +102,32 @@ describe("SPEC-253 · triase tiket", () => {
     expect((await app.inject({ method: "POST", url: "/api/tickets/tak-ada/reject" })).statusCode).toBe(404);
   });
 });
+
+describe("SPEC-269 · edit & hapus tiket", () => {
+  it("PATCH /tickets/:id mengubah title/detail/category/status", async () => {
+    const { ticket } = await createTicket({ projectId: "tri-proj", category: "bug", title: "lama", detail: "d lama", reporterEmail: "e@e.co" });
+    const res = await app.inject({ method: "PATCH", url: `/api/tickets/${ticket.id}`, payload: { title: "baru", detail: "d baru", category: "fitur", status: "accepted" } });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().title).toBe("baru");
+    expect(res.json().detail).toBe("d baru");
+    expect(res.json().category).toBe("fitur");
+    expect(res.json().status).toBe("accepted");
+  });
+  it("PATCH body kosong → 400; kategori invalid → 400; id asing → 404", async () => {
+    const { ticket } = await createTicket({ projectId: "tri-proj", category: "bug", title: "x", detail: "d", reporterEmail: "e@e.co" });
+    expect((await app.inject({ method: "PATCH", url: `/api/tickets/${ticket.id}`, payload: {} })).statusCode).toBe(400);
+    expect((await app.inject({ method: "PATCH", url: `/api/tickets/${ticket.id}`, payload: { category: "ngaco" } })).statusCode).toBe(400);
+    expect((await app.inject({ method: "PATCH", url: "/api/tickets/tak-ada", payload: { title: "z" } })).statusCode).toBe(404);
+  });
+  it("DELETE /tickets/:id menghapus tiket + attachment rows; 404 asing", async () => {
+    const { ticket } = await createTicket({ projectId: "tri-proj", category: "bug", title: "buang", detail: "d", reporterEmail: "e@e.co" });
+    const { storageKey, size } = await saveUpload(Buffer.from("IMG"), "image/png");
+    await prisma.ticketAttachment.create({ data: { ticketId: ticket.id, projectId: "tri-proj", filename: "s.png", mimeType: "image/png", size, storageKey } });
+    const res = await app.inject({ method: "DELETE", url: `/api/tickets/${ticket.id}` });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().ok).toBe(true);
+    expect(await prisma.ticket.findUnique({ where: { id: ticket.id } })).toBeNull();
+    expect(await prisma.ticketAttachment.count({ where: { ticketId: ticket.id } })).toBe(0);
+    expect((await app.inject({ method: "DELETE", url: "/api/tickets/tak-ada" })).statusCode).toBe(404);
+  });
+});

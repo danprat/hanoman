@@ -6,7 +6,8 @@ import { paginate } from "../services/paginate";
 import { nextSpecId } from "../services/id";
 import { resolveRepoDir } from "../services/local-binding";
 import { enqueueOutbox } from "../services/outbox";
-import { readUpload } from "../services/uploads";
+import { readUpload, deleteUpload } from "../services/uploads";
+import { zTicketEditInput } from "@hanoman/shared";
 import type { Ticket } from "@prisma/client";
 
 const view = (t: Ticket & { _count?: { attachments: number } }) => ({
@@ -107,5 +108,34 @@ export default async function (app: FastifyInstance) {
     if (!t) return reply.code(404).send({ error: "not found" });
     const updated = await prisma.ticket.update({ where: { id }, data: { status: "rejected" } });
     return { id: updated.id, status: updated.status };
+  });
+
+  // SPEC-269 · edit isi tiket (triase). Field opsional; minimal satu (divalidasi zod).
+  app.patch("/tickets/:id", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const parsed = zTicketEditInput.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: "invalid" });
+    const t = await prisma.ticket.findUnique({ where: { id } });
+    if (!t) return reply.code(404).send({ error: "not found" });
+    const updated = await prisma.ticket.update({
+      where: { id }, data: parsed.data,
+      include: { attachments: true, _count: { select: { attachments: true } } },
+    });
+    const spec = updated.specId ? await prisma.spec.findUnique({ where: { id: updated.specId } }) : null;
+    return {
+      ...view(updated), detail: updated.detail,
+      attachments: updated.attachments.map((a) => ({ id: a.id, filename: a.filename, mimeType: a.mimeType, size: a.size })),
+      spec,
+    };
+  });
+
+  // SPEC-269 · hapus tiket + lampiran (rows cascade; file fisik dibersihkan best-effort).
+  app.delete("/tickets/:id", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const t = await prisma.ticket.findUnique({ where: { id }, include: { attachments: true } });
+    if (!t) return reply.code(404).send({ error: "not found" });
+    for (const a of t.attachments) await deleteUpload(a.storageKey);
+    await prisma.ticket.delete({ where: { id } });
+    return { ok: true };
   });
 }
