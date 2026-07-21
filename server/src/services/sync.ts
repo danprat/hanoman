@@ -5,7 +5,7 @@ import { renameProjectCore } from "./rename-project";
 // SyncLog (seq = kursor global). Isi file dokumen TIDAK lewat sini (git 3-way merge, ADR-0043).
 
 // SPEC-268 · ADR-0066 · errorGroup & ticket masuk record-sync (agregat grup / metadata tiket).
-export const SYNCED = ["project", "spec", "vps", "sessionResult", "errorGroup", "ticket"] as const;
+export const SYNCED = ["project", "spec", "vps", "sessionResult", "errorGroup", "ticket", "ticketAttachment"] as const;
 export type Entity = (typeof SYNCED)[number];
 
 type Delegate = {
@@ -20,6 +20,7 @@ const DELEGATE: Record<Entity, Delegate> = {
   sessionResult: prisma.sessionResult as unknown as Delegate,
   errorGroup: prisma.errorGroup as unknown as Delegate,
   ticket: prisma.ticket as unknown as Delegate,
+  ticketAttachment: prisma.ticketAttachment as unknown as Delegate,
 };
 
 // Whitelist field bisnis per entitas — SENGAJA mengecualikan never-sync (Project.repoDir,
@@ -35,12 +36,15 @@ const FIELDS: Record<Entity, string[]> = {
   // SPEC-268 · ADR-0066 · metadata tiket (lampiran biner tak disync). accessKeyHash wajib
   // (kolom required @unique tanpa default); kunci plaintext tak pernah menyeberang.
   ticket: ["projectId", "number", "category", "title", "detail", "reporterEmail", "status", "accessKeyHash", "specId", "createdAt", "updatedAt"],
+  // SPEC-272 · ADR-0068 · metadata lampiran (byte tak disync; ditarik lazy dari hub saat dibuka).
+  ticketAttachment: ["ticketId", "projectId", "filename", "mimeType", "size", "storageKey", "createdAt", "updatedAt"],
 };
 // Field yang JSONB-nya string ISO tapi kolomnya DateTime — dikonversi balik saat menulis.
 const DATE_FIELDS: Record<Entity, string[]> = {
   project: ["updatedAt"], spec: ["updatedAt"], vps: ["lastSeenAt", "lastAuditAt", "updatedAt"],
   sessionResult: ["createdAt", "updatedAt"],
   errorGroup: ["firstSeenAt", "lastSeenAt", "updatedAt"], ticket: ["createdAt", "updatedAt"],
+  ticketAttachment: ["createdAt", "updatedAt"],
 };
 
 export function isEntity(e: string): e is Entity {

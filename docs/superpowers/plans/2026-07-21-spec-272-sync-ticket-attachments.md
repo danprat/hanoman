@@ -120,7 +120,7 @@ git commit -m "feat(spec-272): kolom version+updatedAt TicketAttachment (migrati
 - Consumes: kolom `version`/`updatedAt` dari Task 1.
 - Produces: `SYNCED` memuat `"ticketAttachment"`; `applyPush`/`pull`/`snapshot`/`backfillFeed` bekerja untuk entity ini. `FIELDS.ticketAttachment = ["ticketId","projectId","filename","mimeType","size","storageKey","createdAt","updatedAt"]`.
 
-- [ ] **Step 1: Update assertion di sync-exclusions.test.ts (failing test)**
+- [x] **Step 1: Update assertion di sync-exclusions.test.ts (failing test)**
 
 Ganti assertion daftar SYNCED (sekitar baris 22-24) menjadi:
 
@@ -132,7 +132,7 @@ Ganti assertion daftar SYNCED (sekitar baris 22-24) menjadi:
   });
 ```
 
-- [ ] **Step 2: Jalankan test → gagal**
+- [x] **Step 2: Jalankan test → gagal**
 
 Run:
 ```bash
@@ -141,7 +141,7 @@ env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman
 ```
 Expected: FAIL — SYNCED belum memuat `ticketAttachment`.
 
-- [ ] **Step 3: Tambah ticketAttachment ke sync.ts**
+- [x] **Step 3: Tambah ticketAttachment ke sync.ts**
 
 Di `server/src/services/sync.ts`:
 
@@ -166,7 +166,7 @@ export const SYNCED = ["project", "spec", "vps", "sessionResult", "errorGroup", 
   ticketAttachment: ["createdAt", "updatedAt"],
 ```
 
-- [ ] **Step 4: Jalankan exclusions test → lulus**
+- [x] **Step 4: Jalankan exclusions test → lulus**
 
 Run:
 ```bash
@@ -175,7 +175,7 @@ env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman
 ```
 Expected: PASS.
 
-- [ ] **Step 5: Tulis roundtrip metadata test (failing) di sync.service.test.ts**
+- [x] **Step 5: Tulis roundtrip metadata test (failing) di sync.service.test.ts**
 
 Tambah `ticketAttachment` ke `clean()` (baris sebelum `prisma.ticket.deleteMany()`):
 ```ts
@@ -204,7 +204,7 @@ Tambah test baru di dalam `describe`:
   });
 ```
 
-- [ ] **Step 6: Jalankan → gagal lalu (dengan Step 3 sudah ada) lulus**
+- [x] **Step 6: Jalankan → gagal lalu (dengan Step 3 sudah ada) lulus**
 
 Run:
 ```bash
@@ -213,7 +213,7 @@ env -u NODE_ENV DATABASE_URL=postgresql://hanoman:hanoman@localhost:5432/hanoman
 ```
 Expected: PASS (implementasi Step 3 sudah menopang roundtrip).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/services/sync.ts server/test/sync-exclusions.test.ts server/test/sync.service.test.ts
