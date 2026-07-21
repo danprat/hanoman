@@ -17,7 +17,7 @@ model Project {
   stack     String   @default("")
   createdAt DateTime @default(now())
   version   Int      @default(0) // SPEC-213 · version-stamp sync (ADR-0045)
-  updatedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   ingestKeyHash   String? // SPEC-249 · sha256(ingest key) hex; null = monitoring off. TAK PERNAH ke client.
   ingestKeyPrefix String? // SPEC-249 · ~12-16 char awal key untuk hint UI (bukan rahasia)
   helpEnabled Boolean @default(false) // SPEC-253 · opt-in Help Center publik
@@ -40,7 +40,7 @@ model Spec {
   baseSha    String? // SPEC-176 · ADR-0030 · commit detach worktree sesi (nilai balik addWorktree)
   headSha    String? // SPEC-176 · ADR-0030 · commit HEAD worktree di akhir sesi (sebelum removeWorktree)
   version    Int      @default(0) // SPEC-213 · version-stamp sync (ADR-0045)
-  updatedAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
@@ -99,7 +99,7 @@ model Vps {
   audit       Json?     // VpsCheck[] — [{ check, status, detail }]
   hardened    Boolean   @default(false) // derived: semua check kritis pass
   version     Int       @default(0) // SPEC-213 · version-stamp sync (ADR-0045)
-  updatedAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   snapshots   VpsAuditSnapshot[] // SPEC-220 · riwayat audit kepatuhan
   itemStates  VpsItemState[]     // SPEC-220 · keputusan human per item (N/A, attest)
 }
@@ -179,7 +179,7 @@ model SessionResult {
   author    String?
   version   Int      @default(0)
   createdAt DateTime @default(now())
-  updatedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // SPEC-213 · ADR-0045 · change-feed server-authoritative. seq = kursor global sync.
@@ -218,6 +218,23 @@ model SyncState {
   cursor String @default("0")
 }
 
+// SPEC-270 · ADR-0067 · LOCAL-ONLY: antrean konflik dua-sisi menunggu keputusan manusia (modal).
+model SyncConflict {
+  id              String    @id @default(cuid())
+  entity          String
+  recordId        String
+  localData       Json
+  localVersion    Int
+  localUpdatedAt  DateTime
+  serverData      Json
+  serverVersion   Int
+  serverUpdatedAt DateTime
+  detectedAt      DateTime  @default(now())
+  resolvedAt      DateTime?
+
+  @@unique([entity, recordId])
+}
+
 // SPEC-215 · ADR-0049 · LOCAL-ONLY: override config runtime (env → DB). Tak pernah disync.
 model RuntimeConfig {
   key       String   @id
@@ -241,7 +258,7 @@ model ErrorGroup {
   lastSeenAt  DateTime @default(now())
   specId      String?
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   version     Int      @default(0) // SPEC-268 · version-stamp sync (ADR-0066)
   project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   events      ErrorEvent[]
@@ -282,7 +299,7 @@ model Ticket {
   accessKeyHash String   @unique // sha256(kunci opaque) — lookup cek status. Plaintext hanya sekali.
   specId        String?  // soft-link Spec hasil promosi (cermin ErrorGroup.specId)
   createdAt     DateTime @default(now())
-  updatedAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
   version       Int      @default(0) // SPEC-268 · version-stamp sync (ADR-0066)
   project       Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
   attachments   TicketAttachment[]
