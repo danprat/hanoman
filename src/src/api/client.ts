@@ -265,6 +265,7 @@ export const api = {
   escalateError: (id: string) => j<{ spec: Spec; alreadyEscalated?: boolean }>(paths.errorEscalate(id), { method: "POST" }),
   patchError: (id: string, status: string) =>
     j<{ id: string; status: string }>(paths.error(id), { method: "PATCH", ...body({ status }) }),
+  unlinkError: (id: string) => j<{ id: string; status: string; specId: string | null }>(paths.errorUnlink(id), { method: "POST", ...body({}) }),
   deleteError: (id: string) => j<{ ok: boolean }>(paths.error(id), { method: "DELETE" }),
   // SPEC-249 · panduan integrasi SDK (markdown) untuk ditampilkan di web
   getIntegrationGuide: () => j<{ text: string }>(paths.errorsGuide),
@@ -279,6 +280,8 @@ export const api = {
     j<{ spec: Spec; alreadyPromoted?: boolean }>(paths.ticketAccept(id), { method: "POST", ...body({ priority }) }),
   rejectTicket: (id: string) =>
     j<{ id: string; status: string }>(paths.ticketReject(id), { method: "POST", ...body({}) }),
+  unlinkTicket: (id: string) =>
+    j<{ id: string; status: string; specId: string | null }>(paths.ticketUnlink(id), { method: "POST", ...body({}) }),
   editTicket: (id: string, input: TicketEditInput) =>
     j<TicketDetail & { spec: Spec | null }>(paths.ticket(id), { method: "PATCH", ...body(input) }),
   deleteTicket: (id: string) => j<{ ok: boolean }>(paths.ticket(id), { method: "DELETE" }),

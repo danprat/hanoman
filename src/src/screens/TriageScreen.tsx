@@ -88,6 +88,15 @@ function TicketDetailView({ id, onBack, onAccepted, onDeleted, onToast }:
     catch { onToast("Gagal menolak tiket", "err", "x-circle"); }
     finally { setBusy(false); }
   }
+  async function unlink() {
+    setBusy(true);
+    try {
+      const r = await api.unlinkTicket(id);
+      setT({ ...t!, specId: r.specId, spec: null, status: r.status as TicketDetail["status"] });
+      onToast("Tautan backlog dilepas", "ok", "unlink");
+    } catch { onToast("Gagal melepas tautan", "err", "x-circle"); }
+    finally { setBusy(false); }
+  }
   function startEdit() {
     setForm({ title: t!.title, detail: t!.detail, category: t!.category, status: t!.status });
     setEditing(true);
@@ -136,7 +145,10 @@ function TicketDetailView({ id, onBack, onAccepted, onDeleted, onToast }:
         <Button size="sm" variant="ghost" leftIcon="pencil" onClick={startEdit} disabled={busy}>Ubah</Button>
         <Button size="sm" variant="ghost" leftIcon="trash-2" onClick={() => setConfirm(true)} disabled={busy}>Hapus</Button>
         {t.specId
-          ? <Badge tone="ok" icon="link">→ {t.specId}</Badge>
+          ? <>
+              <Badge tone="ok" icon="link">→ {t.specId}</Badge>
+              <Button size="sm" variant="ghost" leftIcon="unlink" onClick={unlink} disabled={busy}>Lepas tautan</Button>
+            </>
           : !done && <>
               <Select size="sm" value={priority} onChange={(e) => setPriority(e.target.value)}
                 options={[{ value: "tinggi", label: "Prioritas tinggi" }, { value: "sedang", label: "Prioritas sedang" }, { value: "rendah", label: "Prioritas rendah" }]} />

@@ -87,6 +87,31 @@ describe("SPEC-253 · triase tiket", () => {
     expect(again.json().spec.id).toBe(spec.id);
   });
 
+  it("unlink → reset specId+status ke new, Spec tetap, lalu bisa accept lagi (Spec baru)", async () => {
+    const { ticket } = await createTicket({ projectId: "tri-proj", category: "bug", title: "unlink-me", detail: "d", reporterEmail: "u@e.co" });
+    const spec = (await app.inject({ method: "POST", url: `/api/tickets/${ticket.id}/accept` })).json().spec;
+    const un = await app.inject({ method: "POST", url: `/api/tickets/${ticket.id}/unlink` });
+    expect(un.statusCode).toBe(200);
+    expect(un.json().specId).toBeNull();
+    expect(un.json().status).toBe("new");
+    const t = await prisma.ticket.findUnique({ where: { id: ticket.id } });
+    expect(t?.specId).toBeNull();
+    expect(t?.status).toBe("new");
+    expect(await prisma.spec.findUnique({ where: { id: spec.id } })).not.toBeNull();
+    // accept lagi → Spec baru
+    const again = await app.inject({ method: "POST", url: `/api/tickets/${ticket.id}/accept` });
+    expect(again.statusCode).toBe(201);
+    expect(again.json().spec.id).not.toBe(spec.id);
+  });
+
+  it("unlink idempoten saat sudah lepas; tiket asing → 404", async () => {
+    const { ticket } = await createTicket({ projectId: "tri-proj", category: "bug", title: "belum", detail: "d", reporterEmail: "b@e.co" });
+    const un = await app.inject({ method: "POST", url: `/api/tickets/${ticket.id}/unlink` });
+    expect(un.statusCode).toBe(200);
+    expect(un.json().specId).toBeNull();
+    expect((await app.inject({ method: "POST", url: "/api/tickets/tak-ada/unlink" })).statusCode).toBe(404);
+  });
+
   it("reject → status rejected, tanpa Spec", async () => {
     const { ticket } = await createTicket({ projectId: "tri-proj", category: "lainnya", title: "spam", detail: "d", reporterEmail: "s@s.s" });
     const before = await prisma.spec.count({ where: { projectId: "tri-proj" } });

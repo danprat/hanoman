@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 
-const { listErrors, getError, escalateError, patchError, deleteError } = vi.hoisted(() => {
+const { listErrors, getError, escalateError, patchError, deleteError, unlinkError } = vi.hoisted(() => {
   const GROUP = {
     id: "g1", projectId: "a", type: "TypeError", message: "x is undefined",
     environment: "production", status: "new", count: 4,
@@ -14,11 +14,12 @@ const { listErrors, getError, escalateError, patchError, deleteError } = vi.hois
     escalateError: vi.fn(async () => ({ spec: { id: "SPEC-141", projectId: "a" }, alreadyEscalated: false })),
     patchError: vi.fn(async () => ({ id: "g1", status: "resolved" })),
     deleteError: vi.fn(async () => ({ ok: true })),
+    unlinkError: vi.fn(async () => ({ id: "g1", status: "new", specId: null })),
   };
 });
 
 vi.mock("../src/api/client", () => ({
-  api: { listErrors, getError, escalateError, patchError, deleteError },
+  api: { listErrors, getError, escalateError, patchError, deleteError, unlinkError },
   ApiError: class extends Error {},
 }));
 
@@ -41,6 +42,20 @@ describe("ErrorsScreen (SPEC-249)", () => {
     fireEvent.click(await screen.findByText("Eskalasi ke backlog"));
     await waitFor(() => expect(escalateError).toHaveBeenCalledWith("g1"));
     await waitFor(() => expect(onEscalated).toHaveBeenCalledWith({ id: "SPEC-141", projectId: "a" }, false));
+  });
+
+  it("linked group → Lepas tautan calls unlinkError, then Eskalasi button reappears (SPEC-271)", async () => {
+    getError.mockResolvedValueOnce({
+      id: "g1", projectId: "a", type: "TypeError", message: "x is undefined",
+      environment: "production", status: "escalated", count: 4,
+      firstSeenAt: "2026-07-20T00:00:00.000Z", lastSeenAt: "2026-07-20T00:00:00.000Z", specId: "SPEC-141",
+      sampleStack: "TypeError\n    at handler (/srv/x.js:42:10)", events: [],
+    } as never);
+    render(<ErrorsScreen projects={projects} onEscalated={vi.fn()} onToast={vi.fn()} />);
+    fireEvent.click(await screen.findByText("x is undefined"));
+    fireEvent.click(await screen.findByRole("button", { name: /lepas tautan/i }));
+    await waitFor(() => expect(unlinkError).toHaveBeenCalledWith("g1"));
+    expect(await screen.findByText("Eskalasi ke backlog")).toBeInTheDocument();
   });
 
   it("deletes a group via confirmation modal (SPEC-269)", async () => {

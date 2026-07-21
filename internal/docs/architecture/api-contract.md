@@ -344,6 +344,8 @@ GET   /errors?project=&environment=&status=&q=&page=&limit=  -> { items: ErrorGr
 GET   /errors/:id            -> ErrorGroupDetail { ...group, sampleStack, events: ErrorEventView[] (≤50 terakhir) } · 404
 POST  /errors/:id/escalate   # 201 { spec } — buat Spec qa prefilled (title/actual/fromErrorGroup) + tandai grup
 #   escalated + specId (tautan dua arah). Idempoten: sudah escalated → 200 { alreadyEscalated:true, spec }. 404.
+POST  /errors/:id/unlink     # 200 { id, status:"new", specId:null } — lepas tautan backlog (kebalikan escalate).
+#   Non-destruktif: Spec dibiarkan (hapus manual). Reset status→new → bisa dieskalasi lagi (Spec baru). Idempoten. 404. (SPEC-271)
 PATCH /errors/:id            { status }   # 200 { id, status } — status ∈ new|escalated|resolved. 400 invalid. 404.
 DELETE /errors/:id           # 200 { ok:true } — hapus grup; ErrorEvent cascade (onDelete: Cascade). 404. (SPEC-269)
 ```
@@ -381,6 +383,8 @@ GET   /tickets/:id            -> TicketDetail { ...ticket, detail, attachments:[
 GET   /tickets/:id/attachments/:attId    # stream berkas gambar (Content-Type mimeType) ber-auth · 404 (att bukan milik tiket)
 POST  /tickets/:id/accept  { priority? }  # 201 { spec } — buat Spec source help prefilled + tandai tiket
 #   accepted + specId (tautan dua arah). Idempoten: sudah promoted → 200 { alreadyPromoted:true, spec }. 404.
+POST  /tickets/:id/unlink                 # 200 { id, status:"new", specId:null } — lepas tautan backlog (kebalikan accept).
+#   Non-destruktif: Spec dibiarkan (hapus manual). Reset status→new → bisa diterima lagi (Spec baru). Idempoten. 404. (SPEC-271)
 POST  /tickets/:id/reject                 # 200 { id, status:"rejected" } — tutup tanpa Spec · 404
 PATCH /tickets/:id  { title?, detail?, category?, status? }  # 200 TicketDetail — edit isi tiket; field opsional,
 #   minimal satu (zTicketEditInput). category ∈ bug|fitur|pertanyaan|lainnya, status ∈ new|accepted|rejected.

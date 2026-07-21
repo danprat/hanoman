@@ -102,6 +102,17 @@ export default async function (app: FastifyInstance) {
     return reply.code(201).send({ spec });
   });
 
+  // SPEC-271 · lepas tautan grup dari backlog (kebalikan escalate). Non-destruktif: Spec
+  // dibiarkan (bisa dihapus manual). Reset status→"new" agar grup bisa dieskalasi lagi. Idempoten.
+  app.post("/errors/:id/unlink", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const g = await prisma.errorGroup.findUnique({ where: { id } });
+    if (!g) return reply.code(404).send({ error: "not found" });
+    const updated = await prisma.errorGroup.update({ where: { id }, data: { status: "new", specId: null } });
+    await notifySynced("errorGroup", id); // SPEC-268 · perubahan status grup ke feed
+    return { id: updated.id, status: updated.status, specId: updated.specId };
+  });
+
   // SPEC-249 · transisi status grup (mis. tandai resolved).
   app.patch("/errors/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
