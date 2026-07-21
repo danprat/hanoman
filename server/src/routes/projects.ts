@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
-import { zCreateProject, zUpdateProject } from "@hanoman/shared";
+import { zCreateProject, zUpdateProject, zRenameProject } from "@hanoman/shared";
 import { prisma } from "../db";
+import { renameProject } from "../services/rename-project";
 import { toProjectView } from "../services/project-view";
 import { enqueueOutbox } from "../services/outbox";
 import { listRepoBranches, listRepoRemoteBranches } from "../services/branches";
@@ -65,6 +66,26 @@ export default async function (app: FastifyInstance) {
     const updated = await prisma.project.update({ where: { id }, data: parsed.data });
     await enqueueOutbox("project", id); // SPEC-213 · antre push sync
     return toProjectView(updated, listSessions());
+  });
+  // SPEC-255 · ADR-0064 · rename slug project. Terpisah dari PATCH: efek samping besar (cascade FK +
+  // ref longgar + LocalBinding + rambat sync) & guard sendiri (id baru bebas, tak ada sesi aktif).
+  // DSN (/api/ingest/<id>) & Help URL (/help/<id>) derived → path baru dikembalikan sebagai hint.
+  app.post("/projects/:id/rename", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const parsed = zRenameProject.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    const r = await renameProject(id, parsed.data.newId);
+    if (!r.ok) return reply.code(r.code).send({ error: r.error });
+    const newId = parsed.data.newId;
+    const p = await prisma.project.findUnique({ where: { id: newId } });
+    const base = `${req.protocol}://${req.headers.host ?? "localhost"}`;
+    return {
+      id: newId,
+      // Plaintext key DSN tak tersimpan; kembalikan path DSN baru (tanpa key) sbg hint bila monitoring aktif.
+      dsnUrl: p?.ingestKeyHash ? `${base.replace(/\/$/, "")}/api/ingest/${encodeURIComponent(newId)}` : undefined,
+      helpUrl: p?.helpEnabled ? `${base}/help/${encodeURIComponent(newId)}` : undefined,
+      affected: r.affected,
+    };
   });
   app.delete("/projects/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
