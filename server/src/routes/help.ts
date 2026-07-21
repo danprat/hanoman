@@ -7,6 +7,7 @@ import { zTicketCategory } from "@hanoman/shared";
 import { prisma } from "../db";
 import { createTicket, hashAccessKey, publicStatus, pruneOldTickets } from "../services/ticket";
 import { recordNewTicket } from "../services/notifications";
+import { notifySynced } from "../services/sync-notify";
 import { saveUpload } from "../services/uploads";
 import { helpRateOk } from "../services/help-ratelimit";
 
@@ -77,6 +78,7 @@ export default async function (app: FastifyInstance) {
       });
     }
     await recordNewTicket(ticket.id, slug, p.name, parsed.data.category, parsed.data.title);
+    await notifySynced("ticket", ticket.id); // SPEC-268 · tiket baru → feed (metadata; lampiran tak disync)
     void pruneOldTickets(); // retensi opportunistic-on-write (tanpa scheduler global)
 
     const statusPath = `/help/${encodeURIComponent(slug)}/status/${encodeURIComponent(key)}`;

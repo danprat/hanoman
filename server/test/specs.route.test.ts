@@ -5,6 +5,7 @@ import { buildApp } from "../src/app";
 import { killAll, getSession, sessionPhasesBySpec } from "../src/services/pty";
 import { prisma } from "../src/db";
 import { resetDb, makeProject, makeSpec, makeRepoWithBranches, makeTempRepo, makeRepoWithWorktree, makeRepoWithSpecCommits, makeRepoWithSpecBranch } from "./factory";
+import { setConfig, clearConfig } from "../src/config";
 
 // SPEC-198 · overlay stage-live baca tmux nyata; di test tak ada pane. Mock hanya
 // sessionPhasesBySpec (sisanya asli) — default Map kosong = perilaku identik dgn env test
@@ -115,15 +116,20 @@ describe("specs routes", () => {
   });
   // SPEC-267 · kemajuan stage otomatis (write-through liveSpecs) HARUS mengantre outbox, kalau tidak
   // status backlog lokal maju tapi tak pernah ter-push ke hub → local & server desync.
+  // SPEC-268 · notifySynced sadar-peran: sebagai CLIENT (SYNC_SERVER_URL di-set) advance stage
+  // mengantre outbox untuk push ke hub — inti keluhan SPEC-267 (local client → hub).
   it("advancing stage via write-through enqueues outbox(spec) so it syncs to hub", async () => {
     await prisma.syncOutbox.deleteMany();
-    await makeProject({ id: "psync", repoDir: makeTempRepo({}) });
-    await makeSpec({ id: "SPEC-267A", projectId: "psync", stage: "brainstorming" });
-    vi.mocked(sessionPhasesBySpec).mockReturnValueOnce(
-      new Map([["SPEC-267A", { phases: [{ name: "Plan", state: "done" }], cwd: "/tmp/none" }]]) as any);
-    await app.inject({ url: "/api/specs?project=psync" });
-    const out = await prisma.syncOutbox.findMany();
-    expect(out.find((o) => o.entity === "spec" && o.recordId === "SPEC-267A")).toBeTruthy();
+    await setConfig("SYNC_SERVER_URL", "http://hub.example"); // jadikan instance CLIENT
+    try {
+      await makeProject({ id: "psync", repoDir: makeTempRepo({}) });
+      await makeSpec({ id: "SPEC-267A", projectId: "psync", stage: "brainstorming" });
+      vi.mocked(sessionPhasesBySpec).mockReturnValueOnce(
+        new Map([["SPEC-267A", { phases: [{ name: "Plan", state: "done" }], cwd: "/tmp/none" }]]) as any);
+      await app.inject({ url: "/api/specs?project=psync" });
+      const out = await prisma.syncOutbox.findMany();
+      expect(out.find((o) => o.entity === "spec" && o.recordId === "SPEC-267A")).toBeTruthy();
+    } finally { await clearConfig("SYNC_SERVER_URL"); }
   });
   it("creates a brief spec with next id", async () => {
     const res = await app.inject({

@@ -225,7 +225,8 @@ model RuntimeConfig {
   updatedAt DateTime @updatedAt
 }
 
-// SPEC-249 · ADR-0060 · grup error per project (fingerprint dedup). Server-local (tanpa version/sync).
+// SPEC-249 · ADR-0060 · grup error per project (fingerprint dedup). SPEC-268/ADR-0066: agregat
+// grup kini tersync (version-stamp); ErrorEvent mentah tetap server-local (tak disync).
 model ErrorGroup {
   id          String   @id @default(cuid())
   projectId   String
@@ -241,6 +242,7 @@ model ErrorGroup {
   specId      String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @default(now())
+  version     Int      @default(0) // SPEC-268 · version-stamp sync (ADR-0066)
   project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   events      ErrorEvent[]
 
@@ -266,7 +268,8 @@ model ErrorEvent {
   @@index([projectId, receivedAt])
 }
 
-// SPEC-253 · ADR-0062 · tiket keluhan Help Center (server-local, tanpa version/sync — cermin ErrorGroup).
+// SPEC-253 · ADR-0062 · tiket keluhan Help Center. SPEC-268/ADR-0066: metadata tiket kini tersync
+// (version-stamp); lampiran (TicketAttachment, file biner) tetap server-local (tak disync).
 model Ticket {
   id            String   @id @default(cuid())
   projectId     String
@@ -280,6 +283,7 @@ model Ticket {
   specId        String?  // soft-link Spec hasil promosi (cermin ErrorGroup.specId)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @default(now())
+  version       Int      @default(0) // SPEC-268 · version-stamp sync (ADR-0066)
   project       Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
   attachments   TicketAttachment[]
 

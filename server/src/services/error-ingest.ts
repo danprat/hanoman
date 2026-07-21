@@ -3,6 +3,7 @@
 import { prisma } from "../db";
 import { fingerprint } from "./error-fingerprint";
 import { recordNewErrorGroup } from "./notifications";
+import { notifySynced } from "./sync-notify";
 import { effectiveInt } from "../config";
 import type { IngestPayload } from "@hanoman/shared";
 
@@ -75,6 +76,8 @@ export async function ingestError(
     },
   });
   await pruneGroup(groupId);
+  // SPEC-268 · ADR-0066 · grup BARU → change-feed (bukan tiap increment count, hindari churn/bloat).
+  if (isNew) await notifySynced("errorGroup", groupId);
   return { groupId, new: isNew };
 }
 

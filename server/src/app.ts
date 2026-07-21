@@ -82,7 +82,9 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
         if (PUBLIC.has(`${req.method} ${path}`)) return;
         // SPEC-213 · ADR-0044/0046 · surface sync mesin-ke-mesin di-bypass gate cookie; tiap
         // route /api/sync di-enforce device token (Bearer / ?token= pada upgrade WS) sendiri.
-        if (path.startsWith("/api/sync")) return;
+        // SPEC-268 · KECUALI POST /api/sync/now — pemicu manual = aksi UI, digerbangi cookie gate
+        // (dan agent-deny "cookie-only" untuk /sync), bukan device token.
+        if (path.startsWith("/api/sync") && path !== "/api/sync/now") return;
         // SPEC-249 · ADR-0060 · ingest error dipanggil project eksternal tanpa sesi login;
         // route /api/ingest di-otorisasi DSN per-project sendiri (pengecualian sah gate).
         if (path.startsWith("/api/ingest")) return;

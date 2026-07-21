@@ -119,6 +119,8 @@ export const api = {
   getConfig: () => j<ConfigResponse>(paths.config),
   putConfig: (key: string, value: string) => j<ConfigEntryView>(paths.config, { method: "PUT", ...body({ key, value }) }),
   deleteConfig: (key: string) => j<void>(paths.configKey(key), { method: "DELETE" }),
+  // SPEC-268 · ADR-0066 · pemicu sync manual (tombol Backlog/Errors/Triase)
+  syncNow: () => j<{ ok: boolean; reason?: string; pulled?: number; pushed?: number; conflicts?: number }>(paths.syncNow, { method: "POST" }),
   // SPEC-180 · notifikasi backlog selesai
   listNotifications: () => j<{ items: Notification[]; unread: number }>(paths.notifications),
   markNotificationsRead: () => j<void>(paths.notifications + "/read", { method: "POST" }),

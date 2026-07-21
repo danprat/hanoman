@@ -89,6 +89,15 @@ export function fetchTransport(base: string, token: string): Transport {
   };
 }
 
+// SPEC-268 · ADR-0066 · pemicu manual (tombol UI): satu siklus syncOnce memakai config efektif.
+// null bila instance bukan client (tak ada hub tujuan) → endpoint/tombol melapor "not-configured".
+export async function syncNow(): Promise<SyncStats | null> {
+  const base = effectiveStr("SYNC_SERVER_URL");
+  const token = effectiveStr("SYNC_DEVICE_TOKEN");
+  if (!base || !token) return null;
+  return syncOnce(fetchTransport(base, token));
+}
+
 let timer: NodeJS.Timeout | undefined;
 let ws: import("ws").WebSocket | undefined;
 let started = false;

@@ -5,7 +5,7 @@ import { prisma } from "../db";
 import { paginate } from "../services/paginate";
 import { nextSpecId } from "../services/id";
 import { resolveRepoDir } from "../services/local-binding";
-import { enqueueOutbox } from "../services/outbox";
+import { notifySynced } from "../services/sync-notify";
 import { readUpload, deleteUpload } from "../services/uploads";
 import { zTicketEditInput } from "@hanoman/shared";
 import type { Ticket } from "@prisma/client";
@@ -97,7 +97,8 @@ export default async function (app: FastifyInstance) {
       }
     }
     await prisma.ticket.update({ where: { id }, data: { status: "accepted", specId: spec!.id } });
-    await enqueueOutbox("spec", spec!.id); // SPEC-213 · antre push sync
+    await notifySynced("spec", spec!.id);  // SPEC-213/268 · spec ke feed (hub publish / client push)
+    await notifySynced("ticket", id);       // SPEC-268 · status tiket ke feed
     return reply.code(201).send({ spec });
   });
 
@@ -107,6 +108,7 @@ export default async function (app: FastifyInstance) {
     const t = await prisma.ticket.findUnique({ where: { id } });
     if (!t) return reply.code(404).send({ error: "not found" });
     const updated = await prisma.ticket.update({ where: { id }, data: { status: "rejected" } });
+    await notifySynced("ticket", id); // SPEC-268 · perubahan status tiket ke feed
     return { id: updated.id, status: updated.status };
   });
 

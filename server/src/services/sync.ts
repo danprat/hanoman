@@ -4,18 +4,22 @@ import { renameProjectCore } from "./rename-project";
 // SPEC-213 · ADR-0045 · mesin sync record: version-stamp optimistic concurrency + change-feed
 // SyncLog (seq = kursor global). Isi file dokumen TIDAK lewat sini (git 3-way merge, ADR-0043).
 
-export const SYNCED = ["project", "spec", "vps", "sessionResult"] as const;
+// SPEC-268 · ADR-0066 · errorGroup & ticket masuk record-sync (agregat grup / metadata tiket).
+export const SYNCED = ["project", "spec", "vps", "sessionResult", "errorGroup", "ticket"] as const;
 export type Entity = (typeof SYNCED)[number];
 
 type Delegate = {
   findUnique: (args: { where: { id: string }; select?: Record<string, boolean> }) => Promise<Record<string, unknown> | null>;
   upsert: (args: { where: { id: string }; create: Record<string, unknown>; update: Record<string, unknown> }) => Promise<unknown>;
+  update: (args: { where: { id: string }; data: Record<string, unknown> }) => Promise<unknown>;
 };
 const DELEGATE: Record<Entity, Delegate> = {
   project: prisma.project as unknown as Delegate,
   spec: prisma.spec as unknown as Delegate,
   vps: prisma.vps as unknown as Delegate,
   sessionResult: prisma.sessionResult as unknown as Delegate,
+  errorGroup: prisma.errorGroup as unknown as Delegate,
+  ticket: prisma.ticket as unknown as Delegate,
 };
 
 // Whitelist field bisnis per entitas — SENGAJA mengecualikan never-sync (Project.repoDir,
@@ -25,10 +29,16 @@ const FIELDS: Record<Entity, string[]> = {
   spec: ["projectId", "title", "source", "stage", "priority", "author", "objective", "payload", "branchFrom", "baseSha", "headSha"],
   vps: ["name", "host", "port", "user", "health", "audit", "hardened", "lastSeenAt", "lastAuditAt"],
   sessionResult: ["projectId", "specId", "oldStage", "newStage", "commitSha", "branch", "prUrl", "status", "deviceId", "author", "createdAt"],
+  // SPEC-268 · ADR-0066 · agregat grup error (ErrorEvent mentah tak disync).
+  errorGroup: ["projectId", "fingerprint", "type", "message", "sampleStack", "environment", "status", "count", "firstSeenAt", "lastSeenAt", "specId"],
+  // SPEC-268 · ADR-0066 · metadata tiket (lampiran biner tak disync). accessKeyHash wajib
+  // (kolom required @unique tanpa default); kunci plaintext tak pernah menyeberang.
+  ticket: ["projectId", "number", "category", "title", "detail", "reporterEmail", "status", "accessKeyHash", "specId", "createdAt"],
 };
 // Field yang JSONB-nya string ISO tapi kolomnya DateTime — dikonversi balik saat menulis.
 const DATE_FIELDS: Record<Entity, string[]> = {
   project: [], spec: [], vps: ["lastSeenAt", "lastAuditAt"], sessionResult: ["createdAt"],
+  errorGroup: ["firstSeenAt", "lastSeenAt"], ticket: ["createdAt"],
 };
 
 export function isEntity(e: string): e is Entity {
@@ -126,6 +136,21 @@ export async function pull(sinceCursor: string, limit = 500): Promise<{ cursor: 
     cursor,
     records: rows.map((r) => ({ entity: r.entity, recordId: r.recordId, version: r.version, data: r.data })),
   };
+}
+
+// SPEC-268 · ADR-0066 · publish write LOKAL-asal ke change-feed (SyncLog) + siar. Melengkapi
+// applyPush (yang menangani write asal client-push): membuat write asal-hub (ingest error, tiket
+// Help) menjadi bagian feed yang bisa di-pull client. Menaikkan version → optimistic-concurrency
+// tetap konsisten. Dipakai lewat notifySynced() (peran hub).
+export async function publishLocal(entity: Entity, id: string): Promise<void> {
+  const snap = await snapshot(entity, id);
+  if (!snap) return;
+  const newVersion = snap.version + 1;
+  await DELEGATE[entity].update({ where: { id }, data: { version: newVersion } });
+  const log = await prisma.syncLog.create({
+    data: { entity, recordId: id, version: newVersion, data: (snap.data ?? {}) as object, deviceId: null },
+  });
+  onAccepted?.({ entity, recordId: id, version: newVersion, data: snap.data ?? {}, seq: String(log.seq) });
 }
 
 // Terapkan record dari server ke DB LOKAL (server-authoritative): set version/data apa adanya,
