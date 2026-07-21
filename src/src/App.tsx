@@ -341,16 +341,18 @@ function NewProjectModal({ open, onClose, onCreate }:
   );
 }
 
-function EditProjectModal({ open, project, onClose, onSave }:
-  { open: boolean; project?: ProjectVM; onClose: () => void; onSave: (f: { name: string; desc: string; dir: string; gitRemote: string }) => void }) {
+export function EditProjectModal({ open, project, onClose, onSave }:
+  { open: boolean; project?: ProjectVM; onClose: () => void; onSave: (f: { id: string; name: string; desc: string; dir: string; gitRemote: string }) => void }) {
   // SPEC-217 · `dir` = override path per-mesin (LocalBinding). Diisi dari binding project;
   // kosong = pakai path default project. Tak disync antar-mesin.
   // SPEC-218 · `gitRemote` = remote resmi (disync) agar device lain bisa clone.
-  const [f, setF] = React.useState({ name: "", desc: "", dir: "", gitRemote: "" });
+  // SPEC-255 · `id` = slug renameable; ganti berdampak DSN, Help Center, & sync ke server.
+  const [f, setF] = React.useState({ id: "", name: "", desc: "", dir: "", gitRemote: "" });
   React.useEffect(() => {
-    if (open && project) setF({ name: project.name, desc: project.desc, dir: project.binding ?? "", gitRemote: project.gitRemote ?? "" });
+    if (open && project) setF({ id: project.id, name: project.name, desc: project.desc, dir: project.binding ?? "", gitRemote: project.gitRemote ?? "" });
   }, [open, project]);
-  const canSubmit = !!f.name.trim();
+  const slugOk = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(f.id.trim());
+  const canSubmit = !!f.name.trim() && slugOk;
   return (
     <Modal open={open} onClose={onClose} icon="pencil" eyebrow={project ? project.id : "project"}
       title="Edit project"
@@ -358,7 +360,11 @@ function EditProjectModal({ open, project, onClose, onSave }:
         <Button variant="ghost" size="sm" onClick={onClose}>Batal</Button>
         <Button size="sm" leftIcon="check" onClick={() => canSubmit && onSave(f)}>Simpan</Button>
       </>}>
-      {/* `id` tak ikut: ia kunci asing spec/run/trigger (SPEC-146). */}
+      {/* SPEC-255 · ADR-0064 · `id` kini renameable lewat operasi khusus (cascade + rambat sync). */}
+      <Field label="ID project" hint="slug unik · huruf-kecil/angka/hubung · ganti = pengaruh DSN, Help Center, & sync ke server">
+        <Input value={f.id} onChange={(e: React.ChangeEvent<any>) => setF((s) => ({ ...s, id: e.target.value }))}
+          leftIcon="hash" mono style={{ width: "100%" }} />
+      </Field>
       <Field label="Nama project" hint="label tampilan — boleh berbeda dari id">
         <Input value={f.name} onChange={(e: React.ChangeEvent<any>) => setF((s) => ({ ...s, name: e.target.value }))}
           style={{ width: "100%" }} />
@@ -468,18 +474,35 @@ export default function App() {
     setSection(t.section);
   }, [sessions]);
 
-  async function updateProject(f: { name: string; desc: string; dir: string; gitRemote: string }) {
+  async function updateProject(f: { id: string; name: string; desc: string; dir: string; gitRemote: string }) {
     if (!proj) return;
+    const newId = f.id.trim();
     try {
+      // SPEC-255 · ADR-0064 · rename id lebih dulu (operasi khusus): konfirmasi dampak → renameProject.
+      // Efek merambat: DSN /api/ingest/<id>, Help /help/<id>, dan sync ke server (hub ikut berganti).
+      if (newId && newId !== proj.id) {
+        if (!window.confirm(
+          `Ganti ID project "${proj.id}" → "${newId}"?\n\n` +
+          `Ini berpengaruh ke SEMUA yang terkait project:\n` +
+          `• DSN error monitoring berubah jadi /api/ingest/${newId} — perbarui kode project.\n` +
+          `• Link Help Center publik berubah jadi /help/${newId} — tautan lama rusak.\n` +
+          `• Perubahan dirambatkan (sync) ke server; server ikut berganti id.`)) return;
+        const r = await api.renameProject(proj.id, newId);
+        if (r.dsnUrl) showToast("DSN baru: " + r.dsnUrl, "ok", "key-round");
+        if (r.helpUrl) showToast("Help Center baru: " + r.helpUrl, "ok", "life-buoy");
+      }
+      const effId = newId && newId !== proj.id ? newId : proj.id;
       // SPEC-218 · gitRemote disync; "" = kosongkan (endpoint clone cek `!gitRemote`, falsy).
-      await api.updateProject(proj.id, { name: f.name.trim(), desc: f.desc.trim(), gitRemote: f.gitRemote.trim() });
+      await api.updateProject(effId, { name: f.name.trim(), desc: f.desc.trim(), gitRemote: f.gitRemote.trim() });
       // SPEC-217 · path per-mesin lewat binding (tak disync). Set bila berubah; kosong = hapus override.
       const dir = f.dir.trim();
       if (dir !== (proj.binding ?? "")) {
-        if (dir) await api.putBinding(proj.id, dir); else await api.deleteBinding(proj.id);
+        if (dir) await api.putBinding(effId, dir); else await api.deleteBinding(effId);
       }
-      const fresh = await api.getProject(proj.id);   // view segar (binding + gitRemote + coverage terbarui)
-      setProjects((list) => list.map((x) => (x.id === fresh.id ? fresh : x)));
+      const fresh = await api.getProject(effId);   // view segar (binding + gitRemote + coverage terbarui)
+      // Id bisa berubah: buang baris lama & baru dari list lalu sisipkan yang segar; sorot id baru.
+      setProjects((list) => [...list.filter((x) => x.id !== proj.id && x.id !== fresh.id), fresh]);
+      setProjectId(fresh.id);
       setModal(null);
       showToast("Project " + fresh.name + " diperbarui", "ok", "box");
     } catch { showToast("Gagal memperbarui project", "err", "x-circle"); }
