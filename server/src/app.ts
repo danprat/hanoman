@@ -28,6 +28,7 @@ import help from "./routes/help";
 import tickets from "./routes/tickets";
 import fastifyMultipart from "@fastify/multipart";
 import authRoutes from "./routes/auth";
+import agentTokens from "./routes/agent-tokens";
 import { COOKIE_NAME, lookupSession } from "./services/auth";
 import { agentTokenFromReq, authenticateAgent } from "./services/agent-auth";
 import { checkAgentCapability } from "./services/agent-capabilities";
@@ -122,6 +123,7 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
     await api.register(update);
     await api.register(events);
     await api.register(deviceTokens);
+    await api.register(agentTokens);   // SPEC-257 · kelola agent token (cookie-only)
     await api.register(bindings);
     await api.register(sync);
     await api.register(sessionResults);

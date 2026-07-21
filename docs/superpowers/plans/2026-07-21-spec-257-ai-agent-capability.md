@@ -810,7 +810,7 @@ git commit -m "feat(spec-257): agent token auth gate (master switch + capability
 - Consumes: `issueAgentToken/listAgentTokens/patchAgentToken/revokeAgentToken` (Task 3), `zAgentTokenCreate/zAgentTokenPatch/CAPABILITIES` (Task 1).
 - Produces routes (cookie-only, warisan gate): `GET /agent-tokens`, `POST /agent-tokens`, `GET /agent-tokens/capabilities`, `PATCH /agent-tokens/:id`, `DELETE /agent-tokens/:id`.
 
-- [ ] **Step 1: Write the failing test** — `server/test/agent-tokens.route.test.ts`
+- [x] **Step 1: Write the failing test** — `server/test/agent-tokens.route.test.ts`
 
 ```ts
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
@@ -871,12 +871,12 @@ describe("/agent-tokens routes (cookie-only)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter ./server exec vitest run test/agent-tokens.route.test.ts`
 Expected: FAIL — `/api/agent-tokens` returns 403 (cookie-only default in gate) atau 404 (route belum diregister).
 
-- [ ] **Step 3: Create `server/src/routes/agent-tokens.ts`**
+- [x] **Step 3: Create `server/src/routes/agent-tokens.ts`**
 
 ```ts
 import type { FastifyInstance } from "fastify";
@@ -913,7 +913,7 @@ export default async function (app: FastifyInstance) {
 }
 ```
 
-- [ ] **Step 4: Register route** — `server/src/app.ts`: import + register (dekat `deviceTokens`):
+- [x] **Step 4: Register route** — `server/src/app.ts`: import + register (dekat `deviceTokens`):
 
 ```ts
 import agentTokens from "./routes/agent-tokens";
@@ -923,16 +923,16 @@ import agentTokens from "./routes/agent-tokens";
     await api.register(agentTokens);   // SPEC-257 · kelola agent token (cookie-only)
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `pnpm --filter ./server exec vitest run test/agent-tokens.route.test.ts`
 Expected: PASS (4 test).
 
-- [ ] **Step 6: Update api-contract doc** — `internal/docs/architecture/api-contract.md`:
+- [x] **Step 6: Update api-contract doc** — `internal/docs/architecture/api-contract.md`:
   - Di blok `> Auth` pembuka, tambah kalimat: jalur auth kedua **agent token** (`Authorization: Bearer` / `?agent_token=` untuk WS) digerbang capability per-domain (SPEC-257/ADR-0065); cookie sesi = akses penuh.
   - Tambah section `## Agent tokens (SPEC-257 · ADR-0065)` mencatat 5 endpoint (cookie-only), bentuk `AgentTokenView`, plaintext-sekali, katalog capability, dan tabel domain→capability + tak-boleh-didelegasikan + read-only global.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/routes/agent-tokens.ts server/src/app.ts internal/docs/architecture/api-contract.md server/test/agent-tokens.route.test.ts
