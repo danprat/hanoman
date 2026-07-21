@@ -85,6 +85,9 @@ importers:
       '@hanoman/shared':
         specifier: workspace:*
         version: link:../shared
+      '@jridgewell/trace-mapping':
+        specifier: ^0.3.25
+        version: 0.3.31
       '@prisma/client':
         specifier: ^5.18.0
         version: 5.22.0(prisma@5.22.0)

@@ -4,7 +4,7 @@
 import React from "react";
 import { Button, Badge, Select, StateBlock, Icon, ConfirmDialog } from "../ds";
 import { api } from "../api/client";
-import type { ErrorGroupView, ErrorGroupDetail, Spec } from "@hanoman/shared";
+import type { ErrorGroupView, ErrorGroupDetail, Spec, SymbolicatedFrame } from "@hanoman/shared";
 import type { ProjectVM } from "./types";
 import { IntegrationGuideModal } from "./IntegrationGuideModal";
 import { SyncButton } from "./SyncButton";
@@ -43,12 +43,42 @@ function GroupRow({ g, onOpen }: { g: ErrorGroupView; onOpen: (id: string) => vo
           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         }}>{g.message}</span>
         <span style={{ fontSize: "var(--text-xs)", color: "var(--text-subtle)", marginTop: 2, display: "block" }}>
-          {g.projectId} · {g.environment} · {ago(g.lastSeenAt)} lalu
+          {g.projectId} · {g.environment}{g.release ? ` · ${g.release}` : ""} · {ago(g.lastSeenAt)} lalu
         </span>
       </span>
       <Badge tone="neutral">{g.count}×</Badge>
       <Icon name="chevron-right" size={16} color="var(--text-subtle)" />
     </button>
+  );
+}
+
+// SPEC-276 · frame tersimbolikasi: fungsi + posisi sumber (.tsx) + context line. Frame in_app
+// ditonjolkan (bone paper); frame vendor/raw diredupkan.
+function FrameList({ frames }: { frames: SymbolicatedFrame[] }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {frames.map((f, i) => {
+        const loc = f.symbolicated
+          ? `${f.source}:${f.sourceLine ?? "?"}${f.sourceColumn != null ? ":" + f.sourceColumn : ""}`
+          : `${f.filename ?? "?"}${f.lineno != null ? ":" + f.lineno : ""}`;
+        return (
+          <div key={i} style={{
+            padding: "6px 10px", borderRadius: "var(--radius-sm)",
+            background: f.in_app ? "var(--bone-100)" : "transparent",
+            border: "1px solid var(--border-hair)", opacity: f.in_app ? 1 : 0.65,
+            fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)",
+          }}>
+            <div style={{ color: "var(--text-strong)" }}>
+              {f.function ?? "<anonymous>"}{f.symbolicated ? "" : " · raw"}
+            </div>
+            <div style={{ color: "var(--text-subtle)" }}>{loc}</div>
+            {f.contextLine != null && f.contextLine.trim() !== "" && (
+              <pre style={{ margin: "4px 0 0", whiteSpace: "pre-wrap", color: "var(--text-body)" }}>{f.contextLine.trim()}</pre>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -123,10 +153,17 @@ function GroupDetail({ id, onBack, onEscalated, onDeleted, onToast }:
         <span><b style={{ color: "var(--text-body)" }}>{g.count}</b> kejadian</span>
         <span>env: <b style={{ color: "var(--text-body)" }}>{g.environment}</b></span>
         <span>project: <b style={{ color: "var(--text-body)" }}>{g.projectId}</b></span>
+        {g.release && <span>release: <b style={{ color: "var(--text-body)" }}>{g.release}</b></span>}
         <span>first: {ago(g.firstSeenAt)} lalu</span>
         <span>last: {ago(g.lastSeenAt)} lalu</span>
       </div>
-      {g.sampleStack && (
+      {/* SPEC-276 · frame tersimbolikasi bila ada; fallback ke stack mentah lama. */}
+      {g.sampleFrames && g.sampleFrames.length > 0 ? (
+        <div>
+          <div className="hn-eyebrow" style={{ marginBottom: 6 }}>Stack (symbolicated)</div>
+          <FrameList frames={g.sampleFrames} />
+        </div>
+      ) : g.sampleStack ? (
         <div>
           <div className="hn-eyebrow" style={{ marginBottom: 6 }}>Stack sampel</div>
           <pre style={{
@@ -135,7 +172,7 @@ function GroupDetail({ id, onBack, onEscalated, onDeleted, onToast }:
             fontSize: "var(--text-xs)", color: "var(--text-body)", maxHeight: 320,
           }}>{g.sampleStack}</pre>
         </div>
-      )}
+      ) : null}
       <ConfirmDialog open={confirm} title="Hapus grup error?" eyebrow={g.type}
         message={`Grup "${g.message}" beserta ${g.count} kejadiannya akan dihapus permanen. Tindakan ini tak bisa dibatalkan.`}
         busy={busy} onCancel={() => setConfirm(false)} onConfirm={remove} />

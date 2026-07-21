@@ -144,25 +144,39 @@ Kerangka kepatuhan checklist 232 item (katalog di git, lihat [vps-compliance.md]
   `attested`/`attestNote` (item `INFO`), `actorEmail` (jejak pelaku dari sesi auth), `updatedAt`.
   Unik `(vpsId, itemId)`, `vpsId`→Vps (cascade).
 
-## ErrorGroup / ErrorEvent (SPEC-249 · [ADR-0060](../adr/0060-error-monitoring-ingest-ber-dsn.md))
+## ErrorGroup / ErrorEvent / SourceMapArtifact (SPEC-249 · [ADR-0060](../adr/0060-error-monitoring-ingest-ber-dsn.md) · SPEC-276 · [ADR-0070](../adr/0070-symbolication-source-map-server-side.md))
 Error monitoring (Sentry ringan). **SPEC-268/[ADR-0066](../adr/0066-errors-tickets-masuk-record-sync-plus-pemicu-manual.md):**
 agregat `ErrorGroup` kini **tersync** (kolom `version`, entitas `errorGroup` di `SYNCED`); publish
 **asal-hub** pada grup **baru** + perubahan status (escalate/resolve) — bukan tiap increment count
 (hindari churn feed). `ErrorEvent` mentah **tetap server-local** (volume tinggi, dipangkas retensi).
 Enum `status` = `String` + zod (`zErrorStatus`), bukan enum Prisma.
 - **`ErrorGroup`** — grup error per project (dedup by fingerprint):
-  `id`, `projectId`→Project (cascade), `fingerprint`, `type`, `message`, `sampleStack?`, `environment`
+  `id`, `projectId`→Project (cascade), `fingerprint`, `type`, `message`, `sampleStack?`,
+  `sampleFrames? (Json)` (**SPEC-276** · frame mentah sample untuk symbolication saat display),
+  `release?` (**SPEC-276** · release terakhir, korelasi build + surface UI), `environment`
   (last-seen), `status` (`new`|`escalated`|`resolved`, default `new`), `count`, `firstSeenAt`,
   `lastSeenAt`, `specId?` (tautan Spec hasil eskalasi), `createdAt`, `updatedAt`, `version` (sync).
   Unik `(projectId, fingerprint)`; index `(projectId, lastSeenAt)`. Fingerprint deterministik dari
-  tipe + pesan ternormalisasi + frame stack teratas (`services/error-fingerprint.ts`).
+  tipe + pesan ternormalisasi + frame teratas. **SPEC-276 (Temuan B):** `error-fingerprint.ts`
+  menormalkan content-hash basename bundle (`index-4f3a2b.js`→`index.js`) & mereduksi URL anonim ke
+  basename → grup **stabil lintas deploy** (tak lagi pecah tiap rilis); bila `frames[]` ada, memakai
+  top frame `in_app`.
 - **`ErrorEvent`** — kejadian error mentah, **dipangkas retensi** (cap terakhir per grup + umur,
   opportunistic-on-write, tanpa scheduler baru): `id`, `groupId`→ErrorGroup (cascade), `projectId`
-  (denormal, isolasi & query murah), `type`, `message`, `stack?`, `environment`, `release?`,
-  `context? (Json)`, `receivedAt`. Index `(groupId, receivedAt)` + `(projectId, receivedAt)`.
+  (denormal, isolasi & query murah), `type`, `message`, `stack?`, `frames? (Json)` (**SPEC-276** ·
+  frame terstruktur mentah dari SDK), `environment`, `release?`, `context? (Json)`, `receivedAt`.
+  Index `(groupId, receivedAt)` + `(projectId, receivedAt)`.
+- **`SourceMapArtifact`** (**SPEC-276** · [ADR-0070](../adr/0070-symbolication-source-map-server-side.md)) —
+  source-map ter-upload per release untuk symbolication: `id`, `projectId`→Project (cascade),
+  `release`, `filename` (basename artifact hasil-build yang dipetakan), `debugId?`, `storageKey`
+  (berkas opaque `uuid.map` di `HANOMAN_UPLOAD_DIR`), `size`, `createdAt`. Unik
+  `(projectId, release, filename)`; index `(projectId, release)`. **Byte map & metadata server-local,
+  TAK disync** (cermin `TicketAttachment` biner & `ErrorEvent`). Retensi: keep-N-release terbaru.
 - Ingest publik `POST /api/ingest/:slug` diotorisasi **DSN** (`Project.ingestKeyHash`) — pengecualian
-  sah gate `/api` (ADR-0060). Grup produksi **baru** → `Notification` type `error`. Eskalasi →
-  `Spec` source qa (`fromErrorGroup`). Rate-limit token-bucket in-memory + caps payload.
+  sah gate `/api` (ADR-0060). SDK kini mengirim `frames[]` terstruktur (opsional). Upload source-map
+  via `POST /api/ingest/:slug/sourcemaps` (auth DSN sama). Symbolication **lazy saat buka detail grup**
+  (`services/symbolicate.ts`, `@jridgewell/trace-mapping`) — bukan worker (patuh ADR-0024). Grup
+  produksi **baru** → `Notification` type `error`. Eskalasi → `Spec` source qa (`fromErrorGroup`).
 
 ## Ticket / TicketAttachment (SPEC-253 · [ADR-0062](../adr/0062-help-center-tiket-publik-triase.md))
 Help Center: keluhan pengguna akhir → antrean triase → promosi ke backlog. **SPEC-268/[ADR-0066](../adr/0066-errors-tickets-masuk-record-sync-plus-pemicu-manual.md):**

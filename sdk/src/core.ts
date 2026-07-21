@@ -1,5 +1,6 @@
 // hanoman-sdk core — transport + config + captureError. Isomorphic, fire-and-forget.
 // Akses global via cast `globalThis` (tanpa @types/node / DOM lib) → dependency-free.
+import { collectStack, framesFromStack } from "./stack";
 export type InitOpts = { dsn?: string; environment?: string; release?: string };
 
 type FetchFn = (url: string, init: unknown) => { catch: (cb: () => void) => unknown };
@@ -26,11 +27,13 @@ export function send(body: Record<string, unknown>): void {
 
 export function captureError(err: unknown, context?: Record<string, unknown>): void {
   const c = cfg;
-  const e = err as { name?: string; message?: string; stack?: string };
+  const e = err as { name?: string; message?: string };
+  const stack = collectStack(err);
   send({
     type: e?.name || "Error",
     message: e?.message || String(err),
-    stack: e?.stack,
+    stack,
+    frames: framesFromStack(stack),
     environment: c?.environment,
     release: c?.release,
     context,

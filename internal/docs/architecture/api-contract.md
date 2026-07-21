@@ -350,22 +350,33 @@ POST   /vps/:id/remediate            # 200 { steps, audit, scoreTotal, scoreBySe
 > Password tak pernah disimpan, di-log, atau dikembalikan; ia diserahkan ke ssh lewat
 > SSH_ASKPASS (bukan argv) dan hidup beberapa detik di env proses anak (ADR-0025, SPEC-165).
 
-## Error monitoring (SPEC-249 · ADR-0060)
+## Error monitoring (SPEC-249 · ADR-0060 · SPEC-276 · ADR-0070 symbolication)
 ```
 # Ingest PUBLIK ber-DSN — pengecualian sah gate /api (bypass cookie, otentikasi DSN sendiri).
-POST    /api/ingest/:slug?key=<dsn>   { type, message, stack?, environment?, release?, context? }
+POST    /api/ingest/:slug?key=<dsn>   { type, message, stack?, frames?, environment?, release?, context? }
 #   key via ?key= ATAU header x-hanoman-dsn. 202 { ok, groupId, new }.
+#   SPEC-276: frames? = StackFrame[] { function?, filename?, lineno?, colno?, in_app? } (opsional; kompatibel mundur).
 #   401 generik (project tak ada / DSN salah / revoked — tak enumerasi project). 400 payload invalid.
 #   413 body > 64 KB. 429 rate-limit per project (token-bucket in-memory, default 120/min).
 #   message ≤ 2 KB, stack ≤ 16 KB (di-truncate). PII disimpan apa adanya (scrub pasca-MVP).
 OPTIONS /api/ingest/:slug   # 204 + CORS (Access-Control-Allow-Origin: * ) untuk snippet browser.
+
+# SPEC-276 · ADR-0070 · upload source-map per release (symbolication). Auth DSN key sama.
+POST    /api/ingest/:slug/sourcemaps?key=<dsn>   { release, artifacts:[{ filename, map, debugId? }] }
+#   filename = basename artifact hasil-build (mis. index-4f3a2b.js) yang dipetakan map; map = isi .map (JSON string).
+#   202 { ok, stored }. 401 key salah. 400 payload invalid. 413 total > 30 MB. bodyLimit 30 MB (bukan 64 KB ingest).
+#   Byte map server-local (HANOMAN_UPLOAD_DIR), TAK disync. Retensi: keep-N-release terbaru per project.
+OPTIONS /api/ingest/:slug/sourcemaps   # 204 + CORS.
 
 # Area Error — di belakang gate cookie. Query selalu ber-scope projectId (isolasi antar-project).
 GET   /errors/integration-guide  -> { text }   # isi mentah sdk/README.md (markdown), utk ditampilkan di web
 #   (modal "Panduan integrasi" di area Errors + link kartu DSN). Static route > /errors/:id. 404 bila file hilang.
 GET   /errors?project=&environment=&status=&q=&page=&limit=  -> { items: ErrorGroupView[], total, page, pageSize }
 #   urut lastSeen desc; q atas type+message; paginasi response-layer (ADR-0038).
-GET   /errors/:id            -> ErrorGroupDetail { ...group, sampleStack, events: ErrorEventView[] (≤50 terakhir) } · 404
+GET   /errors/:id            -> ErrorGroupDetail { ...group, release, sampleStack, sampleFrames, events: ErrorEventView[] (≤50) } · 404
+#   SPEC-276: sampleFrames = SymbolicatedFrame[]|null — frame sample disymbolikasi LAZY pakai source-map yang
+#   tersedia saat ini (posisi .ts/.tsx + contextLine + in_app). Map absen → frame apa adanya (symbolicated:false).
+#   ErrorGroupView kini memuat `release` (release terakhir grup, korelasi build).
 POST  /errors/:id/escalate   # 201 { spec } — buat Spec qa prefilled (title/actual/fromErrorGroup) + tandai grup
 #   escalated + specId (tautan dua arah). Idempoten: sudah escalated → 200 { alreadyEscalated:true, spec }. 404.
 POST  /errors/:id/unlink     # 200 { id, status:"new", specId:null } — lepas tautan backlog (kebalikan escalate).

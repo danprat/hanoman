@@ -35,7 +35,8 @@ export async function ingestError(
   const message = payload.message.slice(0, MSG_CAP);
   const stack = payload.stack ? payload.stack.slice(0, STACK_CAP) : null;
   const environment = (payload.environment || "unknown").slice(0, 120);
-  const fp = fingerprint(type, message, stack ?? undefined);
+  const frames = payload.frames;   // SPEC-276 · frame terstruktur (opsional)
+  const fp = fingerprint(type, message, stack ?? undefined, frames);
   const key = { projectId_fingerprint: { projectId, fingerprint: fp } };
 
   let groupId: string;
@@ -44,13 +45,17 @@ export async function ingestError(
   if (existing) {
     await prisma.errorGroup.update({
       where: { id: existing.id },
-      data: { count: { increment: 1 }, lastSeenAt: new Date(), environment, updatedAt: new Date() },
+      data: { count: { increment: 1 }, lastSeenAt: new Date(), environment, updatedAt: new Date(), release: payload.release ?? undefined },
     });
     groupId = existing.id;
   } else {
     try {
       const g = await prisma.errorGroup.create({
-        data: { projectId, fingerprint: fp, type, message, sampleStack: stack, environment, count: 1 },
+        data: {
+          projectId, fingerprint: fp, type, message, sampleStack: stack, environment, count: 1,
+          sampleFrames: (frames ?? undefined) as object | undefined,   // SPEC-276 · frame sample (disymbolikasi saat display)
+          release: payload.release ?? null,                            // SPEC-276 · korelasi build
+        },
       });
       groupId = g.id;
       isNew = true;
@@ -71,6 +76,7 @@ export async function ingestError(
   await prisma.errorEvent.create({
     data: {
       groupId, projectId, type, message, stack, environment,
+      frames: (frames ?? undefined) as object | undefined,   // SPEC-276 · frame terstruktur mentah
       release: payload.release ?? null,
       context: (payload.context ?? undefined) as object | undefined,
     },
