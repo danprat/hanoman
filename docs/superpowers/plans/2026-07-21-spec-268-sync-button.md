@@ -402,7 +402,7 @@ git commit -m "feat(spec-268): notifySynced (hub publish / client push) di situs
   - `POST /api/sync/now` → `{ ok:true, pulled, pushed, conflicts }` | `{ ok:false, reason:"not-configured" }`.
   - `paths.syncNow`, `api.syncNow()`.
 
-- [ ] **Step 1: Test gagal (append `sync-client.test.ts`)**
+- [x] **Step 1: Test gagal (append `sync-client.test.ts`)**
 
 ```ts
 import { syncNow } from "../src/services/sync-client";
@@ -415,7 +415,7 @@ it("syncNow: null bila SYNC_SERVER_URL/TOKEN kosong (bukan client)", async () =>
 ```
 > `clean()` di file itu sudah menghapus deviceToken/user/project; tambahkan `await prisma.runtimeConfig.deleteMany();` bila perlu agar config bersih.
 
-- [ ] **Step 2: Run → GAGAL**
+- [x] **Step 2: Run → GAGAL**
 
 Run:
 ```bash
@@ -423,7 +423,7 @@ env -u NODE_ENV DATABASE_URL='postgresql://hanoman:hanoman@localhost:5432/hanoma
 ```
 Expected: FAIL (`syncNow` tak ada).
 
-- [ ] **Step 3: Implement `syncNow` di `sync-client.ts`**
+- [x] **Step 3: Implement `syncNow` di `sync-client.ts`**
 
 Setelah `export function fetchTransport(...)`:
 ```ts
@@ -438,7 +438,7 @@ export async function syncNow(): Promise<SyncStats | null> {
 ```
 (`effectiveStr` sudah di-import di file ini.)
 
-- [ ] **Step 4: Endpoint `POST /sync/now` di `routes/sync.ts`**
+- [x] **Step 4: Endpoint `POST /sync/now` di `routes/sync.ts`**
 
 Tambah import: `import { syncNow } from "../services/sync-client";`
 Tambah di dalam `export default async function (app)` (mis. sebelum `/sync/ws`):
@@ -452,7 +452,7 @@ Tambah di dalam `export default async function (app)` (mis. sebelum `/sync/ws`):
   });
 ```
 
-- [ ] **Step 5: Test route (append `sync.route.test.ts`)**
+- [x] **Step 5: Test route (append `sync.route.test.ts`)**
 
 ```ts
 it("POST /sync/now → not-configured saat bukan client (SPEC-268)", async () => {
@@ -463,7 +463,7 @@ it("POST /sync/now → not-configured saat bukan client (SPEC-268)", async () =>
 ```
 > Bila `sync.route.test.ts` mem-boot `buildApp()` dengan auth aktif, pakai pola yang sudah ada di file itu (mis. `buildApp({ requireAuth:false })` atau session cookie). Sesuaikan header agar 200, bukan 401.
 
-- [ ] **Step 6: Shared path + client API**
+- [x] **Step 6: Shared path + client API**
 
 Di `shared/src/api.ts`, dalam objek `paths` dekat `config`, tambah:
 ```ts
@@ -474,7 +474,7 @@ Di `src/src/api/client.ts`, dalam objek `api`, tambah:
   syncNow: () => j<{ ok: boolean; reason?: string; pulled?: number; pushed?: number; conflicts?: number }>(paths.syncNow, { method: "POST" }),
 ```
 
-- [ ] **Step 7: Run server tests → LULUS**
+- [x] **Step 7: Run server tests → LULUS**
 
 Run:
 ```bash
@@ -482,7 +482,7 @@ env -u NODE_ENV DATABASE_URL='postgresql://hanoman:hanoman@localhost:5432/hanoma
 ```
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/src/services/sync-client.ts server/src/routes/sync.ts server/test/sync-client.test.ts server/test/sync.route.test.ts shared/src/api.ts src/src/api/client.ts

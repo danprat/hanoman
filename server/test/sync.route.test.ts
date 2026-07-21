@@ -48,4 +48,19 @@ describe("sync routes /pull /push (SPEC-213)", () => {
     expect(stale.json().results[0]).toMatchObject({ id: "SPEC-1", ok: false, conflict: true });
     expect(stale.json().results[0].server.version).toBe(1);
   });
+
+  // SPEC-268 · ADR-0066 · pemicu manual /sync/now: cookie-gated (bukan device token) → tanpa
+  // sesi 401; agent-deny "cookie-only" berlaku (dites di agent-capabilities). Hub → not-configured.
+  it("POST /sync/now tanpa sesi → 401 (di-KECUALIKAN dari bypass /api/sync) (SPEC-268)", async () => {
+    const r = await app.inject({ method: "POST", url: "/api/sync/now" });
+    expect(r.statusCode).toBe(401);
+  });
+
+  it("POST /sync/now (auth off) saat bukan client → not-configured (SPEC-268)", async () => {
+    await prisma.runtimeConfig.deleteMany();
+    const noAuth = buildApp({ requireAuth: false });
+    const r = await noAuth.inject({ method: "POST", url: "/api/sync/now" });
+    expect(r.statusCode).toBe(200);
+    expect(r.json()).toMatchObject({ ok: false, reason: "not-configured" });
+  });
 });

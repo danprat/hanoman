@@ -6,6 +6,7 @@ import { verifyDeviceToken } from "../services/device-token";
 import { attachSync, detachSync } from "../services/sync-hub";
 import type { Client } from "../services/pty";
 import { applyPush, pull, isEntity, type Entity } from "../services/sync";
+import { syncNow } from "../services/sync-client";
 
 // SPEC-213 · ADR-0045/0046 · surface sync mesin-ke-mesin (device-token). Isi file dokumen
 // TIDAK lewat sini — hanya record (project/spec/vps/sessionResult).
@@ -38,6 +39,15 @@ export default async function (app: FastifyInstance) {
       results.push({ id: rec.id, ...r });
     }
     return { results };
+  });
+
+  // SPEC-268 · ADR-0066 · pemicu sync manual (tombol UI). Cookie-authed lewat gate global (path ini
+  // DIKECUALIKAN dari bypass /api/sync di app.ts); agent token → 403 (sync cookie-only). Bukan
+  // client (hub) → not-configured. Menjalankan satu siklus syncOnce (pull-before-push).
+  app.post("/sync/now", async () => {
+    const stats = await syncNow();
+    if (!stats) return { ok: false as const, reason: "not-configured" as const };
+    return { ok: true as const, ...stats };
   });
 
   // SPEC-213 · ADR-0046 · kanal siar changefeed. Auth via ?token= pada upgrade (cookie tak ada

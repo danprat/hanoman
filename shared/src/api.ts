@@ -102,6 +102,8 @@ export const paths = {
   // SPEC-215 · config runtime
   config: `${API}/config`,
   configKey: (key: string) => `${API}/config/${encodeURIComponent(key)}`,
+  // SPEC-268 · ADR-0066 · pemicu sync manual (cookie-authed)
+  syncNow: `${API}/sync/now`,
   // SPEC-257 · ADR-0065 · agent token (kelola cookie-only) + katalog capability
   agentTokens: `${API}/agent-tokens`,
   agentToken: (id: string) => `${API}/agent-tokens/${id}`,

@@ -4,7 +4,8 @@ import { prisma } from "../src/db";
 import { issueDeviceToken } from "../src/services/device-token";
 import { pull } from "../src/services/sync";
 import { enqueueOutbox, listOutbox } from "../src/services/outbox";
-import { syncOnce, getCursor, setCursor, type Transport } from "../src/services/sync-client";
+import { syncOnce, getCursor, setCursor, syncNow, type Transport } from "../src/services/sync-client";
+import { clearConfig } from "../src/config";
 
 const app = buildApp();
 const clean = async () => {
@@ -85,5 +86,11 @@ describe("sync-client syncOnce (SPEC-213 AC-18/19)", () => {
     expect(rec.id).toBe("newp");
     expect(rec.data.renamedFrom).toBe("oldp");
     expect(await listOutbox()).toHaveLength(0);
+  });
+
+  it("syncNow: null bila SYNC_SERVER_URL/TOKEN kosong (bukan client) (SPEC-268)", async () => {
+    await prisma.runtimeConfig.deleteMany();
+    await clearConfig("SYNC_SERVER_URL"); await clearConfig("SYNC_DEVICE_TOKEN");
+    expect(await syncNow()).toBeNull();
   });
 });
