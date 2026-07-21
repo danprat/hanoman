@@ -145,12 +145,15 @@ Kerangka kepatuhan checklist 232 item (katalog di git, lihat [vps-compliance.md]
   Unik `(vpsId, itemId)`, `vpsId`→Vps (cascade).
 
 ## ErrorGroup / ErrorEvent (SPEC-249 · [ADR-0060](../adr/0060-error-monitoring-ingest-ber-dsn.md))
-Error monitoring (Sentry ringan). **Server-local** — seperti `Notification`, **tanpa** `version`/sync
-(volume tinggi, satu workspace). Enum `status` = `String` + zod (`zErrorStatus`), bukan enum Prisma.
+Error monitoring (Sentry ringan). **SPEC-268/[ADR-0066](../adr/0066-errors-tickets-masuk-record-sync-plus-pemicu-manual.md):**
+agregat `ErrorGroup` kini **tersync** (kolom `version`, entitas `errorGroup` di `SYNCED`); publish
+**asal-hub** pada grup **baru** + perubahan status (escalate/resolve) — bukan tiap increment count
+(hindari churn feed). `ErrorEvent` mentah **tetap server-local** (volume tinggi, dipangkas retensi).
+Enum `status` = `String` + zod (`zErrorStatus`), bukan enum Prisma.
 - **`ErrorGroup`** — grup error per project (dedup by fingerprint):
   `id`, `projectId`→Project (cascade), `fingerprint`, `type`, `message`, `sampleStack?`, `environment`
   (last-seen), `status` (`new`|`escalated`|`resolved`, default `new`), `count`, `firstSeenAt`,
-  `lastSeenAt`, `specId?` (tautan Spec hasil eskalasi), `createdAt`, `updatedAt`.
+  `lastSeenAt`, `specId?` (tautan Spec hasil eskalasi), `createdAt`, `updatedAt`, `version` (sync).
   Unik `(projectId, fingerprint)`; index `(projectId, lastSeenAt)`. Fingerprint deterministik dari
   tipe + pesan ternormalisasi + frame stack teratas (`services/error-fingerprint.ts`).
 - **`ErrorEvent`** — kejadian error mentah, **dipangkas retensi** (cap terakhir per grup + umur,
@@ -162,14 +165,16 @@ Error monitoring (Sentry ringan). **Server-local** — seperti `Notification`, *
   `Spec` source qa (`fromErrorGroup`). Rate-limit token-bucket in-memory + caps payload.
 
 ## Ticket / TicketAttachment (SPEC-253 · [ADR-0062](../adr/0062-help-center-tiket-publik-triase.md))
-Help Center: keluhan pengguna akhir → antrean triase → promosi ke backlog. **Server-local** — seperti
-`ErrorGroup`, **tanpa** `version`/sync (volume rendah, satu workspace); tautan ke `Spec` (tersync)
-satu-arah soft-link. `status`/`category` = `String` + zod (`zTicketStatus`/`zTicketCategory`), bukan enum Prisma.
+Help Center: keluhan pengguna akhir → antrean triase → promosi ke backlog. **SPEC-268/[ADR-0066](../adr/0066-errors-tickets-masuk-record-sync-plus-pemicu-manual.md):**
+**metadata** `Ticket` kini **tersync** (kolom `version`, entitas `ticket` di `SYNCED`); publish
+asal-hub pada create/accept/reject. `accessKeyHash` ikut snapshot (kolom `required @unique` tanpa
+default — kunci **plaintext** tak pernah menyeberang). **Lampiran** (`TicketAttachment`, file biner)
+**tetap server-local, tak disync**. `status`/`category` = `String` + zod (`zTicketStatus`/`zTicketCategory`), bukan enum Prisma.
 - **`Ticket`** — tiket keluhan per project: `id` (cuid), `projectId`→Project (cascade), `number` (nomor
   pendek human-readable per project), `category` (`bug|fitur|pertanyaan|lainnya`), `title`, `detail`,
   `reporterEmail`, `status` (`new`|`accepted`|`rejected`, default `new`), `accessKeyHash` (**@unique**,
   `sha256(kunci opaque)` untuk cek status — plaintext hanya sekali; **TAK PERNAH ke client/log**),
-  `specId?` (tautan Spec hasil promosi), `createdAt`, `updatedAt`. Unik `(projectId, number)`; index
+  `specId?` (tautan Spec hasil promosi), `createdAt`, `updatedAt`, `version` (sync). Unik `(projectId, number)`; index
   `(projectId, createdAt)`. Nomor dihitung `max+1` per project (retry P2002, cermin `nextSpecId`).
 - **`TicketAttachment`** — lampiran gambar: `id`, `ticketId`→Ticket (cascade), `projectId` (denormal,
   isolasi), `filename` (display), `mimeType`, `size`, `storageKey` (nama opaque `uuid+ext` di

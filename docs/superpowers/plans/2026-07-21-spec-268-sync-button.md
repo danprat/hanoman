@@ -654,23 +654,23 @@ git commit -m "feat(spec-268): tombol Sync di Backlog/Errors/Triase (SyncButton 
 **Files:**
 - Modify: `internal/docs/README.md`, `internal/docs/architecture/data-model.md`, `internal/docs/architecture/api-contract.md`
 
-- [ ] **Step 1: Link ADR-0066 di `internal/docs/README.md`**
+- [x] **Step 1: Link ADR-0066 di `internal/docs/README.md`**
 
 Di bagian `## adr`, tepat di atas baris `- [0065 …]`, tambah:
 ```markdown
 - [0066 — Errors & tickets masuk record-sync (publish asal-hub) + pemicu sync manual](adr/0066-errors-tickets-masuk-record-sync-plus-pemicu-manual.md) — **memperluas 0045**, terkait 0043/0046/0060/0062 (SPEC-268)
 ```
 
-- [ ] **Step 2: `data-model.md` — ErrorGroup/Ticket punya version & tersync**
+- [x] **Step 2: `data-model.md` — ErrorGroup/Ticket punya version & tersync**
 
 Cari deskripsi `ErrorGroup`/`Ticket` (server-local). Perbarui menjadi: kini punya `version` & termasuk entitas sync record (agregat grup / metadata tiket; `ErrorEvent` & `TicketAttachment` tetap tak disync). Sebut ADR-0066.
 
-- [ ] **Step 3: `api-contract.md` — endpoint + ralat catatan sync**
+- [x] **Step 3: `api-contract.md` — endpoint + ralat catatan sync**
 
 - Tambah baris endpoint di bagian sync: `POST /api/sync/now` (cookie-authed) → `{ok, pulled, pushed, conflicts}` / `{ok:false, reason:"not-configured"}`; pemicu manual, non-delegatable agent.
 - Ralat catatan "errors/tickets server-local (tanpa sync)" (baris ~349/380) → kini tersync record (agregat/metadata) via ADR-0066; **lampiran tetap server-local (tak disync)**.
 
-- [ ] **Step 4: Verifikasi integritas index**
+- [x] **Step 4: Verifikasi integritas index**
 
 Run:
 ```bash
@@ -678,7 +678,7 @@ pnpm -C server exec tsx ../cli/... 2>/dev/null || node -e "console.log('cek manu
 ```
 > Bila ada CLI `hanoman docs index --check`, jalankan; else cek manual link ada.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/docs/README.md internal/docs/architecture/data-model.md internal/docs/architecture/api-contract.md

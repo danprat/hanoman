@@ -227,6 +227,14 @@ DELETE /agent-tokens/:id             # 204 · revoke (set revokedAt); 404 tak ad
 > **Tak-boleh-didelegasikan** (agent → 403): `/auth`, `/agent-tokens`, `/device-tokens`, `/sync`; route tak
 > dikenal peta → cookie-only. Master switch `Setting.agentAccessEnabled` (PUT /settings) mematikan semua.
 
+> **Sync mesin-ke-mesin** (SPEC-213 · ADR-0043/0045/0046): surface `/api/sync/{pull,push,ws}` diotorisasi
+> **device token** (Bearer / `?token=` WS), di-**bypass** gate cookie. **KECUALI `POST /api/sync/now`**
+> (SPEC-268 · ADR-0066) — pemicu **manual** dari tombol UI (Backlog/Errors/Triase): **cookie-authed**
+> (dikecualikan dari bypass di `app.ts`), tetap **non-delegatable** ke agent (`/sync` cookie-only → 403).
+> Menjalankan satu siklus `syncOnce` (pull-before-push) → `200 { ok:true, pulled, pushed, conflicts }`;
+> instance non-client (hub) → `200 { ok:false, reason:"not-configured" }`. Tombol muncul hanya di client
+> (`GET /config`.`sync.running`).
+
 ## Terminal
 ```
 GET    /terminal/sessions            # [{ id, projectId, specId?, flow?, cwd, branch?, exited, decision }]
@@ -345,8 +353,9 @@ PATCH /errors/:id            { status }   # 200 { id, status } — status ∈ ne
 > tersiar lewat grup `notifications` WS existing. **Retensi** opportunistic-on-write: cap event per grup
 > (default 50) + umur (default 30 hari) — tanpa scheduler global. **SDK** = npm package publik
 > `hanoman-sdk` (SPEC-254 · ADR-0063; source `sdk/src/**`, Node + browser, DSN gaya Sentry); `GET
-> /errors/integration-guide` tetap menyajikan `sdk/README.md` apa adanya. Model `ErrorGroup`/`ErrorEvent`
-> server-local (tanpa sync). Realtime
+> /errors/integration-guide` tetap menyajikan `sdk/README.md` apa adanya. **Sync (SPEC-268/ADR-0066):**
+> agregat `ErrorGroup` kini **tersync** (kolom `version`, entitas `errorGroup` di `SYNCED`; publish
+> asal-hub pada grup baru + escalate/resolve); `ErrorEvent` mentah **tetap server-local**. Realtime
 > area Error = **HTTP polling** (silent poll, pola GitGraph), bukan kanal WS baru (ADR-0039).
 
 ## Help Center (SPEC-253 · ADR-0062)
@@ -377,7 +386,10 @@ POST  /tickets/:id/reject                 # 200 { id, status:"rejected" } — tu
 > **Status publik** `publicStatus(ticket.status, spec.stage?)`: new→"Sedang ditinjau", rejected→"Ditutup",
 > accepted+executing→"Sedang dikerjakan", done→"Selesai", selainnya→"Diterima". **Notifikasi** tiket baru →
 > `Notification { type:"ticket", key:"ticket:<id>" }` (dedup), tersiar lewat grup `notifications` WS existing.
-> **Lampiran** di `HANOMAN_UPLOAD_DIR` (server-local, tak disync), disajikan **hanya ber-auth** ke triase —
+> **Sync (SPEC-268/ADR-0066):** **metadata** `Ticket` kini **tersync** (kolom `version`, entitas `ticket`
+> di `SYNCED`; publish asal-hub pada create/accept/reject; `accessKeyHash` ikut snapshot, kunci plaintext
+> tak menyeberang). **Lampiran** di `HANOMAN_UPLOAD_DIR` (server-local, **tetap tak disync** — file biner),
+> disajikan **hanya ber-auth** ke triase —
 > halaman status publik tak menampilkannya balik. **Halaman publik** `/help/*` di-mount SPA (routing baru,
 > `main.tsx`) tanpa auth; fallback `index.html` existing → nol perubahan server untuk menyajikan halaman.
 > Realtime area Triase = **HTTP polling** (pola ErrorsScreen), bukan kanal WS baru (ADR-0039).
