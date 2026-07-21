@@ -502,7 +502,7 @@ git commit -m "feat(spec-268): POST /api/sync/now + syncNow() + api.syncNow (pem
 - Consumes: `api.getConfig()` (`.sync.running`), `api.syncNow()`.
 - Produces: `<SyncButton onDone={() => void} onToast={ShowToast} />` (render hanya bila client).
 
-- [ ] **Step 1: Test gagal `src/test/sync-button.test.tsx`**
+- [x] **Step 1: Test gagal `src/test/sync-button.test.tsx`**
 
 ```tsx
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -538,7 +538,7 @@ describe("SyncButton (SPEC-268)", () => {
 ```
 > Cache modul `useSyncActive` bisa membuat test kedua memakai hasil pertama. Bila perlu, ekspor `__resetSyncActiveCache()` untuk test, atau jadikan test kedua file terpisah / pakai `vi.resetModules()`. Sesuaikan saat implement agar dua kondisi teruji.
 
-- [ ] **Step 2: Run → GAGAL**
+- [x] **Step 2: Run → GAGAL**
 
 Run:
 ```bash
@@ -546,7 +546,7 @@ env -u NODE_ENV pnpm -C src exec vitest run test/sync-button.test.tsx
 ```
 Expected: FAIL (komponen belum ada). (Frontend test tak butuh DB.)
 
-- [ ] **Step 3: Buat `src/src/screens/SyncButton.tsx`**
+- [x] **Step 3: Buat `src/src/screens/SyncButton.tsx`**
 
 ```tsx
 import React from "react";
@@ -593,7 +593,7 @@ export function SyncButton({ onDone, onToast }:
 ```
 > Bila test kondisi kedua butuh reset, panggil `__resetSyncActiveCache()` di `beforeEach` test / gunакan `vi.resetModules()`. Konfirmasi ikon `rotate-ccw` & tone `info` valid (sudah dicek).
 
-- [ ] **Step 4: Wire `ErrorsScreen.tsx`**
+- [x] **Step 4: Wire `ErrorsScreen.tsx`**
 
 Import: `import { SyncButton } from "./SyncButton";`
 Di toolbar, ganti blok spacer+Panduan (sekitar baris 158-159):
@@ -603,7 +603,7 @@ Di toolbar, ganti blok spacer+Panduan (sekitar baris 158-159):
         <Button size="sm" variant="secondary" leftIcon="book-open" onClick={() => setGuideOpen(true)}>Panduan integrasi</Button>
 ```
 
-- [ ] **Step 5: Wire `TriageScreen.tsx`**
+- [x] **Step 5: Wire `TriageScreen.tsx`**
 
 Import: `import { SyncButton } from "./SyncButton";`
 Di toolbar, setelah badge `unreviewed` (sekitar baris 172), tambahkan spacer + tombol:
@@ -613,7 +613,7 @@ Di toolbar, setelah badge `unreviewed` (sekitar baris 172), tambahkan spacer + t
         <SyncButton onDone={() => load(true)} onToast={onToast} />
 ```
 
-- [ ] **Step 6: Wire `BacklogScreen.tsx` (+ prop onToast)**
+- [x] **Step 6: Wire `BacklogScreen.tsx` (+ prop onToast)**
 
 Tambah `onToast` ke destructuring props `BacklogScreen({ ... , dataVersion, onToast })` dan ke tipe param (`onToast: (msg: string, kind?: string, icon?: string) => void`).
 Tambah state reload di dekat state lain: `const [syncNonce, setSyncNonce] = React.useState(0);`
@@ -628,11 +628,11 @@ Di header kanan (baris ~582-585), tambah SyncButton sebelum/ sesudah `<span clas
           </div>
 ```
 
-- [ ] **Step 7: Wire `App.tsx` — pass onToast ke BacklogScreen**
+- [x] **Step 7: Wire `App.tsx` — pass onToast ke BacklogScreen**
 
 Di render `<BacklogScreen ... />` (baris ~797), tambahkan prop `onToast={showToast}`.
 
-- [ ] **Step 8: Run frontend tests → LULUS**
+- [x] **Step 8: Run frontend tests → LULUS**
 
 Run:
 ```bash
@@ -640,7 +640,7 @@ env -u NODE_ENV pnpm -C src exec vitest run test/sync-button.test.tsx test/error
 ```
 Expected: PASS.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/src/screens/SyncButton.tsx src/test/sync-button.test.tsx src/src/screens/ErrorsScreen.tsx src/src/screens/TriageScreen.tsx src/src/screens/BacklogScreen.tsx src/src/App.tsx

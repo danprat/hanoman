@@ -7,6 +7,7 @@ import { api } from "../api/client";
 import type { ErrorGroupView, ErrorGroupDetail, Spec } from "@hanoman/shared";
 import type { ProjectVM } from "./types";
 import { IntegrationGuideModal } from "./IntegrationGuideModal";
+import { SyncButton } from "./SyncButton";
 
 const POLL_MS = 5000;
 
@@ -156,6 +157,7 @@ export function ErrorsScreen({ projects, onEscalated, onToast }:
         <Select size="sm" value={status} onChange={(e) => setStatus(e.target.value)}
           options={[{ value: "", label: "Semua status" }, { value: "new", label: "new" }, { value: "escalated", label: "escalated" }, { value: "resolved", label: "resolved" }]} />
         <span style={{ flex: 1 }} />
+        <SyncButton onDone={() => load(true)} onToast={onToast} />
         <Button size="sm" variant="secondary" leftIcon="book-open" onClick={() => setGuideOpen(true)}>Panduan integrasi</Button>
       </div>
       <IntegrationGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />

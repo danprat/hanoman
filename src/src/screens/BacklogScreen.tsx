@@ -8,6 +8,7 @@ import {
 import { api } from "../api/client";
 import { SpecDocsModal } from "./SpecDocsModal";
 import { IntegrateDialog } from "./IntegrateDialog";
+import { SyncButton } from "./SyncButton";
 import { branchOptions } from "./branch";
 import type { Spec } from "./types";
 import type { ProjectVM } from "./types";
@@ -521,7 +522,7 @@ const VIEWS = [
   { value: "board", label: "Board", icon: "kanban" },
 ];
 
-export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onOpenReview, onNew, onEditBranch, onRevertStage, onIntegrate, onEditSpec, onPromoteToQa, projectFilter, onProjectFilter, dataVersion }:
+export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onOpenReview, onNew, onEditBranch, onRevertStage, onIntegrate, onEditSpec, onPromoteToQa, projectFilter, onProjectFilter, dataVersion, onToast }:
   {
     backlog: Spec[]; projects: ProjectVM[]; pageSize?: number;
     onStart?: (s: Spec) => void; activeSpecs?: Set<string>;
@@ -531,9 +532,12 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
     onIntegrate?: (s: Spec, op: "merge" | "rebase", target: string) => void;
     onEditSpec?: (s: Spec, patch: { title?: string; priority?: string; payload?: unknown }) => void;
     onPromoteToQa?: (s: Spec) => void;   // SPEC-237 · naikkan audit → Finding QA
-    projectFilter: string; onProjectFilter: (id: string) => void; dataVersion?: number
+    projectFilter: string; onProjectFilter: (id: string) => void; dataVersion?: number;
+    onToast?: (msg: string, kind?: string, icon?: string) => void; // SPEC-268 · hasil tombol Sync
   }) {
   const [tab, setTab] = React.useState("all");
+  // SPEC-268 · bump untuk re-fetch daftar sesudah tombol Sync menarik data baru.
+  const [syncNonce, setSyncNonce] = React.useState(0);
   const [view, setView] = React.useState("grid");
   // SPEC-178 · search + filter stage/prioritas, semua view-local (tak diangkat ke App).
   const [q, setQ] = React.useState("");
@@ -568,7 +572,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
     });
     p?.then((r) => { if (alive) setData({ items: r.items, total: r.total }); }).catch(() => { });
     return () => { alive = false; };
-  }, [tab, proj, stageFilter, prioFilter, dq, view, page, pageSize, dataVersion]);
+  }, [tab, proj, stageFilter, prioFilter, dq, view, page, pageSize, dataVersion, syncNonce]);
   const items = data.items;
   const sp = serverPage(data.total, page, pageSize);
   return (
@@ -581,6 +585,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
           ]} />
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <Tabs variant="pill" value={view} onChange={setView} tabs={VIEWS} aria-label="Mode tampilan" />
+            <SyncButton onDone={() => setSyncNonce((n) => n + 1)} onToast={onToast ?? (() => {})} />
             <span className="hn-eyebrow">{data.total} spec</span>
           </div>
         </div>

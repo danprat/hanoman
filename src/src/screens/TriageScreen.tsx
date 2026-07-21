@@ -5,6 +5,7 @@ import React from "react";
 import { Button, Badge, Select, StateBlock, Icon } from "../ds";
 import { paths, type TicketView, type TicketDetail, type Spec } from "@hanoman/shared";
 import { api } from "../api/client";
+import { SyncButton } from "./SyncButton";
 import type { ProjectVM } from "./types";
 
 const POLL_MS = 5000;
@@ -170,6 +171,7 @@ export function TriageScreen({ projects, onAccepted, onToast }:
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari judul / email"
           style={{ flex: 1, minWidth: 160, padding: "6px 10px", border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", background: "var(--surface-card)", color: "var(--text-body)", fontSize: 13 }} />
         {unreviewed > 0 && <Badge tone="warn">{unreviewed} belum ditinjau</Badge>}
+        <SyncButton onDone={() => load(true)} onToast={onToast} />
       </div>
       {state === "loading" ? <StateBlock kind="loading" />
         : state === "error" ? <StateBlock kind="error" hint="Gagal memuat tiket." action={() => load()} actionLabel="Coba lagi" />
