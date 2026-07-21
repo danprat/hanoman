@@ -1,4 +1,5 @@
 import { prisma } from "../db";
+import { renameProjectCore } from "./rename-project";
 
 // SPEC-213 · ADR-0045 · mesin sync record: version-stamp optimistic concurrency + change-feed
 // SyncLog (seq = kursor global). Isi file dokumen TIDAK lewat sini (git 3-way merge, ADR-0043).
@@ -70,6 +71,30 @@ export type PushResult =
 export async function applyPush(
   entity: Entity, id: string, baseVersion: number, data: Record<string, unknown>, deviceId?: string,
 ): Promise<PushResult> {
+  // SPEC-255 · ADR-0064 · operasi rename project via penanda kontrol data.renamedFrom (bukan kolom;
+  // coerce() mengabaikannya). Rename struktural → lewati optimistic-concurrency biasa.
+  if (entity === "project" && typeof data.renamedFrom === "string" && data.renamedFrom && data.renamedFrom !== id) {
+    const oldId = data.renamedFrom;
+    const already = await DELEGATE.project.findUnique({ where: { id }, select: { version: true } });
+    if (already) return { ok: true, version: Number(already.version) }; // sudah diterapkan (idempoten)
+    const old = await DELEGATE.project.findUnique({ where: { id: oldId }, select: { version: true } });
+    if (old) {
+      const newVersion = Number(old.version) + 1;
+      await prisma.$transaction(async (tx) => {
+        await renameProjectCore(tx, oldId, id);
+        const writeData = coerce("project", data);
+        await tx.project.update({ where: { id }, data: { ...writeData, version: newVersion, updatedAt: new Date() } });
+      });
+      const snap = await snapshot("project", id);
+      const logData = { ...(snap?.data ?? {}), renamedFrom: oldId }; // penerima ikut rename
+      const log = await prisma.syncLog.create({
+        data: { entity: "project", recordId: id, version: newVersion, data: logData as object, deviceId: deviceId ?? null },
+      });
+      onAccepted?.({ entity: "project", recordId: id, version: newVersion, data: logData, seq: String(log.seq) });
+      return { ok: true, version: newVersion };
+    }
+    // oldId tak ada → fall-through ke insert normal di bawah (konvergensi).
+  }
   const existing = await DELEGATE[entity].findUnique({ where: { id }, select: { version: true } });
   if (existing && Number(existing.version) !== baseVersion) {
     return { ok: false, conflict: true, server: await snapshot(entity, id) };
@@ -106,6 +131,22 @@ export async function pull(sinceCursor: string, limit = 500): Promise<{ cursor: 
 // Terapkan record dari server ke DB LOKAL (server-authoritative): set version/data apa adanya,
 // TANPA menulis SyncLog/outbox (bukan write lokal). Dipakai sync-client saat pull/WS (Fase 4).
 export async function upsertLocal(entity: Entity, id: string, version: number, data: Record<string, unknown>): Promise<void> {
+  // SPEC-255 · ADR-0064 · penerima rename: bila renamedFrom di-set & row lama ada (row baru belum),
+  // rename in-place (bukan insert row baru yang meninggalkan yatim). Else upsert biasa.
+  if (entity === "project" && typeof data.renamedFrom === "string" && data.renamedFrom && data.renamedFrom !== id) {
+    const oldId = data.renamedFrom;
+    const exists = await DELEGATE.project.findUnique({ where: { id }, select: { version: true } });
+    const old = exists ? null : await DELEGATE.project.findUnique({ where: { id: oldId }, select: { version: true } });
+    if (!exists && old) {
+      const writeData = coerce("project", data);
+      await prisma.$transaction(async (tx) => {
+        await renameProjectCore(tx, oldId, id);
+        await tx.project.update({ where: { id }, data: { ...writeData, version, updatedAt: new Date() } });
+      });
+      return;
+    }
+    // else: fall-through ke upsert biasa (row baru sudah ada, atau tak ada oldId → insert).
+  }
   const writeData = coerce(entity, data);
   await DELEGATE[entity].upsert({
     where: { id },

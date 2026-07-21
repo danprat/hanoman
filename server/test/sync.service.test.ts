@@ -65,4 +65,28 @@ describe("sync service (SPEC-213 AC-9..15)", () => {
     expect(vsnap?.data).not.toHaveProperty("keyPath");
     expect(vsnap?.data).toMatchObject({ name: "v", host: "h" });
   });
+
+  it("rename: applyPush dgn renamedFrom memindahkan row lama, bukan insert baru (SPEC-255)", async () => {
+    await project(); // id "p1"
+    await applyPush("spec", "SPEC-1", 0, specData()); // spec di p1
+    const r = await applyPush("project", "p1-renamed", 0, { name: "p1", desc: "d", kind: "existing", stack: "", gitRemote: null, renamedFrom: "p1" });
+    expect(r).toMatchObject({ ok: true });
+    // project lama hilang, baru ada, spec ikut pindah (cascade)
+    expect(await prisma.project.findUnique({ where: { id: "p1" } })).toBeNull();
+    expect(await prisma.project.findUnique({ where: { id: "p1-renamed" } })).not.toBeNull();
+    expect((await prisma.spec.findUnique({ where: { id: "SPEC-1" } }))?.projectId).toBe("p1-renamed");
+    // renamedFrom bukan kolom — tak bocor ke Project (coerce membuangnya)
+    const snap = await snapshot("project", "p1-renamed");
+    expect(snap?.data).not.toHaveProperty("renamedFrom");
+    // SyncLog rename membawa renamedFrom agar penerima ikut rename
+    const log = await prisma.syncLog.findFirst({ where: { entity: "project", recordId: "p1-renamed" }, orderBy: { seq: "desc" } });
+    expect((log?.data as Record<string, unknown>).renamedFrom).toBe("p1");
+  });
+
+  it("rename idempoten: push kedua (row baru sudah ada) tetap ok tanpa error (SPEC-255)", async () => {
+    await project();
+    await applyPush("project", "p1b", 0, { name: "p1", desc: "d", kind: "existing", stack: "", gitRemote: null, renamedFrom: "p1" });
+    const again = await applyPush("project", "p1b", 0, { name: "p1", desc: "d", kind: "existing", stack: "", gitRemote: null, renamedFrom: "p1" });
+    expect(again).toMatchObject({ ok: true });
+  });
 });
