@@ -1,4 +1,4 @@
-import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type ConfigResponse, type ConfigEntryView, type IngestKeyView, type ErrorGroupView, type ErrorGroupDetail, type TicketView, type TicketDetail, type AgentTokenView, type CapabilityInfo } from "@hanoman/shared";
+import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type ConfigResponse, type ConfigEntryView, type IngestKeyView, type ErrorGroupView, type ErrorGroupDetail, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo } from "@hanoman/shared";
 export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit";
 // SPEC-210 · dokumen PRD project (freshest-wins: worktree sesi prd hidup > repoDir). Tipe di @hanoman/shared.
@@ -263,6 +263,7 @@ export const api = {
   escalateError: (id: string) => j<{ spec: Spec; alreadyEscalated?: boolean }>(paths.errorEscalate(id), { method: "POST" }),
   patchError: (id: string, status: string) =>
     j<{ id: string; status: string }>(paths.error(id), { method: "PATCH", ...body({ status }) }),
+  deleteError: (id: string) => j<{ ok: boolean }>(paths.error(id), { method: "DELETE" }),
   // SPEC-249 · panduan integrasi SDK (markdown) untuk ditampilkan di web
   getIntegrationGuide: () => j<{ text: string }>(paths.errorsGuide),
   // SPEC-253 · Help Center — manajemen per project + triase tiket.
@@ -276,5 +277,8 @@ export const api = {
     j<{ spec: Spec; alreadyPromoted?: boolean }>(paths.ticketAccept(id), { method: "POST", ...body({ priority }) }),
   rejectTicket: (id: string) =>
     j<{ id: string; status: string }>(paths.ticketReject(id), { method: "POST", ...body({}) }),
+  editTicket: (id: string, input: TicketEditInput) =>
+    j<TicketDetail & { spec: Spec | null }>(paths.ticket(id), { method: "PATCH", ...body(input) }),
+  deleteTicket: (id: string) => j<{ ok: boolean }>(paths.ticket(id), { method: "DELETE" }),
 };
 
