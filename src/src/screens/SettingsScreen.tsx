@@ -3,6 +3,7 @@
 import React from "react";
 import { Card, Switch, Select, Button, Input, Field, Icon, StateBlock } from "../ds";
 import { api, ApiError } from "../api/client";
+import { CAPABILITY_DOMAINS } from "@hanoman/shared";
 import type { Setting, UserView, DeviceTokenView, SessionResultView, ConfigResponse, ConfigEntryView, AgentTokenView, CapabilityInfo } from "@hanoman/shared";
 import type { ShowToast } from "../ds";
 import { playNotifySound, type NotifySound } from "../notifications/sound";
@@ -415,9 +416,13 @@ export function AgentAccessPanel({ onToast }: { onToast?: ShowToast } = {}) {
             {domains.map((d) => {
               const r = caps.find((c) => c.domain === d && c.access === "read");
               const w = caps.find((c) => c.domain === d && c.access === "write");
+              const meta = CAPABILITY_DOMAINS.find((m) => m.domain === d);
               return (
                 <React.Fragment key={d}>
-                  <div style={{ fontSize: 13, color: "var(--text-muted)" }}>{d}{w?.risk ? " ⚠" : ""}</div>
+                  <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                    <div style={{ fontWeight: 600, color: "var(--text-strong)" }}>{meta?.label ?? d}{w?.risk ? " ⚠" : ""}</div>
+                    {meta?.desc && <div style={{ fontSize: 11.5, color: "var(--text-subtle)", lineHeight: 1.4, marginTop: 1 }}>{meta.desc}</div>}
+                  </div>
                   <div style={{ textAlign: "center" }}>{r && <input type="checkbox" aria-label={r.id} checked={picked.includes(r.id)} onChange={() => toggleCap(r.id)} />}</div>
                   <div style={{ textAlign: "center" }}>{w && <input type="checkbox" aria-label={w.id} checked={picked.includes(w.id)} onChange={() => toggleCap(w.id)} />}</div>
                 </React.Fragment>

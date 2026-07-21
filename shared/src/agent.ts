@@ -44,6 +44,22 @@ export const CAPABILITIES: CapabilityInfo[] = [
   { id: "notifications:write", domain: "notifications", access: "write", label: "Notifikasi — tulis", desc: "Tandai terbaca / bersihkan notifikasi." },
 ];
 
+// SPEC-264 · Metadata per-domain untuk grid capability di Settings (label ramah + cakupan).
+// Grid dulu hanya merender slug domain mentah ("docs", "support") sehingga PRD/Errors/Help Desk
+// tak terbaca; ini sumber tunggal label/desc supaya cakupan tiap domain kelihatan. Urutan =
+// urutan kemunculan domain di CAPABILITIES.
+export const CAPABILITY_DOMAINS: { domain: string; label: string; desc: string }[] = [
+  { domain: "projects", label: "Projects", desc: "Project, branch, binding, DSN, Help Center." },
+  { domain: "backlog", label: "Backlog / Spec", desc: "Spec/backlog, dokumen, review diff, integrate." },
+  { domain: "sessions", label: "Sesi", desc: "Sesi terminal, fase, jalankan claude/shell." },
+  { domain: "docs", label: "Docs & PRD", desc: "Dokumen SoT project & PRD." },
+  { domain: "ide", label: "IDE / Git", desc: "Tree, file, status git, graph, commit, diff." },
+  { domain: "vps", label: "VPS", desc: "VPS, checklist kepatuhan, audit, konsol." },
+  { domain: "settings", label: "Settings", desc: "Setelan & config runtime." },
+  { domain: "support", label: "Errors & Help Desk", desc: "Error monitoring & tiket Help Center (Help Desk): lihat, eskalasi, terima/tolak." },
+  { domain: "notifications", label: "Notifikasi", desc: "Lihat & kelola notifikasi." },
+];
+
 // write meng-implikasikan read pada domain yang sama.
 export function grantsCapability(granted: string[], need: Capability): boolean {
   if (granted.includes(need)) return true;

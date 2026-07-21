@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  CAPABILITY_IDS, zCapability, CAPABILITIES, grantsCapability,
+  CAPABILITY_IDS, zCapability, CAPABILITIES, CAPABILITY_DOMAINS, grantsCapability,
   zAgentTokenCreate, zSetting,
 } from "../src";
 
@@ -19,6 +19,22 @@ describe("agent capabilities", () => {
     expect(grantsCapability(["projects:read"], "projects:read")).toBe(true);
     expect(grantsCapability(["backlog:write"], "projects:read")).toBe(false);
     expect(grantsCapability([], "projects:read")).toBe(false);
+  });
+
+  it("CAPABILITY_DOMAINS covers every domain exactly once, in grid order", () => {
+    const gridDomains = Array.from(new Set(CAPABILITIES.map((c) => c.domain)));
+    expect(CAPABILITY_DOMAINS.map((d) => d.domain)).toEqual(gridDomains);
+    for (const d of CAPABILITY_DOMAINS) {
+      expect(d.label.length).toBeGreaterThan(0);
+      expect(d.desc.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("SPEC-264: PRD, Errors, Help Desk are discoverable in domain labels/desc", () => {
+    const blob = CAPABILITY_DOMAINS.map((d) => `${d.label} ${d.desc}`).join(" ").toLowerCase();
+    expect(blob).toContain("prd");
+    expect(blob).toContain("error");
+    expect(blob).toContain("help desk");
   });
 
   it("high-risk caps are flagged", () => {

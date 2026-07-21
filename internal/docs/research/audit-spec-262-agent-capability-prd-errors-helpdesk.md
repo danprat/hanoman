@@ -94,6 +94,24 @@ langsung menutup keluhan:
 
 Karena murni presentasi frontend (memakai metadata yang sudah ada), tak perlu ADR/migration baru.
 
+## Resolusi (SPEC-264 · QA · frontend-only, tanpa ADR/migration)
+
+Diperbaiki sesuai rekomendasi di atas. Perubahan murni presentasi + satu sumber metadata:
+
+- **`shared/src/agent.ts`** — tambah `CAPABILITY_DOMAINS`: label + desc ramah per-domain sebagai
+  sumber tunggal untuk grid. `docs → "Docs & PRD"`, `support → "Errors & Help Desk"` (desc menyebut
+  "PRD", "error monitoring", "tiket Help Center (Help Desk)"). Urutan mengikuti kemunculan domain
+  di `CAPABILITIES`.
+- **`src/src/screens/SettingsScreen.tsx:415-427`** — grid tak lagi merender slug mentah; tiap baris
+  memakai `CAPABILITY_DOMAINS`: label tebal + subteks `desc`. Fallback ke slug bila metadata absen.
+  Badge risiko `⚠` tetap.
+- **`shared/test/agent.test.ts`** — guard: `CAPABILITY_DOMAINS` menutup tiap domain persis sekali &
+  urut sesuai grid; label/desc menyebut "prd", "error", "help desk" (regresi discoverability).
+
+Verifikasi: `vitest run shared/` hijau (65 test), `tsc --noEmit` shared+app bersih, `vite build`
+sukses. Tak ada perubahan data model / kontrak API / route — capability & gating tetap sama; hanya
+penamaan grid yang kini memunculkan PRD/Errors/Help Desk. Keluhan "tidak menemukannya" tertutup.
+
 ## Berkas relevan (bukti)
 
 - `shared/src/agent.ts:5,26` — `CAPABILITY_IDS` (9 domain) + `CAPABILITIES` metadata (label/desc menyebut PRD/Errors/Help Center).
