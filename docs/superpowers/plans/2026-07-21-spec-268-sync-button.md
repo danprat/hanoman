@@ -239,7 +239,7 @@ git commit -m "feat(spec-268): errorGroup & ticket masuk SYNCED + publishLocal (
 - Consumes: `enqueueOutbox` (outbox.ts), `publishLocal`+`isEntity` (sync.ts), `effectiveStr` (config).
 - Produces: `notifySynced(entity: string, id: string): Promise<void>` (best-effort).
 
-- [ ] **Step 1: Tulis test gagal `server/test/sync-notify.test.ts`**
+- [x] **Step 1: Tulis test gagal `server/test/sync-notify.test.ts`**
 
 ```ts
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
@@ -281,7 +281,7 @@ describe("notifySynced (SPEC-268 ADR-0066)", () => {
 ```
 > Cek signature `setConfig`/`clearConfig` di `server/src/config.ts` — bila beda, sesuaikan (mis. via `prisma.runtimeConfig.upsert`). `effectiveStr` membaca override DB → env → default.
 
-- [ ] **Step 2: Run → GAGAL**
+- [x] **Step 2: Run → GAGAL**
 
 Run:
 ```bash
@@ -289,7 +289,7 @@ env -u NODE_ENV DATABASE_URL='postgresql://hanoman:hanoman@localhost:5432/hanoma
 ```
 Expected: FAIL (module belum ada).
 
-- [ ] **Step 3: Buat `server/src/services/sync-notify.ts`**
+- [x] **Step 3: Buat `server/src/services/sync-notify.ts`**
 
 ```ts
 import { effectiveStr } from "../config";
@@ -309,7 +309,7 @@ export async function notifySynced(entity: string, id: string): Promise<void> {
 }
 ```
 
-- [ ] **Step 4: Wire `error-ingest.ts`**
+- [x] **Step 4: Wire `error-ingest.ts`**
 
 Tambah import teratas: `import { notifySynced } from "./sync-notify";`
 Di `ingestError`, ubah baris terakhir sebelum `return { groupId, new: isNew };`:
@@ -319,7 +319,7 @@ Di `ingestError`, ubah baris terakhir sebelum `return { groupId, new: isNew };`:
   return { groupId, new: isNew };
 ```
 
-- [ ] **Step 5: Wire `routes/errors.ts`**
+- [x] **Step 5: Wire `routes/errors.ts`**
 
 Ganti import `enqueueOutbox`:
 ```ts
@@ -339,7 +339,7 @@ Di handler `patch` (resolve), setelah `const updated = ...`:
     return { id: updated.id, status: updated.status };
 ```
 
-- [ ] **Step 6: Wire `routes/help.ts` (create ticket)**
+- [x] **Step 6: Wire `routes/help.ts` (create ticket)**
 
 Tambah import: `import { notifySynced } from "../services/sync-notify";`
 Setelah tiket + lampiran dibuat (setelah loop `prisma.ticketAttachment.create`, sebelum `const statusPath`):
@@ -347,7 +347,7 @@ Setelah tiket + lampiran dibuat (setelah loop `prisma.ticketAttachment.create`, 
     await notifySynced("ticket", ticket.id); // SPEC-268 · tiket baru ke feed (metadata; lampiran tak disync)
 ```
 
-- [ ] **Step 7: Wire `routes/tickets.ts` (accept/reject)**
+- [x] **Step 7: Wire `routes/tickets.ts` (accept/reject)**
 
 Ganti import `enqueueOutbox` → `import { notifySynced } from "../services/sync-notify";`
 Di `accept`, ganti:
@@ -364,7 +364,7 @@ Di `reject`, setelah `const updated = ...`:
     return { id: updated.id, status: updated.status };
 ```
 
-- [ ] **Step 8: Wire `services/live-specs.ts` (advance spec)**
+- [x] **Step 8: Wire `services/live-specs.ts` (advance spec)**
 
 Baca file; temukan `await enqueueOutbox("spec", id)` (SPEC-267, setelah CAS `count > 0`). Ganti jadi:
 ```ts
@@ -372,7 +372,7 @@ Baca file; temukan `await enqueueOutbox("spec", id)` (SPEC-267, setelah CAS `cou
 ```
 Tambah import `import { notifySynced } from "./sync-notify";` dan hapus import `enqueueOutbox` bila tak lagi dipakai di file itu.
 
-- [ ] **Step 9: Run notify + route tests → LULUS**
+- [x] **Step 9: Run notify + route tests → LULUS**
 
 Run:
 ```bash
@@ -380,7 +380,7 @@ env -u NODE_ENV DATABASE_URL='postgresql://hanoman:hanoman@localhost:5432/hanoma
 ```
 Expected: PASS (route lama tetap hijau; notify baru hijau).
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add server/src/services/sync-notify.ts server/test/sync-notify.test.ts server/src/services/error-ingest.ts server/src/routes/errors.ts server/src/routes/help.ts server/src/routes/tickets.ts server/src/services/live-specs.ts

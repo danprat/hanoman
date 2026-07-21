@@ -8,7 +8,7 @@ import { prisma } from "../db";
 import { paginate } from "../services/paginate";
 import { nextSpecId } from "../services/id";
 import { resolveRepoDir } from "../services/local-binding";
-import { enqueueOutbox } from "../services/outbox";
+import { notifySynced } from "../services/sync-notify";
 import { repoRoot } from "../runner/deps";
 import type { ErrorGroup, ErrorEvent } from "@prisma/client";
 
@@ -97,7 +97,8 @@ export default async function (app: FastifyInstance) {
       }
     }
     await prisma.errorGroup.update({ where: { id }, data: { status: "escalated", specId: spec!.id } });
-    await enqueueOutbox("spec", spec!.id); // SPEC-213 · antre push sync
+    await notifySynced("spec", spec!.id);   // SPEC-213/268 · spec ke feed (hub publish / client push)
+    await notifySynced("errorGroup", id);    // SPEC-268 · status grup ke feed
     return reply.code(201).send({ spec });
   });
 
@@ -109,6 +110,7 @@ export default async function (app: FastifyInstance) {
     const g = await prisma.errorGroup.findUnique({ where: { id } });
     if (!g) return reply.code(404).send({ error: "not found" });
     const updated = await prisma.errorGroup.update({ where: { id }, data: { status: parsed.data } });
+    await notifySynced("errorGroup", id); // SPEC-268 · perubahan status grup ke feed
     return { id: updated.id, status: updated.status };
   });
 }
