@@ -14,14 +14,15 @@ function installBrowserHandlers(): void {
   const g = globalThis as { addEventListener?: (t: string, cb: (e: unknown) => void) => void };
   if (typeof g.addEventListener !== "function") return;
   g.addEventListener("error", (e: unknown) => {
-    const ev = e as { error?: { name?: string; stack?: string }; message?: string };
-    const err = ev.error || {};
-    captureError({ name: err.name || "Error", message: ev.message || "Error", stack: err.stack }, browserContext());
+    // ev.error = Error asli (punya .stack & .cause) bila tersedia; fallback sintetik untuk
+    // event tanpa error object (mis. cross-origin script error).
+    const ev = e as { error?: unknown; message?: string };
+    captureError(ev.error ?? { name: "Error", message: ev.message || "Error" }, browserContext());
   });
   g.addEventListener("unhandledrejection", (e: unknown) => {
-    const ev = e as { reason?: { name?: string; message?: string; stack?: string } };
-    const r = ev.reason || {};
-    captureError({ name: r.name || "UnhandledRejection", message: r.message || String(r), stack: r.stack }, browserContext());
+    // reason apa adanya (Error/objek/primitif) → captureError sudah tahan banting & baca .cause.
+    const ev = e as { reason?: unknown };
+    captureError(ev.reason ?? { name: "UnhandledRejection", message: "unhandled rejection" }, browserContext());
   });
 }
 
