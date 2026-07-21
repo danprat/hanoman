@@ -128,6 +128,34 @@ describe("SPEC-253 · triase tiket", () => {
   });
 });
 
+describe("SPEC-286 · eskalasi triase membawa instruksi periksa lampiran", () => {
+  it("accept tiket berlampiran → context menyuruh agen memeriksa lampiran + memuat nama & path akses", async () => {
+    const { ticket } = await createTicket({ projectId: "tri-proj", category: "bug", title: "tombol rusak", detail: "keluhan", reporterEmail: "a@e.co" });
+    const { storageKey, size } = await saveUpload(Buffer.from("IMG"), "image/png");
+    await prisma.ticketAttachment.create({ data: { ticketId: ticket.id, projectId: "tri-proj", filename: "shot-check.png", mimeType: "image/png", size, storageKey } });
+    const res = await app.inject({ method: "POST", url: `/api/tickets/${ticket.id}/accept` });
+    expect(res.statusCode).toBe(201);
+    const ctx: string = res.json().spec.payload.context;
+    // direktif aktif ke agen (bukan sekadar hitungan pasif "N berkas")
+    expect(ctx).toMatch(/periksa/i);
+    expect(ctx).toMatch(/lampiran/i);
+    // nama asli + jalur akses konkret supaya agen bisa membuka isinya
+    expect(ctx).toContain("shot-check.png");
+    expect(ctx).toContain(storageKey);
+    // rujukan cadangan lewat API tiket
+    expect(ctx).toContain(`/api/tickets/${ticket.id}/attachments/`);
+  });
+
+  it("accept tiket tanpa lampiran → tak ada noise 'N berkas', ditandai 'Tanpa lampiran'", async () => {
+    const { ticket } = await createTicket({ projectId: "tri-proj", category: "bug", title: "tanpa gambar", detail: "keluhan teks", reporterEmail: "b@e.co" });
+    const res = await app.inject({ method: "POST", url: `/api/tickets/${ticket.id}/accept` });
+    expect(res.statusCode).toBe(201);
+    const ctx: string = res.json().spec.payload.context;
+    expect(ctx).toContain("Tanpa lampiran");
+    expect(ctx).not.toMatch(/\d+ berkas/);
+  });
+});
+
 describe("SPEC-269 · edit & hapus tiket", () => {
   it("PATCH /tickets/:id mengubah title/detail/category/status", async () => {
     const { ticket } = await createTicket({ projectId: "tri-proj", category: "bug", title: "lama", detail: "d lama", reporterEmail: "e@e.co" });
