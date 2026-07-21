@@ -43,6 +43,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 
 ## adr
 > Nomor unik & imutable. ADR usang tidak dihapus — ditandai statusnya di bawah dan di header masing-masing.
+- [0068 — Lampiran tiket masuk record-sync (metadata di feed, byte lazy-fetch)](adr/0068-lampiran-tiket-masuk-record-sync.md) — **mencabut sebagian 0066**, memperluas 0045, terkait 0043/0067/0062 (SPEC-272): entitas `ticketAttachment` di `SYNCED` (metadata) + endpoint biner hub `GET /api/sync/attachments/:storageKey` (device-token) + `readUploadOrFetch` fetch-through+cache di client; arah hub→local
 - [0067 — Sync self-healing: backfill feed + rekonsil konflik manual (LWW-default)](adr/0067-sync-lww-reconciliation-manual.md) — **memperluas 0045**, terkait 0043/0046/0066/0008 (SPEC-270): `updatedAt @updatedAt` jam LWW, tabel `SyncConflict` + modal side-by-side, `backfillFeed` boot hub
 - [0066 — Errors & tickets masuk record-sync (publish asal-hub) + pemicu sync manual](adr/0066-errors-tickets-masuk-record-sync-plus-pemicu-manual.md) — **memperluas 0045**, terkait 0043/0046/0060/0062 (SPEC-268)
 - [0065 — AI agent capability: agent token + capability scope per-domain gating `/api`](adr/0065-ai-agent-capability-agent-token.md) — **memperluas 0028**, cermin 0044, terkait 0037 (SPEC-257)

@@ -502,24 +502,24 @@ git commit -m "feat(spec-272): serve lampiran via fetch-through + publish lampir
 - Consumes: seluruh perubahan Task 1-5.
 - Produces: SoT selaras dengan implementasi.
 
-- [ ] **Step 1: Tulis ADR-0068**
+- [x] **Step 1: Tulis ADR-0068**
 
 Buat `internal/docs/adr/0068-lampiran-tiket-masuk-record-sync.md` mengikuti format ADR-0066/0067 (Konteks / Keputusan / Konsekuensi). Isi inti:
 - Konteks: ADR-0066 mengecualikan `TicketAttachment` dari sync → lampiran tak terlihat di local.
 - Keputusan: `ticketAttachment` jadi entity SYNCED (metadata via `SyncLog`); byte biner **tidak** masuk feed, ditarik lazy dari hub lewat `GET /api/sync/attachments/:storageKey` (device-token), di-cache lokal. Arah hub→local.
 - Konsekuensi: mencabut kalimat "lampiran biner tak disync" ADR-0066; kolom `version`/`updatedAt` ditambah; delete/tombstone & dua-arah tetap di luar scope.
 
-- [ ] **Step 2: Update doc data-model & api-contract & architecture**
+- [x] **Step 2: Update doc data-model & api-contract & architecture**
 
 - data-model: dokumentasikan kolom baru `TicketAttachment.version`/`updatedAt` + statusnya sebagai entity SYNCED.
 - api-contract: tambah `GET /api/sync/attachments/:storageKey` (device-token, 200 byte/401/404) + catatan serve lampiran local kini fetch-through.
 - architecture/sync: catat lazy fetch-through & backfillFeed mencakup ticketAttachment.
 
-- [ ] **Step 3: Tautkan di README SoT**
+- [x] **Step 3: Tautkan di README SoT**
 
 Tambah baris untuk ADR-0068 & doc tersentuh di `internal/docs/README.md`.
 
-- [ ] **Step 4: Verifikasi coverage SoT (dep-free)**
+- [x] **Step 4: Verifikasi coverage SoT (dep-free)**
 
 Run:
 ```bash
@@ -527,7 +527,7 @@ env -u NODE_ENV pnpm --filter ./shared exec tsx src/coverage.ts 2>/dev/null || n
 ```
 Expected: tak ada doc yatim/unreferenced baru (sesuaikan bila tool beda — lihat memory "Verify coverage without server").
 
-- [ ] **Step 5: Smoke API nyata di local (WAJIB)**
+- [x] **Step 5: Smoke API nyata di local (WAJIB)**
 
 Boot server terhadap DB throwaway lalu uji alur nyata:
 ```bash
@@ -543,7 +543,7 @@ sleep 2
 ```
 Uji: buat project + tiket + lampiran (via prisma atau route help), lalu `curl -s http://127.0.0.1:8799/api/tickets/<id>/attachments/<attId> -o /tmp/att.png -w "%{http_code}\n"` → 200 & file byte benar. Matikan server smoke setelahnya (`kill %1`).
 
-- [ ] **Step 6: Full suite (regresi) + commit docs**
+- [x] **Step 6: Full suite (regresi) + commit docs**
 
 Run:
 ```bash
