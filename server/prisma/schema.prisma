@@ -24,6 +24,7 @@ model Project {
   specs       Spec[]
   errorGroups ErrorGroup[]
   tickets     Ticket[]
+  sourceMaps  SourceMapArtifact[] // SPEC-276 · source-map ter-upload per release (symbolication)
 }
 
 model Spec {
@@ -251,6 +252,8 @@ model ErrorGroup {
   type        String
   message     String
   sampleStack String?
+  sampleFrames Json?   // SPEC-276 · ADR-0070 · frame mentah sample (disymbolikasi saat display)
+  release     String?  // SPEC-276 · ADR-0070 · release terakhir (korelasi build + surface di UI)
   environment String
   status      String   @default("new") // new | escalated | resolved
   count       Int      @default(0)
@@ -275,6 +278,7 @@ model ErrorEvent {
   type        String
   message     String
   stack       String?
+  frames      Json?      // SPEC-276 · ADR-0070 · frame terstruktur mentah dari SDK
   environment String
   release     String?
   context     Json?
@@ -283,6 +287,23 @@ model ErrorEvent {
 
   @@index([groupId, receivedAt])
   @@index([projectId, receivedAt])
+}
+
+// SPEC-276 · ADR-0070 · source-map ter-upload per release untuk symbolication. Byte map di
+// HANOMAN_UPLOAD_DIR (server-local, TAK disync — cermin TicketAttachment biner & ErrorEvent).
+model SourceMapArtifact {
+  id         String   @id @default(cuid())
+  projectId  String
+  release    String
+  filename   String   // basename artifact hasil-build (mis. index-4f3a2b.js) yang dipetakan map ini
+  debugId    String?
+  storageKey String   // berkas opaque (uuid.map) di upload dir
+  size       Int
+  createdAt  DateTime @default(now())
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, release, filename])
+  @@index([projectId, release])
 }
 
 // SPEC-253 · ADR-0062 · tiket keluhan Help Center. SPEC-268/ADR-0066: metadata tiket kini tersync
