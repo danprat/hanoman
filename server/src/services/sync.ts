@@ -24,21 +24,23 @@ const DELEGATE: Record<Entity, Delegate> = {
 
 // Whitelist field bisnis per entitas — SENGAJA mengecualikan never-sync (Project.repoDir,
 // Vps.keyPath) dan kolom lokal (createdAt server, dst). Hanya field di sini yang menyeberang.
+// SPEC-270 · ADR-0067 · `updatedAt` ikut menyeberang sebagai jam LWW (default modal rekonsil).
 const FIELDS: Record<Entity, string[]> = {
-  project: ["name", "desc", "kind", "stack", "gitRemote"],
-  spec: ["projectId", "title", "source", "stage", "priority", "author", "objective", "payload", "branchFrom", "baseSha", "headSha"],
-  vps: ["name", "host", "port", "user", "health", "audit", "hardened", "lastSeenAt", "lastAuditAt"],
-  sessionResult: ["projectId", "specId", "oldStage", "newStage", "commitSha", "branch", "prUrl", "status", "deviceId", "author", "createdAt"],
+  project: ["name", "desc", "kind", "stack", "gitRemote", "updatedAt"],
+  spec: ["projectId", "title", "source", "stage", "priority", "author", "objective", "payload", "branchFrom", "baseSha", "headSha", "updatedAt"],
+  vps: ["name", "host", "port", "user", "health", "audit", "hardened", "lastSeenAt", "lastAuditAt", "updatedAt"],
+  sessionResult: ["projectId", "specId", "oldStage", "newStage", "commitSha", "branch", "prUrl", "status", "deviceId", "author", "createdAt", "updatedAt"],
   // SPEC-268 · ADR-0066 · agregat grup error (ErrorEvent mentah tak disync).
-  errorGroup: ["projectId", "fingerprint", "type", "message", "sampleStack", "environment", "status", "count", "firstSeenAt", "lastSeenAt", "specId"],
+  errorGroup: ["projectId", "fingerprint", "type", "message", "sampleStack", "environment", "status", "count", "firstSeenAt", "lastSeenAt", "specId", "updatedAt"],
   // SPEC-268 · ADR-0066 · metadata tiket (lampiran biner tak disync). accessKeyHash wajib
   // (kolom required @unique tanpa default); kunci plaintext tak pernah menyeberang.
-  ticket: ["projectId", "number", "category", "title", "detail", "reporterEmail", "status", "accessKeyHash", "specId", "createdAt"],
+  ticket: ["projectId", "number", "category", "title", "detail", "reporterEmail", "status", "accessKeyHash", "specId", "createdAt", "updatedAt"],
 };
 // Field yang JSONB-nya string ISO tapi kolomnya DateTime — dikonversi balik saat menulis.
 const DATE_FIELDS: Record<Entity, string[]> = {
-  project: [], spec: [], vps: ["lastSeenAt", "lastAuditAt"], sessionResult: ["createdAt"],
-  errorGroup: ["firstSeenAt", "lastSeenAt"], ticket: ["createdAt"],
+  project: ["updatedAt"], spec: ["updatedAt"], vps: ["lastSeenAt", "lastAuditAt", "updatedAt"],
+  sessionResult: ["createdAt", "updatedAt"],
+  errorGroup: ["firstSeenAt", "lastSeenAt", "updatedAt"], ticket: ["createdAt", "updatedAt"],
 };
 
 export function isEntity(e: string): e is Entity {
@@ -111,10 +113,12 @@ export async function applyPush(
   }
   const newVersion = existing ? Number(existing.version) + 1 : 1;
   const writeData = coerce(entity, data);
+  // SPEC-270 · pertahankan updatedAt asal (jam LWW) bila dikirim; else stempel now.
+  const stamp = (writeData.updatedAt as Date | undefined) ?? new Date();
   await DELEGATE[entity].upsert({
     where: { id },
-    create: { id, ...writeData, version: newVersion, updatedAt: new Date() },
-    update: { ...writeData, version: newVersion, updatedAt: new Date() },
+    create: { id, ...writeData, version: newVersion, updatedAt: stamp },
+    update: { ...writeData, version: newVersion, updatedAt: stamp },
   });
   const snap = await snapshot(entity, id);
   const log = await prisma.syncLog.create({
@@ -173,10 +177,12 @@ export async function upsertLocal(entity: Entity, id: string, version: number, d
     // else: fall-through ke upsert biasa (row baru sudah ada, atau tak ada oldId → insert).
   }
   const writeData = coerce(entity, data);
+  // SPEC-270 · pertahankan updatedAt asal (jam LWW) bila dikirim; else stempel now.
+  const stamp = (writeData.updatedAt as Date | undefined) ?? new Date();
   await DELEGATE[entity].upsert({
     where: { id },
-    create: { id, ...writeData, version, updatedAt: new Date() },
-    update: { ...writeData, version, updatedAt: new Date() },
+    create: { id, ...writeData, version, updatedAt: stamp },
+    update: { ...writeData, version, updatedAt: stamp },
   });
 }
 

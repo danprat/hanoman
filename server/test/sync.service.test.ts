@@ -124,4 +124,15 @@ describe("sync service (SPEC-213 AC-9..15)", () => {
     expect((log?.data as Record<string, unknown>).type).toBe("E");
     expect((await prisma.errorGroup.findUnique({ where: { id: "eg2" } }))?.version).toBe(1);
   });
+
+  it("SPEC-270: snapshot menyertakan updatedAt & applyPush menjaga updatedAt asal", async () => {
+    await project();
+    const origin = new Date("2020-01-02T03:04:05.000Z");
+    const r = await applyPush("spec", "SPEC-1", 0, specData({ updatedAt: origin.toISOString() }));
+    expect(r.ok).toBe(true);
+    const row = await prisma.spec.findUnique({ where: { id: "SPEC-1" } });
+    expect(row!.updatedAt.toISOString()).toBe(origin.toISOString());
+    const s = await snapshot("spec", "SPEC-1");
+    expect((s!.data as Record<string, unknown>).updatedAt).toBe(origin.toISOString());
+  });
 });
