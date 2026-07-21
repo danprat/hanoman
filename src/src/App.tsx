@@ -7,7 +7,7 @@ import { notifTarget } from "./notifications/target";
 import { Shell, Modal, Field, HnTextarea, Button, StatusPill, Select, Input, Tabs, Toast, useToast, Icon, StateBlock } from "./ds";
 import { api, ApiError, type TerminalSession } from "./api/client";
 import { subscribe } from "./api/events";
-import type { ProjectView, Spec, AuthStatus, UserView, Notification } from "@hanoman/shared";
+import type { ProjectView, Spec, AuthStatus, UserView, Notification, BreakdownItem } from "@hanoman/shared";
 import { flowForSource, MODELS, EFFORTS } from "@hanoman/shared";
 import { AuthScreen } from "./screens/AuthScreen";
 import { AuthProvider } from "./auth/AuthContext";
@@ -666,6 +666,30 @@ export default function App() {
   }
   // SPEC-210 · take PRD → backlog: prefill NewSpecModal (brief) dari PRD, buka modal-nya.
   function takeToBacklog(pf: PrdPrefill) { setSpecPrefill(pf); setModal("brief"); }
+  // SPEC-273 · mulai sesi breakdown PRD (menulis manifest usulan backlog paralel-independen).
+  async function startBreakdown(project: string, prdPath: string) {
+    try {
+      const { id } = await api.startBreakdown(project, prdPath);
+      setSection("terminal");
+      showToast(`Breakdown · sesi ${id} dimulai`, "info", "split");
+    } catch (e) {
+      const noRepo = e instanceof ApiError && (e.status === 422 || e.status === 400);
+      showToast("gagal mulai breakdown" + (noRepo ? " · project belum punya repoDir/PRD" : ""), "warn", "x-circle");
+    }
+  }
+  // SPEC-273 · materialize usulan breakdown → N spec independen; balik jumlah dibuat.
+  async function materializeBreakdown(project: string, prdPath: string, items: BreakdownItem[]): Promise<number> {
+    try {
+      const { created } = await api.createSpecsBatch({ project, items, prdPath });
+      setBacklog((b) => [...created, ...b]);
+      setSection("backlog");
+      showToast(`${created.length} backlog dibuat dari breakdown`, "ok", "list-checks");
+      return created.length;
+    } catch {
+      showToast("Gagal membuat backlog dari breakdown", "err", "x-circle");
+      return 0;
+    }
+  }
   // SPEC-237 · naikkan audit → Finding QA (audit tetap doc-of-record). Buka NewSpecModal source qa
   // ter-prefill (title + backlink audit di langkah); qa menjalankan audit→spec→plan→execute (perbaikan).
   function promoteToQa(spec: Spec) {
@@ -837,7 +861,9 @@ export default function App() {
               hint="PRD butuh project dengan repoDir untuk menulis docs/prd/."
               action={() => setModal("project")} actionLabel="Project baru" />
           : <PrdScreen projects={projectsView} projectFilter={projectFilter} onProjectFilter={setProjectFilter}
-              onNewPrd={startPrd} onTakeToBacklog={takeToBacklog} dataVersion={dataVersion} />)}
+              onNewPrd={startPrd} onTakeToBacklog={takeToBacklog}
+              onStartBreakdown={startBreakdown} onMaterialize={materializeBreakdown}
+              dataVersion={dataVersion} />)}
       </Shell>
     );
   } else if (section === "terminal") {

@@ -8,6 +8,7 @@ import {
   LIST_SCREEN_STYLE, FIXED_ROW_STYLE,
 } from "../ds";
 import { api, type PrdDoc } from "../api/client";
+import type { BreakdownItem } from "@hanoman/shared";
 import type { ProjectVM } from "./types";
 import { prdBranchOf } from "./branch";
 
@@ -54,10 +55,16 @@ function NewPrdModal({ projects, defaultProject, onClose, onCreate }:
   );
 }
 
-// Preview inline (pane kanan) — baca isi PRD ke project asalnya, take ke backlog.
-function PrdPreviewPane({ prd, projectId, onTake }:
-  { prd: PrdDoc; projectId: string; onTake: (p: PrdPrefill) => void }) {
+// Preview inline (pane kanan) — baca isi PRD, take single ATAU breakdown ke banyak backlog (SPEC-273).
+function PrdPreviewPane({ prd, projectId, onTake, onStartBreakdown, onMaterialize }:
+  { prd: PrdDoc; projectId: string; onTake: (p: PrdPrefill) => void;
+    onStartBreakdown: (project: string, prdPath: string) => void;
+    onMaterialize: (project: string, prdPath: string, items: BreakdownItem[]) => Promise<number>; }) {
   const [content, setContent] = React.useState<string | null>(null);
+  const [items, setItems] = React.useState<BreakdownItem[]>([]);
+  const [include, setInclude] = React.useState<boolean[]>([]);
+  const [busy, setBusy] = React.useState(false);
+
   React.useEffect(() => {
     let alive = true;
     setContent(null);
@@ -66,6 +73,24 @@ function PrdPreviewPane({ prd, projectId, onTake }:
       .catch(() => { if (alive) setContent(""); });
     return () => { alive = false; };
   }, [projectId, prd.path]);
+
+  // SPEC-273 · muat manifest breakdown (bila sesi breakdown sudah menuliskannya) untuk PRD ini.
+  React.useEffect(() => {
+    let alive = true;
+    api.getBreakdown(projectId, prd.path)
+      .then((r) => { if (alive) { setItems(r.items); setInclude(r.items.map(() => true)); } })
+      .catch(() => { if (alive) { setItems([]); setInclude([]); } });
+    return () => { alive = false; };
+  }, [projectId, prd.path]);
+
+  const chosen = items.filter((_, i) => include[i]);
+  const materialize = async () => {
+    if (!chosen.length) return;
+    setBusy(true);
+    try { await onMaterialize(projectId, prd.path, chosen); }
+    finally { setBusy(false); }
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
@@ -73,11 +98,43 @@ function PrdPreviewPane({ prd, projectId, onTake }:
           <div className="hn-eyebrow" style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)", marginBottom: 4 }}>{prd.path}</div>
           <div style={{ fontFamily: "var(--font-sans)", fontSize: 18, fontWeight: 700, color: "var(--text-strong)" }}>{prd.title}</div>
         </div>
-        <Button size="sm" leftIcon="list-checks"
-          onClick={() => onTake({ project: projectId, title: prd.title, context: `Dari PRD: ${prd.path}`, outcome: "", prdPath: prd.path, branchFrom: prdBranchOf(prd.path) })}>
-          Take ke backlog
-        </Button>
+        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+          <Button size="sm" variant="ghost" leftIcon="list-checks"
+            onClick={() => onTake({ project: projectId, title: prd.title, context: `Dari PRD: ${prd.path}`, outcome: "", prdPath: prd.path, branchFrom: prdBranchOf(prd.path) })}>
+            Take ke backlog
+          </Button>
+          <Button size="sm" leftIcon="split"
+            onClick={() => onStartBreakdown(projectId, prd.path)}>
+            Breakdown ke backlog
+          </Button>
+        </div>
       </div>
+
+      {items.length > 0 && (
+        <div style={{ border: "1px solid var(--brass-200)", borderRadius: "var(--radius-sm)", background: "var(--brass-50)", padding: 12, marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, gap: 8 }}>
+            <div style={{ fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: 13, color: "var(--brass-700)" }}>
+              Usulan backlog paralel ({chosen.length}/{items.length})
+            </div>
+            <Button size="sm" leftIcon="plus" disabled={!chosen.length || busy} onClick={materialize}>
+              {busy ? "Membuat…" : `Buat ${chosen.length} backlog`}
+            </Button>
+          </div>
+          {items.map((it, i) => (
+            <label key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "6px 0", borderTop: i ? "1px solid var(--border-hair)" : "none", cursor: "pointer" }}>
+              <input type="checkbox" checked={include[i] ?? false}
+                onChange={(e) => setInclude((s) => s.map((v, j) => (j === i ? e.target.checked : v)))} />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-strong)", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  {it.title} <Badge tone="brass" size="sm">{it.priority}</Badge>
+                </div>
+                {it.outcome && <div style={{ fontSize: 12, color: "var(--text-subtle)" }}>{it.outcome}</div>}
+              </div>
+            </label>
+          ))}
+        </div>
+      )}
+
       <div style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
         {content === null ? <StateBlock kind="loading" title="Memuat PRD…" />
           : <MarkdownView text={content} name={prd.name} />}
@@ -118,11 +175,15 @@ function PrdSidebarItem({ prd, active, onSelect }:
   );
 }
 
-export function PrdScreen({ projects, projectFilter, onProjectFilter, onNewPrd, onTakeToBacklog, dataVersion }:
+export function PrdScreen({ projects, projectFilter, onProjectFilter, onNewPrd, onTakeToBacklog, onStartBreakdown, onMaterialize, dataVersion }:
   {
     projects: ProjectVM[]; projectFilter: string; onProjectFilter: (id: string) => void;
     onNewPrd: (project: string, brief: PrdBriefForm) => void;
-    onTakeToBacklog: (p: PrdPrefill) => void; dataVersion?: number;
+    onTakeToBacklog: (p: PrdPrefill) => void;
+    // SPEC-273 · breakdown: mulai sesi breakdown & materialize usulan jadi N backlog independen.
+    onStartBreakdown: (project: string, prdPath: string) => void;
+    onMaterialize: (project: string, prdPath: string, items: BreakdownItem[]) => Promise<number>;
+    dataVersion?: number;
   }) {
   const [items, setItems] = React.useState<PrdDoc[]>([]);
   const [sel, setSel] = React.useState<PrdDoc | null>(null);
@@ -182,7 +243,8 @@ export function PrdScreen({ projects, projectFilter, onProjectFilter, onNewPrd, 
         <section style={{ flex: "1 1 auto", minHeight: 0 }}>
           {sel ? (
             <PrdPreviewPane prd={sel} projectId={selProject}
-              onTake={(pf) => onTakeToBacklog(pf)} />
+              onTake={(pf) => onTakeToBacklog(pf)}
+              onStartBreakdown={onStartBreakdown} onMaterialize={onMaterialize} />
           ) : (
             <StateBlock kind="empty" icon="scroll-text" title="Pilih PRD"
               hint="Klik dokumen di daftar kiri untuk melihat isinya, lalu take ke backlog." />
