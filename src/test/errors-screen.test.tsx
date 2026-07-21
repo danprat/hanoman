@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 
-const { listErrors, getError, escalateError, patchError } = vi.hoisted(() => {
+const { listErrors, getError, escalateError, patchError, deleteError } = vi.hoisted(() => {
   const GROUP = {
     id: "g1", projectId: "a", type: "TypeError", message: "x is undefined",
     environment: "production", status: "new", count: 4,
@@ -13,11 +13,12 @@ const { listErrors, getError, escalateError, patchError } = vi.hoisted(() => {
     getError: vi.fn(async () => DETAIL),
     escalateError: vi.fn(async () => ({ spec: { id: "SPEC-141", projectId: "a" }, alreadyEscalated: false })),
     patchError: vi.fn(async () => ({ id: "g1", status: "resolved" })),
+    deleteError: vi.fn(async () => ({ ok: true })),
   };
 });
 
 vi.mock("../src/api/client", () => ({
-  api: { listErrors, getError, escalateError, patchError },
+  api: { listErrors, getError, escalateError, patchError, deleteError },
   ApiError: class extends Error {},
 }));
 
@@ -40,6 +41,23 @@ describe("ErrorsScreen (SPEC-249)", () => {
     fireEvent.click(await screen.findByText("Eskalasi ke backlog"));
     await waitFor(() => expect(escalateError).toHaveBeenCalledWith("g1"));
     await waitFor(() => expect(onEscalated).toHaveBeenCalledWith({ id: "SPEC-141", projectId: "a" }, false));
+  });
+
+  it("deletes a group via confirmation modal (SPEC-269)", async () => {
+    render(<ErrorsScreen projects={projects} onEscalated={vi.fn()} onToast={vi.fn()} />);
+    fireEvent.click(await screen.findByText("x is undefined"));
+    fireEvent.click(await screen.findByText("Hapus"));           // tombol aksi → buka modal
+    const confirmBtn = screen.getAllByText("Hapus").pop()!;      // tombol konfirmasi di modal
+    await act(async () => { fireEvent.click(confirmBtn); });
+    await waitFor(() => expect(deleteError).toHaveBeenCalledWith("g1"));
+  });
+
+  it("changes status via the status selector (SPEC-269)", async () => {
+    render(<ErrorsScreen projects={projects} onEscalated={vi.fn()} onToast={vi.fn()} />);
+    fireEvent.click(await screen.findByText("x is undefined"));
+    const statusSelect = await screen.findByDisplayValue("new");
+    await act(async () => { fireEvent.change(statusSelect, { target: { value: "resolved" } }); });
+    await waitFor(() => expect(patchError).toHaveBeenCalledWith("g1", "resolved"));
   });
 
   it("environment filter re-queries listErrors with the chosen environment", async () => {

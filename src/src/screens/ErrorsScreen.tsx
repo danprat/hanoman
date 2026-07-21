@@ -2,7 +2,7 @@
    memuat datanya sendiri + silent poll (pola GitGraph). Master (daftar grup) → detail grup
    dengan tombol "Eskalasi ke backlog". Realtime via HTTP polling (ADR-0060), bukan WS. */
 import React from "react";
-import { Button, Badge, Select, StateBlock, Icon } from "../ds";
+import { Button, Badge, Select, StateBlock, Icon, ConfirmDialog } from "../ds";
 import { api } from "../api/client";
 import type { ErrorGroupView, ErrorGroupDetail, Spec } from "@hanoman/shared";
 import type { ProjectVM } from "./types";
@@ -51,12 +51,14 @@ function GroupRow({ g, onOpen }: { g: ErrorGroupView; onOpen: (id: string) => vo
   );
 }
 
-function GroupDetail({ id, onBack, onEscalated, onToast }:
+function GroupDetail({ id, onBack, onEscalated, onDeleted, onToast }:
   { id: string; onBack: () => void; onEscalated: (spec: Spec, already: boolean) => void;
+    onDeleted: () => void;
     onToast: (msg: string, kind?: string, icon?: string) => void }) {
   const [g, setG] = React.useState<ErrorGroupDetail | null>(null);
   const [state, setState] = React.useState<"loading" | "ready" | "error">("loading");
   const [busy, setBusy] = React.useState(false);
+  const [confirm, setConfirm] = React.useState(false);
 
   const load = React.useCallback(() => {
     api.getError(id).then((d) => { setG(d); setState("ready"); }).catch(() => setState("error"));
@@ -74,11 +76,16 @@ function GroupDetail({ id, onBack, onEscalated, onToast }:
     } catch { onToast("Gagal eskalasi", "err", "x-circle"); }
     finally { setBusy(false); }
   }
-  async function resolve() {
+  async function changeStatus(status: string) {
     setBusy(true);
-    try { await api.patchError(id, "resolved"); setG({ ...g!, status: "resolved" }); onToast("Grup ditandai resolved", "ok"); }
+    try { await api.patchError(id, status); setG({ ...g!, status: status as ErrorGroupDetail["status"] }); onToast("Status diperbarui", "ok"); }
     catch { onToast("Gagal update status", "err", "x-circle"); }
     finally { setBusy(false); }
+  }
+  async function remove() {
+    setBusy(true);
+    try { await api.deleteError(id); onToast("Grup error dihapus", "ok", "trash-2"); onDeleted(); }
+    catch { onToast("Gagal menghapus", "err", "x-circle"); setBusy(false); }
   }
 
   return (
@@ -90,7 +97,10 @@ function GroupDetail({ id, onBack, onEscalated, onToast }:
         {g.specId
           ? <Badge tone="warn" icon="link">→ {g.specId}</Badge>
           : <Button size="sm" leftIcon="arrow-up-right" onClick={escalate} disabled={busy}>Eskalasi ke backlog</Button>}
-        {g.status !== "resolved" && <Button size="sm" variant="ghost" leftIcon="check" onClick={resolve} disabled={busy}>Tandai resolved</Button>}
+        <Select size="sm" value={g.status} disabled={busy}
+          onChange={(e) => changeStatus(e.target.value)}
+          options={[{ value: "new", label: "new" }, { value: "escalated", label: "escalated" }, { value: "resolved", label: "resolved" }]} />
+        <Button size="sm" variant="ghost" leftIcon="trash-2" onClick={() => setConfirm(true)} disabled={busy}>Hapus</Button>
       </div>
       <div>
         <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, fontSize: "var(--text-lg)", color: "var(--text-strong)" }}>{g.type}</div>
@@ -113,6 +123,9 @@ function GroupDetail({ id, onBack, onEscalated, onToast }:
           }}>{g.sampleStack}</pre>
         </div>
       )}
+      <ConfirmDialog open={confirm} title="Hapus grup error?" eyebrow={g.type}
+        message={`Grup "${g.message}" beserta ${g.count} kejadiannya akan dihapus permanen. Tindakan ini tak bisa dibatalkan.`}
+        busy={busy} onCancel={() => setConfirm(false)} onConfirm={remove} />
     </div>
   );
 }
@@ -141,7 +154,7 @@ export function ErrorsScreen({ projects, onEscalated, onToast }:
     return () => clearInterval(t);
   }, [load]);
 
-  if (openId) return <GroupDetail id={openId} onBack={() => { setOpenId(null); load(true); }} onEscalated={onEscalated} onToast={onToast} />;
+  if (openId) return <GroupDetail id={openId} onBack={() => { setOpenId(null); load(true); }} onEscalated={onEscalated} onDeleted={() => { setOpenId(null); load(true); }} onToast={onToast} />;
 
   // environment options: production selalu + apa pun yang muncul di daftar.
   const envs = Array.from(new Set(["production", ...list.map((g) => g.environment)]));
