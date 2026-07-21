@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { existsSync } from "node:fs";
-import { zCreateSpec, zPatchSpec, zIntegrate, type Stage } from "@hanoman/shared";
+import { zCreateSpec, zPatchSpec, zIntegrate, zBatchCreateSpec, type Stage } from "@hanoman/shared";
 import { integrate, sourceBranch } from "../services/integrate";
 import { createSession } from "../services/pty";
 import { sessionModel } from "../services/settings";
@@ -101,6 +101,44 @@ export default async function (app: FastifyInstance) {
     }
     if (spec) await enqueueOutbox("spec", spec.id); // SPEC-213 · antre push sync
     return reply.code(201).send(spec);
+  });
+  // SPEC-273 · materialize breakdown: buat N spec independen dari usulan yang di-review manusia.
+  // Tiap item = brief satu backlog; provenance PRD dicantumkan di teks Konteks (tanpa kolom baru,
+  // pola take-to-backlog). Id berurutan lewat nextSpecId + retry P2002 (TOCTOU), sama seperti POST
+  // tunggal. Backlog hasil breakdown by-construction independen → jalan paralel (satu sesi/worktree).
+  app.post("/specs/batch", async (req, reply) => {
+    const parsed = zBatchCreateSpec.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    const b = parsed.data;
+    const project = await prisma.project.findUnique({ where: { id: b.project } });
+    if (!project) return reply.code(404).send({ error: `project "${b.project}" tidak ada` });
+    const repoDir = await resolveRepoDir(b.project);
+    if (b.branchFrom && await branchUnknown(repoDir, b.branchFrom))
+      return reply.code(400).send({ error: `branch "${b.branchFrom}" tidak ada di repo project` });
+    const author = req.user?.email ?? "system";
+    const created: Awaited<ReturnType<typeof prisma.spec.create>>[] = [];
+    for (const item of b.items) {
+      const context = b.prdPath ? `Dari PRD (breakdown): ${b.prdPath}\n\n${item.context}` : item.context;
+      const payload = { context, outcome: item.outcome, constraints: "", priority: item.priority };
+      const { priority, objective } = deriveSpecFields("brief", payload, item.priority);
+      let spec: Awaited<ReturnType<typeof prisma.spec.create>> | null = null;
+      for (let attempt = 0; attempt < 3 && !spec; attempt++) {
+        const id = await nextSpecId(repoDir);
+        try {
+          spec = await prisma.spec.create({
+            data: {
+              id, projectId: b.project, title: item.title, source: "brief", stage: "brainstorming",
+              priority, author, objective, payload, branchFrom: b.branchFrom ?? null,
+            },
+          });
+        } catch (e) {
+          if ((e as { code?: string }).code === "P2002" && attempt < 2) continue;
+          throw e;
+        }
+      }
+      if (spec) { await enqueueOutbox("spec", spec.id); created.push(spec); }
+    }
+    return reply.code(201).send({ created });
   });
   // branchFrom (SPEC-143): basis run BERIKUTNYA; `null` = kembali ke default project.
   // stage (SPEC-167): revert backward-only, cermin terbalik dari guard forward-only
