@@ -1,4 +1,4 @@
-import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type ConfigResponse, type ConfigEntryView, type IngestKeyView, type ErrorGroupView, type ErrorGroupDetail, type TicketView, type TicketDetail } from "@hanoman/shared";
+import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type ConfigResponse, type ConfigEntryView, type IngestKeyView, type ErrorGroupView, type ErrorGroupDetail, type TicketView, type TicketDetail, type AgentTokenView, type CapabilityInfo } from "@hanoman/shared";
 export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit";
 // SPEC-210 · dokumen PRD project (freshest-wins: worktree sesi prd hidup > repoDir). Tipe di @hanoman/shared.
@@ -240,6 +240,14 @@ export const api = {
   createDeviceToken: (b: { name: string }) =>
     j<{ id: string; name: string; token: string }>(paths.deviceTokens, { method: "POST", ...body(b) }),
   revokeDeviceToken: (id: string) => j<void>(paths.deviceToken(id), { method: "DELETE" }),
+  // SPEC-257 · agent token (kelola cookie-only) — token plaintext hanya balik di create (sekali).
+  getAgentCapabilities: () => j<{ capabilities: CapabilityInfo[] }>(paths.agentCapabilities),
+  listAgentTokens: () => j<{ items: AgentTokenView[] }>(paths.agentTokens),
+  createAgentToken: (b: { name: string; capabilities: string[] }) =>
+    j<AgentTokenView & { token: string }>(paths.agentTokens, { method: "POST", ...body(b) }),
+  patchAgentToken: (id: string, b: { name?: string; capabilities?: string[]; enabled?: boolean }) =>
+    j<AgentTokenView>(paths.agentToken(id), { method: "PATCH", ...body(b) }),
+  revokeAgentToken: (id: string) => j<void>(paths.agentToken(id), { method: "DELETE" }),
   // SPEC-213 · activity log (ringkasan hasil sesi)
   listSessionResults: (projectId?: string) => j<SessionResultView[]>(paths.sessionResults(projectId)),
   purgeSessionResults: (projectId: string, before?: string) =>

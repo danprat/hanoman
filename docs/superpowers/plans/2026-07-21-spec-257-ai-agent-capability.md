@@ -952,7 +952,7 @@ git commit -m "feat(spec-257): /agent-tokens CRUD + capability catalog route + a
 - Consumes: `paths.agentTokens/agentToken/agentCapabilities` (Task 1), `AgentTokenView`, `CapabilityInfo`, `Setting.agentAccessEnabled`.
 - Produces api methods: `listAgentTokens`, `createAgentToken`, `patchAgentToken`, `revokeAgentToken`, `getAgentCapabilities`; UI `AgentAccessPanel` + nav "Akses AI Agent".
 
-- [ ] **Step 1: Add api client methods** — `src/src/api/client.ts`. Tambah import type `AgentTokenView, CapabilityInfo` di baris import `@hanoman/shared`, lalu di objek `api` (dekat device token methods):
+- [x] **Step 1: Add api client methods** — `src/src/api/client.ts`. Tambah import type `AgentTokenView, CapabilityInfo` di baris import `@hanoman/shared`, lalu di objek `api` (dekat device token methods):
 
 ```ts
   // SPEC-257 · agent token (kelola cookie-only)
@@ -965,7 +965,7 @@ git commit -m "feat(spec-257): /agent-tokens CRUD + capability catalog route + a
   revokeAgentToken: (id: string) => j<void>(paths.agentToken(id), { method: "DELETE" }),
 ```
 
-- [ ] **Step 2: Write the failing UI test** — `src/test/agent-tokens.test.tsx`
+- [x] **Step 2: Write the failing UI test** — `src/test/agent-tokens.test.tsx`
 
 ```tsx
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -1008,12 +1008,12 @@ describe("AgentAccessPanel", () => {
 });
 ```
 
-- [ ] **Step 3: Run test to verify it fails**
+- [x] **Step 3: Run test to verify it fails**
 
 Run: `pnpm --filter ./src exec vitest run test/agent-tokens.test.tsx`
 Expected: FAIL — `AgentAccessPanel` belum diekspor dari SettingsScreen.
 
-- [ ] **Step 4: Implement `AgentAccessPanel`** — `src/src/screens/SettingsScreen.tsx`. Tambah komponen (cermin `DeviceTokensPanel`, gunakan komponen UI existing seperti `Button`, `SettingRow`, dan pola toast). Ekspor bernama supaya bisa dites:
+- [x] **Step 4: Implement `AgentAccessPanel`** — `src/src/screens/SettingsScreen.tsx`. Tambah komponen (cermin `DeviceTokensPanel`, gunakan komponen UI existing seperti `Button`, `SettingRow`, dan pola toast). Ekspor bernama supaya bisa dites:
 
 ```tsx
 export function AgentAccessPanel({ onToast }: { onToast?: ShowToast } = {}) {
@@ -1077,21 +1077,21 @@ export function AgentAccessPanel({ onToast }: { onToast?: ShowToast } = {}) {
 ```
 Tambah import type di atas file: `import type { AgentTokenView, CapabilityInfo } from "@hanoman/shared";` (bila belum ada, gabung ke import `@hanoman/shared` existing).
 
-- [ ] **Step 5: Add master switch + nav entry** — `src/src/screens/SettingsScreen.tsx`:
+- [x] **Step 5: Add master switch + nav entry** — `src/src/screens/SettingsScreen.tsx`:
   - Di `prefs()` (bagian toggle Setting), tambah `SettingRow` "Akses AI agent" dengan switch `agentAccessEnabled` memakai helper `sw("agentAccessEnabled", "Akses AI agent")` (pola toggle existing) + teks peringatan singkat.
   - Di grup navigasi (`nav`), tambah item "Akses AI Agent" yang merender `<AgentAccessPanel onToast={onToast} />` (cermin cara `DeviceTokensPanel`/`ConfigPanel` dipanggil dari nav).
 
-- [ ] **Step 6: Run test to verify it passes**
+- [x] **Step 6: Run test to verify it passes**
 
 Run: `pnpm --filter ./src exec vitest run test/agent-tokens.test.tsx`
 Expected: PASS (1 test).
 
-- [ ] **Step 7: Typecheck + existing settings tests (no regression)**
+- [x] **Step 7: Typecheck + existing settings tests (no regression)**
 
 Run: `pnpm --filter ./src exec tsc --noEmit && pnpm --filter ./src exec vitest run test/settings-nav.test.tsx test/settings-no-matrix.test.tsx`
 Expected: typecheck clean; settings tests PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/src/api/client.ts src/src/screens/SettingsScreen.tsx src/test/agent-tokens.test.tsx
