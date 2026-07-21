@@ -67,4 +67,23 @@ describe("sync-client syncOnce (SPEC-213 AC-18/19)", () => {
     expect(await listOutbox()).toHaveLength(1); // tetap di outbox
     expect((await prisma.spec.findUnique({ where: { id: "SPEC-3" } }))?.title).toBe("local"); // tak korup
   });
+
+  it("drain outbox projectRename → push record project ber-renamedFrom (SPEC-255)", async () => {
+    // seed: project baru sudah ada lokal (post-rename), outbox punya projectRename old→new
+    await prisma.project.create({ data: { id: "newp", name: "newp", desc: "d", kind: "existing" } });
+    await enqueueOutbox("projectRename", "oldp newp");
+    const pushed: Array<{ records: Array<{ entity: string; id: string; data: Record<string, unknown> }> }> = [];
+    const stub: Transport = async (method, path, body) => {
+      if (method === "GET") return { status: 200, body: { cursor: "0", records: [] } };
+      pushed.push(body as { records: Array<{ entity: string; id: string; data: Record<string, unknown> }> });
+      return { status: 200, body: { results: [{ id: "newp", ok: true, version: 1 }] } };
+    };
+    const res = await syncOnce(stub);
+    expect(res.pushed).toBe(1);
+    const rec = pushed[0]!.records[0]!;
+    expect(rec.entity).toBe("project");
+    expect(rec.id).toBe("newp");
+    expect(rec.data.renamedFrom).toBe("oldp");
+    expect(await listOutbox()).toHaveLength(0);
+  });
 });

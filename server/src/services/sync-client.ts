@@ -1,6 +1,7 @@
 import { prisma } from "../db";
 import { pull as _pull, snapshot, upsertLocal, isEntity } from "./sync";
 import { listOutbox, clearOutbox } from "./outbox";
+import { RENAME_SEP } from "./rename-project";
 import { effectiveStr, effectiveInt } from "../config";
 
 // SPEC-213 · ADR-0043 · sisi CLIENT: instance lokal menyinkron (server-to-server) ke hub.
@@ -47,6 +48,20 @@ export async function syncOnce(transport: Transport): Promise<SyncStats> {
   if (pullRes.body?.cursor) await setCursor(String(pullRes.body.cursor));
 
   for (const item of outbox) {
+    // SPEC-255 · ADR-0064 · operasi rename project: recordId = "<oldId> <newId>". Push satu record
+    // project ber-penanda renamedFrom agar hub merename in-place (bukan insert baru).
+    if (item.entity === "projectRename") {
+      const [oldId, newId] = item.recordId.split(RENAME_SEP);
+      const snap = newId ? await snapshot("project", newId) : null;
+      if (!oldId || !newId || !snap) { await clearOutbox(item.entity, item.recordId); continue; }
+      const res = await transport("POST", "/api/sync/push", {
+        records: [{ entity: "project", id: newId, baseVersion: 0, data: { ...snap.data, renamedFrom: oldId } }],
+      });
+      const r = res.body?.results?.[0];
+      if (r?.ok) { await clearOutbox(item.entity, item.recordId); pushed++; }
+      else if (r?.conflict) { conflicts++; }
+      continue;
+    }
     if (!isEntity(item.entity)) { await clearOutbox(item.entity, item.recordId); continue; }
     const snap = await snapshot(item.entity, item.recordId);
     if (!snap) { await clearOutbox(item.entity, item.recordId); continue; } // record hilang lokal
