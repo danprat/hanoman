@@ -24,6 +24,9 @@ export const paths = {
   prds: (id: string) => `${API}/projects/${id}/prds`,
   allPrds: `${API}/prds`, // perbaikan SPEC-210 · daftar PRD lintas-project (filter "Semua project")
   prdFile: (id: string, path: string) => `${API}/projects/${id}/prds/${path}`,
+  // SPEC-273 · manifest breakdown sebuah PRD (freshest-wins) + materialize batch.
+  breakdown: (id: string, prd: string) => `${API}/projects/${id}/breakdown?prd=${encodeURIComponent(prd)}`,
+  specsBatch: `${API}/specs/batch`,
   // SPEC-182 · IDE Visual
   ideTree: (id: string, ref = "") => `${API}/projects/${id}/tree${ref ? `?ref=${encodeURIComponent(ref)}` : ""}`,
   ideFile: (id: string, path?: string, ref = "") =>

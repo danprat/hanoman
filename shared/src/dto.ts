@@ -82,7 +82,7 @@ export const zProjectView = zProject.extend({
   helpEnabled: z.boolean().default(false) });   // SPEC-253 · Help Center publik aktif
 export type ProjectView = z.infer<typeof zProjectView>;
 
-export const zFlow = z.enum(["feature", "qa", "scaffold", "reverse", "prd", "audit"]);
+export const zFlow = z.enum(["feature", "qa", "scaffold", "reverse", "prd", "audit", "breakdown"]);
 export type FlowName = z.infer<typeof zFlow>;
 // SPEC-237 · satu-satunya pemetaan source → flow (client memakainya saat start sesi).
 // qa → audit lalu execute perbaikan; audit → dokumen saja (Audit → Laporan, tanpa Execute).
@@ -112,6 +112,29 @@ export const zPrdDoc = z.object({
 });
 export type PrdDoc = z.infer<typeof zPrdDoc>;
 
+// SPEC-273 · breakdown PRD → N backlog paralel-independen. Item = brief satu backlog.
+export const zBreakdownItem = z.object({
+  title: z.string().min(1),
+  context: z.string().default(""),
+  outcome: z.string().default(""),
+  priority: zPriority.default("sedang"),
+});
+export type BreakdownItem = z.infer<typeof zBreakdownItem>;
+// Hasil parse manifest docs/prd/<slug>.breakdown.md (live = dibaca dari worktree sesi breakdown hidup).
+export const zBreakdownDoc = z.object({
+  items: z.array(zBreakdownItem),
+  live: z.boolean(),
+});
+export type BreakdownDoc = z.infer<typeof zBreakdownDoc>;
+// Materialize breakdown → N spec. prdPath dipakai untuk provenance di teks Konteks (tanpa kolom baru).
+export const zBatchCreateSpec = z.object({
+  project: z.string(),
+  items: z.array(zBreakdownItem).min(1),
+  branchFrom: z.string().min(1).optional(),
+  prdPath: z.string().optional(),
+});
+export type BatchCreateSpec = z.infer<typeof zBatchCreateSpec>;
+
 // Sesi terminal dibuka untuk sebuah project (repoDir-nya, terminal biasa) atau untuk sebuah
 // backlog item — yang terakhir lahir di worktree-nya sendiri, dengan prompt awal (SPEC-162).
 export const zTerminalSession = z.union([
@@ -124,6 +147,8 @@ export const zTerminalSession = z.union([
   z.object({ project: z.string(), flow: z.literal("reverse").optional() }),
   // SPEC-210 · sesi prd project-level di worktree sendiri; menghasilkan dokumen PRD dari brief.
   z.object({ project: z.string(), flow: z.literal("prd"), brief: zPrdBrief }),
+  // SPEC-273 · sesi breakdown project-level: pecah SATU PRD (prdPath) → manifest N backlog.
+  z.object({ project: z.string(), flow: z.literal("breakdown"), prdPath: z.string().min(1) }),
   // SPEC-222 · scaffold: sesi project-level from-scratch, menyusun SoT dari ide. Tanpa brief
   // (diseed dari Project.desc), tanpa Spec — cermin reverse.
   z.object({ project: z.string(), flow: z.literal("scaffold") }),
