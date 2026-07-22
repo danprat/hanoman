@@ -29,7 +29,7 @@ Cegah truncation oleh sesi sibling: pakai base `hanoman297` (→ `hanoman297_tes
 
 **Files:** (tak ada perubahan kode)
 
-- [ ] **Step 1: Buat + migrate `hanoman297_test`**
+- [x] **Step 1: Buat + migrate `hanoman297_test`**
 
 Run:
 ```bash
@@ -38,7 +38,7 @@ cd server && env DATABASE_URL='postgresql://hanoman:hanoman@127.0.0.1:5432/hanom
 ```
 Expected: "All migrations have been applied" (atau "No pending migrations" bila sudah ada).
 
-- [ ] **Step 2: Sanity — prisma client ter-generate untuk worktree ini**
+- [x] **Step 2: Sanity — prisma client ter-generate untuk worktree ini**
 
 Run: `cd server && npx prisma generate`
 Expected: "Generated Prisma Client".
@@ -58,12 +58,12 @@ Refactor murni: pindahkan inti accept (+ helper `attachmentInstruction` SPEC-286
 **Interfaces:**
 - Produces: `acceptTicket(t: Ticket & { attachments: TicketAttachment[] }, opts: { author: string; priority: string }): Promise<{ spec: Spec; created: boolean }>` — `created:false` bila `t.specId` sudah ada (idempoten), else buat Spec (source per kategori) + link + `notifySynced` ×2.
 
-- [ ] **Step 1: Jalankan test regresi untuk memastikan HIJAU sebelum refactor**
+- [x] **Step 1: Jalankan test regresi untuk memastikan HIJAU sebelum refactor**
 
 Run: `cd server && env DATABASE_URL='postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman297' npx vitest run test/tickets.test.ts --no-file-parallelism`
 Expected: PASS (semua describe triase/accept/unlink/reject/patch/delete hijau)
 
-- [ ] **Step 2: Buat `server/src/services/ticket-accept.ts`**
+- [x] **Step 2: Buat `server/src/services/ticket-accept.ts`**
 
 ```ts
 import { join } from "node:path";
@@ -142,7 +142,7 @@ export async function acceptTicket(
 }
 ```
 
-- [ ] **Step 3: Ganti handler accept di `server/src/routes/tickets.ts` agar mendelegasikan**
+- [x] **Step 3: Ganti handler accept di `server/src/routes/tickets.ts` agar mendelegasikan**
 
 Ganti seluruh blok `app.post("/tickets/:id/accept", …)` (baris 95–143, sampai sebelum handler `unlink`) dengan:
 
@@ -161,7 +161,7 @@ Ganti seluruh blok `app.post("/tickets/:id/accept", …)` (baris 95–143, sampa
   });
 ```
 
-- [ ] **Step 4: Hapus helper lama + rapikan import `server/src/routes/tickets.ts`**
+- [x] **Step 4: Hapus helper lama + rapikan import `server/src/routes/tickets.ts`**
 
 Hapus blok helper `attachmentInstruction` (komentar SPEC-286 + fungsi, baris 15-29) dan peta `SOURCE_BY_CATEGORY` (komentar SPEC-291 + const, baris 31-36) — kini di service.
 
@@ -186,16 +186,16 @@ Tambah (dekat import service lain):
 import { acceptTicket } from "../services/ticket-accept";
 ```
 
-- [ ] **Step 5: Jalankan test regresi + typecheck**
+- [x] **Step 5: Jalankan test regresi + typecheck**
 
 Run: `cd server && env DATABASE_URL='postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman297' npx vitest run test/tickets.test.ts --no-file-parallelism && npx tsc -p . --noEmit`
 Expected: PASS (perilaku accept 201/200 `alreadyPromoted`/404 + payload per kategori tak berubah) + tsc exit 0
 
-- [ ] **Step 6: Catat di `internal/docs/architecture/api-contract.md`**
+- [x] **Step 6: Catat di `internal/docs/architecture/api-contract.md`**
 
 Di §Help Center, di baris `POST /tickets/:id/accept`, tambahkan satu kalimat: inti accept kini di `services/ticket-accept.ts` (`acceptTicket`), dipakai route **dan** scheduler source-checker triase; kontrak HTTP (201/200 `alreadyPromoted`/404) tak berubah.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/services/ticket-accept.ts server/src/routes/tickets.ts internal/docs/architecture/api-contract.md
@@ -218,7 +218,7 @@ Checker baru: query tiket eligible → accept (jalur Task 1) → enqueue. TDD.
 - Consumes: `acceptTicket` (Task 1); `enqueue` (`queue.ts`); `registerSchedulerSource` (`registry.ts`).
 - Produces: `checkTriase(): Promise<void>`; `registerTriaseSource(): void`.
 
-- [ ] **Step 1: Tulis test yang gagal `server/test/scheduler-source-triase.test.ts`**
+- [x] **Step 1: Tulis test yang gagal `server/test/scheduler-source-triase.test.ts`**
 
 ```ts
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
@@ -326,12 +326,12 @@ describe("triase source-checker", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test → pastikan GAGAL (modul belum ada)**
+- [x] **Step 2: Jalankan test → pastikan GAGAL (modul belum ada)**
 
 Run: `cd server && env DATABASE_URL='postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman297' npx vitest run test/scheduler-source-triase.test.ts --no-file-parallelism`
 Expected: FAIL — `Cannot find module '.../sources/triase'`
 
-- [ ] **Step 3: Buat `server/src/services/scheduler/sources/triase.ts`**
+- [x] **Step 3: Buat `server/src/services/scheduler/sources/triase.ts`**
 
 ```ts
 import { prisma } from "../../../db";
@@ -370,12 +370,12 @@ export function registerTriaseSource(): void {
 }
 ```
 
-- [ ] **Step 4: Jalankan test → pastikan HIJAU**
+- [x] **Step 4: Jalankan test → pastikan HIJAU**
 
 Run: `cd server && env DATABASE_URL='postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman297' npx vitest run test/scheduler-source-triase.test.ts --no-file-parallelism`
 Expected: PASS (8 test)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/scheduler/sources/triase.ts server/test/scheduler-source-triase.test.ts
@@ -397,7 +397,7 @@ Daftarkan checker di `server.ts` (sebelum `startScheduler`), perbarui docs SoT y
 **Interfaces:**
 - Consumes: `registerTriaseSource` (Task 2).
 
-- [ ] **Step 1: Wire registrasi di `server/src/server.ts`**
+- [x] **Step 1: Wire registrasi di `server/src/server.ts`**
 
 Tambah import (dekat baris 6, setelah import errors source):
 ```ts
@@ -408,24 +408,24 @@ Tambah panggilan tepat setelah `registerErrorsSource();`:
   registerTriaseSource(); // SPEC-297 · daftarkan checker triase sebelum engine tick pertama
 ```
 
-- [ ] **Step 2: Typecheck server**
+- [x] **Step 2: Typecheck server**
 
 Run: `cd server && npx tsc -p . --noEmit`
 Expected: exit 0
 
-- [ ] **Step 3: Perbarui `internal/docs/architecture/stack.md`**
+- [x] **Step 3: Perbarui `internal/docs/architecture/stack.md`**
 
 Di baris pipeline scheduler (yang menyebut "checker konkret: backlog SPEC-295, errors SPEC-296"), tambahkan checker `triase` konkret (SPEC-297): tiket bug/fitur eligible → accept → antrean, satu tiket = satu backlog.
 
-- [ ] **Step 4: Perbarui `internal/docs/architecture/data-model.md`**
+- [x] **Step 4: Perbarui `internal/docs/architecture/data-model.md`**
 
 Di §`SchedulerQueueItem` (deskripsi kolom `source`), catat nilai `triase` kini diisi checker konkret (SPEC-297), sejajar `backlog`/`errors`.
 
-- [ ] **Step 5: Perbarui `internal/docs/architecture/api-contract.md` §Scheduler**
+- [x] **Step 5: Perbarui `internal/docs/architecture/api-contract.md` §Scheduler**
 
 Tambah paragraf "Source-checker konkret ketiga (SPEC-297): `triase`" — saat cadence triase jatuh-tempo, untuk tiap `Ticket` eligible (`status:"new"` ∧ `category ∈ {bug,fitur}` ∧ `specId=null` ∧ project `schedulerOptIn`) memakai ulang `acceptTicket` (`services/ticket-accept.ts`, pemetaan kategori→source SPEC-291) → Spec, lalu enqueue (queue item `source:"triase"`, priority `sedang`). Idempoten (tiket accepted/rejected/ber-specId tersaring di query); `pertanyaan`/`lainnya` tak pernah auto-accept. Terdaftar di `server.ts` (`registerTriaseSource()`) sebelum `startScheduler()`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/server.ts internal/docs/architecture/stack.md internal/docs/architecture/data-model.md internal/docs/architecture/api-contract.md
@@ -440,14 +440,14 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 **Files:** (tak ada perubahan kode; hanya verifikasi)
 
-- [ ] **Step 1: Full server suite + shared + tsc**
+- [x] **Step 1: Full server suite + shared + tsc**
 
 Run: `cd server && env DATABASE_URL='postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman297' npx vitest run --no-file-parallelism`
 Expected: PASS (semua, termasuk `tickets.test.ts` regresi + `scheduler-source-triase.test.ts` baru)
 Run: `cd shared && npx vitest run` + `cd server && npx tsc -p . --noEmit`
 Expected: PASS + exit 0
 
-- [ ] **Step 2: Build server + boot ke DB throwaway ter-migrate, seed via SQL**
+- [x] **Step 2: Build server + boot ke DB throwaway ter-migrate, seed via SQL**
 
 Build: `cd server && npm run build` (esbuild → `dist/server.js`; **jangan** `tsc -p .` tanpa `--noEmit` — mengotori src/test dgn .js/.d.ts).
 Buat DB smoke `hanoman297_smoke`, `prisma migrate deploy`. Seed via `docker exec -i hanoman-db-1 psql` (INGAT: `"updatedAt"=now()` untuk kolom `@updatedAt`; `accessKeyHash` unik per tiket):
@@ -455,7 +455,7 @@ Buat DB smoke `hanoman297_smoke`, `prisma migrate deploy`. Seed via `docker exec
 - project B `schedulerOptIn=false`: tiket `status='new'`, `category='bug'`.
 Boot `node dist/server.js` di PORT≠8787 dengan `DATABASE_URL` → `hanoman297_smoke` (+ `HANOMAN_UPLOAD_DIR` throwaway).
 
-- [ ] **Step 3: Nyalakan scheduler (Pause) + trigger tick, verifikasi state**
+- [x] **Step 3: Nyalakan scheduler (Pause) + trigger tick, verifikasi state**
 
 - Login/cookie sesuai pola smoke (atau boot `buildApp({ requireAuth:false })` skrip; ikuti cara smoke SPEC-296).
 - `PUT /api/scheduler/config` body `{ enabled:true, paused:true, sources:{ triase:{ enabled:true } } }` (Pause ⇒ enqueue teruji tanpa launch nyata; merge dengan default lewat `setScheduler` — kirim blok penuh hasil GET lalu ubah field).
@@ -465,7 +465,7 @@ Boot `node dist/server.js` di PORT≠8787 dengan `DATABASE_URL` → `hanoman297_
 
 Expected: seleksi & idempotensi cocok dengan design; tak ada item dari project non-opt-in / kategori non-actionable / tiket accepted.
 
-- [ ] **Step 4: Bersihkan DB smoke + tandai plan**
+- [x] **Step 4: Bersihkan DB smoke + tandai plan**
 
 Drop `hanoman297_smoke`; hapus `dist` build sementara bila perlu; pastikan `git status` bersih (tak ada artefak .js/.d.ts di src/test). Centang semua `- [ ]` → `- [x]` di plan ini. Tulis `Execute done` ke `$HANOMAN_PHASE_FILE`.
 
