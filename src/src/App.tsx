@@ -13,6 +13,7 @@ import { AuthScreen } from "./screens/AuthScreen";
 import { AuthProvider } from "./auth/AuthContext";
 import type { ProjectVM } from "./screens/types";
 import { branchOptions } from "./screens/branch";
+import { parseSpecHash } from "./screens/deeplink";
 import { OverviewScreen } from "./screens/OverviewScreen";
 import { ProjectsScreen } from "./screens/ProjectsScreen";
 import { ProjectDetailScreen } from "./screens/ProjectDetailScreen";
@@ -388,6 +389,8 @@ export function EditProjectModal({ open, project, onClose, onSave }:
 
 export default function App() {
   const [section, setSection] = React.useState("overview");
+  // SPEC-293 · deep-link #spec=<id> (buka backlog + SpecDetail saat mount). Diteruskan ke BacklogScreen.
+  const [openSpecId, setOpenSpecId] = React.useState<string | null>(null);
   const [projects, setProjects] = React.useState<ProjectView[]>([]);
   const [backlog, setBacklog] = React.useState<Spec[]>([]);
   // SPEC-198 · dinaikkan tiap backlog/sessions berubah (load + poll). Layar daftar yang
@@ -414,6 +417,18 @@ export default function App() {
   const [auth, setAuth] = React.useState<AuthStatus | null>(null);
   const onLoggedOut = React.useCallback(() => setAuth({ needsSetup: false, user: null }), []);
   React.useEffect(() => { api.authStatus().then(setAuth).catch(() => setAuth({ needsSetup: false, user: null })); }, []);
+
+  // SPEC-293 · deep-link backlog: buka `${origin}${pathname}#spec=<id>` (mis. dari tab baru tombol
+  // "Buka backlog" di Triase/Errors) → langsung ke section backlog + SpecDetail. Hash dibersihkan
+  // agar tak memicu ulang. Sekali-mount (ADR-0071); bukan router SPA umum.
+  React.useEffect(() => {
+    const id = parseSpecHash(window.location.hash);
+    if (id) {
+      setSection("backlog");
+      setOpenSpecId(id);
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
+  }, []);
 
   const load = React.useCallback(() => {
     setStatus("loading");
@@ -822,7 +837,7 @@ export default function App() {
           onStart={startSession} activeSpecs={activeSpecs} onNew={() => setModal("brief")}
           onDelete={deleteSpec} onOpenRun={() => setSection("terminal")} onOpenReview={openReview}
           onEditBranch={editBranch} onRevertStage={revertStage} onIntegrate={integrateSpec} onEditSpec={editSpec}
-          onPromoteToQa={promoteToQa} onToast={showToast}
+          onPromoteToQa={promoteToQa} onToast={showToast} initialDetailId={openSpecId}
           projectFilter={projectFilter} onProjectFilter={setProjectFilter} dataVersion={dataVersion} />)}
       </Shell>
     );

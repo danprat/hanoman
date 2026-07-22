@@ -522,7 +522,7 @@ const VIEWS = [
   { value: "board", label: "Board", icon: "kanban" },
 ];
 
-export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onOpenReview, onNew, onEditBranch, onRevertStage, onIntegrate, onEditSpec, onPromoteToQa, projectFilter, onProjectFilter, dataVersion, onToast }:
+export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onOpenReview, onNew, onEditBranch, onRevertStage, onIntegrate, onEditSpec, onPromoteToQa, projectFilter, onProjectFilter, dataVersion, onToast, initialDetailId }:
   {
     backlog: Spec[]; projects: ProjectVM[]; pageSize?: number;
     onStart?: (s: Spec) => void; activeSpecs?: Set<string>;
@@ -534,6 +534,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
     onPromoteToQa?: (s: Spec) => void;   // SPEC-237 · naikkan audit → Finding QA
     projectFilter: string; onProjectFilter: (id: string) => void; dataVersion?: number;
     onToast?: (msg: string, kind?: string, icon?: string) => void; // SPEC-268 · hasil tombol Sync
+    initialDetailId?: string | null;     // SPEC-293 · deep-link #spec= → buka SpecDetail saat mount
   }) {
   const [tab, setTab] = React.useState("all");
   // SPEC-268 · bump untuk re-fetch daftar sesudah tombol Sync menarik data baru.
@@ -548,6 +549,8 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
   const setProj = onProjectFilter;
   // keep the id, not the object: backlog re-polls and the stage bar must stay live
   const [detailId, setDetailId] = React.useState<string | null>(null);
+  // SPEC-293 · deep-link: buka SpecDetail untuk id yang diberikan App (dari hash #spec=).
+  React.useEffect(() => { if (initialDetailId) setDetailId(initialDetailId); }, [initialDetailId]);
   const projOptions = projects || [...new Set(backlog.map((s) => s.projectId))].map((id) => ({ id, name: id }));
   // SPEC-198 · search/filter/paginasi via API. Seed dari prop `backlog` (App tetap memuat set
   // penuh utk Overview/board/poll) → render instan + tahan mock parsial di test; lalu refetch

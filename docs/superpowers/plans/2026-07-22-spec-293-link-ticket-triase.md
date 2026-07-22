@@ -127,11 +127,11 @@ if (!t) return reply.code(404).send({ error: "not found" });
 
 **Produces:** membuka `${origin}${pathname}#spec=<id>` → section backlog + SpecDetail terbuka.
 
-- [ ] **Step 1:** `BacklogScreen.tsx` tambah prop `initialDetailId?: string | null` ke signature + destructure. Setelah `const [detailId, setDetailId] = React.useState<string|null>(null);` tambah:
+- [x] **Step 1:** `BacklogScreen.tsx` tambah prop `initialDetailId?: string | null` ke signature + destructure. Setelah `const [detailId, setDetailId] = React.useState<string|null>(null);` tambah:
 ```ts
 React.useEffect(() => { if (initialDetailId) setDetailId(initialDetailId); }, [initialDetailId]);
 ```
-- [ ] **Step 2:** `App.tsx` tambah state `const [openSpecId, setOpenSpecId] = React.useState<string|null>(null);`. Mount effect:
+- [x] **Step 2:** `App.tsx` tambah state `const [openSpecId, setOpenSpecId] = React.useState<string|null>(null);`. Mount effect:
 ```ts
 React.useEffect(() => {
   const m = /(?:^|[#&])spec=([^&]+)/.exec(window.location.hash);
@@ -141,10 +141,10 @@ React.useEffect(() => {
   }
 }, []);
 ```
-- [ ] **Step 3:** Teruskan `initialDetailId={openSpecId}` ke `<BacklogScreen ...>` (section backlog). Reset `openSpecId` saat pindah section bila perlu (opsional; SpecDetail menutup sendiri).
-- [ ] **Step 4:** Tulis test frontend (RTL/jsdom, pola test app lain): set `window.location.hash = "#spec=SPEC-9"`, render App (auth mock ready), assert section backlog aktif & SpecDetail SPEC-9 muncul — bila boot App terlalu berat, uji unit `BacklogScreen` dengan `initialDetailId` membuka modal (assert judul spec tampil). Pilih yang paling murah & andal.
-- [ ] **Step 5:** Jalankan test → PASS.
-- [ ] **Step 6:** Commit `feat(spec-293): deep-link #spec= (App mount) + BacklogScreen initialDetailId`.
+- [x] **Step 3:** Teruskan `initialDetailId={openSpecId}` ke `<BacklogScreen ...>` (section backlog). Reset `openSpecId` saat pindah section bila perlu (opsional; SpecDetail menutup sendiri).
+- [x] **Step 4:** Tulis test frontend (RTL/jsdom, pola test app lain): set `window.location.hash = "#spec=SPEC-9"`, render App (auth mock ready), assert section backlog aktif & SpecDetail SPEC-9 muncul — bila boot App terlalu berat, uji unit `BacklogScreen` dengan `initialDetailId` membuka modal (assert judul spec tampil). Pilih yang paling murah & andal.
+- [x] **Step 5:** Jalankan test → PASS.
+- [x] **Step 6:** Commit `feat(spec-293): deep-link #spec= (App mount) + BacklogScreen initialDetailId`.
 
 ---
 
