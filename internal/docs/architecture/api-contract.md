@@ -495,3 +495,13 @@ GET  /api/scheduler/state    -> { config, cap, liveCount, sources:[{id,enabled,e
 > **tanpa auto-merge** (merge tetap manual lewat git graph, ADR-0031); sesi mati sebelum `done` (gagal/limit) →
 > `Notification` **`fail`** (tipe baru) + `markFailed(note)`, **tanpa retry**. Item `done`/`failed` tampil di
 > `GET /api/scheduler/state.queue`; ringkasan di `GET /api/session-results`.
+>
+> **Panel Scheduler (SPEC-299, daun #6):** screen mandiri `SchedulerScreen.tsx` + nav item `ds/shell.tsx`
+> (`key:"scheduler"`), **murni konsumen read-only** — tak menambah endpoint/skema/ADR. Self-poll `GET
+> /api/scheduler/state` (5 dtk, pola ErrorsScreen) merender: status per source (enable/last-run/next-run),
+> antrean (`status:"queued"`), sesi berjalan (`state.sessions`, indikator `decision`=menunggu keputusan),
+> selesai (`status:"done"`, tombol **Buka review** deep-link `#spec=<id>` → diff/ringkasan di Review yang ada),
+> gagal (`status:"failed"` + `note` alasan). Panel setelan menulis semua knob via `PUT /api/scheduler/config`
+> (enable+cadence per source, cap, autonomy, ambang errors); **rem darurat** Pause (`{paused:true}`) / Stop
+> (`{enabled:false}`) via endpoint yang sama; **opt-in per project** (pola helpEnabled) via `PATCH
+> /api/projects/:id { schedulerOptIn }`. Judul spec di baris antrean/sesi di-resolve dari daftar backlog klien.
