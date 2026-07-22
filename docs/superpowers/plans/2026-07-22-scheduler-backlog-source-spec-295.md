@@ -1,6 +1,6 @@
 # Source-checker Backlog (SPEC-295) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Register a `backlog` source-checker in the scheduler foundation that enqueues every not-yet-started `Spec` (`baseSha === null`) from opt-in projects, ordered by priority, idempotently.
 
@@ -30,7 +30,7 @@
 - Consumes (from SPEC-294 foundation): `registerSchedulerSource({ id, check })` from `../registry`; `enqueue({ specId, projectId, source, priority })` from `../queue`; `prisma` from `../../../db`.
 - Produces (for Task 2): `checkBacklog(): Promise<void>` and `registerBacklogSource(): void`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `server/test/scheduler-source-backlog.test.ts`:
 
@@ -109,13 +109,13 @@ describe("backlog source-checker", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `cd server && env -u NODE_ENV DATABASE_URL='postgresql://hanoman:hanoman@localhost:5432/hanoman295' pnpm exec vitest run test/scheduler-source-backlog.test.ts`
 Expected: FAIL — `Cannot find module '../src/services/scheduler/sources/backlog'`.
 (First: create the `_test` DB and migrate — see Step 2a.)
 
-- [ ] **Step 2a: Ensure the isolated test DB exists & is migrated (one-time)**
+- [x] **Step 2a: Ensure the isolated test DB exists & is migrated (one-time)**
 
 ```bash
 PGPASSWORD=hanoman psql -h localhost -U hanoman -d postgres -c "CREATE DATABASE hanoman295_test;" 2>/dev/null || true
@@ -123,7 +123,7 @@ cd server && DATABASE_URL='postgresql://hanoman:hanoman@localhost:5432/hanoman29
 ```
 (The vitest config derives `hanoman295_test` from `DATABASE_URL=.../hanoman295`. `prisma generate` should already be present from the foundation; if `prisma.schedulerQueueItem` is undefined, run `cd server && pnpm exec prisma generate`.)
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `server/src/services/scheduler/sources/backlog.ts`:
 
@@ -158,12 +158,12 @@ export function registerBacklogSource(): void {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `cd server && env -u NODE_ENV DATABASE_URL='postgresql://hanoman:hanoman@localhost:5432/hanoman295' pnpm exec vitest run test/scheduler-source-backlog.test.ts`
 Expected: PASS — 5 tests.
 
-- [ ] **Step 5: Update touched docs (same commit)**
+- [x] **Step 5: Update touched docs (same commit)**
 
 In `internal/docs/architecture/api-contract.md`, in the `## Scheduler` prose block, after the sentence mentioning `registerSchedulerSource`, add:
 
@@ -182,7 +182,7 @@ In `internal/docs/architecture/data-model.md`, in the `## SchedulerQueueItem` se
 
 In `internal/docs/architecture/stack.md`, on the scheduler pipeline line (`source enable+cadence → antrean durable → drain di bawah cap · SPEC-294/ADR-0072`), append `; checker backlog konkret SPEC-295`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-295
@@ -203,7 +203,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Consumes: `registerBacklogSource()` from Task 1.
 - Produces: at process boot the registry contains the `backlog` source, so the engine's first tick can run it. (No unit test — `app.ts` is registration-free by design; covered by Task 3 smoke.)
 
-- [ ] **Step 1: Add the import**
+- [x] **Step 1: Add the import**
 
 In `server/src/server.ts`, next to the existing scheduler import (`import { startScheduler } from "./services/scheduler/engine";`), add:
 
@@ -211,7 +211,7 @@ In `server/src/server.ts`, next to the existing scheduler import (`import { star
 import { registerBacklogSource } from "./services/scheduler/sources/backlog";
 ```
 
-- [ ] **Step 2: Call registration before startScheduler**
+- [x] **Step 2: Call registration before startScheduler**
 
 In `server/src/server.ts`, change the line inside the `app.listen(...).then(...)` block from:
 
@@ -226,17 +226,17 @@ to:
   startScheduler(); // SPEC-294 · ADR-0072 · engine scheduler in-process (timer .unref, app.ts bebas-timer)
 ```
 
-- [ ] **Step 3: Typecheck / build to verify it compiles**
+- [x] **Step 3: Typecheck / build to verify it compiles**
 
 Run: `cd server && pnpm exec tsc --noEmit`
 Expected: no errors.
 
-- [ ] **Step 4: Run the full scheduler test suite (no regressions)**
+- [x] **Step 4: Run the full scheduler test suite (no regressions)**
 
 Run: `cd server && env -u NODE_ENV DATABASE_URL='postgresql://hanoman:hanoman@localhost:5432/hanoman295' pnpm exec vitest run --no-file-parallelism test/scheduler-source-backlog.test.ts test/scheduler-engine.test.ts test/scheduler-queue.service.test.ts test/scheduler-governor.test.ts test/scheduler.route.test.ts test/scheduler-registry.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-295
@@ -257,7 +257,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Consumes: booted server against a throwaway migrated DB; the real `server.ts` boot wiring (Task 2).
 - Produces: evidence that `GET /api/scheduler/state` shows the queue populated by the backlog checker with opt-in specs ordered by priority, and the non-opt-in spec absent.
 
-- [ ] **Step 1: Write the smoke script**
+- [x] **Step 1: Write the smoke script**
 
 Write `<scratchpad>/smoke-295.sh` (uses a dedicated DB `hanoman295_smoke`, a free port `8795`, and an isolated tmux socket so it can never touch a real session). The Setting row is seeded with the scheduler **enabled + paused + backlog on** so the boot-pass tick enqueues but never launches a real `claude` session:
 
@@ -309,12 +309,12 @@ curl -sS -b "$CK" "localhost:$PORT/api/scheduler/state" \
   | python3 -c 'import sys,json; q=json.load(sys.stdin)["queue"]; print(json.dumps([{k:r[k] for k in ("specId","source","priority","status")} for r in q], indent=2))'
 ```
 
-- [ ] **Step 2: Run the smoke and verify the queue**
+- [x] **Step 2: Run the smoke and verify the queue**
 
 Run: `bash <scratchpad>/smoke-295.sh`
 Expected output: a queue array containing exactly `SPEC-B` (priority `tinggi`) and `SPEC-A` (priority `sedang`), both `source:"backlog"`, `status:"queued"`; `SPEC-C` (the non-opt-in project's spec) **absent**. This proves: opt-in gating, priority ordering, `source="backlog"`, and that the real `server.ts` boot registered + ran the checker.
 
-- [ ] **Step 3: Record evidence & mark plan complete**
+- [x] **Step 3: Record evidence & mark plan complete**
 
 Paste the observed `state.queue` output into the execution notes. No commit for this task (script lives in scratchpad).
 
