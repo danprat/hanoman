@@ -197,10 +197,10 @@ Pastikan ikon tersedia di DS `Icon` (fallback ke ikon yang sudah dipakai bila ta
 **Files:**
 - Modify: `internal/docs/README.md` (link audit + ADR-0071), `internal/docs/architecture/api-contract.md` (getTicket publicStatusUrl + help route shareToken)
 
-- [ ] **Step 1:** `README.md` — tambah baris research audit-spec-293 (di grup research) & ADR-0071 (di grup adr, paling atas).
-- [ ] **Step 2:** `api-contract.md` — dokumentasikan `GET /tickets/:id` field `publicStatusUrl` & `spec`, dan `GET /help/:slug/tickets/:key` menerima `shareToken`.
-- [ ] **Step 3:** Full suite: `env -u NODE_ENV -u DATABASE_URL pnpm -w vitest run --no-file-parallelism` (atau per-paket) → hijau.
-- [ ] **Step 4:** Boot server lokal (DB throwaway ter-migrate) + curl: buat project helpEnabled, submit tiket (multipart), accept, `GET /api/tickets/:id` → verifikasi `publicStatusUrl`; `GET` URL publik itu → 200 status "Sedang dikerjakan/Diterima". Catat hasil.
-- [ ] **Step 5:** `hanoman docs index --check` (integritas index).
-- [ ] **Step 6:** Commit `docs(spec-293): index + api-contract link ticket triase` (bila belum tergabung di commit sebelumnya).
+- [x] **Step 1:** `README.md` — tambah baris research audit-spec-293 (di grup research) & ADR-0071 (di grup adr, paling atas).
+- [x] **Step 2:** `api-contract.md` — dokumentasikan `GET /tickets/:id` field `publicStatusUrl` & `spec`, dan `GET /help/:slug/tickets/:key` menerima `shareToken`.
+- [x] **Step 3:** Full suite: `env -u NODE_ENV -u DATABASE_URL pnpm -w vitest run --no-file-parallelism` (atau per-paket) → hijau.
+- [x] **Step 4:** Boot server lokal (DB throwaway ter-migrate) + curl: buat project helpEnabled, submit tiket (multipart), accept, `GET /api/tickets/:id` → verifikasi `publicStatusUrl`; `GET` URL publik itu → 200 status "Sedang dikerjakan/Diterima". Catat hasil.
+- [x] **Step 5:** `hanoman docs index --check` (integritas index).
+- [x] **Step 6:** Commit `docs(spec-293): index + api-contract link ticket triase` (bila belum tergabung di commit sebelumnya).
 ```

@@ -410,11 +410,15 @@ POST    /api/help/:slug/tickets          # multipart/form-data
 GET     /api/help/:slug/tickets/:key     -> { number, category, title, status, createdAt }
 #   Cek status publik by kunci opaque; status terpetakan otomatis (publicStatus), tanpa jargon internal.
 #   Scoped ke slug (isolasi). 404 bila kunci tak dikenal / bukan milik slug (tak membocorkan).
+#   SPEC-293 · `:key` boleh kunci pelapor (accessKeyHash) ATAU shareToken bagikan operator (hnm_shr_…).
 
 # TRIASE — di belakang gate cookie. Query selalu ber-scope projectId (isolasi antar-project).
 GET   /tickets?project=&status=&q=&page=&limit=  -> { items: TicketView[], total, page, pageSize, unreviewed }
 #   urut createdAt desc; q atas title+reporterEmail; paginasi response-layer (ADR-0038); unreviewed = jumlah status new.
-GET   /tickets/:id            -> TicketDetail { ...ticket, detail, attachments:[{id,filename,mimeType,size}], spec? } · 404
+GET   /tickets/:id            -> TicketDetail { ...ticket, detail, attachments:[{id,filename,mimeType,size}], spec, publicStatusUrl } · 404
+#   SPEC-293 · spec = backlog tertaut (stage → badge status turunan di detail triase). publicStatusUrl =
+#   ${base}/help/<projectId>/status/<shareToken> (link publik dibagikan ke pelapor); shareToken di-generate
+#   lazily bila tiket lama belum punya (idempoten, tanpa sync). Deep-link backlog UI = ${origin}#spec=<id> (ADR-0071).
 GET   /tickets/:id/attachments/:attId    # stream berkas gambar (Content-Type mimeType) ber-auth · 404 (att bukan milik tiket)
       # SPEC-272 · di CLIENT byte ditarik lazy dari hub (readUploadOrFetch → /sync/attachments) bila absen lokal, lalu di-cache
 POST  /tickets/:id/accept  { priority? }  # 201 { spec } — buat Spec source help prefilled + tandai tiket
