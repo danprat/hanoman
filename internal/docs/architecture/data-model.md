@@ -241,7 +241,8 @@ overlay sesi live — status live (running/done/failed) tetap diturunkan dari `p
 - `id` (cuid), `specId` (**@unique**), `projectId` (tanpa FK — cermin `SyncOutbox`), `source`
   (`backlog|errors|triase`, asal checker), `priority` (`tinggi|sedang|rendah`, urutan drain),
   `status` (`queued|launched|done|failed`, default `queued`), `sessionId?` (id sesi tmux saat diluncurkan),
-  `note?` (alasan gagal — diisi daun #5), `enqueuedAt` (FIFO dalam prioritas), `launchedAt?`. Index `(status)`.
+  `note?` (alasan gagal — **diisi rekonsiliasi akhir sesi SPEC-298** saat sesi gagal/limit), `enqueuedAt`
+  (FIFO dalam prioritas), `launchedAt?`. Index `(status)`.
 - Governor men-drain item `queued` (urut prioritas→FIFO) selagi sesi hidup `< cap` (`Setting.scheduler.maxConcurrent`),
   meluncurkan lewat `startSpecSession` (jalur bersama peluncuran manual). Knob scheduler hidup di
   `Setting.data.scheduler` (`zScheduler`, semua default mati). Lihat [ADR-0072](../adr/0072-scheduler-fondasi-engine-antrean-durable-cap.md).
@@ -257,6 +258,13 @@ overlay sesi live — status live (running/done/failed) tetap diturunkan dari `p
   pemetaan kategori→source SPEC-291: bug→`qa`, fitur→`brief`) → Spec prioritas `sedang`, lalu `source:"triase"`.
   Kategori `pertanyaan`/`lainnya` **tak pernah** auto-accept (tetap manual). Idempoten: filter query menyaring tiket
   accepted/rejected/ber-specId; satu tiket = satu backlog; banyak tiket satu window (tanpa limit checker — cap governor).
+- **Rekonsiliasi akhir sesi (SPEC-298, `services/scheduler/reconcile.ts`, dipanggil `engine.tick` sebelum drain):**
+  tiap item `launched` → **`done`** (stage live turunan berkas fase = `done`): `Notification done` + `SessionResult`
+  ringkasan (`newStage:"done"`, `commitSha`=headSha, `branch:"hanoman/<id>"`; diff diturunkan `baseSha..headSha`,
+  tak disimpan) + `markDone` — **tanpa auto-merge** (branch/worktree dibiarkan untuk merge manual ADR-0031);
+  **`failed`** (pane sesi mati/gone sebelum `done` = gagal/limit): `Notification fail` + `markFailed(note)` —
+  **tanpa retry** (PRD non-goal); atau **biarkan `launched`** (pane hidup, stage<done — masih kerja / menunggu
+  keputusan → `scanDecisions` menerbitkan `Notification decision`, sesi tetap **memegang slot** governor `liveCount`).
 
 ## Docs (Source of Truth) — TIDAK dipersist
 Docs bukan entitas DB. Tabel `DocFile` sudah di-drop (ADR-0011). Docs dibaca **live dari path

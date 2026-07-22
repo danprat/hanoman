@@ -199,6 +199,7 @@ GET/PUT  /settings                      # Setting blob (zSetting): model, effort
 #                                         PUT ganti seluruh blob (full replace).
 GET      /notifications                 # { items:Notification[] (≤50 terbaru dulu), unread:int }  (SPEC-180)
 #   Notification dibuat server-side saat backlog masuk `done` (advanceStage + write-through GET /specs).
+#   type ∈ done|decision|drift|error|ticket|fail (fail SPEC-298 = sesi scheduler gagal/limit, rekonsil akhir sesi).
 POST     /notifications/read            # 204; tandai semua unread jadi terbaca
 DELETE   /notifications                 # 204; clear semua
 GET      /limits                        # { …usage } dari OAuth usage API Anthropic (cache 30s, stale/unavailable fallback) — SPEC-181/ADR-0024
@@ -484,3 +485,13 @@ GET  /api/scheduler/state    -> { config, cap, liveCount, sources:[{id,enabled,e
 > prioritas `sedang`, lalu enqueue (queue item `source:"triase"`). Kategori `pertanyaan`/`lainnya` **tak pernah**
 > auto-accept (tetap manual). Idempoten (tiket accepted/rejected/ber-specId tersaring di query); banyak tiket satu
 > window, satu tiket = satu backlog. Terdaftar di `server.ts` (`registerTriaseSource()`) sebelum `startScheduler()`.
+>
+> **Autonomy + akhir sesi (SPEC-298, daun #5):** governor menyuntik **klausa prompt per mode** dari
+> `scheduler.autonomy` saat meluncurkan sesi — `full-control` = agen putuskan sendiri & tembus sampai `done`
+> tanpa berhenti bertanya; `butuh-keputusan` = berhenti di titik keputusan (marker SPEC-184 → `Notification`
+> `decision`, sesi tetap **memegang slot**). `engine.tick` (sebelum drain) menjalankan **rekonsiliasi akhir sesi**
+> (`services/scheduler/reconcile.ts`) + `scanDecisions`: item `launched` yang mencapai `done` → `Notification`
+> `done` + `SessionResult` ringkasan (diff review diturunkan `GET /api/specs/:id/review`, `baseSha..headSha`),
+> **tanpa auto-merge** (merge tetap manual lewat git graph, ADR-0031); sesi mati sebelum `done` (gagal/limit) →
+> `Notification` **`fail`** (tipe baru) + `markFailed(note)`, **tanpa retry**. Item `done`/`failed` tampil di
+> `GET /api/scheduler/state.queue`; ringkasan di `GET /api/session-results`.

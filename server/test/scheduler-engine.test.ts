@@ -62,3 +62,28 @@ describe("engine.tick gating", () => {
     expect(launches).toBe(1);
   });
 });
+
+describe("engine.tick akhir sesi (SPEC-298)", () => {
+  it("memanggil reconcile + scanDecisions tiap tick sebelum drain (kecuali master off)", async () => {
+    await setScheduler(cfg({ enabled: true, paused: false, maxConcurrent: 5 }));
+    let reconciled = 0, scanned = 0;
+    await tick(1_000_000, noLaunch, { reconcile: async () => { reconciled++; }, scanDecisions: async () => { scanned++; } });
+    expect(reconciled).toBe(1);
+    expect(scanned).toBe(1);
+  });
+  it("Pause tetap menjalankan reconcile + scanDecisions (hanya drain yang diblok)", async () => {
+    await setScheduler(cfg({ enabled: true, paused: true, maxConcurrent: 5 }));
+    await enqueue({ specId: "SPEC-P", projectId: "p1", source: "backlog", priority: "tinggi" });
+    let reconciled = 0, launches = 0;
+    await tick(1_000_000, { ...noLaunch, launch: async () => { launches++; return "s"; } },
+      { reconcile: async () => { reconciled++; }, scanDecisions: async () => {} });
+    expect(reconciled).toBe(1);   // rekonsil jalan
+    expect(launches).toBe(0);     // drain diblok Pause
+  });
+  it("master enabled=false → tick idle (reconcile tak dipanggil)", async () => {
+    await setScheduler(cfg({ enabled: false }));
+    let reconciled = 0;
+    await tick(1_000_000, noLaunch, { reconcile: async () => { reconciled++; }, scanDecisions: async () => {} });
+    expect(reconciled).toBe(0);
+  });
+});

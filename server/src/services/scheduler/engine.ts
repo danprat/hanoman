@@ -4,14 +4,24 @@ import type { Autonomy } from "@hanoman/runner";
 import { getScheduler } from "./config";
 import { listSources, isDue, setLastRun } from "./registry";
 import { drain, type GovernorDeps } from "./governor";
+import { reconcile as reconcileImpl, reconcileProdDeps } from "./reconcile";
+import { scanDecisions } from "../notifications";
 import { listSessions, getSession, sessionIdForSpec } from "../pty";
 import { startSpecSession } from "../session-launch";
 
-// SPEC-294 · ADR-0072 · satu tick: jalankan checker source yang enabled & jatuh-tempo, lalu drain
-// antrean (kecuali Pause). `now` di-parameter agar cadence teruji deterministik.
-export async function tick(now: number, deps: GovernorDeps): Promise<void> {
+// SPEC-298 · seam akhir sesi: rekonsil item launched (done/failed) + terbitkan notif decision.
+// Di-inject agar engine.tick teruji tanpa tmux/git/fs; produksi mengikatnya ke reconcile+scanDecisions.
+export type EndOfSession = { reconcile: () => Promise<void>; scanDecisions: () => Promise<void> };
+const prodEnd: EndOfSession = {
+  reconcile: () => reconcileImpl(reconcileProdDeps),
+  scanDecisions: () => scanDecisions(),
+};
+
+// SPEC-294 · ADR-0072 · satu tick: jalankan checker source yang enabled & jatuh-tempo, rekonsil
+// akhir sesi, lalu drain antrean (kecuali Pause). `now` di-parameter agar cadence teruji deterministik.
+export async function tick(now: number, deps: GovernorDeps, end: EndOfSession = prodEnd): Promise<void> {
   const cfg = await getScheduler();
-  if (!cfg.enabled) return;                       // master off → idle penuh
+  if (!cfg.enabled) return;                       // master off → idle penuh (tak reconcile/scan)
   for (const src of listSources()) {
     const sc = (cfg.sources as Record<string, { enabled: boolean; everyMin: number }>)[src.id];
     if (sc?.enabled && isDue(src.id, sc.everyMin, now)) {
@@ -19,6 +29,11 @@ export async function tick(now: number, deps: GovernorDeps): Promise<void> {
       try { await src.check(); } catch { /* satu source gagal tak menghentikan sisanya */ }
     }
   }
+  // SPEC-298 · akhir sesi SEBELUM drain: rekonsil membebaskan slot sesi selesai/gagal agar terisi
+  // ≤1 tick (ADR-0072); scanDecisions menerbitkan notif decision utk sesi menunggu keputusan tanpa
+  // perlu dashboard terbuka (loop selalu-hidup). Jalan MESKI Pause (Pause hanya memblok launch BARU).
+  try { await end.reconcile(); } catch { /* rekonsil gagal tak menghentikan tick */ }
+  try { await end.scanDecisions(); } catch { /* notif decision best-effort */ }
   if (cfg.paused) return;                          // rem darurat: tak ada drain → tak ada peluncuran baru
   await drain(cfg, deps);
 }
