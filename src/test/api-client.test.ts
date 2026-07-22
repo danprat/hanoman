@@ -52,3 +52,30 @@ describe("api client · sesi backlog", () => {
     expect(fetchMock).toHaveBeenCalledWith(paths.specsBatch, expect.objectContaining({ method: "POST" }));
   });
 });
+
+// SPEC-299 · panel scheduler
+describe("api client · scheduler (SPEC-299)", () => {
+  it("getSchedulerState menuju path state", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ config: {}, cap: 2, liveCount: 0, sources: [], queue: [], sessions: [] }),
+        { status: 200, headers: { "content-type": "application/json" } }));
+    await api.getSchedulerState();
+    expect(fetchMock).toHaveBeenCalledWith(paths.schedulerState, expect.anything());
+  });
+  it("putSchedulerConfig mem-PUT blok config ke path config", async () => {
+    const cfg = { enabled: true, paused: true, maxConcurrent: 3, autonomy: "full-control",
+      sources: { backlog: { enabled: true, everyMin: 15 }, errors: { enabled: false, everyMin: 15, minCount: 5 }, triase: { enabled: false, everyMin: 30 } } };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(cfg), { status: 200, headers: { "content-type": "application/json" } }));
+    await api.putSchedulerConfig(cfg as never);
+    expect(fetchMock).toHaveBeenCalledWith(paths.schedulerConfig, expect.objectContaining({
+      method: "PUT", body: JSON.stringify(cfg) }));
+  });
+  it("updateProject mem-PATCH schedulerOptIn", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ id: "a" }), { status: 200, headers: { "content-type": "application/json" } }));
+    await api.updateProject("a", { schedulerOptIn: true });
+    expect(fetchMock).toHaveBeenCalledWith(paths.project("a"), expect.objectContaining({
+      method: "PATCH", body: JSON.stringify({ schedulerOptIn: true }) }));
+  });
+});

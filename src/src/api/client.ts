@@ -1,4 +1,4 @@
-import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type ConfigResponse, type ConfigEntryView, type IngestKeyView, type ErrorGroupView, type ErrorGroupDetail, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem } from "@hanoman/shared";
+import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type ConfigResponse, type ConfigEntryView, type IngestKeyView, type ErrorGroupView, type ErrorGroupDetail, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView } from "@hanoman/shared";
 export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit" | "breakdown";
 // SPEC-210 · dokumen PRD project (freshest-wins: worktree sesi prd hidup > repoDir). Tipe di @hanoman/shared.
@@ -84,7 +84,7 @@ export const api = {
   deleteProject: (id: string) => j<void>(paths.project(id), { method: "DELETE" }),
   // SPEC-146 · hanya label. `id` tak pernah berubah, jadi respons selalu punya `id` yang sama.
   // SPEC-217 · `repoDir` = path default/server editable (null = kosongkan).
-  updateProject: (id: string, b: { name?: string; desc?: string; gitRemote?: string; repoDir?: string | null }) =>
+  updateProject: (id: string, b: { name?: string; desc?: string; gitRemote?: string; repoDir?: string | null; schedulerOptIn?: boolean }) =>
     j<ProjectView>(paths.project(id), { method: "PATCH", ...body(b) }),
   // SPEC-255 · ADR-0064 · rename slug project. Balik: id baru + DSN/Help URL baru (bila aktif) + affected.
   renameProject: (id: string, newId: string) =>
@@ -297,5 +297,9 @@ export const api = {
   editTicket: (id: string, input: TicketEditInput) =>
     j<TicketDetail & { spec: Spec | null }>(paths.ticket(id), { method: "PATCH", ...body(input) }),
   deleteTicket: (id: string) => j<{ ok: boolean }>(paths.ticket(id), { method: "DELETE" }),
+  // SPEC-299 · ADR-0072 · panel scheduler (daun #6) — konsumen read-only fondasi.
+  getSchedulerConfig: () => j<Scheduler>(paths.schedulerConfig),
+  putSchedulerConfig: (cfg: Scheduler) => j<Scheduler>(paths.schedulerConfig, { method: "PUT", ...body(cfg) }),
+  getSchedulerState: () => j<SchedulerStateView>(paths.schedulerState),
 };
 
