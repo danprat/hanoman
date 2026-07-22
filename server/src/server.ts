@@ -2,6 +2,7 @@ import { buildApp } from "./app";
 import { prisma } from "./db";
 import { startVpsMonitor } from "./services/vps-monitor";
 import { startScheduler } from "./services/scheduler/engine";
+import { registerBacklogSource } from "./services/scheduler/sources/backlog";
 
 // SPEC-215 · deteksi update default ON (registry HANOMAN_UPDATE_FETCH="1"), dibaca via resolver
 // di services/update.ts. Test memuat buildApp dari app.ts (tak pernah server.ts) dan vitest.config
@@ -31,6 +32,7 @@ process.on("SIGINT", () => void shutdown("SIGINT"));
 app.listen({ port, host }).then(() => {
   console.log(`hanoman api ${host}:${port}`);
   startVpsMonitor(); // healthcheck 5 menit + audit harian (SPEC-164)
+  registerBacklogSource(); // SPEC-295 · daftarkan checker backlog sebelum engine tick pertama
   startScheduler(); // SPEC-294 · ADR-0072 · engine scheduler in-process (timer .unref, app.ts bebas-timer)
   // SPEC-215 · config runtime: muat override DB lalu terapkan (mirror kredensial + init sync client).
   // Tanpa config sync efektif → peran HUB murni (perilaku lama, backward-compatible).
