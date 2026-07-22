@@ -85,8 +85,12 @@ const sq = (s: string): string => `'${s.split("'").join("'\\''")}'`;
 
 // tmux menolak `.` dan `:` dalam nama sesi. Sesi backlog id-nya bisa ditebak dari spec-nya —
 // itulah yang membuat Start dua kali menyambung ke sesi yang sama, bukan melahirkan yang kedua.
+// SPEC-294 · satu definisi dipakai terminal route, session-launch, dan governor scheduler —
+// tak ada divergensi id sesi antar jalur peluncuran.
+export const sessionIdForSpec = (specId: string): string =>
+  specId.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
 const idFor = (specId?: string) =>
-  specId ? specId.toLowerCase().replace(/[^a-z0-9_-]/g, "_") : randomUUID().slice(0, 8);
+  specId ? sessionIdForSpec(specId) : randomUUID().slice(0, 8);
 
 const FMT = [
   "#{session_name}", "#{@hanoman_project}", "#{@hanoman_spec}", "#{@hanoman_flow}",

@@ -2,11 +2,12 @@ import type { FastifyInstance } from "fastify";
 import { existsSync } from "node:fs";
 import { prisma } from "../db";
 import { zTerminalSession, zIntegrate, type Stage } from "@hanoman/shared";
-import { realGit, startPrompt, continuePrompt, startProjectPrompt, startPrdPrompt, startScaffoldPrompt, startBreakdownPrompt, type Flow } from "@hanoman/runner";
+import { realGit, startProjectPrompt, startPrdPrompt, startScaffoldPrompt, startBreakdownPrompt, type Flow } from "@hanoman/runner";
 import { phaseFilePath, decisionFilePath, readPhases, stageForRun } from "../services/session-phases";
 import { specReview, reviewFile } from "../services/spec-review";
 import { integrateBranch } from "../services/integrate";
 import { sessionModel } from "../services/settings";
+import { startSpecSession, LaunchError } from "../services/session-launch";
 import { resolveRepoDir } from "../services/local-binding";
 import { readPrd } from "../services/project-prds";
 import { recordSessionResult } from "../services/session-result";
@@ -57,61 +58,25 @@ export default async function (app: FastifyInstance) {
     if (!parsed.success) return reply.code(400).send({ error: "invalid body" });
 
     // Sesi backlog item: `claude` interaktif di worktree-nya sendiri, dengan prompt awal yang
-    // memuat objective dan pipeline fase-nya (SPEC-162).
+    // memuat objective dan pipeline fase-nya (SPEC-162). SPEC-294 · jalur peluncuran diseragamkan
+    // di startSpecSession() (dipakai bersama governor scheduler); route memetakan LaunchError → status.
     if ("spec" in parsed.data) {
-      const spec = await prisma.spec.findUnique({
-        where: { id: parsed.data.spec }, include: { project: true },
-      });
+      const spec = await prisma.spec.findUnique({ where: { id: parsed.data.spec } });
       if (!spec) return reply.code(404).send({ error: "spec not found" });
-      // SPEC-213 · binding lokal per-device menang atas Project.repoDir (AC-8). Tanpa checkout
-      // lokal → blokir + minta bind/clone dulu; kode status 400 dipertahankan (parity).
-      const repoDir = await resolveRepoDir(spec.projectId);
-      if (!repoDir) return reply.code(400).send({ error: `project "${spec.projectId}" belum di-bind ke checkout lokal`, needsBind: true });
-
-      const id = spec.id.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
-      // Sesi yang sudah hidup: JANGAN bangun ulang worktree-nya — di dalamnya ada pekerjaan
-      // yang belum di-commit (ADR-0015).
-      const live = getSession(id);
-      if (live) return reply.code(201).send({ id: live.id });
-
-      // SPEC-252 · ADR-0061 · model/effort per SESI: default global, di-override per-instance dari
-      // body Start (kosong → global). Sesi = satu proses satu model seumur hidup (argv saat lahir).
-      const flow = parsed.data.flow;
-      const g = await sessionModel();
-      const model = parsed.data.model ?? g.model;
-      const effort = parsed.data.effort ?? g.effort;
-      const isContinue = spec.stage === "done";
-      // Worktree lahir `--detach` di commit branchFrom: sesi tak pernah berjalan di working
-      // tree utama, dan `main` boleh tetap ter-checkout di sana (ADR-0002).
-      // baseSha = commit detach worktree; disimpan agar review backlog done men-diff
-      // baseSha..headSha, bukan grep pesan commit (SPEC-176, ADR-0030). Overwrite tiap sesi:
-      // range review = perubahan sesi ini.
-      // SPEC-197 · fallback "HEAD" (bukan "main"): repo target belum tentu punya branch bernama
-      // main (default bisa master/develop). addWorktree throw bila revisi tak resolve / worktree
-      // ter-lock → 422 jelas, bukan 500 stderr git mentah (cermin jalur reverse di bawah).
-      let baseSha: string;
       try {
-        baseSha = realGit.addWorktree(repoDir, `${repoDir}/.worktrees/${id}`, spec.branchFrom ?? "HEAD");
+        const r = await startSpecSession(spec, {
+          flow: parsed.data.flow, model: parsed.data.model, effort: parsed.data.effort,
+        });
+        return reply.code(201).send({ id: r.id });
       } catch (e) {
-        return reply.code(422).send({ error: `gagal membuat worktree: ${(e as Error).message}` });
+        if (e instanceof LaunchError) {
+          // Parity status: needs-bind → 400 {needsBind}, worktree gagal → 422.
+          return e.kind === "needs-bind"
+            ? reply.code(400).send({ error: e.message, needsBind: true })
+            : reply.code(422).send({ error: e.message });
+        }
+        throw e;
       }
-      await prisma.spec.update({ where: { id: spec.id }, data: { baseSha, headSha: null } });
-      // SPEC-172 · spec yang keburu `done` di-reopen untuk melanjutkan (lanjut di Execute,
-      // tak mengulang pipeline). Deteksi dari stage — satu-satunya jalur yang men-start spec
-      // `done` adalah tombol "Buka sesi lagi" di detail; list/grid/board menyembunyikan start.
-      const brief = {
-        id: spec.id, title: spec.title, source: spec.source,
-        priority: spec.priority, objective: spec.objective, payload: spec.payload ?? undefined,
-      };
-      const s = createSession(spec.projectId, `${repoDir}/.worktrees/${id}`, {
-        specId: spec.id, flow, model, effort,
-        phaseFile: phaseFilePath(repoDir, id),
-        decisionFile: decisionFilePath(repoDir, id),
-        prompt: isContinue
-          ? continuePrompt(flow, brief, `hanoman/${id}`)
-          : startPrompt(flow, brief, `hanoman/${id}`),
-      });
-      return reply.code(201).send({ id: s.id });
     }
 
     const project = await prisma.project.findUnique({ where: { id: parsed.data.project } });

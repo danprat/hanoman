@@ -17,7 +17,7 @@ export async function enqueue(i: EnqueueInput): Promise<void> {
 }
 
 export function listQueue(status?: string): Promise<SchedulerQueueItem[]> {
-  return prisma.schedulerQueueItem.findMany(status ? { where: { status } } : {});
+  return prisma.schedulerQueueItem.findMany({ where: status ? { status } : undefined });
 }
 
 // Item siap-drain, urut prioritas lalu FIFO (enqueuedAt). Sort di memori: himpunan kecil.
