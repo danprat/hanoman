@@ -1,6 +1,6 @@
 import { prisma } from "../db";
 import type { Spec } from "@prisma/client";
-import { realGit, startPrompt, continuePrompt, type Flow } from "@hanoman/runner";
+import { realGit, startPrompt, continuePrompt, type Flow, type Autonomy } from "@hanoman/runner";
 import { resolveRepoDir } from "./local-binding";
 import { sessionModel } from "./settings";
 import { createSession, getSession, sessionIdForSpec } from "./pty";
@@ -18,7 +18,7 @@ export class LaunchError extends Error {
 export type StartSpecResult = { id: string; reused?: boolean };
 
 export async function startSpecSession(
-  spec: Spec, opts: { flow: Flow; model?: string; effort?: string },
+  spec: Spec, opts: { flow: Flow; model?: string; effort?: string; autonomy?: Autonomy },
 ): Promise<StartSpecResult> {
   // SPEC-213 · binding lokal per-device menang atas Project.repoDir (AC-8). Tanpa checkout lokal →
   // minta bind/clone dulu (route: 400 needsBind; governor: markFailed).
@@ -55,8 +55,8 @@ export async function startSpecSession(
     phaseFile: phaseFilePath(repoDir, id),
     decisionFile: decisionFilePath(repoDir, id),
     prompt: isContinue
-      ? continuePrompt(opts.flow, brief, `hanoman/${id}`)
-      : startPrompt(opts.flow, brief, `hanoman/${id}`),
+      ? continuePrompt(opts.flow, brief, `hanoman/${id}`, opts.autonomy)
+      : startPrompt(opts.flow, brief, `hanoman/${id}`, opts.autonomy),
   });
   return { id: s.id };
 }

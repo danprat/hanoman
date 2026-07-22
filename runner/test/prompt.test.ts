@@ -114,6 +114,30 @@ describe("startPrompt", () => {
   });
 });
 
+// SPEC-298 · klausa autonomy per mode untuk sesi yang diluncurkan scheduler.
+describe("autonomy per mode (SPEC-298)", () => {
+  it("full-control: putuskan sendiri, tanpa pengawas, tembus sampai done — bukan klausa tanya", () => {
+    const p = startPrompt("feature", spec, "b", "full-control");
+    expect(p).toContain("TANPA pengawas");
+    expect(p).toContain("JANGAN berhenti");
+    expect(p).not.toContain("tanyakan di terminal");
+  });
+  it("butuh-keputusan: klausa lama (berhenti untuk keputusan manusia, tanya di terminal)", () => {
+    const p = startPrompt("feature", spec, "b", "butuh-keputusan");
+    expect(p).toContain("tanpa berhenti di batas antar-fase");
+    expect(p).toContain("tanyakan di terminal");
+    expect(p).not.toContain("TANPA pengawas");
+  });
+  it("default (manual, tanpa arg): identik klausa lama", () => {
+    expect(startPrompt("feature", spec, "b")).toContain("tanyakan di terminal");
+    expect(startPrompt("feature", spec, "b")).not.toContain("TANPA pengawas");
+  });
+  it("continuePrompt menghormati mode full-control", () => {
+    const p = continuePrompt("feature", spec, "b", "full-control");
+    expect(p).toContain("TANPA pengawas");
+  });
+});
+
 // SPEC-172 · reopen: lanjut di Execute untuk spec yang keburu `done`, tanpa mengulang pipeline.
 describe("continuePrompt", () => {
   const branch = "hanoman/spec-162";

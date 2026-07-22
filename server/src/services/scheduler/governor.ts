@@ -7,7 +7,7 @@ import { queued, markLaunched, markFailed } from "./queue";
 export type GovernorDeps = {
   liveCount: () => number;                                  // sesi hidup gabungan manual+scheduler (pty.listSessions)
   isLive: (specId: string) => string | null;               // sessionId hidup untuk spec, atau null
-  launch: (item: SchedulerQueueItem) => Promise<string>;   // spawn sesi → sessionId; throw = gagal
+  launch: (item: SchedulerQueueItem, autonomy?: string) => Promise<string>;   // spawn sesi → sessionId; throw = gagal. SPEC-298 · autonomy per mode (klausa prompt)
 };
 
 // Reentrancy guard: satu drain jalan pada satu waktu (tick tak balapan dengan tick berikutnya).
@@ -26,7 +26,7 @@ export async function drain(cfg: Scheduler, deps: GovernorDeps): Promise<void> {
       const liveId = deps.isLive(item.specId);
       if (liveId) { await markLaunched(item.id, liveId); continue; }
       try {
-        const sessionId = await deps.launch(item);
+        const sessionId = await deps.launch(item, cfg.autonomy);
         await markLaunched(item.id, sessionId);
         slots--;
       } catch (e) {

@@ -1,5 +1,6 @@
 import { prisma } from "../../db";
 import { flowForSource } from "@hanoman/shared";
+import type { Autonomy } from "@hanoman/runner";
 import { getScheduler } from "./config";
 import { listSources, isDue, setLastRun } from "./registry";
 import { drain, type GovernorDeps } from "./governor";
@@ -26,10 +27,11 @@ export async function tick(now: number, deps: GovernorDeps): Promise<void> {
 export const prodDeps: GovernorDeps = {
   liveCount: () => listSessions().filter((s) => !s.exited).length,
   isLive: (specId) => { const s = getSession(sessionIdForSpec(specId)); return s && !s.exited ? s.id : null; },
-  launch: async (item) => {
+  launch: async (item, autonomy) => {
     const spec = await prisma.spec.findUnique({ where: { id: item.specId } });
     if (!spec) throw new Error(`spec ${item.specId} tak ada`);
-    const r = await startSpecSession(spec, { flow: flowForSource(spec.source) });
+    // SPEC-298 · autonomy per mode dari cfg.scheduler.autonomy → klausa prompt full-control / butuh-keputusan.
+    const r = await startSpecSession(spec, { flow: flowForSource(spec.source), autonomy: autonomy as Autonomy | undefined });
     return r.id;
   },
 };

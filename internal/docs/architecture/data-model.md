@@ -91,7 +91,10 @@ Singleton `id = 1`, kolom `data` (Json) berbentuk `zSetting`:
 - `scheduler` (SPEC-294/[ADR-0072](../adr/0072-scheduler-fondasi-engine-antrean-durable-cap.md), `zScheduler`,
   **semua default MATI**) — knob scheduler otonom: `enabled` (master), `paused` (rem darurat Pause),
   `maxConcurrent` (cap sesi hidup — **penerus `maxConcurrent` yang dicabut ADR-0024**), `autonomy`
-  (`full-control|butuh-keputusan`, dikonsumsi daun akhir-sesi), dan `sources.{backlog,errors,triase}`
+  (`full-control|butuh-keputusan`, **dikonsumsi SPEC-298**: governor menyuntik klausa prompt per mode saat
+  meluncurkan sesi scheduler — `full-control` = putuskan sendiri & tembus sampai `done` tanpa berhenti
+  bertanya; `butuh-keputusan` = berhenti di titik keputusan → marker SPEC-184 → notif decision, slot tetap
+  terpakai), dan `sources.{backlog,errors,triase}`
   (`enabled`+`everyMin` per source; `errors.minCount`). Ditambahkan sebagai `.default(SCHEDULER_DEFAULTS)`
   → baris Setting lama tetap parse (blok hilang diisi default).
 

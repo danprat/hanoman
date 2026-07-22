@@ -1,4 +1,4 @@
-import type { Flow, SpecBrief, ProjectBrief, PrdBrief, BreakdownPrd } from "./types";
+import type { Flow, SpecBrief, ProjectBrief, PrdBrief, BreakdownPrd, Autonomy } from "./types";
 import { REVERSE_STANDARD } from "./reverse-standard";
 
 export const PIPELINES: Record<Flow, readonly string[]> = {
@@ -27,6 +27,24 @@ const AUTONOMY_CLAUSE =
   + "lanjut saja ke fase berikutnya. Berhenti HANYA saat butuh keputusan manusia sejati (percabangan "
   + "yang mengubah bentuk kerja: data model, kontrak API, scope); saat itu tanyakan di terminal ini "
   + "dan tunggu jawabannya. Selain itu, terus lanjut.";
+
+// SPEC-298 · varian full-control untuk sesi scheduler tak-berpengawas: agen memutuskan sendiri di
+// SETIAP percabangan (termasuk data model/kontrak API/scope) dan menembus sampai `done` tanpa pernah
+// berhenti bertanya (tak ada manusia di terminal yang menjawab). Keputusan dicatat di commit agar
+// bisa di-review pasca-fakta; merge tetap manual (ADR-0031). Lawan dari AUTONOMY_CLAUSE
+// (butuh-keputusan) yang menyuruh berhenti & bertanya di terminal.
+const AUTONOMY_CLAUSE_FULL =
+  "Kamu berjalan TANPA pengawas — tak ada manusia yang menonton terminal ini untuk menjawab. "
+  + "Putuskan sendiri di SETIAP percabangan (termasuk yang mengubah bentuk kerja: data model, "
+  + "kontrak API, scope) berdasarkan Source of Truth dan penilaian terbaikmu; JANGAN berhenti "
+  + "bertanya. Tembus seluruh pipeline sampai stage `done`, lalu commit & push. Jangan menunggu "
+  + "review/persetujuan siapa pun — catat asumsi & keputusan penting di pesan commit agar bisa "
+  + "di-review pasca-fakta. Merge ke branch utama tetap dilakukan manusia, bukan kamu.";
+
+// SPEC-298 · pilih klausa per mode. undefined (peluncuran manual) → klausa tanya (lama): sesi
+// manual berpengawas, manusia menonton & boleh menjawab.
+const autonomyClause = (mode?: Autonomy): string =>
+  mode === "full-control" ? AUTONOMY_CLAUSE_FULL : AUTONOMY_CLAUSE;
 
 // Agen yang melapor, server yang menonton: di PTY tak ada batas giliran yang terbaca mesin.
 // Append, bukan tulis-timpa — keadaan penuh selalu ada di berkasnya, jadi tak ada transisi
@@ -112,7 +130,7 @@ const auditContinuationInstruction = (flow: Flow, spec: SpecBrief): string => {
     + "`Plan skipped` bila sesuai); selain itu Spec → Plan → Execute penuh.";
 };
 
-export function startPrompt(flow: Flow, spec: SpecBrief, branchTo: string): string {
+export function startPrompt(flow: Flow, spec: SpecBrief, branchTo: string, autonomy?: Autonomy): string {
   const detail = spec.payload ? `\nDetail: ${JSON.stringify(spec.payload)}` : "";
   return [
     `hanoman ${flow}. Ikuti internal/docs sebagai Source of Truth; perbarui docs yang tersentuh `
@@ -121,7 +139,7 @@ export function startPrompt(flow: Flow, spec: SpecBrief, branchTo: string): stri
     auditDecisionInstruction(flow),
     auditContinuationInstruction(flow, spec),
     auditOnlyInstruction(flow),
-    AUTONOMY_CLAUSE,
+    autonomyClause(autonomy),
     skillInstruction(PIPELINES[flow]),
     `Setelah fase terakhir: commit, lalu \`git push origin HEAD:refs/heads/${branchTo}\`. `
       + `Worktree ini detached HEAD — itu memang disengaja.`,
@@ -135,7 +153,7 @@ export function startPrompt(flow: Flow, spec: SpecBrief, branchTo: string): stri
 // menggiring pipeline dari awal — spec & plan sudah ada, jadi sesi lanjut langsung di
 // Execute. Kontinuitas: plan di docs/superpowers/plans/** menandai task `[x]`/`[ ]`, dan
 // kerja yang selesai umumnya sudah ter-merge ke branchFrom (worktree lahir dari sana).
-export function continuePrompt(flow: Flow, spec: SpecBrief, branchTo: string): string {
+export function continuePrompt(flow: Flow, spec: SpecBrief, branchTo: string, autonomy?: Autonomy): string {
   const detail = spec.payload ? `\nDetail: ${JSON.stringify(spec.payload)}` : "";
   return [
     `hanoman ${flow} — MELANJUTKAN backlog item yang sebelumnya ditandai selesai padahal `
@@ -144,7 +162,7 @@ export function continuePrompt(flow: Flow, spec: SpecBrief, branchTo: string): s
     `JANGAN mengulang fase awal — spec & plan sudah ada. Lanjut di fase Execute: baca plan `
       + `di docs/superpowers/plans/** untuk backlog item ini, periksa task yang sudah \`[x]\` `
       + `dan selesaikan yang masih \`[ ]\`. Verifikasi nyata sebelum klaim selesai.`,
-    AUTONOMY_CLAUSE,
+    autonomyClause(autonomy),
     skillInstruction(["Execute"]),
     `Setelah selesai: commit, lalu \`git push origin HEAD:refs/heads/${branchTo}\`. Worktree `
       + `ini detached HEAD — itu memang disengaja.`,

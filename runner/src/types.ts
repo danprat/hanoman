@@ -1,5 +1,10 @@
 export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit" | "breakdown";
 
+// SPEC-298 · mode autonomy sesi scheduler (Setting.scheduler.autonomy). full-control = putuskan
+// sendiri & tembus sampai done tanpa berhenti bertanya; butuh-keputusan = berhenti di titik
+// keputusan (klausa lama). Dipilih saat governor meluncurkan sesi; sesi manual tak memakainya.
+export type Autonomy = "full-control" | "butuh-keputusan";
+
 // Backlog item yang dikerjakan sebuah sesi. Id-nya saja tak berarti apa-apa di dalam
 // worktree yang masih segar (spec hidup di Postgres, bukan di repo), jadi ia harus
 // dieja lengkap di dalam prompt awal.
