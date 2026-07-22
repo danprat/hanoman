@@ -64,6 +64,20 @@ describe("SPEC-253 · triase tiket", () => {
     expect(Array.isArray(res.json().attachments)).toBe(true);
   });
 
+  it("detail memuat publicStatusUrl + generate shareToken bila kosong (SPEC-293)", async () => {
+    // simulasikan tiket lama tanpa shareToken → getTicket harus generate lazily.
+    await prisma.ticket.update({ where: { id: tId }, data: { shareToken: null } });
+    const res = await app.inject({ method: "GET", url: `/api/tickets/${tId}` });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.publicStatusUrl).toMatch(/\/help\/tri-proj\/status\/hnm_shr_[0-9a-f]+$/);
+    const row = await prisma.ticket.findUnique({ where: { id: tId } });
+    expect(row?.shareToken).toMatch(/^hnm_shr_/);
+    // idempoten: panggilan kedua memakai token yang sama.
+    const res2 = await app.inject({ method: "GET", url: `/api/tickets/${tId}` });
+    expect(res2.json().publicStatusUrl).toBe(body.publicStatusUrl);
+  });
+
   it("serve lampiran ber-auth; att bukan milik tiket → 404", async () => {
     const { storageKey, size } = await saveUpload(Buffer.from("IMG"), "image/png");
     const att = await prisma.ticketAttachment.create({ data: { ticketId: tId, projectId: "tri-proj", filename: "s.png", mimeType: "image/png", size, storageKey } });

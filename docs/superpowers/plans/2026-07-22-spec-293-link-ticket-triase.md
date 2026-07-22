@@ -100,13 +100,13 @@ CREATE UNIQUE INDEX "Ticket_shareToken_key" ON "Ticket"("shareToken");
 **Consumes:** `generateShareToken` (Task 2), `publicStatus` (Task 1).
 **Produces:** `GET /tickets/:id` → `{ ..., spec, publicStatusUrl }`; `GET /api/help/:slug/tickets/:key` menerima `shareToken`.
 
-- [ ] **Step 1:** Test di `tickets.test.ts`: buat project+ticket, `GET /api/tickets/:id` → `body.publicStatusUrl` cocok `/\/help\/.*\/status\/hnm_shr_/`, dan DB ticket kini punya `shareToken`.
-- [ ] **Step 2:** Test di `help.test.ts`: ambil `shareToken` tiket dari DB, `GET /api/help/:slug/tickets/<shareToken>` → 200 & `status` benar; token asing → 404; kunci pelapor asli tetap 200.
-- [ ] **Step 3:** Jalankan → FAIL.
-- [ ] **Step 4:** `tickets.ts` `GET /tickets/:id`: setelah fetch `t`, bila `!t.shareToken` → `const st = generateShareToken(); await prisma.ticket.update({ where:{id}, data:{ shareToken: st }}); t.shareToken = st;` (tanpa notifySynced). Bangun `const base = ...(req)`, `publicStatusUrl = ${base}/help/${encodeURIComponent(t.projectId)}/status/${t.shareToken}`. Tambah `publicStatusUrl` ke objek return (spec sudah ada).
+- [x] **Step 1:** Test di `tickets.test.ts`: buat project+ticket, `GET /api/tickets/:id` → `body.publicStatusUrl` cocok `/\/help\/.*\/status\/hnm_shr_/`, dan DB ticket kini punya `shareToken`.
+- [x] **Step 2:** Test di `help.test.ts`: ambil `shareToken` tiket dari DB, `GET /api/help/:slug/tickets/<shareToken>` → 200 & `status` benar; token asing → 404; kunci pelapor asli tetap 200.
+- [x] **Step 3:** Jalankan → FAIL.
+- [x] **Step 4:** `tickets.ts` `GET /tickets/:id`: setelah fetch `t`, bila `!t.shareToken` → `const st = generateShareToken(); await prisma.ticket.update({ where:{id}, data:{ shareToken: st }}); t.shareToken = st;` (tanpa notifySynced). Bangun `const base = ...(req)`, `publicStatusUrl = ${base}/help/${encodeURIComponent(t.projectId)}/status/${t.shareToken}`. Tambah `publicStatusUrl` ke objek return (spec sudah ada).
   - Import `generateShareToken` dari `../services/ticket`.
   - `base` = `${req.protocol}://${req.headers.host ?? "localhost"}` (pola projects.ts).
-- [ ] **Step 5:** `help.ts` `GET /help/:slug/tickets/:key`: ganti lookup jadi
+- [x] **Step 5:** `help.ts` `GET /help/:slug/tickets/:key`: ganti lookup jadi
 ```ts
 const t = await prisma.ticket.findFirst({
   where: { projectId: slug, OR: [{ accessKeyHash: hashAccessKey(key) }, { shareToken: key }] },
@@ -114,8 +114,8 @@ const t = await prisma.ticket.findFirst({
 if (!t) return reply.code(404).send({ error: "not found" });
 ```
 (hapus cek `t.projectId !== slug` karena where sudah scoped).
-- [ ] **Step 6:** Jalankan test server → PASS.
-- [ ] **Step 7:** Commit `feat(spec-293): getTicket publicStatusUrl (lazy shareToken) + route publik terima shareToken`.
+- [x] **Step 6:** Jalankan test server → PASS.
+- [x] **Step 7:** Commit `feat(spec-293): getTicket publicStatusUrl (lazy shareToken) + route publik terima shareToken`.
 
 ---
 

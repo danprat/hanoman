@@ -87,10 +87,13 @@ export default async function (app: FastifyInstance) {
   });
 
   // Cek status publik by kunci opaque. Scoped ke slug (isolasi). 404 tanpa membocorkan keberadaan.
+  // SPEC-293 · `key` boleh kunci pelapor (accessKeyHash) ATAU shareToken bagikan operator.
   app.get("/help/:slug/tickets/:key", async (req, reply) => {
     const { slug, key } = req.params as { slug: string; key: string };
-    const t = await prisma.ticket.findUnique({ where: { accessKeyHash: hashAccessKey(key) } });
-    if (!t || t.projectId !== slug) return reply.code(404).send({ error: "not found" });
+    const t = await prisma.ticket.findFirst({
+      where: { projectId: slug, OR: [{ accessKeyHash: hashAccessKey(key) }, { shareToken: key }] },
+    });
+    if (!t) return reply.code(404).send({ error: "not found" });
     let stage: string | null = null;
     if (t.specId) stage = (await prisma.spec.findUnique({ where: { id: t.specId } }))?.stage ?? null;
     return {

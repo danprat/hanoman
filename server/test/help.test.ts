@@ -100,6 +100,25 @@ describe("SPEC-253 · Help Center publik", () => {
     expect((await app.inject({ method: "GET", url: "/api/help/hc-proj/tickets/hnm_tkt_bogus" })).statusCode).toBe(404);
   });
 
+  it("status publik menerima shareToken operator, bukan cuma kunci pelapor (SPEC-293)", async () => {
+    __resetHelpBuckets();
+    const res = await app.inject({ method: "POST", url: "/api/help/hc-proj/tickets", ...form({ category: "bug", title: "share me", detail: "d", email: "s@e.co" }) });
+    const { key } = res.json();
+    const { hashAccessKey } = await import("../src/services/ticket");
+    const t = await prisma.ticket.findUnique({ where: { accessKeyHash: hashAccessKey(key) } });
+    expect(t?.shareToken).toMatch(/^hnm_shr_/);
+    // shareToken juga membuka halaman status
+    const viaShare = await app.inject({ method: "GET", url: `/api/help/hc-proj/tickets/${t!.shareToken}` });
+    expect(viaShare.statusCode).toBe(200);
+    expect(viaShare.json().title).toBe("share me");
+    // kunci pelapor asli tetap valid
+    expect((await app.inject({ method: "GET", url: `/api/help/hc-proj/tickets/${key}` })).statusCode).toBe(200);
+    // shareToken milik project lain tak bocor via slug ini
+    expect((await app.inject({ method: "GET", url: `/api/help/hc-off/tickets/${t!.shareToken}` })).statusCode).toBe(404);
+    // token asing → 404
+    expect((await app.inject({ method: "GET", url: "/api/help/hc-proj/tickets/hnm_shr_bogus" })).statusCode).toBe(404);
+  });
+
   it("lampiran: gambar valid disimpan, mime invalid di-skip (submit tetap jadi)", async () => {
     __resetHelpBuckets();
     const png = Buffer.from("89504e470d0a1a0a", "hex"); // header PNG cukup untuk uji

@@ -8,6 +8,7 @@ import { nextSpecId } from "../services/id";
 import { resolveRepoDir } from "../services/local-binding";
 import { notifySynced } from "../services/sync-notify";
 import { readUploadOrFetch, deleteUpload, uploadDir } from "../services/uploads";
+import { generateShareToken } from "../services/ticket";
 import { zTicketEditInput } from "@hanoman/shared";
 import type { Ticket, TicketAttachment } from "@prisma/client";
 
@@ -64,10 +65,19 @@ export default async function (app: FastifyInstance) {
     });
     if (!t) return reply.code(404).send({ error: "not found" });
     const spec = t.specId ? await prisma.spec.findUnique({ where: { id: t.specId } }) : null;
+    // SPEC-293 · backfill shareToken untuk tiket lama (idempoten, tanpa notifySynced → tak
+    // menambah noise feed sync). Tiket baru sudah punya token sejak createTicket.
+    let shareToken = t.shareToken;
+    if (!shareToken) {
+      shareToken = generateShareToken();
+      await prisma.ticket.update({ where: { id }, data: { shareToken } });
+    }
+    const base = `${req.protocol}://${req.headers.host ?? "localhost"}`;
+    const publicStatusUrl = `${base}/help/${encodeURIComponent(t.projectId)}/status/${shareToken}`;
     return {
       ...view(t), detail: t.detail,
       attachments: t.attachments.map((a) => ({ id: a.id, filename: a.filename, mimeType: a.mimeType, size: a.size })),
-      spec,
+      spec, publicStatusUrl,
     };
   });
 
