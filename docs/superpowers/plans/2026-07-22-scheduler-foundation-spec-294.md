@@ -1,6 +1,6 @@
 # Fondasi Scheduler (SPEC-294) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans (inline, this session) + superpowers:test-driven-development + superpowers:verification-before-completion. Steps use checkbox (`- [ ]`) syntax.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans (inline, this session) + superpowers:test-driven-development + superpowers:verification-before-completion. Steps use checkbox (`- [x]`) syntax.
 
 **Goal:** Bangun substrat scheduler otonom — engine in-process, antrean durable, governor concurrency, Pause, skema Setting + `Project.schedulerOptIn`, endpoint config/state, dan kontrak `registerSchedulerSource`/`enqueue` untuk lima daun — semua default MATI, migration aditif.
 
@@ -30,7 +30,7 @@
 **Interfaces:**
 - Produces: model Prisma `SchedulerQueueItem { id, specId(unique), projectId, source, priority, status(default "queued"), sessionId?, note?, enqueuedAt, launchedAt? }`; kolom `Project.schedulerOptIn Boolean @default(false)`.
 
-- [ ] **Step 1: Tulis migration.sql**
+- [x] **Step 1: Tulis migration.sql**
 
 ```sql
 -- SPEC-294 · ADR-0072 · fondasi scheduler: antrean durable (LOCAL-ONLY, tak disync) + opt-in per project.
@@ -57,7 +57,7 @@ CREATE INDEX "SchedulerQueueItem_status_idx" ON "SchedulerQueueItem"("status");
 ALTER TABLE "Project" ADD COLUMN "schedulerOptIn" BOOLEAN NOT NULL DEFAULT false;
 ```
 
-- [ ] **Step 2: Tambah model + kolom di `schema.prisma`**
+- [x] **Step 2: Tambah model + kolom di `schema.prisma`**
 
 Tambah kolom di `model Project` (setelah `helpEnabled`):
 ```prisma
@@ -83,7 +83,7 @@ model SchedulerQueueItem {
 }
 ```
 
-- [ ] **Step 3: Terapkan migration ke DB dev + test lalu generate**
+- [x] **Step 3: Terapkan migration ke DB dev + test lalu generate**
 
 ```bash
 cd server
@@ -95,12 +95,12 @@ npx prisma generate
 ```
 Expected: "1 migration applied" (atau "No pending") di masing-masing; generate sukses.
 
-- [ ] **Step 4: Verifikasi client punya model**
+- [x] **Step 4: Verifikasi client punya model**
 
 Run: `cd server && node -e "const{PrismaClient}=require('@prisma/client');const p=new PrismaClient();console.log(typeof p.schedulerQueueItem.findMany)"`
 Expected: `function`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/prisma/schema.prisma server/prisma/migrations/2026072202_spec294_scheduler_foundation
@@ -119,7 +119,7 @@ git commit -m "feat(spec-294): migration SchedulerQueueItem + Project.schedulerO
 **Interfaces:**
 - Produces: `zScheduler` (zod), `type Scheduler`, `SCHEDULER_DEFAULTS: Scheduler`, `zSetting` kini punya `scheduler: Scheduler`; `zUpdateProject.schedulerOptIn?`, `zProjectView.schedulerOptIn`.
 
-- [ ] **Step 1: Tulis test dulu (`shared/src/scheduler.test.ts`)**
+- [x] **Step 1: Tulis test dulu (`shared/src/scheduler.test.ts`)**
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -158,12 +158,12 @@ describe("zSetting.scheduler backward-compat", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — gagal**
+- [x] **Step 2: Jalankan test — gagal**
 
 Run: `pnpm --filter ./shared test -- scheduler`
 Expected: FAIL (`zScheduler` tak ada).
 
-- [ ] **Step 3: Implement di `entities.ts`** (tambah sebelum `zSetting`)
+- [x] **Step 3: Implement di `entities.ts`** (tambah sebelum `zSetting`)
 
 ```ts
 // SPEC-294 · ADR-0072 · knob scheduler otonom. Semua default MATI. Ditambahkan ke zSetting sebagai
@@ -188,7 +188,7 @@ Lalu tambahkan baris di dalam `zSetting = z.object({ … })` (sebelum `});`):
   scheduler: zScheduler.default(SCHEDULER_DEFAULTS),                      // SPEC-294 · ADR-0072
 ```
 
-- [ ] **Step 4: Implement di `dto.ts`**
+- [x] **Step 4: Implement di `dto.ts`**
 
 Tambah `schedulerOptIn` ke `zUpdateProject` (di dalam objeknya):
 ```ts
@@ -212,12 +212,12 @@ export const zSchedulerQueueItem = z.object({
 export type SchedulerQueueItemView = z.infer<typeof zSchedulerQueueItem>;
 ```
 
-- [ ] **Step 5: Jalankan test — hijau**
+- [x] **Step 5: Jalankan test — hijau**
 
 Run: `pnpm --filter ./shared test -- scheduler`
 Expected: PASS. Juga cek build type: `pnpm --filter ./shared build` (atau `tsc --noEmit`) sukses.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add shared/src/entities.ts shared/src/dto.ts shared/src/scheduler.test.ts
@@ -238,7 +238,7 @@ git commit -m "feat(spec-294): shared zScheduler + SCHEDULER_DEFAULTS + Setting/
 - Consumes: `SCHEDULER_DEFAULTS` (Task 2), `zUpdateProject.schedulerOptIn` (Task 2).
 - Produces: `ProjectView.schedulerOptIn`; `PATCH /api/projects/:id { schedulerOptIn }` mempersist kolom.
 
-- [ ] **Step 1: Tulis test (`project-scheduler-optin.route.test.ts`)**
+- [x] **Step 1: Tulis test (`project-scheduler-optin.route.test.ts`)**
 
 ```ts
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
@@ -265,12 +265,12 @@ describe("Project.schedulerOptIn", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — gagal**
+- [x] **Step 2: Jalankan — gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- project-scheduler-optin`
 Expected: FAIL (`schedulerOptIn` undefined di view / tak dipersist).
 
-- [ ] **Step 3: `settings.ts` — `DEFAULT_SETTING`**
+- [x] **Step 3: `settings.ts` — `DEFAULT_SETTING`**
 
 Tambah import: `import { zSetting, SCHEDULER_DEFAULTS, type Setting } from "@hanoman/shared";`
 Tambah field di `DEFAULT_SETTING`:
@@ -279,7 +279,7 @@ Tambah field di `DEFAULT_SETTING`:
   scheduler: SCHEDULER_DEFAULTS,   // SPEC-294 · ADR-0072 · semua knob scheduler default mati
 ```
 
-- [ ] **Step 4: `project-view.ts` — ekspos kolom**
+- [x] **Step 4: `project-view.ts` — ekspos kolom**
 
 Di `toProjectView`, tambah setelah `helpEnabled: p.helpEnabled,`:
 ```ts
@@ -287,7 +287,7 @@ Di `toProjectView`, tambah setelah `helpEnabled: p.helpEnabled,`:
     schedulerOptIn: p.schedulerOptIn,
 ```
 
-- [ ] **Step 5: `projects.ts` — PATCH terima schedulerOptIn**
+- [x] **Step 5: `projects.ts` — PATCH terima schedulerOptIn**
 
 Di handler `PATCH /projects/:id`, pastikan `schedulerOptIn` ikut ter-update. Cari objek `data` yang dibangun dari `parsed.data` dan tambahkan (mengikuti pola field lain, mis. setelah baris yang menangani `repoDir`/`gitRemote`):
 ```ts
@@ -295,12 +295,12 @@ Di handler `PATCH /projects/:id`, pastikan `schedulerOptIn` ikut ter-update. Car
 ```
 (Bila handler memakai `data: parsed.data` langsung ⇒ sudah otomatis; tetap verifikasi lewat test.)
 
-- [ ] **Step 6: Jalankan — hijau**
+- [x] **Step 6: Jalankan — hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- project-scheduler-optin`
 Expected: PASS (2 tes).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/services/settings.ts server/src/services/project-view.ts server/src/routes/projects.ts server/test/project-scheduler-optin.route.test.ts
@@ -319,7 +319,7 @@ git commit -m "feat(spec-294): expose schedulerOptIn in view + PATCH; DEFAULT_SE
 - Consumes: `getSetting` (`services/settings.ts`), `Scheduler`/`zScheduler` (shared).
 - Produces: `getScheduler(): Promise<Scheduler>`, `setScheduler(next: Scheduler): Promise<Scheduler>`.
 
-- [ ] **Step 1: Tulis test**
+- [x] **Step 1: Tulis test**
 
 ```ts
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
@@ -348,12 +348,12 @@ describe("scheduler config service", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — gagal**
+- [x] **Step 2: Jalankan — gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- scheduler-config`
 Expected: FAIL (module tak ada).
 
-- [ ] **Step 3: Implement `config.ts`**
+- [x] **Step 3: Implement `config.ts`**
 
 ```ts
 import { prisma } from "../../db";
@@ -376,12 +376,12 @@ export async function setScheduler(next: Scheduler): Promise<Scheduler> {
 }
 ```
 
-- [ ] **Step 4: Jalankan — hijau**
+- [x] **Step 4: Jalankan — hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- scheduler-config`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/scheduler/config.ts server/test/scheduler-config.service.test.ts
@@ -399,7 +399,7 @@ git commit -m "feat(spec-294): scheduler config service (get/set, merge-safe)"
 **Interfaces:**
 - Produces: `enqueue({specId,projectId,source,priority})`, `listQueue(status?)`, `queued()` (urut prioritas→FIFO), `markLaunched(id,sessionId)`, `markFailed(id,note?)`, `markDone(id)`, `queueItemForSpec(specId)`, `schedulerItemForSession(sessionId)`.
 
-- [ ] **Step 1: Tulis test**
+- [x] **Step 1: Tulis test**
 
 ```ts
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
@@ -443,12 +443,12 @@ describe("scheduler queue", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — gagal**
+- [x] **Step 2: Jalankan — gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- scheduler-queue`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement `queue.ts`**
+- [x] **Step 3: Implement `queue.ts`**
 
 ```ts
 import { prisma } from "../../db";
@@ -498,12 +498,12 @@ export function schedulerItemForSession(sessionId: string): Promise<SchedulerQue
 }
 ```
 
-- [ ] **Step 4: Jalankan — hijau**
+- [x] **Step 4: Jalankan — hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- scheduler-queue`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/scheduler/queue.ts server/test/scheduler-queue.service.test.ts
@@ -521,7 +521,7 @@ git commit -m "feat(spec-294): durable scheduler queue (enqueue idempotent, prio
 **Interfaces:**
 - Produces: `registerSchedulerSource({id, check})`, `listSources()`, `clearSources()`, `getLastRun(id)`, `setLastRun(id,t)`, `isDue(id, everyMin, now)`. Type `SchedulerSource = { id: string; check: () => Promise<void> }`.
 
-- [ ] **Step 1: Tulis test**
+- [x] **Step 1: Tulis test**
 
 ```ts
 import { describe, it, expect, beforeEach } from "vitest";
@@ -550,12 +550,12 @@ describe("scheduler registry", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — gagal**
+- [x] **Step 2: Jalankan — gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- scheduler-registry`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement `registry.ts`**
+- [x] **Step 3: Implement `registry.ts`**
 
 ```ts
 // SPEC-294 · ADR-0072 · registry source in-memory + jam cadence. Daun (backlog/errors/triase)
@@ -578,12 +578,12 @@ export function isDue(id: string, everyMin: number, now: number): boolean {
 }
 ```
 
-- [ ] **Step 4: Jalankan — hijau**
+- [x] **Step 4: Jalankan — hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- scheduler-registry`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/scheduler/registry.ts server/test/scheduler-registry.test.ts
@@ -604,7 +604,7 @@ git commit -m "feat(spec-294): scheduler source registry + cadence clock"
 - Consumes: `resolveRepoDir`, `sessionModel`, `realGit`, `createSession`, `getSession`, `phaseFilePath`, `decisionFilePath`, `startPrompt`, `continuePrompt`.
 - Produces: `sessionIdForSpec(specId): string`; `startSpecSession(spec, {flow, model?, effort?}): Promise<{id, reused?}>`; `class LaunchError extends Error { kind: "needs-bind" | "worktree" }`.
 
-- [ ] **Step 1: Tulis test (`session-launch.test.ts`)**
+- [x] **Step 1: Tulis test (`session-launch.test.ts`)**
 
 ```ts
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
@@ -627,12 +627,12 @@ describe("session-launch", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — gagal**
+- [x] **Step 2: Jalankan — gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- session-launch`
 Expected: FAIL (module tak ada).
 
-- [ ] **Step 3: `pty.ts` — export `sessionIdForSpec`**
+- [x] **Step 3: `pty.ts` — export `sessionIdForSpec`**
 
 Ganti `const idFor = (specId?) => …` agar berbagi helper. Tambah tepat di atas `idFor`:
 ```ts
@@ -647,7 +647,7 @@ const idFor = (specId?: string) =>
   specId ? sessionIdForSpec(specId) : randomUUID().slice(0, 8);
 ```
 
-- [ ] **Step 4: Implement `session-launch.ts`**
+- [x] **Step 4: Implement `session-launch.ts`**
 
 ```ts
 import { prisma } from "../db";
@@ -705,7 +705,7 @@ export async function startSpecSession(
 }
 ```
 
-- [ ] **Step 5: Refactor `terminal.ts` cabang spec**
+- [x] **Step 5: Refactor `terminal.ts` cabang spec**
 
 Ganti seluruh blok `if ("spec" in parsed.data) { … }` (baris ~61–115) menjadi:
 ```ts
@@ -731,12 +731,12 @@ Ganti seluruh blok `if ("spec" in parsed.data) { … }` (baris ~61–115) menjad
 Tambah import di atas: `import { startSpecSession, LaunchError } from "../services/session-launch";`
 Hapus import yang jadi tak terpakai di cabang ini bila TS mengeluh (mis. `startPrompt`/`continuePrompt`/`phaseFilePath`/`decisionFilePath` masih dipakai cabang lain — pertahankan; hanya buang yang benar-benar yatim).
 
-- [ ] **Step 6: Jalankan test terkait — hijau tanpa regresi**
+- [x] **Step 6: Jalankan test terkait — hijau tanpa regresi**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- session-launch terminal parity`
 Expected: PASS (session-launch baru + suite terminal/parity yang ada tetap hijau).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/services/session-launch.ts server/src/services/pty.ts server/src/routes/terminal.ts server/test/session-launch.test.ts
@@ -755,7 +755,7 @@ git commit -m "refactor(spec-294): extract startSpecSession (shared by manual St
 - Consumes: `queued`, `markLaunched`, `markFailed` (Task 5); `Scheduler` (shared); `SchedulerQueueItem` (Prisma).
 - Produces: `type GovernorDeps = { liveCount: () => number; isLive: (specId) => string | null; launch: (item) => Promise<string> }`; `drain(cfg: Scheduler, deps: GovernorDeps): Promise<void>`.
 
-- [ ] **Step 1: Tulis test (deps di-inject, antrean DB nyata)**
+- [x] **Step 1: Tulis test (deps di-inject, antrean DB nyata)**
 
 ```ts
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
@@ -816,12 +816,12 @@ describe("governor.drain", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — gagal**
+- [x] **Step 2: Jalankan — gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- scheduler-governor`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement `governor.ts`**
+- [x] **Step 3: Implement `governor.ts`**
 
 ```ts
 import type { Scheduler } from "@hanoman/shared";
@@ -863,12 +863,12 @@ export async function drain(cfg: Scheduler, deps: GovernorDeps): Promise<void> {
 }
 ```
 
-- [ ] **Step 4: Jalankan — hijau**
+- [x] **Step 4: Jalankan — hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- scheduler-governor`
 Expected: PASS (4 tes).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/scheduler/governor.ts server/test/scheduler-governor.test.ts
@@ -887,7 +887,7 @@ git commit -m "feat(spec-294): concurrency governor drains queue under cap (inva
 - Consumes: `getScheduler` (Task 4), `listSources`/`isDue`/`setLastRun` (Task 6), `drain`/`GovernorDeps` (Task 8), `listSessions`/`getSession`/`sessionIdForSpec` (pty), `startSpecSession` (Task 7), `flowForSource` (shared).
 - Produces: `tick(now: number, deps: GovernorDeps): Promise<void>`; `startScheduler(deps?)`; `stopScheduler()`; `prodDeps: GovernorDeps`.
 
-- [ ] **Step 1: Tulis test dengan stub source (membuktikan gating enable+cadence + Pause)**
+- [x] **Step 1: Tulis test dengan stub source (membuktikan gating enable+cadence + Pause)**
 
 ```ts
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
@@ -956,12 +956,12 @@ describe("engine.tick gating", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — gagal**
+- [x] **Step 2: Jalankan — gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- scheduler-engine`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement `engine.ts`**
+- [x] **Step 3: Implement `engine.ts`**
 
 ```ts
 import { prisma } from "../../db";
@@ -1013,12 +1013,12 @@ export function startScheduler(deps: GovernorDeps = prodDeps): void {
 export function stopScheduler(): void { if (timer) clearInterval(timer); timer = undefined; }
 ```
 
-- [ ] **Step 4: Jalankan — hijau**
+- [x] **Step 4: Jalankan — hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- scheduler-engine`
 Expected: PASS (5 tes).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/scheduler/engine.ts server/test/scheduler-engine.test.ts
@@ -1040,7 +1040,7 @@ git commit -m "feat(spec-294): scheduler engine tick (enable+cadence gating, Pau
 - Consumes: `getScheduler`/`setScheduler` (Task 4), `listQueue` (Task 5), `getLastRun` (Task 6), `listSessions` (pty), `zScheduler` (shared).
 - Produces: `GET /api/scheduler/config`, `PUT /api/scheduler/config`, `GET /api/scheduler/state`.
 
-- [ ] **Step 1: Tulis test**
+- [x] **Step 1: Tulis test**
 
 ```ts
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
@@ -1086,12 +1086,12 @@ describe("scheduler routes", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — gagal**
+- [x] **Step 2: Jalankan — gagal**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- scheduler.route`
 Expected: FAIL (route belum terdaftar).
 
-- [ ] **Step 3: Implement `routes/scheduler.ts`**
+- [x] **Step 3: Implement `routes/scheduler.ts`**
 
 ```ts
 import type { FastifyInstance } from "fastify";
@@ -1134,7 +1134,7 @@ export default async function (app: FastifyInstance) {
 }
 ```
 
-- [ ] **Step 4: Register di `app.ts`**
+- [x] **Step 4: Register di `app.ts`**
 
 Tambah import (dekat import route lain): `import scheduler from "./routes/scheduler";`
 Tambah registrasi (setelah `await api.register(tickets);`):
@@ -1142,14 +1142,14 @@ Tambah registrasi (setelah `await api.register(tickets);`):
     await api.register(scheduler);  // SPEC-294 · config/state scheduler (di belakang gate cookie)
 ```
 
-- [ ] **Step 5: `agent-capabilities.ts` — map domain**
+- [x] **Step 5: `agent-capabilities.ts` — map domain**
 
 Tambah sebelum `if (top === "settings" || top === "config")`:
 ```ts
   if (top === "scheduler") return rw("settings");   // SPEC-294 · scheduler = setelan instance
 ```
 
-- [ ] **Step 6: `server.ts` — start engine**
+- [x] **Step 6: `server.ts` — start engine**
 
 Tambah import: `import { startScheduler } from "./services/scheduler/engine";`
 Di dalam `.then(() => { … })` setelah `startVpsMonitor();`:
@@ -1157,12 +1157,12 @@ Di dalam `.then(() => { … })` setelah `startVpsMonitor();`:
     startScheduler(); // SPEC-294 · ADR-0072 · engine scheduler in-process (timer .unref, app.ts bebas-timer)
 ```
 
-- [ ] **Step 7: Jalankan — hijau**
+- [x] **Step 7: Jalankan — hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- scheduler.route`
 Expected: PASS (4 tes).
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/src/routes/scheduler.ts server/src/app.ts server/src/services/agent-capabilities.ts server/src/server.ts server/test/scheduler.route.test.ts
@@ -1182,9 +1182,9 @@ git commit -m "feat(spec-294): /api/scheduler config+state routes; wire engine i
 
 **Interfaces:** — (dokumentasi + verifikasi)
 
-- [ ] **Step 1: Update `data-model.md`** — tambah bagian `SchedulerQueueItem` (LOCAL-ONLY, tak disync, specId @unique idempoten satu-sesi-per-spec) + catat `Project.schedulerOptIn` (default false, pola helpEnabled, tak masuk FIELDS sync) di bagian Project.
+- [x] **Step 1: Update `data-model.md`** — tambah bagian `SchedulerQueueItem` (LOCAL-ONLY, tak disync, specId @unique idempoten satu-sesi-per-spec) + catat `Project.schedulerOptIn` (default false, pola helpEnabled, tak masuk FIELDS sync) di bagian Project.
 
-- [ ] **Step 2: Update `api-contract.md`** — tambah blok `## Scheduler (SPEC-294 · ADR-0072)`:
+- [x] **Step 2: Update `api-contract.md`** — tambah blok `## Scheduler (SPEC-294 · ADR-0072)`:
 ```
 ## Scheduler (SPEC-294 · ADR-0072) — LOCAL per-instance
 # GET  /api/scheduler/config -> Scheduler (semua default MATI). PUT /api/scheduler/config { Scheduler } ganti blok penuh (400 invalid); Pause = { paused:true }.
@@ -1193,19 +1193,19 @@ git commit -m "feat(spec-294): /api/scheduler config+state routes; wire engine i
 #   Opt-in per project: PATCH /api/projects/:id { schedulerOptIn } (lokal — tak masuk FIELDS sync). agent-token: domain settings.
 ```
 
-- [ ] **Step 3: Update `stack.md`** — koreksi kalimat "dua `setInterval` di `server.ts`" menjadi menyertakan engine scheduler (SPEC-294/ADR-0072) sebagai kerja latar ketiga yang di-`start` dari server.ts (tetap in-process, tanpa cron/worker/broker; membalik sebagian ADR-0024).
+- [x] **Step 3: Update `stack.md`** — koreksi kalimat "dua `setInterval` di `server.ts`" menjadi menyertakan engine scheduler (SPEC-294/ADR-0072) sebagai kerja latar ketiga yang di-`start` dari server.ts (tetap in-process, tanpa cron/worker/broker; membalik sebagian ADR-0024).
 
-- [ ] **Step 4: Update `README.md`** — tambah baris ADR:
+- [x] **Step 4: Update `README.md`** — tambah baris ADR:
 ```
 - [0072 — Fondasi scheduler otonom: engine in-process, antrean durable, cap concurrency](adr/0072-scheduler-fondasi-engine-antrean-durable-cap.md) — **membalik sebagian 0024**, memperluas 0015/0016/0025/0049 (SPEC-294)
 ```
 
-- [ ] **Step 5: Full suite hijau**
+- [x] **Step 5: Full suite hijau**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter ./shared test && env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server test -- --no-file-parallelism`
 Expected: semua PASS (tak ada regresi). Bila `scheduler_queue`/setting collide dgn suite sibling di `hanoman_test` → jalankan ulang; bila persist, pindah ke base DB khusus (lihat memory) — TAPI utamakan additive migrate ke hanoman_test.
 
-- [ ] **Step 6: Boot server + curl nyata (bukti API)**
+- [x] **Step 6: Boot server + curl nyata (bukti API)**
 
 ```bash
 cd server && env DATABASE_URL="postgresql://hanoman:hanoman@localhost:5433/hanoman_test" NODE_ENV=development node dist/server.js &
@@ -1218,7 +1218,7 @@ curl -s localhost:8787/api/scheduler/state | head -c 400; echo
 ```
 Expected: config JSON (enabled default false lalu true setelah PUT), state JSON dengan `cap`, `queue`, `sources[3]`. (Auth: server.ts gate aktif — bila 401, jalankan curl dengan cookie sesi atau boot via test-harness inject seperti langkah 5. Utamakan langkah 5 sebagai bukti bila boot berpenjaga auth.)
 
-- [ ] **Step 7: Commit docs**
+- [x] **Step 7: Commit docs**
 
 ```bash
 git add internal/docs/architecture/data-model.md internal/docs/architecture/api-contract.md internal/docs/architecture/stack.md internal/docs/README.md
