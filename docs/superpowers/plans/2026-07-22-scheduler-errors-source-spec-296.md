@@ -1,6 +1,6 @@
 # SPEC-296 — Source-checker Errors (batch fixing) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Tambah scheduler source-checker `errors` yang, per grup `ErrorGroup` eligible (new, produksi, count≥ambang, project opt-in, belum ber-specId), memanggil jalur escalate lalu meng-enqueue peluncuran sesinya — dibatasi hanya oleh cap governor.
 
@@ -35,12 +35,12 @@ Refactor murni: pindahkan inti escalate ke fungsi service; route mendelegasikan.
 **Interfaces:**
 - Produces: `escalateErrorGroup(group: ErrorGroup, opts: { author: string }): Promise<{ spec: Spec; created: boolean }>` — `created:false` bila `group.specId` sudah ada (idempoten), else buat Spec qa + link + `notifySynced` ×2.
 
-- [ ] **Step 1: Jalankan test regresi untuk memastikan HIJAU sebelum refactor**
+- [x] **Step 1: Jalankan test regresi untuk memastikan HIJAU sebelum refactor**
 
 Run: `cd server && env DATABASE_URL='postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman296' NODE_ENV=test npx vitest run test/errors-escalate.route.test.ts --no-file-parallelism`
 Expected: PASS (semua describe escalate/unlink/patch hijau)
 
-- [ ] **Step 2: Buat `server/src/services/error-escalate.ts`**
+- [x] **Step 2: Buat `server/src/services/error-escalate.ts`**
 
 ```ts
 import { prisma } from "../db";
@@ -95,7 +95,7 @@ export async function escalateErrorGroup(
 }
 ```
 
-- [ ] **Step 3: Ganti handler escalate di `server/src/routes/errors.ts` agar mendelegasikan**
+- [x] **Step 3: Ganti handler escalate di `server/src/routes/errors.ts` agar mendelegasikan**
 
 Ganti seluruh blok `app.post("/errors/:id/escalate", …)` (baris 69–112) dengan:
 
@@ -113,7 +113,7 @@ Ganti seluruh blok `app.post("/errors/:id/escalate", …)` (baris 69–112) deng
   });
 ```
 
-- [ ] **Step 4: Rapikan import `server/src/routes/errors.ts`**
+- [x] **Step 4: Rapikan import `server/src/routes/errors.ts`**
 
 Tambahkan import service; hapus `nextSpecId` & `resolveRepoDir` (kini hanya dipakai di service). `notifySynced` **tetap** (dipakai handler `unlink` & `patch`).
 
@@ -127,16 +127,16 @@ Tambah baris (dekat import service lain):
 import { escalateErrorGroup } from "../services/error-escalate";
 ```
 
-- [ ] **Step 5: Jalankan test regresi + typecheck**
+- [x] **Step 5: Jalankan test regresi + typecheck**
 
 Run: `cd server && env DATABASE_URL='postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman296' NODE_ENV=test npx vitest run test/errors-escalate.route.test.ts --no-file-parallelism && npx tsc -p . --noEmit`
 Expected: PASS (perilaku 201/200/404 tak berubah) + tsc exit 0
 
-- [ ] **Step 6: Catat di `internal/docs/architecture/api-contract.md`**
+- [x] **Step 6: Catat di `internal/docs/architecture/api-contract.md`**
 
 Di bagian Errors/escalate, tambahkan satu kalimat: inti escalate kini di `services/error-escalate.ts` (`escalateErrorGroup`), dipakai route **dan** scheduler source-checker; kontrak HTTP `POST /errors/:id/escalate` (201/200/404) tak berubah.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/services/error-escalate.ts server/src/routes/errors.ts internal/docs/architecture/api-contract.md
@@ -159,7 +159,7 @@ Checker baru: query grup eligible → escalate (jalur Task 1) → enqueue. TDD.
 - Consumes: `escalateErrorGroup` (Task 1); `enqueue` (`queue.ts`); `getScheduler` (`config.ts`); `registerSchedulerSource` (`registry.ts`).
 - Produces: `checkErrors(): Promise<void>`; `registerErrorsSource(): void`.
 
-- [ ] **Step 1: Tulis test yang gagal `server/test/scheduler-source-errors.test.ts`**
+- [x] **Step 1: Tulis test yang gagal `server/test/scheduler-source-errors.test.ts`**
 
 ```ts
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
@@ -278,12 +278,12 @@ describe("errors source-checker", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test → pastikan GAGAL (modul belum ada)**
+- [x] **Step 2: Jalankan test → pastikan GAGAL (modul belum ada)**
 
 Run: `cd server && env DATABASE_URL='postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman296' NODE_ENV=test npx vitest run test/scheduler-source-errors.test.ts --no-file-parallelism`
 Expected: FAIL — `Cannot find module '.../sources/errors'`
 
-- [ ] **Step 3: Buat `server/src/services/scheduler/sources/errors.ts`**
+- [x] **Step 3: Buat `server/src/services/scheduler/sources/errors.ts`**
 
 ```ts
 import { prisma } from "../../../db";
@@ -323,12 +323,12 @@ export function registerErrorsSource(): void {
 }
 ```
 
-- [ ] **Step 4: Jalankan test → pastikan HIJAU**
+- [x] **Step 4: Jalankan test → pastikan HIJAU**
 
 Run: `cd server && env DATABASE_URL='postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman296' NODE_ENV=test npx vitest run test/scheduler-source-errors.test.ts --no-file-parallelism`
 Expected: PASS (9 test)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/scheduler/sources/errors.ts server/test/scheduler-source-errors.test.ts
@@ -350,7 +350,7 @@ Daftarkan checker di `server.ts` (sebelum `startScheduler`), perbarui docs SoT y
 **Interfaces:**
 - Consumes: `registerErrorsSource` (Task 2).
 
-- [ ] **Step 1: Wire registrasi di `server/src/server.ts`**
+- [x] **Step 1: Wire registrasi di `server/src/server.ts`**
 
 Tambah import (dekat baris 5):
 ```ts
@@ -361,24 +361,24 @@ Tambah panggilan tepat setelah `registerBacklogSource();` (baris 35):
   registerErrorsSource(); // SPEC-296 · daftarkan checker errors sebelum engine tick pertama
 ```
 
-- [ ] **Step 2: Typecheck server**
+- [x] **Step 2: Typecheck server**
 
 Run: `cd server && npx tsc -p . --noEmit`
 Expected: exit 0
 
-- [ ] **Step 3: Perbarui `internal/docs/architecture/stack.md`**
+- [x] **Step 3: Perbarui `internal/docs/architecture/stack.md`**
 
 Di baris pipeline scheduler (yang menyebut "checker backlog konkret SPEC-295"), tambahkan checker `errors` konkret (SPEC-296): grup produksi berulang → escalate → antrean, satu grup = satu backlog.
 
-- [ ] **Step 4: Perbarui `internal/docs/architecture/data-model.md`**
+- [x] **Step 4: Perbarui `internal/docs/architecture/data-model.md`**
 
 Di §`SchedulerQueueItem` (deskripsi kolom `source`), catat nilai `errors` kini diisi checker konkret (SPEC-296), sejajar `backlog`.
 
-- [ ] **Step 5: Perbarui `internal/docs/architecture/api-contract.md` §Scheduler**
+- [x] **Step 5: Perbarui `internal/docs/architecture/api-contract.md` §Scheduler**
 
 Catat `errors` = checker kedua terdaftar (setelah `backlog`); grup eligible = new ∧ produksi ∧ count≥`sources.errors.minCount` ∧ opt-in ∧ belum ber-specId; memakai ulang `escalateErrorGroup`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/server.ts internal/docs/architecture/stack.md internal/docs/architecture/data-model.md internal/docs/architecture/api-contract.md
@@ -393,21 +393,21 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 **Files:** (tak ada perubahan kode; hanya verifikasi)
 
-- [ ] **Step 1: Full server suite + shared + tsc**
+- [x] **Step 1: Full server suite + shared + tsc**
 
 Run: `cd server && env DATABASE_URL='postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman296' NODE_ENV=test npx vitest run --no-file-parallelism`
 Expected: PASS (semua, termasuk `errors-escalate.route.test.ts` regresi + `scheduler-source-errors.test.ts` baru)
 Run: `cd shared && npx vitest run` + `cd server && npx tsc -p . --noEmit`
 Expected: PASS + exit 0
 
-- [ ] **Step 2: Boot server ke DB throwaway ter-migrate, seed via SQL**
+- [x] **Step 2: Boot server ke DB throwaway ter-migrate, seed via SQL**
 
 Buat DB smoke `hanoman296_smoke`, `prisma migrate deploy`. Seed (INGAT: `"updatedAt"=now()` untuk kolom `@updatedAt`):
 - project A `schedulerOptIn=true`: grup produksi eligible (`status='new'`, `environment='production'`, `count=8`), grup non-eligible (`environment='development'`, `count=99`) + (`environment='production'`, `count=2`).
 - project B `schedulerOptIn=false`: grup produksi `count=99`.
 Boot `node dist/server.js` di PORT≠8787 dengan `DATABASE_URL` → `hanoman296_smoke`.
 
-- [ ] **Step 3: Nyalakan scheduler (Pause) + trigger tick, verifikasi state**
+- [x] **Step 3: Nyalakan scheduler (Pause) + trigger tick, verifikasi state**
 
 - `PUT /api/scheduler/config` body `{ enabled:true, paused:true, sources:{ errors:{ enabled:true } } }` (Pause ⇒ enqueue teruji tanpa launch nyata; merge dengan default lewat `setScheduler`).
 - Tunggu boot-pass tick (atau restart) menjalankan `checkErrors`.
@@ -416,9 +416,9 @@ Boot `node dist/server.js` di PORT≠8787 dengan `DATABASE_URL` → `hanoman296_
 
 Expected: seleksi & idempotensi cocok dengan design; tak ada item dari project non-opt-in / non-produksi / count rendah.
 
-- [ ] **Step 4: Bersihkan DB smoke + tandai plan**
+- [x] **Step 4: Bersihkan DB smoke + tandai plan**
 
-Drop `hanoman296_smoke`. Centang semua `- [ ]` → `- [x]` di plan ini. Tulis `Execute done` ke `$HANOMAN_PHASE_FILE`.
+Drop `hanoman296_smoke`. Centang semua `- [x]` → `- [x]` di plan ini. Tulis `Execute done` ke `$HANOMAN_PHASE_FILE`.
 
 ---
 
