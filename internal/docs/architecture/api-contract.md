@@ -477,3 +477,10 @@ GET  /api/scheduler/state    -> { config, cap, liveCount, sources:[{id,enabled,e
 > lalu enqueue (queue item `source:"errors"`). Idempoten (grup escalated/resolved/ber-specId tersaring di query);
 > banyak grup satu window, satu grup = satu backlog (tanpa limit checker — cap ditegakkan governor). Terdaftar di
 > `server.ts` (`registerErrorsSource()`) sebelum `startScheduler()`.
+>
+> **Source-checker konkret ketiga (SPEC-297):** `triase` — saat cadence triase jatuh-tempo, untuk tiap `Ticket`
+> eligible (`status:"new"` ∧ `category ∈ {bug,fitur}` ∧ `specId=null` ∧ project `schedulerOptIn`) memakai ulang
+> `acceptTicket` (`services/ticket-accept.ts`, pemetaan kategori→source SPEC-291: bug→`qa`, fitur→`brief`) → Spec
+> prioritas `sedang`, lalu enqueue (queue item `source:"triase"`). Kategori `pertanyaan`/`lainnya` **tak pernah**
+> auto-accept (tetap manual). Idempoten (tiket accepted/rejected/ber-specId tersaring di query); banyak tiket satu
+> window, satu tiket = satu backlog. Terdaftar di `server.ts` (`registerTriaseSource()`) sebelum `startScheduler()`.

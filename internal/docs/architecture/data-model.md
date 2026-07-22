@@ -247,6 +247,11 @@ overlay sesi live — status live (running/done/failed) tetap diturunkan dari `p
   bersama `escalateErrorGroup` (`services/error-escalate.ts`) → Spec `qa` prioritas `tinggi`, lalu `source:"errors"`.
   Idempoten: filter query menyaring grup escalated/resolved/ber-specId; satu grup = satu backlog; banyak grup satu
   window (tanpa limit checker — cap ditegakkan governor).
+- **Diisi oleh checker `triase` (SPEC-297):** tiap `Ticket` eligible (`status:"new"` ∧ `category ∈ {bug,fitur}` ∧
+  `specId=null` ∧ project `schedulerOptIn`) di-accept lewat jalur bersama `acceptTicket` (`services/ticket-accept.ts`,
+  pemetaan kategori→source SPEC-291: bug→`qa`, fitur→`brief`) → Spec prioritas `sedang`, lalu `source:"triase"`.
+  Kategori `pertanyaan`/`lainnya` **tak pernah** auto-accept (tetap manual). Idempoten: filter query menyaring tiket
+  accepted/rejected/ber-specId; satu tiket = satu backlog; banyak tiket satu window (tanpa limit checker — cap governor).
 
 ## Docs (Source of Truth) — TIDAK dipersist
 Docs bukan entitas DB. Tabel `DocFile` sudah di-drop (ADR-0011). Docs dibaca **live dari path

@@ -29,7 +29,7 @@ Server (Fastify, bind 127.0.0.1:8787)
    ├─ routes: auth · projects · specs · docs · terminal · vps · fs · settings · notifications · limits · health
    ├─ PTY/tmux  ─► sesi `claude` interaktif per backlog, di git worktree terisolasi
    ├─ VPS monitor (setInterval: health 5 mnt · audit 24 jam)
-   ├─ Scheduler engine (setInterval tick: source enable+cadence → antrean durable → drain di bawah cap · SPEC-294/ADR-0072; checker konkret: backlog SPEC-295, errors SPEC-296 — grup produksi berulang → escalate → antrean, satu grup = satu backlog)
+   ├─ Scheduler engine (setInterval tick: source enable+cadence → antrean durable → drain di bawah cap · SPEC-294/ADR-0072; checker konkret: backlog SPEC-295, errors SPEC-296 — grup produksi berulang → escalate → antrean, satu grup = satu backlog, triase SPEC-297 — tiket bug/fitur eligible → accept → antrean, satu tiket = satu backlog)
    ├─ Docs SoT scan (live dari Project.repoDir tiap request — ADR-0011/0018)
    └─ Postgres (Prisma): Project · Spec · Setting · Notification · User · Session · Vps
 ```
