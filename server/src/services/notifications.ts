@@ -31,6 +31,16 @@ export async function recordCompletion(specId: string, title: string, projectId:
   }).catch(() => { /* P2002: sudah ada */ });
 }
 
+// SPEC-298 · notif saat sesi scheduler gagal / kena limit (rekonsiliasi akhir sesi, reconcile.ts).
+// Dedup `key:fail:<specId>` idempoten (insert kedua kena P2002, diabaikan). sessionId turunan =
+// idFor(specId) → aksi "Buka" bisa memutar ulang pane mati (log gagal). TANPA retry (PRD non-goal).
+export async function recordFailure(specId: string, title: string, projectId: string | null, reason: string): Promise<void> {
+  const sessionId = specId.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+  await prisma.notification.create({
+    data: { type: "fail", key: `fail:${specId}`, specId, sessionId, title: `Gagal: ${title} — ${reason}`, projectId },
+  }).catch(() => { /* P2002: sudah ada */ });
+}
+
 // SPEC-249 · ADR-0060 · notif saat grup error PRODUKSI baru muncul. Dedup `key: error:<groupId>`
 // idempoten (insert kedua kena P2002, diabaikan) — grup lama tak menotifikasi ulang tiap kejadian.
 export async function recordNewErrorGroup(

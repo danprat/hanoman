@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { prisma } from "../src/db";
 import { resetDb } from "./factory";
 import { zNotification } from "@hanoman/shared";
-import { recordCompletion, scanDecisions, __resetAwaiting } from "../src/services/notifications";
+import { recordCompletion, recordFailure, scanDecisions, __resetAwaiting } from "../src/services/notifications";
 
 describe("Notification model", () => {
   beforeEach(async () => { await resetDb(); });
@@ -45,6 +45,25 @@ describe("recordCompletion", () => {
     const row = await prisma.notification.findFirstOrThrow({ where: { specId: "SPEC-4" } });
     expect(row.sessionId).toBe("spec-4");
     expect(row.type).toBe("done");
+  });
+});
+
+describe("recordFailure", () => {
+  beforeEach(async () => { await resetDb(); });
+
+  it("membuat notif type fail dengan sessionId turunan + alasan di judul", async () => {
+    await recordFailure("SPEC-9", "Judul spec", "p1", "sesi berakhir sebelum mencapai done (gagal/limit)");
+    const row = await prisma.notification.findFirstOrThrow({ where: { specId: "SPEC-9" } });
+    expect(row.type).toBe("fail");
+    expect(row.sessionId).toBe("spec-9");
+    expect(row.title).toContain("Judul spec");
+    expect(row.title.toLowerCase()).toContain("gagal");
+  });
+
+  it("idempoten via key: dua panggilan spec sama → satu baris", async () => {
+    await recordFailure("SPEC-10", "t", "p1", "r");
+    await recordFailure("SPEC-10", "t", "p1", "r");
+    expect(await prisma.notification.count({ where: { specId: "SPEC-10" } })).toBe(1);
   });
 });
 

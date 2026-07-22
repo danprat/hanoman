@@ -125,10 +125,12 @@ token). **Server-local**, TANPA `version`/sync (cermin `DeviceToken` — kredens
 ## Notification (SPEC-180/184, [ADR-0033](../adr/0033-notifikasi-backlog-selesai.md), [ADR-0036](../adr/0036-notifikasi-human-decision.md))
 Dua tipe: `done` (backlog masuk `done`, dibuat di `advanceStage()` & write-through `GET /specs`)
 dan `decision` (sesi Claude menunggu keputusan manusia, dibuat `scanDecisions()` di `GET /notifications`).
-- `id` (cuid), `type` (`done|decision|drift|error|ticket`, default `done`; `error` SPEC-249, `ticket`
-  SPEC-253 — grup error produksi baru / keluhan Help Center baru. Longgar String → tanpa migration kolom).
-- `key` **@unique** nullable — dedup selesai `"done:<specId>"` (insert kedua kena P2002, diabaikan);
-  `null` untuk decision (di-dedup di sisi scan via `Set` episode; NULL berulang diizinkan Postgres).
+- `id` (cuid), `type` (`done|decision|drift|error|ticket|fail`, default `done`; `error` SPEC-249, `ticket`
+  SPEC-253, `fail` SPEC-298 — grup error produksi baru / keluhan Help Center baru / sesi scheduler gagal-limit.
+  Longgar String → tanpa migration kolom).
+- `key` **@unique** nullable — dedup selesai `"done:<specId>"` / gagal `"fail:<specId>"` (SPEC-298; insert
+  kedua kena P2002, diabaikan); `null` untuk decision (di-dedup di sisi scan via `Set` episode; NULL berulang
+  diizinkan Postgres).
 - `specId` (nullable — sesi reverse tak punya spec), `sessionId` (target redirect terminal),
   `title` (snapshot), `projectId` (opsional), `createdAt`.
 - `readAt` (nullable) — `null` = belum dibaca. Read-state **global** (bukan per-user).

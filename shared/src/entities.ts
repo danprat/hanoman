@@ -83,7 +83,7 @@ export type Setting = z.infer<typeof zSetting>;
 // = target redirect terminal. Tanggal = string ISO (JSON). readAt null = unread.
 export const zNotification = z.object({
   id: z.string(),
-  type: z.enum(["done", "decision", "error", "ticket"]).default("done"),   // SPEC-249 · +error; SPEC-253 · +ticket (keluhan Help Center baru)
+  type: z.enum(["done", "decision", "error", "ticket", "fail"]).default("done"),   // SPEC-249 · +error; SPEC-253 · +ticket; SPEC-298 · +fail (sesi scheduler gagal/limit)
   specId: z.string().nullable(),
   sessionId: z.string().nullable(),
   title: z.string(),
