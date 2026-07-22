@@ -3,7 +3,7 @@
 import React from "react";
 import { Card, Switch, Select, Button, Input, Field, Icon, StateBlock } from "../ds";
 import { api, ApiError } from "../api/client";
-import { CAPABILITY_DOMAINS } from "@hanoman/shared";
+import { CAPABILITY_DOMAINS, SCHEDULER_DEFAULTS } from "@hanoman/shared";
 import type { Setting, UserView, DeviceTokenView, SessionResultView, ConfigResponse, ConfigEntryView, AgentTokenView, CapabilityInfo } from "@hanoman/shared";
 import type { ShowToast } from "../ds";
 import { playNotifySound, type NotifySound } from "../notifications/sound";
@@ -40,6 +40,7 @@ const S_DEFAULTS: Setting = {
   notifyDone: true, notifySound: "short",
   notifyDecision: true, notifyDecisionSound: "alert",
   agentAccessEnabled: false,
+  scheduler: SCHEDULER_DEFAULTS,   // SPEC-294 · knob scheduler (panel dibangun daun #6)
 };
 
 function SettingRow({ title, desc, children, last }: { title: string; desc?: string; children?: React.ReactNode; last?: boolean }) {

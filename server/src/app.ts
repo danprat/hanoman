@@ -26,6 +26,7 @@ import ingest from "./routes/ingest";
 import errors from "./routes/errors";
 import help from "./routes/help";
 import tickets from "./routes/tickets";
+import scheduler from "./routes/scheduler";
 import fastifyMultipart from "@fastify/multipart";
 import authRoutes from "./routes/auth";
 import agentTokens from "./routes/agent-tokens";
@@ -135,6 +136,7 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
     await api.register(errors);   // SPEC-249 · area Error (di belakang gate cookie)
     await api.register(help);     // SPEC-253 · Help Center publik (gate di-bypass di atas)
     await api.register(tickets);  // SPEC-253 · triase (di belakang gate cookie)
+    await api.register(scheduler);  // SPEC-294 · config/state scheduler (di belakang gate cookie)
   }, { prefix: "/api" });
 
   // Prod: serve the built dashboard from one process; SPA-fallback to
