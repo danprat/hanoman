@@ -24,6 +24,7 @@ import { PrdScreen, type PrdPrefill, type PrdBriefForm } from "./screens/PrdScre
 import { TerminalScreen } from "./screens/TerminalScreen";
 import { IdeScreen } from "./screens/IdeScreen";
 import { VpsScreen } from "./screens/VpsScreen";
+import { SchedulerScreen } from "./screens/SchedulerScreen";
 import { DocsWorkspace } from "./screens/DocsWorkspace";
 import { ReviewScreen } from "./screens/ReviewScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
@@ -912,6 +913,16 @@ export default function App() {
     screen = (
       <Shell active="vps" title="VPS" breadcrumb="infra · audit → harden" onNavigate={setSection}>
         <VpsScreen onToast={showToast} onGotoTerminal={() => setSection("terminal")} />
+      </Shell>
+    );
+  } else if (section === "scheduler") {
+    // SPEC-299 · Panel Scheduler otonom: observabilitas + setelan + opt-in + rem darurat.
+    // Screen mandiri (pola VPS/Errors) — memuat state fondasi sendiri (HTTP polling), tak lewat `gate`.
+    screen = (
+      <Shell active="scheduler" title="Scheduler" breadcrumb="otonom · jadwal → antrean → sesi" onNavigate={setSection}>
+        <SchedulerScreen projects={projectsView} backlog={backlog}
+          onProjectChanged={refreshProject} onToast={showToast}
+          onGotoTerminal={() => setSection("terminal")} />
       </Shell>
     );
   } else if (section === "docs") {
