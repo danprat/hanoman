@@ -6,6 +6,11 @@ import { saveUpload } from "../src/services/uploads";
 
 const app = buildApp({ requireAuth: false });
 
+// SPEC-291 · payload tiket kini mengikuti bentuk source: qa-shaped (bug → field `actual`)
+// vs brief-shaped (fitur/pertanyaan/lainnya → field `context`). Helper baca detail terlepas bentuk.
+const detailText = (payload: { context?: string; actual?: string }): string =>
+  typeof payload.context === "string" ? payload.context : (payload.actual ?? "");
+
 const clean = async () => {
   await prisma.ticketAttachment.deleteMany();
   await prisma.ticket.deleteMany();
@@ -69,14 +74,14 @@ describe("SPEC-253 · triase tiket", () => {
     expect((await app.inject({ method: "GET", url: `/api/tickets/bogus/attachments/${att.id}` })).statusCode).toBe(404);
   });
 
-  it("accept → Spec source help + tautan dua arah + idempoten", async () => {
+  it("accept tiket bug → Spec source qa + tautan dua arah + idempoten", async () => {
     const res = await app.inject({ method: "POST", url: `/api/tickets/${tId}/accept`, payload: { priority: "tinggi" } });
     expect(res.statusCode).toBe(201);
     const spec = res.json().spec;
-    expect(spec.source).toBe("help");
+    expect(spec.source).toBe("qa"); // tId kategori bug → finding QA (SPEC-291)
     expect(spec.priority).toBe("tinggi");
     expect(spec.stage).toBe("brainstorming");
-    expect(spec.payload.context).toContain("Dari tiket Help Center #");
+    expect(detailText(spec.payload)).toContain("Dari tiket Help Center #");
     const t = await prisma.ticket.findUnique({ where: { id: tId } });
     expect(t?.status).toBe("accepted");
     expect(t?.specId).toBe(spec.id);
@@ -135,7 +140,7 @@ describe("SPEC-286 · eskalasi triase membawa instruksi periksa lampiran", () =>
     await prisma.ticketAttachment.create({ data: { ticketId: ticket.id, projectId: "tri-proj", filename: "shot-check.png", mimeType: "image/png", size, storageKey } });
     const res = await app.inject({ method: "POST", url: `/api/tickets/${ticket.id}/accept` });
     expect(res.statusCode).toBe(201);
-    const ctx: string = res.json().spec.payload.context;
+    const ctx: string = detailText(res.json().spec.payload);
     // direktif aktif ke agen (bukan sekadar hitungan pasif "N berkas")
     expect(ctx).toMatch(/periksa/i);
     expect(ctx).toMatch(/lampiran/i);
@@ -150,9 +155,44 @@ describe("SPEC-286 · eskalasi triase membawa instruksi periksa lampiran", () =>
     const { ticket } = await createTicket({ projectId: "tri-proj", category: "bug", title: "tanpa gambar", detail: "keluhan teks", reporterEmail: "b@e.co" });
     const res = await app.inject({ method: "POST", url: `/api/tickets/${ticket.id}/accept` });
     expect(res.statusCode).toBe(201);
-    const ctx: string = res.json().spec.payload.context;
+    const ctx: string = detailText(res.json().spec.payload);
     expect(ctx).toContain("Tanpa lampiran");
     expect(ctx).not.toMatch(/\d+ berkas/);
+  });
+});
+
+describe("SPEC-291 · eskalasi triase → backlog sesuai kategori", () => {
+  const accept = async (category: string) => {
+    const { ticket } = await createTicket({ projectId: "tri-proj", category, title: `t-${category}`, detail: "keluhan", reporterEmail: "c@e.co" });
+    const res = await app.inject({ method: "POST", url: `/api/tickets/${ticket.id}/accept` });
+    expect(res.statusCode).toBe(201);
+    return res.json().spec;
+  };
+
+  it("bug → source qa (finding QA), payload qa-shaped memuat keluhan di actual", async () => {
+    const spec = await accept("bug");
+    expect(spec.source).toBe("qa");
+    expect(spec.payload).toHaveProperty("severity");
+    expect(spec.payload.actual).toContain("keluhan");
+    expect(spec.payload.actual).toContain("Dari tiket Help Center #");
+  });
+
+  it("fitur → source brief (feature brief), payload brief-shaped di context", async () => {
+    const spec = await accept("fitur");
+    expect(spec.source).toBe("brief");
+    expect(spec.payload.context).toContain("keluhan");
+  });
+
+  it("pertanyaan → source audit, payload brief-shaped di context", async () => {
+    const spec = await accept("pertanyaan");
+    expect(spec.source).toBe("audit");
+    expect(spec.payload.context).toContain("keluhan");
+  });
+
+  it("lainnya → default source brief (feature brief)", async () => {
+    const spec = await accept("lainnya");
+    expect(spec.source).toBe("brief");
+    expect(spec.payload.context).toContain("keluhan");
   });
 });
 

@@ -1,6 +1,7 @@
 /* TriageScreen — antrean triase keluhan Help Center (SPEC-253). Screen mandiri (pola ErrorsScreen):
    memuat datanya sendiri + silent poll (pola GitGraph). Master (daftar tiket) → detail dengan
-   lampiran + aksi Terima (→ Spec source help) / Tolak. Realtime via HTTP polling (ADR-0062), bukan WS. */
+   lampiran + aksi Terima (→ Spec, source mengikuti kategori: bug→qa, fitur→brief, pertanyaan→audit,
+   lainnya→brief — SPEC-291) / Tolak. Realtime via HTTP polling (ADR-0062), bukan WS. */
 import React from "react";
 import { Button, Badge, Select, StateBlock, Icon, Input, Field, HnTextarea, ConfirmDialog } from "../ds";
 import { paths, type TicketView, type TicketDetail, type Spec } from "@hanoman/shared";

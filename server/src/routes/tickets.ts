@@ -27,6 +27,13 @@ const attachmentInstruction = (t: Ticket, atts: TicketAttachment[]): string => {
     + `tiket #${t.number} atau API GET /api/tickets/${t.id}/attachments/<id>.`;
 };
 
+// SPEC-291 · kategori tiket → source Spec (menentukan flow via flowForSource & tampilan
+// backlog via SOURCE_META). bug=finding QA, fitur=feature brief, pertanyaan=audit-only.
+// Kategori tak dikenal (mis. `lainnya`) jatuh ke `brief` (feature brief) sebagai default.
+const SOURCE_BY_CATEGORY: Record<string, "qa" | "brief" | "audit"> = {
+  bug: "qa", fitur: "brief", pertanyaan: "audit", lainnya: "brief",
+};
+
 const view = (t: Ticket & { _count?: { attachments: number } }) => ({
   id: t.id, projectId: t.projectId, number: t.number, category: t.category, title: t.title,
   reporterEmail: t.reporterEmail, status: t.status, specId: t.specId,
@@ -89,12 +96,18 @@ export default async function (app: FastifyInstance) {
     const priority = (req.body as { priority?: string } | undefined)?.priority ?? "sedang";
     const author = req.user?.email ?? "system";
     const backlink = `Dari tiket Help Center #${t.number} (projek ${t.projectId}).`;
-    const payload = {
-      context: `${t.detail}\n\nKategori: ${t.category}\nPelapor: ${t.reporterEmail}\n${backlink}\n\n`
-        + attachmentInstruction(t, t.attachments),
-      outcome: "",
-      constraints: "",
-    };
+    // SPEC-291 · eskalasi mengikuti kategori keluhan, bukan selalu feature. bug → finding QA
+    // (source qa, flow qa: audit→perbaikan), fitur → feature brief, pertanyaan → audit-only
+    // (dokumen), lainnya → feature brief (default). flowForSource memetakan source→pipeline.
+    const source = SOURCE_BY_CATEGORY[t.category] ?? "brief";
+    const detail = `${t.detail}\n\nKategori: ${t.category}\nPelapor: ${t.reporterEmail}\n${backlink}\n\n`
+      + attachmentInstruction(t, t.attachments);
+    // Bentuk payload harus cocok dengan source (dto superRefine: qa ⇒ QaPayload). Untuk qa
+    // keluhan pelapor + direktif lampiran masuk ke `actual`; selebihnya ke `context` brief.
+    const payload = source === "qa"
+      ? { severity: "major" as const, steps: "Reproduksi dari keluhan pelapor & lampiran.",
+          expected: "Perilaku yang diharapkan pelapor.", actual: detail, env: "" }
+      : { context: detail, outcome: "", constraints: "" };
     const repoDir = await resolveRepoDir(t.projectId);
     // SPEC-197 · nextSpecId TOCTOU → retry P2002 (≤3), bukan 500. Cermin routes/specs & errors/escalate.
     let spec: Awaited<ReturnType<typeof prisma.spec.create>> | null = null;
@@ -103,7 +116,7 @@ export default async function (app: FastifyInstance) {
       try {
         spec = await prisma.spec.create({
           data: {
-            id: sid, projectId: t.projectId, title: t.title, source: "help",
+            id: sid, projectId: t.projectId, title: t.title, source,
             stage: "brainstorming", priority, author: `Help · ${author}`,
             objective: `${t.category}: ${t.title}. ${backlink}`, payload,
           },
