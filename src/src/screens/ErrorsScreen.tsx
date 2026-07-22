@@ -7,6 +7,7 @@ import { api } from "../api/client";
 import type { ErrorGroupView, ErrorGroupDetail, Spec, SymbolicatedFrame } from "@hanoman/shared";
 import type { ProjectVM } from "./types";
 import { IntegrationGuideModal } from "./IntegrationGuideModal";
+import { specDeepLink } from "./deeplink";
 import { SyncButton } from "./SyncButton";
 
 const POLL_MS = 5000;
@@ -137,6 +138,9 @@ function GroupDetail({ id, onBack, onEscalated, onDeleted, onToast }:
         {g.specId
           ? <>
               <Badge tone="warn" icon="link">→ {g.specId}</Badge>
+              {/* SPEC-293 · paritas triase: buka/salin link backlog tertaut (deep-link #spec=). */}
+              <Button size="sm" variant="ghost" leftIcon="external-link" onClick={() => window.open(specDeepLink(g.specId!), "_blank", "noreferrer")}>Buka backlog</Button>
+              <Button size="sm" variant="ghost" leftIcon="copy" onClick={() => { void navigator.clipboard?.writeText(specDeepLink(g.specId!)); onToast("Link backlog disalin", "ok", "copy"); }}>Salin link</Button>
               <Button size="sm" variant="ghost" leftIcon="unlink" onClick={unlink} disabled={busy}>Lepas tautan</Button>
             </>
           : <Button size="sm" leftIcon="arrow-up-right" onClick={escalate} disabled={busy}>Eskalasi ke backlog</Button>}

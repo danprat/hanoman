@@ -184,11 +184,11 @@ Pastikan ikon tersedia di DS `Icon` (fallback ke ikon yang sudah dipakai bila ta
 - Modify: `src/src/screens/ErrorsScreen.tsx`
 - Test: `src/test/errors-screen.test.tsx`
 
-- [ ] **Step 1:** Test: detail grup dengan `specId:"SPEC-9"` → ada tombol "Buka backlog"; klik "Salin link" memanggil clipboard dengan `#spec=SPEC-9`.
-- [ ] **Step 2:** Jalankan → FAIL.
-- [ ] **Step 3:** Di `GroupDetail` header, cabang `g.specId` tambah `specDeepLink` helper (inline sama) + dua tombol seperti Task 5 (buka + salin), sebelum tombol "Lepas tautan".
-- [ ] **Step 4:** Jalankan test → PASS.
-- [ ] **Step 5:** Commit `feat(spec-293): errors — paritas buka/salin link backlog`.
+- [x] **Step 1:** Test: detail grup dengan `specId:"SPEC-9"` → ada tombol "Buka backlog"; klik "Salin link" memanggil clipboard dengan `#spec=SPEC-9`.
+- [x] **Step 2:** Jalankan → FAIL.
+- [x] **Step 3:** Di `GroupDetail` header, cabang `g.specId` tambah `specDeepLink` helper (inline sama) + dua tombol seperti Task 5 (buka + salin), sebelum tombol "Lepas tautan".
+- [x] **Step 4:** Jalankan test → PASS.
+- [x] **Step 5:** Commit `feat(spec-293): errors — paritas buka/salin link backlog`.
 
 ---
 

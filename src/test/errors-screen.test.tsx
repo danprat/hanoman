@@ -58,6 +58,25 @@ describe("ErrorsScreen (SPEC-249)", () => {
     expect(await screen.findByText("Eskalasi ke backlog")).toBeInTheDocument();
   });
 
+  it("linked group → buka/salin link backlog (deep-link #spec=) (SPEC-293)", async () => {
+    getError.mockResolvedValueOnce({
+      id: "g1", projectId: "a", type: "TypeError", message: "x is undefined",
+      environment: "production", status: "escalated", count: 4,
+      firstSeenAt: "2026-07-20T00:00:00.000Z", lastSeenAt: "2026-07-20T00:00:00.000Z", specId: "SPEC-9",
+      sampleStack: "TypeError\n    at handler (/srv/x.js:42:10)", events: [],
+    } as never);
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
+    const writeText = vi.fn();
+    Object.assign(navigator, { clipboard: { writeText } });
+    render(<ErrorsScreen projects={projects} onEscalated={vi.fn()} onToast={vi.fn()} />);
+    fireEvent.click(await screen.findByText("x is undefined"));
+    fireEvent.click(await screen.findByRole("button", { name: /buka backlog/i }));
+    expect(openSpy).toHaveBeenCalledWith(expect.stringContaining("#spec=SPEC-9"), "_blank", "noreferrer");
+    fireEvent.click(screen.getByRole("button", { name: /salin link/i }));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("#spec=SPEC-9"));
+    openSpy.mockRestore();
+  });
+
   it("deletes a group via confirmation modal (SPEC-269)", async () => {
     render(<ErrorsScreen projects={projects} onEscalated={vi.fn()} onToast={vi.fn()} />);
     fireEvent.click(await screen.findByText("x is undefined"));
