@@ -61,6 +61,31 @@ describe("SPEC-253 · TriageScreen", () => {
     expect(await screen.findByRole("button", { name: /terima/i })).toBeTruthy();
   });
 
+  it("tiket tertaut → status turunan backlog + buka/salin link backlog & publik (SPEC-293)", async () => {
+    getTicket.mockResolvedValueOnce({
+      ...DETAIL, specId: "SPEC-9", status: "accepted",
+      spec: { id: "SPEC-9", projectId: "demo", stage: "executing" },
+      publicStatusUrl: "https://h.id/help/demo/status/hnm_shr_ab",
+    });
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
+    const writeText = vi.fn();
+    Object.assign(navigator, { clipboard: { writeText } });
+    render(<TriageScreen projects={projects} onAccepted={() => {}} onToast={() => {}} />);
+    fireEvent.click(await screen.findByText("Tak bisa login"));
+    // status turunan backlog (executing → "Sedang dikerjakan")
+    expect(await screen.findByText("Sedang dikerjakan")).toBeTruthy();
+    // buka backlog di tab baru → URL hash #spec=SPEC-9
+    fireEvent.click(screen.getByRole("button", { name: /buka backlog/i }));
+    expect(openSpy).toHaveBeenCalledWith(expect.stringContaining("#spec=SPEC-9"), "_blank", "noreferrer");
+    // salin link publik → clipboard menerima publicStatusUrl
+    fireEvent.click(screen.getByRole("button", { name: /salin link publik/i }));
+    expect(writeText).toHaveBeenCalledWith("https://h.id/help/demo/status/hnm_shr_ab");
+    // buka status publik di tab baru
+    fireEvent.click(screen.getByRole("button", { name: /buka status publik/i }));
+    expect(openSpy).toHaveBeenCalledWith("https://h.id/help/demo/status/hnm_shr_ab", "_blank", "noreferrer");
+    openSpy.mockRestore();
+  });
+
   it("Hapus → konfirmasi memanggil deleteTicket (SPEC-269)", async () => {
     render(<TriageScreen projects={projects} onAccepted={() => {}} onToast={() => {}} />);
     fireEvent.click(await screen.findByText("Tak bisa login"));

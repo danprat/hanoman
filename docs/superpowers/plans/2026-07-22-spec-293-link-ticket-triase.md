@@ -156,10 +156,10 @@ React.useEffect(() => {
 
 **Consumes:** `publicStatus` (shared), `t.publicStatusUrl`, deep-link helper.
 
-- [ ] **Step 1:** Tambah helper inline di TriageScreen: `const specDeepLink = (id: string) => \`${window.location.origin}${window.location.pathname}#spec=${encodeURIComponent(id)}\`;` dan import `publicStatus` dari `@hanoman/shared`.
-- [ ] **Step 2:** Test di `triage.test.tsx`: mock `getTicket` mengembalikan tiket accepted, `specId:"SPEC-9"`, `spec:{stage:"executing",...}`, `publicStatusUrl:"https://x/help/p/status/hnm_shr_ab"`. Render detail → ada teks "Sedang dikerjakan" (badge status turunan) + tombol "Buka backlog" + "Buka status publik". Klik "Salin link publik" → `navigator.clipboard.writeText` dipanggil dengan URL publik (mock clipboard).
-- [ ] **Step 3:** Jalankan → FAIL.
-- [ ] **Step 4:** Di `TicketDetailView` header row, saat `t.specId` ganti blok badge jadi:
+- [x] **Step 1:** Tambah helper inline di TriageScreen: `const specDeepLink = (id: string) => \`${window.location.origin}${window.location.pathname}#spec=${encodeURIComponent(id)}\`;` dan import `publicStatus` dari `@hanoman/shared`.
+- [x] **Step 2:** Test di `triage.test.tsx`: mock `getTicket` mengembalikan tiket accepted, `specId:"SPEC-9"`, `spec:{stage:"executing",...}`, `publicStatusUrl:"https://x/help/p/status/hnm_shr_ab"`. Render detail → ada teks "Sedang dikerjakan" (badge status turunan) + tombol "Buka backlog" + "Buka status publik". Klik "Salin link publik" → `navigator.clipboard.writeText` dipanggil dengan URL publik (mock clipboard).
+- [x] **Step 3:** Jalankan → FAIL.
+- [x] **Step 4:** Di `TicketDetailView` header row, saat `t.specId` ganti blok badge jadi:
 ```tsx
 <Badge tone="ok" icon="link">→ {t.specId}</Badge>
 <Badge tone="neutral" size="sm">{publicStatus(t.status, t.spec?.stage)}</Badge>
@@ -173,8 +173,8 @@ Tambahkan (di luar cabang specId, misalnya baris info) tombol publik yang selalu
 <Button size="sm" variant="ghost" leftIcon="link-2" onClick={() => { void navigator.clipboard?.writeText(t.publicStatusUrl); onToast("Link publik disalin", "ok", "copy"); }}>Salin link publik</Button>
 ```
 Pastikan ikon tersedia di DS `Icon` (fallback ke ikon yang sudah dipakai bila tak ada: `external-link`, `copy`, `link`, `share-2`; cek `ds`).
-- [ ] **Step 5:** Jalankan test → PASS. Perbarui komentar header TriageScreen (SPEC-293).
-- [ ] **Step 6:** Commit `feat(spec-293): triase — status turunan backlog + tombol buka/salin link backlog & publik`.
+- [x] **Step 5:** Jalankan test → PASS. Perbarui komentar header TriageScreen (SPEC-293).
+- [x] **Step 6:** Commit `feat(spec-293): triase — status turunan backlog + tombol buka/salin link backlog & publik`.
 
 ---
 

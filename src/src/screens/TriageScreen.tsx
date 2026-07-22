@@ -1,11 +1,15 @@
 /* TriageScreen — antrean triase keluhan Help Center (SPEC-253). Screen mandiri (pola ErrorsScreen):
    memuat datanya sendiri + silent poll (pola GitGraph). Master (daftar tiket) → detail dengan
    lampiran + aksi Terima (→ Spec, source mengikuti kategori: bug→qa, fitur→brief, pertanyaan→audit,
-   lainnya→brief — SPEC-291) / Tolak. Realtime via HTTP polling (ADR-0062), bukan WS. */
+   lainnya→brief — SPEC-291) / Tolak. Realtime via HTTP polling (ADR-0062), bukan WS.
+   SPEC-293 · detail tiket tertaut: badge status penyelesaian turunan dari stage backlog +
+   tombol buka/salin link backlog (deep-link #spec=, ADR-0071) + buka/salin link publik status
+   tiket (shareToken) untuk dibagikan ke pelapor. */
 import React from "react";
 import { Button, Badge, Select, StateBlock, Icon, Input, Field, HnTextarea, ConfirmDialog } from "../ds";
-import { paths, type TicketView, type TicketDetail, type Spec } from "@hanoman/shared";
+import { paths, publicStatus, type TicketView, type TicketDetail, type Spec } from "@hanoman/shared";
 import { api } from "../api/client";
+import { specDeepLink } from "./deeplink";
 import { SyncButton } from "./SyncButton";
 import type { ProjectVM } from "./types";
 
@@ -145,9 +149,19 @@ function TicketDetailView({ id, onBack, onAccepted, onDeleted, onToast }:
         <span style={{ flex: 1 }} />
         <Button size="sm" variant="ghost" leftIcon="pencil" onClick={startEdit} disabled={busy}>Ubah</Button>
         <Button size="sm" variant="ghost" leftIcon="trash-2" onClick={() => setConfirm(true)} disabled={busy}>Hapus</Button>
+        {/* SPEC-293 · link publik status tiket — selalu ada (pelapor bisa cek status kapan pun),
+            untuk dibagikan operator ke pelapor. */}
+        {t.publicStatusUrl && <>
+          <Button size="sm" variant="ghost" leftIcon="share-2" onClick={() => window.open(t.publicStatusUrl, "_blank", "noreferrer")}>Buka status publik</Button>
+          <Button size="sm" variant="ghost" leftIcon="link-2" onClick={() => { void navigator.clipboard?.writeText(t.publicStatusUrl); onToast("Link publik disalin", "ok", "copy"); }}>Salin link publik</Button>
+        </>}
         {t.specId
           ? <>
               <Badge tone="ok" icon="link">→ {t.specId}</Badge>
+              {/* SPEC-293 · status penyelesaian turunan otomatis dari stage backlog tertaut. */}
+              <Badge tone="neutral" size="sm">{publicStatus(t.status, t.spec?.stage)}</Badge>
+              <Button size="sm" variant="ghost" leftIcon="external-link" onClick={() => window.open(specDeepLink(t.specId!), "_blank", "noreferrer")}>Buka backlog</Button>
+              <Button size="sm" variant="ghost" leftIcon="copy" onClick={() => { void navigator.clipboard?.writeText(specDeepLink(t.specId!)); onToast("Link backlog disalin", "ok", "copy"); }}>Salin link</Button>
               <Button size="sm" variant="ghost" leftIcon="unlink" onClick={unlink} disabled={busy}>Lepas tautan</Button>
             </>
           : !done && <>
