@@ -29,7 +29,7 @@ Server (Fastify, bind 127.0.0.1:8787)
    ├─ routes: auth · projects · specs · docs · terminal · vps · fs · settings · notifications · limits · health
    ├─ PTY/tmux  ─► sesi `claude` interaktif per backlog, di git worktree terisolasi
    ├─ VPS monitor (setInterval: health 5 mnt · audit 24 jam)
-   ├─ Scheduler engine (setInterval tick: source enable+cadence → antrean durable → drain di bawah cap · SPEC-294/ADR-0072)
+   ├─ Scheduler engine (setInterval tick: source enable+cadence → antrean durable → drain di bawah cap · SPEC-294/ADR-0072; checker backlog konkret SPEC-295)
    ├─ Docs SoT scan (live dari Project.repoDir tiap request — ADR-0011/0018)
    └─ Postgres (Prisma): Project · Spec · Setting · Notification · User · Session · Vps
 ```

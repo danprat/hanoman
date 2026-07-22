@@ -240,6 +240,8 @@ overlay sesi live — status live (running/done/failed) tetap diturunkan dari `p
 - Governor men-drain item `queued` (urut prioritas→FIFO) selagi sesi hidup `< cap` (`Setting.scheduler.maxConcurrent`),
   meluncurkan lewat `startSpecSession` (jalur bersama peluncuran manual). Knob scheduler hidup di
   `Setting.data.scheduler` (`zScheduler`, semua default mati). Lihat [ADR-0072](../adr/0072-scheduler-fondasi-engine-antrean-durable-cap.md).
+- **Diisi oleh checker `backlog` (SPEC-295):** spec `baseSha=null` dari project `schedulerOptIn`, urut prioritas
+  `tinggi→sedang→rendah`, `source:"backlog"` (asal checker; `flow` peluncuran tetap diturunkan `spec.source`).
 
 ## Docs (Source of Truth) — TIDAK dipersist
 Docs bukan entitas DB. Tabel `DocFile` sudah di-drop (ADR-0011). Docs dibaca **live dari path

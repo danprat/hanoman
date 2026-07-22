@@ -461,3 +461,8 @@ GET  /api/scheduler/state    -> { config, cap, liveCount, sources:[{id,enabled,e
 > blokir drain ≤1 tick. Peluncuran lewat `startSpecSession` (jalur bersama Start manual); `flow` diturunkan
 > `flowForSource(spec.source)` server-side. **Opt-in per project:** `PATCH /api/projects/:id { schedulerOptIn }`
 > (lokal — tak masuk `FIELDS` sync). Semua knob & state **LOCAL per-instance** (tak disync).
+>
+> **Source-checker konkret pertama (SPEC-295):** `backlog` — saat cadence backlog jatuh-tempo, meng-enqueue
+> semua `Spec` belum-mulai (`baseSha===null`) dari project `schedulerOptIn` urut prioritas `tinggi→sedang→rendah`
+> (queue item `source:"backlog"`, idempoten via `specId @unique`). Project non-opt-in tak tersentuh.
+> Terdaftar di `server.ts` (`registerBacklogSource()`) sebelum `startScheduler()`.
