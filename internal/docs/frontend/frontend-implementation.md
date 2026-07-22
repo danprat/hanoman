@@ -172,6 +172,15 @@ memasang ulang pane di sel (reconnect murah — scrollback dipegang tmux, sama s
 State `fullId` di `TerminalScreen` tak dipersist; bila sesinya lenyap lewat frame WS siar, modal
 tertutup sendiri. Ini **maximize satu terminal**, bukan seluruh grid — dua fitur terpisah.
 
+**Salin/tempel** (SPEC-289): xterm merender seleksinya sendiri di canvas, bukan seleksi native
+browser — jadi Cmd/Ctrl+C browser takkan menyalin apa pun tanpa wiring eksplisit. `TerminalPane`
+memasang `attachCustomKeyEventHandler` yang mendelegasikan keputusan ke fungsi murni
+`clipboardIntent` (`screens/terminal-clipboard.ts`, teruji tanpa DOM): **Cmd** (macOS) atau
+**Ctrl+Shift** (Windows/Linux) + `C` menyalin seleksi lewat `navigator.clipboard.writeText(term.getSelection())`,
++ `V` menempel lewat `readText()` → kirim sebagai input PTY. **Ctrl polos sengaja dilewatkan** agar
+Ctrl+C tetap SIGINT dan Ctrl+V tetap literal (milik TUI Claude Code). Copy hanya aktif bila ada
+seleksi. `navigator.clipboard` butuh secure context — terpenuhi di https VPS & localhost.
+
 Sesi yang **berakhir** (`exited`) ditandai kontras di header cell dengan `StatusPill`
 hijau **"Selesai"**, dan badan terminalnya diredupkan (`opacity: 0.6`) untuk menandakan
 proses sudah beku — menggantikan suffix teks `· berakhir` yang lama (SPEC-188).

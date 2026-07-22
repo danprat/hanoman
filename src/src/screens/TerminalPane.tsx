@@ -4,6 +4,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import { paths } from "@hanoman/shared";
 import type { Phase } from "../api/client";
+import { clipboardIntent } from "./terminal-clipboard";
 
 export function TerminalPane({ sessionId, onExit, onPhases }: {
   sessionId: string; onExit: (code: number) => void; onPhases?: (p: Phase[]) => void;
@@ -46,6 +47,21 @@ export function TerminalPane({ sessionId, onExit, onPhases }: {
         exitRef.current(f.code ?? 0);
       }
     };
+    // Salin/tempel: xterm merender seleksi sendiri, jadi Cmd/Ctrl+C tak menyalin apa pun
+    // tanpa wiring ini (SPEC-289). Return false = jangan teruskan ke terminal (mis. supaya
+    // Cmd+C tak jadi input). Ctrl+C polos dilewatkan agar tetap jadi SIGINT.
+    term.attachCustomKeyEventHandler((e) => {
+      const intent = clipboardIntent(e, term.hasSelection());
+      if (intent === "copy") {
+        void navigator.clipboard?.writeText(term.getSelection());
+        return false;
+      }
+      if (intent === "paste") {
+        void navigator.clipboard?.readText().then((t) => { if (t) send({ t: "in", d: t }); });
+        return false;
+      }
+      return true;
+    });
     const typed = term.onData((d) => send({ t: "in", d }));
     const ro = new ResizeObserver(() => {
       fit.fit();
