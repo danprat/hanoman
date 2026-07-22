@@ -1,39 +1,14 @@
 // SPEC-253 · ADR-0062 · antrean triase (di belakang gate cookie). Query selalu ber-scope projectId
 // (isolasi antar-project). Accept = jembatan ke Spec (source help) — cermin errors/escalate.
 import type { FastifyInstance } from "fastify";
-import { join } from "node:path";
 import { prisma } from "../db";
 import { paginate } from "../services/paginate";
-import { nextSpecId } from "../services/id";
-import { resolveRepoDir } from "../services/local-binding";
 import { notifySynced } from "../services/sync-notify";
-import { readUploadOrFetch, deleteUpload, uploadDir } from "../services/uploads";
+import { readUploadOrFetch, deleteUpload } from "../services/uploads";
 import { generateShareToken } from "../services/ticket";
+import { acceptTicket } from "../services/ticket-accept";
 import { zTicketEditInput } from "@hanoman/shared";
-import type { Ticket, TicketAttachment } from "@prisma/client";
-
-// SPEC-286 · saat eskalasi triase → backlog, ubah lampiran dari catatan pasif ("N berkas")
-// jadi DIREKTIF aktif: agen wajib memeriksa isinya (biasanya screenshot bug) sebelum bekerja,
-// dengan nama asli + jalur akses konkret. Tanpa ini konteks keluhan pelapor tak pernah dibaca
-// agen (payload ini mengalir apa adanya ke prompt sesi via runner startPrompt → `Detail:`).
-const attachmentInstruction = (t: Ticket, atts: TicketAttachment[]): string => {
-  if (atts.length === 0) return "Tanpa lampiran.";
-  const list = atts
-    .map((a) => `- ${a.filename} (${a.mimeType}) → ${join(uploadDir(), a.storageKey)}`)
-    .join("\n");
-  return `LAMPIRAN (${atts.length}) dari pelapor — biasanya screenshot yang menunjukkan masalah. `
-    + `PERIKSA setiap lampiran untuk memahami konteks keluhan sebelum bekerja; jangan berasumsi `
-    + `dari teks saja. Berkas ada di direktori upload server (baca langsung dengan tool Read):\n${list}\n`
-    + `Bila berkas tak ada di path itu (sesi jalan di mesin lain), buka lampiran lewat triase `
-    + `tiket #${t.number} atau API GET /api/tickets/${t.id}/attachments/<id>.`;
-};
-
-// SPEC-291 · kategori tiket → source Spec (menentukan flow via flowForSource & tampilan
-// backlog via SOURCE_META). bug=finding QA, fitur=feature brief, pertanyaan=audit-only.
-// Kategori tak dikenal (mis. `lainnya`) jatuh ke `brief` (feature brief) sebagai default.
-const SOURCE_BY_CATEGORY: Record<string, "qa" | "brief" | "audit"> = {
-  bug: "qa", fitur: "brief", pertanyaan: "audit", lainnya: "brief",
-};
+import type { Ticket } from "@prisma/client";
 
 const view = (t: Ticket & { _count?: { attachments: number } }) => ({
   id: t.id, projectId: t.projectId, number: t.number, category: t.category, title: t.title,
@@ -92,54 +67,17 @@ export default async function (app: FastifyInstance) {
     return reply.send(buf);
   });
 
-  // Terima → Spec (source help, payload brief-shaped) + tautan dua arah. Idempoten (cermin escalate).
+  // SPEC-253/291/297 · ADR-0062 · Terima → Spec (inti di services/ticket-accept.ts, dipakai ulang
+  // scheduler source-checker triase). Idempoten via ticket.specId (cermin escalate errors).
   app.post("/tickets/:id/accept", async (req, reply) => {
     const { id } = req.params as { id: string };
-    const t = await prisma.ticket.findUnique({
-      where: { id }, include: { attachments: true },
-    });
+    const t = await prisma.ticket.findUnique({ where: { id }, include: { attachments: true } });
     if (!t) return reply.code(404).send({ error: "not found" });
-    if (t.specId) {
-      const spec = await prisma.spec.findUnique({ where: { id: t.specId } });
-      return reply.code(200).send({ alreadyPromoted: true, spec });
-    }
     const priority = (req.body as { priority?: string } | undefined)?.priority ?? "sedang";
-    const author = req.user?.email ?? "system";
-    const backlink = `Dari tiket Help Center #${t.number} (projek ${t.projectId}).`;
-    // SPEC-291 · eskalasi mengikuti kategori keluhan, bukan selalu feature. bug → finding QA
-    // (source qa, flow qa: audit→perbaikan), fitur → feature brief, pertanyaan → audit-only
-    // (dokumen), lainnya → feature brief (default). flowForSource memetakan source→pipeline.
-    const source = SOURCE_BY_CATEGORY[t.category] ?? "brief";
-    const detail = `${t.detail}\n\nKategori: ${t.category}\nPelapor: ${t.reporterEmail}\n${backlink}\n\n`
-      + attachmentInstruction(t, t.attachments);
-    // Bentuk payload harus cocok dengan source (dto superRefine: qa ⇒ QaPayload). Untuk qa
-    // keluhan pelapor + direktif lampiran masuk ke `actual`; selebihnya ke `context` brief.
-    const payload = source === "qa"
-      ? { severity: "major" as const, steps: "Reproduksi dari keluhan pelapor & lampiran.",
-          expected: "Perilaku yang diharapkan pelapor.", actual: detail, env: "" }
-      : { context: detail, outcome: "", constraints: "" };
-    const repoDir = await resolveRepoDir(t.projectId);
-    // SPEC-197 · nextSpecId TOCTOU → retry P2002 (≤3), bukan 500. Cermin routes/specs & errors/escalate.
-    let spec: Awaited<ReturnType<typeof prisma.spec.create>> | null = null;
-    for (let attempt = 0; attempt < 3 && !spec; attempt++) {
-      const sid = await nextSpecId(repoDir);
-      try {
-        spec = await prisma.spec.create({
-          data: {
-            id: sid, projectId: t.projectId, title: t.title, source,
-            stage: "brainstorming", priority, author: `Help · ${author}`,
-            objective: `${t.category}: ${t.title}. ${backlink}`, payload,
-          },
-        });
-      } catch (e) {
-        if ((e as { code?: string }).code === "P2002" && attempt < 2) continue;
-        throw e;
-      }
-    }
-    await prisma.ticket.update({ where: { id }, data: { status: "accepted", specId: spec!.id } });
-    await notifySynced("spec", spec!.id);  // SPEC-213/268 · spec ke feed (hub publish / client push)
-    await notifySynced("ticket", id);       // SPEC-268 · status tiket ke feed
-    return reply.code(201).send({ spec });
+    const { spec, created } = await acceptTicket(t, { author: req.user?.email ?? "system", priority });
+    return created
+      ? reply.code(201).send({ spec })
+      : reply.code(200).send({ alreadyPromoted: true, spec });
   });
 
   // SPEC-271 · lepas tautan tiket dari backlog (kebalikan accept). Non-destruktif: Spec

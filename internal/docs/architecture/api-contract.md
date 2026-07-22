@@ -425,6 +425,8 @@ GET   /tickets/:id/attachments/:attId    # stream berkas gambar (Content-Type mi
       # SPEC-272 · di CLIENT byte ditarik lazy dari hub (readUploadOrFetch → /sync/attachments) bila absen lokal, lalu di-cache
 POST  /tickets/:id/accept  { priority? }  # 201 { spec } — buat Spec source help prefilled + tandai tiket
 #   accepted + specId (tautan dua arah). Idempoten: sudah promoted → 200 { alreadyPromoted:true, spec }. 404.
+#   SPEC-297: inti accept kini di services/ticket-accept.ts (acceptTicket) — dipakai route ini DAN scheduler
+#   source-checker `triase`; kontrak HTTP (201/200/404) & pemetaan kategori→source (SPEC-291) tak berubah.
 #   SPEC-286 · payload.context memuat DIREKTIF periksa lampiran: bila tiket berlampiran → daftar nama+mime+path
 #   upload (agar agen membaca isinya, biasanya screenshot) + cadangan API attachments; tanpa lampiran → "Tanpa lampiran".
 POST  /tickets/:id/unlink                 # 200 { id, status:"new", specId:null } — lepas tautan backlog (kebalikan accept).
