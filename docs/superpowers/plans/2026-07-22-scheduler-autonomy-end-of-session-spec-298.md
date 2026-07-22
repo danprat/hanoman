@@ -28,7 +28,7 @@ Cegah truncation oleh sesi sibling: pakai base `hanoman298` (→ `hanoman298_tes
 
 **Files:** (tak ada perubahan kode)
 
-- [ ] **Step 1: Buat + migrate `hanoman298_test`**
+- [x] **Step 1: Buat + migrate `hanoman298_test`**
 
 Run:
 ```bash
@@ -37,7 +37,7 @@ cd server && env DATABASE_URL='postgresql://hanoman:hanoman@127.0.0.1:5432/hanom
 ```
 Expected: "All migrations have been applied" (atau "No pending migrations bila sudah ada").
 
-- [ ] **Step 2: Sanity — prisma client ter-generate untuk worktree ini**
+- [x] **Step 2: Sanity — prisma client ter-generate untuk worktree ini**
 
 Run: `cd server && npx prisma generate`
 Expected: "Generated Prisma Client".
@@ -57,19 +57,19 @@ Nilai enum baru + fungsi penerbit notif gagal (idempoten `key`), cermin `recordC
 **Interfaces:**
 - Produces: `recordFailure(specId: string, title: string, projectId: string | null, reason: string): Promise<void>` — buat 1 baris `Notification { type:"fail", key:"fail:<specId>", specId, sessionId:<idFor>, title:"Gagal: <title> — <reason>", projectId }`; idempoten (P2002 di-swallow).
 
-- [ ] **Step 1: Tambah `"fail"` ke enum `zNotification.type`**
+- [x] **Step 1: Tambah `"fail"` ke enum `zNotification.type`**
 
 Di `shared/src/entities.ts`, ubah baris `type`:
 ```ts
   type: z.enum(["done", "decision", "error", "ticket", "fail"]).default("done"),   // SPEC-249 +error; SPEC-253 +ticket; SPEC-298 +fail (sesi scheduler gagal/limit)
 ```
 
-- [ ] **Step 2: Rebuild shared (server mengimpor dari dist)**
+- [x] **Step 2: Rebuild shared (server mengimpor dari dist)**
 
 Run: `cd shared && npx tsc -p .`
 Expected: exit 0, tanpa error.
 
-- [ ] **Step 3: Tulis test gagal `recordFailure`**
+- [x] **Step 3: Tulis test gagal `recordFailure`**
 
 Tambahkan ke `server/test/notifications.test.ts` (setelah blok `recordCompletion`), dan tambahkan `recordFailure` ke import baris 8:
 ```ts
@@ -97,12 +97,12 @@ Ubah import baris 8:
 import { recordCompletion, recordFailure, scanDecisions, __resetAwaiting } from "../src/services/notifications";
 ```
 
-- [ ] **Step 4: Jalankan test — verifikasi gagal**
+- [x] **Step 4: Jalankan test — verifikasi gagal**
 
 Run: `cd server && env DATABASE_URL='postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman298' npx vitest run --no-file-parallelism notifications.test.ts`
 Expected: FAIL — `recordFailure is not a function` / import error.
 
-- [ ] **Step 5: Implementasi `recordFailure`**
+- [x] **Step 5: Implementasi `recordFailure`**
 
 Di `server/src/services/notifications.ts`, setelah `recordCompletion` (sekitar baris 32):
 ```ts
@@ -117,19 +117,19 @@ export async function recordFailure(specId: string, title: string, projectId: st
 }
 ```
 
-- [ ] **Step 6: Jalankan test — verifikasi lolos**
+- [x] **Step 6: Jalankan test — verifikasi lolos**
 
 Run: `cd server && env DATABASE_URL='postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman298' npx vitest run --no-file-parallelism notifications.test.ts`
 Expected: PASS (semua blok, termasuk `recordFailure`).
 
-- [ ] **Step 7: Perbarui doc data-model §Notification**
+- [x] **Step 7: Perbarui doc data-model §Notification**
 
 Di `internal/docs/architecture/data-model.md`, temukan baris yang mendaftar `type` Notification (mencari "done|decision|error|ticket" atau bagian Notification) dan tambahkan `fail`:
 > `type` ∈ `done|decision|error|ticket|fail` — `fail` (SPEC-298) = sesi scheduler gagal/limit (rekonsiliasi akhir sesi), dedup `key:fail:<specId>`, tanpa retry.
 
 (Bila belum ada enumerasi eksplisit `type`, tambahkan satu kalimat di paragraf Notification.)
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add shared/src/entities.ts shared/dist server/src/services/notifications.ts server/test/notifications.test.ts internal/docs/architecture/data-model.md
@@ -160,7 +160,7 @@ Varian klausa `full-control` + selektor; thread `autonomy` opsional `startSpecSe
   - `startSpecSession(spec, { flow; model?; effort?; autonomy?: Autonomy })`.
   - `GovernorDeps.launch: (item, autonomy?: string) => Promise<string>`.
 
-- [ ] **Step 1: Tulis test gagal — klausa per-mode**
+- [x] **Step 1: Tulis test gagal — klausa per-mode**
 
 Tambahkan ke `runner/test/prompt.test.ts` (di dalam file, describe baru), dan tambahkan `Autonomy` ke import bila mengetes `autonomyClause` (opsional — test di bawah lewat `startPrompt`):
 ```ts
@@ -189,12 +189,12 @@ describe("autonomy per mode (SPEC-298)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — verifikasi gagal**
+- [x] **Step 2: Jalankan test — verifikasi gagal**
 
 Run: `cd runner && npx vitest run prompt.test.ts`
 Expected: FAIL — `full-control` clause text belum ada / param diabaikan.
 
-- [ ] **Step 3: Tambah `type Autonomy` di `runner/src/types.ts`**
+- [x] **Step 3: Tambah `type Autonomy` di `runner/src/types.ts`**
 
 Setelah baris `export type Flow = …`:
 ```ts
@@ -203,7 +203,7 @@ Setelah baris `export type Flow = …`:
 export type Autonomy = "full-control" | "butuh-keputusan";
 ```
 
-- [ ] **Step 4: Tambah klausa + selektor di `runner/src/prompt.ts`**
+- [x] **Step 4: Tambah klausa + selektor di `runner/src/prompt.ts`**
 
 Ubah import baris 1 agar memuat `Autonomy`:
 ```ts
@@ -230,7 +230,7 @@ const autonomyClause = (mode?: Autonomy): string =>
   mode === "full-control" ? AUTONOMY_CLAUSE_FULL : AUTONOMY_CLAUSE;
 ```
 
-- [ ] **Step 5: Terima param `autonomy` di `startPrompt` & `continuePrompt`**
+- [x] **Step 5: Terima param `autonomy` di `startPrompt` & `continuePrompt`**
 
 Ubah tanda tangan + baris yang memakai `AUTONOMY_CLAUSE`:
 ```ts
@@ -243,17 +243,17 @@ export function continuePrompt(flow: Flow, spec: SpecBrief, branchTo: string, au
 Ganti elemen array `AUTONOMY_CLAUSE,` (di `continuePrompt`) menjadi `autonomyClause(autonomy),`.
 (Jangan sentuh pemakaian `AUTONOMY_CLAUSE` di `startBreakdownPrompt` — breakdown tetap klausa lama.)
 
-- [ ] **Step 6: Jalankan test — verifikasi lolos**
+- [x] **Step 6: Jalankan test — verifikasi lolos**
 
 Run: `cd runner && npx vitest run prompt.test.ts`
 Expected: PASS (blok autonomy baru + semua test prompt lama tetap hijau — default param menjaga perilaku lama).
 
-- [ ] **Step 7: Rebuild runner (server mengimpor dari dist)**
+- [x] **Step 7: Rebuild runner (server mengimpor dari dist)**
 
 Run: `cd runner && npx tsc -p .`
 Expected: exit 0.
 
-- [ ] **Step 8: Thread `autonomy` di `session-launch.ts`**
+- [x] **Step 8: Thread `autonomy` di `session-launch.ts`**
 
 Di `server/src/services/session-launch.ts`, ubah opts + import:
 ```ts
@@ -271,7 +271,7 @@ Di pemanggilan `createSession` (`prompt:` isContinue ternary), teruskan `opts.au
       : startPrompt(opts.flow, brief, `hanoman/${id}`, opts.autonomy),
 ```
 
-- [ ] **Step 9: Perluas `GovernorDeps.launch` + teruskan `cfg.autonomy`**
+- [x] **Step 9: Perluas `GovernorDeps.launch` + teruskan `cfg.autonomy`**
 
 Di `server/src/services/scheduler/governor.ts`, ubah tipe `launch`:
 ```ts
@@ -282,7 +282,7 @@ Di `drain`, ubah pemanggilan launch:
         const sessionId = await deps.launch(item, cfg.autonomy);
 ```
 
-- [ ] **Step 10: `prodDeps.launch` teruskan autonomy di `engine.ts`**
+- [x] **Step 10: `prodDeps.launch` teruskan autonomy di `engine.ts`**
 
 Di `server/src/services/scheduler/engine.ts`, ubah `prodDeps.launch`:
 ```ts
@@ -299,17 +299,17 @@ import { flowForSource } from "@hanoman/shared";
 import type { Autonomy } from "@hanoman/runner";
 ```
 
-- [ ] **Step 11: Jalankan test server terdampak — governor/engine/session-launch tetap hijau**
+- [x] **Step 11: Jalankan test server terdampak — governor/engine/session-launch tetap hijau**
 
 Run: `cd server && env DATABASE_URL='postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman298' npx vitest run --no-file-parallelism scheduler-governor.test.ts scheduler-engine.test.ts session-launch.test.ts`
 Expected: PASS (mock `launch` arity lama mengabaikan arg autonomy ekstra; param opsional).
 
-- [ ] **Step 12: Perbarui doc stack + data-model (autonomy dikonsumsi)**
+- [x] **Step 12: Perbarui doc stack + data-model (autonomy dikonsumsi)**
 
 Di `internal/docs/architecture/data-model.md` §Setting, ganti "`autonomy` (`full-control|butuh-keputusan`, dikonsumsi daun akhir-sesi)" menjadi menyatakan sudah dikonsumsi (SPEC-298): full-control → sesi tembus sampai `done` tanpa berhenti bertanya; butuh-keputusan → berhenti di keputusan (marker SPEC-184 → notif decision), diterapkan via klausa prompt saat governor meluncurkan sesi.
 Di `internal/docs/architecture/stack.md`, pada baris pipeline scheduler, tambahkan penanda daun #5 autonomy per-mode (klausa prompt full-control vs butuh-keputusan diterapkan saat governor launch).
 
-- [ ] **Step 13: Commit**
+- [x] **Step 13: Commit**
 
 ```bash
 git add runner/src/types.ts runner/src/prompt.ts runner/dist runner/test/prompt.test.ts server/src/services/session-launch.ts server/src/services/scheduler/governor.ts server/src/services/scheduler/engine.ts internal/docs/architecture/stack.md internal/docs/architecture/data-model.md
@@ -336,7 +336,7 @@ Unit rekonsiliasi (deps di-inject) yang menandai item antrean `done`/`failed` + 
   - `reconcile(deps: ReconcileDeps): Promise<void>`
   - `reconcileProdDeps: ReconcileDeps`
 
-- [ ] **Step 1: Tulis test gagal — rekonsiliasi**
+- [x] **Step 1: Tulis test gagal — rekonsiliasi**
 
 Buat `server/test/scheduler-reconcile.test.ts`:
 ```ts
@@ -424,12 +424,12 @@ describe("reconcile", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — verifikasi gagal**
+- [x] **Step 2: Jalankan test — verifikasi gagal**
 
 Run: `cd server && env DATABASE_URL='postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman298' npx vitest run --no-file-parallelism scheduler-reconcile.test.ts`
 Expected: FAIL — modul `reconcile` belum ada.
 
-- [ ] **Step 3: Implementasi `server/src/services/scheduler/reconcile.ts`**
+- [x] **Step 3: Implementasi `server/src/services/scheduler/reconcile.ts`**
 
 ```ts
 import { prisma } from "../../db";
@@ -507,12 +507,12 @@ export const reconcileProdDeps: ReconcileDeps = {
 };
 ```
 
-- [ ] **Step 4: Jalankan test — verifikasi lolos**
+- [x] **Step 4: Jalankan test — verifikasi lolos**
 
 Run: `cd server && env DATABASE_URL='postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman298' npx vitest run --no-file-parallelism scheduler-reconcile.test.ts`
 Expected: PASS (6 test).
 
-- [ ] **Step 5: Tulis test gagal — engine.tick memanggil reconcile + scanDecisions**
+- [x] **Step 5: Tulis test gagal — engine.tick memanggil reconcile + scanDecisions**
 
 Tambahkan ke `server/test/scheduler-engine.test.ts` (describe baru). `tick` akan menerima 2 deps opsional baru (reconcile fn + scanDecisions fn) agar teruji tanpa tmux:
 ```ts
@@ -542,12 +542,12 @@ describe("engine.tick akhir sesi (SPEC-298)", () => {
 });
 ```
 
-- [ ] **Step 6: Jalankan test — verifikasi gagal**
+- [x] **Step 6: Jalankan test — verifikasi gagal**
 
 Run: `cd server && env DATABASE_URL='postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman298' npx vitest run --no-file-parallelism scheduler-engine.test.ts`
 Expected: FAIL — `tick` belum menerima param ke-3 / tak memanggil reconcile.
 
-- [ ] **Step 7: Wire `reconcile` + `scanDecisions` ke `engine.tick`**
+- [x] **Step 7: Wire `reconcile` + `scanDecisions` ke `engine.tick`**
 
 Di `server/src/services/scheduler/engine.ts`, tambah import:
 ```ts
@@ -583,17 +583,17 @@ export async function tick(now: number, deps: GovernorDeps, end: EndOfSession = 
 ```
 Pastikan `startScheduler`'s `tick(Date.now(), deps)` tetap valid (param `end` default `prodEnd`).
 
-- [ ] **Step 8: Jalankan test — verifikasi lolos**
+- [x] **Step 8: Jalankan test — verifikasi lolos**
 
 Run: `cd server && env DATABASE_URL='postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman298' npx vitest run --no-file-parallelism scheduler-engine.test.ts scheduler-reconcile.test.ts`
 Expected: PASS (engine gating lama + akhir-sesi baru + reconcile).
 
-- [ ] **Step 9: Perbarui doc data-model §SchedulerQueueItem + api-contract**
+- [x] **Step 9: Perbarui doc data-model §SchedulerQueueItem + api-contract**
 
 Di `internal/docs/architecture/data-model.md` §SchedulerQueueItem, ubah "`note?` (alasan gagal — diisi daun #5)" → "diisi rekonsiliasi akhir sesi SPEC-298 saat sesi gagal/limit". Tambah kalimat: rekonsiliasi (`services/scheduler/reconcile.ts`, dipanggil `engine.tick`) menandai item `launched` → `done` (notif done + `SessionResult` ringkasan, tanpa auto-merge) / `failed` (notif fail + `note`, tanpa retry) / biarkan (menunggu keputusan → notif decision, tahan slot).
 Di `internal/docs/architecture/api-contract.md` §Scheduler tambahkan: akhir sesi scheduler (SPEC-298) menerbitkan `Notification` `done`/`fail`/`decision` + `SessionResult`; diff review diturunkan `GET /specs/:id/review` (baseSha..headSha); merge tetap manual (git graph, ADR-0031). §Notifikasi: `type` `+ fail`.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add server/src/services/scheduler/reconcile.ts server/src/services/scheduler/engine.ts server/test/scheduler-reconcile.test.ts server/test/scheduler-engine.test.ts internal/docs/architecture/data-model.md internal/docs/architecture/api-contract.md
@@ -608,7 +608,7 @@ Bukti nyata sesuai objective (unit test + curl di local). Boot server ke DB thro
 
 **Files:** (tak ada perubahan kode; fix bila ada regresi)
 
-- [ ] **Step 1: Full suite shared + runner + server**
+- [x] **Step 1: Full suite shared + runner + server**
 
 Run:
 ```bash
@@ -618,12 +618,12 @@ cd ../server && env DATABASE_URL='postgresql://hanoman:hanoman@127.0.0.1:5432/ha
 ```
 Expected: semua PASS (server termasuk `scheduler-*`, `notifications*`, `session-launch`). Bila ada yang merah → fix sampai hijau sebelum lanjut.
 
-- [ ] **Step 2: Build server (esbuild) — pastikan artefak bersih**
+- [x] **Step 2: Build server (esbuild) — pastikan artefak bersih**
 
 Run: `cd server && npm run build`
 Expected: exit 0.
 
-- [ ] **Step 3: Boot server ke DB smoke throwaway**
+- [x] **Step 3: Boot server ke DB smoke throwaway**
 
 Buat + migrate `hanoman298_smoke`, boot server bind 127.0.0.1 port bebas (mis. 8798), simpan cookie login (`POST /auth/setup`). (Ikuti pola smoke SPEC-297: header `Cookie` eksplisit; enable scheduler via `PUT /api/scheduler/config`, bukan SQL.) Detail perintah:
 ```bash
@@ -633,7 +633,7 @@ env DATABASE_URL='postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman298_smoke' 
 # tunggu boot, POST /auth/setup, simpan cookie
 ```
 
-- [ ] **Step 4: Smoke — kasus DONE (ringkasan + notif done, tanpa merge)**
+- [x] **Step 4: Smoke — kasus DONE (ringkasan + notif done, tanpa merge)**
 
 Seed via SQL (set `updatedAt=now()` untuk kolom `@updatedAt`): Project opt-in + Spec (`baseSha` non-null, `stage=executing`) + `SchedulerQueueItem status=launched sessionId=<idFor>`; siapkan berkas fase `<repoDir>/.worktrees/.phases/<id>` berisi seluruh fase feature `done` + plan tanpa `- [ ]` di worktree (atau spec source audit → `Laporan done` supaya `planComplete` true tanpa worktree). Enable scheduler `full-control` via `PUT /api/scheduler/config`. Tunggu ≥1 tick (10s) atau panggil boot-pass.
 Verifikasi:
@@ -642,7 +642,7 @@ Verifikasi:
 - `GET /api/session-results?projectId=<p>` → baris `newStage:"done"`, `branch:"hanoman/<id>"`.
 - Branch/worktree TIDAK ter-merge (tak ada operasi merge dilakukan; verifikasi `git branch` unchanged).
 
-- [ ] **Step 5: Smoke — kasus FAIL (notif fail, tanpa retry)**
+- [x] **Step 5: Smoke — kasus FAIL (notif fail, tanpa retry)**
 
 Seed Spec kedua + `SchedulerQueueItem launched`; pane sesi **mati** sebelum done (mis. tak ada sesi tmux hidup untuk sessionId itu → `getSession` undefined → cabang fail) dengan `spec.stage` < done. Tunggu ≥1 tick.
 Verifikasi:
@@ -650,14 +650,14 @@ Verifikasi:
 - `GET /api/notifications` → memuat `type:"fail"`.
 - Tunggu 1 tick lagi → item TETAP `failed` (tanpa retry / relaunch).
 
-- [ ] **Step 6: Teardown smoke**
+- [x] **Step 6: Teardown smoke**
 
 Hentikan server, drop `hanoman298_smoke`.
 ```bash
 docker exec hanoman-db-1 psql -U hanoman -d postgres -c "DROP DATABASE hanoman298_smoke;" 2>/dev/null
 ```
 
-- [ ] **Step 7: Centang seluruh checklist plan + commit dokumentasi selesai**
+- [x] **Step 7: Centang seluruh checklist plan + commit dokumentasi selesai**
 
 Setelah semua kotak `- [x]`, commit penanda selesai bila ada perubahan doc plan.
 ```bash
