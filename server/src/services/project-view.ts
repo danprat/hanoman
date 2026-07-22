@@ -54,5 +54,7 @@ export async function toProjectView(p: Project, sessions: SessionInfo[]): Promis
     ingestKeyPrefix: p.ingestKeyPrefix ?? null,
     // SPEC-253 · Help Center publik aktif.
     helpEnabled: p.helpEnabled,
+    // SPEC-294 · opt-in scheduler otonom (lokal per-instance).
+    schedulerOptIn: p.schedulerOptIn,
   };
 }

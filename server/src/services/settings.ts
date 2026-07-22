@@ -1,5 +1,5 @@
 import { prisma } from "../db";
-import { zSetting, type Setting } from "@hanoman/shared";
+import { zSetting, SCHEDULER_DEFAULTS, type Setting } from "@hanoman/shared";
 
 // Model id + effort yang diteruskan apa adanya ke `claude --model` / `--effort`.
 const STEP = { model: "claude-opus-4-8", effort: "xhigh" };
@@ -11,6 +11,7 @@ export const DEFAULT_SETTING: Setting = {
   notifyDone: true, notifySound: "short",
   notifyDecision: true, notifyDecisionSound: "alert",
   agentAccessEnabled: false,   // SPEC-257 · akses AI agent off sampai dibuka manusia
+  scheduler: SCHEDULER_DEFAULTS,   // SPEC-294 · ADR-0072 · semua knob scheduler default mati
 };
 
 // Baris Setting adalah `Json` bebas bentuk, dan baris yang ditulis SEBELUM SPEC-162 masih
