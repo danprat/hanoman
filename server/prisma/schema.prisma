@@ -21,6 +21,7 @@ model Project {
   ingestKeyHash   String? // SPEC-249 · sha256(ingest key) hex; null = monitoring off. TAK PERNAH ke client.
   ingestKeyPrefix String? // SPEC-249 · ~12-16 char awal key untuk hint UI (bukan rahasia)
   helpEnabled Boolean @default(false) // SPEC-253 · opt-in Help Center publik
+  schedulerOptIn Boolean @default(false) // SPEC-294 · ADR-0072 · opt-in scheduler otonom (LOCAL — tak masuk FIELDS sync)
   specs       Spec[]
   errorGroups ErrorGroup[]
   tickets     Ticket[]
@@ -234,6 +235,23 @@ model SyncConflict {
   resolvedAt      DateTime?
 
   @@unique([entity, recordId])
+}
+
+// SPEC-294 · ADR-0072 · LOCAL-ONLY (tak disync, cermin SyncOutbox): antrean durable kandidat peluncuran
+// scheduler. specId @unique = idempoten satu-sesi-per-spec (ADR-0015). Unit peluncuran selalu Spec.
+model SchedulerQueueItem {
+  id         String    @id @default(cuid())
+  specId     String    @unique
+  projectId  String
+  source     String    // backlog | errors | triase (asal checker)
+  priority   String    // tinggi | sedang | rendah (urutan drain)
+  status     String    @default("queued") // queued | launched | done | failed
+  sessionId  String?
+  note       String?   // alasan gagal (diisi daun #5)
+  enqueuedAt DateTime  @default(now())
+  launchedAt DateTime?
+
+  @@index([status])
 }
 
 // SPEC-215 · ADR-0049 · LOCAL-ONLY: override config runtime (env → DB). Tak pernah disync.
