@@ -26,7 +26,7 @@
 
 **Produces:** `publicStatus(ticketStatus: string, specStage?: string|null): string`; `zTicketDetail` kini punya `spec: Spec|null`, `publicStatusUrl: string`.
 
-- [ ] **Step 1:** Tulis `shared/src/ticket-status.test.ts`:
+- [x] **Step 1:** Tulis `shared/src/ticket-status.test.ts`:
 ```ts
 import { describe, it, expect } from "vitest";
 import { publicStatus } from "./ticket-status";
@@ -38,10 +38,10 @@ describe("publicStatus", () => {
   it("accepted + brainstorming → Diterima", () => expect(publicStatus("accepted", "brainstorming")).toBe("Diterima"));
 });
 ```
-- [ ] **Step 2:** Jalankan → FAIL (module belum ada).
-- [ ] **Step 3:** Buat `shared/src/ticket-status.ts` (pindahkan body `publicStatus` dari `server/src/services/ticket.ts` verbatim + komentar SoT ADR-0018/0019).
-- [ ] **Step 4:** `shared/src/index.ts` tambah `export * from "./ticket-status";`.
-- [ ] **Step 5:** `shared/src/dto.ts` — perluas `zTicketDetail`:
+- [x] **Step 2:** Jalankan → FAIL (module belum ada).
+- [x] **Step 3:** Buat `shared/src/ticket-status.ts` (pindahkan body `publicStatus` dari `server/src/services/ticket.ts` verbatim + komentar SoT ADR-0018/0019).
+- [x] **Step 4:** `shared/src/index.ts` tambah `export * from "./ticket-status";`.
+- [x] **Step 5:** `shared/src/dto.ts` — perluas `zTicketDetail`:
 ```ts
 export const zTicketDetail = zTicketView.extend({
   detail: z.string(),
@@ -51,9 +51,9 @@ export const zTicketDetail = zTicketView.extend({
 });
 ```
 Pastikan `zSpec` diimpor di dto.ts (cek: `import { ..., zSpec } from "./entities"`); tambah bila belum.
-- [ ] **Step 6:** `server/src/services/ticket.ts` — hapus definisi lokal `publicStatus`, ganti `export { publicStatus } from "@hanoman/shared";` (help.ts & tempat lain tetap `import { publicStatus } from "../services/ticket"` valid).
-- [ ] **Step 7:** Build shared + jalankan test shared → PASS. `pnpm --filter @hanoman/shared build`.
-- [ ] **Step 8:** Commit `feat(spec-293): publicStatus ke shared + zTicketDetail spec/publicStatusUrl`.
+- [x] **Step 6:** `server/src/services/ticket.ts` — hapus definisi lokal `publicStatus`, ganti `export { publicStatus } from "@hanoman/shared";` (help.ts & tempat lain tetap `import { publicStatus } from "../services/ticket"` valid).
+- [x] **Step 7:** Build shared + jalankan test shared → PASS. `pnpm --filter @hanoman/shared build`.
+- [x] **Step 8:** Commit `feat(spec-293): publicStatus ke shared + zTicketDetail spec/publicStatusUrl`.
 
 ---
 
@@ -66,7 +66,7 @@ Pastikan `zSpec` diimpor di dto.ts (cek: `import { ..., zSpec } from "./entities
 
 **Produces:** `generateShareToken(): string` (opaque `hnm_shr_…`); `createTicket` mengisi `shareToken`.
 
-- [ ] **Step 1:** Tambah test di `server/src/services/ticket.test.ts` (unit `generateShareToken` prefix + panjang) — bila file sulit di-DB-kan, cukup uji `generateShareToken` murni.
+- [x] **Step 1:** Tambah test di `server/src/services/ticket.test.ts` (unit `generateShareToken` prefix + panjang) — bila file sulit di-DB-kan, cukup uji `generateShareToken` murni.
 ```ts
 import { generateShareToken } from "./ticket";
 it("generateShareToken opaque prefix", () => {
@@ -75,19 +75,19 @@ it("generateShareToken opaque prefix", () => {
   expect(t.length).toBeGreaterThan(20);
 });
 ```
-- [ ] **Step 2:** Jalankan → FAIL.
-- [ ] **Step 3:** `ticket.ts` tambah `export function generateShareToken(): string { return "hnm_shr_" + randomBytes(24).toString("hex"); }`. Di `createTicket` tambahkan `shareToken: generateShareToken()` ke `data:`.
-- [ ] **Step 4:** `schema.prisma` model Ticket tambah `shareToken String? @unique // SPEC-293 · token bagikan link status publik`.
-- [ ] **Step 5:** Tulis `migration.sql`:
+- [x] **Step 2:** Jalankan → FAIL.
+- [x] **Step 3:** `ticket.ts` tambah `export function generateShareToken(): string { return "hnm_shr_" + randomBytes(24).toString("hex"); }`. Di `createTicket` tambahkan `shareToken: generateShareToken()` ke `data:`.
+- [x] **Step 4:** `schema.prisma` model Ticket tambah `shareToken String? @unique // SPEC-293 · token bagikan link status publik`.
+- [x] **Step 5:** Tulis `migration.sql`:
 ```sql
 -- SPEC-293 · token bagikan status publik tiket (additif, nullable)
 ALTER TABLE "Ticket" ADD COLUMN "shareToken" TEXT;
 CREATE UNIQUE INDEX "Ticket_shareToken_key" ON "Ticket"("shareToken");
 ```
-- [ ] **Step 6:** Terapkan per DB (dev + test) dengan env override:
+- [x] **Step 6:** Terapkan per DB (dev + test) dengan env override:
 `env -u NODE_ENV -u DATABASE_URL npx prisma migrate deploy` (dev) lalu untuk test DB set `DATABASE_URL=...hanoman293_test` (base unik, ikut memory) + `migrate deploy`. Lalu `npx prisma generate`.
-- [ ] **Step 7:** Jalankan test ticket → PASS.
-- [ ] **Step 8:** Commit `feat(spec-293): Ticket.shareToken + generate di createTicket (migration additif)`.
+- [x] **Step 7:** Jalankan test ticket → PASS.
+- [x] **Step 8:** Commit `feat(spec-293): Ticket.shareToken + generate di createTicket (migration additif)`.
 
 ---
 

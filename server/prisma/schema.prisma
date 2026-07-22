@@ -318,6 +318,7 @@ model Ticket {
   reporterEmail String
   status        String   @default("new") // new | accepted | rejected (zTicketStatus)
   accessKeyHash String   @unique // sha256(kunci opaque) — lookup cek status. Plaintext hanya sekali.
+  shareToken    String?  @unique // SPEC-293 · token bagikan link status publik (hnm_shr_…); operator → pelapor
   specId        String?  // soft-link Spec hasil promosi (cermin ErrorGroup.specId)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateAccessKey, hashAccessKey, publicStatus } from "./ticket";
+import { generateAccessKey, generateShareToken, hashAccessKey, publicStatus } from "./ticket";
 
 describe("ticket access key", () => {
   it("generate key berprefix + hash konsisten", () => {
@@ -10,6 +10,17 @@ describe("ticket access key", () => {
   });
   it("dua key berbeda", () => {
     expect(generateAccessKey().key).not.toBe(generateAccessKey().key);
+  });
+});
+
+describe("ticket share token (SPEC-293)", () => {
+  it("berprefix hnm_shr_ + panjang cukup", () => {
+    const t = generateShareToken();
+    expect(t.startsWith("hnm_shr_")).toBe(true);
+    expect(t.length).toBeGreaterThan(20);
+  });
+  it("dua token berbeda", () => {
+    expect(generateShareToken()).not.toBe(generateShareToken());
   });
 });
 

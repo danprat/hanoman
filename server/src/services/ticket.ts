@@ -13,6 +13,12 @@ export function generateAccessKey(): { key: string; hash: string } {
   return { key, hash: hashAccessKey(key) };
 }
 
+// SPEC-293 · token bagikan link status publik. Terpisah dari kunci pelapor (accessKeyHash tetap
+// hash-at-rest); token ini disimpan plaintext karena memang dibagikan operator ke pelapor.
+export function generateShareToken(): string {
+  return "hnm_shr_" + randomBytes(24).toString("hex");
+}
+
 // SPEC-293 · status publik kini SATU sumber di shared (dipakai server + klien). Re-export agar
 // pemanggil lama (`routes/help.ts`) tetap `import { publicStatus } from "../services/ticket"`.
 export { publicStatus } from "@hanoman/shared";
@@ -27,7 +33,7 @@ export async function createTicket(input: {
     const number = (max._max.number ?? 0) + 1;
     try {
       const ticket = await prisma.ticket.create({
-        data: { ...input, number, accessKeyHash: hash, status: "new" },
+        data: { ...input, number, accessKeyHash: hash, shareToken: generateShareToken(), status: "new" },
       });
       return { ticket, key };
     } catch (e) {
