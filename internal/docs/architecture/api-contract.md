@@ -379,6 +379,8 @@ GET   /errors/:id            -> ErrorGroupDetail { ...group, release, sampleStac
 #   ErrorGroupView kini memuat `release` (release terakhir grup, korelasi build).
 POST  /errors/:id/escalate   # 201 { spec } — buat Spec qa prefilled (title/actual/fromErrorGroup) + tandai grup
 #   escalated + specId (tautan dua arah). Idempoten: sudah escalated → 200 { alreadyEscalated:true, spec }. 404.
+#   SPEC-296: inti eskalasi kini di services/error-escalate.ts (escalateErrorGroup) — dipakai route ini DAN
+#   scheduler source-checker `errors`; kontrak HTTP (201/200/404) tak berubah.
 POST  /errors/:id/unlink     # 200 { id, status:"new", specId:null } — lepas tautan backlog (kebalikan escalate).
 #   Non-destruktif: Spec dibiarkan (hapus manual). Reset status→new → bisa dieskalasi lagi (Spec baru). Idempoten. 404. (SPEC-271)
 PATCH /errors/:id            { status }   # 200 { id, status } — status ∈ new|escalated|resolved. 400 invalid. 404.

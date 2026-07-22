@@ -6,8 +6,7 @@ import { join } from "node:path";
 import { zErrorStatus } from "@hanoman/shared";
 import { prisma } from "../db";
 import { paginate } from "../services/paginate";
-import { nextSpecId } from "../services/id";
-import { resolveRepoDir } from "../services/local-binding";
+import { escalateErrorGroup } from "../services/error-escalate";
 import { notifySynced } from "../services/sync-notify";
 import { repoRoot } from "../runner/deps";
 import { symbolicateFrames, type FrameLike } from "../services/symbolicate";
@@ -66,49 +65,16 @@ export default async function (app: FastifyInstance) {
     return { ...groupView(g), sampleStack: g.sampleStack, sampleFrames, events: events.map(eventView) };
   });
 
-  // SPEC-249 · ADR-0060 · eskalasi grup → Spec qa prefilled + tautan dua arah. Idempoten.
+  // SPEC-249/296 · ADR-0060 · eskalasi grup → Spec qa (inti di services/error-escalate.ts,
+  // dipakai ulang scheduler source-checker). Idempoten via group.specId.
   app.post("/errors/:id/escalate", async (req, reply) => {
     const { id } = req.params as { id: string };
     const g = await prisma.errorGroup.findUnique({ where: { id } });
     if (!g) return reply.code(404).send({ error: "not found" });
-    if (g.specId) {
-      const spec = await prisma.spec.findUnique({ where: { id: g.specId } });
-      return reply.code(200).send({ alreadyEscalated: true, spec });
-    }
-    const short = g.message.length > 80 ? g.message.slice(0, 77) + "…" : g.message;
-    const topStack = (g.sampleStack ?? "").split("\n").slice(0, 12).join("\n");
-    const backlink = `Dari Error monitoring: grup ${g.id} (${g.count}×, ${g.environment}).`;
-    const payload = {
-      severity: "major" as const,
-      steps: "Otomatis dari Error monitoring — reproduksi dari stack sampel.",
-      expected: "Tidak ada error.",
-      actual: `${g.type}: ${g.message}\n\n${topStack}\n\n${backlink}`,
-      env: g.environment,
-      fromErrorGroup: g.id,
-    };
-    const author = req.user?.email ?? "system";
-    const repoDir = await resolveRepoDir(g.projectId);
-    // SPEC-197 · nextSpecId TOCTOU → retry P2002 (≤3), bukan 500. Cermin routes/specs.
-    let spec: Awaited<ReturnType<typeof prisma.spec.create>> | null = null;
-    for (let attempt = 0; attempt < 3 && !spec; attempt++) {
-      const sid = await nextSpecId(repoDir);
-      try {
-        spec = await prisma.spec.create({
-          data: {
-            id: sid, projectId: g.projectId, title: `${g.type}: ${short}`, source: "qa",
-            stage: "brainstorming", priority: "tinggi", author: `QA · ${author}`,
-            objective: `${g.type}: ${g.message}. ${backlink}`, payload,
-          },
-        });
-      } catch (e) {
-        if ((e as { code?: string }).code === "P2002" && attempt < 2) continue;
-        throw e;
-      }
-    }
-    await prisma.errorGroup.update({ where: { id }, data: { status: "escalated", specId: spec!.id } });
-    await notifySynced("spec", spec!.id);   // SPEC-213/268 · spec ke feed (hub publish / client push)
-    await notifySynced("errorGroup", id);    // SPEC-268 · status grup ke feed
-    return reply.code(201).send({ spec });
+    const { spec, created } = await escalateErrorGroup(g, { author: req.user?.email ?? "system" });
+    return created
+      ? reply.code(201).send({ spec })
+      : reply.code(200).send({ alreadyEscalated: true, spec });
   });
 
   // SPEC-271 · lepas tautan grup dari backlog (kebalikan escalate). Non-destruktif: Spec
