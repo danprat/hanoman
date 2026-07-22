@@ -1,0 +1,309 @@
+/* SchedulerScreen — panel scheduler otonom (SPEC-299, daun #6 ADR-0072). Screen mandiri (pola
+   ErrorsScreen/VpsScreen): memuat state fondasi sendiri + silent poll. Menampilkan status per
+   source, antrean, sesi berjalan, done + link review, gagal + alasan; panel setelan menulis semua
+   knob (PUT /api/scheduler/config), opt-in per project (pola helpEnabled → PATCH /projects/:id),
+   dan rem darurat Pause/Stop. Konsumen API read-only GET /api/scheduler/state — tanpa endpoint baru. */
+import React from "react";
+import { Card, Button, Badge, Select, Switch, Input, StateBlock, Icon } from "../ds";
+import { api } from "../api/client";
+import type { SchedulerStateView, SchedulerQueueItemView, SchedulerSessionView, SchedulerSourceView, Scheduler } from "@hanoman/shared";
+import type { ProjectVM, Spec } from "./types";
+import { specDeepLink } from "./deeplink";
+
+const POLL_MS = 5000;
+
+// Waktu relatif ringkas (pola ErrorsScreen). null → "—".
+function ago(iso: string | null, now = Date.now()): string {
+  if (!iso) return "—";
+  const d = Math.max(0, now - new Date(iso).getTime());
+  const m = Math.floor(d / 60_000);
+  if (m < 1) return "baru saja";
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}j`;
+  return `${Math.floor(h / 24)}h`;
+}
+// Waktu ke depan ringkas untuk next-run.
+function until(iso: string | null, now = Date.now()): string {
+  if (!iso) return "—";
+  const d = new Date(iso).getTime() - now;
+  if (d <= 0) return "jatuh tempo";
+  const m = Math.ceil(d / 60_000);
+  if (m < 60) return `${m}m lagi`;
+  return `${Math.ceil(m / 60)}j lagi`;
+}
+const PRIO_TONE: Record<string, string> = { tinggi: "err", sedang: "warn", rendah: "neutral" };
+
+export type SchedulerScreenProps = {
+  projects: ProjectVM[]; backlog: Spec[];
+  onProjectChanged: (id: string) => void | Promise<void>;
+  onToast: (msg: string, kind?: string, icon?: string) => void;
+  onGotoTerminal: () => void;
+};
+
+function titleFor(specId: string, backlog: Spec[]): string {
+  return backlog.find((s) => s.id === specId)?.title ?? specId;
+}
+
+function SourceCard({ s }: { s: SchedulerSourceView }) {
+  return (
+    <div style={{ padding: "12px 14px", border: "1px solid var(--border-hair)", borderRadius: "var(--radius-md)",
+      background: "var(--surface-card)", display: "flex", flexDirection: "column", gap: 6, flex: 1, minWidth: 180 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text-strong)" }}>{s.id}</span>
+        <Badge tone={s.enabled ? "ok" : "neutral"} size="sm">{s.enabled ? "aktif" : "nonaktif"}</Badge>
+      </div>
+      <div style={{ fontSize: "var(--text-xs)", color: "var(--text-subtle)" }}>
+        tiap {s.everyMin}m{s.minCount != null ? ` · ambang ${s.minCount}×` : ""}
+      </div>
+      <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+        terakhir {ago(s.lastRunAt)} · berikutnya {until(s.nextRunAt)}
+      </div>
+    </div>
+  );
+}
+
+function RowShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+      border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", background: "var(--surface-card)", marginBottom: 6 }}>
+      {children}
+    </div>
+  );
+}
+
+function QueueRow({ q, backlog }: { q: SchedulerQueueItemView; backlog: Spec[] }) {
+  return (
+    <RowShell>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ color: "var(--text-strong)", fontWeight: 500 }}>{titleFor(q.specId, backlog)}</span>
+        <span style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-subtle)" }}>{q.projectId} · {q.source}</span>
+      </span>
+      <Badge tone={(PRIO_TONE[q.priority] ?? "neutral") as never} size="sm">{q.priority}</Badge>
+    </RowShell>
+  );
+}
+
+function SessionRow({ s, backlog, onGotoTerminal }: { s: SchedulerSessionView; backlog: Spec[]; onGotoTerminal: () => void }) {
+  return (
+    <RowShell>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ color: "var(--text-strong)", fontWeight: 500 }}>{titleFor(s.specId, backlog)}</span>
+        <span style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-subtle)" }}>{s.projectId}{s.flow ? ` · ${s.flow}` : ""}</span>
+      </span>
+      {s.decision && <Badge tone="warn" icon="bell" size="sm">menunggu keputusan</Badge>}
+      <Button size="sm" variant="ghost" leftIcon="terminal" onClick={onGotoTerminal}>Buka terminal</Button>
+    </RowShell>
+  );
+}
+
+function DoneRow({ q, backlog, onToast }: { q: SchedulerQueueItemView; backlog: Spec[]; onToast: SchedulerScreenProps["onToast"] }) {
+  const link = specDeepLink(q.specId);
+  return (
+    <RowShell>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ color: "var(--text-strong)", fontWeight: 500 }}>{titleFor(q.specId, backlog)}</span>
+        <span style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-subtle)" }}>
+          {q.projectId} · {q.source} · selesai {ago(q.launchedAt)}{q.sessionId ? ` · hanoman/${q.sessionId}` : ""}
+        </span>
+      </span>
+      <Button size="sm" variant="ghost" leftIcon="external-link" onClick={() => window.open(link, "_blank", "noreferrer")}>Buka review</Button>
+      <Button size="sm" variant="ghost" leftIcon="copy" onClick={() => { void navigator.clipboard?.writeText(link); onToast("Link review disalin", "ok", "copy"); }}>Salin</Button>
+    </RowShell>
+  );
+}
+
+function FailedRow({ q, backlog }: { q: SchedulerQueueItemView; backlog: Spec[] }) {
+  return (
+    <RowShell>
+      <Icon name="x-circle" size={16} color="var(--clay-500)" />
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ color: "var(--text-strong)", fontWeight: 500 }}>{titleFor(q.specId, backlog)}</span>
+        <span style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-subtle)" }}>
+          {q.projectId} · {q.note ?? "gagal tanpa alasan tercatat"}
+        </span>
+      </span>
+    </RowShell>
+  );
+}
+
+function Section({ title, count, empty, children }: { title: string; count: number; empty: string; children?: React.ReactNode }) {
+  return (
+    <Card eyebrow="scheduler" title={`${title}${count ? ` · ${count}` : ""}`}>
+      {count === 0 ? <div style={{ fontSize: "var(--text-sm)", color: "var(--text-subtle)" }}>{empty}</div> : children}
+    </Card>
+  );
+}
+
+// Rem darurat: master enable (Stop/Aktifkan) + Pause/Lanjutkan. Menulis blok config penuh.
+function ControlBar({ cfg, cap, liveCount, onWrite, busy }:
+  { cfg: Scheduler; cap: number; liveCount: number; onWrite: (next: Scheduler) => void; busy: boolean }) {
+  const stopped = !cfg.enabled;
+  const tone = stopped ? "neutral" : cfg.paused ? "warn" : "ok";
+  const label = stopped ? "berhenti" : cfg.paused ? "dijeda" : "aktif";
+  return (
+    <Card eyebrow="scheduler · rem darurat" title="Kendali">
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <Badge tone={tone as never}>{label}</Badge>
+        <span style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{liveCount} / {cap} sesi hidup</span>
+        <span style={{ flex: 1 }} />
+        {cfg.enabled && (
+          <Button size="sm" variant="secondary" leftIcon={cfg.paused ? "play" : "pause"} disabled={busy}
+            onClick={() => onWrite({ ...cfg, paused: !cfg.paused })}>{cfg.paused ? "Lanjutkan" : "Pause"}</Button>
+        )}
+        {cfg.enabled
+          ? <Button size="sm" variant="ghost" leftIcon="square" disabled={busy}
+              onClick={() => onWrite({ ...cfg, enabled: false })}>Stop</Button>
+          : <Button size="sm" leftIcon="play" disabled={busy}
+              onClick={() => onWrite({ ...cfg, enabled: true })}>Aktifkan</Button>}
+      </div>
+    </Card>
+  );
+}
+
+// Panel setelan: form lokal disemai dari config, tombol Simpan menulis blok penuh (zScheduler).
+function SettingsPanel({ cfg, onWrite, busy }: { cfg: Scheduler; onWrite: (next: Scheduler) => void; busy: boolean }) {
+  const [draft, setDraft] = React.useState<Scheduler>(cfg);
+  React.useEffect(() => { setDraft(cfg); }, [cfg]);
+  const setSrc = (k: "backlog" | "errors" | "triase", patch: Record<string, unknown>) =>
+    setDraft((d) => ({ ...d, sources: { ...d.sources, [k]: { ...d.sources[k], ...patch } } }));
+  const num = (v: string, min = 1) => Math.max(min, Number(v) || min);
+  return (
+    <Card eyebrow="scheduler · setelan" title="Konfigurasi"
+      actions={<Button size="sm" leftIcon="save" disabled={busy} onClick={() => onWrite(draft)}>Simpan setelan</Button>}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: 14 }}>
+        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <span className="hn-eyebrow">Cap concurrent</span>
+          <Input type="number" min={1} value={String(draft.maxConcurrent)} aria-label="Cap concurrent"
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDraft((d) => ({ ...d, maxConcurrent: num(e.target.value) }))} />
+        </label>
+        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <span className="hn-eyebrow">Autonomy</span>
+          <Select value={draft.autonomy} aria-label="Autonomy"
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setDraft((d) => ({ ...d, autonomy: e.target.value as Scheduler["autonomy"] }))}
+            options={[{ value: "butuh-keputusan", label: "butuh-keputusan" }, { value: "full-control", label: "full-control" }]} />
+        </label>
+      </div>
+      <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+        {(["backlog", "errors", "triase"] as const).map((k) => (
+          <div key={k} style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+            padding: "10px 12px", border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)" }}>
+            <Switch label={k} checked={draft.sources[k].enabled} onChange={(next: boolean) => setSrc(k, { enabled: next })} />
+            <span style={{ flex: 1 }} />
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-xs)" }}>
+              tiap
+              <Input type="number" min={1} style={{ width: 84 }} aria-label={`cadence ${k}`}
+                value={String(draft.sources[k].everyMin)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSrc(k, { everyMin: num(e.target.value) })} />
+              menit
+            </label>
+            {k === "errors" && (
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-xs)" }}>
+                ambang
+                <Input type="number" min={1} style={{ width: 84 }} aria-label="ambang errors"
+                  value={String(draft.sources.errors.minCount)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSrc("errors", { minCount: num(e.target.value) })} />
+                ×
+              </label>
+            )}
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+// Opt-in per project (pola helpEnabled): tombol Opt-in / Cabut opt-in per baris.
+function OptInPanel({ projects, onToggle, busyId }:
+  { projects: ProjectVM[]; onToggle: (id: string, next: boolean) => void; busyId: string | null }) {
+  return (
+    <Card eyebrow="scheduler · opt-in project" title="Project yang diizinkan">
+      <div style={{ fontSize: "var(--text-xs)", color: "var(--text-subtle)", marginBottom: 10 }}>
+        Scheduler hanya menyentuh project yang di-opt-in. Default mati.
+      </div>
+      {projects.length === 0
+        ? <div style={{ fontSize: "var(--text-sm)", color: "var(--text-subtle)" }}>Belum ada project.</div>
+        : projects.map((p) => (
+          <RowShell key={p.id}>
+            <span style={{ flex: 1, minWidth: 0, color: "var(--text-strong)", fontWeight: 500 }}>{p.name}</span>
+            <Badge tone={p.schedulerOptIn ? "ok" : "neutral"} size="sm">{p.schedulerOptIn ? "opt-in" : "mati"}</Badge>
+            {p.schedulerOptIn
+              ? <Button size="sm" variant="ghost" leftIcon="ban" disabled={busyId === p.id} onClick={() => onToggle(p.id, false)}>Cabut opt-in</Button>
+              : <Button size="sm" leftIcon="check" disabled={busyId === p.id} onClick={() => onToggle(p.id, true)}>Opt-in</Button>}
+          </RowShell>
+        ))}
+    </Card>
+  );
+}
+
+export function SchedulerScreen({ projects, backlog, onProjectChanged, onToast, onGotoTerminal }: SchedulerScreenProps) {
+  const [state, setState] = React.useState<SchedulerStateView | null>(null);
+  const [phase, setPhase] = React.useState<"loading" | "ready" | "error">("loading");
+  const [busy, setBusy] = React.useState(false);
+  const [busyId, setBusyId] = React.useState<string | null>(null);
+
+  const load = React.useCallback((silent = false) => {
+    if (!silent) setPhase("loading");
+    api.getSchedulerState()
+      .then((s) => { setState(s); setPhase("ready"); })
+      .catch(() => { if (!silent) setPhase("error"); });   // silent poll tak pernah mem-blank
+  }, []);
+  React.useEffect(() => { load(); }, [load]);
+  React.useEffect(() => {
+    const t = setInterval(() => { if (!document.hidden) load(true); }, POLL_MS);
+    return () => clearInterval(t);
+  }, [load]);
+
+  const writeConfig = React.useCallback(async (next: Scheduler) => {
+    setBusy(true);
+    try { await api.putSchedulerConfig(next); onToast("Setelan scheduler tersimpan", "ok", "save"); load(true); }
+    catch { onToast("Gagal menyimpan setelan", "err", "x-circle"); }
+    finally { setBusy(false); }
+  }, [load, onToast]);
+
+  const toggleOptIn = React.useCallback(async (id: string, next: boolean) => {
+    setBusyId(id);
+    try { await api.updateProject(id, { schedulerOptIn: next }); await onProjectChanged(id); onToast(next ? "Project di-opt-in" : "Opt-in dicabut", "ok"); }
+    catch { onToast("Gagal mengubah opt-in", "err", "x-circle"); }
+    finally { setBusyId(null); }
+  }, [onProjectChanged, onToast]);
+
+  if (phase === "loading") return <StateBlock kind="loading" />;
+  if (phase === "error" || !state) return <StateBlock kind="error" hint="Gagal memuat state scheduler." action={() => load()} actionLabel="Coba lagi" />;
+
+  const queued = state.queue.filter((q) => q.status === "queued");
+  const done = state.queue.filter((q) => q.status === "done")
+    .sort((a, b) => (b.launchedAt ?? "").localeCompare(a.launchedAt ?? ""));
+  const failed = state.queue.filter((q) => q.status === "failed");
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16, minHeight: 0 }}>
+      <ControlBar cfg={state.config} cap={state.cap} liveCount={state.liveCount} onWrite={writeConfig} busy={busy} />
+
+      <Card eyebrow="scheduler · observabilitas" title="Status per source">
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {state.sources.map((s) => <SourceCard key={s.id} s={s} />)}
+        </div>
+      </Card>
+
+      <Section title="Antrean" count={queued.length} empty="Antrean kosong.">
+        {queued.map((q) => <QueueRow key={q.id} q={q} backlog={backlog} />)}
+      </Section>
+
+      <Section title="Sesi berjalan" count={state.sessions.length} empty="Tak ada sesi scheduler berjalan.">
+        {state.sessions.map((s) => <SessionRow key={s.id} s={s} backlog={backlog} onGotoTerminal={onGotoTerminal} />)}
+      </Section>
+
+      <Section title="Selesai (done)" count={done.length} empty="Belum ada hasil selesai.">
+        {done.map((q) => <DoneRow key={q.id} q={q} backlog={backlog} onToast={onToast} />)}
+      </Section>
+
+      <Section title="Gagal" count={failed.length} empty="Tak ada sesi gagal.">
+        {failed.map((q) => <FailedRow key={q.id} q={q} backlog={backlog} />)}
+      </Section>
+
+      <SettingsPanel cfg={state.config} onWrite={writeConfig} busy={busy} />
+      <OptInPanel projects={projects} onToggle={toggleOptIn} busyId={busyId} />
+    </div>
+  );
+}

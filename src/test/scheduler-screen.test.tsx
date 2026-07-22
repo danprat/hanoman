@@ -1,0 +1,112 @@
+import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+
+const { getSchedulerState, putSchedulerConfig, updateProject } = vi.hoisted(() => ({
+  getSchedulerState: vi.fn(),
+  putSchedulerConfig: vi.fn(),
+  updateProject: vi.fn(),
+}));
+vi.mock("../src/api/client", () => ({ api: { getSchedulerState, putSchedulerConfig, updateProject }, ApiError: class extends Error {} }));
+
+import { SchedulerScreen } from "../src/screens/SchedulerScreen";
+
+const STATE = {
+  config: { enabled: true, paused: false, maxConcurrent: 2, autonomy: "butuh-keputusan",
+    sources: { backlog: { enabled: true, everyMin: 15 }, errors: { enabled: false, everyMin: 15, minCount: 5 }, triase: { enabled: false, everyMin: 30 } } },
+  cap: 2, liveCount: 1,
+  sources: [
+    { id: "backlog", enabled: true, everyMin: 15, lastRunAt: "2026-07-22T00:00:00.000Z", nextRunAt: "2026-07-22T00:15:00.000Z" },
+    { id: "errors", enabled: false, everyMin: 15, minCount: 5, lastRunAt: null, nextRunAt: null },
+    { id: "triase", enabled: false, everyMin: 30, lastRunAt: null, nextRunAt: null },
+  ],
+  queue: [
+    { id: "q1", specId: "SPEC-1", projectId: "a", source: "backlog", priority: "tinggi", status: "queued", sessionId: null, note: null, enqueuedAt: "2026-07-22T00:00:00.000Z", launchedAt: null },
+    { id: "q2", specId: "SPEC-2", projectId: "a", source: "errors", priority: "tinggi", status: "done", sessionId: "spec-2", note: null, enqueuedAt: "2026-07-22T00:00:00.000Z", launchedAt: "2026-07-22T00:01:00.000Z" },
+    { id: "q3", specId: "SPEC-3", projectId: "a", source: "triase", priority: "sedang", status: "failed", sessionId: "spec-3", note: "sesi berakhir sebelum done", enqueuedAt: "2026-07-22T00:00:00.000Z", launchedAt: "2026-07-22T00:01:00.000Z" },
+  ],
+  sessions: [
+    { id: "spec-4", projectId: "a", specId: "SPEC-4", flow: "feature", branch: "hanoman/spec-4", decision: true, exited: false },
+  ],
+};
+const projects = [{ id: "a", name: "Alpha", schedulerOptIn: false }] as unknown as Parameters<typeof SchedulerScreen>[0]["projects"];
+const backlog = [
+  { id: "SPEC-1", title: "Judul satu" }, { id: "SPEC-2", title: "Judul dua" },
+  { id: "SPEC-3", title: "Judul tiga" }, { id: "SPEC-4", title: "Judul empat" },
+] as unknown as Parameters<typeof SchedulerScreen>[0]["backlog"];
+
+function renderScreen(overrides: Partial<Parameters<typeof SchedulerScreen>[0]> = {}) {
+  return render(<SchedulerScreen projects={projects} backlog={backlog}
+    onProjectChanged={vi.fn()} onToast={vi.fn()} onGotoTerminal={vi.fn()} {...overrides} />);
+}
+
+describe("SchedulerScreen observabilitas (SPEC-299)", () => {
+  it("menampilkan status per-source, antrean, sesi berjalan, done, dan gagal+alasan", async () => {
+    getSchedulerState.mockResolvedValue(STATE);
+    renderScreen();
+    // status per-source (id source muncul ≥1×)
+    expect(await screen.findByText("Status per source")).toBeInTheDocument();
+    expect(screen.getAllByText("backlog").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("errors").length).toBeGreaterThan(0);
+    // antrean (queued) → judul spec ter-resolve
+    expect(screen.getByText("Judul satu")).toBeInTheDocument();
+    // sesi berjalan + indikator menunggu keputusan
+    expect(screen.getByText("Judul empat")).toBeInTheDocument();
+    expect(screen.getByText(/menunggu keputusan/i)).toBeInTheDocument();
+    // done + gagal + alasan
+    expect(screen.getByText("Judul dua")).toBeInTheDocument();
+    expect(screen.getByText("Judul tiga")).toBeInTheDocument();
+    expect(screen.getByText(/sesi berakhir sebelum done/i)).toBeInTheDocument();
+  });
+
+  it("done item punya tombol Buka review deep-link #spec=", async () => {
+    getSchedulerState.mockResolvedValue(STATE);
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
+    renderScreen();
+    const btn = await screen.findByRole("button", { name: /buka review/i });
+    fireEvent.click(btn);
+    expect(openSpy).toHaveBeenCalledWith(expect.stringContaining("#spec=SPEC-2"), "_blank", "noreferrer");
+    openSpy.mockRestore();
+  });
+});
+
+describe("SchedulerScreen kontrol (SPEC-299)", () => {
+  it("tombol Pause menulis paused:true via putSchedulerConfig", async () => {
+    getSchedulerState.mockResolvedValue(STATE);
+    putSchedulerConfig.mockResolvedValue(STATE.config);
+    renderScreen();
+    const btn = await screen.findByRole("button", { name: /^pause$/i });
+    await act(async () => { fireEvent.click(btn); });
+    await waitFor(() => expect(putSchedulerConfig).toHaveBeenCalledWith(expect.objectContaining({ paused: true })));
+  });
+
+  it("tombol Stop menulis enabled:false", async () => {
+    getSchedulerState.mockResolvedValue(STATE);
+    putSchedulerConfig.mockResolvedValue(STATE.config);
+    renderScreen();
+    const btn = await screen.findByRole("button", { name: /^stop$/i });
+    await act(async () => { fireEvent.click(btn); });
+    await waitFor(() => expect(putSchedulerConfig).toHaveBeenCalledWith(expect.objectContaining({ enabled: false })));
+  });
+
+  it("Simpan setelan mengirim blok config lengkap dgn perubahan maxConcurrent", async () => {
+    getSchedulerState.mockResolvedValue(STATE);
+    putSchedulerConfig.mockResolvedValue(STATE.config);
+    renderScreen();
+    await screen.findByText("Status per source");
+    const capInput = screen.getByLabelText(/cap concurrent/i);
+    await act(async () => { fireEvent.change(capInput, { target: { value: "4" } }); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /simpan setelan/i })); });
+    await waitFor(() => expect(putSchedulerConfig).toHaveBeenCalledWith(expect.objectContaining({ maxConcurrent: 4 })));
+  });
+
+  it("toggle opt-in project memanggil updateProject + onProjectChanged", async () => {
+    getSchedulerState.mockResolvedValue(STATE);
+    updateProject.mockResolvedValue({ id: "a", schedulerOptIn: true });
+    const onProjectChanged = vi.fn();
+    renderScreen({ onProjectChanged });
+    const btn = await screen.findByRole("button", { name: /opt-in/i });
+    await act(async () => { fireEvent.click(btn); });
+    await waitFor(() => expect(updateProject).toHaveBeenCalledWith("a", { schedulerOptIn: true }));
+    await waitFor(() => expect(onProjectChanged).toHaveBeenCalledWith("a"));
+  });
+});
