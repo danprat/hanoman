@@ -34,6 +34,10 @@ sebagai `String` dan divalidasi zod di `@hanoman/shared` (`enums.ts`), bukan enu
 - `helpEnabled` (Boolean, default false · SPEC-253 · [ADR-0062](../adr/0062-help-center-tiket-publik-triase.md)) —
   flag opt-in Help Center publik. Link publik `/help/<id>` menerima keluhan HANYA bila aktif. Additive;
   diekspos di `toProjectView` sebagai `helpEnabled`.
+- `schedulerOptIn` (Boolean, default false · SPEC-294 · [ADR-0072](../adr/0072-scheduler-fondasi-engine-antrean-durable-cap.md)) —
+  gerbang kelayakan **scheduler otonom** (pola `helpEnabled`). Project non-opt-in tak pernah disentuh source
+  checker. Additive; diekspos `toProjectView` sebagai `schedulerOptIn`, editable via `PATCH /projects/:id`.
+  **Tidak** masuk whitelist `FIELDS` sync → tetap **lokal per-instance** (cermin `helpEnabled`/`ingestKeyHash`).
 - `docStatus` ("ok" | "drift" | "broken") + `coverage` (0–100) **bukan kolom** — diturunkan dari disk tiap `toProjectView` (ADR-0018).
 
 ## Spec (backlog item)
@@ -84,6 +88,12 @@ Singleton `id = 1`, kolom `data` (Json) berbentuk `zSetting`:
 - `notifySound` (SPEC-180, default `short`) — `off` atau salah satu nada; durasi/varian bunyi notifikasi
 - `agentAccessEnabled` (SPEC-257/[ADR-0065](../adr/0065-ai-agent-capability-agent-token.md), Boolean, default **false**) —
   **master switch** akses AI agent. `false` → semua `AgentToken` ditolak (401), apa pun `enabled`/capability-nya.
+- `scheduler` (SPEC-294/[ADR-0072](../adr/0072-scheduler-fondasi-engine-antrean-durable-cap.md), `zScheduler`,
+  **semua default MATI**) — knob scheduler otonom: `enabled` (master), `paused` (rem darurat Pause),
+  `maxConcurrent` (cap sesi hidup — **penerus `maxConcurrent` yang dicabut ADR-0024**), `autonomy`
+  (`full-control|butuh-keputusan`, dikonsumsi daun akhir-sesi), dan `sources.{backlog,errors,triase}`
+  (`enabled`+`everyMin` per source; `errors.minCount`). Ditambahkan sebagai `.default(SCHEDULER_DEFAULTS)`
+  → baris Setting lama tetap parse (blok hilang diisi default).
 
 ## User / Session (auth — SPEC-169, [ADR-0028](../adr/0028-auth-sesi-opaque-di-db.md))
 - **User**: `id` (cuid), `email` (unique), `passwordHash` (`scrypt` "saltHex:hashHex"), `createdAt`.
@@ -215,6 +225,21 @@ di-cache lokal. `status`/`category` = `String` + zod (`zTicketStatus`/`zTicketCa
   (idempoten). Diselesaikan via modal side-by-side (default = sisi `updatedAt` terbaru).
 - **Backfill feed:** saat boot HUB, `backfillFeed()` mem-`publishLocal` tiap row SYNCED yang belum
   ter-feed (mencakup `version=0` pra-entitas-tersync) — idempoten.
+
+## SchedulerQueueItem (SPEC-294 · [ADR-0072](../adr/0072-scheduler-fondasi-engine-antrean-durable-cap.md))
+Antrean durable kandidat peluncuran **scheduler otonom** — **LOCAL-ONLY, tak disync** (cermin
+`SyncOutbox`/`RuntimeConfig`: state operasional mesin INI). Unit peluncuran **selalu sebuah `Spec`**
+(backlog sudah Spec; errors→escalate & triase→accept membuat Spec dulu), jadi kolom `specId` **@unique**
+sekaligus **kunci idempoten satu-sesi-per-spec** (ADR-0015). Antrean **tak menduplikasi** `Spec.stage` /
+overlay sesi live — status live (running/done/failed) tetap diturunkan dari `pty.listSessions()` +
+`Spec.stage` + `Notification`.
+- `id` (cuid), `specId` (**@unique**), `projectId` (tanpa FK — cermin `SyncOutbox`), `source`
+  (`backlog|errors|triase`, asal checker), `priority` (`tinggi|sedang|rendah`, urutan drain),
+  `status` (`queued|launched|done|failed`, default `queued`), `sessionId?` (id sesi tmux saat diluncurkan),
+  `note?` (alasan gagal — diisi daun #5), `enqueuedAt` (FIFO dalam prioritas), `launchedAt?`. Index `(status)`.
+- Governor men-drain item `queued` (urut prioritas→FIFO) selagi sesi hidup `< cap` (`Setting.scheduler.maxConcurrent`),
+  meluncurkan lewat `startSpecSession` (jalur bersama peluncuran manual). Knob scheduler hidup di
+  `Setting.data.scheduler` (`zScheduler`, semua default mati). Lihat [ADR-0072](../adr/0072-scheduler-fondasi-engine-antrean-durable-cap.md).
 
 ## Docs (Source of Truth) — TIDAK dipersist
 Docs bukan entitas DB. Tabel `DocFile` sudah di-drop (ADR-0011). Docs dibaca **live dari path

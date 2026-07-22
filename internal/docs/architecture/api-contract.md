@@ -445,3 +445,19 @@ DELETE /tickets/:id                       # 200 { ok:true } — hapus tiket; Tic
 > halaman status publik tak menampilkannya balik. **Halaman publik** `/help/*` di-mount SPA (routing baru,
 > `main.tsx`) tanpa auth; fallback `index.html` existing → nol perubahan server untuk menyajikan halaman.
 > Realtime area Triase = **HTTP polling** (pola ErrorsScreen), bukan kanal WS baru (ADR-0039).
+
+## Scheduler (SPEC-294 · ADR-0072) — LOCAL per-instance
+```
+# Fondasi scheduler otonom (di belakang gate cookie; agent-token → domain `settings`). Semua default MATI.
+GET  /api/scheduler/config   -> Scheduler (zScheduler: enabled, paused, maxConcurrent, autonomy, sources.{backlog,errors,triase})
+PUT  /api/scheduler/config   { Scheduler }  -> Scheduler   # ganti blok penuh (pola PUT /settings). Pause = { paused:true }. 400 invalid.
+GET  /api/scheduler/state    -> { config, cap, liveCount, sources:[{id,enabled,everyMin,minCount?,lastRunAt,nextRunAt}],
+#                                  queue: SchedulerQueueItem[], sessions:[sesi live ber-item 'launched'] }
+```
+> Engine in-process (di-start dari `server.ts`, timer `.unref`; `app.ts` bebas-timer — **membalik sebagian
+> ADR-0024**): per source enable+cadence → checker terdaftar (`registerSchedulerSource`) enqueue kandidat;
+> governor drain antrean durable (`SchedulerQueueItem`, `specId @unique` idempoten) di bawah
+> `cap=maxConcurrent` (dihitung dari `pty.listSessions`), urut prioritas, tahan saat cap penuh; **Pause**
+> blokir drain ≤1 tick. Peluncuran lewat `startSpecSession` (jalur bersama Start manual); `flow` diturunkan
+> `flowForSource(spec.source)` server-side. **Opt-in per project:** `PATCH /api/projects/:id { schedulerOptIn }`
+> (lokal — tak masuk `FIELDS` sync). Semua knob & state **LOCAL per-instance** (tak disync).
