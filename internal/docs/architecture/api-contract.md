@@ -468,3 +468,10 @@ GET  /api/scheduler/state    -> { config, cap, liveCount, sources:[{id,enabled,e
 > semua `Spec` belum-mulai (`baseSha===null`) dari project `schedulerOptIn` urut prioritas `tinggi→sedang→rendah`
 > (queue item `source:"backlog"`, idempoten via `specId @unique`). Project non-opt-in tak tersentuh.
 > Terdaftar di `server.ts` (`registerBacklogSource()`) sebelum `startScheduler()`.
+>
+> **Source-checker konkret kedua (SPEC-296):** `errors` — saat cadence errors jatuh-tempo, untuk tiap `ErrorGroup`
+> eligible (`status:"new"` ∧ `environment:"production"` ∧ `specId=null` ∧ `count ≥ sources.errors.minCount` ∧ project
+> `schedulerOptIn`) memakai ulang `escalateErrorGroup` (`services/error-escalate.ts`) → Spec `qa` prioritas `tinggi`,
+> lalu enqueue (queue item `source:"errors"`). Idempoten (grup escalated/resolved/ber-specId tersaring di query);
+> banyak grup satu window, satu grup = satu backlog (tanpa limit checker — cap ditegakkan governor). Terdaftar di
+> `server.ts` (`registerErrorsSource()`) sebelum `startScheduler()`.
