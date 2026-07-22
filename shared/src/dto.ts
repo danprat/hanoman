@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { zProject, zBriefPayload, zQaPayload } from "./entities";
+import { zProject, zBriefPayload, zQaPayload, zSpec } from "./entities";
 import type { Spec, Notification } from "./entities";
 import { zProjectKind, zSpecSource, zPriority, zStage, zErrorStatus, zTicketCategory, zTicketStatus } from "./enums";
 
@@ -374,6 +374,8 @@ export type TicketAttachmentView = z.infer<typeof zTicketAttachmentView>;
 export const zTicketDetail = zTicketView.extend({
   detail: z.string(),
   attachments: z.array(zTicketAttachmentView),
+  spec: zSpec.nullable(),                 // SPEC-293 · backlog tertaut (stage → status turunan)
+  publicStatusUrl: z.string(),            // SPEC-293 · link publik status tiket (shareToken)
 });
 export type TicketDetail = z.infer<typeof zTicketDetail>;
 // SPEC-269 · input edit tiket (triase). Semua field opsional; minimal satu.

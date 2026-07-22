@@ -13,15 +13,9 @@ export function generateAccessKey(): { key: string; hash: string } {
   return { key, hash: hashAccessKey(key) };
 }
 
-// Status publik diturunkan dari status tiket + stage Spec tertaut (ADR-0018/0019: nilai turunan lebih
-// baik daripada state kembar yang bisa basi). Tanpa istilah/stage teknis internal.
-export function publicStatus(ticketStatus: string, specStage?: string | null): string {
-  if (ticketStatus === "rejected") return "Ditutup";
-  if (ticketStatus !== "accepted") return "Sedang ditinjau"; // new / belum ditriase
-  if (specStage === "done") return "Selesai";
-  if (specStage === "executing") return "Sedang dikerjakan";
-  return "Diterima"; // brainstorming/objective/spec-ready/planned/null
-}
+// SPEC-293 · status publik kini SATU sumber di shared (dipakai server + klien). Re-export agar
+// pemanggil lama (`routes/help.ts`) tetap `import { publicStatus } from "../services/ticket"`.
+export { publicStatus } from "@hanoman/shared";
 
 // Buat tiket + nomor per-project (max+1) + kunci. Retry P2002 (bentrok nomor / hash) — cermin nextSpecId.
 export async function createTicket(input: {
