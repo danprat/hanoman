@@ -1,6 +1,6 @@
 # SPEC-299 — Panel Scheduler (observabilitas) + UI setelan & opt-in per project
 
-> Status: design (brainstorm 2026-07-22). Daun #6 (terakhir) dari breakdown PRD scheduler otonom.
+> Status: done (implemented & committed 2026-07-22, a46cff1). Daun #6 (terakhir) dari breakdown PRD scheduler otonom.
 > Sumber: `docs/prd/scheduler-auto-start-backlog-batch-errors-and-pick-triase.md` (§Observabilitas, §Setting,
 > §Rem darurat, User Stories #6/#7/#8/#9). Fondasi: SPEC-294/ADR-0072. Daun lain: 295/296/297/298.
 
