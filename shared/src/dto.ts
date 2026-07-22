@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { zProject, zBriefPayload, zQaPayload, zSpec } from "./entities";
+import { zProject, zBriefPayload, zQaPayload, zSpec, zScheduler } from "./entities";
 import type { Spec, Notification } from "./entities";
 import { zProjectKind, zSpecSource, zPriority, zStage, zErrorStatus, zTicketCategory, zTicketStatus } from "./enums";
 
@@ -92,6 +92,31 @@ export const zSchedulerQueueItem = z.object({
   enqueuedAt: z.string(), launchedAt: z.string().nullable(),
 });
 export type SchedulerQueueItemView = z.infer<typeof zSchedulerQueueItem>;
+
+// SPEC-299 · ADR-0072 · view respons GET /api/scheduler/state (daun #6). Cerminan bentuk yang
+// dikembalikan routes/scheduler.ts apa adanya — parse non-strict (field ekstra spt cwd diabaikan).
+export const zSchedulerSourceView = z.object({
+  id: z.string(), enabled: z.boolean(), everyMin: z.number(),
+  minCount: z.number().optional(),           // hanya errors
+  lastRunAt: z.string().nullable(), nextRunAt: z.string().nullable(),
+});
+export type SchedulerSourceView = z.infer<typeof zSchedulerSourceView>;
+
+export const zSchedulerSessionView = z.object({
+  id: z.string(), projectId: z.string(), specId: z.string(),
+  flow: z.string().optional(), branch: z.string().optional(),
+  decision: z.boolean(), exited: z.boolean(),
+});
+export type SchedulerSessionView = z.infer<typeof zSchedulerSessionView>;
+
+export const zSchedulerState = z.object({
+  config: zScheduler,
+  cap: z.number(), liveCount: z.number(),
+  sources: z.array(zSchedulerSourceView),
+  queue: z.array(zSchedulerQueueItem),
+  sessions: z.array(zSchedulerSessionView),
+});
+export type SchedulerStateView = z.infer<typeof zSchedulerState>;
 
 export const zFlow = z.enum(["feature", "qa", "scaffold", "reverse", "prd", "audit", "breakdown"]);
 export type FlowName = z.infer<typeof zFlow>;

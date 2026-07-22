@@ -105,6 +105,9 @@ export const paths = {
   // SPEC-215 · config runtime
   config: `${API}/config`,
   configKey: (key: string) => `${API}/config/${encodeURIComponent(key)}`,
+  // SPEC-299 · panel scheduler (daun #6) — konsumen read-only fondasi SPEC-294/ADR-0072.
+  schedulerConfig: `${API}/scheduler/config`,
+  schedulerState: `${API}/scheduler/state`,
   // SPEC-268 · ADR-0066 · pemicu sync manual (cookie-authed)
   syncNow: `${API}/sync/now`,
   // SPEC-270 · ADR-0067 · antrean konflik rekonsil (cookie-authed)
