@@ -47,6 +47,23 @@ export const MODELS = [
 ] as const;
 export const EFFORTS = ["xhigh", "high", "medium", "low", "max", "ultracode"] as const;
 
+// SPEC-294 · ADR-0072 · knob scheduler otonom. Semua default MATI. Ditambahkan ke zSetting sebagai
+// .default(SCHEDULER_DEFAULTS) → baris Setting lama tanpa blok ini tetap parse (key hilang diisi default).
+const zSourceCommon = { enabled: z.boolean().default(false) };
+export const zScheduler = z.object({
+  enabled: z.boolean().default(false),      // master subsystem switch
+  paused: z.boolean().default(false),       // rem darurat (Pause): blokir drain ≤1 tick
+  maxConcurrent: z.number().int().min(1).default(2),   // cap sesi hidup
+  autonomy: z.enum(["full-control", "butuh-keputusan"]).default("butuh-keputusan"), // dikonsumsi daun #5
+  sources: z.object({
+    backlog: z.object({ ...zSourceCommon, everyMin: z.number().int().min(1).default(15) }).default({}),
+    errors:  z.object({ ...zSourceCommon, everyMin: z.number().int().min(1).default(15), minCount: z.number().int().min(1).default(5) }).default({}),
+    triase:  z.object({ ...zSourceCommon, everyMin: z.number().int().min(1).default(30) }).default({}),
+  }).default({}),
+});
+export type Scheduler = z.infer<typeof zScheduler>;
+export const SCHEDULER_DEFAULTS: Scheduler = zScheduler.parse({});
+
 export const zSetting = z.object({
   model: z.string().default("claude-opus-4-8"),
   effort: z.string().default("xhigh"),
@@ -58,6 +75,7 @@ export const zSetting = z.object({
   notifyDecision: z.boolean().default(true),                              // SPEC-184
   notifyDecisionSound: z.enum(NOTIFY_SOUNDS).default("alert"),            // SPEC-184
   agentAccessEnabled: z.boolean().default(false),                        // SPEC-257 · master switch akses AI agent
+  scheduler: zScheduler.default(SCHEDULER_DEFAULTS),                      // SPEC-294 · ADR-0072 · knob scheduler (default mati)
 });
 export type Setting = z.infer<typeof zSetting>;
 

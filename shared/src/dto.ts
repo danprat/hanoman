@@ -35,6 +35,7 @@ export const zUpdateProject = z.object({
   desc: z.string().optional(),
   gitRemote: z.string().optional(),   // SPEC-213 · set git remote resmi project
   repoDir: z.string().nullable().optional(),   // SPEC-217 · path default/server editable (null = kosongkan)
+  schedulerOptIn: z.boolean().optional(),   // SPEC-294 · opt-in scheduler otonom (lokal, tak disync)
 });
 export const zCreateSpec = z.object({
   project: z.string(), source: zSpecSource, title: z.string().min(1),
@@ -79,8 +80,18 @@ export const zProjectView = zProject.extend({
   activity: z.string(), commit: z.string(),
   monitoringEnabled: z.boolean().default(false),   // SPEC-249 · error monitoring aktif (ingest key ada)
   ingestKeyPrefix: z.string().nullable().default(null),   // SPEC-249 · hint prefix DSN (bukan hash/rahasia)
-  helpEnabled: z.boolean().default(false) });   // SPEC-253 · Help Center publik aktif
+  helpEnabled: z.boolean().default(false),   // SPEC-253 · Help Center publik aktif
+  schedulerOptIn: z.boolean().default(false) });   // SPEC-294 · opt-in scheduler otonom
 export type ProjectView = z.infer<typeof zProjectView>;
+
+// SPEC-294 · ADR-0072 · baris antrean scheduler untuk panel (daun #6). Tanggal = string ISO.
+export const zSchedulerQueueItem = z.object({
+  id: z.string(), specId: z.string(), projectId: z.string(),
+  source: z.string(), priority: z.string(), status: z.string(),
+  sessionId: z.string().nullable(), note: z.string().nullable(),
+  enqueuedAt: z.string(), launchedAt: z.string().nullable(),
+});
+export type SchedulerQueueItemView = z.infer<typeof zSchedulerQueueItem>;
 
 export const zFlow = z.enum(["feature", "qa", "scaffold", "reverse", "prd", "audit", "breakdown"]);
 export type FlowName = z.infer<typeof zFlow>;
