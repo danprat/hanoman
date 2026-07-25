@@ -7,7 +7,7 @@ import { sessionModel } from "../services/settings";
 import { prisma } from "../db";
 import { specReview, reviewFile, worktreeDir, specCommitRange, specReviewRange, reviewFileRange, shaResolvable } from "../services/spec-review";
 import { nextSpecId } from "../services/id";
-import { enqueueOutbox } from "../services/outbox";
+import { notifySynced } from "../services/sync-notify";
 import { branchFromCandidates } from "../services/branches";
 import { STAGES } from "../services/stage-machine";
 import { artifactsToRemove } from "../services/stage-artifacts";
@@ -99,7 +99,7 @@ export default async function (app: FastifyInstance) {
         throw e;
       }
     }
-    if (spec) await enqueueOutbox("spec", spec.id); // SPEC-213 · antre push sync
+    if (spec) await notifySynced("spec", spec.id); // SPEC-213/330 · sadar-peran: client antre push, hub publish ke feed
     return reply.code(201).send(spec);
   });
   // SPEC-273 · materialize breakdown: buat N spec independen dari usulan yang di-review manusia.
@@ -136,7 +136,7 @@ export default async function (app: FastifyInstance) {
           throw e;
         }
       }
-      if (spec) { await enqueueOutbox("spec", spec.id); created.push(spec); }
+      if (spec) { await notifySynced("spec", spec.id); created.push(spec); }
     }
     return reply.code(201).send({ created });
   });
@@ -180,7 +180,7 @@ export default async function (app: FastifyInstance) {
       data.objective = objective;
     }
     const updated = await prisma.spec.update({ where: { id }, data });
-    await enqueueOutbox("spec", id); // SPEC-213 · antre push sync
+    await notifySynced("spec", id); // SPEC-213/330 · sadar-peran: client antre push, hub publish ke feed
     return updated;
   });
   // SPEC-170 · dokumen sebuah backlog item (audit/objective/spec/plan/brainstorm).

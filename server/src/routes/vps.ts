@@ -11,7 +11,7 @@ import { buildChecklist } from "../vps/checklist";
 import { bootstrapKey } from "../services/vps-bootstrap";
 import { createSession } from "../services/pty";
 import { sessionModel } from "../services/settings";
-import { enqueueOutbox } from "../services/outbox";
+import { notifySynced } from "../services/sync-notify";
 
 // Audit (dan nanti harden/session) = eksekusi remote via SSH dengan key milik mesin ini.
 // Tanpa auth — pagarnya bind 127.0.0.1 di server.ts, sama seperti /api/terminal
@@ -38,7 +38,7 @@ export default async function (app: FastifyInstance) {
       data.keyPath = bs.keyPath;
     }
     const created = await prisma.vps.create({ data });
-    await enqueueOutbox("vps", created.id); // SPEC-213 · antre push sync (tanpa keyPath)
+    await notifySynced("vps", created.id); // SPEC-213/330 · sadar-peran: client antre push, hub publish ke feed (tanpa keyPath)
     return reply.code(201).send(created);
   });
 
@@ -58,7 +58,7 @@ export default async function (app: FastifyInstance) {
       data.keyPath = bs.keyPath;
     }
     const updated = await prisma.vps.update({ where: { id }, data });
-    await enqueueOutbox("vps", id); // SPEC-213 · antre push sync
+    await notifySynced("vps", id); // SPEC-213/330 · sadar-peran: client antre push, hub publish ke feed
     return updated;
   });
 

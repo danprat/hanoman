@@ -5,7 +5,7 @@ import type { VpsCheck, VpsHealth } from "@hanoman/shared";
 import { prisma } from "../db";
 import { repoRoot } from "../runner/deps";
 import { sshExec, type SshTarget } from "./vps-ssh";
-import { enqueueOutbox } from "./outbox";
+import { notifySynced } from "./sync-notify";
 import { byId } from "../vps/catalog/catalog";
 import { scoreCompliance, type ProbeStatus } from "../vps/scoring";
 import { computeDrift, type DriftItem } from "../vps/drift";
@@ -122,7 +122,7 @@ export async function runAudit(v: VpsRow): Promise<AuditOk | { ok: false; out: s
     await recordDrift(v.id, row?.name ?? v.id, drift, snap.id);
   }
 
-  await enqueueOutbox("vps", v.id); // SPEC-213 · hasil audit ikut disync
+  await notifySynced("vps", v.id); // SPEC-213/330 · hasil audit ikut disync (sadar-peran)
   return { ok: true, audit, hardened, scoreTotal: scored.total, scoreBySection: scored.bySection, drift };
 }
 
@@ -132,6 +132,6 @@ export async function runHealth(v: VpsRow): Promise<boolean> {
   if (r.code !== 0 || !health) return false;
   await prisma.vps.update({ where: { id: v.id }, data: {
     health: health as unknown as Prisma.InputJsonValue, lastSeenAt: new Date() } });
-  await enqueueOutbox("vps", v.id); // SPEC-213 · health ikut disync
+  await notifySynced("vps", v.id); // SPEC-213/330 · health ikut disync (sadar-peran)
   return true;
 }

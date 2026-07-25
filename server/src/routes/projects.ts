@@ -3,7 +3,7 @@ import { zCreateProject, zUpdateProject, zRenameProject } from "@hanoman/shared"
 import { prisma } from "../db";
 import { renameProject } from "../services/rename-project";
 import { toProjectView } from "../services/project-view";
-import { enqueueOutbox } from "../services/outbox";
+import { notifySynced } from "../services/sync-notify";
 import { listRepoBranches, listRepoRemoteBranches } from "../services/branches";
 import { resolveRepoDir } from "../services/local-binding";
 import { listSessions } from "../services/pty";
@@ -53,7 +53,7 @@ export default async function (app: FastifyInstance) {
         gitRemote: b.gitRemote ?? null, stack: ""
       }
     });
-    await enqueueOutbox("project", created.id); // SPEC-213 · antre push sync
+    await notifySynced("project", created.id); // SPEC-213/330 · sadar-peran: client antre push, hub publish ke feed
     return reply.code(201).send(await toProjectView(created, listSessions()));
   });
   // Rename tak menyentuh `id`, jadi tak ada gate run aktif seperti DELETE. Cermin
@@ -64,7 +64,7 @@ export default async function (app: FastifyInstance) {
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
     if (!(await prisma.project.findUnique({ where: { id } }))) return reply.code(404).send({ error: "not found" });
     const updated = await prisma.project.update({ where: { id }, data: parsed.data });
-    await enqueueOutbox("project", id); // SPEC-213 · antre push sync
+    await notifySynced("project", id); // SPEC-213/330 · sadar-peran: client antre push, hub publish ke feed
     return toProjectView(updated, listSessions());
   });
   // SPEC-255 · ADR-0064 · rename slug project. Terpisah dari PATCH: efek samping besar (cascade FK +
@@ -122,7 +122,7 @@ export default async function (app: FastifyInstance) {
     if (!p) return reply.code(404).send({ error: "not found" });
     const { key, hash, prefix } = generateIngestKey();
     await prisma.project.update({ where: { id }, data: { ingestKeyHash: hash, ingestKeyPrefix: prefix } });
-    await enqueueOutbox("project", id); // SPEC-213 · antre push sync
+    await notifySynced("project", id); // SPEC-213/330 · sadar-peran: client antre push, hub publish ke feed
     const base = `${req.protocol}://${req.headers.host ?? "localhost"}`;
     return reply.code(201).send({ enabled: true, prefix, key, dsnUrl: dsnUrl(id, key, base) });
   });
@@ -131,7 +131,7 @@ export default async function (app: FastifyInstance) {
     const p = await prisma.project.findUnique({ where: { id } });
     if (!p) return reply.code(404).send({ error: "not found" });
     await prisma.project.update({ where: { id }, data: { ingestKeyHash: null, ingestKeyPrefix: null } });
-    await enqueueOutbox("project", id); // SPEC-213 · antre push sync
+    await notifySynced("project", id); // SPEC-213/330 · sadar-peran: client antre push, hub publish ke feed
     return reply.code(204).send();
   });
 
@@ -148,7 +148,7 @@ export default async function (app: FastifyInstance) {
     const p = await prisma.project.findUnique({ where: { id } });
     if (!p) return reply.code(404).send({ error: "not found" });
     await prisma.project.update({ where: { id }, data: { helpEnabled: true } });
-    await enqueueOutbox("project", id); // SPEC-213 · antre push sync
+    await notifySynced("project", id); // SPEC-213/330 · sadar-peran: client antre push, hub publish ke feed
     const base = `${req.protocol}://${req.headers.host ?? "localhost"}`;
     return { enabled: true, publicUrl: `${base}/help/${encodeURIComponent(id)}` };
   });
@@ -158,7 +158,7 @@ export default async function (app: FastifyInstance) {
     if (!p) return reply.code(404).send({ error: "not found" });
     // Nonaktifkan tanpa menghapus tiket yang sudah ada (AC PRD).
     await prisma.project.update({ where: { id }, data: { helpEnabled: false } });
-    await enqueueOutbox("project", id); // SPEC-213 · antre push sync
+    await notifySynced("project", id); // SPEC-213/330 · sadar-peran: client antre push, hub publish ke feed
     return reply.code(204).send();
   });
 }

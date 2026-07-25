@@ -2,11 +2,14 @@ import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { prisma } from "../src/db";
 import { recordSessionResult } from "../src/services/session-result";
 import { listOutbox } from "../src/services/outbox";
+import { setConfig, clearConfig } from "../src/config";
 
 const clean = async () => {
   await prisma.syncOutbox.deleteMany(); await prisma.sessionResult.deleteMany();
 };
-beforeEach(clean); afterAll(clean);
+// SPEC-330 · outbox = antrean push khusus CLIENT; set hub tujuan agar peran instance = client.
+beforeEach(async () => { await clean(); await setConfig("SYNC_SERVER_URL", "http://hub.example"); });
+afterAll(async () => { await clearConfig("SYNC_SERVER_URL"); await clean(); });
 
 describe("session-result service (SPEC-213 AC-20/21)", () => {
   it("stores only whitelisted fields; wild fields (transcript/token) dropped", async () => {

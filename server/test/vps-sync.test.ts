@@ -3,10 +3,13 @@ import { buildApp } from "../src/app";
 import { prisma } from "../src/db";
 import { listOutbox } from "../src/services/outbox";
 import { snapshot, applyPush } from "../src/services/sync";
+import { setConfig, clearConfig } from "../src/config";
 
 const app = buildApp({ requireAuth: false });
 const clean = async () => { await prisma.syncOutbox.deleteMany(); await prisma.vps.deleteMany(); };
-beforeEach(clean); afterAll(clean);
+// SPEC-330 · outbox = antrean push khusus CLIENT; set hub tujuan agar peran instance = client.
+beforeEach(async () => { await clean(); await setConfig("SYNC_SERVER_URL", "http://hub.example"); });
+afterAll(async () => { await clearConfig("SYNC_SERVER_URL"); await clean(); });
 
 describe("Vps sync (SPEC-213 AC-26/29)", () => {
   it("create/patch vps enqueues outbox(vps)", async () => {

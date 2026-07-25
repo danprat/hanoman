@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { prisma } from "../db";
-import { enqueueOutbox } from "./outbox";
+import { notifySynced } from "./sync-notify";
 
 // SPEC-213 · ADR-0047 · ringkasan hasil sesi (activity log). WHITELIST ketat: hanya field di
 // bawah yang tersimpan. Transkrip PTY mentah, kredensial, blob bebas TIDAK pernah ikut (AC-21).
@@ -15,6 +15,6 @@ export async function recordSessionResult(input: Record<string, unknown>): Promi
   if (data.status === undefined) data.status = "done";
   if (data.projectId === undefined) throw new Error("session result butuh projectId");
   await prisma.sessionResult.create({ data: data as { id: string; projectId: string; status: string } });
-  await enqueueOutbox("sessionResult", id); // SPEC-213 · antre push sync
+  await notifySynced("sessionResult", id); // SPEC-213/330 · sadar-peran: client antre push, hub publish ke feed
   return { id };
 }

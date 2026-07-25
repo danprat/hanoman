@@ -2,12 +2,16 @@ import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { buildApp } from "../src/app";
 import { prisma } from "../src/db";
 import { enqueueOutbox, listOutbox, clearOutbox } from "../src/services/outbox";
+import { setConfig, clearConfig } from "../src/config";
 
 const app = buildApp({ requireAuth: false });
 const clean = async () => {
   await prisma.syncOutbox.deleteMany(); await prisma.spec.deleteMany(); await prisma.project.deleteMany();
 };
-beforeEach(clean); afterAll(clean);
+// SPEC-330 · outbox adalah antrean push khusus CLIENT: write route hanya mengisinya bila instance
+// punya hub tujuan (SYNC_SERVER_URL). Tanpa ini peran = HUB dan write masuk change-feed, bukan outbox.
+beforeEach(async () => { await clean(); await setConfig("SYNC_SERVER_URL", "http://hub.example"); });
+afterAll(async () => { await clearConfig("SYNC_SERVER_URL"); await clean(); });
 
 describe("outbox service (SPEC-213 AC-17)", () => {
   it("enqueue → list; unique (entity,recordId) tak duplikat; clear removes", async () => {
