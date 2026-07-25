@@ -2,7 +2,7 @@ import { prisma } from "../db";
 import { zSetting, SCHEDULER_DEFAULTS, type Setting } from "@hanoman/shared";
 
 // Model id + effort yang diteruskan apa adanya ke `claude --model` / `--effort`.
-const STEP = { model: "claude-opus-4-8", effort: "xhigh" };
+const STEP = { model: "claude-opus-5", effort: "xhigh" };
 // DB yang masih segar belum punya baris Setting (ia lahir di PUT /settings pertama). Default
 // ini menjaga API tetap boot alih-alih melempar P2025.
 export const DEFAULT_SETTING: Setting = {
@@ -23,8 +23,12 @@ export async function getSetting(): Promise<Setting> {
   const raw = (await prisma.setting.findUnique({ where: { id: 1 } }))?.data;
   if (raw === undefined || raw === null) return DEFAULT_SETTING;
   const parsed = zSetting.safeParse(raw);
-  return parsed.success ? parsed.data : DEFAULT_SETTING;
+  return parsed.success ? { ...parsed.data, model: RETIRED_MODELS[parsed.data.model] ?? parsed.data.model } : DEFAULT_SETTING;
 }
+
+// Id model yang sudah tidak ada di picker (MODELS) dipetakan ke penggantinya saat dibaca, supaya
+// baris Setting lama tak menyisakan nilai yang tak bisa dipilih lagi di UI.
+const RETIRED_MODELS: Record<string, string> = { "claude-opus-4-8": "claude-opus-5" };
 /**
  * SPEC-162 · model+effort DEFAULT untuk sesi claude interaktif, argv saat sesi lahir.
  * SPEC-252 · ADR-0061 · ini adalah default global; Start bisa meng-override per sesi.

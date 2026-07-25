@@ -45,7 +45,7 @@ type SpecPrefill = { project?: string; title?: string; context?: string; outcome
 // saat sesi lahir. Sesi = satu proses satu model seumur hidup (matrix per-fase ADR-0058 dicabut).
 export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
   { open: boolean; spec: Spec | null; onClose: () => void; onStarted: (id: string) => void; onError?: (e: unknown) => void }) {
-  const [model, setModel] = React.useState("claude-opus-4-8");
+  const [model, setModel] = React.useState("claude-opus-5");
   const [effort, setEffort] = React.useState("xhigh");
   const [busy, setBusy] = React.useState(false);
   React.useEffect(() => {

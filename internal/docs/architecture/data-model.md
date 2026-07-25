@@ -70,7 +70,7 @@ sebagai `String` dan divalidasi zod di `@hanoman/shared` (`enums.ts`), bukan enu
 
 ## Setting (per workspace)
 Singleton `id = 1`, kolom `data` (Json) berbentuk `zSetting`:
-- `model` (default `claude-opus-4-8`) + `effort` (default `xhigh`) — **default global** untuk sesi baru,
+- `model` (default `claude-opus-5`) + `effort` (default `xhigh`) — **default global** untuk sesi baru,
   dipakai sebagai argv saat sesi lahir. Sejak [ADR-0061](../adr/0061-model-effort-per-sesi-picker-start.md)
   (SPEC-252) model/effort dipilih **per SESI** saat Start (picker `StartSessionModal` → body opsional
   `model`/`effort` di `POST /terminal/sessions`); kosong → default global ini. Manusia tetap bisa

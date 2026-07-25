@@ -16,7 +16,7 @@ vi.mock("../src/api/client", () => ({
 import { api } from "../src/api/client";
 
 const SETTING = {
-  model: "claude-opus-4-8", effort: "xhigh", autoDefault: true, autoScaffold: true,
+  model: "claude-opus-5", effort: "xhigh", autoDefault: true, autoScaffold: true,
   notifyFail: true, notifyDone: true, notifySound: "short",
   notifyDecision: true, notifyDecisionSound: "alert", agentAccessEnabled: false,
 };

@@ -11,7 +11,7 @@ vi.mock("../src/api/client", () => ({
 }));
 
 const SETTING = {
-  model: "claude-opus-4-8", effort: "xhigh", autoDefault: true, autoScaffold: true,
+  model: "claude-opus-5", effort: "xhigh", autoDefault: true, autoScaffold: true,
   notifyFail: true, notifyDone: true, notifySound: "short", notifyDecision: true, notifyDecisionSound: "alert",
 };
 const me = { id: "u1", email: "a@b.c" } as any;

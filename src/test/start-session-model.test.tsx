@@ -12,7 +12,7 @@ vi.mock("../src/api/client", () => ({
 const spec = { id: "SPEC-9", source: "qa", projectId: "p1" } as any;
 
 beforeEach(() => {
-  (api.getSettings as any).mockResolvedValue({ model: "claude-opus-4-8", effort: "xhigh" });
+  (api.getSettings as any).mockResolvedValue({ model: "claude-opus-5", effort: "xhigh" });
   (api.startSession as any).mockResolvedValue({ id: "spec-9" });
 });
 
@@ -21,7 +21,7 @@ describe("StartSessionModal (SPEC-252)", () => {
     const onStarted = vi.fn();
     render(<StartSessionModal open spec={spec} onClose={() => {}} onStarted={onStarted} />);
     // prefill: model & effort global tampil di picker
-    await waitFor(() => expect(screen.getByLabelText("Model")).toHaveValue("claude-opus-4-8"));
+    await waitFor(() => expect(screen.getByLabelText("Model")).toHaveValue("claude-opus-5"));
     expect(screen.getByLabelText("Effort")).toHaveValue("xhigh");
     // operator memilih model berbeda untuk sesi ini
     fireEvent.change(screen.getByLabelText("Model"), { target: { value: "claude-sonnet-5" } });

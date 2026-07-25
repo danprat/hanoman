@@ -9,7 +9,7 @@ vi.mock("../src/api/client", () => ({
 }));
 
 beforeEach(() => {
-  (api.getSettings as any).mockResolvedValue({ model: "claude-opus-4-8", effort: "xhigh", autoDefault: true, autoScaffold: true, notifyFail: true, notifyDone: true, notifySound: "short" });
+  (api.getSettings as any).mockResolvedValue({ model: "claude-opus-5", effort: "xhigh", autoDefault: true, autoScaffold: true, notifyFail: true, notifyDone: true, notifySound: "short" });
   (api.listUsers as any).mockResolvedValue([{ id: "u1", email: "a@b.c", createdAt: new Date().toISOString() }]);
   (api.putSettings as any).mockResolvedValue({});
 });

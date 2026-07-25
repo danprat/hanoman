@@ -23,7 +23,7 @@ describe("zScheduler", () => {
 describe("zSetting.scheduler backward-compat", () => {
   it("an old Setting row without a scheduler block still parses, filling defaults", () => {
     const old = {
-      model: "claude-opus-4-8", effort: "xhigh",
+      model: "claude-opus-5", effort: "xhigh",
       autoDefault: true, autoScaffold: true, notifyFail: true,
       notifyDone: true, notifySound: "short", notifyDecision: true,
       notifyDecisionSound: "alert", agentAccessEnabled: false,

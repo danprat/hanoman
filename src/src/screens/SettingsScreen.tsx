@@ -11,7 +11,7 @@ import { playNotifySound, type NotifySound } from "../notifications/sound";
 // Valid Claude model ids, diteruskan apa adanya ke `claude --model`. Keep in
 // sync with the server default in services/settings.ts.
 const S_MODELS = [
-  { value: "claude-opus-4-8", label: "Opus 4.8" },
+  { value: "claude-opus-5", label: "Opus 5" },
   { value: "claude-sonnet-5", label: "Sonnet 5" },
   { value: "claude-haiku-4-5", label: "Haiku 4.5" },
   { value: "claude-fable-5", label: "Fable 5" },      // SPEC-238
@@ -35,7 +35,7 @@ const S_SOUNDS = [
   { value: "fanfare", label: "Fanfare · 0.9s" }, { value: "off", label: "Senyap" },
 ];
 const S_DEFAULTS: Setting = {
-  model: "claude-opus-4-8", effort: "xhigh",
+  model: "claude-opus-5", effort: "xhigh",
   autoDefault: true, autoScaffold: true, notifyFail: true,
   notifyDone: true, notifySound: "short",
   notifyDecision: true, notifyDecisionSound: "alert",

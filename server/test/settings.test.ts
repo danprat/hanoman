@@ -7,7 +7,7 @@ import { getSetting, sessionModel, DEFAULT_SETTING } from "../src/services/setti
 // `steps` per fase dan tak punya `model` maupun `effort` — dikembalikan mentah, sesi lahir
 // dengan `claude --model undefined`.
 const BARIS_LAMA = {
-  steps: { brainstorm: { model: "claude-opus-4-8", effort: "xhigh" } },
+  steps: { brainstorm: { model: "claude-opus-5", effort: "xhigh" } },
   blockStale: true, requireLinks: true, maxConcurrent: 6, askTimeoutMin: 30,
   autoDefault: true, autoScaffold: true, notifyFail: true,
 };
@@ -22,7 +22,7 @@ describe("settings", () => {
   it("baris pra-SPEC-162 diberi model + effort, dan kunci matinya dibuang", async () => {
     await prisma.setting.create({ data: { id: 1, data: BARIS_LAMA } });
     const s = await getSetting();
-    expect(s.model).toBe("claude-opus-4-8");
+    expect(s.model).toBe("claude-opus-5");
     expect(s.effort).toBe("xhigh");
     expect(s).not.toHaveProperty("steps");
     expect(s).not.toHaveProperty("maxConcurrent");

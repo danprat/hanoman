@@ -51,7 +51,7 @@ describe("agent capabilities", () => {
 
   it("zSetting defaults agentAccessEnabled to false", () => {
     const s = zSetting.parse({
-      model: "claude-opus-4-8", effort: "xhigh", autoDefault: true, autoScaffold: true,
+      model: "claude-opus-5", effort: "xhigh", autoDefault: true, autoScaffold: true,
       notifyFail: true, notifyDone: true, notifySound: "short", notifyDecision: true, notifyDecisionSound: "alert",
     });
     expect(s.agentAccessEnabled).toBe(false);

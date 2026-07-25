@@ -12,7 +12,7 @@ beforeEach(clean);
 afterAll(clean);
 
 const blob = (agentAccessEnabled: boolean) => ({
-  model: "claude-opus-4-8", effort: "xhigh", autoDefault: true, autoScaffold: true,
+  model: "claude-opus-5", effort: "xhigh", autoDefault: true, autoScaffold: true,
   notifyFail: true, notifyDone: true, notifySound: "short",
   notifyDecision: true, notifyDecisionSound: "alert", agentAccessEnabled,
 });

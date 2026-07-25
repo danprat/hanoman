@@ -40,7 +40,7 @@ const NOTIFY_SOUNDS = ["off", "short", "medium", "long",
 // SPEC-238 · daftar pilihan valid untuk UI (server tetap lenient z.string()). +Fable, +max, +ultracode.
 // SPEC-252 · ADR-0061 — dipakai picker "Mulai sesi" (model/effort per sesi) + kartu default global Settings.
 export const MODELS = [
-  { id: "claude-opus-4-8", label: "Opus 4.8" },
+  { id: "claude-opus-5", label: "Opus 5" },
   { id: "claude-sonnet-5", label: "Sonnet 5" },
   { id: "claude-haiku-4-5", label: "Haiku 4.5" },
   { id: "claude-fable-5", label: "Fable 5" },
@@ -65,7 +65,7 @@ export type Scheduler = z.infer<typeof zScheduler>;
 export const SCHEDULER_DEFAULTS: Scheduler = zScheduler.parse({});
 
 export const zSetting = z.object({
-  model: z.string().default("claude-opus-4-8"),
+  model: z.string().default("claude-opus-5"),
   effort: z.string().default("xhigh"),
   autoDefault: z.boolean(),
   autoScaffold: z.boolean(),

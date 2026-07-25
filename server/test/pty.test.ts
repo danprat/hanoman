@@ -149,13 +149,13 @@ describe("pty service", () => {
   it("prompt awal + model + effort sampai ke argv claude", async () => {
     process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
     const s = createSession("p1", repoDir, {
-      specId: "SPEC-A", flow: "feature", prompt: "kerjakan ini", model: "claude-opus-4-8", effort: "xhigh",
+      specId: "SPEC-A", flow: "feature", prompt: "kerjakan ini", model: "claude-opus-5", effort: "xhigh",
     });
     await waitFor(() => exited(s.id));
     const c = fakeClient();
     attach(s.id, c);
     expect(allData(c)).toContain("kerjakan ini");
-    expect(allData(c)).toContain("--model claude-opus-4-8");
+    expect(allData(c)).toContain("--model claude-opus-5");
     expect(allData(c)).toContain("--effort xhigh");
   });
 
