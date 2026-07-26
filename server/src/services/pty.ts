@@ -137,6 +137,8 @@ export const getSession = (id: string): Pane | undefined => listPanes().find((p)
 export type CreateOpts = {
   id?: string; specId?: string; flow?: Flow; branch?: string; prompt?: string; phaseFile?: string;
   decisionFile?: string; model?: string; effort?: string; command?: string[];
+  // SPEC-332 · ADR-0073 · kondisi mode goal; kosong = mode goal mati untuk sesi ini.
+  goal?: string;
 };
 
 export function createSession(projectId: string, cwd: string, opts: CreateOpts = {}): SessionInfo {
@@ -178,7 +180,7 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
       ...(opts.model ? ["--model", opts.model] : []),
       ...(opts.effort ? ["--effort", opts.effort] : []),
       "--dangerously-skip-permissions",
-      "--settings", JSON.stringify(guardSettings(opts.decisionFile)),
+      "--settings", JSON.stringify(guardSettings(opts.decisionFile, opts.goal)),
     ].map(sq).join(" ");
     argv = [sq(claudeBin()), promptArg, flags].filter(Boolean).join(" ");
   }

@@ -52,6 +52,28 @@ describe("pty service", () => {
     expect(c.wasClosed()).toBe(true);
   });
 
+  // SPEC-332 · ADR-0073 · mode goal: Stop hook bertipe prompt ikut lahir bersama sesi.
+  it("goal opt menaruh Stop hook bertipe prompt di argv --settings", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+    const s = createSession("goal1", process.cwd(), { goal: "berhenti hanya bila SELESAI-332" });
+    await waitFor(() => exited(s.id));
+    const c = fakeClient();
+    attach(s.id, c);
+    const out = allData(c).replace(/\s+/g, " ");
+    expect(out).toContain('"Stop"');
+    expect(out).toContain('"type":"prompt"');
+    expect(out).toContain("SELESAI-332");
+  });
+
+  it("tanpa goal opt tak ada hook Stop di argv", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+    const s = createSession("goal2", process.cwd());
+    await waitFor(() => exited(s.id));
+    const c = fakeClient();
+    attach(s.id, c);
+    expect(allData(c)).not.toContain('"Stop"');
+  });
+
   // SPEC-211 · Open Console memasok argv sendiri (mis. `ssh -t …`) — shell mentah, bukan claude.
   it("command opt menjalankan perintah non-claude, tanpa flag claude", async () => {
     const s = createSession("con1", process.cwd(), { command: ["/bin/echo", "halo-console"] });
