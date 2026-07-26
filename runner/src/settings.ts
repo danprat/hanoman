@@ -1,7 +1,7 @@
 // Guardrail deny PreToolUse dicabut sepenuhnya (SPEC-197, ADR-0037): agen dipercaya penuh,
 // isolasi murni lewat worktree. Yang tersisa di sini hanya marker keputusan (SPEC-184) —
 // hook dari `--settings` tetap BERGABUNG dengan milik pengguna, bukan menggantikannya.
-export const guardSettings = (decisionFile?: string) => {
+export const guardSettings = (decisionFile?: string, goal?: string) => {
   const hooks: Record<string, unknown[]> = {};
   // SPEC-184 · sinyal "menunggu keputusan manusia" dari Claude sendiri. Notification idle/izin/
   // agent_needs_input menandai marker; UserPromptSubmit (manusia menjawab) mengosongkannya.
@@ -13,5 +13,11 @@ export const guardSettings = (decisionFile?: string) => {
       command: `grep -qiE 'idle|permission|waiting for|needs.?input' && echo waiting >> ${f} || true` }] }];
     hooks.UserPromptSubmit = [{ hooks: [{ type: "command", command: `: > ${f}` }] }];
   }
+  // SPEC-332 · ADR-0073 · mode goal: mesin yang SAMA dipasang `/goal` di dalam sesi
+  // (sessionHooksRegistry.add(cwd,"Stop","",{type:"prompt",prompt})), tapi dari luar dan saat sesi
+  // lahir — jadi ia tak bergantung timing TUI maupun kepatuhan agen. BUKAN guardrail deny: ADR-0037
+  // tetap dicabut, hook ini tak pernah menolak tool call, ia hanya menahan sesi BERHENTI sebelum
+  // kondisinya terbukti di transkrip. Interrupt manusia (Esc) bukan event Stop → kendali tetap ada.
+  if (goal) hooks.Stop = [{ hooks: [{ type: "prompt", prompt: goal }] }];
   return { hooks };
 };
