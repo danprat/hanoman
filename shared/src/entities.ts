@@ -64,6 +64,17 @@ export const zScheduler = z.object({
 export type Scheduler = z.infer<typeof zScheduler>;
 export const SCHEDULER_DEFAULTS: Scheduler = zScheduler.parse({});
 
+// SPEC-332 · ADR-0073 · mode goal untuk sesi backlog: Claude Code menolak berhenti sampai kondisi
+// terbukti. Default MATI; `condition` kosong = pakai template DoD bawaan runner
+// (defaultGoalCondition). Batas 4000 = batas kondisi `/goal` di Claude Code. Dipasang ke zSetting
+// lewat .default() seperti `scheduler` (SPEC-294) → baris Setting lama tetap parse, tanpa migration.
+export const zGoal = z.object({
+  enabled: z.boolean().default(false),
+  condition: z.string().max(4000).default(""),
+});
+export type Goal = z.infer<typeof zGoal>;
+export const GOAL_DEFAULTS: Goal = zGoal.parse({});
+
 export const zSetting = z.object({
   model: z.string().default("claude-opus-5"),
   effort: z.string().default("xhigh"),
@@ -76,6 +87,7 @@ export const zSetting = z.object({
   notifyDecisionSound: z.enum(NOTIFY_SOUNDS).default("alert"),            // SPEC-184
   agentAccessEnabled: z.boolean().default(false),                        // SPEC-257 · master switch akses AI agent
   scheduler: zScheduler.default(SCHEDULER_DEFAULTS),                      // SPEC-294 · ADR-0072 · knob scheduler (default mati)
+  goal: zGoal.default(GOAL_DEFAULTS),                                     // SPEC-332 · ADR-0073 · mode goal (default mati)
 });
 export type Setting = z.infer<typeof zSetting>;
 

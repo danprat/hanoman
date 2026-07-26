@@ -189,7 +189,12 @@ export const zTerminalSession = z.union([
   // (diseed dari Project.desc), tanpa Spec — cermin reverse.
   z.object({ project: z.string(), flow: z.literal("scaffold") }),
   // SPEC-252 · ADR-0061 — model & effort per SESI: override opsional saat Start; kosong → global.
-  z.object({ spec: z.string(), flow: zFlow, model: z.string().optional(), effort: z.string().optional() }),
+  // SPEC-332 · ADR-0073 — mode goal per SESI: `goal` undefined → ikut Setting.goal.enabled,
+  // false → mati walau global nyala; `goalCondition` kosong → template global → default bawaan.
+  z.object({
+    spec: z.string(), flow: zFlow, model: z.string().optional(), effort: z.string().optional(),
+    goal: z.boolean().optional(), goalCondition: z.string().max(4000).optional(),
+  }),
 ]);
 
 export const zDocFileContent = z.object({ content: z.string() });
