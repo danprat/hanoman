@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { tmpdir } from "node:os";
-import { guardSettings, type Flow } from "@hanoman/runner";
+import { guardSettings, goalOneLine, type Flow } from "@hanoman/runner";
 import { readPhases, type Phase } from "./session-phases";
 import { effectiveStr } from "../config";
 
@@ -222,7 +222,52 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
   if (opts.branch) tmux("set-option", "-t", name(id), "@hanoman_branch", opts.branch);
   if (opts.phaseFile) tmux("set-option", "-t", name(id), "@hanoman_phase_file", opts.phaseFile);
   if (opts.decisionFile) tmux("set-option", "-t", name(id), "@hanoman_decision_file", opts.decisionFile);
+  // SPEC-332 · fire-and-forget: respons HTTP tak boleh menunggu TUI siap. Gagal = diam, karena
+  // jaminan mode goal sudah dipegang hook Stop di `--settings` di atas.
+  if (opts.goal && !opts.command) void armGoalInTui(id, opts.goal).catch(() => { /* best-effort */ });
   return { id, projectId, specId: opts.specId, flow: opts.flow, cwd, branch: opts.branch, exited: false, decision: false };
+}
+
+// SPEC-332 · ADR-0073 — jalur KEDUA mode goal. Hook Stop di `--settings` adalah jaminannya; ini
+// murni untuk VISIBILITAS: mengetik `/goal <kondisi>` membuat Claude Code men-set `activeGoal`
+// miliknya, jadi `/goal` menampilkan status dan goal ikut dipulihkan saat sesi di-resume.
+// Keduanya tak saling menghapus: sumber yang dibaca `/goal` saat mencari goal lama hanya
+// session hooks registry, sementara hook kita hidup di settings. Konsekuensi yang diterima sadar —
+// saat keduanya terpasang, satu percobaan stop dievaluasi dua kali.
+// SEKALI kirim (bukan kirim-ulang tiap percobaan): mengetik dua kali akan melahirkan dua pesan.
+export type GoalArmOpts = { pollMs?: number; readyTries?: number; settleMs?: number; verifyTries?: number };
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const paneText = (id: string): string => {
+  try { return tmux("capture-pane", "-p", "-t", name(id)); } catch { return ""; }
+};
+
+export async function armGoalInTui(id: string, condition: string, o: GoalArmOpts = {}): Promise<boolean> {
+  const pollMs = o.pollMs ?? 500, readyTries = o.readyTries ?? 20;
+  const settleMs = o.settleMs ?? 1200, verifyTries = o.verifyTries ?? 12;
+  const line = goalOneLine(condition);
+  if (!line) return false;
+  // Tunggu pane menggambar sesuatu (TUI sudah hidup). Habis percobaan → kirim saja: yang hilang
+  // hanyalah visibilitas, sementara jaminan sudah dipegang hook settings.
+  for (let i = 0; i < readyTries; i++) {
+    const p = getSession(id);
+    if (!p || p.exited) return false;
+    if (paneText(id).trim()) break;
+    await sleep(pollMs);
+  }
+  await sleep(settleMs);
+  const p = getSession(id);
+  if (!p || p.exited) return false;
+  try {
+    // `-l` = literal: tmux tak menafsirkan isi kondisi sebagai nama tombol.
+    tmux("send-keys", "-t", name(id), "-l", `/goal ${line}`);
+    tmux("send-keys", "-t", name(id), "Enter");
+  } catch { return false; }   // sesi lenyap di tengah jalan
+  for (let i = 0; i < verifyTries; i++) {
+    if (paneText(id).includes("/goal")) return true;
+    await sleep(pollMs);
+  }
+  return false;
 }
 
 // Fase dibaca dari berkasnya, tidak disimpan: sesi yang selamat dari restart API tetap

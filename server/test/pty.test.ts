@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   createSession, getSession, listSessions, killSession, killAll, detachAll, attach, writeTo,
-  sessionPhases, markerFilled, promptFilePath,
+  sessionPhases, markerFilled, promptFilePath, armGoalInTui,
 } from "../src/services/pty";
 import { phaseFilePath, type Phase } from "../src/services/session-phases";
 
@@ -72,6 +72,27 @@ describe("pty service", () => {
     const c = fakeClient();
     attach(s.id, c);
     expect(allData(c)).not.toContain('"Stop"');
+  });
+
+  // SPEC-332 · ADR-0073 · jalur KEDUA: teks `/goal …` benar-benar sampai ke pane. fake-claude
+  // (`exec cat` di atas tty) memantulkan apa pun yang diketik, jadi capture-pane membuktikannya
+  // tanpa memanggil claude sungguhan.
+  it("armGoalInTui mengetik /goal ke pane dan meratakan kondisi multi-baris", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const s = createSession("goal3", process.cwd());
+    const ok = await armGoalInTui(s.id, "baris satu\nbaris dua", {
+      pollMs: 40, readyTries: 30, settleMs: 40, verifyTries: 30,
+    });
+    expect(ok).toBe(true);
+    const c = fakeClient();
+    attach(s.id, c);
+    await waitFor(() => allData(c).includes("/goal"));
+    expect(allData(c).replace(/\s+/g, " ")).toContain("/goal baris satu baris dua");
+  });
+
+  it("armGoalInTui menyerah diam-diam pada sesi yang tak ada", async () => {
+    expect(await armGoalInTui("tidak-ada", "kondisi", { pollMs: 5, readyTries: 2, settleMs: 5, verifyTries: 2 }))
+      .toBe(false);
   });
 
   // SPEC-211 · Open Console memasok argv sendiri (mis. `ssh -t …`) — shell mentah, bukan claude.
