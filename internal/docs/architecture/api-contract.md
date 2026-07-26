@@ -196,6 +196,9 @@ GET/PUT  /settings                      # Setting blob (zSetting): model, effort
 #                                         notifyFail, notifyDone (bool), notifySound — SPEC-180. Tanpa dailyBudget/maxConcurrent.
 #                                         model/effort = DEFAULT GLOBAL sesi baru (SPEC-252/ADR-0061); per sesi di-override saat Start.
 #                                         phaseModels DICABUT (SPEC-252/ADR-0061) — baris lama yang masih memuatnya tetap parse (diabaikan).
+#                                         goal { enabled:false, condition:"" } (SPEC-332/ADR-0073) — default global mode goal
+#                                           sesi backlog; condition kosong = pakai default DoD bawaan. Blok selalu ADA di response
+#                                           (zod .default()), jadi baris Setting lama tetap parse tanpa migration.
 #                                         PUT ganti seluruh blob (full replace).
 GET      /notifications                 # { items:Notification[] (≤50 terbaru dulu), unread:int }  (SPEC-180)
 #   Notification dibuat server-side saat backlog masuk `done` (advanceStage + write-through GET /specs).
@@ -265,9 +268,16 @@ POST   /terminal/sessions  {project, flow?} # 201 { id } · 404 project · 400 t
 #   {project, shell:true} (SPEC-236, ADR-0056): terminal biasa NON-claude — shell mentah
 #     (HANOMAN_SHELL ?? $SHELL ?? /bin/bash) di repoDir project, tanpa flow (tak menggerakkan stage,
 #     tak buat worktree). 201 { id } · 404 project · 400 tanpa repoDir (needsBind).
-#   {spec, flow, model?, effort?} (SPEC-162; model/effort SPEC-252/ADR-0061): sesi backlog item di worktree
-#     .worktrees/<spec>, prompt pipeline penuh. model/effort opsional = override PER SESI (kosong → default global);
+#   {spec, flow, model?, effort?, goal?, goalCondition?} (SPEC-162; model/effort SPEC-252/ADR-0061;
+#     goal SPEC-332/ADR-0073): sesi backlog item di worktree .worktrees/<spec>, prompt pipeline penuh.
+#     model/effort opsional = override PER SESI (kosong → default global);
 #     jadi argv --model/--effort saat sesi lahir (andal, tak bergantung agen).
+#     goal?: boolean — mode goal PER SESI. undefined → ikut Setting.goal.enabled; false → MATI walau
+#       global menyala; true → nyala. goalCondition?: string ≤4000 — kondisi khusus sesi ini.
+#       Presedens kondisi: goalCondition → Setting.goal.condition → default DoD bawaan runner
+#       (semua fase tercatat di $HANOMAN_PHASE_FILE, plan tak menyisakan `- [ ]`, push sukses).
+#       Nyala → argv --settings membawa hooks.Stop=[{type:"prompt",prompt:<kondisi>}] (sesi menolak
+#       berhenti sampai kondisi terbukti di transkrip) + keystroke `/goal` best-effort ke pane.
 #     flow ∈ feature|qa|audit (dari source; flowForSource). audit (SPEC-237/ADR-0057) = pipeline
 #     Audit → Laporan: investigasi + dokumen SoT (research/audit-<spec>-<slug>.md), TANPA Execute; stage done via Laporan.
 #   SPEC-172: bila Spec.stage === "done", sesi baru dibuka dengan prompt LANJUTAN (fase Execute

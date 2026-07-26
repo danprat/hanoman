@@ -97,6 +97,14 @@ Singleton `id = 1`, kolom `data` (Json) berbentuk `zSetting`:
   terpakai), dan `sources.{backlog,errors,triase}`
   (`enabled`+`everyMin` per source; `errors.minCount`). Ditambahkan sebagai `.default(SCHEDULER_DEFAULTS)`
   → baris Setting lama tetap parse (blok hilang diisi default).
+- `goal` (SPEC-332/[ADR-0073](../adr/0073-mode-goal-stop-hook-per-sesi.md), `zGoal`, **default MATI**) —
+  mode goal untuk **sesi backlog**: `enabled` (default `false`) dan `condition` (string ≤ 4000, default
+  `""` = pakai template DoD bawaan `defaultGoalCondition` di runner). Nyala → sesi lahir dengan
+  `hooks.Stop=[{type:"prompt",prompt:<kondisi>}]` di argv `--settings` (mesin yang sama dipasang
+  `/goal` Claude Code) sehingga ia **menolak berhenti** sampai kondisinya terbukti di transkrip; plus
+  keystroke `/goal` best-effort ke pane untuk visibilitas TUI. Bisa di-override per sesi lewat
+  `goal`/`goalCondition` di `POST /terminal/sessions`; sesi scheduler mengikuti default global ini.
+  Ditambahkan sebagai `.default(GOAL_DEFAULTS)` → baris Setting lama tetap parse, **tanpa migration**.
 
 ## User / Session (auth — SPEC-169, [ADR-0028](../adr/0028-auth-sesi-opaque-di-db.md))
 - **User**: `id` (cuid), `email` (unique), `passwordHash` (`scrypt` "saltHex:hashHex"), `createdAt`.
