@@ -66,6 +66,7 @@ export default async function (app: FastifyInstance) {
       try {
         const r = await startSpecSession(spec, {
           flow: parsed.data.flow, model: parsed.data.model, effort: parsed.data.effort,
+          goal: parsed.data.goal, goalCondition: parsed.data.goalCondition,   // SPEC-332 · ADR-0073
         });
         return reply.code(201).send({ id: r.id });
       } catch (e) {

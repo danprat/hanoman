@@ -1,8 +1,19 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { execFileSync } from "node:child_process";
 import { prisma } from "../src/db";
 import { startSpecSession, LaunchError, sessionIdForSpec } from "../src/services/session-launch";
+import { killAll, killSession } from "../src/services/pty";
+import { DEFAULT_SETTING } from "../src/services/settings";
+import { resolveGoalCondition } from "@hanoman/runner";
 
-const clean = async () => { await prisma.spec.deleteMany(); await prisma.project.deleteMany(); await prisma.localBinding.deleteMany(); };
+const clean = async () => {
+  killAll();
+  await prisma.setting.deleteMany();
+  await prisma.spec.deleteMany(); await prisma.project.deleteMany(); await prisma.localBinding.deleteMany();
+};
 beforeEach(clean); afterAll(clean);
 
 describe("session-launch", () => {
@@ -14,5 +25,85 @@ describe("session-launch", () => {
     const spec = await prisma.spec.create({ data: { id: "SPEC-1", projectId: "p1", title: "t", source: "brief", stage: "planned", author: "a", priority: "sedang", objective: "" } });
     await expect(startSpecSession(spec, { flow: "feature" })).rejects.toMatchObject({ kind: "needs-bind" });
     expect((await prisma.spec.findUnique({ where: { id: "SPEC-1" } }))!.baseSha).toBeNull(); // tak menyentuh baseSha
+  });
+
+  // SPEC-332 · ADR-0073 · resolusi mode goal: override per sesi → template global → default bawaan.
+  // Bukti diambil dari argv pane tmux — di situlah `--settings` (berisi hook Stop) benar-benar ada.
+  async function seedRepo(id: string) {
+    const dir = mkdtempSync(join(tmpdir(), "hanoman-goal-"));
+    const env = { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" };
+    execFileSync("git", ["init", "-q", dir]);
+    execFileSync("git", ["-C", dir, "commit", "-q", "--allow-empty", "-m", "root"], { env });
+    await prisma.project.upsert({
+      where: { id: "pg" },
+      update: { repoDir: dir },
+      create: { id: "pg", name: "PG", desc: "", kind: "existing", repoDir: dir },
+    });
+    return prisma.spec.create({ data: { id, projectId: "pg", title: "t", source: "brief", stage: "planned", author: "a", priority: "sedang", objective: "o" } });
+  }
+  // `#{pane_start_command}` DIPOTONG tmux ("…") untuk argv panjang — kondisi goal bawaan jauh
+  // melewatinya. Baca layar pane-nya saja: HANOMAN_CLAUDE_BIN=/bin/echo mencetak argv utuh, dan
+  // `remain-on-exit` menahan pane mati tetap terbaca (pola yang sama dipakai pty.attach).
+  const argvOf = async (id: string): Promise<string> => {
+    const read = () => execFileSync("tmux", ["-L", process.env.HANOMAN_TMUX_SOCKET ?? "hanoman",
+      "-f", "/dev/null", "capture-pane", "-p", "-J", "-S", "-2000", "-t", "hanoman-" + id],
+      { encoding: "utf8" }).replace(/\s+/g, " ").trim();
+    for (let i = 0; i < 100 && !read(); i++) await new Promise((r) => setTimeout(r, 20));
+    return read();
+  };
+  // Baris Setting harus LENGKAP: `zSetting` mewajibkan autoDefault/autoScaffold/notifyFail (tanpa
+  // .default()), jadi objek parsial gagal parse dan getSetting diam-diam jatuh ke DEFAULT_SETTING.
+  const setGoal = (goal: { enabled: boolean; condition: string }) => {
+    const data = { ...DEFAULT_SETTING, goal } as unknown as object;
+    return prisma.setting.upsert({ where: { id: 1 }, update: { data }, create: { id: 1, data } });
+  };
+
+  it("Setting.goal mati & tanpa override → sesi lahir tanpa hook Stop", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+    const spec = await seedRepo("SPEC-G1");
+    const r = await startSpecSession(spec, { flow: "feature" });
+    expect(await argvOf(r.id)).not.toContain('"type":"prompt"');
+    killSession(r.id);
+  });
+
+  it("goal:true memakai template global; goalCondition per sesi menang atasnya", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+    await setGoal({ enabled: false, condition: "TEMPLATE-GLOBAL" });
+    const spec = await seedRepo("SPEC-G2");
+    const r = await startSpecSession(spec, { flow: "feature", goal: true });
+    expect(await argvOf(r.id)).toContain("TEMPLATE-GLOBAL");
+    killSession(r.id);
+
+    const spec2 = await seedRepo("SPEC-G3");
+    const r2 = await startSpecSession(spec2, { flow: "feature", goal: true, goalCondition: "KONDISI-SESI" });
+    const argv = await argvOf(r2.id);
+    expect(argv).toContain("KONDISI-SESI");
+    expect(argv).not.toContain("TEMPLATE-GLOBAL");
+    killSession(r2.id);
+  });
+
+  it("Setting.goal menyala → sesi tanpa override tetap membawa hook Stop (jalur scheduler)", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+    await setGoal({ enabled: true, condition: "" });
+    const spec = await seedRepo("SPEC-G5");
+    const r = await startSpecSession(spec, { flow: "feature" });   // governor memanggil persis begini
+    const argv = await argvOf(r.id);
+    expect(argv).toContain('"type":"prompt"');
+    expect(argv).toContain("Sesi backlog hanoman SPEC-G5");         // kondisi DoD bawaan
+    killSession(r.id);
+  });
+
+  it("goal:false mengalahkan Setting global yang menyala", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+    await setGoal({ enabled: true, condition: "" });
+    const spec = await seedRepo("SPEC-G4");
+    const r = await startSpecSession(spec, { flow: "feature", goal: false });
+    expect(await argvOf(r.id)).not.toContain('"type":"prompt"');
+    killSession(r.id);
+  });
+
+  it("kondisi default menyebut branch sesi", () => {
+    expect(resolveGoalCondition({ flow: "feature", specId: "SPEC-G6", branchTo: "hanoman/spec-g6" }))
+      .toContain("hanoman/spec-g6");
   });
 });

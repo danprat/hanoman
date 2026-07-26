@@ -1,8 +1,8 @@
 import { prisma } from "../db";
 import type { Spec } from "@prisma/client";
-import { realGit, startPrompt, continuePrompt, type Flow, type Autonomy } from "@hanoman/runner";
+import { realGit, startPrompt, continuePrompt, resolveGoalCondition, type Flow, type Autonomy } from "@hanoman/runner";
 import { resolveRepoDir } from "./local-binding";
-import { sessionModel } from "./settings";
+import { getSetting } from "./settings";
 import { createSession, getSession, sessionIdForSpec } from "./pty";
 import { phaseFilePath, decisionFilePath } from "./session-phases";
 
@@ -18,7 +18,13 @@ export class LaunchError extends Error {
 export type StartSpecResult = { id: string; reused?: boolean };
 
 export async function startSpecSession(
-  spec: Spec, opts: { flow: Flow; model?: string; effort?: string; autonomy?: Autonomy },
+  spec: Spec,
+  opts: {
+    flow: Flow; model?: string; effort?: string; autonomy?: Autonomy;
+    // SPEC-332 · ADR-0073 · mode goal per sesi. undefined → ikut Setting.goal.enabled;
+    // false → mati walau global menyala. Governor scheduler tak memasoknya → ikut global.
+    goal?: boolean; goalCondition?: string;
+  },
 ): Promise<StartSpecResult> {
   // SPEC-213 · binding lokal per-device menang atas Project.repoDir (AC-8). Tanpa checkout lokal →
   // minta bind/clone dulu (route: 400 needsBind; governor: markFailed).
@@ -31,10 +37,17 @@ export async function startSpecSession(
   if (live) return { id: live.id, reused: true };
 
   // SPEC-252 · ADR-0061 · model/effort per SESI: default global, override per-instance opsional.
-  const g = await sessionModel();
-  const model = opts.model ?? g.model;
-  const effort = opts.effort ?? g.effort;
+  // Satu bacaan Setting dipakai bersama resolusi mode goal di bawah.
+  const setting = await getSetting();
+  const model = opts.model ?? setting.model;
+  const effort = opts.effort ?? setting.effort;
   const isContinue = spec.stage === "done";
+  // SPEC-332 · ADR-0073 · kondisi goal: override sesi → template global → default DoD bawaan.
+  const goal = (opts.goal ?? setting.goal.enabled)
+    ? resolveGoalCondition(
+        { flow: opts.flow, specId: spec.id, branchTo: `hanoman/${id}` },
+        opts.goalCondition, setting.goal.condition)
+    : undefined;
 
   // Worktree lahir `--detach` di commit branchFrom (fallback HEAD, SPEC-197): sesi tak pernah jalan
   // di working tree utama. baseSha disimpan agar review men-diff baseSha..headSha (SPEC-176/ADR-0030).
@@ -51,7 +64,7 @@ export async function startSpecSession(
     priority: spec.priority, objective: spec.objective, payload: spec.payload ?? undefined,
   };
   const s = createSession(spec.projectId, `${repoDir}/.worktrees/${id}`, {
-    specId: spec.id, flow: opts.flow, model, effort,
+    specId: spec.id, flow: opts.flow, model, effort, goal,
     phaseFile: phaseFilePath(repoDir, id),
     decisionFile: decisionFilePath(repoDir, id),
     prompt: isContinue
