@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { GOAL_MAX, defaultGoalCondition, resolveGoalCondition, goalOneLine } from "./goal";
+import { GOAL_MAX, defaultGoalCondition, resolveGoalCondition, goalOneLine } from "../src/goal";
 
 const args = { flow: "feature" as const, specId: "SPEC-332", branchTo: "hanoman/spec-332" };
 

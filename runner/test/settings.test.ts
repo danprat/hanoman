@@ -12,4 +12,25 @@ describe("guardSettings", () => {
     expect(s.hooks.Notification[0].hooks[0].command).toMatch(/grep/);
     expect(s.hooks.UserPromptSubmit[0].hooks[0].command).toContain("/repo/.worktrees/.decisions/sess1");
   });
+
+  // SPEC-332 · ADR-0073 · mode goal: Stop hook bertipe `prompt` — mesin yang sama dipasang `/goal`.
+  it("tanpa goal: tak ada hook Stop sama sekali", () => {
+    const s = guardSettings("/tmp/dec") as any;
+    expect(s.hooks.Stop).toBeUndefined();
+    expect(s.hooks.Notification).toBeDefined();      // marker keputusan SPEC-184 tetap
+    expect(s.hooks.UserPromptSubmit).toBeDefined();
+  });
+  it("dengan goal: Stop hook bertipe prompt berisi kondisinya", () => {
+    const s = guardSettings("/tmp/dec", "berhenti hanya bila X") as any;
+    expect(s.hooks.Stop).toEqual([{ hooks: [{ type: "prompt", prompt: "berhenti hanya bila X" }] }]);
+    expect(s.hooks.Notification).toBeDefined();      // tak merusak hook yang sudah ada
+  });
+  it("goal boleh berdiri tanpa decisionFile", () => {
+    const s = guardSettings(undefined, "kondisi") as any;
+    expect(s.hooks.Stop[0].hooks[0].prompt).toBe("kondisi");
+    expect(s.hooks.Notification).toBeUndefined();
+  });
+  it("goal kosong tidak memasang hook", () => {
+    expect((guardSettings("/tmp/dec", "") as any).hooks.Stop).toBeUndefined();
+  });
 });

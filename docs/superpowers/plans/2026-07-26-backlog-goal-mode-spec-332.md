@@ -36,7 +36,7 @@
   `resolveGoalCondition(a: GoalArgs, override?: string | null, template?: string | null): string`,
   `goalOneLine(cond: string): string`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `runner/src/goal.test.ts`:
 
@@ -81,12 +81,12 @@ describe("goal condition", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/runner exec vitest run src/goal.test.ts`
 Expected: FAIL — `Failed to resolve import "./goal"`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Buat `runner/src/goal.ts`:
 
@@ -151,12 +151,12 @@ Tambahkan ke `runner/src/index.ts`, sesudah baris `export * from "./settings";`:
 export * from "./goal";
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/runner exec vitest run src/goal.test.ts`
 Expected: PASS — 5 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runner/src/goal.ts runner/src/goal.test.ts runner/src/index.ts
@@ -175,7 +175,7 @@ git commit -m "feat(spec-332): kondisi goal DoD hanoman di runner (library murni
 - Consumes: —
 - Produces: `guardSettings(decisionFile?: string, goal?: string)` — argumen kedua baru; tanpa `goal` hasilnya identik dengan sebelumnya.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `runner/src/settings.test.ts`:
 
@@ -211,12 +211,12 @@ describe("guardSettings", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/runner exec vitest run src/settings.test.ts`
 Expected: FAIL — `expected undefined to deeply equal [ { hooks: [...] } ]`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Ubah `runner/src/settings.ts` — ganti tanda tangan dan tambahkan blok goal sebelum `return`:
 
@@ -243,12 +243,12 @@ export const guardSettings = (decisionFile?: string, goal?: string) => {
 };
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/runner exec vitest run`
 Expected: PASS — `goal.test.ts` (5) + `settings.test.ts` (4).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runner/src/settings.ts runner/src/settings.test.ts
@@ -269,7 +269,7 @@ git commit -m "feat(spec-332): guardSettings memasang Stop hook prompt untuk mod
 - Consumes: —
 - Produces: `zGoal`, `type Goal = { enabled: boolean; condition: string }`, `GOAL_DEFAULTS: Goal`, field `Setting.goal`, field opsional `goal?: boolean` & `goalCondition?: string` pada varian spec `zTerminalSession`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `shared/src/goal.test.ts`:
 
@@ -317,12 +317,12 @@ describe("zTerminalSession varian spec", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/shared exec vitest run src/goal.test.ts`
 Expected: FAIL — `zGoal` tidak diekspor dari `./entities`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Di `shared/src/entities.ts`, sisipkan tepat sesudah baris `export const SCHEDULER_DEFAULTS: Scheduler = zScheduler.parse({});`:
 
@@ -369,12 +369,12 @@ import { zSetting, SCHEDULER_DEFAULTS, GOAL_DEFAULTS, type Setting } from "@hano
 };
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/shared exec vitest run`
 Expected: PASS — termasuk 6 test baru; `scheduler.test.ts` tetap hijau.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add shared/src/entities.ts shared/src/dto.ts shared/src/goal.test.ts server/src/services/settings.ts
@@ -393,7 +393,7 @@ git commit -m "feat(spec-332): kontrak Setting.goal + goal/goalCondition di POST
 - Consumes: `guardSettings(decisionFile?, goal?)` (Task 2).
 - Produces: `CreateOpts.goal?: string`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `server/test/pty.test.ts`, di dalam `describe("pty service", …)`:
 
@@ -421,12 +421,12 @@ Tambahkan di `server/test/pty.test.ts`, di dalam `describe("pty service", …)`:
   });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run test/pty.test.ts --no-file-parallelism -t "goal opt"`
 Expected: FAIL — TypeScript menolak `goal` pada `CreateOpts` / asersi `"type":"prompt"` gagal.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Di `server/src/services/pty.ts`, ubah `CreateOpts`:
 
@@ -445,12 +445,12 @@ dan pemanggilan `guardSettings` di dalam blok `flags`:
       "--settings", JSON.stringify(guardSettings(opts.decisionFile, opts.goal)),
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run test/pty.test.ts --no-file-parallelism`
 Expected: PASS — seluruh `pty.test.ts` termasuk 2 test baru.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/pty.ts server/test/pty.test.ts
@@ -470,7 +470,7 @@ git commit -m "feat(spec-332): createSession meneruskan goal ke argv --settings"
 - Produces: `armGoalInTui(id: string, condition: string, o?: GoalArmOpts): Promise<boolean>` dan
   `type GoalArmOpts = { pollMs?: number; readyTries?: number; settleMs?: number; verifyTries?: number }`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `server/test/pty.test.ts` (dan tambahkan `armGoalInTui` ke daftar impor dari `../src/services/pty`):
 
@@ -497,12 +497,12 @@ Tambahkan di `server/test/pty.test.ts` (dan tambahkan `armGoalInTui` ke daftar i
   });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run test/pty.test.ts --no-file-parallelism -t "armGoalInTui"`
 Expected: FAIL — `armGoalInTui is not a function` / import error.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Di `server/src/services/pty.ts`, ubah impor runner menjadi:
 
@@ -563,12 +563,12 @@ Di akhir `createSession`, tepat sebelum `return { id, projectId, … }`, tambahk
   if (opts.goal && !opts.command) void armGoalInTui(id, opts.goal).catch(() => { /* best-effort */ });
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run test/pty.test.ts --no-file-parallelism`
 Expected: PASS — seluruh `pty.test.ts` termasuk 2 test `armGoalInTui`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/pty.ts server/test/pty.test.ts
@@ -589,7 +589,7 @@ git commit -m "feat(spec-332): armGoalInTui mengetik /goal ke pane (best-effort,
 - Produces: `startSpecSession(spec, { flow, model?, effort?, autonomy?, goal?: boolean, goalCondition?: string })`.
 - Governor scheduler **tidak berubah**: ia memanggil tanpa `goal`, jadi otomatis mengikuti `Setting.goal.enabled`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `server/test/session-launch.test.ts` — ubah impor teratas menjadi:
 
@@ -675,12 +675,12 @@ Tambahkan pula pembersihan tmux ke `clean`:
 const clean = async () => { killAll(); await prisma.setting.deleteMany(); await prisma.spec.deleteMany(); await prisma.project.deleteMany(); await prisma.localBinding.deleteMany(); };
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run test/session-launch.test.ts --no-file-parallelism`
 Expected: FAIL — `goal` bukan properti `opts` yang dikenal / argv tak memuat `TEMPLATE-GLOBAL`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Di `server/src/services/session-launch.ts`, ubah impor:
 
@@ -737,12 +737,12 @@ Di `server/src/routes/terminal.ts`, teruskan field baru:
         });
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run test/session-launch.test.ts test/terminal.route.test.ts --no-file-parallelism`
 Expected: PASS — `session-launch` (6) dan `terminal.route` tetap hijau.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/session-launch.ts server/src/routes/terminal.ts server/test/session-launch.test.ts
@@ -762,7 +762,7 @@ git commit -m "feat(spec-332): resolusi mode goal di startSpecSession (manual + 
 - Consumes: `api.getSettings()` (mengembalikan `Setting` dengan `goal`), `api.startSession`.
 - Produces: `api.startSession(b: { spec; flow; model?; effort?; goal?: boolean; goalCondition?: string })`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/test/start-session-goal.test.tsx`:
 
@@ -806,12 +806,12 @@ describe("StartSessionModal · mode goal", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter hanoman-web exec vitest run test/start-session-goal.test.tsx`
 Expected: FAIL — `Unable to find an accessible element with the role "switch"`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Di `src/src/api/client.ts`, ubah tanda tangan `startSession`:
 
@@ -894,12 +894,12 @@ export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
 
 Catatan: `HnTextarea` menerima `onChange(value: string)`. Bila tanda tangannya di `kit.tsx` berbeda, sesuaikan pemanggilannya — jangan mengubah komponen design-system.
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter hanoman-web exec vitest run test/start-session-goal.test.tsx`
 Expected: PASS — 2 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/App.tsx src/src/api/client.ts src/test/start-session-goal.test.tsx
@@ -918,7 +918,7 @@ git commit -m "feat(spec-332): toggle mode goal + kondisi di modal Mulai sesi"
 - Consumes: `api.getSettings()`, `api.putSettings()`, `Setting.goal` (Task 3).
 - Produces: —
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/test/settings-goal.test.tsx`:
 
@@ -952,12 +952,12 @@ describe("SettingsScreen · kartu mode goal", () => {
 
 Catatan: bila `SettingsScreen` butuh props wajib (mis. `me`/`onToast`), pasok stub minimal di `render` — baca tanda tangan komponennya lebih dulu, dan sesuaikan label tab ("Sesi") dengan yang benar-benar dirender.
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter hanoman-web exec vitest run test/settings-goal.test.tsx`
 Expected: FAIL — `Unable to find a label with the text of: Mode goal default`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Di `src/src/screens/SettingsScreen.tsx`, tambahkan impor `GOAL_DEFAULTS` dari `@hanoman/shared` bersama `SCHEDULER_DEFAULTS`, lalu lengkapi `S_DEFAULTS`:
 
@@ -1004,12 +1004,12 @@ Ganti cabang terakhir (`return ( // sesi`) menjadi fragment dua kartu:
 
 Pastikan `HnTextarea` ikut diimpor dari `../ds`.
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter hanoman-web exec vitest run test/settings-goal.test.tsx`
 Expected: PASS — 1 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/SettingsScreen.tsx src/test/settings-goal.test.tsx
@@ -1031,7 +1031,7 @@ git commit -m "feat(spec-332): kartu Mode goal di Settings (default global)"
 - Consumes: seluruh keputusan Task 1–8.
 - Produces: dokumen SoT; tak ada kode.
 
-- [ ] **Step 1: Tulis ADR-0073**
+- [x] **Step 1: Tulis ADR-0073**
 
 Buat `internal/docs/adr/0073-mode-goal-stop-hook-per-sesi.md` dengan bagian: Status (accepted, 2026-07-26) · Konteks · Keputusan · Konsekuensi · Alternatif yang ditolak. Isi wajib memuat:
 
@@ -1043,7 +1043,7 @@ Buat `internal/docs/adr/0073-mode-goal-stop-hook-per-sesi.md` dengan bagian: Sta
 - Cakupan sesi backlog saja; default mati; tanpa migration (blok JSON `Setting.goal`).
 - Konsekuensi negatif yang diterima: evaluasi ganda, `/goal clear` tak melepas hook settings, biaya model kecil per percobaan stop.
 
-- [ ] **Step 2: Tautkan di index**
+- [x] **Step 2: Tautkan di index**
 
 Di `internal/docs/README.md`, sisipkan sebagai baris **pertama** daftar `## adr` (di atas 0072):
 
@@ -1051,13 +1051,13 @@ Di `internal/docs/README.md`, sisipkan sebagai baris **pertama** daftar `## adr`
 - [0073 — Mode goal sesi backlog: Stop hook bertipe `prompt` saat sesi lahir + keystroke `/goal`](adr/0073-mode-goal-stop-hook-per-sesi.md) — **memperkuat 0035**, memberi cermin runtime bagi 0029, mengikuti pola 0061, **tidak membalik 0037** (SPEC-332): `guardSettings` menyisipkan `hooks.Stop=[{type:"prompt"}]` ke `--settings` (jaminan) + `armGoalInTui` mengetik `/goal` ke pane (visibilitas TUI); knob `Setting.goal` + `goal`/`goalCondition` di `POST /terminal/sessions`; default mati, tanpa migration
 ```
 
-- [ ] **Step 3: Perbarui kontrak API & data model**
+- [x] **Step 3: Perbarui kontrak API & data model**
 
 Di `internal/docs/architecture/api-contract.md`, pada entri `POST /terminal/sessions`, tambahkan field opsional `goal` (boolean) dan `goalCondition` (string ≤ 4000) untuk varian backlog, dengan catatan presedens `override → template global → default bawaan` dan bahwa `goal:false` mengalahkan Setting global. Pada entri `GET/PUT /settings`, tambahkan blok `goal: { enabled, condition }`.
 
 Di `internal/docs/architecture/data-model.md`, pada bagian `Setting` (kolom `data` Json), tambahkan blok `goal` sejajar `scheduler`, catat default mati dan bahwa ia tak menambah kolom/migration.
 
-- [ ] **Step 4: Perbarui skill project**
+- [x] **Step 4: Perbarui skill project**
 
 Di `internal/skills/hanoman/SKILL.md`, bagian **Aturan Sesi & Eksekusi**, tambahkan satu butir:
 
@@ -1065,7 +1065,7 @@ Di `internal/skills/hanoman/SKILL.md`, bagian **Aturan Sesi & Eksekusi**, tambah
 - **Mode goal per sesi backlog** (SPEC-332/ADR-0073): sesi bisa lahir membawa gate `Stop` — `guardSettings` menyisipkan `hooks.Stop=[{type:"prompt",prompt:<kondisi>}]` ke `--settings` (mesin yang sama dipasang `/goal`), plus keystroke `/goal` best-effort ke pane untuk visibilitas TUI. Kondisi default = DoD hanoman (semua fase tercatat di phase file, plan tak menyisakan `- [ ]`, push sukses) dan menuntut BUKTI SEGAR karena evaluator hook hanya membaca transkrip. Knob `Setting.goal` (default mati) + override `goal`/`goalCondition` saat Start; sesi scheduler mengikuti default global. Bukan guardrail deny — ADR-0037 tetap berlaku.
 ```
 
-- [ ] **Step 5: Verifikasi index & commit**
+- [x] **Step 5: Verifikasi index & commit**
 
 Run: `node --experimental-strip-types cli/src/index.ts docs index --check` (atau `hanoman docs index --check` bila CLI terpasang)
 Expected: index konsisten, exit 0.
@@ -1088,19 +1088,19 @@ git commit -m "docs(spec-332): ADR-0073 mode goal + kontrak API, data model, ski
 - Consumes: seluruh Task 1–9.
 - Produces: bukti bahwa gate benar-benar menahan stop pada CLI terpasang.
 
-- [ ] **Step 1: Typecheck seluruh workspace**
+- [x] **Step 1: Typecheck seluruh workspace**
 
 Run: `pnpm -r exec tsc --noEmit`
 Expected: exit 0, tanpa error. (Jangan pakai `tsc -p .` tanpa `--noEmit` — ia menulis `.js`/`.d.ts` ke `src/`.)
 
-- [ ] **Step 2: Suite penuh**
+- [x] **Step 2: Suite penuh**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism`
 Expected: seluruh paket hijau. Bila `server` gagal karena DB dipakai sesi lain, jalankan ulang dengan basis khusus:
 `DATABASE_URL=postgresql://hanoman:hanoman@127.0.0.1:5433/hanoman332 env -u NODE_ENV pnpm --filter @hanoman/server exec vitest run --no-file-parallelism`
 (sebelumnya: `createdb`/`prisma migrate deploy` untuk `hanoman332_test`).
 
-- [ ] **Step 3: Smoke server + curl (WAJIB per CLAUDE.md)**
+- [x] **Step 3: Smoke server + curl (WAJIB per CLAUDE.md)**
 
 ```bash
 # DB khusus smoke — jangan pakai hanoman_test (sesi lain memangkasnya di tengah jalan)
@@ -1123,7 +1123,7 @@ tmux -L hanoman -f /dev/null list-panes -a -F '#{pane_start_command}' | grep -c 
 Expected: `GET /settings` mengembalikan blok `goal`; `POST /terminal/sessions` → 201; `grep -c` ≥ 1.
 Bersihkan sesudahnya: `tmux -L hanoman kill-server`, hentikan server, `DROP DATABASE hanoman332`.
 
-- [ ] **Step 4: Smoke `claude` nyata — buktikan gate menahan stop**
+- [x] **Step 4: Smoke `claude` nyata — buktikan gate menahan stop**
 
 ```bash
 cd "$(mktemp -d)" && git init -q .
@@ -1134,7 +1134,7 @@ claude --debug hooks --dangerously-skip-permissions \
 
 Expected: log memuat `Hooks: Processing prompt hook with prompt:` dan `Hooks: Prompt hook condition was not met` (atau agen melanjutkan giliran alih-alih berhenti) — membuktikan hook `prompt` dari `--settings` benar-benar dieksekusi pada event Stop di CLI terpasang. Catat keluaran nyatanya di pesan commit. Bila ternyata TIDAK dieksekusi, **hentikan dan laporkan** — jalur keystroke (Task 5) menjadi satu-satunya mekanisme dan design harus ditinjau ulang.
 
-- [ ] **Step 5: Centang plan, commit, push**
+- [x] **Step 5: Centang plan, commit, push**
 
 ```bash
 git add docs/superpowers/plans/2026-07-26-backlog-goal-mode-spec-332.md
