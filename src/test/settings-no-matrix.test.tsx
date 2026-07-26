@@ -13,6 +13,7 @@ vi.mock("../src/api/client", () => ({
 const SETTING = {
   model: "claude-opus-5", effort: "xhigh", autoDefault: true, autoScaffold: true,
   notifyFail: true, notifyDone: true, notifySound: "short", notifyDecision: true, notifyDecisionSound: "alert",
+  goal: { enabled: false, condition: "" },   // SPEC-332 · ADR-0073 · selalu ada di response (zod default)
 };
 const me = { id: "u1", email: "a@b.c" } as any;
 

@@ -1,0 +1,47 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+
+vi.mock("../src/api/client", () => ({
+  api: { getSettings: vi.fn(), putSettings: vi.fn() },
+  ApiError: class extends Error { status = 0 },
+}));
+
+import { SettingsScreen } from "../src/screens/SettingsScreen";
+import { api } from "../src/api/client";
+
+const me: any = { id: "u1", email: "dena@nafanesia.id", createdAt: "x" };
+const settings = (goal: { enabled: boolean; condition: string }) => ({
+  model: "claude-opus-5", effort: "xhigh", autoDefault: true, autoScaffold: true, notifyFail: true,
+  notifyDone: true, notifySound: "short", notifyDecision: true, notifyDecisionSound: "alert",
+  agentAccessEnabled: false, scheduler: {}, goal,
+});
+
+beforeEach(() => {
+  vi.mocked(api.getSettings).mockResolvedValue(settings({ enabled: false, condition: "" }) as any);
+  vi.mocked(api.putSettings).mockResolvedValue(settings({ enabled: true, condition: "" }) as any);
+});
+
+const openSesi = () => {
+  render(<SettingsScreen me={me} onLoggedOut={() => {}} />);
+  fireEvent.click(screen.getByRole("button", { name: "Sesi" }));
+};
+
+describe("SettingsScreen · kartu mode goal", () => {
+  it("menyalakan default global mode goal → PUT settings", async () => {
+    openSesi();
+    // Switch DS menaruh aria-label di wrapper; handler klik ada di elemen role=switch di dalamnya.
+    const wrap = await screen.findByLabelText("Mode goal default");
+    fireEvent.click(within(wrap).getByRole("switch"));
+    await waitFor(() => expect(api.putSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ goal: { enabled: true, condition: "" } })));
+  });
+
+  it("mengetik template global → PUT settings dengan kondisinya", async () => {
+    vi.mocked(api.getSettings).mockResolvedValue(settings({ enabled: true, condition: "" }) as any);
+    openSesi();
+    const ta = await screen.findByPlaceholderText("Kosong = kondisi bawaan hanoman");
+    fireEvent.change(ta, { target: { value: "KONDISI-TEMPLATE" } });
+    await waitFor(() => expect(api.putSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ goal: { enabled: true, condition: "KONDISI-TEMPLATE" } })));
+  });
+});

@@ -12,7 +12,8 @@ vi.mock("../src/api/client", () => ({
 const spec = { id: "SPEC-9", source: "qa", projectId: "p1" } as any;
 
 beforeEach(() => {
-  (api.getSettings as any).mockResolvedValue({ model: "claude-opus-5", effort: "xhigh" });
+  // SPEC-332 · ADR-0073 · response /settings selalu membawa blok goal (zod default).
+  (api.getSettings as any).mockResolvedValue({ model: "claude-opus-5", effort: "xhigh", goal: { enabled: false, condition: "" } });
   (api.startSession as any).mockResolvedValue({ id: "spec-9" });
 });
 
@@ -27,7 +28,7 @@ describe("StartSessionModal (SPEC-252)", () => {
     fireEvent.change(screen.getByLabelText("Model"), { target: { value: "claude-sonnet-5" } });
     fireEvent.click(screen.getByRole("button", { name: /Mulai/i }));
     await waitFor(() => expect(api.startSession).toHaveBeenCalledWith(
-      { spec: "SPEC-9", flow: "qa", model: "claude-sonnet-5", effort: "xhigh" }));
+      { spec: "SPEC-9", flow: "qa", model: "claude-sonnet-5", effort: "xhigh", goal: false, goalCondition: undefined }));
     expect(onStarted).toHaveBeenCalledWith("spec-9");
   });
 

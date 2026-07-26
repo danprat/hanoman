@@ -1,9 +1,9 @@
 /* SettingsScreen — workspace settings. Ported; persistence moved from
    localStorage to the API (GET/PUT /settings). Model per pipeline step. */
 import React from "react";
-import { Card, Switch, Select, Button, Input, Field, Icon, StateBlock } from "../ds";
+import { Card, Switch, Select, Button, Input, Field, HnTextarea, Icon, StateBlock } from "../ds";
 import { api, ApiError } from "../api/client";
-import { CAPABILITY_DOMAINS, SCHEDULER_DEFAULTS } from "@hanoman/shared";
+import { CAPABILITY_DOMAINS, SCHEDULER_DEFAULTS, GOAL_DEFAULTS } from "@hanoman/shared";
 import type { Setting, UserView, DeviceTokenView, SessionResultView, ConfigResponse, ConfigEntryView, AgentTokenView, CapabilityInfo } from "@hanoman/shared";
 import type { ShowToast } from "../ds";
 import { playNotifySound, type NotifySound } from "../notifications/sound";
@@ -41,6 +41,7 @@ const S_DEFAULTS: Setting = {
   notifyDecision: true, notifyDecisionSound: "alert",
   agentAccessEnabled: false,
   scheduler: SCHEDULER_DEFAULTS,   // SPEC-294 · knob scheduler (panel dibangun daun #6)
+  goal: GOAL_DEFAULTS,             // SPEC-332 · ADR-0073 · mode goal (default mati)
 };
 
 function SettingRow({ title, desc, children, last }: { title: string; desc?: string; children?: React.ReactNode; last?: boolean }) {
@@ -526,6 +527,7 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
       </Card>
     );
     return ( // sesi
+      <>
       <Card eyebrow="sesi" title="Sesi & notifikasi">
         <SettingRow title="Notifikasi backlog selesai"
           desc="Toast + sound saat sebuah backlog mencapai stage done. Daftar lonceng tetap terisi meski dimatikan.">
@@ -555,6 +557,30 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
           <Switch checked={s.notifyFail} onChange={sw("notifyFail", "Notifikasi gagal")} />
         </SettingRow>
       </Card>
+      {/* SPEC-332 · ADR-0073 · mode goal: Claude Code menolak berhenti sampai kondisi terbukti.
+          Ini default global untuk sesi backlog; setiap Start masih bisa meng-override. */}
+      <Card eyebrow="goal" title="Mode goal — sesi backlog">
+        <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.5 }}>
+          Sesi backlog lahir dengan gate <code>Stop</code>: ia menolak berhenti sampai kondisinya terbukti
+          di transkrip. Interupsi manusia (<code>Esc</code>) tetap bekerja; melepas gate sepenuhnya =
+          hentikan sesinya. Sesi scheduler mengikuti setelan ini.
+        </div>
+        <SettingRow title="Aktif sebagai default"
+          desc="Sesi backlog baru lahir dengan mode goal. Masih bisa dimatikan per sesi saat Start.">
+          <Switch aria-label="Mode goal default" checked={s.goal.enabled}
+            onChange={(v: boolean) => save({ goal: { ...s.goal, enabled: v } },
+              "Mode goal" + (v ? " · aktif" : " · nonaktif"))} />
+        </SettingRow>
+        <SettingRow title="Kondisi (template global)" last
+          desc="Kosong = kondisi bawaan hanoman: semua fase tercatat di phase file, plan tak menyisakan task, push sukses.">
+          <div style={{ width: 320 }}>
+            <HnTextarea value={s.goal.condition} rows={4} mono
+              placeholder="Kosong = kondisi bawaan hanoman"
+              onChange={(e) => persist({ ...s, goal: { ...s.goal, condition: e.target.value } })} />
+          </div>
+        </SettingRow>
+      </Card>
+      </>
     );
   }
 
