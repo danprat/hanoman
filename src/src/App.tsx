@@ -4,7 +4,7 @@
 import React from "react";
 import { NotificationsProvider } from "./notifications/NotificationsContext";
 import { notifTarget } from "./notifications/target";
-import { Shell, Modal, Field, HnTextarea, Button, StatusPill, Select, Input, Tabs, Toast, useToast, Icon, StateBlock } from "./ds";
+import { Shell, Modal, Field, HnTextarea, Button, StatusPill, Select, Input, Switch, Tabs, Toast, useToast, Icon, StateBlock } from "./ds";
 import { api, ApiError, type TerminalSession } from "./api/client";
 import { subscribe } from "./api/events";
 import type { ProjectView, Spec, AuthStatus, UserView, Notification, BreakdownItem } from "@hanoman/shared";
@@ -47,17 +47,30 @@ export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
   { open: boolean; spec: Spec | null; onClose: () => void; onStarted: (id: string) => void; onError?: (e: unknown) => void }) {
   const [model, setModel] = React.useState("claude-opus-5");
   const [effort, setEffort] = React.useState("xhigh");
+  // SPEC-332 · ADR-0073 · mode goal per sesi. Prefill dari default global; kondisi kosong dikirim
+  // sebagai undefined supaya server yang memilih template global lalu default DoD bawaan.
+  const [goalOn, setGoalOn] = React.useState(false);
+  const [goalCond, setGoalCond] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   React.useEffect(() => {
     if (!open) return;
-    api.getSettings().then((s) => { setModel(s.model); setEffort(s.effort); }).catch(() => {});
+    api.getSettings().then((s) => {
+      setModel(s.model); setEffort(s.effort);
+      setGoalOn(s.goal.enabled); setGoalCond(s.goal.condition);
+    }).catch(() => {});
   }, [open]);
   if (!spec) return null;
   const s = spec;
   const flow = flowForSource(s.source);
   async function start() {
     setBusy(true);
-    try { const { id } = await api.startSession({ spec: s.id, flow, model, effort }); onStarted(id); onClose(); }
+    try {
+      const { id } = await api.startSession({
+        spec: s.id, flow, model, effort,
+        goal: goalOn, goalCondition: goalOn && goalCond.trim() ? goalCond.trim() : undefined,
+      });
+      onStarted(id); onClose();
+    }
     catch (e) { onError?.(e); }
     finally { setBusy(false); }
   }
@@ -80,6 +93,18 @@ export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
         <Select aria-label="Effort" value={effort} style={{ width: "100%" }}
           options={EFFORTS.map((v) => ({ value: v, label: v }))}
           onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEffort(e.target.value)} />
+      </Field>
+      {/* SPEC-332 · ADR-0073 · mode goal: sesi menolak berhenti sampai kondisinya terbukti di
+          transkrip. Interupsi manusia (Esc) tetap bekerja; melepas gate = hentikan sesinya. */}
+      <Field label="Mode goal"
+        hint="Sesi menolak berhenti sampai kondisinya terbukti. Kosongkan kondisi untuk memakai bawaan hanoman: semua fase tercatat, plan tak menyisakan task, push sukses.">
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: goalOn ? 10 : 0 }}>
+          <Switch aria-label="Mode goal" checked={goalOn} onChange={(v: boolean) => setGoalOn(v)} />
+          <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{goalOn ? "aktif" : "nonaktif"}</span>
+        </div>
+        {goalOn && <HnTextarea value={goalCond} rows={4} mono
+          placeholder="Kosong = kondisi bawaan hanoman"
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setGoalCond(e.target.value)} />}
       </Field>
     </Modal>
   );
