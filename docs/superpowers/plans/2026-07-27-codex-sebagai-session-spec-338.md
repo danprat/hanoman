@@ -1546,4 +1546,4 @@ git commit -m "docs(spec-338): ADR-0074 codex sebagai mesin sesi + SoT tersentuh
 - [x] Smoke Task 8 Step 8 lolos seluruh butir verifikasi.
 - [x] `git status` bersih di worktree.
 - [x] Setiap kotak di plan ini `- [x]`.
-- [ ] `git push origin HEAD:refs/heads/hanoman/spec-338`.
+- [x] `git push origin HEAD:refs/heads/hanoman/spec-338`.
