@@ -64,7 +64,16 @@ berbeda hanya CLI-nya:
 
 Codex menolak jalan di direktori yang belum dipercaya; `services/codex-trust.ts` menambahkan satu
 entri `[projects."<repoDir>"]` ke config codex sebelum spawn (worktree mewarisi trust root repo).
-Indikator limit (`services/limits.ts`) membaca kuota Anthropic → **khusus claude**.
+
+**Limit langganan punya dua sumber terpisah.** `services/limits.ts` memanggil endpoint OAuth Anthropic
+tiap 30 dtk (**claude**). `services/codex-limits.ts` (SPEC-338) **tidak memanggil apa pun**: codex
+sendiri menulis `rate_limits` ke rollout sesinya di `$CODEX_HOME/sessions/<Y>/<M>/<D>/*.jsonl`, dan
+server membaca ekor rollout terbaru (≤512KB, ≤8 berkas, cache 30 dtk) — nol jaringan, nol sentuhan
+kredensial codex. Konsekuensinya nilai codex adalah **snapshot**: ia bergerak saat ada sesi codex
+berjalan, dan snapshot >12 jam dilaporkan `stale`. Karena itu keduanya disajikan sebagai **dua badge
+terpisah** (`LimitBadge` + `CodexLimitBadge`) dan dua grup siar (`limits` + `codexLimits`) — satu
+angka "terburuk" gabungan akan mencampur data hidup dengan data historis. Badge codex menyembunyikan
+diri sampai ada snapshot pertama.
 
 **Satu backlog = satu sesi** (ADR-0015): id sesi diturunkan deterministik dari id spec, sehingga menekan
 Start dua kali **re-attach**, bukan spawn kedua. Sesi berjalan di worktree-nya sendiri di

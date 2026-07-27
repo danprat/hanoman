@@ -1547,3 +1547,36 @@ git commit -m "docs(spec-338): ADR-0074 codex sebagai mesin sesi + SoT tersentuh
 - [x] `git status` bersih di worktree.
 - [x] Setiap kotak di plan ini `- [x]`.
 - [x] `git push origin HEAD:refs/heads/hanoman/spec-338`.
+
+---
+
+### Task 9: Indikator limit codex (badge terpisah)
+
+**Files:**
+- Create: `server/src/services/codex-limits.ts`
+- Create: `src/src/api/codex-limits.ts`
+- Modify: `shared/src/dto.ts` (CodexLimitsDTO + EventMsg), `server/src/routes/limits.ts`,
+  `server/src/services/events.ts`, `src/src/screens/LimitIndicator.tsx`, `src/src/ds/shell.tsx`,
+  `src/src/screens/OverviewScreen.tsx`
+- Test: `server/test/codex-limits.test.ts`, `src/test/codex-limit-badge.test.tsx`
+
+**Interfaces:**
+- Produces: `getCodexLimits(dir?): Promise<CodexLimitsDTO>`, `GET /api/limits/codex`,
+  EventMsg `{t:"codexLimits", limits}`, `useCodexLimits()`, `<CodexLimitBadge/>`.
+
+**Sumber data (diverifikasi):** codex menulis `event_msg.payload.type === "token_count"` dengan blok
+`rate_limits { limit_id, primary{used_percent,window_minutes,resets_at}, secondary{...}|null,
+plan_type, rate_limit_reached_type }` ke rollout `$CODEX_HOME/sessions/<Y>/<M>/<D>/*.jsonl`.
+Dibaca LOKAL — tanpa jaringan, tanpa menyentuh token codex. **`primary`/`secondary` bukan 5 jam/mingguan
+tetap** (27 Jul: primary=10080; 3 Jul: primary=300) → label diturunkan dari `window_minutes`.
+
+- [x] **Step 1: test gagal** — `server/test/codex-limits.test.ts` atas fixture rollout.
+- [x] **Step 2: jalankan, pastikan GAGAL.**
+- [x] **Step 3: `CodexLimitsDTO` + EventMsg di shared.**
+- [x] **Step 4: `services/codex-limits.ts`** — pilih rollout terbaru (mtime), baca TAIL berbatas,
+      ambil `rate_limits` terakhir, map ke `LimitWindow[]`; cache TTL 30s.
+- [x] **Step 5: route `GET /limits/codex` + grup siar `codexLimits`.**
+- [x] **Step 6: test LULUS.**
+- [x] **Step 7: store + badge frontend** (badge disembunyikan saat `unavailable` — belum pernah pakai codex).
+- [x] **Step 8: seluruh suite + typecheck hijau.**
+- [x] **Step 9: smoke nyata + docs (api-contract, stack, SKILL, ADR-0074) + commit + push.**

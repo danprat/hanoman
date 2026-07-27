@@ -3,6 +3,7 @@ import { listSessions } from "./pty";
 import { liveSpecs } from "./live-specs";
 import { notificationsFeed } from "./notifications";
 import { getLimits } from "./limits";
+import { getCodexLimits } from "./codex-limits";
 import { getUpdateStatus } from "./update";
 import { prisma } from "../db";
 import { effectiveInt } from "../config";
@@ -29,6 +30,10 @@ const GROUPS: Group[] = [
   // ponytail: cermin GET /vps (orderBy createdAt asc). Query sepele — tak diekstrak.
   { everyTicks: 15, last: "", build: async () => ({ t: "vps", vps: await prisma.vps.findMany({ orderBy: { createdAt: "asc" } }) }) },
   { everyTicks: 30, last: "", build: async () => ({ t: "limits", limits: await getLimits() }) },
+  // SPEC-338 · ADR-0074 · limit codex — grup TERPISAH dari `limits`. Bacaan berkas lokal berbatas
+  // ekor + cache 30s, jadi biayanya jauh di bawah panggilan jaringan claude. Frame lahir hanya saat
+  // isinya berubah (dedup signature), dan snapshot codex baru bergerak saat ada sesi codex jalan.
+  { everyTicks: 30, last: "", build: async () => ({ t: "codexLimits", limits: await getCodexLimits() }) },
   // SPEC-214 · deteksi update jarang berubah; recompute tiap 300 dtk, dedup signature → siar hanya
   // saat status berubah. getUpdateStatus cache 15s + fetch ter-gate (server.ts) → attach tak menahan.
   { everyTicks: 300, last: "", build: async () => ({ t: "update", update: await getUpdateStatus() }) },

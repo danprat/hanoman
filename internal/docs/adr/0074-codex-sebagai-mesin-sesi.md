@@ -117,9 +117,24 @@ evaluatornya pada akhirnya bisa menilai "cukup"; asimetri ini disengaja.
 - **`ensureCodexTrust` menulis ke config codex milik operator.** Ini persis yang codex tulis sendiri
   saat manusia menjawab "Yes, continue", dan dibatasi satu entri per project. Alternatif
   `CODEX_HOME` terpisah ditolak (lihat di bawah).
-- **Batasan diketahui: indikator limit khusus claude.** `services/limits.ts` membaca OAuth usage API
-  Anthropic; sesi codex tak muncul di sana. Kuota codex punya sumbernya sendiri dan tak dipetakan —
-  di luar cakupan SPEC-338.
+- **Indikator limit codex: badge TERPISAH, sumber lokal.** (Ditambahkan setelah revisi awal ADR ini,
+  yang sempat menyatakan limit "khusus claude" — batasan itu kini dicabut.) `services/codex-limits.ts`
+  membaca blok `rate_limits` yang codex tulis sendiri ke rollout sesinya
+  (`$CODEX_HOME/sessions/<Y>/<M>/<D>/*.jsonl`): ekor berkas ≤512KB dari ≤8 rollout terbaru, cache 30
+  dtk. **Tanpa jaringan dan tanpa menyentuh token codex** — konsisten dengan aturan kredensial
+  (kredensial agen tak pernah ke client maupun DB). Endpoint `GET /api/limits/codex` + grup siar
+  `codexLimits`, keduanya terpisah dari milik claude.
+
+  Dipisah, bukan digabung, karena **semantik kesegarannya beda**: angka claude adalah panggilan API
+  live; angka codex adalah snapshot yang hanya bergerak saat sesi codex berjalan (>12 jam → `stale`).
+  Satu angka "terburuk" lintas keduanya akan mencampur data hidup dengan data historis dan
+  menyesatkan operator. Badge codex menyembunyikan diri sampai ada snapshot pertama, jadi operator
+  yang hanya memakai claude tak melihat perubahan apa pun.
+
+  Jebakan yang sudah terbukti dan dijaga test: **`primary`/`secondary` bukan 5-jam/mingguan tetap** —
+  pada 27 Jul `primary` adalah window 10080 menit, pada 3 Jul ia 300 menit. Label WAJIB diturunkan
+  dari `window_minutes`. Juga: `resets_at` codex adalah epoch **detik**, dan codex tak punya
+  `is_active` (hanya `rate_limit_reached_type`) — window lain tak diklaim aktif.
 - **Kredensial codex** (`~/.codex/auth.json`) mengikuti pola kredensial claude: milik mesin, tak
   pernah ke client maupun DB.
 

@@ -295,6 +295,18 @@ export type LimitsDTO = {
   fetchedAt: string | null;  // ISO waktu fetch sukses terakhir; null bila belum pernah
 };
 
+// SPEC-338 · ADR-0074 · limit codex. Bentuknya sama (window dipakai ulang) tapi SUMBERNYA beda dan
+// itu penting: limit claude = panggilan API live tiap 30 dtk; limit codex = SNAPSHOT terakhir yang
+// codex sendiri tulis ke rollout sesinya (`rate_limits`) — tak ada endpoint kuota yang dipanggil,
+// tak ada token codex yang disentuh. Karena itu `fetchedAt` di sini = waktu SNAPSHOT, bukan waktu
+// baca, dan `stale` berarti "belum ada sesi codex baru", bukan "fetch gagal".
+export type CodexLimitsDTO = {
+  status: LimitsStatus;
+  windows: LimitWindow[];
+  fetchedAt: string | null;  // ISO timestamp snapshot codex; null bila belum pernah ada
+  plan: string | null;       // `plan_type` codex (mis. "pro"); null bila tak dilaporkan
+};
+
 // SPEC-214 · status auto-update. "version" hanoman = git commit SHA (tak ada field version).
 export type UpdateReason = "local" | "remote" | "both" | null;
 export type UpdateRemoteStatus = "ok" | "unavailable";  // unavailable = tanpa upstream / fetch gagal / bukan repo git
@@ -325,6 +337,7 @@ export type EventMsg =
   | { t: "sessions"; sessions: SessionDTO[] }
   | { t: "notifications"; items: Notification[]; unread: number }
   | { t: "limits"; limits: LimitsDTO }
+  | { t: "codexLimits"; limits: CodexLimitsDTO }   // SPEC-338 · ADR-0074 · grup terpisah dari `limits`
   | { t: "vps"; vps: VpsView[] }
   | { t: "update"; update: UpdateStatus };
 

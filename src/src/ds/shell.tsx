@@ -5,7 +5,7 @@ import { Icon } from "./icon";
 import { Input } from "./components/forms";
 import { Mark } from "./marks";
 import { NotificationBell } from "../notifications/NotificationBell";
-import { LimitBadge } from "../screens/LimitIndicator";
+import { LimitBadge, CodexLimitBadge } from "../screens/LimitIndicator";
 import { UpdateBadge } from "../screens/UpdateIndicator";
 import { AccountMenu } from "../auth/AccountMenu";
 
@@ -135,6 +135,9 @@ export function Shell({ active, title, breadcrumb, actions, showSearch = false, 
           <NotificationBell />
           {/* Selalu tampil di semua layar; self-fetch via useLimits — 9 call-site <Shell> tak berubah. */}
           <LimitBadge />
+          {/* SPEC-338 · badge limit codex, self-fetch via useCodexLimits. Merender null sampai ada
+              snapshot codex pertama, jadi operator yang hanya memakai claude tak melihat apa pun. */}
+          <CodexLimitBadge />
           {actions}
           {/* SPEC-216 · akun + logout, anchor kanan-jauh. Konsumsi AuthContext (default aman:
               user null → tak merender), jadi 9 call-site <Shell> tetap tanpa prop baru. */}

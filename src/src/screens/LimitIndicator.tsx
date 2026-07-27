@@ -1,9 +1,10 @@
 import React from "react";
-import type { LimitsDTO } from "@hanoman/shared";
+import type { LimitsDTO, CodexLimitsDTO } from "@hanoman/shared";
 // Import langsung dari file komponen, bukan barrel `../ds`: barrel meng-ekspor `Shell`, dan
 // shell.tsx meng-import <LimitBadge> dari sini — lewat barrel itu jadi siklus impor.
 import { ProgressBar } from "../ds/components/feedback";
 import { useLimits, worstWindow, severityToken, severityTone } from "../api/limits";
+import { useCodexLimits } from "../api/codex-limits";
 
 // Tanggal+jam absolut reset (waktu lokal browser, id-ID). Weekly reset berhari-hari ke depan —
 // countdown saja tak cukup; tampilkan momen persisnya. SPEC-205.
@@ -24,12 +25,14 @@ function agoLabel(iso: string | null): string {
 }
 
 // Daftar window — dipakai popover badge DAN kartu Overview (satu presentasi).
-export function LimitWindows({ dto }: { dto: LimitsDTO }) {
+// SPEC-338 · `dto` sengaja diketik longgar (LimitsDTO) supaya CodexLimitsDTO — yang identik plus
+// `plan` — ikut memakainya tanpa cabang render kedua. `emptyHint` memberi teks yang benar per agen.
+export function LimitWindows({ dto, emptyHint }: { dto: LimitsDTO; emptyHint?: string }) {
   if (!dto.windows.length)
     return (
       <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", padding: "4px 0" }}>
         {dto.status === "unavailable"
-          ? "Limit tidak tersedia — Claude idle / belum login di host ini."
+          ? emptyHint ?? "Limit tidak tersedia — Claude idle / belum login di host ini."
           : "Belum ada data limit."}
       </div>
     );
@@ -91,6 +94,55 @@ export function LimitBadge() {
         }}>
           <div className="hn-eyebrow" style={{ marginBottom: 8 }}>Limit Claude</div>
           <LimitWindows dto={dto} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// SPEC-338 · ADR-0074 · badge limit codex — TERPISAH dari badge claude, bukan digabung. Alasannya
+// bukan kosmetik: angka claude berasal dari panggilan API live tiap 30 dtk, angka codex dari
+// SNAPSHOT terakhir yang codex tulis saat sesi berjalan. Satu angka "terburuk" lintas keduanya akan
+// mencampur data hidup dengan data historis dan menyesatkan operator.
+//
+// Disembunyikan sepenuhnya saat `unavailable`: operator yang tak pernah memakai codex tak perlu
+// melihat badge "—" permanen. Ia muncul sendiri begitu ada sesi codex pertama yang melaporkan kuota.
+export function CodexLimitBadge() {
+  const dto = useCodexLimits();
+  const worst = worstWindow(dto.windows);
+  const [open, setOpen] = React.useState(false);
+  if (dto.status === "unavailable" || !worst) return null;
+  const tok = severityToken(worst.severity);
+  return (
+    <div style={{ position: "relative" }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        title="Limit Codex"
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px",
+          borderRadius: "var(--radius-pill, 999px)", border: "1px solid var(--border-hair)",
+          background: tok.bg, color: tok.fg, opacity: dto.status === "stale" ? 0.6 : 1,
+          cursor: "pointer", fontFamily: "var(--font-mono)", fontSize: 12,
+        }}
+      >
+        {/* Kotak (bukan titik) membedakannya sekilas dari badge claude di sebelahnya. */}
+        <span style={{ width: 7, height: 7, borderRadius: 2, background: tok.fg }} />
+        {worst.usedPct}%
+      </button>
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 40, width: 280,
+          background: "var(--surface-card)", border: "1px solid var(--border-hair)",
+          borderRadius: "var(--radius-md)", boxShadow: "var(--shadow-pop, 0 8px 24px rgba(0,0,0,.12))",
+          padding: 14,
+        }}>
+          <div className="hn-eyebrow" style={{ marginBottom: 8 }}>
+            Limit Codex{dto.plan ? ` · plan ${dto.plan}` : ""}
+          </div>
+          <LimitWindows dto={dto} emptyHint="Limit codex belum terbaca — jalankan satu sesi codex dulu." />
+          <div style={{ fontSize: 11, color: "var(--text-subtle)", marginTop: 6, lineHeight: 1.45 }}>
+            Snapshot dari sesi codex terakhir — bergerak saat ada sesi codex berjalan, bukan realtime.
+          </div>
         </div>
       )}
     </div>

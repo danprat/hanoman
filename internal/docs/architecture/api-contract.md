@@ -204,6 +204,18 @@ GET/PUT  /settings                      # Setting blob (zSetting): model, effort
 #                                           model/effort codex. model/effort di akar TETAP milik claude.
 #                                           Keduanya .default() → baris lama tetap parse, TANPA migration.
 #                                         PUT ganti seluruh blob (full replace).
+GET      /limits/codex                  # CodexLimitsDTO { status, windows[], fetchedAt, plan }  (SPEC-338/ADR-0074)
+#   Limit langganan CODEX. Sumbernya BUKAN jaringan: codex menulis `rate_limits` (used_percent,
+#   window_minutes, resets_at, plan_type, rate_limit_reached_type) ke rollout sesinya di
+#   $CODEX_HOME/sessions/<Y>/<M>/<D>/*.jsonl; server membaca ekor rollout terbaru (≤512KB, ≤8 berkas,
+#   cache 30s). Tak ada token codex yang disentuh.
+#   `windows[]` memakai LimitWindow yang sama dengan /limits. Label diturunkan dari `window_minutes`
+#   (300 → "Sesi 5 jam", 10080 → "Mingguan"), TIDAK dari nama kunci: `primary` terbukti bisa berupa
+#   window mingguan maupun 5-jam tergantung akun/waktu. `resets_at` codex = epoch DETIK → ISO.
+#   `isActive` hanya true untuk window yang disebut `rate_limit_reached_type` (codex tak punya is_active).
+#   status: ok = snapshot ≤12 jam; stale = lebih tua (tetap ditampilkan, ditandai); unavailable = belum
+#   pernah ada sesi codex yang melaporkan kuota → badge disembunyikan di UI.
+#   `fetchedAt` = waktu SNAPSHOT (bukan waktu baca) — beda semantik dari /limits milik claude.
 GET      /notifications                 # { items:Notification[] (≤50 terbaru dulu), unread:int }  (SPEC-180)
 #   Notification dibuat server-side saat backlog masuk `done` (advanceStage + write-through GET /specs).
 #   type ∈ done|decision|drift|error|ticket|fail (fail SPEC-298 = sesi scheduler gagal/limit, rekonsil akhir sesi).
@@ -327,7 +339,9 @@ GET    /terminal/sessions/:id/ws     # WebSocket; close 4004 bila sesi tak ada
 GET    /events/ws                    # WebSocket siar dashboard (global). Auth = gate /api (cookie).
 #   server->klien (per-grup, saat berubah; snapshot penuh saat connect):
 #     { t:"specs", specs } · { t:"sessions", sessions } · { t:"notifications", items, unread }
-#     { t:"limits", limits } · { t:"vps", vps } · { t:"update", update } (SPEC-214, tiap 300s)
+#     { t:"limits", limits } · { t:"codexLimits", limits } (SPEC-338, tiap 30s, grup TERPISAH dari
+#       `limits` karena sumber & semantik kesegarannya beda) · { t:"vps", vps } ·
+#       { t:"update", update } (SPEC-214, tiap 300s)
 #   klien->server: — (read-only feed; frame masuk diabaikan)
 ```
 

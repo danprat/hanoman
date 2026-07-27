@@ -5,6 +5,7 @@ import { Card, StatusPill, Badge, ProgressBar, Icon, Button, StateBlock } from "
 import type { ProjectVM, Spec } from "./types";
 import { LimitWindows } from "./LimitIndicator";
 import { useLimits } from "../api/limits";
+import { useCodexLimits } from "../api/codex-limits";
 
 function oCovTone(s: string) { return s === "broken" ? "err" : s === "drift" ? "warn" : "ok"; }
 // Sesi tak punya status "failed" yang terbaca dari luar — yang gagal terlihat di terminalnya.
@@ -99,6 +100,7 @@ export function OverviewScreen({ projects, backlog, onOpenProject, onGoto }:
   { projects: ProjectVM[]; backlog: Spec[];
     onOpenProject: (p: ProjectVM) => void; onGoto: (s: string) => void }) {
   const limits = useLimits();
+  const codexLimits = useCodexLimits();   // SPEC-338 · kartu limit codex (grup siar terpisah)
   const live = projects.filter((p) => p.session.status === "running");
   const attention = projects.filter((p) => oAttention(p) !== "none")
     .sort((a, b) => (oAttention(a) === "high" ? 0 : 1) - (oAttention(b) === "high" ? 0 : 1));
@@ -145,6 +147,14 @@ export function OverviewScreen({ projects, backlog, onOpenProject, onGoto }:
           <Card eyebrow="realtime · Claude" title="Limit langganan">
             <LimitWindows dto={limits} />
           </Card>
+          {/* SPEC-338 · ADR-0074 · kartu kedua, muncul hanya bila codex pernah melaporkan kuota.
+              Eyebrow-nya sengaja "snapshot", bukan "realtime": angkanya dari sesi codex terakhir. */}
+          {codexLimits.status !== "unavailable" && (
+            <Card eyebrow={`snapshot · Codex${codexLimits.plan ? ` · ${codexLimits.plan}` : ""}`}
+              title="Limit langganan">
+              <LimitWindows dto={codexLimits} />
+            </Card>
+          )}
           <Card eyebrow="Source of Truth" title="Docs coverage"
             actions={<Button size="sm" variant="ghost" leftIcon="book-open" onClick={() => onGoto("docs")}>Docs</Button>}>
             {coverageSorted.length === 0
