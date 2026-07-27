@@ -12,6 +12,7 @@ import { ensureCodexTrust } from "../services/codex-trust";
 import { startSpecSession, LaunchError } from "../services/session-launch";
 import { resolveRepoDir } from "../services/local-binding";
 import { readPrd } from "../services/project-prds";
+import { readAuditDoc } from "../services/audit-escalation";
 import { recordSessionResult } from "../services/session-result";
 import { recordCompletion } from "../services/notifications";
 import { STAGES } from "../services/stage-machine";
@@ -173,7 +174,7 @@ export default async function (app: FastifyInstance) {
     // reverse (worktree isolasi, push ke branch prd/<slug>, manusia merge). Tanpa Spec: DELETE
     // session tak menggerakkan stage (dijaga `if (s.specId)`), worktree tetap dibersihkan.
     if (parsed.data.flow === "prd") {
-      const { brief } = parsed.data;
+      const { brief, branchFrom, fromAudit } = parsed.data;
       const slug = brief.title.toLowerCase().trim()
         .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
       if (!slug) return reply.code(400).send({ error: "judul PRD kosong" });
@@ -187,17 +188,23 @@ export default async function (app: FastifyInstance) {
       if (agent === "codex") ensureCodexTrust(repoDir);
       try {
         // HEAD, bukan "main": repo target bukan milik hanoman — default branch-nya bebas.
-        realGit.addWorktree(repoDir, `${repoDir}/.worktrees/${id}`, "HEAD");
+        // SPEC-340 · ADR-0076 · PRD hasil eskalasi audit lahir dari branch auditnya, supaya
+        // dokumen audit ada di worktree & jejak git PRD bersambung dengan auditnya.
+        realGit.addWorktree(repoDir, `${repoDir}/.worktrees/${id}`, branchFrom ?? "HEAD");
       } catch (e) {
         return reply.code(422).send({ error: `gagal membuat worktree: ${(e as Error).message}` });
       }
+      // SPEC-340 · isi dokumen audit (freshest-wins) disematkan ke prompt — prompt self-contained,
+      // lepas dari status merge branch audit. Dokumen tak terbaca → PRD tetap jalan tanpa blok itu.
+      const auditDoc = fromAudit ? await readAuditDoc(fromAudit) : null;
       const s = createSession(project.id, `${repoDir}/.worktrees/${id}`, {
         id, flow: "prd", branch: `prd/${slug}`, model, effort, agent,
         phaseFile: phaseFilePath(repoDir, id),
         decisionFile: decisionFilePath(repoDir, id),
         prompt: startPrdPrompt(
           { id: project.id, name: project.name, desc: project.desc, stack: project.stack },
-          brief, `prd/${slug}`),
+          brief, `prd/${slug}`,
+          auditDoc ? { id: fromAudit!, path: auditDoc.path, content: auditDoc.content } : undefined),
       });
       return reply.code(201).send({ id: s.id });
     }

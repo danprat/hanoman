@@ -1,4 +1,4 @@
-import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type ConfigResponse, type ConfigEntryView, type IngestKeyView, type ErrorGroupView, type ErrorGroupDetail, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView, type Agent, type LinkView } from "@hanoman/shared";
+import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type ConfigResponse, type ConfigEntryView, type IngestKeyView, type ErrorGroupView, type ErrorGroupDetail, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView, type Agent, type LinkView, type AuditEscalationView } from "@hanoman/shared";
 export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit" | "breakdown" | "cross-audit";
 // SPEC-210 · dokumen PRD project (freshest-wins: worktree sesi prd hidup > repoDir). Tipe di @hanoman/shared.
@@ -136,6 +136,8 @@ export const api = {
   getDoc: (id: string, path: string) => j<{ path: string; content: string }>(paths.docFile(id, path)),
   getSpecDocs: (id: string) => j<{ files: SpecDoc[] }>(paths.specDocs(id)),
   getSpecDocFile: (id: string, path: string) => j<{ path: string; content: string }>(paths.specDocFile(id, path)),
+  // SPEC-340 · ADR-0076 · rekomendasi tindak lanjut audit (turunan dokumen audit, bukan kolom DB).
+  getEscalation: (id: string) => j<AuditEscalationView>(paths.specEscalation(id)),
   putDoc: (id: string, path: string, content: string) =>
     j<{ path: string; content: string }>(paths.docFile(id, path), { method: "PUT", ...body({ content }) }),
   deleteDoc: (id: string, path: string) => j<void>(paths.docFile(id, path), { method: "DELETE" }),
@@ -195,8 +197,14 @@ export const api = {
   listAllPrds: () => j<{ items: PrdDoc[] }>(paths.allPrds),
   getPrd: (project: string, path: string) =>
     j<{ path: string; content: string }>(paths.prdFile(project, path)),
-  startPrd: (project: string, brief: { title: string; context: string; outcome: string; constraints?: string }) =>
-    j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, flow: "prd", brief }) }),
+  // SPEC-340 · ADR-0076 · opts = eskalasi audit → PRD: branchFrom (worktree dari branch audit) +
+  // fromAudit (isi dokumen audit disematkan server ke prompt). Tanpa opts, body persis spt dulu.
+  startPrd: (project: string, brief: { title: string; context: string; outcome: string; constraints?: string },
+             opts?: { branchFrom?: string; fromAudit?: string }) =>
+    j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({
+      project, flow: "prd", brief,
+      ...(opts?.branchFrom ? { branchFrom: opts.branchFrom } : {}),
+      ...(opts?.fromAudit ? { fromAudit: opts.fromAudit } : {}) }) }),
   // SPEC-273 · breakdown PRD → N backlog. startBreakdown buka sesi; getBreakdown baca manifest;
   // createSpecsBatch materialize usulan (review manusia) jadi N spec independen.
   startBreakdown: (project: string, prdPath: string) =>

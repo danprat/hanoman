@@ -20,7 +20,8 @@ import { ProjectDetailScreen } from "./screens/ProjectDetailScreen";
 import { BacklogScreen } from "./screens/BacklogScreen";
 import { ErrorsScreen } from "./screens/ErrorsScreen";
 import { TriageScreen } from "./screens/TriageScreen";
-import { PrdScreen, type PrdPrefill, type PrdBriefForm } from "./screens/PrdScreen";
+import { PrdScreen, NewPrdModal, type PrdPrefill, type PrdBriefForm } from "./screens/PrdScreen";
+import type { AuditEscalation } from "@hanoman/shared";
 import { TerminalScreen } from "./screens/TerminalScreen";
 import { IdeScreen } from "./screens/IdeScreen";
 import { VpsScreen } from "./screens/VpsScreen";
@@ -493,6 +494,10 @@ export default function App() {
   const [modal, setModal] = React.useState<string | null>(null);
   // SPEC-210 · prefill NewSpecModal saat "Take ke backlog" dari sebuah PRD.
   const [specPrefill, setSpecPrefill] = React.useState<SpecPrefill | null>(null);
+  // SPEC-340 · ADR-0076 · eskalasi audit → PRD: modal brief PRD ter-prefill + asal auditnya.
+  const [prdFromAudit, setPrdFromAudit] = React.useState<
+    { project: string; branchFrom: string; fromAudit: string;
+      title: string; context: string; outcome: string } | null>(null);
   const [toast, showToast] = useToast();
   const [status, setStatus] = React.useState<"loading" | "ready" | "error">("loading");
   // SPEC-169 · gate auth. null = belum tahu (splash). Sesi kedaluwarsa (401) → balik ke Login.
@@ -763,9 +768,11 @@ export default function App() {
   }
 
   // SPEC-210 · buka sesi prd project-level (brainstorm interaktif → dokumen PRD), lalu ke Terminal.
-  async function startPrd(project: string, brief: PrdBriefForm) {
+  // SPEC-340 · ADR-0076 · opts terisi bila PRD ini eskalasi dari audit (branch audit + dokumennya).
+  async function startPrd(project: string, brief: PrdBriefForm,
+                          opts?: { branchFrom?: string; fromAudit?: string }) {
     try {
-      const { id } = await api.startPrd(project, brief);
+      const { id } = await api.startPrd(project, brief, opts);
       setSection("terminal");
       showToast(`PRD · sesi ${id} dimulai`, "info", "scroll-text");
     } catch (e) {
@@ -801,12 +808,34 @@ export default function App() {
   }
   // SPEC-237 · naikkan audit → Finding QA (audit tetap doc-of-record). Buka NewSpecModal source qa
   // ter-prefill (title + backlink audit di langkah); qa menjalankan audit→spec→plan→execute (perbaikan).
-  function promoteToQa(spec: Spec) {
-    setSpecPrefill({ project: spec.projectId, kind: "qa", title: spec.title,
-      steps: `Dari audit ${spec.id}: ${spec.objective}`.slice(0, 500), actual: spec.objective, severity: "major",
+  // SPEC-340 · ADR-0076 · prefill kini boleh datang dari rekomendasi audit yang terbaca mesin;
+  // bila tak ada, jatuh ke turunan lama (judul + objective) supaya audit pra-SPEC-340 tetap bisa naik.
+  function promoteToQa(spec: Spec, e: AuditEscalation | null) {
+    const pf = e?.prefill;
+    const backlink = `Dari audit ${spec.id}: ${spec.objective}`;
+    setSpecPrefill({ project: spec.projectId, kind: "qa", title: pf?.title || spec.title,
+      steps: (pf?.steps || backlink).slice(0, 500), actual: pf?.context || spec.objective,
+      severity: pf?.severity && ["critical", "major", "minor"].includes(pf.severity) ? pf.severity : "major",
       // SPEC-244 · teruskan branch audit (hanoman/<audit-id>) + sinyal skip fase Audit (ADR-0059).
       branchFrom: `hanoman/${spec.id.toLowerCase()}`, fromAudit: spec.id });
     setModal("brief");
+  }
+  // SPEC-340 · ADR-0076 · audit → feature brief. Branch audit diteruskan supaya dokumen audit ada
+  // di worktree; `fromAudit` membuat prompt memakainya sebagai bahan Brainstorm (TANPA skip fase).
+  function promoteToBrief(spec: Spec, e: AuditEscalation | null) {
+    const pf = e?.prefill;
+    setSpecPrefill({ project: spec.projectId, kind: "brief", title: pf?.title || spec.title,
+      context: pf?.context || `Dari audit ${spec.id}: ${spec.objective}`,
+      outcome: pf?.outcome || "", branchFrom: `hanoman/${spec.id.toLowerCase()}`, fromAudit: spec.id });
+    setModal("brief");
+  }
+  // SPEC-340 · ADR-0076 · audit → PRD. PRD bukan Spec (ADR-0041): yang dibuka modal brief PRD,
+  // lalu sesi prd lahir dari branch audit dengan dokumen auditnya disematkan server ke prompt.
+  function promoteToPrd(spec: Spec, e: AuditEscalation | null) {
+    const pf = e?.prefill;
+    setPrdFromAudit({ project: spec.projectId, branchFrom: `hanoman/${spec.id.toLowerCase()}`,
+      fromAudit: spec.id, title: pf?.title || spec.title,
+      context: pf?.context || `Dari audit ${spec.id}: ${spec.objective}`, outcome: pf?.outcome || "" });
   }
 
   // SPEC-143. Hanya menentukan basis run BERIKUTNYA; run yang sudah jalan diubah dari layar Runs.
@@ -858,7 +887,10 @@ export default function App() {
           ...(f.fromAudit ? { fromAudit: f.fromAudit } : {}) }
       // Brief dari "Take ke backlog" menaut PRD lewat teks Konteks ("Dari PRD: …"), bukan field
       // payload terpisah — zBriefPayload strip key tak dikenal, dan tak ada yang mengonsumsinya.
-      : { context: f.context, outcome: f.outcome, constraints: f.constraints, priority: f.priority };
+      // SPEC-340 · ADR-0076 · brief yang dinaikkan dari audit membawa asal-usulnya ke prompt
+      // (zBriefPayload kini menerima fromAudit; tanpa itu zod membuangnya di boundary).
+      : { context: f.context, outcome: f.outcome, constraints: f.constraints, priority: f.priority,
+          ...(f.fromAudit ? { fromAudit: f.fromAudit } : {}) };
     try {
       const created = await api.createSpec({ project: f.project, source: f.kind, title: f.title.trim(),
         priority: f.priority, payload, branchFrom: f.branchFrom || undefined });
@@ -933,7 +965,8 @@ export default function App() {
           onStart={startSession} activeSpecs={activeSpecs} onNew={() => setModal("brief")}
           onDelete={deleteSpec} onOpenRun={() => setSection("terminal")} onOpenReview={openReview}
           onEditBranch={editBranch} onRevertStage={revertStage} onIntegrate={integrateSpec} onEditSpec={editSpec}
-          onPromoteToQa={promoteToQa} onToast={showToast} initialDetailId={openSpecId}
+          onPromoteToQa={promoteToQa} onPromoteToBrief={promoteToBrief} onPromoteToPrd={promoteToPrd}
+          onToast={showToast} initialDetailId={openSpecId}
           projectFilter={projectFilter} onProjectFilter={setProjectFilter} dataVersion={dataVersion} />)}
       </Shell>
     );
@@ -1064,6 +1097,17 @@ export default function App() {
         <NewSpecModal open={modal === "brief"} onClose={() => { setModal(null); setSpecPrefill(null); }}
           projects={projectsView} defaultProject={proj ? proj.id : ""} onCreate={createSpec}
           prefill={specPrefill ?? undefined} />
+        {/* SPEC-340 · ADR-0076 · eskalasi audit → PRD: brief PRD ter-prefill, project terkunci ke
+            asal audit; sesi lahir dari branch audit dengan dokumen auditnya tersemat di prompt. */}
+        {prdFromAudit && (
+          <NewPrdModal projects={projectsView} defaultProject={prdFromAudit.project} lockProject
+            prefill={{ title: prdFromAudit.title, context: prdFromAudit.context, outcome: prdFromAudit.outcome }}
+            onClose={() => setPrdFromAudit(null)}
+            onCreate={(project, brief) => {
+              startPrd(project, brief, { branchFrom: prdFromAudit.branchFrom, fromAudit: prdFromAudit.fromAudit });
+              setPrdFromAudit(null);
+            }} />
+        )}
         <NewProjectModal open={modal === "project"} onClose={() => setModal(null)} onCreate={createProject} />
         <EditProjectModal open={modal === "project-edit"} project={proj} onClose={() => setModal(null)} onSave={updateProject} />
         {/* SPEC-252 · ADR-0061 · picker model/effort per sesi saat Start backlog. */}

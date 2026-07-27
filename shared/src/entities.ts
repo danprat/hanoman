@@ -18,7 +18,10 @@ export const zProject = z.object({
 export type Project = z.infer<typeof zProject>;
 
 export const zBriefPayload = z.object({
-  context: z.string(), outcome: z.string(), constraints: z.string(), priority: zPriority });
+  context: z.string(), outcome: z.string(), constraints: z.string(), priority: zPriority,
+  // SPEC-340 · ADR-0076 · brief yang DINAIKKAN dari audit. Tanpa field ini zod membuangnya di
+  // boundary (objek non-strict) dan runner tak pernah melihat asal-usulnya. Cermin zQaPayload.
+  fromAudit: z.string().optional() });
 export const zQaPayload = z.object({
   severity: z.enum(["critical","major","minor"]), steps: z.string(),
   expected: z.string(), actual: z.string(), env: z.string(),

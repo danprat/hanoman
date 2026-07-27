@@ -82,6 +82,19 @@ Pakai skill lebih sempit saat task cocok:
   backlog `source: "cross-audit"` (berdokumen) dan sesi lepas `{project, flow:"cross-audit"}` (tanya-jawab,
   tanpa Spec/fase). Agennya **hanoman sendiri** — bukan agent token eksternal (ADR-0065). **Jalan di
   claude maupun codex** (ADR-0074): kunci audit dikirim lewat env, jadi tak ada percabangan per agen.
+- **Eskalasi audit dinamis** (SPEC-340/ADR-0076, memperluas ADR-0057): audit **dan** cross-audit punya
+  **tiga** pintu tindak lanjut — Finding QA · Feature brief · PRD — bukan lagi hanya QA. Rekomendasi
+  hanoman **terbaca mesin**: fase Laporan menulis satu blok ```json kanonik
+  `{escalation:{target:"none|qa|brief|prd",reason,alternatives,prefill}}` di dokumen audit (pola
+  manifest breakdown ADR-0069), di-parse `services/audit-escalation.ts` (defensif — rusak/absen →
+  `null`) dan disajikan `GET /api/specs/:id/escalation` sebagai **nilai turunan** freshest-wins
+  (ADR-0018) — **tak ada kolom DB, tanpa migration**. UI menyorot target rekomendasi (primary +
+  badge) tapi ketiga tombol selalu tersedia: manusia terakhir yang memutuskan. Kontinuitas: brief
+  lanjutan audit memakai `payload.fromAudit` (kini juga diterima `zBriefPayload`) + `branchFrom`
+  `hanoman/<audit-id>`, tapi **TIDAK** melewati fase mana pun — beda sadar dari qa (ADR-0059), karena
+  dokumen audit memuat temuan, bukan bentuk solusi. Sesi PRD menerima `branchFrom` **dan** `fromAudit`
+  di `POST /terminal/sessions` (worktree lahir dari branch audit + isi dokumen audit disematkan ke
+  `startPrdPrompt`); tanpa keduanya perilaku PRD lama utuh.
 - **Model & effort per SESI** (SPEC-252/ADR-0061, mengamandemen ADR-0058): dipilih saat **Start** backlog lewat picker `StartSessionModal` (default = setelan global `model`/`effort`, `claude-opus-5` / `xhigh`), dikirim sebagai body opsional `model`/`effort` di `POST /terminal/sessions`, jadi argv `--model`/`--effort` saat sesi lahir → **andal penuh** (tak bergantung agen). Sesi tetap **satu proses, satu model seumur hidup**. Matrix per-fase lama (`phaseModels`, ADR-0058) **dicabut**: tak andal karena bergantung agen mengetik `/model`+`/effort` di batas fase, padahal agen menembus batas fase tanpa berhenti. Manusia tetap bisa `/model` manual di terminal. `steps` headless (ADR-0003) tetap usang.
 - **Mode goal per sesi backlog** (SPEC-332/ADR-0073): sesi bisa lahir membawa gate `Stop` — `guardSettings` menyisipkan `hooks.Stop=[{type:"prompt",prompt:<kondisi>}]` ke `--settings` (mesin yang sama dipasang `/goal` Claude Code, tapi deterministik saat sesi lahir), plus keystroke `/goal` best-effort ke pane untuk visibilitas TUI. Kondisi default = DoD hanoman (semua fase tercatat di phase file, plan tak menyisakan `- [ ]`, push sukses) dan menuntut **bukti segar** karena evaluator hook `prompt` tak punya tool dan hanya membaca transkrip (yang bisa terpotong). Knob `Setting.goal` (default mati) + override `goal`/`goalCondition` saat Start; sesi scheduler mengikuti default global. **Bukan** guardrail deny — ADR-0037 tetap berlaku; interrupt manusia (`Esc`) bukan event Stop, jadi kendali tetap ada.
 - Stage bergerak **maju** hanya lewat fase yang dilaporkan sesi; **mundur** hanya lewat aksi human eksplisit `PATCH /specs/:id { stage }` (backward-only, ADR-0027). `executing` **tertahan** (tak jadi `done`) selama plan `docs/superpowers/plans/**` masih punya `- [ ]` (ADR-0029).

@@ -23,6 +23,9 @@ export type ProjectBrief = { id: string; name: string; desc: string; stack: stri
 
 // SPEC-210 · brief awal PRD (sesi prd project-level). Disisipkan ke prompt sesi.
 export type PrdBrief = { title: string; context: string; outcome: string; constraints?: string };
+// SPEC-340 · ADR-0076 · dokumen audit yang disematkan ke prompt sesi PRD hasil eskalasi audit.
+// Isinya disematkan (bukan sekadar path) supaya prompt self-contained — cermin BreakdownPrd.
+export type AuditDoc = { id: string; path: string; content: string };
 
 // SPEC-273 · PRD yang dipecah sesi breakdown. content = isi PRD tersemat langsung ke prompt,
 // jadi breakdown lepas dari status merge PRD (tak perlu PRD sudah ada di default branch).

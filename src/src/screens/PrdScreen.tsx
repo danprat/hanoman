@@ -16,10 +16,17 @@ export type PrdBriefForm = { title: string; context: string; outcome: string; co
 // SPEC-244 · branchFrom = branch yang dibuat sesi PRD (prd/<slug>) — diteruskan ke brief take-to-backlog.
 export type PrdPrefill = { project: string; title: string; context: string; outcome: string; prdPath: string; branchFrom: string };
 
-function NewPrdModal({ projects, defaultProject, onClose, onCreate }:
-  { projects: ProjectVM[]; defaultProject: string; onClose: () => void; onCreate: (project: string, brief: PrdBriefForm) => void }) {
+// SPEC-340 · ADR-0076 · di-export karena App memakainya ulang untuk eskalasi audit → PRD (brief
+// ter-prefill dari rekomendasi audit). `lockProject` mengunci project ke asal auditnya.
+export function NewPrdModal({ projects, defaultProject, onClose, onCreate, prefill, lockProject }:
+  { projects: ProjectVM[]; defaultProject: string; onClose: () => void;
+    onCreate: (project: string, brief: PrdBriefForm) => void;
+    prefill?: { title?: string; context?: string; outcome?: string; constraints?: string };
+    lockProject?: boolean }) {
   const [project, setProject] = React.useState(defaultProject || projects[0]?.id || "");
-  const [f, setF] = React.useState({ title: "", context: "", outcome: "", constraints: "" });
+  const [f, setF] = React.useState({
+    title: prefill?.title ?? "", context: prefill?.context ?? "",
+    outcome: prefill?.outcome ?? "", constraints: prefill?.constraints ?? "" });
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<any>) => setF((s) => ({ ...s, [k]: e.target.value }));
   const submit = () => {
     if (!f.title.trim() || !project) return;
@@ -35,7 +42,7 @@ function NewPrdModal({ projects, defaultProject, onClose, onCreate }:
         hanoman membuka sesi brainstorm interaktif di terminal, lalu menulis dokumen PRD ke <code>docs/prd/</code>.
       </div>
       <Field label="Project" hint="Tujuan penulisan docs/prd/ — pilih di sini, tak perlu memfilter daftar dulu">
-        <Select aria-label="Project untuk PRD baru" value={project}
+        <Select aria-label="Project untuk PRD baru" value={project} disabled={lockProject}
           onChange={(e) => setProject(e.target.value)} style={{ width: "100%" }}
           options={projects.map((p) => ({ value: p.id, label: p.name }))} />
       </Field>
