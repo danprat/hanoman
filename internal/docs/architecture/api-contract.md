@@ -209,11 +209,21 @@ GET/PUT  /settings                      # Setting blob (zSetting): model, effort
 #                                         goal { enabled:false, condition:"" } (SPEC-332/ADR-0073) — default global mode goal
 #                                           sesi backlog; condition kosong = pakai default DoD bawaan. Blok selalu ADA di response
 #                                           (zod .default()), jadi baris Setting lama tetap parse tanpa migration.
-#                                         agent: "claude"|"codex" (default "claude") + codex { model:"gpt-5.5",
+#                                         agent: "claude"|"codex" (default "claude") + codex { model:"gpt-5.6-sol",
 #                                           effort:"xhigh" } (SPEC-338/ADR-0074) — mesin sesi default + katalog
 #                                           model/effort codex. model/effort di akar TETAP milik claude.
 #                                           Keduanya .default() → baris lama tetap parse, TANPA migration.
+#                                         SPEC-339 · blok codex dinormalkan saat DIBACA: model pensiun
+#                                           (gpt-5.4, gpt-5.4-mini, gpt-5.3-codex-spark) → gpt-5.5, lalu effort
+#                                           dikoreksi ke yang didukung model itu (mis. luna+ultra → xhigh).
+#                                           Server tetap lenient (z.string()); PUT nilai apa pun diterima,
+#                                           tapi yang dibaca kembali sudah pasangan yang sah.
 #                                         PUT ganti seluruh blob (full replace).
+GET      /codex/version                 # { version: string|null, minRequired: "0.144.0", ok: boolean }  (SPEC-339)
+#   Versi codex CLI terpasang (`<HANOMAN_CODEX_BIN> --version`, cache 5 menit). `version: null` =
+#   tak terdeteksi (biner tak ada / keluaran tak dikenal) dan itu TIDAK dianggap gagal → `ok: true`.
+#   Murni observabilitas untuk catatan lunak di Settings & picker Start; TIDAK pernah memblokir Start
+#   (ADR-0037 — agen dipercaya, isolasi lewat worktree).
 GET      /limits/codex                  # CodexLimitsDTO { status, windows[], fetchedAt, plan }  (SPEC-338/ADR-0074)
 #   Limit langganan CODEX. Sumbernya BUKAN jaringan: codex menulis `rate_limits` (used_percent,
 #   window_minutes, resets_at, plan_type, rate_limit_reached_type) ke rollout sesinya di

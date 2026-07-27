@@ -140,14 +140,15 @@ describe("cross-audit di codex", () => {
 
   it("sesi lepas mengikuti Setting.agent codex, lengkap dengan kunci audit ber-scope", async () => {
     process.env.HANOMAN_CODEX_BIN = resolve(import.meta.dirname, "fixtures/fake-agent-env.sh");
-    await setSetting({ agent: "codex", codex: { model: "gpt-5.4", effort: "high" } });
+    // SPEC-339 · slug dari katalog yang masih hidup: `gpt-5.4` kini diremap ke gpt-5.5 saat dibaca.
+    await setSetting({ agent: "codex", codex: { model: "gpt-5.6-terra", effort: "high" } });
     const r = await app.inject({ method: "POST", url: "/api/terminal/sessions", payload: { project: "web", flow: "cross-audit" } });
     expect(r.statusCode).toBe(201);
 
     const pane = await paneOf("xaudit-web");
     expect(pane).toContain("--dangerously-bypass-approvals-and-sandbox");   // jalur codex
     expect(pane).not.toContain("--dangerously-skip-permissions");
-    expect(pane).toContain("-m gpt-5.4");
+    expect(pane).toContain("-m gpt-5.6-terra");
     // Kunci audit BENAR-BENAR sampai ke proses codex (env, bukan sekadar tmux option).
     expect(pane).toMatch(/HANOMAN_AUDIT_KEY=hnm_xa_[0-9a-f]{32}/);
     expect(pane).toContain("HANOMAN_AUDIT_URL=http://127.0.0.1:");
