@@ -8,7 +8,7 @@ import { Shell, Modal, Field, HnTextarea, Button, StatusPill, Select, Input, Swi
 import { api, ApiError, type TerminalSession } from "./api/client";
 import { subscribe } from "./api/events";
 import type { ProjectView, Spec, AuthStatus, UserView, Notification, BreakdownItem } from "@hanoman/shared";
-import { flowForSource, MODELS, EFFORTS } from "@hanoman/shared";
+import { flowForSource, MODELS, EFFORTS, CODEX_MODELS, CODEX_EFFORTS, CODEX_DEFAULTS, type Agent } from "@hanoman/shared";
 import { AuthScreen } from "./screens/AuthScreen";
 import { AuthProvider } from "./auth/AuthContext";
 import type { ProjectVM } from "./screens/types";
@@ -47,6 +47,14 @@ export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
   { open: boolean; spec: Spec | null; onClose: () => void; onStarted: (id: string) => void; onError?: (e: unknown) => void }) {
   const [model, setModel] = React.useState("claude-opus-5");
   const [effort, setEffort] = React.useState("xhigh");
+  // SPEC-338 · ADR-0074 · agen sesi. Model/effort dipilih dari katalog agen terpilih — mengganti
+  // agen HARUS menukar keduanya, kalau tidak sesi lahir dengan `codex -m claude-opus-5`.
+  const [agent, setAgent] = React.useState<Agent>("claude");
+  // Default per agen dari setelan global, dipakai saat picker agen berpindah.
+  const [defs, setDefs] = React.useState<Record<Agent, { model: string; effort: string }>>({
+    claude: { model: "claude-opus-5", effort: "xhigh" },
+    codex: { ...CODEX_DEFAULTS },
+  });
   // SPEC-332 · ADR-0073 · mode goal per sesi. Prefill dari default global; kondisi kosong dikirim
   // sebagai undefined supaya server yang memilih template global lalu default DoD bawaan.
   const [goalOn, setGoalOn] = React.useState(false);
@@ -55,10 +63,20 @@ export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
   React.useEffect(() => {
     if (!open) return;
     api.getSettings().then((s) => {
-      setModel(s.model); setEffort(s.effort);
+      // `?? `: server selalu mengirim keduanya (zod .default()), tapi respons yang di-cache
+      // sebelum SPEC-338 belum punya — jangan sampai picker-nya kosong.
+      const d: Record<Agent, { model: string; effort: string }> = {
+        claude: { model: s.model, effort: s.effort },
+        codex: { ...CODEX_DEFAULTS, ...(s.codex ?? {}) },
+      };
+      const a: Agent = s.agent === "codex" ? "codex" : "claude";
+      setDefs(d); setAgent(a); setModel(d[a].model); setEffort(d[a].effort);
       setGoalOn(s.goal.enabled); setGoalCond(s.goal.condition);
     }).catch(() => {});
   }, [open]);
+  const pickAgent = (a: Agent) => { setAgent(a); setModel(defs[a].model); setEffort(defs[a].effort); };
+  const models: readonly { id: string; label: string }[] = agent === "codex" ? CODEX_MODELS : MODELS;
+  const efforts: readonly string[] = agent === "codex" ? CODEX_EFFORTS : EFFORTS;
   if (!spec) return null;
   const s = spec;
   const flow = flowForSource(s.source);
@@ -66,7 +84,7 @@ export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
     setBusy(true);
     try {
       const { id } = await api.startSession({
-        spec: s.id, flow, model, effort,
+        spec: s.id, flow, model, effort, agent,
         goal: goalOn, goalCondition: goalOn && goalCond.trim() ? goalCond.trim() : undefined,
       });
       onStarted(id); onClose();
@@ -81,17 +99,24 @@ export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
         <Button leftIcon="play" disabled={busy} onClick={start}>Mulai</Button>
       </>}>
       <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.5 }}>
-        Model & effort untuk sesi ini. Default dari setelan global; ubah bila perlu. Sesi lahir dengan pilihan
+        Agen, model & effort untuk sesi ini. Default dari setelan global; ubah bila perlu. Sesi lahir dengan pilihan
         ini untuk seluruh hidupnya (satu proses) — <code>/model</code> di terminal tetap bisa mengubahnya.
       </div>
+      {/* SPEC-338 · ADR-0074 · mesin sesi. Perilaku sesi identik (worktree, fase, stage, review);
+          yang berbeda hanya CLI yang dijalankan — dan karenanya katalog model/effort-nya. */}
+      <Field label="Agen" hint="Mesin yang menjalankan sesi ini. Perilaku sesi sama; hanya CLI-nya berbeda.">
+        <Select aria-label="Agen" value={agent} style={{ width: "100%" }}
+          options={[{ value: "claude", label: "Claude Code" }, { value: "codex", label: "Codex CLI" }]}
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => pickAgent(e.target.value as Agent)} />
+      </Field>
       <Field label="Model">
         <Select aria-label="Model" value={model} style={{ width: "100%" }}
-          options={MODELS.map((m) => ({ value: m.id, label: m.label }))}
+          options={models.map((m) => ({ value: m.id, label: m.label }))}
           onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setModel(e.target.value)} />
       </Field>
       <Field label="Effort">
         <Select aria-label="Effort" value={effort} style={{ width: "100%" }}
-          options={EFFORTS.map((v) => ({ value: v, label: v }))}
+          options={efforts.map((v) => ({ value: v, label: v }))}
           onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEffort(e.target.value)} />
       </Field>
       {/* SPEC-332 · ADR-0073 · mode goal: sesi menolak berhenti sampai kondisinya terbukti di

@@ -37,8 +37,9 @@ describe("Settings tanpa matrix per-fase (SPEC-252)", () => {
     render(<SettingsScreen me={me} onLoggedOut={() => {}} onToast={() => {}} />);
     fireEvent.click(screen.getByText("Model sesi"));
     await screen.findByText(/default global/i);
-    const selects = screen.getAllByRole("combobox") as HTMLSelectElement[];
-    fireEvent.change(selects[0]!, { target: { value: "claude-sonnet-5" } });
+    // SPEC-338 · tab ini kini juga memuat kartu "Agen sesi" di atasnya, jadi select model claude
+    // dipilih lewat label — bukan urutan (`selects[0]` sekarang picker agen).
+    fireEvent.change(screen.getByLabelText("Model claude"), { target: { value: "claude-sonnet-5" } });
     await waitFor(() => expect(api.putSettings).toHaveBeenCalled());
     const putArg = (api.putSettings as any).mock.calls.at(-1)[0];
     expect(putArg.model).toBe("claude-sonnet-5");

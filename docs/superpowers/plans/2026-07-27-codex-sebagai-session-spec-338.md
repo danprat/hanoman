@@ -1187,7 +1187,7 @@ git commit -m "feat(spec-338): resolusi agen sesi (default global + override per
 - Consumes: `CODEX_MODELS`, `CODEX_EFFORTS`, `MODELS`, `EFFORTS`, `Setting.agent`, `Setting.codex`.
 - Produces: `api.startSession({ …, agent })`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/test/start-session-agent.test.tsx` (ikuti pola berkas test frontend yang sudah ada di `src/test/` untuk setup RTL & mock `api`):
 
@@ -1243,12 +1243,12 @@ describe("StartSessionModal · agen (SPEC-338)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter hanoman exec vitest run test/start-session-agent.test.tsx`
 Expected: FAIL — tak ada kontrol berlabel "Agen".
 
-- [ ] **Step 3: Tambahkan `agent` ke client API (`src/src/api/client.ts:181`)**
+- [x] **Step 3: Tambahkan `agent` ke client API (`src/src/api/client.ts:181`)**
 
 ```ts
   startSession: (b: { spec: string; flow: Flow; model?: string; effort?: string; goal?: boolean; goalCondition?: string; agent?: Agent }) =>
@@ -1256,7 +1256,7 @@ Expected: FAIL — tak ada kontrol berlabel "Agen".
 
 Tambahkan `Agent` ke import tipe dari `@hanoman/shared` di berkas itu.
 
-- [ ] **Step 4: Picker Agen di `StartSessionModal` (`src/src/App.tsx`)**
+- [x] **Step 4: Picker Agen di `StartSessionModal` (`src/src/App.tsx`)**
 
 Perbarui import (baris 11):
 
@@ -1330,7 +1330,7 @@ Perbarui teks penjelas (baris 83-86) agar menyebut agen:
         ini untuk seluruh hidupnya (satu proses) — <code>/model</code> di terminal tetap bisa mengubahnya.
 ```
 
-- [ ] **Step 5: Kartu "Agen sesi" di `SettingsScreen.tsx`**
+- [x] **Step 5: Kartu "Agen sesi" di `SettingsScreen.tsx`**
 
 Perbarui import (baris 6):
 
@@ -1374,17 +1374,17 @@ Sisipkan kartu baru tepat sebelum kartu `eyebrow="goal"` (baris 562):
 
 > Sesuaikan nama helper `save(...)` dengan yang sudah dipakai kartu lain di berkas itu (lihat kartu `goal`, baris 562-580).
 
-- [ ] **Step 6: Jalankan test, pastikan LULUS**
+- [x] **Step 6: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter hanoman exec vitest run`
 Expected: PASS — test frontend hijau.
 
-- [ ] **Step 7: Typecheck seluruh workspace**
+- [x] **Step 7: Typecheck seluruh workspace**
 
 Run: `pnpm -r typecheck`
 Expected: exit 0, tanpa error TS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/src/App.tsx src/src/screens/SettingsScreen.tsx src/src/api/client.ts src/test/start-session-agent.test.tsx

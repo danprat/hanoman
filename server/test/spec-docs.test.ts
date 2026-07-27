@@ -50,7 +50,8 @@ describe("listSpecDocs", () => {
 
 describe("resolveDir", () => {
   const sess = (over: Record<string, unknown>) =>
-    ({ id: "spec-170", projectId: "p1", specId: "SPEC-170", flow: "feature" as const, cwd: "/live/wt", exited: false, decision: false, ...over });
+    ({ id: "spec-170", projectId: "p1", specId: "SPEC-170", flow: "feature" as const, cwd: "/live/wt",
+      exited: false, decision: false, agent: "claude" as const, ...over });   // SPEC-338 · agen sesi
   it("prefers a live session cwd over repoDir", async () => {
     expect(await resolveDir("SPEC-170", [sess({})])).toBe("/live/wt");
   });

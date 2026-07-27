@@ -3,7 +3,7 @@
 import React from "react";
 import { Card, Switch, Select, Button, Input, Field, HnTextarea, Icon, StateBlock } from "../ds";
 import { api, ApiError } from "../api/client";
-import { CAPABILITY_DOMAINS, SCHEDULER_DEFAULTS, GOAL_DEFAULTS } from "@hanoman/shared";
+import { CAPABILITY_DOMAINS, SCHEDULER_DEFAULTS, GOAL_DEFAULTS, CODEX_DEFAULTS, CODEX_MODELS, CODEX_EFFORTS } from "@hanoman/shared";
 import type { Setting, UserView, DeviceTokenView, SessionResultView, ConfigResponse, ConfigEntryView, AgentTokenView, CapabilityInfo } from "@hanoman/shared";
 import type { ShowToast } from "../ds";
 import { playNotifySound, type NotifySound } from "../notifications/sound";
@@ -42,6 +42,8 @@ const S_DEFAULTS: Setting = {
   agentAccessEnabled: false,
   scheduler: SCHEDULER_DEFAULTS,   // SPEC-294 · knob scheduler (panel dibangun daun #6)
   goal: GOAL_DEFAULTS,             // SPEC-332 · ADR-0073 · mode goal (default mati)
+  agent: "claude",                 // SPEC-338 · ADR-0074 · mesin sesi default
+  codex: CODEX_DEFAULTS,           // SPEC-338 · ADR-0074 · model/effort codex
 };
 
 function SettingRow({ title, desc, children, last }: { title: string; desc?: string; children?: React.ReactNode; last?: boolean }) {
@@ -484,6 +486,12 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
     };
     const save = (patch: Partial<Setting>, msg: string) => persist({ ...s, ...patch }, msg);
     const sw = (k: keyof Setting, msg: string) => (v: boolean) => save({ [k]: v } as Partial<Setting>, msg + (v ? " · aktif" : " · nonaktif"));
+    // SPEC-338 · ADR-0074 · server selalu mengirim `agent`/`codex` (zod .default()), TAPI SPA yang
+    // masih ter-cache dari sebelum SPEC-338 bisa bicara dengan server lama saat rolling update.
+    // Tanpa fallback ini layar Settings mati total (`undefined.model`) alih-alih sekadar
+    // memperlihatkan default.
+    const codex = s.codex ?? CODEX_DEFAULTS;
+    const agent = s.agent ?? "claude";
 
     if (tab === "umum") return (
       <>
@@ -508,23 +516,50 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
       </>
     );
     if (tab === "model") return (
-      // SPEC-252 · ADR-0061 · default global saja. Model & effort dipilih PER SESI saat Start
-      // (picker StartSessionModal); matrix per-fase (SPEC-238) dicabut. Manusia tetap bebas mengetik
-      // `/model`/`/effort` di dalam terminal — itu justru gunanya interaktif.
+      <>
+      {/* SPEC-338 · ADR-0074 · mesin sesi default. Berlaku untuk SEMUA sesi yang men-spawn agen
+          (backlog, reverse, prd, scaffold, breakdown, terminal); backlog masih bisa di-override
+          saat Start. Model/effort claude tetap di kartunya sendiri di bawah. */}
+      <Card eyebrow="agen" title="Agen sesi">
+        <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.5 }}>
+          Mesin yang menjalankan sesi baru. Perilaku sesi identik — worktree terisolasi, fase, stage,
+          review, integrate. Yang berbeda hanya CLI-nya, dan karenanya katalog model/effort-nya.
+          Indikator limit hanya membaca kuota Anthropic, jadi sesi codex tak muncul di sana.
+        </div>
+        <SettingRow title="Agen default" desc="Sesi backlog masih bisa memilih agen lain saat Start.">
+          <Select size="sm" aria-label="Agen default" value={agent} style={{ width: 190 }}
+            options={[{ value: "claude", label: "Claude Code" }, { value: "codex", label: "Codex CLI" }]}
+            onChange={(e) => save({ agent: e.target.value as Setting["agent"] }, "Agen → " + e.target.value)} />
+        </SettingRow>
+        <SettingRow title="Model codex" desc="Diteruskan apa adanya ke `codex -m`.">
+          <Select size="sm" aria-label="Model codex" value={codex.model} style={{ width: 190 }}
+            options={CODEX_MODELS.map((m) => ({ value: m.id, label: m.label }))}
+            onChange={(e) => save({ codex: { ...codex, model: e.target.value } }, "Model codex → " + e.target.value)} />
+        </SettingRow>
+        <SettingRow title="Effort codex" last desc="Diteruskan ke `codex -c model_reasoning_effort`.">
+          <Select size="sm" aria-label="Effort codex" value={codex.effort} style={{ width: 130 }}
+            options={CODEX_EFFORTS.map((v) => ({ value: v, label: v }))}
+            onChange={(e) => save({ codex: { ...codex, effort: e.target.value } }, "Effort codex → " + e.target.value)} />
+        </SettingRow>
+      </Card>
+      {/* SPEC-252 · ADR-0061 · default global saja. Model & effort dipilih PER SESI saat Start
+          (picker StartSessionModal); matrix per-fase (SPEC-238) dicabut. Manusia tetap bebas mengetik
+          `/model`/`/effort` di dalam terminal — itu justru gunanya interaktif. */}
       <Card eyebrow="model" title="Model sesi — default global">
         <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.5 }}>
           Default untuk sesi baru; bisa di-override per sesi saat <b>Start</b>. Di terminal, <code>/model</code>
           mengubahnya kapan saja. Sesi = satu proses, satu model seumur hidup.
         </div>
         <SettingRow title="Model">
-          <Select size="sm" value={s.model} options={S_MODELS} style={{ width: 190 }}
+          <Select size="sm" aria-label="Model claude" value={s.model} options={S_MODELS} style={{ width: 190 }}
             onChange={(e) => save({ model: e.target.value }, "Model → " + e.target.value)} />
         </SettingRow>
         <SettingRow title="Effort" last desc="Anggaran berpikir per giliran.">
-          <Select size="sm" value={s.effort} options={S_EFFORT} style={{ width: 130 }}
+          <Select size="sm" aria-label="Effort claude" value={s.effort} options={S_EFFORT} style={{ width: 130 }}
             onChange={(e) => save({ effort: e.target.value }, "Effort → " + e.target.value)} />
         </SettingRow>
       </Card>
+      </>
     );
     return ( // sesi
       <>

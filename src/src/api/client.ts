@@ -1,4 +1,4 @@
-import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type ConfigResponse, type ConfigEntryView, type IngestKeyView, type ErrorGroupView, type ErrorGroupDetail, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView } from "@hanoman/shared";
+import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type ConfigResponse, type ConfigEntryView, type IngestKeyView, type ErrorGroupView, type ErrorGroupDetail, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView, type Agent } from "@hanoman/shared";
 export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit" | "breakdown";
 // SPEC-210 · dokumen PRD project (freshest-wins: worktree sesi prd hidup > repoDir). Tipe di @hanoman/shared.
@@ -178,7 +178,8 @@ export const api = {
   // SPEC-162 · sesi claude interaktif untuk sebuah backlog item, di worktree-nya sendiri.
   // SPEC-252 · ADR-0061 · model/effort per sesi (opsional; kosong → default global di server).
   // SPEC-332 · ADR-0073 · mode goal per sesi (opsional; kosong → default global di server).
-  startSession: (b: { spec: string; flow: Flow; model?: string; effort?: string; goal?: boolean; goalCondition?: string }) =>
+  startSession: (b: { spec: string; flow: Flow; model?: string; effort?: string; goal?: boolean; goalCondition?: string;
+    agent?: Agent }) =>   // SPEC-338 · ADR-0074 · mesin sesi; kosong → Setting.agent
     j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body(b) }),
   // SPEC-166 · reverse: sesi project-level menyusun Source of Truth dari kode, di worktree-nya.
   reverseDocs: (project: string) =>
