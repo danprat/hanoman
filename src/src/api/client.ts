@@ -1,6 +1,6 @@
-import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type ConfigResponse, type ConfigEntryView, type IngestKeyView, type ErrorGroupView, type ErrorGroupDetail, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView } from "@hanoman/shared";
+import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type ConfigResponse, type ConfigEntryView, type IngestKeyView, type ErrorGroupView, type ErrorGroupDetail, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView, type LinkView } from "@hanoman/shared";
 export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
-export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit" | "breakdown";
+export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit" | "breakdown" | "cross-audit";
 // SPEC-210 · dokumen PRD project (freshest-wins: worktree sesi prd hidup > repoDir). Tipe di @hanoman/shared.
 export type { PrdDoc };
 export type Phase = { name: string; state: "done" | "skipped" | "active" | "pending" };
@@ -286,6 +286,14 @@ export const api = {
   getHelpCenter: (id: string) => j<{ enabled: boolean; publicUrl: string }>(paths.projectHelpCenter(id)),
   enableHelpCenter: (id: string) => j<{ enabled: boolean; publicUrl: string }>(paths.projectHelpCenter(id), { method: "POST" }),
   disableHelpCenter: (id: string) => j<void>(paths.projectHelpCenter(id), { method: "DELETE" }),
+  // SPEC-337 · ADR-0074 · relasi integrasi antar project + sesi audit lintas (lepas).
+  listProjectLinks: (id: string) => j<{ links: LinkView[] }>(paths.projectLinks(id)),
+  createProjectLink: (id: string, b: { to: string; kind: string; note?: string }) =>
+    j<LinkView>(paths.projectLinks(id), { method: "POST", ...body(b) }),
+  deleteProjectLink: (id: string, linkId: string) =>
+    j<void>(paths.projectLink(id, linkId), { method: "DELETE" }),
+  crossAudit: (project: string) =>
+    j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, flow: "cross-audit" }) }),
   listTickets: (params: Record<string, string | undefined> = {}) =>
     j<Paginated<TicketView> & { unreviewed: number }>(paths.tickets + qs(params)),
   getTicket: (id: string) => j<TicketDetail & { spec: Spec | null }>(paths.ticket(id)),

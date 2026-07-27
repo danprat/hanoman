@@ -1642,7 +1642,7 @@ git commit -m "feat(spec-337): peluncuran sesi cross-audit (backlog + lepas) ber
   - `<ProjectLinksCard p onToast onCrossAudit />`
   - `ProjectDetailScreen` prop baru `onCrossAudit?: () => void | Promise<void>`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/test/project-links-card.test.tsx`:
 
@@ -1706,7 +1706,7 @@ describe("ProjectLinksCard", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — harus gagal**
+- [x] **Step 2: Jalankan test — harus gagal**
 
 ```bash
 cd src && env -u NODE_ENV npx vitest run test/project-links-card.test.tsx
@@ -1714,7 +1714,7 @@ cd src && env -u NODE_ENV npx vitest run test/project-links-card.test.tsx
 
 Expected: FAIL — `Failed to resolve import "../src/screens/ProjectLinksCard"`.
 
-- [ ] **Step 3: Tambahkan method API client**
+- [x] **Step 3: Tambahkan method API client**
 
 Di `src/src/api/client.ts`, tambahkan path (dekat `projectHelpCenter`):
 
@@ -1736,7 +1736,7 @@ dan method di objek `api` (setelah `disableHelpCenter`):
     j<{ id: string }>(paths.sessions, { method: "POST", ...body({ project: id, flow: "cross-audit" }) }),
 ```
 
-Tambahkan tipe di file yang sama (dekat tipe view lain, atau impor dari `@hanoman/shared` bila tipe view sudah diekspor di sana):
+Tipe `LinkView` ditaruh di `shared/src/api.ts` (bersama `paths`) lalu diimpor — bukan didefinisikan ulang di client:
 
 ```ts
 // SPEC-337 · bentuk LinkView server (server/src/services/project-links.ts).
@@ -1748,7 +1748,7 @@ export type LinkView = {
 
 > `paths.sessions` sudah ada (dipakai `reverseDocs`). Bila namanya berbeda di file itu, pakai nama yang ada — jangan membuat path baru.
 
-- [ ] **Step 4: Buat kartu**
+- [x] **Step 4: Buat kartu**
 
 Buat `src/src/screens/ProjectLinksCard.tsx`:
 
@@ -1846,7 +1846,7 @@ export function ProjectLinksCard({ p, others, onToast, onCrossAudit }:
 }
 ```
 
-- [ ] **Step 5: Pasang kartu di detail project**
+- [x] **Step 5: Pasang kartu di detail project**
 
 Di `src/src/screens/ProjectDetailScreen.tsx`:
 
@@ -1866,7 +1866,7 @@ Di `src/src/screens/ProjectDetailScreen.tsx`:
       <ProjectLinksCard p={p} others={others ?? []} onToast={onToast} onCrossAudit={onCrossAudit} />
 ```
 
-- [ ] **Step 6: Sambungkan di App**
+- [x] **Step 6: Sambungkan di App**
 
 Di `src/src/App.tsx`:
 
@@ -1931,7 +1931,7 @@ Ganti tiga ekspresi tampilan modal:
 
 (d) Payload cross-audit berbentuk brief — tak ada perubahan lain yang diperlukan (`source: f.kind` sudah meneruskan nilai tab).
 
-- [ ] **Step 7: Tambahkan tampilan source di backlog**
+- [x] **Step 7: Tambahkan tampilan source di backlog**
 
 Di `src/src/screens/BacklogScreen.tsx`, tambahkan satu entri di `SOURCE_META`:
 
@@ -1939,7 +1939,7 @@ Di `src/src/screens/BacklogScreen.tsx`, tambahkan satu entri di `SOURCE_META`:
   "cross-audit": { label: "Audit lintas", icon: "radar", tone: "info", color: "var(--wind-600)" },
 ```
 
-- [ ] **Step 7b: Beri label sel Terminal untuk sesi audit lintas lepas**
+- [x] **Step 7b: Beri label sel Terminal untuk sesi audit lintas lepas**
 
 Sesi lepas tak punya `specId`, jadi `cellLabel` hanya menampilkan nama project — tak terbedakan dari
 terminal biasa. Di `src/src/screens/TerminalScreen.tsx` (± baris 261), ganti isi `cellLabel`:
@@ -1955,7 +1955,7 @@ function cellLabel(s: TerminalSession, nameOf: (pid: string) => string,
 }
 ```
 
-- [ ] **Step 8: Jalankan test frontend — harus lolos**
+- [x] **Step 8: Jalankan test frontend — harus lolos**
 
 ```bash
 cd src && env -u NODE_ENV npx vitest run test/project-links-card.test.tsx test/backlog-board.test.tsx test/app-flows.test.tsx
@@ -1963,7 +1963,7 @@ cd src && env -u NODE_ENV npx vitest run test/project-links-card.test.tsx test/b
 
 Expected: PASS (4 test kartu + suite backlog/app lama tetap hijau).
 
-- [ ] **Step 9: Typecheck seluruh workspace**
+- [x] **Step 9: Typecheck seluruh workspace**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-337 && pnpm -r typecheck
@@ -1971,7 +1971,7 @@ cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-337 && pnpm -r
 
 Expected: exit 0, tanpa error TS.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add src/src src/test/project-links-card.test.tsx

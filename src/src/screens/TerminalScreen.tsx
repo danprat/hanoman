@@ -262,7 +262,9 @@ function cellLabel(s: TerminalSession, nameOf: (pid: string) => string,
   titleOf?: (specId: string) => string | undefined): string {
   const proj = nameOf(s.projectId);
   const title = s.specId ? titleOf?.(s.specId) : undefined;
-  return s.specId ? `${proj} · ${s.specId}${title ? ` · ${title}` : ""}` : proj;
+  if (s.specId) return `${proj} · ${s.specId}${title ? ` · ${title}` : ""}`;
+  // SPEC-337 · sesi audit lintas LEPAS tak punya spec; tanpa penanda ia tampak seperti terminal biasa.
+  return s.id.startsWith("xaudit-") ? `${proj} · audit lintas` : proj;
 }
 
 // SPEC-179 · picker backlog dari Terminal. Daftar padat + cari; klik baris = ambil.

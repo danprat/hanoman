@@ -6,6 +6,7 @@ import { Card, Badge, StatusPill, ProgressBar, Button, Icon } from "../ds";
 import { api } from "../api/client";
 import type { ProjectVM } from "./types";
 import { IntegrationGuideModal } from "./IntegrationGuideModal";
+import { ProjectLinksCard } from "./ProjectLinksCard";
 
 const COV_TONE = (s: string) => (s === "broken" ? "err" : s === "drift" ? "warn" : "ok");
 
@@ -159,12 +160,15 @@ function Door({ icon, title, hint, onClick }:
   );
 }
 
-export function ProjectDetailScreen({ p, onEdit, onGotoDocs, onGotoTerminal, onGotoBacklog, onDelete, onReverse, onScaffold, onToast, onProjectChanged }:
+export function ProjectDetailScreen({ p, onEdit, onGotoDocs, onGotoTerminal, onGotoBacklog, onDelete, onReverse, onScaffold, onToast, onProjectChanged, others, onCrossAudit }:
   { p: ProjectVM; onEdit: () => void; onGotoDocs: () => void; onGotoTerminal: () => void;
     onGotoBacklog: () => void; onDelete: () => void; onReverse?: () => void; onScaffold?: () => void;
     onToast: (msg: string, kind?: string, icon?: string) => void;
     // SPEC-258 · dipanggil sesudah mutasi in-card (DSN/Help) agar App refetch VM & status persist.
-    onProjectChanged?: (id: string) => void | Promise<void> }) {
+    onProjectChanged?: (id: string) => void | Promise<void>;
+    // SPEC-337 · project lain sebagai kandidat relasi + pembuka sesi audit lintas.
+    others?: { id: string; name: string }[];
+    onCrossAudit?: () => void | Promise<void> }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <Card>
@@ -203,6 +207,7 @@ export function ProjectDetailScreen({ p, onEdit, onGotoDocs, onGotoTerminal, onG
 
       <DsnCard p={p} onToast={onToast} onProjectChanged={onProjectChanged} />
       <HelpCenterCard p={p} onToast={onToast} onProjectChanged={onProjectChanged} />
+      <ProjectLinksCard p={p} others={others ?? []} onToast={onToast} onCrossAudit={onCrossAudit} />
 
       <div style={{ display: "grid", gridTemplateColumns: `repeat(${onReverse || onScaffold ? 4 : 3}, 1fr)`, gap: 12 }}>
         <Door icon="book-open" title="Source of Truth" hint="baca & sunting docs" onClick={onGotoDocs} />
