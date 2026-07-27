@@ -5,3 +5,4 @@ export * from "./git";
 export * from "./settings";
 export * from "./goal";
 export * from "./codex-settings";
+export * from "./agent-cli";

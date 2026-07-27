@@ -488,7 +488,7 @@ git commit -m "feat(spec-338): hook codex (marker keputusan + gate mode goal det
   `AgentFlagsOpts = { agent: Agent; model?: string; effort?: string; decisionFile?: string; goal?: string; goalGate?: string }`.
   Nilai balik = elemen argv **belum dikutip**; pemanggil yang mengutip.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `runner/test/agent-cli.test.ts`:
 
@@ -544,12 +544,12 @@ describe("agentFlags · codex", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/runner exec vitest run test/agent-cli.test.ts`
 Expected: FAIL — modul `../src/agent-cli` tidak ada.
 
-- [ ] **Step 3: Tulis `runner/src/agent-cli.ts`**
+- [x] **Step 3: Tulis `runner/src/agent-cli.ts`**
 
 ```ts
 import type { Agent } from "./types";
@@ -594,16 +594,16 @@ export function agentFlags(o: AgentFlagsOpts): string[] {
 }
 ```
 
-- [ ] **Step 4: Pastikan `runner/src/index.ts` mengekspor `./agent-cli`**
+- [x] **Step 4: Pastikan `runner/src/index.ts` mengekspor `./agent-cli`**
 
 (Bila belum ditambahkan di Task 2 Step 5.)
 
-- [ ] **Step 5: Jalankan test, pastikan LULUS**
+- [x] **Step 5: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/runner exec vitest run`
 Expected: PASS — seluruh test runner hijau.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add runner/src/agent-cli.ts runner/src/index.ts runner/test/agent-cli.test.ts
