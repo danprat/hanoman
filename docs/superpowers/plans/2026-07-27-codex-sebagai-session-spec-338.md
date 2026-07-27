@@ -216,7 +216,7 @@ git commit -m "feat(spec-338): Agent claude|codex + setelan codex di shared"
   - `codexGoalScript(o: { flow: Flow; specId: string; phaseFile: string; worktree: string; condition: string; maxBlocks?: number; stateFile: string }): string` — isi skrip sh gate.
   - `GOAL_MAX_BLOCKS = 25`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `runner/test/codex-settings.test.ts`:
 
@@ -332,12 +332,12 @@ describe("codexGoalScript", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/runner exec vitest run test/codex-settings.test.ts`
 Expected: FAIL — modul `../src/codex-settings` tidak ada.
 
-- [ ] **Step 3: Tambahkan tipe `Agent` di `runner/src/types.ts`**
+- [x] **Step 3: Tambahkan tipe `Agent` di `runner/src/types.ts`**
 
 Sisipkan setelah `Autonomy` (baris 6):
 
@@ -347,7 +347,7 @@ Sisipkan setelah `Autonomy` (baris 6):
 export type Agent = "claude" | "codex";
 ```
 
-- [ ] **Step 4: Tulis `runner/src/codex-settings.ts`**
+- [x] **Step 4: Tulis `runner/src/codex-settings.ts`**
 
 ```ts
 import { PIPELINES } from "./prompt";
@@ -450,7 +450,7 @@ export function codexGoalScript(o: {
 }
 ```
 
-- [ ] **Step 5: Ekspor dari `runner/src/index.ts`**
+- [x] **Step 5: Ekspor dari `runner/src/index.ts`**
 
 Sisipkan setelah `export * from "./goal";`:
 
@@ -461,12 +461,12 @@ export * from "./agent-cli";
 
 > `./agent-cli` dibuat di Task 3. Bila Task 3 belum jalan, tambahkan hanya baris `codex-settings` dulu dan baris `agent-cli` di Task 3.
 
-- [ ] **Step 6: Jalankan test, pastikan LULUS**
+- [x] **Step 6: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/runner exec vitest run test/codex-settings.test.ts`
 Expected: PASS — 11 test hijau.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add runner/src/codex-settings.ts runner/src/types.ts runner/src/index.ts runner/test/codex-settings.test.ts
