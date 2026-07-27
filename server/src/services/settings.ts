@@ -1,5 +1,8 @@
 import { prisma } from "../db";
-import { zSetting, SCHEDULER_DEFAULTS, GOAL_DEFAULTS, CODEX_DEFAULTS, type Setting, type Agent } from "@hanoman/shared";
+import {
+  zSetting, SCHEDULER_DEFAULTS, GOAL_DEFAULTS, CODEX_DEFAULTS, RETIRED_CODEX_MODELS,
+  coerceCodexEffort, type Setting, type Agent, type Codex,
+} from "@hanoman/shared";
 
 // Model id + effort yang diteruskan apa adanya ke `claude --model` / `--effort`.
 const STEP = { model: "claude-opus-5", effort: "xhigh" };
@@ -26,7 +29,22 @@ export async function getSetting(): Promise<Setting> {
   const raw = (await prisma.setting.findUnique({ where: { id: 1 } }))?.data;
   if (raw === undefined || raw === null) return DEFAULT_SETTING;
   const parsed = zSetting.safeParse(raw);
-  return parsed.success ? { ...parsed.data, model: RETIRED_MODELS[parsed.data.model] ?? parsed.data.model } : DEFAULT_SETTING;
+  if (!parsed.success) return DEFAULT_SETTING;
+  return {
+    ...parsed.data,
+    model: RETIRED_MODELS[parsed.data.model] ?? parsed.data.model,
+    codex: normalizeCodex(parsed.data.codex),
+  };
+}
+
+/**
+ * SPEC-339 · cermin RETIRED_MODELS untuk blok codex, plus koersi effort. Urutannya penting:
+ * effort divalidasi terhadap model HASIL pemetaan, bukan model tersimpan — memetakan
+ * `gpt-5.4` (tanpa ultra) ke gpt-5.5 tak ada gunanya bila effort `ultra`-nya dibiarkan.
+ */
+function normalizeCodex(c: Codex): Codex {
+  const model = RETIRED_CODEX_MODELS[c.model] ?? c.model;
+  return { model, effort: coerceCodexEffort(model, c.effort) };
 }
 
 // Id model yang sudah tidak ada di picker (MODELS) dipetakan ke penggantinya saat dibaca, supaya

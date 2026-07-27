@@ -76,9 +76,9 @@ describe("settings", () => {
   // SPEC-338 · ADR-0074 — agen menentukan blok model/effort mana yang jadi default sesi.
   it("sessionAgentDefaults mengembalikan model codex saat agent=codex", async () => {
     await prisma.setting.create({ data: { id: 1, data: {
-      ...DEFAULT_SETTING, agent: "codex", codex: { model: "gpt-5.4", effort: "low" },
+      ...DEFAULT_SETTING, agent: "codex", codex: { model: "gpt-5.6-terra", effort: "low" },
     } as unknown as object } });
-    expect(await sessionAgentDefaults()).toEqual({ agent: "codex", model: "gpt-5.4", effort: "low" });
+    expect(await sessionAgentDefaults()).toEqual({ agent: "codex", model: "gpt-5.6-terra", effort: "low" });
   });
 
   it("sessionAgentDefaults default = claude memakai model/effort claude", async () => {
@@ -89,6 +89,33 @@ describe("settings", () => {
     await prisma.setting.create({ data: { id: 1, data: BARIS_LAMA } });
     const s = await getSetting();
     expect(s.agent).toBe("claude");
+    expect(s.codex).toEqual({ model: "gpt-5.6-sol", effort: "xhigh" });
+  });
+
+  // SPEC-339 · baris Setting lama menyimpan model codex yang sudah dipensiunkan. Dibaca mentah,
+  // UI menampilkan Select kosong dan sesi lahir dengan model yang tak ada di picker.
+  it("meremap model codex pensiun ke gpt-5.5 saat dibaca", async () => {
+    await prisma.setting.create({ data: { id: 1, data: {
+      ...DEFAULT_SETTING, codex: { model: "gpt-5.3-codex-spark", effort: "high" },
+    } as unknown as object } });
+    const s = await getSetting();
+    expect(s.codex).toEqual({ model: "gpt-5.5", effort: "high" });
+  });
+
+  it("mengoreksi effort yang tak didukung model tersimpan", async () => {
+    await prisma.setting.create({ data: { id: 1, data: {
+      ...DEFAULT_SETTING, codex: { model: "gpt-5.6-luna", effort: "ultra" },
+    } as unknown as object } });
+    const s = await getSetting();
+    expect(s.codex).toEqual({ model: "gpt-5.6-luna", effort: "xhigh" });
+  });
+
+  // Pensiun + koersi harus berurutan: effort divalidasi terhadap model HASIL pemetaan.
+  it("model pensiun + effort mustahil → keduanya dibereskan sekaligus", async () => {
+    await prisma.setting.create({ data: { id: 1, data: {
+      ...DEFAULT_SETTING, codex: { model: "gpt-5.4", effort: "ultra" },
+    } as unknown as object } });
+    const s = await getSetting();
     expect(s.codex).toEqual({ model: "gpt-5.5", effort: "xhigh" });
   });
 });
