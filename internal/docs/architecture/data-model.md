@@ -3,8 +3,9 @@
 Entitas inti (Postgres via Prisma). **Tujuh model inti**: Project, Spec, Setting, Notification, User,
 Session, Vps — plus model pendukung (VpsAuditSnapshot/VpsItemState, DeviceToken, **AgentToken**, SessionResult, SyncLog,
 LocalBinding, SyncOutbox, SyncState, SyncConflict, RuntimeConfig), **model error monitoring** (`ErrorGroup`,
-`ErrorEvent`, SPEC-249/[ADR-0060](../adr/0060-error-monitoring-ingest-ber-dsn.md)) dan **model Help
-Center** (`Ticket`, `TicketAttachment`, SPEC-253/[ADR-0062](../adr/0062-help-center-tiket-publik-triase.md)).
+`ErrorEvent`, SPEC-249/[ADR-0060](../adr/0060-error-monitoring-ingest-ber-dsn.md)), **model Help
+Center** (`Ticket`, `TicketAttachment`, SPEC-253/[ADR-0062](../adr/0062-help-center-tiket-publik-triase.md))
+dan **relasi antar project** (`ProjectLink`, SPEC-337/[ADR-0074](../adr/0074-audit-lintas-project-projectlink-kunci-sesi.md)).
 Tidak ada model `Run` maupun `Trigger` — keduanya di-drop saat pindah ke sesi interaktif (ADR-0024; migrasi
 `drop_run_trigger_github`). Enum stage/source/priority/error-status/ticket-status/ticket-category disimpan
 sebagai `String` dan divalidasi zod di `@hanoman/shared` (`enums.ts`), bukan enum Prisma.
@@ -40,8 +41,22 @@ sebagai `String` dan divalidasi zod di `@hanoman/shared` (`enums.ts`), bukan enu
   **Tidak** masuk whitelist `FIELDS` sync → tetap **lokal per-instance** (cermin `helpEnabled`/`ingestKeyHash`).
 - `docStatus` ("ok" | "drift" | "broken") + `coverage` (0–100) **bukan kolom** — diturunkan dari disk tiap `toProjectView` (ADR-0018).
 
+## ProjectLink (SPEC-337 · [ADR-0074](../adr/0074-audit-lintas-project-projectlink-kunci-sesi.md))
+Relasi **berarah** antar project: `fromProjectId` **bergantung pada** `toProjectId`. Inilah satu-satunya
+pengetahuan hanoman tentang project mana yang saling berintegrasi; ia menentukan scope sesi audit lintas.
+- `id` (cuid), `fromProjectId`, `toProjectId` — FK ke `Project` dengan `onDelete: Cascade` **dan**
+  `onUpdate: Cascade`, jadi hapus/rename project (ADR-0064) merambat otomatis; tak ada referensi longgar baru.
+- `kind` ("api" | "sdk" | "data" | "event" | "lainnya") — `String` + zod (`zLinkKind`), bukan enum Prisma.
+- `note` (String, default "") — bentuk integrasinya dengan kata-kata operator ("web memanggil `/api/orders`,
+  auth lewat cookie sesi"). Disalin apa adanya ke prompt sesi audit lintas; field paling berharga bagi agen.
+- `createdAt`, `updatedAt`. `@@unique([fromProjectId, toProjectId])` — satu edge per pasangan berarah.
+- **Tetangga** sebuah project = union kedua arah, **satu hop** (bukan closure transitif). Itulah "grup"
+  yang diaudit satu sesi.
+- **LOCAL-only — tidak masuk `SYNCED`**: id cuid + unique pasangan membuat dua device yang mendeklarasikan
+  edge sama bertabrakan saat `applyPush` upsert-by-id. Alasan & jalan keluarnya di ADR-0074.
+
 ## Spec (backlog item)
-- `id` (SPEC-n), `projectId`, `title`, `source` ("brief" | "qa" | "audit" | "help")
+- `id` (SPEC-n), `projectId`, `title`, `source` ("brief" | "qa" | "audit" | "cross-audit" | "help")
   - **`help`** (SPEC-253/[ADR-0062](../adr/0062-help-center-tiket-publik-triase.md)): backlog hasil
     promosi tiket Help Center. `flowForSource("help") = "feature"` (pipeline penuh), payload brief-shaped
     (context berisi keluhan + kategori + pelapor + backlink tiket). Author `Help ·`. Tanpa migration
@@ -52,6 +67,12 @@ sebagai `String` dan divalidasi zod di `@hanoman/shared` (`enums.ts`), bukan enu
     Plan/Execute, jadi gerbang ADR-0029 tak berlaku. Payload brief-shaped; author berawalan `Audit ·`. Bisa
     dinaikkan jadi Finding QA (source `qa`) lewat "Take ke backlog" (cermin PRD, ADR-0041). Tanpa migration
     (source/flow = String + zod, bukan enum Prisma).
+  - **`cross-audit`** (SPEC-337/[ADR-0074](../adr/0074-audit-lintas-project-projectlink-kunci-sesi.md)):
+    audit **lintas project**. Flow `cross-audit` memakai pipeline yang sama (`Audit → Laporan`) dan
+    deliverable yang sama (dokumen `internal/docs/research/audit-<spec-id>-<slug>.md`, tanpa perbaikan
+    kode), tetapi scope-nya = project ini **+ tetangga `ProjectLink`-nya**: prompt memuat path checkout
+    tetangga (read-only) dan sesi memegang kunci menarik timeline error gabungan lewat `/api/audit/logs`.
+    Payload brief-shaped; author berawalan `Audit lintas ·`. Tanpa migration.
 - `stage` ("brainstorming" | "objective" | "spec-ready" | "planned" | "executing" | "done").
   Bergerak **maju** hanya lewat fase yang dilaporkan sesi (ADR-0008/0024), **mundur** hanya
   lewat aksi human eksplisit `PATCH /specs/:id { stage }` (backward-only, SPEC-167/ADR-0027).

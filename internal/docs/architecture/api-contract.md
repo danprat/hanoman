@@ -63,6 +63,16 @@ DELETE /projects/:id/ingest-key   # 204 · revoke (kosongkan hash → monitoring
 GET    /projects/:id/help-center  -> { enabled, publicUrl }   # 404 project.
 POST   /projects/:id/help-center  -> 200 { enabled:true, publicUrl }   # aktifkan. 404.
 DELETE /projects/:id/help-center  # 200-ish 204 · nonaktifkan (tak hapus tiket yang sudah ada). 404.
+
+# SPEC-337 · ADR-0074 · relasi integrasi/dependency antar project (ProjectLink, LOCAL-only).
+GET    /projects/:id/links  -> { links: LinkView[] }   # KEDUA arah milik project ini. 404 project.
+#   LinkView = { id, fromProjectId, toProjectId, kind, note, direction:"keluar"|"masuk", other:{id,name} }
+#   direction relatif :id — "keluar" = :id bergantung pada other; "masuk" = other bergantung pada :id.
+POST   /projects/:id/links  { to, kind, note? }  -> 201 LinkView
+#   kind ∈ api|sdk|data|event|lainnya (zLinkKind). 400 self-link/kind invalid; 404 project/target;
+#   409 pasangan (from,to) sudah ada. note = penjelasan bentuk integrasi, disalin ke prompt audit lintas.
+DELETE /projects/:id/links/:linkId  # 204 · 404 bila link tak ada ATAU tak menyentuh :id (kedua arah).
+#   Ubah = hapus + tambah (tanpa PATCH). Hapus/rename project merambat via cascade FK, bukan endpoint ini.
 ```
 
 > **Path efektif** project = `resolveRepoDir(projectId)` = **binding per-mesin ?? `Project.repoDir`** (null-safe).
@@ -278,8 +288,13 @@ POST   /terminal/sessions  {project, flow?} # 201 { id } · 404 project · 400 t
 #       (semua fase tercatat di $HANOMAN_PHASE_FILE, plan tak menyisakan `- [ ]`, push sukses).
 #       Nyala → argv --settings membawa hooks.Stop=[{type:"prompt",prompt:<kondisi>}] (sesi menolak
 #       berhenti sampai kondisi terbukti di transkrip) + keystroke `/goal` best-effort ke pane.
-#     flow ∈ feature|qa|audit (dari source; flowForSource). audit (SPEC-237/ADR-0057) = pipeline
+#     flow ∈ feature|qa|audit|cross-audit (dari source; flowForSource). audit (SPEC-237/ADR-0057) = pipeline
 #     Audit → Laporan: investigasi + dokumen SoT (research/audit-<spec>-<slug>.md), TANPA Execute; stage done via Laporan.
+#     cross-audit (SPEC-337/ADR-0074) = pipeline & deliverable SAMA, tapi ber-scope project ini + tetangga
+#     ProjectLink-nya: prompt memuat path checkout tetangga (read-only) + sesi memegang kunci /api/audit/logs.
+#   {project, flow:"cross-audit"} (SPEC-337, ADR-0074): sesi audit lintas LEPAS (tanya-jawab) di worktree
+#     .worktrees/xaudit-<project>; TANPA Spec/fase/branch → tak menggerakkan stage. Id deterministik (Start
+#     kedua = re-attach). Sama-sama memegang kunci audit. 422 bila repoDir kosong/worktree gagal.
 #   SPEC-172: bila Spec.stage === "done", sesi baru dibuka dengan prompt LANJUTAN (fase Execute
 #     saja, continuePrompt) alih-alih pipeline penuh — reopen backlog yang keburu selesai.
 #   flow "reverse" (SPEC-166, ADR-0026): sesi project-level di worktree .worktrees/reverse-<project>
@@ -408,6 +423,31 @@ DELETE /errors/:id           # 200 { ok:true } — hapus grup; ErrorEvent cascad
 > agregat `ErrorGroup` kini **tersync** (kolom `version`, entitas `errorGroup` di `SYNCED`; publish
 > asal-hub pada grup baru + escalate/resolve); `ErrorEvent` mentah **tetap server-local**. Realtime
 > area Error = **HTTP polling** (silent poll, pola GitGraph), bukan kanal WS baru (ADR-0039).
+
+## Audit lintas project (SPEC-337 · ADR-0074)
+```
+# Dibaca SESI cross-audit (hanoman sendiri, bukan agen eksternal). Pengecualian sah gate /api:
+# prefix /api/audit/ lolos TANPA cookie bila header X-Hanoman-Audit-Key cocok dengan sesi tmux HIDUP
+# (kunci + daftar project ter-scope hidup di @hanoman_audit_key/@hanoman_audit_projects, ADR-0016).
+# Kunci mati bersama pane-nya; TAK PERNAH keluar lewat GET /terminal/sessions. Cookie sesi tetap boleh.
+GET /api/audit/logs?since=&until=&environment=&q=&projects=&limit=
+#   -> { window:{since,until}, scope:[{id,name}], groups: AuditGroupView[], timeline: AuditEventView[] }
+#   timeline = ErrorEvent SEMUA project ter-scope, TERCAMPUR & terurut waktu desc — bukti korelasi lintas project.
+#   AuditEventView = { at, projectId, groupId, type, message, environment, release }
+#   AuditGroupView = { id, projectId, type, message, environment, release, status, count, firstSeenAt, lastSeenAt, specId }
+#   since/until: "24h" | "7d" | ISO-8601 (default since=24h, until=now). q atas type+message. limit ≤1000 (default 200).
+#   projects= subset scope (koma). 400 since/until tak terparse; 401 kunci tak dikenal/sesi mati;
+#   403 memuat project di luar scope sesi.
+GET /api/audit/logs/:groupId
+#   -> { ...AuditGroupView, sampleStack, sampleFrames, events: AuditEventDetail[] (≤50) }
+#   sampleFrames disymbolikasi lazy (reuse SPEC-276/ADR-0070). events memuat stack + context.
+#   404 bila grup tak ada ATAU project-nya di luar scope (keberadaannya pun tak dibocorkan).
+```
+
+> Scope sebuah sesi = project utama **+ tetangga `ProjectLink` satu hop kedua arah** (ADR-0074).
+> Kewenangan kunci **read-only** dan hanya atas `ErrorGroup`/`ErrorEvent` project ter-scope — tak ada
+> jalur tulis, tak ada akses ke domain lain. Bandingkan dengan agent token (ADR-0065) yang berlingkup
+> global & butuh master switch: kunci audit sengaja seumur-sesi dan tak dikelola manusia.
 
 ## Help Center (SPEC-253 · ADR-0062)
 ```
