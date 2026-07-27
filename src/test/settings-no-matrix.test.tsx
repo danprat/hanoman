@@ -6,7 +6,7 @@ import { api } from "../src/api/client";
 // SPEC-252 · ADR-0061 — matrix model/effort per fase (SPEC-238) DICABUT. Tab "Model sesi" hanya
 // menyisakan default global; model/effort dipilih per sesi saat Start (StartSessionModal).
 vi.mock("../src/api/client", () => ({
-  api: { getSettings: vi.fn(), putSettings: vi.fn(), getConfig: vi.fn(), putConfig: vi.fn(), deleteConfig: vi.fn() },
+  api: { getSettings: vi.fn(), putSettings: vi.fn(), getConfig: vi.fn(), putConfig: vi.fn(), deleteConfig: vi.fn(), getCodexVersion: vi.fn().mockResolvedValue({ version: null, minRequired: "0.144.0", ok: true }) },
   ApiError: class extends Error { status = 0 },
 }));
 

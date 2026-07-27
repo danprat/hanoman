@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 vi.mock("../src/api/client", () => ({
-  api: { getSettings: vi.fn(), putSettings: vi.fn() },
+  api: { getSettings: vi.fn(), putSettings: vi.fn(), getCodexVersion: vi.fn() },
   ApiError: class extends Error { status = 0 },
 }));
 
@@ -20,6 +20,7 @@ const settings = (over: object = {}) => ({
 beforeEach(() => {
   vi.mocked(api.getSettings).mockResolvedValue(settings() as any);
   vi.mocked(api.putSettings).mockResolvedValue(settings() as any);
+  vi.mocked(api.getCodexVersion).mockResolvedValue({ version: "0.145.0", minRequired: "0.144.0", ok: true } as any);
 });
 
 const openModel = () => {

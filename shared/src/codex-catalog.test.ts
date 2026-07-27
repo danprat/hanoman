@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   CODEX_MODELS, CODEX_EFFORTS, CODEX_DEFAULTS, RETIRED_CODEX_MODELS,
-  codexModel, codexEfforts, coerceCodexEffort,
+  codexModel, codexEfforts, coerceCodexEffort, cmpVersion, codexClientTooOld,
 } from "./entities";
 
 describe("SPEC-339 · katalog codex per-model", () => {
@@ -54,5 +54,24 @@ describe("SPEC-339 · katalog codex per-model", () => {
   it("default codex = gpt-5.6-sol / xhigh, dan CODEX_EFFORTS adalah gabungan", () => {
     expect(CODEX_DEFAULTS).toEqual({ model: "gpt-5.6-sol", effort: "xhigh" });
     expect(CODEX_EFFORTS).toEqual(["ultra", "max", "xhigh", "high", "medium", "low"]);
+  });
+
+  // localeCompare akan bilang "0.9.0" > "0.144.0" — perbandingan WAJIB numerik per segmen.
+  it("cmpVersion membandingkan numerik per segmen", () => {
+    expect(cmpVersion("0.142.5", "0.144.0")).toBeLessThan(0);
+    expect(cmpVersion("0.145.0", "0.144.0")).toBeGreaterThan(0);
+    expect(cmpVersion("0.144.0", "0.144.0")).toBe(0);
+    expect(cmpVersion("0.9.0", "0.144.0")).toBeLessThan(0);
+  });
+
+  it("codexClientTooOld: aturan peringatan versi tinggal di satu tempat", () => {
+    expect(codexClientTooOld("gpt-5.6-sol", "0.142.5")).toBe(true);
+    expect(codexClientTooOld("gpt-5.6-sol", "0.145.0")).toBe(false);
+    expect(codexClientTooOld("gpt-5.6-sol", "0.144.0")).toBe(false);
+    // gpt-5.5 hanya butuh 0.124.0 — CLI 0.142.5 sudah cukup, jangan ikut diperingatkan.
+    expect(codexClientTooOld("gpt-5.5", "0.142.5")).toBe(false);
+    // Versi tak terdeteksi & model tak dikenal tak pernah memicu peringatan.
+    expect(codexClientTooOld("gpt-5.6-sol", null)).toBe(false);
+    expect(codexClientTooOld("gpt-7-belum-ada", "0.1.0")).toBe(false);
   });
 });

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 
 vi.mock("../src/api/client", () => ({
-  api: { getSettings: vi.fn(), putSettings: vi.fn() },
+  api: { getSettings: vi.fn(), putSettings: vi.fn(), getCodexVersion: vi.fn().mockResolvedValue({ version: null, minRequired: "0.144.0", ok: true }) },
   ApiError: class extends Error { status = 0 },
 }));
 

@@ -1,6 +1,11 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { cmpVersion } from "@hanoman/shared";
 import { effectiveStr } from "../config";
+
+// Perbandingan versi tinggal di shared supaya server & web tak pernah berbeda pendapat; di-ekspor
+// ulang di sini karena ia bagian dari permukaan service ini.
+export { cmpVersion };
 
 const run = promisify(execFile);
 
@@ -20,17 +25,6 @@ const codexBin = (): string => effectiveStr("HANOMAN_CODEX_BIN") ?? "codex";
 export function parseCodexVersion(out: string): string | null {
   const m = /(\d+)\.(\d+)\.(\d+)/.exec(out);
   return m ? `${m[1]}.${m[2]}.${m[3]}` : null;
-}
-
-/** Perbandingan numerik per segmen. String compare salah: "0.9.0" > "0.144.0" secara leksikal. */
-export function cmpVersion(a: string, b: string): number {
-  const pa = a.split(".").map(Number);
-  const pb = b.split(".").map(Number);
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
-    if (d !== 0) return d;
-  }
-  return 0;
 }
 
 /**

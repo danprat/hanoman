@@ -106,6 +106,33 @@ export function coerceCodexEffort(modelId: string, effort: string): string {
 }
 
 /**
+ * SPEC-339 · perbandingan versi numerik per segmen. String compare salah: "0.9.0" akan dianggap
+ * LEBIH BARU dari "0.144.0". Dipakai server (endpoint versi) dan web (catatan lunak) — satu
+ * implementasi, bukan tiga salinan yang lambat laun berbeda.
+ */
+export function cmpVersion(a: string, b: string): number {
+  const pa = a.split(".").map(Number);
+  const pb = b.split(".").map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (d !== 0) return d;
+  }
+  return 0;
+}
+
+/**
+ * SPEC-339 · apakah codex CLI terpasang terlalu tua untuk `modelId`. Seluruh aturan peringatan
+ * ada di sini, jadi Settings dan picker Start tak bisa berbeda pendapat:
+ * versi tak terdeteksi (`null`) → false (ketiadaan bukti bukan bukti ketiadaan);
+ * model tak dikenal → false (tak ada tuntutan versi yang bisa kita klaim).
+ */
+export function codexClientTooOld(modelId: string, version: string | null): boolean {
+  const need = codexModel(modelId)?.minClient;
+  if (!need || !version) return false;
+  return cmpVersion(version, need) < 0;
+}
+
+/**
  * Model yang tak lagi ada di picker → penggantinya saat dibaca (cermin RETIRED_MODELS milik claude).
  * Semua dipetakan ke `gpt-5.5`, SENGAJA bukan ke 5.6: gpt-5.5 hanya butuh klien 0.124.0, sedangkan
  * trio 5.6 butuh 0.144.0. Pensiun tak boleh memindahkan setelan orang ke model yang CLI-nya belum

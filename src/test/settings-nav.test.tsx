@@ -4,7 +4,7 @@ import { SettingsScreen } from "../src/screens/SettingsScreen";
 import { api } from "../src/api/client";
 
 vi.mock("../src/api/client", () => ({
-  api: { getSettings: vi.fn(), listUsers: vi.fn(), putSettings: vi.fn() },
+  api: { getSettings: vi.fn(), listUsers: vi.fn(), putSettings: vi.fn(), getCodexVersion: vi.fn().mockResolvedValue({ version: null, minRequired: "0.144.0", ok: true }) },
   ApiError: class extends Error { status = 0 },
 }));
 
