@@ -26,6 +26,26 @@ model Project {
   errorGroups ErrorGroup[]
   tickets     Ticket[]
   sourceMaps  SourceMapArtifact[] // SPEC-276 · source-map ter-upload per release (symbolication)
+  linksOut    ProjectLink[] @relation("ProjectLinkFrom") // SPEC-337 · project ini bergantung pada …
+  linksIn     ProjectLink[] @relation("ProjectLinkTo")   // SPEC-337 · … yang bergantung pada project ini
+}
+
+// SPEC-337 · ADR-0075 · relasi integrasi/dependency BERARAH antar project: from BERGANTUNG PADA to.
+// LOCAL-only (tak masuk SYNCED): id cuid + unique pasangan bertabrakan saat upsert-by-id lintas device.
+// onUpdate: Cascade → rename project (ADR-0064) merambat gratis; tak ada ref longgar baru.
+model ProjectLink {
+  id            String   @id @default(cuid())
+  fromProjectId String
+  toProjectId   String
+  kind          String   // api | sdk | data | event | lainnya (zLinkKind)
+  note          String   @default("") // bentuk integrasinya — disalin apa adanya ke prompt sesi audit lintas
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  from Project @relation("ProjectLinkFrom", fields: [fromProjectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  to   Project @relation("ProjectLinkTo",   fields: [toProjectId],   references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([fromProjectId, toProjectId])
+  @@index([toProjectId])
 }
 
 model Spec {

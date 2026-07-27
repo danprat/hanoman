@@ -2,5 +2,5 @@ import { describe, it, expect } from "vitest";
 import { PIPELINES } from "../src/prompt";
 describe("runner wiring", () => {
   it("has a pipeline for every flow", () =>
-    expect(Object.keys(PIPELINES).sort()).toEqual(["audit", "breakdown", "feature", "prd", "qa", "reverse", "scaffold"]));
+    expect(Object.keys(PIPELINES).sort()).toEqual(["audit", "breakdown", "cross-audit", "feature", "prd", "qa", "reverse", "scaffold"]));
 });

@@ -30,6 +30,8 @@ const B_PRIO: Record<string, { tone: any; label: string }> = {
 const SOURCE_META: Record<string, { label: string; icon: string; tone: "err" | "brass" | "info"; color: string }> = {
   qa:    { label: "QA finding",    icon: "bug",       tone: "err",   color: "var(--clay-500)" },
   audit: { label: "Audit",         icon: "search",    tone: "info",  color: "var(--wind-600)" },
+  // SPEC-337 · audit lintas project (scope: project + tetangga ProjectLink-nya)
+  "cross-audit": { label: "Audit lintas", icon: "radar", tone: "info", color: "var(--wind-600)" },
   brief: { label: "feature brief", icon: "lightbulb", tone: "brass", color: "var(--brass-500)" },
 };
 const sourceMeta = (s: string) => SOURCE_META[s] ?? SOURCE_META.brief!;

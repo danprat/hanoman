@@ -59,6 +59,22 @@
   - **Ketahanan**: rate-limit token-bucket in-memory **per IP & per project** (429) + **honeypot** (`hp`
     terisi → 200 palsu, tak buat tiket) + caps field. **Bukan** anti-spam berat (tanpa CAPTCHA/verifikasi
     email) — spam disaring saat triase (Non-goal PRD). PII isi/lampiran disimpan apa adanya (scrub pasca-MVP).
+- **Kunci audit lintas project (SPEC-337, [ADR-0075](../adr/0075-audit-lintas-project-projectlink-kunci-sesi.md))**:
+  prefix `/api/audit/*` adalah **pengecualian sah** gate `/api` — dipanggil **sesi `claude` milik hanoman
+  sendiri** (bukan agen eksternal) yang tak punya cookie. Gate di-bypass **hanya bila** header
+  `X-Hanoman-Audit-Key` cocok dengan sesi tmux **hidup**; selain itu jatuh ke jalur auth normal → 401.
+  - **Kunci seumur sesi, tanpa tabel kredensial**: `hnm_xa_<hex>` hidup sebagai tmux option
+    (`@hanoman_audit_key`) bersama scope-nya (`@hanoman_audit_projects`), diteruskan ke proses sesi lewat
+    env. Karena tmux = sumber kebenaran sesi (ADR-0016), kunci selamat dari restart API dan **mati bersama
+    pane** — tak ada revoke yang bisa terlupa. **TAK PERNAH** keluar lewat API (`SessionInfo`/`GET
+    /terminal/sessions` tak memuatnya).
+  - **Read-only & ber-scope**: hanya `ErrorGroup`/`ErrorEvent` project di scope sesi (project utama +
+    tetangga `ProjectLink` satu hop). Project di luar scope → **403**; grup di luar scope → **404**
+    (keberadaannya tak dibocorkan). Tak ada jalur tulis, tak ada domain lain.
+  - **Model ancaman**: kunci terlihat oleh siapa pun yang bisa `tmux -L hanoman` sebagai user itu —
+    kepercayaan yang **sama** dengan bisa menjalankan `claude` di mesin itu (ADR-0037). Tak ada batas baru
+    yang ditembus. Sesi cross-audit juga **membaca** checkout project tetangga; batas **tulis** tetap
+    worktree (ADR-0002) dan flow-nya audit-only (dilarang menulis kode, ADR-0057).
 - **Agent token — akses AI agent (SPEC-257, [ADR-0065](../adr/0065-ai-agent-capability-agent-token.md))**:
   **jalur auth kedua** ke seluruh `/api` di samping cookie sesi. Agen eksternal mengirim
   `Authorization: Bearer <token>` (upgrade WebSocket: `?agent_token=`); gate `onRequest` yang sama

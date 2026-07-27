@@ -1,7 +1,8 @@
 import { prisma } from "../db";
 import type { Spec } from "@prisma/client";
-import { realGit, startPrompt, continuePrompt, resolveGoalCondition, type Flow, type Autonomy } from "@hanoman/runner";
+import { realGit, startPrompt, continuePrompt, startCrossAuditPrompt, resolveGoalCondition, type Flow, type Autonomy } from "@hanoman/runner";
 import type { Agent } from "@hanoman/shared";
+import { buildCrossAuditCtx, crossAuditSessionOpts } from "./cross-audit";
 import { resolveRepoDir } from "./local-binding";
 import { getSetting } from "./settings";
 import { ensureCodexTrust } from "./codex-trust";
@@ -78,13 +79,27 @@ export async function startSpecSession(
     id: spec.id, title: spec.title, source: spec.source,
     priority: spec.priority, objective: spec.objective, payload: spec.payload ?? undefined,
   };
+  // SPEC-337 · ADR-0075 · flow cross-audit: prompt ber-peta project + kunci baca log seumur sesi.
+  // Flow lain tak tersentuh (prompt & opsi persis seperti sebelumnya).
+  let prompt = isContinue
+    ? continuePrompt(opts.flow, brief, `hanoman/${id}`, opts.autonomy)
+    : startPrompt(opts.flow, brief, `hanoman/${id}`, opts.autonomy);
+  let extra: { audit?: { key: string; projects: string[] }; env?: Record<string, string> } = {};
+  if (opts.flow === "cross-audit") {
+    const built = await buildCrossAuditCtx(spec.projectId);
+    if (built) {
+      prompt = startCrossAuditPrompt(
+        { ...built.ctx, worktree: `${repoDir}/.worktrees/${id}`, spec: brief, branchTo: `hanoman/${id}` },
+        "backlog");
+      extra = crossAuditSessionOpts(built.scope);
+    }
+  }
   const s = createSession(spec.projectId, `${repoDir}/.worktrees/${id}`, {
     specId: spec.id, flow: opts.flow, model, effort, goal, agent,
     phaseFile: phaseFilePath(repoDir, id),
     decisionFile: decisionFilePath(repoDir, id),
-    prompt: isContinue
-      ? continuePrompt(opts.flow, brief, `hanoman/${id}`, opts.autonomy)
-      : startPrompt(opts.flow, brief, `hanoman/${id}`, opts.autonomy),
+    prompt,
+    ...extra,
   });
   return { id: s.id };
 }

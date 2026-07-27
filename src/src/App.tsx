@@ -169,14 +169,16 @@ function NewSpecModal({ open, onClose, projects, defaultProject, onCreate, prefi
   const set = (k: keyof SpecForm) => (e: React.ChangeEvent<any>) => setF((s) => ({ ...s, [k]: e.target.value }));
   const isQa = f.kind === "qa";
   const isAudit = f.kind === "audit";                       // SPEC-237 · audit-only (dokumen, tanpa perbaikan)
+  const isCross = f.kind === "cross-audit";                 // SPEC-337 · audit lintas project (dokumen)
   const submit = () => { if (!f.title.trim()) return; onCreate(f); };
   return (
-    <Modal open={open} onClose={onClose} icon={isQa ? "bug" : isAudit ? "search" : "lightbulb"} eyebrow="human → hanoman"
-      title={isQa ? "QA finding baru" : isAudit ? "Audit baru" : "Feature brief baru"}
+    <Modal open={open} onClose={onClose} icon={isQa ? "bug" : isCross ? "radar" : isAudit ? "search" : "lightbulb"} eyebrow="human → hanoman"
+      title={isQa ? "QA finding baru" : isCross ? "Audit lintas project baru" : isAudit ? "Audit baru" : "Feature brief baru"}
       footer={<>
         <Button variant="ghost" size="sm" onClick={onClose}>Batal</Button>
-        <Button size="sm" leftIcon={isQa ? "radar" : isAudit ? "search" : "messages-square"} onClick={submit}>
-          {isQa ? "Filekan finding → audit" : isAudit ? "Buat audit → investigasi" : "Buat brief → brainstorm"}
+        <Button size="sm" leftIcon={isQa ? "radar" : isCross ? "radar" : isAudit ? "search" : "messages-square"} onClick={submit}>
+          {isQa ? "Filekan finding → audit" : isCross ? "Buat audit lintas → investigasi"
+            : isAudit ? "Buat audit → investigasi" : "Buat brief → brainstorm"}
         </Button>
       </>}>
       <div style={{ marginBottom: 16 }}>
@@ -184,9 +186,11 @@ function NewSpecModal({ open, onClose, projects, defaultProject, onCreate, prefi
           { value: "brief", label: "Feature brief", icon: "lightbulb" },
           { value: "qa", label: "QA finding", icon: "bug" },
           { value: "audit", label: "Audit", icon: "search" },
+          { value: "cross-audit", label: "Audit lintas", icon: "radar" },
         ]} />
         <div style={{ fontSize: 12, color: "var(--text-subtle)", marginTop: 8, lineHeight: 1.5 }}>
           {isQa ? "Finding masuk lewat alur audit → spec → plan → execute. hanoman menelusuri akar masalah dulu."
+            : isCross ? "Audit lintas melihat project ini BESERTA project yang berelasi dengannya (kartu Integrasi di detail project) — kode, docs, dan timeline error gabungan. Hasilnya dokumen audit, tanpa perbaikan kode."
             : isAudit ? "Audit HANYA menghasilkan dokumen (audit → laporan) — tanpa perbaikan kode. Bisa dinaikkan jadi Finding QA bila perlu diperbaiki."
             : "Brief masuk lewat alur brainstorm → objective → spec → plan → execute."}
         </div>
@@ -719,6 +723,18 @@ export default function App() {
     }
   }
 
+  // SPEC-337 · ADR-0075 · sesi audit LINTAS project (lepas, tanya-jawab), lalu ke Terminal.
+  async function crossAudit(p: ProjectVM) {
+    try {
+      const { id } = await api.crossAudit(p.id);
+      setSection("terminal");
+      showToast(p.id + " · audit lintas · sesi " + id + " dimulai", "info", "radar");
+    } catch (e) {
+      const noRepo = e instanceof ApiError && (e.status === 422 || e.status === 400);
+      showToast(p.id + " · gagal mulai audit lintas" + (noRepo ? " · project belum punya repoDir" : ""), "warn", "x-circle");
+    }
+  }
+
   // SPEC-210 · buka sesi prd project-level (brainstorm interaktif → dokumen PRD), lalu ke Terminal.
   async function startPrd(project: string, brief: PrdBriefForm) {
     try {
@@ -872,6 +888,8 @@ export default function App() {
               onGotoDocs={() => setSection("docs")}
               onGotoTerminal={() => { setProjectFilter(proj.id); setSection("terminal"); }}
               onGotoBacklog={() => { setProjectFilter(proj.id); setSection("backlog"); }}
+              others={projectsView.filter((x) => x.id !== proj.id).map((x) => ({ id: x.id, name: x.name }))}
+              onCrossAudit={() => crossAudit(proj)}
               onReverse={proj.kind === "existing" && proj.repoDir ? () => reverseDocs(proj) : undefined}
               onScaffold={proj.kind === "from-scratch" && proj.repoDir ? () => scaffoldDocs(proj) : undefined}
               onDelete={() => deleteProject(proj)} />

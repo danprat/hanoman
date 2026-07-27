@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
-import { zCreateProject, zUpdateProject, zRenameProject } from "@hanoman/shared";
+import { zCreateProject, zUpdateProject, zRenameProject, zCreateLink } from "@hanoman/shared";
+import { linksOf, linkViews } from "../services/project-links";
 import { prisma } from "../db";
 import { renameProject } from "../services/rename-project";
 import { toProjectView } from "../services/project-view";
@@ -159,6 +160,39 @@ export default async function (app: FastifyInstance) {
     // Nonaktifkan tanpa menghapus tiket yang sudah ada (AC PRD).
     await prisma.project.update({ where: { id }, data: { helpEnabled: false } });
     await notifySynced("project", id); // SPEC-213/330 · sadar-peran: client antre push, hub publish ke feed
+    return reply.code(204).send();
+  });
+
+  // SPEC-337 · ADR-0075 · relasi integrasi/dependency antar project. LOCAL-only (tak disync):
+  // JANGAN panggil notifySynced di sini. Ubah = hapus + tambah (tanpa PATCH).
+  app.get("/projects/:id/links", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (!(await prisma.project.findUnique({ where: { id } }))) return reply.code(404).send({ error: "not found" });
+    return { links: await linkViews(id, await linksOf(id)) };
+  });
+  app.post("/projects/:id/links", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const parsed = zCreateLink.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    const { to, kind, note } = parsed.data;
+    if (to === id) return reply.code(400).send({ error: "project tak bisa bergantung pada dirinya sendiri" });
+    if (!(await prisma.project.findUnique({ where: { id } }))) return reply.code(404).send({ error: "not found" });
+    if (!(await prisma.project.findUnique({ where: { id: to } }))) return reply.code(404).send({ error: `project "${to}" tak ada` });
+    const existing = await prisma.projectLink.findUnique({
+      where: { fromProjectId_toProjectId: { fromProjectId: id, toProjectId: to } },
+    });
+    if (existing) return reply.code(409).send({ error: `relasi ${id} → ${to} sudah ada` });
+    const created = await prisma.projectLink.create({ data: { fromProjectId: id, toProjectId: to, kind, note: note ?? "" } });
+    const [view] = await linkViews(id, [created]);
+    return reply.code(201).send(view);
+  });
+  app.delete("/projects/:id/links/:linkId", async (req, reply) => {
+    const { id, linkId } = req.params as { id: string; linkId: string };
+    const link = await prisma.projectLink.findUnique({ where: { id: linkId } });
+    // Relasi yang tak menyentuh project ini = 404 (bukan 403): pemiliknya tak perlu dibocorkan.
+    if (!link || (link.fromProjectId !== id && link.toProjectId !== id))
+      return reply.code(404).send({ error: "not found" });
+    await prisma.projectLink.delete({ where: { id: linkId } });
     return reply.code(204).send();
   });
 }

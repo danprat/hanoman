@@ -44,7 +44,11 @@ export type SessionInfo = {
   // SPEC-338 · ADR-0074 · mesin sesi. Sesi lama (tanpa opsi tmux ini) dibaca sebagai "claude".
   agent: Agent;
 };
-type Pane = SessionInfo & { code: number; phaseFile?: string; decisionFile?: string };
+type Pane = SessionInfo & {
+  code: number; phaseFile?: string; decisionFile?: string;
+  // SPEC-337 · internal saja: kunci audit tak pernah menyeberang ke SessionInfo.
+  auditKey?: string; auditProjects?: string;
+};
 
 // Satu attachment per sesi: satu klien tmux melayani semua WebSocket yang menonton.
 // `lastPhases` menahan JSON fase terakhir yang disiarkan — frame lahir hanya saat berubah.
@@ -107,6 +111,9 @@ const FMT = [
   "#{session_name}", "#{@hanoman_project}", "#{@hanoman_spec}", "#{@hanoman_flow}",
   "#{@hanoman_phase_file}", "#{@hanoman_cwd}", "#{pane_dead}", "#{pane_dead_status}",
   "#{@hanoman_decision_file}", "#{@hanoman_branch}", "#{@hanoman_agent}",
+  // SPEC-337 · ADR-0075 · kunci audit lintas project + scope-nya. Hidup di tmux (bukan DB): selamat
+  // dari restart API, mati bersama pane. TAK PERNAH ikut ke SessionInfo/API — lihat listSessions.
+  "#{@hanoman_audit_key}", "#{@hanoman_audit_projects}",
 ].join("\t");
 
 // Satu-satunya sumber kebenaran soal sesi adalah tmux server. Tidak ada map yang perlu
@@ -116,7 +123,8 @@ function listPanes(): Pane[] {
   try { out = tmux("list-panes", "-a", "-F", FMT); }
   catch { return []; } // tmux server belum jalan — belum ada sesi sama sekali
   return out.split("\n").filter(Boolean).flatMap((line) => {
-    const [n, projectId, specId, flow, phaseFile, cwd, dead, code, decisionFile, branch, agent] = line.split("\t");
+    const [n, projectId, specId, flow, phaseFile, cwd, dead, code, decisionFile, branch, agent,
+      auditKey, auditProjects] = line.split("\t");
     if (!n?.startsWith(PREFIX)) return [];
     const exited = dead === "1";
     return [{
@@ -124,6 +132,9 @@ function listPanes(): Pane[] {
       flow: (flow || undefined) as Flow | undefined, phaseFile: phaseFile || undefined,
       cwd: cwd ?? "", exited, code: Number(code) || 0,
       decisionFile: decisionFile || undefined,
+      // SPEC-337 · kunci audit + scope-nya (internal; tak pernah keluar lewat listSessions).
+      auditKey: auditKey || undefined,
+      auditProjects: auditProjects || undefined,
       // SPEC-230 · branch integrasi sesi project-level (PRD: prd/<slug>). Kosong = tak ada.
       branch: branch || undefined,
       // SPEC-196 · sesi hidup dengan marker keputusan terisi = menunggu manusia.
@@ -147,6 +158,17 @@ export const liveDecisions = (): { id: string; specId?: string; projectId: strin
 
 export const getSession = (id: string): Pane | undefined => listPanes().find((p) => p.id === id);
 
+// SPEC-337 · ADR-0075 · scope sesi cross-audit pemilik kunci. Hanya pane HIDUP yang dihitung —
+// sesi mati = kunci mati, tanpa revoke. Scope kosong diperlakukan tak sah (sesi selalu punya
+// minimal project-nya sendiri), jadi pemanggil tak pernah menerima daftar kosong yang menipu.
+export function auditSessionScope(key: string): string[] | null {
+  if (!key) return null;
+  const p = listPanes().find((x) => x.auditKey === key && !x.exited);
+  if (!p) return null;
+  const scope = (p.auditProjects ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  return scope.length ? scope : null;
+}
+
 export type CreateOpts = {
   id?: string; specId?: string; flow?: Flow; branch?: string; prompt?: string; phaseFile?: string;
   decisionFile?: string; model?: string; effort?: string; command?: string[];
@@ -154,6 +176,10 @@ export type CreateOpts = {
   goal?: string;
   // SPEC-338 · ADR-0074 · mesin sesi; kosong = claude (default historis).
   agent?: Agent;
+  // SPEC-337 · ADR-0075 · env tambahan di depan argv sesi (mis. kunci + URL audit lintas).
+  env?: Record<string, string>;
+  // SPEC-337 · ADR-0075 · kunci audit + daftar project ter-scope, dipasang sebagai tmux option.
+  audit?: { key: string; projects: string[] };
 };
 
 export function createSession(projectId: string, cwd: string, opts: CreateOpts = {}): SessionInfo {
@@ -215,11 +241,14 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
   // Env di depan perintah, bukan `new-session -e`: tmux menyerahkan sisa argv-nya ke shell,
   // jadi penugasan env bekerja di semua versi tmux sementara `-e` baru ada sejak 3.0.
   // Direktorinya dibuat di sini — `echo >> berkas` milik agen tak membuat direktori induk.
-  let cmd = argv;
+  const envPairs: string[] = [];
   if (opts.phaseFile) {
     mkdirSync(dirname(opts.phaseFile), { recursive: true });
-    cmd = `HANOMAN_PHASE_FILE=${sq(opts.phaseFile)} ${argv}`;
+    envPairs.push(`HANOMAN_PHASE_FILE=${sq(opts.phaseFile)}`);
   }
+  // SPEC-337 · env sesi cross-audit (HANOMAN_AUDIT_KEY/URL) lewat jalur yang sama.
+  for (const [k, v] of Object.entries(opts.env ?? {})) envPairs.push(`${k}=${sq(v)}`);
+  const cmd = envPairs.length ? `${envPairs.join(" ")} ${argv}` : argv;
   // SPEC-184 · direktori marker keputusan; hook Notification menulis absolute path di dalamnya.
   if (opts.decisionFile) mkdirSync(dirname(opts.decisionFile), { recursive: true });
 
@@ -251,6 +280,11 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
   tmux("set-option", "-t", name(id), "@hanoman_agent", agent);
   if (opts.phaseFile) tmux("set-option", "-t", name(id), "@hanoman_phase_file", opts.phaseFile);
   if (opts.decisionFile) tmux("set-option", "-t", name(id), "@hanoman_decision_file", opts.decisionFile);
+  // SPEC-337 · ADR-0075 · kunci audit + scope-nya. Dibaca auditSessionScope saat request masuk.
+  if (opts.audit) {
+    tmux("set-option", "-t", name(id), "@hanoman_audit_key", opts.audit.key);
+    tmux("set-option", "-t", name(id), "@hanoman_audit_projects", opts.audit.projects.join(","));
+  }
   // SPEC-332 · fire-and-forget: respons HTTP tak boleh menunggu TUI siap. Gagal = diam, karena
   // jaminan mode goal sudah dipegang hook Stop di argv di atas.
   // SPEC-338 · khusus claude: `/goal` adalah perintah Claude Code; codex tak punya padanan

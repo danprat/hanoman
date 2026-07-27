@@ -27,6 +27,8 @@ import errors from "./routes/errors";
 import help from "./routes/help";
 import tickets from "./routes/tickets";
 import scheduler from "./routes/scheduler";
+import audit from "./routes/audit";
+import { auditScopeFromReq } from "./services/audit-scope";
 import fastifyMultipart from "@fastify/multipart";
 import authRoutes from "./routes/auth";
 import agentTokens from "./routes/agent-tokens";
@@ -93,6 +95,10 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
         // SPEC-253 · ADR-0062 · halaman/submit/status Help Center dipanggil pengguna akhir tanpa sesi
         // login; route /api/help di-otorisasi helpEnabled + kunci opaque tiket sendiri (pengecualian sah).
         if (path.startsWith("/api/help")) return;
+        // SPEC-337 · ADR-0075 · sesi cross-audit milik hanoman sendiri memanggil /api/audit tanpa
+        // cookie; diotorisasi kunci per-sesi yang hidup di tmux (mati bersama pane). Read-only &
+        // ber-scope — cermin pengecualian /api/ingest. Kunci tak cocok → jatuh ke auth normal.
+        if (path.startsWith("/api/audit/") && auditScopeFromReq(req)) return;
         if (user) return; // cookie sesi = akses penuh (tak ada RBAC, konsisten model sekarang)
         // SPEC-257 · ADR-0065 · jalur auth kedua: agent token (Bearer / ?agent_token= untuk WS).
         const agentTok = agentTokenFromReq(req);
@@ -137,6 +143,7 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
     await api.register(help);     // SPEC-253 · Help Center publik (gate di-bypass di atas)
     await api.register(tickets);  // SPEC-253 · triase (di belakang gate cookie)
     await api.register(scheduler);  // SPEC-294 · config/state scheduler (di belakang gate cookie)
+    await api.register(audit);      // SPEC-337 · log lintas project untuk sesi cross-audit
   }, { prefix: "/api" });
 
   // Prod: serve the built dashboard from one process; SPA-fallback to

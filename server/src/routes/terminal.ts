@@ -2,7 +2,8 @@ import type { FastifyInstance } from "fastify";
 import { existsSync } from "node:fs";
 import { prisma } from "../db";
 import { zTerminalSession, zIntegrate, type Stage } from "@hanoman/shared";
-import { realGit, startProjectPrompt, startPrdPrompt, startScaffoldPrompt, startBreakdownPrompt, type Flow } from "@hanoman/runner";
+import { realGit, startProjectPrompt, startPrdPrompt, startScaffoldPrompt, startBreakdownPrompt, startCrossAuditPrompt, type Flow } from "@hanoman/runner";
+import { buildCrossAuditCtx, crossAuditSessionOpts } from "../services/cross-audit";
 import { phaseFilePath, decisionFilePath, readPhases, stageForRun } from "../services/session-phases";
 import { specReview, reviewFile } from "../services/spec-review";
 import { integrateBranch } from "../services/integrate";
@@ -233,6 +234,34 @@ export default async function (app: FastifyInstance) {
         prompt: startBreakdownPrompt(
           { id: project.id, name: project.name, desc: project.desc, stack: project.stack },
           { title, path: prdPath, content }, `breakdown/${slug}`),
+      });
+      return reply.code(201).send({ id: s.id });
+    }
+
+    // SPEC-337 · ADR-0075 · sesi audit LINTAS project yang lepas (tanya-jawab): worktree sendiri,
+    // TANPA Spec/fase/branch → tak menggerakkan stage apa pun. Id deterministik dari project
+    // (Start kedua = re-attach, ADR-0015). Kunci baca log ikut lahir & mati bersama sesi.
+    if (parsed.data.flow === "cross-audit") {
+      const id = `xaudit-${project.id.toLowerCase().replace(/[^a-z0-9_-]/g, "_")}`;
+      const live = getSession(id);
+      if (live) return reply.code(201).send({ id: live.id });
+
+      const built = await buildCrossAuditCtx(project.id);
+      if (!built) return reply.code(404).send({ error: "project not found" });
+      // SPEC-338 · ADR-0074 · sesi project-level tak punya picker: ikut agen default global.
+      const { agent, model, effort } = await sessionAgentDefaults();
+      if (agent === "codex") ensureCodexTrust(repoDir);
+      try {
+        // HEAD, bukan "main": repo target bukan milik hanoman — default branch-nya bebas.
+        realGit.addWorktree(repoDir, `${repoDir}/.worktrees/${id}`, "HEAD");
+      } catch (e) {
+        return reply.code(422).send({ error: `gagal membuat worktree: ${(e as Error).message}` });
+      }
+      const s = createSession(project.id, `${repoDir}/.worktrees/${id}`, {
+        id, model, effort, agent,
+        decisionFile: decisionFilePath(repoDir, id),
+        prompt: startCrossAuditPrompt({ ...built.ctx, worktree: `${repoDir}/.worktrees/${id}` }, "live"),
+        ...crossAuditSessionOpts(built.scope),
       });
       return reply.code(201).send({ id: s.id });
     }

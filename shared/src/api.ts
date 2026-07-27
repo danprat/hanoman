@@ -139,7 +139,17 @@ export const paths = {
   ticketAccept: (id: string) => `${API}/tickets/${id}/accept`,
   ticketUnlink: (id: string) => `${API}/tickets/${id}/unlink`,  // SPEC-271 · lepas tautan backlog
   ticketReject: (id: string) => `${API}/tickets/${id}/reject`,
+  // SPEC-337 · ADR-0075 · relasi integrasi antar project (LOCAL-only) + log lintas project.
+  projectLinks: (id: string) => `${API}/projects/${encodeURIComponent(id)}/links`,
+  projectLink: (id: string, linkId: string) =>
+    `${API}/projects/${encodeURIComponent(id)}/links/${encodeURIComponent(linkId)}`,
 } as const;
+
+// SPEC-337 · bentuk LinkView server (server/src/services/project-links.ts).
+export type LinkView = {
+  id: string; fromProjectId: string; toProjectId: string; kind: string; note: string;
+  direction: "keluar" | "masuk"; other: { id: string; name: string };
+};
 
 // SPEC-215 · view config untuk UI. Secret: tanpa `value`, pakai `masked` + `hasValue`.
 export type ConfigEntryView = {

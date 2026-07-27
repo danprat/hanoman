@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { zProject, zBriefPayload, zQaPayload, zSpec, zScheduler, zAgent } from "./entities";
 import type { Spec, Notification } from "./entities";
-import { zProjectKind, zSpecSource, zPriority, zStage, zErrorStatus, zTicketCategory, zTicketStatus } from "./enums";
+import { zProjectKind, zSpecSource, zPriority, zStage, zErrorStatus, zTicketCategory, zTicketStatus, zLinkKind } from "./enums";
 
 // SPEC-198 · amplop daftar via API: search/filter/paginasi dilakukan server-side.
 export type Paginated<T> = { items: T[]; total: number; page: number; pageSize: number };
@@ -30,6 +30,14 @@ export const zCreateProject = z.object({
 // awal/akhir). Dipakai operasi rename id (bukan field PATCH). Regex = gate 400 endpoint rename.
 export const zProjectId = z.string().regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/, "slug tak sah");
 export const zRenameProject = z.object({ newId: zProjectId });
+// SPEC-337 · ADR-0075 · relasi integrasi/dependency antar project (from = project di path,
+// BERGANTUNG PADA to). `note` = bentuk integrasinya, disalin apa adanya ke prompt sesi audit lintas.
+export const zCreateLink = z.object({
+  to: z.string().min(1),
+  kind: zLinkKind,
+  note: z.string().max(2000).optional(),
+});
+export type CreateLink = z.infer<typeof zCreateLink>;
 export const zUpdateProject = z.object({
   name: z.string().min(1).optional(),
   desc: z.string().optional(),
@@ -118,12 +126,16 @@ export const zSchedulerState = z.object({
 });
 export type SchedulerStateView = z.infer<typeof zSchedulerState>;
 
-export const zFlow = z.enum(["feature", "qa", "scaffold", "reverse", "prd", "audit", "breakdown"]);
+export const zFlow = z.enum(["feature", "qa", "scaffold", "reverse", "prd", "audit", "breakdown", "cross-audit"]);
 export type FlowName = z.infer<typeof zFlow>;
 // SPEC-237 · satu-satunya pemetaan source → flow (client memakainya saat start sesi).
 // qa → audit lalu execute perbaikan; audit → dokumen saja (Audit → Laporan, tanpa Execute).
+// SPEC-337 · cross-audit → dokumen juga, tapi ber-scope project ini + tetangga ProjectLink-nya.
 export function flowForSource(source: string): FlowName {
-  return source === "qa" ? "qa" : source === "audit" ? "audit" : "feature";
+  return source === "qa" ? "qa"
+    : source === "audit" ? "audit"
+    : source === "cross-audit" ? "cross-audit"
+    : "feature";
 }
 
 // SPEC-210 · brief awal PRD (sesi prd project-level, tanpa Spec). Disisipkan ke prompt sesi.
@@ -185,6 +197,8 @@ export const zTerminalSession = z.union([
   z.object({ project: z.string(), flow: z.literal("prd"), brief: zPrdBrief }),
   // SPEC-273 · sesi breakdown project-level: pecah SATU PRD (prdPath) → manifest N backlog.
   z.object({ project: z.string(), flow: z.literal("breakdown"), prdPath: z.string().min(1) }),
+  // SPEC-337 · ADR-0075 · sesi audit lintas project LEPAS (tanya-jawab): tanpa Spec, tanpa fase.
+  z.object({ project: z.string(), flow: z.literal("cross-audit") }),
   // SPEC-222 · scaffold: sesi project-level from-scratch, menyusun SoT dari ide. Tanpa brief
   // (diseed dari Project.desc), tanpa Spec — cermin reverse.
   z.object({ project: z.string(), flow: z.literal("scaffold") }),
