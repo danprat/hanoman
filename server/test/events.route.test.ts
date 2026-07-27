@@ -50,11 +50,12 @@ describe("events WS route", () => {
     const c = connect();
     await c.opened;
     await waitFor(() => c.frames.some((f) => f.t === "notifications"));
-    const before = c.frames.filter((f) => f.t === "notifications").length;
     await prisma.notification.create({ data: { specId: "SPEC-9", title: "z", projectId: "p1" } });
-    await waitFor(() => c.frames.filter((f) => f.t === "notifications").length > before);
-    const nf = c.frames.filter((f) => f.t === "notifications").at(-1) as unknown as { items: unknown[] };
-    expect(nf.items.length).toBe(1);
+    // Attach snapshot + broadcast loop bisa sama-sama mengirim snapshot kosong; tunggu isi,
+    // bukan sekadar frame berikutnya.
+    await waitFor(() => c.frames.some((f) => f.t === "notifications" && Array.isArray(f.items) && f.items.length === 1));
+    const nf = c.frames.filter((f) => f.t === "notifications" && Array.isArray(f.items) && f.items.length === 1).at(-1);
+    expect(nf?.items).toHaveLength(1);
     c.ws.close();
   });
 });

@@ -684,8 +684,8 @@ export default function App() {
     }
   }
 
-  // SPEC-162 · Start membuka sesi claude interaktif di worktree backlog item ini, lalu pindah
-  // ke layar Terminal: di sanalah pekerjaannya terlihat, dan di sanalah manusia menjawab agen.
+  // SPEC-162 · Start membuka sesi interaktif di worktree backlog item ini.
+  // SPEC-341 · sesudah sukses tetap di Backlog; Terminal dibuka lewat aksi eksplisit "Buka sesi".
   // `branchFrom` tak dikirim — server membacanya dari baris Spec (SPEC-143).
   // SPEC-252 · ADR-0061 · Start membuka picker model/effort per sesi dulu (StartSessionModal);
   // konfirmasi picker-lah yang memanggil api.startSession dengan pilihan itu.
@@ -1068,7 +1068,7 @@ export default function App() {
         <EditProjectModal open={modal === "project-edit"} project={proj} onClose={() => setModal(null)} onSave={updateProject} />
         {/* SPEC-252 · ADR-0061 · picker model/effort per sesi saat Start backlog. */}
         <StartSessionModal open={!!startSpec} spec={startSpec} onClose={() => setStartSpec(null)}
-          onStarted={(id) => { setSection("terminal"); showToast((startSpec?.id ?? "") + " · sesi " + id + " dimulai", "info", "play"); }}
+          onStarted={(id) => showToast((startSpec?.id ?? "") + " · sesi " + id + " dimulai", "info", "play")}
           onError={(e) => {
             const noRepo = e instanceof ApiError && (e.status === 400 || e.status === 422);
             showToast((startSpec?.id ?? "") + " · gagal mulai sesi" + (noRepo ? " · project belum punya repoDir" : ""), "warn", "x-circle");
