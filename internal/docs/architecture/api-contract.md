@@ -473,6 +473,8 @@ GET /api/audit/logs/:groupId
 ```
 
 > Scope sebuah sesi = project utama **+ tetangga `ProjectLink` satu hop kedua arah** (ADR-0075).
+> Kunci sampai ke agen lewat **env sesi** (`HANOMAN_AUDIT_KEY`/`HANOMAN_AUDIT_URL`), jadi endpoint ini
+> dipakai sama persis oleh sesi **claude maupun codex** (ADR-0074) — tanpa percabangan per agen.
 > Kewenangan kunci **read-only** dan hanya atas `ErrorGroup`/`ErrorEvent` project ter-scope — tak ada
 > jalur tulis, tak ada akses ke domain lain. Bandingkan dengan agent token (ADR-0065) yang berlingkup
 > global & butuh master switch: kunci audit sengaja seumur-sesi dan tak dikelola manusia.

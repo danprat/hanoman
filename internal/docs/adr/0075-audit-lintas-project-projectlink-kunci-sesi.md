@@ -64,6 +64,13 @@ jadi `REACHED.Laporan = "done"` dan gerbang plan (ADR-0029) tetap tak berlaku (t
 Satu builder prompt melayani keduanya (`startCrossAuditPrompt(ctx, mode)`); mode `backlog`
 menambahkan instruksi fase, klausa autonomy, skill `systematic-debugging`, dan commit+push.
 
+**Netral-agen** (ADR-0074): kedua pintu lahir lewat jalur agen yang sama seperti flow lain —
+backlog mengikuti picker/`Setting.agent`, sesi lepas mengikuti `sessionAgentDefaults()` +
+`ensureCodexTrust` (cermin reverse/prd/scaffold). Kunci audit sampai ke agen lewat **env**, bukan
+argv, jadi tak ada percabangan per agen; codex jalan `--dangerously-bypass-approvals-and-sandbox`
+sehingga `curl` ke `127.0.0.1` tak terhalang sandbox. Terverifikasi dengan codex sungguhan:
+sesi menarik `timeline` lintas project dari `$HANOMAN_AUDIT_URL`.
+
 ### 3. Hanya project utama yang punya worktree; tetangga dibaca read-only
 
 Worktree tetap satu (project utama) — di situlah dokumen audit ditulis dan di-commit. Checkout

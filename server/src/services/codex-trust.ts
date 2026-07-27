@@ -1,4 +1,4 @@
-import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 
 // SPEC-338 · ADR-0074 — TUI codex menolak jalan di direktori yang belum dipercaya:
@@ -25,7 +25,15 @@ export const codexConfigPath = (home?: string): string => `${codexHome(home)}/co
  */
 export function ensureCodexTrust(repoDir: string, home?: string): void {
   const path = codexConfigPath(home);
-  const header = `[projects."${repoDir}"]`;
+  // SPEC-337 · gerbang trust codex mencocokkan REALPATH direktori, bukan ejaan yang kita simpan.
+  // Di macOS `/tmp` & `/var` adalah symlink ke `/private/...` (begitu pula repoDir yang dicapai
+  // lewat symlink), jadi entri ber-path mentah tak pernah cocok dan sesi codex mati di layar
+  // "Do you trust the contents of this directory?" — tanpa manusia di pane yang bisa menjawab.
+  // Path yang belum ada di disk (realpath melempar) ditulis apa adanya: lebih baik satu entri
+  // tak terpakai daripada menggagalkan kelahiran sesi.
+  let canonical = repoDir;
+  try { canonical = realpathSync(repoDir); } catch { /* belum ada di disk — pakai apa adanya */ }
+  const header = `[projects."${canonical}"]`;
   try {
     let existing = "";
     try { existing = readFileSync(path, "utf8"); } catch { /* belum ada — dibuat di bawah */ }

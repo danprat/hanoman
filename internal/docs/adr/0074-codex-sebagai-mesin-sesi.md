@@ -74,7 +74,10 @@ perbedaan itu ditutup tanpa mencabut jaminan yang sudah ada".
    pekerjaan berjalan; tak ada baris DB. Sesi yang lahir sebelum ADR ini dibaca sebagai `claude`.
 7. **`ensureCodexTrust(repoDir)`** dipanggil sebelum spawn sesi codex: menambahkan
    `[projects."<repoDir>"] trust_level = "trusted"` ke config codex bila belum ada. Idempoten,
-   append-only, satu entri per project, gagal-diam.
+   append-only, satu entri per project, gagal-diam. **Path dinormalkan lewat `realpathSync`**
+   (perbaikan SPEC-337): gerbang codex mencocokkan realpath, sementara `repoDir` bisa lewat symlink
+   (`/tmp`, `/var`, atau checkout yang dicapai lewat symlink) — entri ber-path mentah tak pernah
+   cocok dan sesi mati di layar trust selamanya. Path yang belum ada di disk ditulis apa adanya.
 
 ### Tiga perbedaan sadar terhadap Claude Code
 

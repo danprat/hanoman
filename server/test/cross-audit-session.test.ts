@@ -4,8 +4,10 @@ import { prisma } from "../src/db";
 import { buildCrossAuditCtx } from "../src/services/cross-audit";
 import { killAll, getSession, listSessions, auditSessionScope } from "../src/services/pty";
 import { makeRepoWithBranches } from "./factory";
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { DEFAULT_SETTING } from "../src/services/settings";
+import { existsSync, readFileSync, mkdtempSync, realpathSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { resolve, join } from "node:path";
 import { execFileSync } from "node:child_process";
 
 // Sesi men-spawn `claude` sungguhan bila tak distub. fixtures/fake-claude.sh mencetak argv lalu
@@ -13,7 +15,12 @@ import { execFileSync } from "node:child_process";
 process.env.HANOMAN_CLAUDE_BIN = resolve(import.meta.dirname, "fixtures/fake-claude.sh");
 
 const app = buildApp({ requireAuth: false });
+// SPEC-338 · arahkan config codex ke temp dir: ensureCodexTrust menulis sungguhan, dan
+// ~/.codex/config.toml milik operator TAK BOLEH tersentuh test.
+process.env.CODEX_HOME = mkdtempSync(join(tmpdir(), "hanoman-codexhome-"));
+
 const clean = async () => {
+  await prisma.setting.deleteMany();
   await prisma.projectLink.deleteMany();
   await prisma.spec.deleteMany();
   await prisma.localBinding.deleteMany();
@@ -110,5 +117,72 @@ describe("sesi backlog cross-audit", () => {
     expect(s.flow).toBe("cross-audit");
     const projects = tmuxOpt(`hanoman-${s.id}`, "@hanoman_audit_projects");
     expect(projects.split(",").sort()).toEqual(["api", "sdk", "web"]);
+  });
+});
+
+// SPEC-337 × SPEC-338 · kedua pintu cross-audit harus jalan di codex sama seperti di claude:
+// agen ditentukan Setting.agent (sesi lepas, tanpa picker) atau override per sesi (backlog),
+// dan kunci audit tetap sampai ke prosesnya — mekanisme env yang sama, agen berbeda.
+describe("cross-audit di codex", () => {
+  const setSetting = (patch: object) => {
+    const data = { ...DEFAULT_SETTING, ...patch } as unknown as object;
+    return prisma.setting.upsert({ where: { id: 1 }, update: { data }, create: { id: 1, data } });
+  };
+  // Layar pane = bukti argv + env: fixture mencetak keduanya lalu tetap hidup (`exec cat`).
+  const paneOf = async (id: string): Promise<string> => {
+    const socket = process.env.HANOMAN_TMUX_SOCKET ?? "hanoman";
+    const read = () => execFileSync("tmux", ["-L", socket, "-f", "/dev/null",
+      "capture-pane", "-p", "-J", "-S", "-2000", "-t", `hanoman-${id}`], { encoding: "utf8" })
+      .replace(/\s+/g, " ").trim();
+    for (let i = 0; i < 100 && !read(); i++) await new Promise((r) => setTimeout(r, 20));
+    return read();
+  };
+
+  it("sesi lepas mengikuti Setting.agent codex, lengkap dengan kunci audit ber-scope", async () => {
+    process.env.HANOMAN_CODEX_BIN = resolve(import.meta.dirname, "fixtures/fake-agent-env.sh");
+    await setSetting({ agent: "codex", codex: { model: "gpt-5.4", effort: "high" } });
+    const r = await app.inject({ method: "POST", url: "/api/terminal/sessions", payload: { project: "web", flow: "cross-audit" } });
+    expect(r.statusCode).toBe(201);
+
+    const pane = await paneOf("xaudit-web");
+    expect(pane).toContain("--dangerously-bypass-approvals-and-sandbox");   // jalur codex
+    expect(pane).not.toContain("--dangerously-skip-permissions");
+    expect(pane).toContain("-m gpt-5.4");
+    // Kunci audit BENAR-BENAR sampai ke proses codex (env, bukan sekadar tmux option).
+    expect(pane).toMatch(/HANOMAN_AUDIT_KEY=hnm_xa_[0-9a-f]{32}/);
+    expect(pane).toContain("HANOMAN_AUDIT_URL=http://127.0.0.1:");
+    expect(tmuxOpt("hanoman-xaudit-web", "@hanoman_agent")).toBe("codex");
+    const key = tmuxOpt("hanoman-xaudit-web", "@hanoman_audit_key");
+    expect(auditSessionScope(key)!.sort()).toEqual(["api", "sdk", "web"]);
+  });
+
+  it("sesi backlog cross-audit menerima override agen per sesi", async () => {
+    process.env.HANOMAN_CODEX_BIN = resolve(import.meta.dirname, "fixtures/fake-agent-env.sh");
+    await setSetting({ agent: "claude" });   // global claude — override sesi yang harus menang
+    await prisma.spec.create({ data: {
+      id: "SPEC-901", projectId: "web", title: "Audit integrasi web api", source: "cross-audit",
+      stage: "brainstorming", priority: "tinggi", author: "Audit lintas · t@t", objective: "cek integrasi",
+    } });
+    const r = await app.inject({ method: "POST", url: "/api/terminal/sessions",
+      payload: { spec: "SPEC-901", flow: "cross-audit", agent: "codex" } });
+    expect(r.statusCode).toBe(201);
+
+    const id = r.json().id;
+    const pane = await paneOf(id);
+    expect(pane).toContain("--dangerously-bypass-approvals-and-sandbox");
+    expect(pane).toMatch(/HANOMAN_AUDIT_KEY=hnm_xa_[0-9a-f]{32}/);
+    expect(tmuxOpt(`hanoman-${id}`, "@hanoman_agent")).toBe("codex");
+    expect(tmuxOpt(`hanoman-${id}`, "@hanoman_audit_projects").split(",").sort()).toEqual(["api", "sdk", "web"]);
+  });
+
+  it("membuka gerbang trust codex untuk repo project utama", async () => {
+    process.env.HANOMAN_CODEX_BIN = resolve(import.meta.dirname, "fixtures/fake-agent-env.sh");
+    await setSetting({ agent: "codex" });
+    await app.inject({ method: "POST", url: "/api/terminal/sessions", payload: { project: "web", flow: "cross-audit" } });
+    // CODEX_HOME diarahkan ke temp dir di beforeEach — config codex asli tak tersentuh.
+    const cfg = readFileSync(`${process.env.CODEX_HOME}/config.toml`, "utf8");
+    // Entri memakai REALPATH — itulah yang dicocokkan gerbang trust codex (lihat codex-trust.ts).
+    expect(cfg).toContain(`[projects."${realpathSync(webDir)}"]`);
+    expect(cfg).toContain('trust_level = "trusted"');
   });
 });

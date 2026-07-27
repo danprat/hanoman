@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ensureCodexTrust, codexConfigPath } from "../src/services/codex-trust";
@@ -39,6 +39,34 @@ describe("ensureCodexTrust", () => {
     const t = readFileSync(codexConfigPath(home), "utf8");
     expect(t).toContain('[projects."/repo/a"]');
     expect(t).toContain('[projects."/repo/b"]');
+  });
+
+  // SPEC-337 · ditemukan lewat smoke codex sungguhan: gerbang trust codex mencocokkan REALPATH
+  // direktori, sementara hanoman menulis path apa adanya. Di macOS `/tmp`/`/var` adalah symlink ke
+  // `/private/...` (begitu pula repoDir yang dicapai lewat symlink) → entri tak pernah cocok dan
+  // sesi codex mati di layar "Do you trust the contents of this directory?" selamanya.
+  it("menormalkan path lewat realpath — entri cocok dengan yang dicari codex", () => {
+    const linked = mkdtempSync(join(tmpdir(), "hanoman-repo-"));   // di macOS: /var/... → /private/var/...
+    const real = realpathSync(linked);
+    ensureCodexTrust(linked, home);
+    const t = readFileSync(codexConfigPath(home), "utf8");
+    expect(t).toContain(`[projects."${real}"]`);
+    rmSync(linked, { recursive: true, force: true });
+  });
+
+  it("idempoten lintas ejaan path yang sama (symlink vs realpath)", () => {
+    const linked = mkdtempSync(join(tmpdir(), "hanoman-repo-"));
+    const real = realpathSync(linked);
+    ensureCodexTrust(linked, home);
+    ensureCodexTrust(real, home);
+    const t = readFileSync(codexConfigPath(home), "utf8");
+    expect(t.split(`[projects."${real}"]`).length - 1).toBe(1);
+    rmSync(linked, { recursive: true, force: true });
+  });
+
+  it("path yang tak ada di disk tetap ditulis apa adanya (tak menggagalkan sesi)", () => {
+    ensureCodexTrust("/repo/belum-ada", home);
+    expect(readFileSync(codexConfigPath(home), "utf8")).toContain('[projects."/repo/belum-ada"]');
   });
 
   it("gagal-diam saat home tak bisa ditulis — sesi tetap boleh lahir", () => {
