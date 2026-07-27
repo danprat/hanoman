@@ -1,4 +1,4 @@
-import type { Flow, SpecBrief, ProjectBrief, PrdBrief, BreakdownPrd, Autonomy } from "./types";
+import type { Flow, SpecBrief, ProjectBrief, PrdBrief, BreakdownPrd, Autonomy, CrossAuditCtx, CrossAuditProject } from "./types";
 import { REVERSE_STANDARD } from "./reverse-standard";
 
 export const PIPELINES: Record<Flow, readonly string[]> = {
@@ -9,6 +9,9 @@ export const PIPELINES: Record<Flow, readonly string[]> = {
   prd: ["Brainstorm", "PRD"],
   audit: ["Audit", "Laporan"],
   breakdown: ["Analisis", "Breakdown"],
+  // SPEC-337 · ADR-0074 · audit lintas project: fase & stage-map identik audit-only, scope-nya
+  // yang berbeda (project utama + tetangga ProjectLink).
+  "cross-audit": ["Audit", "Laporan"],
 };
 
 // SPEC-252 · ADR-0061 — model & effort kini PER SESI (dipilih saat Start, argv saat lahir), bukan per
@@ -296,5 +299,93 @@ export function startScaffoldPrompt(project: ProjectBrief, branchTo: string): st
     skillInstruction(PIPELINES.scaffold),
     `Project ${project.id} · ${project.name}\nIde awal: ${project.desc || "—"}\nStack: ${project.stack || "—"}`,
     `=== STANDAR DOCS ===\n${REVERSE_STANDARD}`,
+  ].filter(Boolean).join("\n\n");
+}
+
+// SPEC-337 · ADR-0074 · sesi audit lintas project. Satu worktree (project utama) + checkout
+// tetangga READ-ONLY. Dua mode berbagi badan prompt yang sama: `backlog` (Spec, berfase,
+// berdokumen, di-push) dan `live` (tanya-jawab di terminal, tanpa jejak).
+const projectLine = (p: CrossAuditProject, primary: boolean): string => {
+  const path = p.repoDir ?? "(tak ada checkout lokal di mesin ini — audit project ini dari log & docs saja)";
+  const head = primary ? `- ${p.id} · ${p.name} · PROJECT UTAMA (worktree kamu)` : `- ${p.id} · ${p.name}`;
+  return [
+    head,
+    `  stack: ${p.stack || "—"}`,
+    `  path: ${path}`,
+    ...(p.relation ? [`  relasi: ${p.relation}`] : []),
+    ...(p.note ? [`  catatan integrasi: ${p.note}`] : []),
+  ].join("\n");
+};
+
+const crossAuditLogGuide = (apiUrl: string): string =>
+  [
+    `Menarik log: hanoman memberi sesi ini kunci baca ber-scope di env \`$HANOMAN_AUDIT_KEY\` `
+      + `(URL di \`$HANOMAN_AUDIT_URL\`, yaitu ${apiUrl}). Kunci ini HANYA membaca error project di atas, `
+      + `dan mati saat sesi ini berakhir. Panggil berkali-kali sesuai kebutuhan — jangan puas dengan sekali tarik:`,
+    "```bash",
+    `curl -s -H "X-Hanoman-Audit-Key: $HANOMAN_AUDIT_KEY" "$HANOMAN_AUDIT_URL/logs?since=24h"`,
+    `curl -s -H "X-Hanoman-Audit-Key: $HANOMAN_AUDIT_KEY" "$HANOMAN_AUDIT_URL/logs?since=7d&environment=production&q=timeout"`,
+    `curl -s -H "X-Hanoman-Audit-Key: $HANOMAN_AUDIT_KEY" "$HANOMAN_AUDIT_URL/logs/<groupId>"   # detail + stack`,
+    "```",
+    `Bentuk jawabannya: \`timeline\` = error SEMUA project di atas, TERCAMPUR & terurut waktu — di situlah `
+      + `korelasi lintas project terlihat (error di satu sisi tepat sesudah kegagalan di sisi lain). `
+      + `\`groups\` = agregat berulang. Filter: \`since\`/\`until\` (\`24h\`|\`7d\`|ISO), \`environment\`, `
+      + `\`q\`, \`projects\`, \`limit\`. Project yang tak punya data error: katakan itu terang-terangan lalu `
+      + `bandingkan kontraknya di level kode — JANGAN mengarang log.`,
+  ].join("\n");
+
+const CROSS_AUDIT_FOCUS =
+  "Fokus audit lintas: (1) kontrak API yang bergeser antara pemanggil & penyedia (path, bentuk payload, "
+  + "kode status, header auth); (2) versi paket/SDK yang tertinggal di satu sisi; (3) error yang "
+  + "BERKORELASI WAKTU di dua project; (4) environment/release yang tak sejalan antar sisi; (5) asumsi "
+  + "auth, format tanggal/uang, retry & timeout yang berbeda. Setiap temuan harus bersandar pada bukti "
+  + "dari KEDUA sisi — kutipan kode/kontrak dan/atau baris timeline, lengkap dengan waktunya.";
+
+export function startCrossAuditPrompt(ctx: CrossAuditCtx, mode: "backlog" | "live"): string {
+  const map = [projectLine(ctx.primary, true), ...ctx.neighbors.map((n) => projectLine(n, false))].join("\n");
+  const scopeNote = ctx.neighbors.length
+    ? ""
+    : "CATATAN: project ini belum punya relasi integrasi terdaftar, jadi scope-nya hanya dirinya sendiri. "
+      + "Katakan itu di awal jawabanmu — operator mungkin lupa mendaftarkan relasinya di kartu "
+      + "\"Integrasi antar project\".";
+  const head = [
+    `hanoman cross-audit. Kamu mengaudit INTEGRASI ANTAR PROJECT — bukan satu project saja. `
+      + `Semua project di bawah ini berada dalam scope-mu.`,
+    `Project dalam scope:\n${map}`,
+    scopeNote,
+    `Aturan tulis: kamu HANYA boleh menulis di worktree-mu sendiri (\`${ctx.primary.repoDir ?? "worktree sesi ini"}\` `
+      + `dan turunannya). Checkout project lain di atas bersifat READ-ONLY: baca sepuasnya, JANGAN menulis, `
+      + `JANGAN commit, JANGAN menjalankan perintah yang mengubah isinya.`,
+    crossAuditLogGuide(ctx.apiUrl),
+    CROSS_AUDIT_FOCUS,
+  ].filter(Boolean);
+
+  if (mode === "live") {
+    return [
+      ...head,
+      "Ini sesi TANYA-JAWAB: manusia menonton terminal ini dan akan bertanya. Jawab dengan bukti "
+        + "(kutipan kode + baris log beserta waktunya), ringkas dan langsung. Tak ada fase, tak ada dokumen, "
+        + "tak ada commit — kalau temuannya layak ditindaklanjuti, sarankan membuat backlog audit lintas.",
+    ].join("\n\n");
+  }
+
+  const spec = ctx.spec!;
+  const slug = spec.title.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+  const detail = spec.payload ? `\nDetail: ${JSON.stringify(spec.payload)}` : "";
+  return [
+    ...head,
+    phaseInstruction(PIPELINES["cross-audit"]),
+    `Fase Audit: telusuri akar masalah lintas project (log + kode kedua sisi). Fase Laporan: tulis DOKUMEN `
+      + `AUDIT ke Source of Truth project utama \`internal/docs/research/audit-${spec.id.toLowerCase()}-${slug}.md\` `
+      + `(ikuti konvensi audit yang ada), tautkan di \`internal/docs/README.md\`, memuat: keluhan/pertanyaan, `
+      + `peta integrasi yang diaudit, temuan dengan BUKTI dari tiap project (kutipan kode + baris timeline `
+      + `beserta waktunya), apakah issue terdefinisi baik, dan REKOMENDASI — "cukup jawaban" ATAU "naikkan `
+      + `jadi Finding QA di project <id>" (sebut project mana yang harus diperbaiki). JANGAN menulis perbaikan kode.`,
+    AUTONOMY_CLAUSE,
+    skillInstruction(PIPELINES["cross-audit"]),
+    `Setelah fase terakhir: commit, lalu \`git push origin HEAD:refs/heads/${ctx.branchTo}\`. `
+      + `Worktree ini detached HEAD — itu memang disengaja.`,
+    `Backlog item ${spec.id} · sumber ${spec.source} · prioritas ${spec.priority}\n`
+      + `Judul: ${spec.title}\nObjective: ${spec.objective}${detail}`,
   ].filter(Boolean).join("\n\n");
 }

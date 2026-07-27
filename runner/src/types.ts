@@ -1,4 +1,4 @@
-export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit" | "breakdown";
+export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit" | "breakdown" | "cross-audit";
 
 // SPEC-298 · mode autonomy sesi scheduler (Setting.scheduler.autonomy). full-control = putuskan
 // sendiri & tembus sampai done tanpa berhenti bertanya; butuh-keputusan = berhenti di titik
@@ -23,6 +23,23 @@ export type PrdBrief = { title: string; context: string; outcome: string; constr
 // SPEC-273 · PRD yang dipecah sesi breakdown. content = isi PRD tersemat langsung ke prompt,
 // jadi breakdown lepas dari status merge PRD (tak perlu PRD sudah ada di default branch).
 export type BreakdownPrd = { title: string; path: string; content: string };
+
+// SPEC-337 · ADR-0074 · satu project di dalam scope sesi audit lintas. repoDir null = belum
+// di-bind di mesin ini (tetap masuk scope log; prompt menandainya, bukan menyembunyikannya).
+export type CrossAuditProject = {
+  id: string; name: string; stack: string; repoDir: string | null;
+  relation?: string;  // kalimat arah relasi terhadap project utama; kosong untuk project utama
+  note?: string;      // catatan bentuk integrasi dari operator (ProjectLink.note)
+};
+
+// Konteks sesi audit lintas project. `spec`/`branchTo` hanya terisi di mode backlog.
+export type CrossAuditCtx = {
+  primary: CrossAuditProject;
+  neighbors: CrossAuditProject[];
+  apiUrl: string;          // nilai $HANOMAN_AUDIT_URL sesi ini
+  spec?: SpecBrief;
+  branchTo?: string;
+};
 
 export interface GitOps {
   /** Mengembalikan baseSha — commit tempat worktree ini lahir. */

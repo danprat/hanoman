@@ -1023,7 +1023,7 @@ git commit -m "feat(spec-337): GET /api/audit/logs — timeline error lintas pro
   - `PIPELINES["cross-audit"] = ["Audit", "Laporan"]`
   - `flowForSource("cross-audit") === "cross-audit"`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `runner/test/cross-audit-prompt.test.ts`:
 
@@ -1096,7 +1096,7 @@ describe("startCrossAuditPrompt", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — harus gagal**
+- [x] **Step 2: Jalankan test — harus gagal**
 
 ```bash
 cd runner && npx vitest run test/cross-audit-prompt.test.ts
@@ -1104,7 +1104,7 @@ cd runner && npx vitest run test/cross-audit-prompt.test.ts
 
 Expected: FAIL — `startCrossAuditPrompt is not exported` / `PIPELINES["cross-audit"]` undefined.
 
-- [ ] **Step 3: Perluas tipe runner**
+- [x] **Step 3: Perluas tipe runner**
 
 Di `runner/src/types.ts`, ganti baris `Flow` dan tambahkan tipe konteks di bawah `BreakdownPrd`:
 
@@ -1131,7 +1131,7 @@ export type CrossAuditCtx = {
 };
 ```
 
-- [ ] **Step 4: Tulis builder prompt**
+- [x] **Step 4: Tulis builder prompt**
 
 Di `runner/src/prompt.ts`:
 
@@ -1250,11 +1250,11 @@ export function startCrossAuditPrompt(ctx: CrossAuditCtx, mode: "backlog" | "liv
 }
 ```
 
-- [ ] **Step 5: Ekspor dari runner**
+- [x] **Step 5: Ekspor dari runner**
 
 Periksa `runner/src/index.ts`; bila ia mengekspor simbol prompt satu per satu, tambahkan `startCrossAuditPrompt` dan tipe `CrossAuditCtx`/`CrossAuditProject`. Bila sudah `export * from "./prompt"` + `export * from "./types"`, tak ada yang perlu diubah.
 
-- [ ] **Step 6: Jalankan test runner — harus lolos**
+- [x] **Step 6: Jalankan test runner — harus lolos**
 
 ```bash
 cd runner && npx vitest run test/cross-audit-prompt.test.ts test/prompt.test.ts
@@ -1262,7 +1262,7 @@ cd runner && npx vitest run test/cross-audit-prompt.test.ts test/prompt.test.ts
 
 Expected: PASS — termasuk suite prompt lama (perluasan `PIPELINES` tak boleh merusaknya).
 
-- [ ] **Step 7: Lebarkan enum source/flow + pemetaan**
+- [x] **Step 7: Lebarkan enum source/flow + pemetaan**
 
 Di `shared/src/enums.ts`:
 
@@ -1293,7 +1293,7 @@ Tambahkan anggota union baru di `zTerminalSession`, tepat setelah anggota `break
   z.object({ project: z.string(), flow: z.literal("cross-audit") }),
 ```
 
-- [ ] **Step 8: Prefix author backlog cross-audit**
+- [x] **Step 8: Prefix author backlog cross-audit**
 
 Di `server/src/routes/specs.ts` (± baris 92), ganti ekspresi `author`:
 
@@ -1304,7 +1304,7 @@ Di `server/src/routes/specs.ts` (± baris 92), ganti ekspresi `author`:
       : author,
 ```
 
-- [ ] **Step 9: Jalankan test shared + server specs**
+- [x] **Step 9: Jalankan test shared + server specs**
 
 ```bash
 cd shared && npx vitest run
@@ -1313,7 +1313,7 @@ cd ../server && env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@127.0
 
 Expected: PASS keduanya.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add runner/src shared/src server/src/routes/specs.ts runner/test/cross-audit-prompt.test.ts

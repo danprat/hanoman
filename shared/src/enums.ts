@@ -1,6 +1,6 @@
 import { z } from "zod";
 export const zStage = z.enum(["brainstorming","objective","spec-ready","planned","executing","done"]);
-export const zSpecSource = z.enum(["brief","qa","audit","help"]);  // SPEC-253 · +help (tiket → backlog)
+export const zSpecSource = z.enum(["brief","qa","audit","cross-audit","help"]);  // SPEC-253 · +help (tiket → backlog) · SPEC-337 · +cross-audit
 export const zDocStatus = z.enum(["ok","drift","broken"]);
 export const zPriority = z.enum(["tinggi","sedang","rendah"]);
 export const zProjectKind = z.enum(["from-scratch","existing"]);

@@ -89,7 +89,12 @@ export default async function (app: FastifyInstance) {
         spec = await prisma.spec.create({
           data: {
             id, projectId: b.project, title: b.title, source: b.source, stage: "brainstorming",
-            priority, author: isQa ? `QA · ${author}` : b.source === "audit" ? `Audit · ${author}` : author,
+            priority,
+            author: isQa ? `QA · ${author}`
+              : b.source === "audit" ? `Audit · ${author}`
+              // SPEC-337 · asal item audit lintas terbaca di backlog (cermin `Audit ·`).
+              : b.source === "cross-audit" ? `Audit lintas · ${author}`
+              : author,
             objective, payload: b.payload,
             branchFrom: b.branchFrom ?? null
           }
