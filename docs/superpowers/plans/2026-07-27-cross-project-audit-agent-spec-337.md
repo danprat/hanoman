@@ -290,7 +290,7 @@ git commit -m "feat(spec-337): model ProjectLink + resolusi tetangga satu hop"
   - `POST /api/projects/:id/links` → 201 `LinkView`
   - `DELETE /api/projects/:id/links/:linkId` → 204
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/project-links.route.test.ts`:
 
@@ -370,7 +370,7 @@ describe("relasi antar project", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — harus gagal**
+- [x] **Step 2: Jalankan test — harus gagal**
 
 ```bash
 cd server && env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman337" npx vitest run test/project-links.route.test.ts --no-file-parallelism
@@ -378,7 +378,7 @@ cd server && env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@127.0.0.
 
 Expected: FAIL — semua request menjawab 404 (route belum ada).
 
-- [ ] **Step 3: Tambahkan schema body ke shared**
+- [x] **Step 3: Tambahkan schema body ke shared**
 
 Di `shared/src/dto.ts`, setelah blok `zRenameProject` (cari `export const zRenameProject`), tambahkan:
 
@@ -394,7 +394,7 @@ export type CreateLink = z.infer<typeof zCreateLink>;
 
 Pastikan `zLinkKind` ikut di-import/ekspor: `shared/src/dto.ts` sudah mengimpor dari `./enums` — tambahkan `zLinkKind` ke daftar import yang ada di bagian atas file.
 
-- [ ] **Step 4: Implementasikan route**
+- [x] **Step 4: Implementasikan route**
 
 Di `server/src/routes/projects.ts`, tambahkan import:
 
@@ -438,7 +438,7 @@ lalu tambahkan sebelum `}` penutup handler default export:
   });
 ```
 
-- [ ] **Step 5: Jalankan test — harus lolos**
+- [x] **Step 5: Jalankan test — harus lolos**
 
 ```bash
 cd server && env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman337" npx vitest run test/project-links.route.test.ts --no-file-parallelism
@@ -446,7 +446,7 @@ cd server && env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@127.0.0.
 
 Expected: PASS (7 test).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add shared/src/dto.ts server/src/routes/projects.ts server/test/project-links.route.test.ts

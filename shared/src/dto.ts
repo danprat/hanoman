@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { zProject, zBriefPayload, zQaPayload, zSpec, zScheduler } from "./entities";
 import type { Spec, Notification } from "./entities";
-import { zProjectKind, zSpecSource, zPriority, zStage, zErrorStatus, zTicketCategory, zTicketStatus } from "./enums";
+import { zProjectKind, zSpecSource, zPriority, zStage, zErrorStatus, zTicketCategory, zTicketStatus, zLinkKind } from "./enums";
 
 // SPEC-198 · amplop daftar via API: search/filter/paginasi dilakukan server-side.
 export type Paginated<T> = { items: T[]; total: number; page: number; pageSize: number };
@@ -30,6 +30,14 @@ export const zCreateProject = z.object({
 // awal/akhir). Dipakai operasi rename id (bukan field PATCH). Regex = gate 400 endpoint rename.
 export const zProjectId = z.string().regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/, "slug tak sah");
 export const zRenameProject = z.object({ newId: zProjectId });
+// SPEC-337 · ADR-0074 · relasi integrasi/dependency antar project (from = project di path,
+// BERGANTUNG PADA to). `note` = bentuk integrasinya, disalin apa adanya ke prompt sesi audit lintas.
+export const zCreateLink = z.object({
+  to: z.string().min(1),
+  kind: zLinkKind,
+  note: z.string().max(2000).optional(),
+});
+export type CreateLink = z.infer<typeof zCreateLink>;
 export const zUpdateProject = z.object({
   name: z.string().min(1).optional(),
   desc: z.string().optional(),
