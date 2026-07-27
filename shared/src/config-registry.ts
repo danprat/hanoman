@@ -23,6 +23,8 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     help: "Token `claude setup-token`. Diwarisi proses claude yang di-spawn." },
   { key: "ANTHROPIC_API_KEY", group: "claude", label: "Anthropic API key", kind: "secret", apply: "new-session", category: "credential", inheritEnv: true },
   { key: "HANOMAN_CLAUDE_BIN", group: "claude", label: "Biner claude", kind: "path", apply: "new-session", category: "knob", default: "claude" },
+  // codex (SPEC-338 · ADR-0074)
+  { key: "HANOMAN_CODEX_BIN", group: "claude", label: "Biner codex", kind: "path", apply: "new-session", category: "knob", default: "codex" },
   { key: "CLAUDE_CONFIG_DIR", group: "claude", label: "Dir config Claude", kind: "path", apply: "new-session", category: "knob",
     help: "Default ~/.claude. Sumber .credentials.json untuk panel usage/limit." },
   // vps

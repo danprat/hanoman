@@ -55,7 +55,7 @@
 - Consumes: —
 - Produces: `zAgent`, `CODEX_MODELS`, `CODEX_EFFORTS`, `zCodex`, `CODEX_DEFAULTS: { model: "gpt-5.5"; effort: "xhigh" }`, `Setting.agent: "claude"|"codex"`, `Setting.codex: { model: string; effort: string }`, `zTerminalSession` varian spec dengan `agent?: "claude"|"codex"`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `shared/src/agent-session.test.ts`:
 
@@ -103,12 +103,12 @@ describe("SPEC-338 · agent sesi", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/shared exec vitest run src/agent-session.test.ts`
 Expected: FAIL — `zAgent`/`zCodex`/`CODEX_DEFAULTS` tidak diekspor.
 
-- [ ] **Step 3: Tambahkan `zAgent` di `shared/src/enums.ts`**
+- [x] **Step 3: Tambahkan `zAgent` di `shared/src/enums.ts`**
 
 Sisipkan setelah `zProjectKind` (baris 6):
 
@@ -117,7 +117,7 @@ Sisipkan setelah `zProjectKind` (baris 6):
 export const zAgent = z.enum(["claude", "codex"]);
 ```
 
-- [ ] **Step 4: Tambahkan katalog & knob codex di `shared/src/entities.ts`**
+- [x] **Step 4: Tambahkan katalog & knob codex di `shared/src/entities.ts`**
 
 Tambahkan `zAgent` ke import baris 2:
 
@@ -158,7 +158,7 @@ Sisipkan dua field ke `zSetting` (setelah `goal`, baris 90):
   codex: zCodex.default(CODEX_DEFAULTS),                                  // SPEC-338 · ADR-0074 · model/effort codex
 ```
 
-- [ ] **Step 5: Terima `agent` di `zTerminalSession` (`shared/src/dto.ts`)**
+- [x] **Step 5: Terima `agent` di `zTerminalSession` (`shared/src/dto.ts`)**
 
 Ganti varian spec (baris 194-197) menjadi:
 
@@ -177,7 +177,7 @@ Tambahkan `zAgent` ke import zod-enum di kepala `dto.ts` (baris 2 mengimpor dari
 import { zStage, zSpecSource, zDocStatus, zPriority, zProjectKind, zAgent } from "./enums";
 ```
 
-- [ ] **Step 6: Daftarkan knob biner codex (`shared/src/config-registry.ts`)**
+- [x] **Step 6: Daftarkan knob biner codex (`shared/src/config-registry.ts`)**
 
 Sisipkan tepat setelah baris `HANOMAN_CLAUDE_BIN` (baris 25):
 
@@ -186,12 +186,12 @@ Sisipkan tepat setelah baris `HANOMAN_CLAUDE_BIN` (baris 25):
   { key: "HANOMAN_CODEX_BIN", group: "claude", label: "Biner codex", kind: "path", apply: "new-session", category: "knob", default: "codex" },
 ```
 
-- [ ] **Step 7: Jalankan test, pastikan LULUS**
+- [x] **Step 7: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/shared exec vitest run`
 Expected: PASS — seluruh test shared hijau (termasuk `goal.test.ts` & `scheduler.test.ts` yang menguji kompatibilitas mundur `zSetting`).
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add shared/src/enums.ts shared/src/entities.ts shared/src/dto.ts shared/src/config-registry.ts shared/src/agent-session.test.ts

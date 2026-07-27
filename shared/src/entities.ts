@@ -1,7 +1,11 @@
 import { z } from "zod";
-import { zStage, zSpecSource, zDocStatus, zPriority, zProjectKind } from "./enums";
+import { zStage, zSpecSource, zDocStatus, zPriority, zProjectKind, zAgent } from "./enums";
 
 export type Stage = z.infer<typeof zStage>;
+// SPEC-338 · ADR-0074 · mesin sesi. Di-re-ekspor dari sini supaya konsumen setelan cukup
+// mengimpor satu modul (pola yang sama dipakai Stage di atas).
+export { zAgent };
+export type Agent = z.infer<typeof zAgent>;
 
 export const zProject = z.object({
   id: z.string(), name: z.string(), desc: z.string(), kind: zProjectKind,
@@ -47,6 +51,26 @@ export const MODELS = [
 ] as const;
 export const EFFORTS = ["xhigh", "high", "medium", "low", "max", "ultracode"] as const;
 
+// SPEC-338 · ADR-0074 · katalog codex, cermin MODELS/EFFORTS milik claude. Slug diteruskan apa
+// adanya ke `codex -m`; effort ke `-c model_reasoning_effort="<v>"` (codex tak punya flag --effort).
+// Diverifikasi terhadap `codex debug models` (codex-cli 0.142.5).
+export const CODEX_MODELS = [
+  { id: "gpt-5.5", label: "GPT-5.5" },
+  { id: "gpt-5.4", label: "GPT-5.4" },
+  { id: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
+  { id: "gpt-5.3-codex-spark", label: "GPT-5.3 Codex Spark" },
+] as const;
+export const CODEX_EFFORTS = ["xhigh", "high", "medium", "low"] as const;
+
+// Default model/effort codex. Model/effort claude sengaja TETAP di `Setting.model`/`Setting.effort`
+// (kontrak GET /settings + baris Setting lama), jadi blok ini hanya untuk codex.
+export const zCodex = z.object({
+  model: z.string().default("gpt-5.5"),
+  effort: z.string().default("xhigh"),
+});
+export type Codex = z.infer<typeof zCodex>;
+export const CODEX_DEFAULTS: Codex = zCodex.parse({});
+
 // SPEC-294 · ADR-0072 · knob scheduler otonom. Semua default MATI. Ditambahkan ke zSetting sebagai
 // .default(SCHEDULER_DEFAULTS) → baris Setting lama tanpa blok ini tetap parse (key hilang diisi default).
 const zSourceCommon = { enabled: z.boolean().default(false) };
@@ -88,6 +112,8 @@ export const zSetting = z.object({
   agentAccessEnabled: z.boolean().default(false),                        // SPEC-257 · master switch akses AI agent
   scheduler: zScheduler.default(SCHEDULER_DEFAULTS),                      // SPEC-294 · ADR-0072 · knob scheduler (default mati)
   goal: zGoal.default(GOAL_DEFAULTS),                                     // SPEC-332 · ADR-0073 · mode goal (default mati)
+  agent: zAgent.default("claude"),                                        // SPEC-338 · ADR-0074 · mesin sesi default
+  codex: zCodex.default(CODEX_DEFAULTS),                                  // SPEC-338 · ADR-0074 · model/effort codex
 });
 export type Setting = z.infer<typeof zSetting>;
 

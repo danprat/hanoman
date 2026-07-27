@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { zProject, zBriefPayload, zQaPayload, zSpec, zScheduler } from "./entities";
+import { zProject, zBriefPayload, zQaPayload, zSpec, zScheduler, zAgent } from "./entities";
 import type { Spec, Notification } from "./entities";
 import { zProjectKind, zSpecSource, zPriority, zStage, zErrorStatus, zTicketCategory, zTicketStatus } from "./enums";
 
@@ -191,9 +191,11 @@ export const zTerminalSession = z.union([
   // SPEC-252 · ADR-0061 — model & effort per SESI: override opsional saat Start; kosong → global.
   // SPEC-332 · ADR-0073 — mode goal per SESI: `goal` undefined → ikut Setting.goal.enabled,
   // false → mati walau global nyala; `goalCondition` kosong → template global → default bawaan.
+  // SPEC-338 · ADR-0074 — agen per SESI: undefined → ikut Setting.agent (default global).
   z.object({
     spec: z.string(), flow: zFlow, model: z.string().optional(), effort: z.string().optional(),
     goal: z.boolean().optional(), goalCondition: z.string().max(4000).optional(),
+    agent: zAgent.optional(),
   }),
 ]);
 
