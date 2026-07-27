@@ -115,6 +115,8 @@ export const api = {
   specReviewFile: (id: string, path: string) => j<ReviewFile>(paths.specReviewFile(id, path)),
   getSettings: () => j<Setting>(paths.settings),
   putSettings: (b: unknown) => j<Setting>(paths.settings, { method: "PUT", ...body(b) }),
+  // SPEC-339 · versi codex CLI; dipakai catatan "CLI terlalu tua" di Settings & picker Start.
+  getCodexVersion: () => j<{ version: string | null; minRequired: string; ok: boolean }>(paths.codexVersion),
   // SPEC-215 · config runtime
   getConfig: () => j<ConfigResponse>(paths.config),
   putConfig: (key: string, value: string) => j<ConfigEntryView>(paths.config, { method: "PUT", ...body({ key, value }) }),
