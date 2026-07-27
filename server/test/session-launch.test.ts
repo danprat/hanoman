@@ -106,4 +106,53 @@ describe("session-launch", () => {
     expect(resolveGoalCondition({ flow: "feature", specId: "SPEC-G6", branchTo: "hanoman/spec-g6" }))
       .toContain("hanoman/spec-g6");
   });
+
+  // SPEC-338 · ADR-0074 · agen per sesi & default global. Bukti dari argv pane, sama seperti
+  // mode goal di atas — di situlah pilihan agen benar-benar mewujud.
+  const setSetting = (patch: object) => {
+    const data = { ...DEFAULT_SETTING, ...patch } as unknown as object;
+    return prisma.setting.upsert({ where: { id: 1 }, update: { data }, create: { id: 1, data } });
+  };
+
+  it("opts.agent codex melahirkan sesi codex dengan flag codex", async () => {
+    process.env.HANOMAN_CODEX_BIN = "/bin/echo";
+    await setSetting({ codex: { model: "gpt-5.4", effort: "high" } });
+    const spec = await seedRepo("SPEC-A1");
+    const r = await startSpecSession(spec, { flow: "feature", agent: "codex" });
+    const argv = await argvOf(r.id);
+    expect(argv).toContain("-m gpt-5.4");
+    expect(argv).toContain('model_reasoning_effort="high"');
+    expect(argv).toContain("--dangerously-bypass-approvals-and-sandbox");
+    expect(argv).not.toContain("--dangerously-skip-permissions");
+    killSession(r.id);
+  });
+
+  it("tanpa opts.agent memakai Setting.agent (jalur scheduler)", async () => {
+    process.env.HANOMAN_CODEX_BIN = "/bin/echo";
+    await setSetting({ agent: "codex" });
+    const spec = await seedRepo("SPEC-A2");
+    const r = await startSpecSession(spec, { flow: "feature" });   // governor memanggil persis begini
+    expect(await argvOf(r.id)).toContain("--dangerously-bypass-approvals-and-sandbox");
+    killSession(r.id);
+  });
+
+  it("override model per sesi menang atas default agen", async () => {
+    process.env.HANOMAN_CODEX_BIN = "/bin/echo";
+    await setSetting({ agent: "codex" });
+    const spec = await seedRepo("SPEC-A3");
+    const r = await startSpecSession(spec, { flow: "feature", model: "gpt-5.4-mini" });
+    expect(await argvOf(r.id)).toContain("-m gpt-5.4-mini");
+    killSession(r.id);
+  });
+
+  it("Setting.agent codex tak menyeret sesi claude eksplisit", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+    await setSetting({ agent: "codex" });
+    const spec = await seedRepo("SPEC-A4");
+    const r = await startSpecSession(spec, { flow: "feature", agent: "claude" });
+    const argv = await argvOf(r.id);
+    expect(argv).toContain("--dangerously-skip-permissions");
+    expect(argv).toContain("--model claude-opus-5");   // kembali ke blok model claude
+    killSession(r.id);
+  });
 });

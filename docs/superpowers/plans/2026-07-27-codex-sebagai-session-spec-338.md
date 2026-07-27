@@ -974,7 +974,7 @@ git commit -m "feat(spec-338): ensureCodexTrust — buka gerbang trust direktori
   - `sessionAgentDefaults(): Promise<{ agent: Agent; model: string; effort: string }>` di `services/settings.ts` — model/effort yang benar untuk agen default.
   - `startSpecSession(spec, opts)` menerima `opts.agent?: Agent`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `server/test/session-launch.test.ts`:
 
@@ -1034,12 +1034,12 @@ Tambahkan di `server/test/settings.test.ts`:
   });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run test/settings.test.ts test/session-launch.test.ts --no-file-parallelism`
 Expected: FAIL — `sessionAgentDefaults` tak ada; `opts.agent` tak dikenal.
 
-- [ ] **Step 3: Tambahkan default & resolver di `server/src/services/settings.ts`**
+- [x] **Step 3: Tambahkan default & resolver di `server/src/services/settings.ts`**
 
 Tambahkan import:
 
@@ -1070,7 +1070,7 @@ export async function sessionAgentDefaults(): Promise<{ agent: Agent; model: str
 }
 ```
 
-- [ ] **Step 4: Threading di `server/src/services/session-launch.ts`**
+- [x] **Step 4: Threading di `server/src/services/session-launch.ts`**
 
 Tambahkan import:
 
@@ -1117,7 +1117,7 @@ Tambahkan `agent` ke `createSession` (baris 66-73):
     specId: spec.id, flow: opts.flow, model, effort, goal, agent,
 ```
 
-- [ ] **Step 5: Threading di `server/src/routes/terminal.ts`**
+- [x] **Step 5: Threading di `server/src/routes/terminal.ts`**
 
 Teruskan `agent` untuk varian spec (baris 67-70):
 
@@ -1156,17 +1156,17 @@ import { ensureCodexTrust } from "../services/codex-trust";
 
 > `sessionModel()` tetap diekspor untuk pemakai lain; bila sesudah perubahan ini tak ada lagi pemanggilnya di `terminal.ts`, hapus dari daftar import berkas itu saja (jangan hapus fungsinya).
 
-- [ ] **Step 6: Jalankan test, pastikan LULUS**
+- [x] **Step 6: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run test/settings.test.ts test/session-launch.test.ts test/terminal.route.test.ts --no-file-parallelism`
 Expected: PASS.
 
-- [ ] **Step 7: Jalankan SELURUH suite**
+- [x] **Step 7: Jalankan SELURUH suite**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm test`
 Expected: PASS — tak ada regresi di server/runner/shared.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/src/services/settings.ts server/src/services/session-launch.ts server/src/routes/terminal.ts server/test/settings.test.ts server/test/session-launch.test.ts

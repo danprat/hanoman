@@ -6,7 +6,8 @@ import { realGit, startProjectPrompt, startPrdPrompt, startScaffoldPrompt, start
 import { phaseFilePath, decisionFilePath, readPhases, stageForRun } from "../services/session-phases";
 import { specReview, reviewFile } from "../services/spec-review";
 import { integrateBranch } from "../services/integrate";
-import { sessionModel } from "../services/settings";
+import { sessionAgentDefaults } from "../services/settings";
+import { ensureCodexTrust } from "../services/codex-trust";
 import { startSpecSession, LaunchError } from "../services/session-launch";
 import { resolveRepoDir } from "../services/local-binding";
 import { readPrd } from "../services/project-prds";
@@ -67,6 +68,7 @@ export default async function (app: FastifyInstance) {
         const r = await startSpecSession(spec, {
           flow: parsed.data.flow, model: parsed.data.model, effort: parsed.data.effort,
           goal: parsed.data.goal, goalCondition: parsed.data.goalCondition,   // SPEC-332 · ADR-0073
+          agent: parsed.data.agent,                                           // SPEC-338 · ADR-0074
         });
         return reply.code(201).send({ id: r.id });
       } catch (e) {
@@ -112,7 +114,10 @@ export default async function (app: FastifyInstance) {
       const live = getSession(id);
       if (live) return reply.code(201).send({ id: live.id });
 
-      const { model, effort } = await sessionModel(); // SPEC-252 · ADR-0061 · default global (per sesi)
+      // SPEC-252 · ADR-0061 · default global (per sesi). SPEC-338 · ADR-0074 · sesi project-level
+      // tak punya picker: ia mengikuti agen default global.
+      const { agent, model, effort } = await sessionAgentDefaults();
+      if (agent === "codex") ensureCodexTrust(repoDir);
       try {
         // HEAD, bukan "main": repo target bukan milik hanoman — default branch-nya bebas.
         realGit.addWorktree(repoDir, `${repoDir}/.worktrees/${id}`, "HEAD");
@@ -120,7 +125,7 @@ export default async function (app: FastifyInstance) {
         return reply.code(422).send({ error: `gagal membuat worktree: ${(e as Error).message}` });
       }
       const s = createSession(project.id, `${repoDir}/.worktrees/${id}`, {
-        id, flow: "reverse", model, effort,
+        id, flow: "reverse", model, effort, agent,
         phaseFile: phaseFilePath(repoDir, id),
         decisionFile: decisionFilePath(repoDir, id),
         prompt: startProjectPrompt("reverse", {
@@ -137,7 +142,10 @@ export default async function (app: FastifyInstance) {
       const live = getSession(id);
       if (live) return reply.code(201).send({ id: live.id });
 
-      const { model, effort } = await sessionModel(); // SPEC-252 · ADR-0061 · default global (per sesi)
+      // SPEC-252 · ADR-0061 · default global (per sesi). SPEC-338 · ADR-0074 · sesi project-level
+      // tak punya picker: ia mengikuti agen default global.
+      const { agent, model, effort } = await sessionAgentDefaults();
+      if (agent === "codex") ensureCodexTrust(repoDir);
       try {
         // SPEC-223 · "project baru pasti kosongan": repoDir bisa BELUM ada di disk saat scaffold
         // (project di-sync dari device lain, folder dipindah/hapus, atau init-saat-create tak jalan).
@@ -150,7 +158,7 @@ export default async function (app: FastifyInstance) {
         return reply.code(422).send({ error: `gagal membuat worktree: ${(e as Error).message}` });
       }
       const s = createSession(project.id, `${repoDir}/.worktrees/${id}`, {
-        id, flow: "scaffold", model, effort,
+        id, flow: "scaffold", model, effort, agent,
         phaseFile: phaseFilePath(repoDir, id),
         decisionFile: decisionFilePath(repoDir, id),
         prompt: startScaffoldPrompt(
@@ -172,7 +180,10 @@ export default async function (app: FastifyInstance) {
       const live = getSession(id);
       if (live) return reply.code(201).send({ id: live.id });
 
-      const { model, effort } = await sessionModel(); // SPEC-252 · ADR-0061 · default global (per sesi)
+      // SPEC-252 · ADR-0061 · default global (per sesi). SPEC-338 · ADR-0074 · sesi project-level
+      // tak punya picker: ia mengikuti agen default global.
+      const { agent, model, effort } = await sessionAgentDefaults();
+      if (agent === "codex") ensureCodexTrust(repoDir);
       try {
         // HEAD, bukan "main": repo target bukan milik hanoman — default branch-nya bebas.
         realGit.addWorktree(repoDir, `${repoDir}/.worktrees/${id}`, "HEAD");
@@ -180,7 +191,7 @@ export default async function (app: FastifyInstance) {
         return reply.code(422).send({ error: `gagal membuat worktree: ${(e as Error).message}` });
       }
       const s = createSession(project.id, `${repoDir}/.worktrees/${id}`, {
-        id, flow: "prd", branch: `prd/${slug}`, model, effort,
+        id, flow: "prd", branch: `prd/${slug}`, model, effort, agent,
         phaseFile: phaseFilePath(repoDir, id),
         decisionFile: decisionFilePath(repoDir, id),
         prompt: startPrdPrompt(
@@ -204,7 +215,10 @@ export default async function (app: FastifyInstance) {
       const live = getSession(id);
       if (live) return reply.code(201).send({ id: live.id });
 
-      const { model, effort } = await sessionModel(); // SPEC-252 · ADR-0061 · default global (per sesi)
+      // SPEC-252 · ADR-0061 · default global (per sesi). SPEC-338 · ADR-0074 · sesi project-level
+      // tak punya picker: ia mengikuti agen default global.
+      const { agent, model, effort } = await sessionAgentDefaults();
+      if (agent === "codex") ensureCodexTrust(repoDir);
       try {
         realGit.addWorktree(repoDir, `${repoDir}/.worktrees/${id}`, "HEAD");
       } catch (e) {
@@ -213,7 +227,7 @@ export default async function (app: FastifyInstance) {
       const titleM = content.match(/^#\s+(.+)$/m);
       const title = titleM ? titleM[1]!.trim() : slug;
       const s = createSession(project.id, `${repoDir}/.worktrees/${id}`, {
-        id, flow: "breakdown", branch: `breakdown/${slug}`, model, effort,
+        id, flow: "breakdown", branch: `breakdown/${slug}`, model, effort, agent,
         phaseFile: phaseFilePath(repoDir, id),
         decisionFile: decisionFilePath(repoDir, id),
         prompt: startBreakdownPrompt(
@@ -223,7 +237,11 @@ export default async function (app: FastifyInstance) {
       return reply.code(201).send({ id: s.id });
     }
 
-    const s = createSession(project.id, repoDir);
+    // SPEC-338 · ADR-0074 · terminal agen biasa (bukan shell mentah) ikut agen default global,
+    // termasuk model/effort-nya — sebelumnya jalur ini lahir tanpa argv model sama sekali.
+    const { agent, model, effort } = await sessionAgentDefaults();
+    if (agent === "codex") ensureCodexTrust(repoDir);
+    const s = createSession(project.id, repoDir, { agent, model, effort });
     return reply.code(201).send({ id: s.id });
   });
 
@@ -277,8 +295,10 @@ export default async function (app: FastifyInstance) {
     const r = await integrateBranch(repoDir, { branch: s.branch, mergeId: s.id }, parsed.data.op, parsed.data.target);
     if (r.status === "error") return reply.code(r.code).send({ error: r.error });
     if (r.status === "clean") return { status: "clean", detail: r.detail };
-    // conflict → sesi claude interaktif di worktree yang tertinggal (tanpa flow → tak menggerakkan stage).
-    const { model, effort } = await sessionModel();
+    // conflict → sesi agen interaktif di worktree yang tertinggal (tanpa flow → tak menggerakkan stage).
+    // SPEC-338 · ADR-0074 · ikut agen default global, seperti sesi project-level lainnya.
+    const { agent, model, effort } = await sessionAgentDefaults();
+    if (agent === "codex") ensureCodexTrust(repoDir);
     const prompt = [
       `hanoman · selesaikan konflik ${r.op} branch \`${s.branch}\` ${r.op === "merge" ? "ke" : "di atas"} \`${r.target}\`.`,
       `Kamu berada di worktree yang tertinggal di tengah operasi ${r.op} dengan konflik. Resolve konflik pada file bertanda, jaga kedua sisi perubahan sesuai maksudnya.`,
@@ -287,7 +307,7 @@ export default async function (app: FastifyInstance) {
     ].join("\n\n");
     const cs = createSession(s.projectId, r.worktree, {
       id: `merge-${id.toLowerCase().replace(/[^a-z0-9_-]/g, "_")}`,
-      model, effort, prompt,
+      model, effort, agent, prompt,
     });
     return { status: "conflict", sessionId: cs.id };
   });

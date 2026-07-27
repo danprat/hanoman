@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { prisma } from "../src/db";
 import { resetDb } from "./factory";
-import { getSetting, sessionModel, DEFAULT_SETTING } from "../src/services/settings";
+import { getSetting, sessionModel, sessionAgentDefaults, DEFAULT_SETTING } from "../src/services/settings";
 
 // Baris Setting adalah `Json` bebas bentuk. Baris yang ditulis SEBELUM SPEC-162 menyimpan
 // `steps` per fase dan tak punya `model` maupun `effort` — dikembalikan mentah, sesi lahir
@@ -71,5 +71,24 @@ describe("settings", () => {
     const s = await getSetting();
     expect("phaseModels" in s).toBe(false);
     expect(await sessionModel()).toEqual({ model: "claude-sonnet-5", effort: "low" });
+  });
+
+  // SPEC-338 · ADR-0074 — agen menentukan blok model/effort mana yang jadi default sesi.
+  it("sessionAgentDefaults mengembalikan model codex saat agent=codex", async () => {
+    await prisma.setting.create({ data: { id: 1, data: {
+      ...DEFAULT_SETTING, agent: "codex", codex: { model: "gpt-5.4", effort: "low" },
+    } as unknown as object } });
+    expect(await sessionAgentDefaults()).toEqual({ agent: "codex", model: "gpt-5.4", effort: "low" });
+  });
+
+  it("sessionAgentDefaults default = claude memakai model/effort claude", async () => {
+    expect(await sessionAgentDefaults()).toEqual({ agent: "claude", model: "claude-opus-5", effort: "xhigh" });
+  });
+
+  it("baris Setting lama (tanpa agent/codex) tetap claude — tanpa migration", async () => {
+    await prisma.setting.create({ data: { id: 1, data: BARIS_LAMA } });
+    const s = await getSetting();
+    expect(s.agent).toBe("claude");
+    expect(s.codex).toEqual({ model: "gpt-5.5", effort: "xhigh" });
   });
 });
