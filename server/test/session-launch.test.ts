@@ -116,11 +116,12 @@ describe("session-launch", () => {
 
   it("opts.agent codex melahirkan sesi codex dengan flag codex", async () => {
     process.env.HANOMAN_CODEX_BIN = "/bin/echo";
-    await setSetting({ codex: { model: "gpt-5.4", effort: "high" } });
+    // SPEC-339 · slug dari katalog yang masih hidup: `gpt-5.4` kini diremap ke gpt-5.5 saat dibaca.
+    await setSetting({ codex: { model: "gpt-5.6-terra", effort: "high" } });
     const spec = await seedRepo("SPEC-A1");
     const r = await startSpecSession(spec, { flow: "feature", agent: "codex" });
     const argv = await argvOf(r.id);
-    expect(argv).toContain("-m gpt-5.4");
+    expect(argv).toContain("-m gpt-5.6-terra");
     expect(argv).toContain('model_reasoning_effort="high"');
     expect(argv).toContain("--dangerously-bypass-approvals-and-sandbox");
     expect(argv).not.toContain("--dangerously-skip-permissions");

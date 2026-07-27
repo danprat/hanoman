@@ -51,21 +51,103 @@ export const MODELS = [
 ] as const;
 export const EFFORTS = ["xhigh", "high", "medium", "low", "max", "ultracode"] as const;
 
-// SPEC-338 · ADR-0074 · katalog codex, cermin MODELS/EFFORTS milik claude. Slug diteruskan apa
-// adanya ke `codex -m`; effort ke `-c model_reasoning_effort="<v>"` (codex tak punya flag --effort).
-// Diverifikasi terhadap `codex debug models` (codex-cli 0.142.5).
-export const CODEX_MODELS = [
-  { id: "gpt-5.5", label: "GPT-5.5" },
-  { id: "gpt-5.4", label: "GPT-5.4" },
-  { id: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
-  { id: "gpt-5.3-codex-spark", label: "GPT-5.3 Codex Spark" },
-] as const;
-export const CODEX_EFFORTS = ["xhigh", "high", "medium", "low"] as const;
+// SPEC-338 · ADR-0074 · katalog codex. Slug diteruskan apa adanya ke `codex -m`; effort ke
+// `-c model_reasoning_effort="<v>"` (codex tak punya flag --effort).
+// SPEC-339 · effort adalah properti MODEL, bukan properti CLI. GPT-5.6 menambah `max` (kedalaman
+// nalar maksimum) dan `ultra` (nalar maksimum + delegasi tugas ke subagent), TAPI Luna tak
+// mendukung `ultra` dan seluruh model 5.5 ke bawah tak mendukung keduanya. Dua daftar sejajar
+// karena itu tak lagi cukup — tiap model membawa daftar effort-nya sendiri.
+// Nilai diverifikasi terhadap `codex debug models` (codex-cli 0.145.0) dan
+// codex-rs/models-manager/models.json upstream.
+export type CodexModel = {
+  id: string; label: string;
+  /** Effort yang didukung model ini, urut kuat → ringan. */
+  efforts: readonly string[];
+  /** Dipakai bila effort tersimpan tak didukung model ini. Wajib ada di `efforts`. */
+  fallback: string;
+  /** `minimal_client_version` dari manifest codex — dasar peringatan versi lunak (SPEC-339). */
+  minClient: string;
+};
+
+const E_5_6 = ["ultra", "max", "xhigh", "high", "medium", "low"] as const;
+const E_LUNA = ["max", "xhigh", "high", "medium", "low"] as const;
+// Irisan yang didukung SETIAP model codex — juga jawaban untuk model yang belum kita daftar.
+const E_BASE = ["xhigh", "high", "medium", "low"] as const;
+
+export const CODEX_MODELS: readonly CodexModel[] = [
+  { id: "gpt-5.6-sol",   label: "GPT-5.6 Sol",   efforts: E_5_6,  fallback: "xhigh", minClient: "0.144.0" },
+  { id: "gpt-5.6-terra", label: "GPT-5.6 Terra", efforts: E_5_6,  fallback: "xhigh", minClient: "0.144.0" },
+  { id: "gpt-5.6-luna",  label: "GPT-5.6 Luna",  efforts: E_LUNA, fallback: "xhigh", minClient: "0.144.0" },
+  { id: "gpt-5.5",       label: "GPT-5.5",       efforts: E_BASE, fallback: "xhigh", minClient: "0.124.0" },
+];
+
+// Gabungan semua effort codex. Dipertahankan demi pemanggil lama, TAPI bukan lagi sumber pilihan
+// UI — picker wajib memakai `codexEfforts(model)` supaya kombinasi tolak tak pernah tampil.
+export const CODEX_EFFORTS = E_5_6;
+
+export function codexModel(id: string): CodexModel | undefined {
+  return CODEX_MODELS.find((m) => m.id === id);
+}
+
+/** Effort yang boleh dipilih untuk sebuah model. Model tak dikenal → irisan aman, bukan kosong. */
+export function codexEfforts(modelId: string): readonly string[] {
+  return codexModel(modelId)?.efforts ?? E_BASE;
+}
+
+/**
+ * Turunkan `effort` ke nilai yang benar-benar didukung `modelId`. Model tak dikenal meneruskan
+ * effort apa adanya: katalog ini kurasi UI, bukan gerbang validasi — server sengaja lenient
+ * (`z.string()`), dan model baru yang belum sempat didaftar tak boleh jadi mustahil dijalankan.
+ */
+export function coerceCodexEffort(modelId: string, effort: string): string {
+  const m = codexModel(modelId);
+  if (!m) return effort;
+  return m.efforts.includes(effort) ? effort : m.fallback;
+}
+
+/**
+ * SPEC-339 · perbandingan versi numerik per segmen. String compare salah: "0.9.0" akan dianggap
+ * LEBIH BARU dari "0.144.0". Dipakai server (endpoint versi) dan web (catatan lunak) — satu
+ * implementasi, bukan tiga salinan yang lambat laun berbeda.
+ */
+export function cmpVersion(a: string, b: string): number {
+  const pa = a.split(".").map(Number);
+  const pb = b.split(".").map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (d !== 0) return d;
+  }
+  return 0;
+}
+
+/**
+ * SPEC-339 · apakah codex CLI terpasang terlalu tua untuk `modelId`. Seluruh aturan peringatan
+ * ada di sini, jadi Settings dan picker Start tak bisa berbeda pendapat:
+ * versi tak terdeteksi (`null`) → false (ketiadaan bukti bukan bukti ketiadaan);
+ * model tak dikenal → false (tak ada tuntutan versi yang bisa kita klaim).
+ */
+export function codexClientTooOld(modelId: string, version: string | null): boolean {
+  const need = codexModel(modelId)?.minClient;
+  if (!need || !version) return false;
+  return cmpVersion(version, need) < 0;
+}
+
+/**
+ * Model yang tak lagi ada di picker → penggantinya saat dibaca (cermin RETIRED_MODELS milik claude).
+ * Semua dipetakan ke `gpt-5.5`, SENGAJA bukan ke 5.6: gpt-5.5 hanya butuh klien 0.124.0, sedangkan
+ * trio 5.6 butuh 0.144.0. Pensiun tak boleh memindahkan setelan orang ke model yang CLI-nya belum
+ * sanggup menjalankannya.
+ */
+export const RETIRED_CODEX_MODELS: Record<string, string> = {
+  "gpt-5.4": "gpt-5.5",
+  "gpt-5.4-mini": "gpt-5.5",
+  "gpt-5.3-codex-spark": "gpt-5.5",
+};
 
 // Default model/effort codex. Model/effort claude sengaja TETAP di `Setting.model`/`Setting.effort`
 // (kontrak GET /settings + baris Setting lama), jadi blok ini hanya untuk codex.
 export const zCodex = z.object({
-  model: z.string().default("gpt-5.5"),
+  model: z.string().default("gpt-5.6-sol"),
   effort: z.string().default("xhigh"),
 });
 export type Codex = z.infer<typeof zCodex>;

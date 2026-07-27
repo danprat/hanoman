@@ -3,7 +3,7 @@
 import React from "react";
 import { Card, Switch, Select, Button, Input, Field, HnTextarea, Icon, StateBlock } from "../ds";
 import { api, ApiError } from "../api/client";
-import { CAPABILITY_DOMAINS, SCHEDULER_DEFAULTS, GOAL_DEFAULTS, CODEX_DEFAULTS, CODEX_MODELS, CODEX_EFFORTS } from "@hanoman/shared";
+import { CAPABILITY_DOMAINS, SCHEDULER_DEFAULTS, GOAL_DEFAULTS, CODEX_DEFAULTS, CODEX_MODELS, codexEfforts, coerceCodexEffort, codexModel, codexClientTooOld } from "@hanoman/shared";
 import type { Setting, UserView, DeviceTokenView, SessionResultView, ConfigResponse, ConfigEntryView, AgentTokenView, CapabilityInfo } from "@hanoman/shared";
 import type { ShowToast } from "../ds";
 import { playNotifySound, type NotifySound } from "../notifications/sound";
@@ -466,6 +466,10 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
   const [s, setS] = React.useState<Setting | null>(null);
   const [failed, setFailed] = React.useState(false);
   const [tab, setTab] = React.useState<string>("akun");
+  // SPEC-339 · versi codex CLI, untuk peringatan LUNAK saja. Gagal-diam: endpoint yang error tak
+  // boleh membuat layar Settings gagal render.
+  const [codexVer, setCodexVer] = React.useState<{ version: string | null; minRequired: string } | null>(null);
+  React.useEffect(() => { api.getCodexVersion().then(setCodexVer).catch(() => {}); }, []);
   // Jangan fallback ke S_DEFAULTS saat GET gagal: toggle berikutnya akan mem-PUT
   // default itu menimpa pengaturan asli di server.
   const load = React.useCallback(() => {
@@ -531,14 +535,42 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
             options={[{ value: "claude", label: "Claude Code" }, { value: "codex", label: "Codex CLI" }]}
             onChange={(e) => save({ agent: e.target.value as Setting["agent"] }, "Agen → " + e.target.value)} />
         </SettingRow>
+        {(() => {
+          // SPEC-339 · seluruh aturannya ada di codexClientTooOld (shared) — Settings dan picker
+          // Start memakai fungsi yang sama, jadi keduanya tak bisa berbeda pendapat.
+          const have = codexVer?.version ?? null;
+          if (!codexClientTooOld(codex.model, have)) return null;
+          const need = codexModel(codex.model)?.minClient;
+          return (
+            <div data-testid="codex-version-note" style={{
+              fontSize: 12, lineHeight: 1.5, marginBottom: 10, padding: "8px 10px",
+              borderRadius: 8, background: "var(--warn-bg, #fdf6e3)", color: "var(--text-muted)",
+            }}>
+              Codex CLI terpasang <b>{have}</b>, sedangkan <b>{codex.model}</b> butuh <b>{need}</b>.
+              Sesi tetap boleh dijalankan, tapi modelnya belum tentu dikenali CLI ini.
+              Perbarui dengan <code>npm i -g @openai/codex@latest</code>.
+            </div>
+          );
+        })()}
         <SettingRow title="Model codex" desc="Diteruskan apa adanya ke `codex -m`.">
           <Select size="sm" aria-label="Model codex" value={codex.model} style={{ width: 190 }}
-            options={CODEX_MODELS.map((m) => ({ value: m.id, label: m.label }))}
-            onChange={(e) => save({ codex: { ...codex, model: e.target.value } }, "Model codex → " + e.target.value)} />
+            options={(CODEX_MODELS.some((m) => m.id === codex.model)
+              ? CODEX_MODELS.map((m) => ({ value: m.id, label: m.label }))
+              // SPEC-339 · nilai di luar katalog (mis. dari PUT ber-AgentToken) ditambahkan apa
+              // adanya supaya picker tak tampil kosong. Effort-nya pun tak dikoersi — konsisten
+              // dengan aturan "model tak dikenal → apa adanya" di coerceCodexEffort.
+              : [{ value: codex.model, label: codex.model },
+                 ...CODEX_MODELS.map((m) => ({ value: m.id, label: m.label }))])}
+            onChange={(e) => {
+              // SPEC-339 · effort ikut dikoreksi: memilih Luna saat effort `ultra` harus menyimpan
+              // pasangan yang sah, bukan pasangan yang nanti ditolak codex saat sesi lahir.
+              const model = e.target.value;
+              save({ codex: { model, effort: coerceCodexEffort(model, codex.effort) } }, "Model codex → " + model);
+            }} />
         </SettingRow>
         <SettingRow title="Effort codex" last desc="Diteruskan ke `codex -c model_reasoning_effort`.">
           <Select size="sm" aria-label="Effort codex" value={codex.effort} style={{ width: 130 }}
-            options={CODEX_EFFORTS.map((v) => ({ value: v, label: v }))}
+            options={codexEfforts(codex.model).map((v) => ({ value: v, label: v }))}
             onChange={(e) => save({ codex: { ...codex, effort: e.target.value } }, "Effort codex → " + e.target.value)} />
         </SettingRow>
       </Card>

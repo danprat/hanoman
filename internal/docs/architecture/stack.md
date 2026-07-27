@@ -65,6 +65,25 @@ berbeda hanya CLI-nya:
 Codex menolak jalan di direktori yang belum dipercaya; `services/codex-trust.ts` menambahkan satu
 entri `[projects."<repoDir>"]` ke config codex sebelum spawn (worktree mewarisi trust root repo).
 
+**Katalog codex per model** (SPEC-339). Effort adalah properti MODEL, bukan properti CLI: GPT-5.6
+menambah `max` dan `ultra`, tapi `gpt-5.6-luna` tak mendukung `ultra` dan `gpt-5.5` tak mendukung
+keduanya. `CODEX_MODELS` (shared) karena itu membawa `efforts`/`fallback`/`minClient` per entri, dan
+`CODEX_EFFORTS` hanya bertahan sebagai gabungan — **bukan** sumber pilihan UI.
+
+| Slug | Effort | Klien minimum |
+|---|---|---|
+| `gpt-5.6-sol` (default) | ultra, max, xhigh, high, medium, low | 0.144.0 |
+| `gpt-5.6-terra` | ultra, max, xhigh, high, medium, low | 0.144.0 |
+| `gpt-5.6-luna` | max, xhigh, high, medium, low | 0.144.0 |
+| `gpt-5.5` | xhigh, high, medium, low | 0.124.0 |
+
+Koersi effort terjadi di `createSession` — satu titik yang dilewati SEMUA kelahiran sesi, termasuk
+jalur ber-`AgentToken` yang tak menyentuh UI. Model pensiun (`gpt-5.4`, `gpt-5.4-mini`,
+`gpt-5.3-codex-spark`) diremap ke `gpt-5.5` saat `getSetting()` membaca, sengaja bukan ke 5.6 supaya
+setelan lama tak berpindah ke model yang CLI-nya belum sanggup. Katalog model codex di-fetch dari
+manifest OpenAI dan disaring **berdasarkan versi klien** (cache di `~/.codex/models_cache.json`),
+jadi `codex debug models` adalah rujukan otoritatifnya — bukan ingatan.
+
 **Limit langganan punya dua sumber terpisah.** `services/limits.ts` memanggil endpoint OAuth Anthropic
 tiap 30 dtk (**claude**). `services/codex-limits.ts` (SPEC-338) **tidak memanggil apa pun**: codex
 sendiri menulis `rate_limits` ke rollout sesinya di `$CODEX_HOME/sessions/<Y>/<M>/<D>/*.jsonl`, dan

@@ -5,7 +5,7 @@ import { api } from "../src/api/client";
 
 // SPEC-252 · ADR-0061 — picker model & effort per SESI saat Start (default = setting global).
 vi.mock("../src/api/client", () => ({
-  api: { getSettings: vi.fn(), startSession: vi.fn() },
+  api: { getSettings: vi.fn(), startSession: vi.fn(), getCodexVersion: vi.fn().mockResolvedValue({ version: null, minRequired: "0.144.0", ok: true }) },
   ApiError: class extends Error { status = 0 },
 }));
 

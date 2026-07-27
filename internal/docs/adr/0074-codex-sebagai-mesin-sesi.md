@@ -155,3 +155,28 @@ evaluatornya pada akhirnya bisa menilai "cukup"; asimetri ini disengaja.
   kerapian saja.
 - **Flow/pipeline khusus codex.** Ditolak tegas: seluruh nilai SPEC-338 justru pada perilaku yang
   **sama** — worktree, fase, stage, review, integrate. Yang berbeda hanya CLI-nya.
+
+## Pembaruan SPEC-339 (2026-07-27) — katalog per model
+
+GPT-5.6 (`gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`) menambahkan effort `max` dan `ultra`, dan
+dukungannya **tidak seragam**: Luna tak mendukung `ultra`, dan seluruh model 5.5 ke bawah tak
+mendukung keduanya. Asumsi awal ADR ini — bahwa katalog codex cukup berupa dua daftar sejajar
+(`CODEX_MODELS` + `CODEX_EFFORTS`), cermin `MODELS`/`EFFORTS` milik claude — karena itu tak lagi
+berlaku. Effort adalah properti MODEL, bukan properti CLI.
+
+Yang berubah: `CODEX_MODELS` membawa `efforts`/`fallback`/`minClient` per entri; `CODEX_EFFORTS`
+bertahan hanya sebagai gabungan demi pemanggil lama dan bukan lagi sumber pilihan UI. Koersi effort
+dipasang di `createSession` — satu titik yang dilewati SEMUA kelahiran sesi, termasuk jalur
+ber-`AgentToken` yang tak menyentuh UI, sehingga kombinasi tolak mustahil sampai ke argv. Default
+global codex berpindah dari `gpt-5.5` ke `gpt-5.6-sol`, dan model yang dipangkas dari picker
+(`gpt-5.4`, `gpt-5.4-mini`, `gpt-5.3-codex-spark`) diremap ke `gpt-5.5` saat dibaca — sengaja bukan
+ke 5.6, karena 5.6 menuntut klien lebih baru dan pensiun tak boleh merusak setelan yang sudah jalan.
+
+Temuan yang mengubah desain: **katalog model codex di-fetch, bukan di-compile**, dan manifest-nya
+disaring server berdasarkan versi klien (cache `~/.codex/models_cache.json` menyimpan
+`client_version`). CLI < 0.144.0 karena itu tak pernah melihat trio 5.6 sama sekali — bukan soal
+langganan. `max` bahkan belum ada di enum effort 0.142.5. `GET /api/codex/version` memberi peringatan
+lunak di Settings & picker Start; ia **tidak** memblokir Start, konsisten dengan ADR-0037.
+
+Tanpa migration dan tanpa ADR baru: bentuk keputusannya masih berada di dalam ADR ini, `Setting`
+tetap kolom `Json`, dan endpoint versi hanyalah observabilitas.
