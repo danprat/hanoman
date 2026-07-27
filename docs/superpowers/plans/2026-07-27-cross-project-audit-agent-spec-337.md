@@ -470,7 +470,7 @@ git commit -m "feat(spec-337): endpoint CRUD relasi integrasi antar project"
   - `CreateOpts.audit?: { key: string; projects: string[] }` — dipasang sebagai tmux option
   - `audit-scope.ts`: `AUDIT_KEY_HEADER = "x-hanoman-audit-key"`, `newAuditKey()`, `auditApiUrl()`, `auditScopeFromReq(req)`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/audit-scope.test.ts`:
 
@@ -524,7 +524,7 @@ describe("kunci audit ber-scope sesi", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — harus gagal**
+- [x] **Step 2: Jalankan test — harus gagal**
 
 ```bash
 cd server && env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman337" npx vitest run test/audit-scope.test.ts --no-file-parallelism
@@ -532,7 +532,7 @@ cd server && env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@127.0.0.
 
 Expected: FAIL — `Failed to resolve import "../src/services/audit-scope"`.
 
-- [ ] **Step 3: Perluas pty.ts**
+- [x] **Step 3: Perluas pty.ts**
 
 Di `server/src/services/pty.ts`:
 
@@ -624,7 +624,7 @@ export type CreateOpts = {
   }
 ```
 
-- [ ] **Step 4: Implementasikan audit-scope.ts**
+- [x] **Step 4: Implementasikan audit-scope.ts**
 
 Buat `server/src/services/audit-scope.ts`:
 
@@ -650,7 +650,7 @@ export function auditScopeFromReq(req: { headers: Record<string, unknown> }): st
 }
 ```
 
-- [ ] **Step 5: Jalankan test — harus lolos**
+- [x] **Step 5: Jalankan test — harus lolos**
 
 ```bash
 cd server && env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman337" npx vitest run test/audit-scope.test.ts --no-file-parallelism
@@ -658,7 +658,7 @@ cd server && env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@127.0.0.
 
 Expected: PASS (5 test).
 
-- [ ] **Step 6: Pastikan sesi lama tak rusak**
+- [x] **Step 6: Pastikan sesi lama tak rusak**
 
 ```bash
 cd server && env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman337" npx vitest run test/terminal.route.test.ts --no-file-parallelism
@@ -666,7 +666,7 @@ cd server && env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@127.0.0.
 
 Expected: PASS — perluasan `FMT`/env tak boleh menggeser field mana pun yang sudah dibaca.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/services/pty.ts server/src/services/audit-scope.ts server/test/audit-scope.test.ts
