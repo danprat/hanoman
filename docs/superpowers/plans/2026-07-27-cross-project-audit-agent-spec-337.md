@@ -45,7 +45,7 @@
   - `linkViews(projectId, links): Promise<LinkView[]>`
   - `auditScopeOf(projectId): Promise<string[]>` — `[projectId, ...neighborIds]`
 
-- [ ] **Step 1: Tambahkan enum jenis relasi ke shared**
+- [x] **Step 1: Tambahkan enum jenis relasi ke shared**
 
 Di akhir `shared/src/enums.ts`:
 
@@ -53,7 +53,7 @@ Di akhir `shared/src/enums.ts`:
 export const zLinkKind = z.enum(["api","sdk","data","event","lainnya"]);  // SPEC-337 · ADR-0074 · jenis relasi antar project
 ```
 
-- [ ] **Step 2: Tambahkan model Prisma**
+- [x] **Step 2: Tambahkan model Prisma**
 
 Di `server/prisma/schema.prisma`, pada model `Project`, tambahkan dua relasi balik tepat di bawah baris `sourceMaps  SourceMapArtifact[] …`:
 
@@ -84,7 +84,7 @@ model ProjectLink {
 }
 ```
 
-- [ ] **Step 3: Tulis migration.sql**
+- [x] **Step 3: Tulis migration.sql**
 
 Buat `server/prisma/migrations/2026072701_spec337_project_link/migration.sql`:
 
@@ -111,7 +111,7 @@ ALTER TABLE "ProjectLink" ADD CONSTRAINT "ProjectLink_toProjectId_fkey"
   FOREIGN KEY ("toProjectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ```
 
-- [ ] **Step 4: Terapkan migration ke DB dev + test, lalu generate client**
+- [x] **Step 4: Terapkan migration ke DB dev + test, lalu generate client**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-337
@@ -129,7 +129,7 @@ docker exec hanoman-db-1 psql -U hanoman -d postgres -c 'CREATE DATABASE hanoman
 
 Expected: `migrate deploy` mencetak `1 migration found` … `applied` (atau daftar migrasi yang menyusul) dan berakhir tanpa error; `generate` mencetak `Generated Prisma Client`.
 
-- [ ] **Step 5: Tulis test yang gagal untuk service tetangga**
+- [x] **Step 5: Tulis test yang gagal untuk service tetangga**
 
 Buat `server/test/project-links.service.test.ts`:
 
@@ -197,7 +197,7 @@ describe("project-links", () => {
 });
 ```
 
-- [ ] **Step 6: Jalankan test — harus gagal**
+- [x] **Step 6: Jalankan test — harus gagal**
 
 ```bash
 cd server && env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman337" npx vitest run test/project-links.service.test.ts --no-file-parallelism
@@ -205,7 +205,7 @@ cd server && env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@127.0.0.
 
 Expected: FAIL — `Failed to resolve import "../src/services/project-links"`.
 
-- [ ] **Step 7: Implementasikan service**
+- [x] **Step 7: Implementasikan service**
 
 Buat `server/src/services/project-links.ts`:
 
@@ -258,7 +258,7 @@ export async function auditScopeOf(projectId: string): Promise<string[]> {
 }
 ```
 
-- [ ] **Step 8: Jalankan test — harus lolos**
+- [x] **Step 8: Jalankan test — harus lolos**
 
 ```bash
 cd server && env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman337" npx vitest run test/project-links.service.test.ts --no-file-parallelism
@@ -266,7 +266,7 @@ cd server && env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@127.0.0.
 
 Expected: PASS (6 test).
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add server/prisma/schema.prisma server/prisma/migrations shared/src/enums.ts server/src/services/project-links.ts server/test/project-links.service.test.ts
