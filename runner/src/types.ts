@@ -37,6 +37,9 @@ export type CrossAuditCtx = {
   primary: CrossAuditProject;
   neighbors: CrossAuditProject[];
   apiUrl: string;          // nilai $HANOMAN_AUDIT_URL sesi ini
+  // Worktree tempat sesi ini berjalan — SATU-SATUNYA tempat yang boleh ditulis (ADR-0002).
+  // Sengaja bukan repoDir project utama: checkout utama pun read-only bagi sesi.
+  worktree?: string;
   spec?: SpecBrief;
   branchTo?: string;
 };

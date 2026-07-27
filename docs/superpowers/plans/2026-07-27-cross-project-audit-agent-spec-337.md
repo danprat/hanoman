@@ -1986,7 +1986,7 @@ git commit -m "feat(spec-337): kartu Integrasi antar project + pintu audit linta
 - Modify: `internal/docs/README.md` (hanya bila ada doc baru yang belum tertaut — periksa)
 - Test: seluruh suite
 
-- [ ] **Step 1: Jalankan seluruh suite**
+- [x] **Step 1: Jalankan seluruh suite**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-337
@@ -1995,7 +1995,7 @@ env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@127.0.0.1:5432/hanoma
 
 Expected: semua paket hijau. Test server berjalan dengan `--no-file-parallelism` (sudah di config paket).
 
-- [ ] **Step 2: Boot server nyata di port terpisah**
+- [x] **Step 2: Boot server nyata di port terpisah**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-337
@@ -2006,7 +2006,7 @@ sleep 2 && curl -s localhost:8797/api/health
 
 Expected: `{"ok":true}` (atau bentuk health yang berlaku).
 
-- [ ] **Step 3: Siapkan data & login, lalu uji CRUD relasi lewat curl**
+- [x] **Step 3: Siapkan data & login, lalu uji CRUD relasi lewat curl**
 
 ```bash
 # akun pertama (bila DB masih kosong) + cookie
@@ -2027,7 +2027,7 @@ curl -s localhost:8797/api/projects/api/links -b /tmp/spec337.jar
 
 Expected: POST link → 201 dengan `direction:"keluar"`; GET dari sisi `api` → satu link `direction:"masuk"`, `other.id:"web"`.
 
-- [ ] **Step 4: Seed error dua project lalu uji timeline lewat kunci sesi**
+- [x] **Step 4: Seed error dua project lalu uji timeline lewat kunci sesi**
 
 ```bash
 docker exec -i hanoman-db-1 psql -U hanoman -d hanoman337 <<'SQL'
@@ -2055,7 +2055,7 @@ curl -s -b /tmp/spec337.jar localhost:8797/api/terminal/sessions | grep -c hnm_x
 
 Expected: timeline memuat event `web` DAN `api` terurut waktu desc; tanpa kunci → `401`; `projects=hantu` → `403`; grep kunci di daftar sesi → `0`.
 
-- [ ] **Step 5: Tutup sesi & verifikasi kunci ikut mati**
+- [x] **Step 5: Tutup sesi & verifikasi kunci ikut mati**
 
 ```bash
 curl -s -X DELETE localhost:8797/api/terminal/sessions/xaudit-web -b /tmp/spec337.jar -o /dev/null -w '%{http_code}\n'
@@ -2064,14 +2064,14 @@ curl -s -o /dev/null -w '%{http_code}\n' -H "X-Hanoman-Audit-Key: $KEY" "localho
 
 Expected: DELETE → `204`; request berikutnya → `401` (kunci mati bersama pane).
 
-- [ ] **Step 6: Matikan server smoke & bersihkan**
+- [x] **Step 6: Matikan server smoke & bersihkan**
 
 ```bash
 pkill -f "PORT=8797" || pkill -f "server/dist/server.js"
 tmux -L hanoman kill-session -t hanoman-xaudit-web 2>/dev/null || true
 ```
 
-- [ ] **Step 7: Periksa docs SoT masih sinkron**
+- [x] **Step 7: Periksa docs SoT masih sinkron**
 
 ```bash
 grep -n "0074" internal/docs/README.md
@@ -2081,7 +2081,7 @@ grep -n "audit/logs" internal/docs/architecture/api-contract.md
 
 Expected: masing-masing menemukan barisnya (docs ditulis di fase Spec — perbaiki hanya bila ada penyimpangan dari implementasi akhir, mis. nama field yang berubah).
 
-- [ ] **Step 8: Commit penutup**
+- [x] **Step 8: Commit penutup**
 
 ```bash
 git add -A

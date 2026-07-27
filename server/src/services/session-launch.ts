@@ -73,7 +73,9 @@ export async function startSpecSession(
   if (opts.flow === "cross-audit") {
     const built = await buildCrossAuditCtx(spec.projectId);
     if (built) {
-      prompt = startCrossAuditPrompt({ ...built.ctx, spec: brief, branchTo: `hanoman/${id}` }, "backlog");
+      prompt = startCrossAuditPrompt(
+        { ...built.ctx, worktree: `${repoDir}/.worktrees/${id}`, spec: brief, branchTo: `hanoman/${id}` },
+        "backlog");
       extra = crossAuditSessionOpts(built.scope);
     }
   }

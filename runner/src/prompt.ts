@@ -353,9 +353,11 @@ export function startCrossAuditPrompt(ctx: CrossAuditCtx, mode: "backlog" | "liv
       + `Semua project di bawah ini berada dalam scope-mu.`,
     `Project dalam scope:\n${map}`,
     scopeNote,
-    `Aturan tulis: kamu HANYA boleh menulis di worktree-mu sendiri (\`${ctx.primary.repoDir ?? "worktree sesi ini"}\` `
-      + `dan turunannya). Checkout project lain di atas bersifat READ-ONLY: baca sepuasnya, JANGAN menulis, `
-      + `JANGAN commit, JANGAN menjalankan perintah yang mengubah isinya.`,
+    // ADR-0002 · yang boleh ditulis HANYA worktree sesi — termasuk checkout utama project sendiri
+    // pun read-only. Menyebut repoDir di sini akan mengundang agen menyentuh working tree utama.
+    `Aturan tulis: kamu HANYA boleh menulis di ${ctx.worktree ? `worktree sesi ini (\`${ctx.worktree}\`)` : "direktori kerja sesi ini (worktree-mu)"}. `
+      + `SEMUA checkout project di atas — termasuk milik project utama — bersifat READ-ONLY: baca `
+      + `sepuasnya, JANGAN menulis, JANGAN commit di sana, JANGAN menjalankan perintah yang mengubah isinya.`,
     crossAuditLogGuide(ctx.apiUrl),
     CROSS_AUDIT_FOCUS,
   ].filter(Boolean);

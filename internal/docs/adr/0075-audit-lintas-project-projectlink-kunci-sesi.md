@@ -67,7 +67,9 @@ menambahkan instruksi fase, klausa autonomy, skill `systematic-debugging`, dan c
 ### 3. Hanya project utama yang punya worktree; tetangga dibaca read-only
 
 Worktree tetap satu (project utama) — di situlah dokumen audit ditulis dan di-commit. Checkout
-tetangga masuk prompt sebagai **path read-only** dengan larangan menulis yang eksplisit. Ini aman
+tetangga masuk prompt sebagai **path read-only** dengan larangan menulis yang eksplisit. Aturan
+tulis di prompt menunjuk **path worktree sesi**, bukan `repoDir`: **semua** checkout (termasuk milik
+project utama) read-only, sehingga ADR-0002 tak melemah di kalimat prompt mana pun. Ini aman
 justru karena flow-nya audit-only: ADR-0057 sudah melarang menulis kode sama sekali. Membuat
 worktree di tiap repo tetangga ditolak: ia menuntut pencatatan + pembersihan N worktree saat sesi
 ditutup, dan **menyembunyikan** perubahan lokal yang belum di-commit — padahal itu justru sering

@@ -244,7 +244,7 @@ export default async function (app: FastifyInstance) {
       const s = createSession(project.id, `${repoDir}/.worktrees/${id}`, {
         id, model, effort,
         decisionFile: decisionFilePath(repoDir, id),
-        prompt: startCrossAuditPrompt(built.ctx, "live"),
+        prompt: startCrossAuditPrompt({ ...built.ctx, worktree: `${repoDir}/.worktrees/${id}` }, "live"),
         ...crossAuditSessionOpts(built.scope),
       });
       return reply.code(201).send({ id: s.id });

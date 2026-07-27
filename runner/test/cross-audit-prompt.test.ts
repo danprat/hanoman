@@ -36,6 +36,19 @@ describe("startCrossAuditPrompt", () => {
     expect(startCrossAuditPrompt(ctx, "live")).toMatch(/read-only|JANGAN menulis/i);
   });
 
+  // ADR-0002 · aturan tulis harus menunjuk WORKTREE sesi, bukan checkout utama project. Menyebut
+  // repoDir + "dan turunannya" terbaca seolah working tree utama boleh ditulis.
+  it("menunjuk worktree sesi sebagai satu-satunya tempat menulis, bukan checkout utama", () => {
+    const p = startCrossAuditPrompt({ ...ctx, worktree: "/repo/web/.worktrees/xaudit-web" }, "live");
+    expect(p).toContain("/repo/web/.worktrees/xaudit-web");
+    expect(p).not.toMatch(/menulis di worktree-mu sendiri \(`\/repo\/web`/);
+  });
+
+  it("tetap punya aturan tulis yang masuk akal saat worktree tak dipasok", () => {
+    const p = startCrossAuditPrompt(ctx, "live");
+    expect(p).toMatch(/direktori kerja sesi ini/i);
+  });
+
   it("mengajarkan cara menarik log dengan kunci sesi", () => {
     const p = startCrossAuditPrompt(ctx, "live");
     expect(p).toContain("$HANOMAN_AUDIT_KEY");
