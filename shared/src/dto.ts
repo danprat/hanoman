@@ -183,6 +183,40 @@ export const zBatchCreateSpec = z.object({
 });
 export type BatchCreateSpec = z.infer<typeof zBatchCreateSpec>;
 
+// SPEC-340 · ADR-0076 · rekomendasi tindak lanjut audit. Ditulis sesi audit sebagai SATU blok
+// ```json di dokumen audit SoT (pola manifest breakdown, ADR-0069) lalu dibaca server sebagai
+// NILAI TURUNAN (ADR-0018) — bukan kolom DB. Default longgar: manifest ditulis agen, jadi hanya
+// `target` yang wajib; sisanya boleh absen.
+export const zEscalationTarget = z.enum(["none", "qa", "brief", "prd"]);
+export type EscalationTarget = z.infer<typeof zEscalationTarget>;
+
+export const zEscalationPrefill = z.object({
+  title: z.string().default(""),
+  context: z.string().default(""),
+  outcome: z.string().default(""),
+  constraints: z.string().default(""),
+  severity: z.string().default(""),   // hanya dipakai target qa
+  steps: z.string().default(""),      // hanya dipakai target qa
+});
+export type EscalationPrefill = z.infer<typeof zEscalationPrefill>;
+
+export const zAuditEscalation = z.object({
+  target: zEscalationTarget,
+  reason: z.string().default(""),
+  alternatives: z.array(zEscalationTarget).default([]),
+  prefill: zEscalationPrefill.default({}),
+});
+export type AuditEscalation = z.infer<typeof zAuditEscalation>;
+
+// Respons GET /specs/:id/escalation. escalation null = belum ada rekomendasi terbaca
+// (audit pra-SPEC-340, sesi masih berjalan, atau blok json rusak) — keadaan normal, bukan error.
+export const zAuditEscalationView = z.object({
+  escalation: zAuditEscalation.nullable(),
+  docPath: z.string().nullable(),
+  live: z.boolean(),
+});
+export type AuditEscalationView = z.infer<typeof zAuditEscalationView>;
+
 // Sesi terminal dibuka untuk sebuah project (repoDir-nya, terminal biasa) atau untuk sebuah
 // backlog item — yang terakhir lahir di worktree-nya sendiri, dengan prompt awal (SPEC-162).
 export const zTerminalSession = z.union([
