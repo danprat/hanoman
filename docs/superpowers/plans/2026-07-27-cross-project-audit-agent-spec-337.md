@@ -689,7 +689,7 @@ git commit -m "feat(spec-337): kunci audit ber-scope sesi di tmux option + env s
   - `GET /api/audit/logs` → `{ window, scope, groups, timeline }`
   - `GET /api/audit/logs/:groupId` → detail grup + events
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/audit-logs.route.test.ts`:
 
@@ -821,7 +821,7 @@ describe("GET /api/audit/logs/:groupId", () => {
 });
 ```
 
-Tambahkan pula test gate di `server/test/agent-gate.test.ts` (file yang sudah ada — sisipkan di akhir, di dalam blok `describe` teratas atau sebagai `describe` baru):
+Test gate ditaruh **di file yang sama** (`audit-logs.route.test.ts`, blok `describe("gate /api/audit")`) alih-alih menyisip ke `agent-gate.test.ts` — kolokasi dengan endpoint yang digerbanginya:
 
 ```ts
 describe("SPEC-337 · gate /api/audit", () => {
@@ -833,7 +833,7 @@ describe("SPEC-337 · gate /api/audit", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — harus gagal**
+- [x] **Step 2: Jalankan test — harus gagal**
 
 ```bash
 cd server && env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman337" npx vitest run test/audit-logs.route.test.ts --no-file-parallelism
@@ -841,7 +841,7 @@ cd server && env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@127.0.0.
 
 Expected: FAIL — `Failed to resolve import "../src/routes/audit"`.
 
-- [ ] **Step 3: Implementasikan route**
+- [x] **Step 3: Implementasikan route**
 
 Buat `server/src/routes/audit.ts`:
 
@@ -960,7 +960,7 @@ export default async function (app: FastifyInstance) {
 }
 ```
 
-- [ ] **Step 4: Daftarkan route + pengecualian gate**
+- [x] **Step 4: Daftarkan route + pengecualian gate**
 
 Di `server/src/app.ts`:
 
@@ -986,7 +986,7 @@ import { auditScopeFromReq } from "./services/audit-scope";
     await api.register(audit);      // SPEC-337 · log lintas project untuk sesi cross-audit
 ```
 
-- [ ] **Step 5: Jalankan test — harus lolos**
+- [x] **Step 5: Jalankan test — harus lolos**
 
 ```bash
 cd server && env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman337" npx vitest run test/audit-logs.route.test.ts test/agent-gate.test.ts --no-file-parallelism
@@ -994,7 +994,7 @@ cd server && env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@127.0.0.
 
 Expected: PASS (12 test di audit-logs + suite agent-gate tetap hijau).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/routes/audit.ts server/src/app.ts server/test/audit-logs.route.test.ts server/test/agent-gate.test.ts
