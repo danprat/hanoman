@@ -5,6 +5,7 @@ import { mkdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { goalOneLine, agentFlags, codexGoalScript, type Flow, type Agent } from "@hanoman/runner";
+import { coerceCodexEffort } from "@hanoman/shared";
 import { readPhases, type Phase } from "./session-phases";
 import { effectiveStr } from "../config";
 
@@ -230,9 +231,16 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
         phaseFile: opts.phaseFile ?? "", worktree: cwd, stateFile: goalStatePath(id),
       }), { mode: 0o755 });
     }
+    // SPEC-339 · titik cekik tunggal: effort yang tak didukung model codex diturunkan ke fallback
+    // model SEBELUM argv dirakit. Ditaruh di sini, bukan di route, karena SEMUA kelahiran sesi
+    // bermuara ke createSession — termasuk jalur ber-AgentToken yang tak lewat picker UI.
+    // Hanya dikoersi bila keduanya ada: tanpa effort, `agentFlags` memang tak memasang flag apa pun.
+    const effort = agent === "codex" && opts.model && opts.effort
+      ? coerceCodexEffort(opts.model, opts.effort)
+      : opts.effort;
     // Prompt (bila ada) = argumen positional pertama agen, TANPA sq (sudah dikutip ganda).
     const flags = agentFlags({
-      agent, model: opts.model, effort: opts.effort,
+      agent, model: opts.model, effort,
       decisionFile: opts.decisionFile, goal: opts.goal, goalGate,
     }).map(sq).join(" ");
     argv = [sq(agentBin(agent)), promptArg, flags].filter(Boolean).join(" ");

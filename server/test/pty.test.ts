@@ -325,4 +325,41 @@ describe("pty service", () => {
     appendFileSync(decisionFile, "menunggu\n");  // hook Notification menulis marker
     expect(find().decision).toBe(true);
   });
+
+  // SPEC-339 · koersi ditaruh di createSession, bukan di route: SEMUA kelahiran sesi lewat sini,
+  // termasuk POST ber-AgentToken yang tak pernah menyentuh picker UI.
+  it("effort yang tak didukung model codex diturunkan sebelum masuk argv", async () => {
+    process.env.HANOMAN_CODEX_BIN = "/bin/echo";
+    const s = createSession("p-339", process.cwd(), {
+      agent: "codex", model: "gpt-5.6-luna", effort: "ultra",
+    });
+    await waitFor(() => exited(s.id));
+    const c = fakeClient();
+    attach(s.id, c);
+    // tmux membungkus baris pada lebar viewport — buang seluruh whitespace sebelum mencocokkan,
+    // kalau tidak token bisa terpotong di tengah dan assert-nya gagal palsu.
+    const flat = allData(c).replace(/\s+/g, "");
+    expect(flat).toContain('model_reasoning_effort="xhigh"');
+    expect(flat).not.toContain('model_reasoning_effort="ultra"');
+  });
+
+  it("effort yang didukung diteruskan apa adanya", async () => {
+    process.env.HANOMAN_CODEX_BIN = "/bin/echo";
+    const s = createSession("p-339b", process.cwd(), {
+      agent: "codex", model: "gpt-5.6-sol", effort: "ultra",
+    });
+    await waitFor(() => exited(s.id));
+    const c = fakeClient();
+    attach(s.id, c);
+    expect(allData(c).replace(/\s+/g, "")).toContain('model_reasoning_effort="ultra"');
+  });
+
+  it("sesi claude tak tersentuh koersi codex", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+    const s = createSession("p-339c", process.cwd(), { model: "claude-opus-5", effort: "ultracode" });
+    await waitFor(() => exited(s.id));
+    const c = fakeClient();
+    attach(s.id, c);
+    expect(allData(c).replace(/\s+/g, "")).toContain("--effortultracode");
+  });
 });
