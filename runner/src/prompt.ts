@@ -1,4 +1,4 @@
-import type { Flow, SpecBrief, ProjectBrief, PrdBrief, BreakdownPrd, Autonomy, CrossAuditCtx, CrossAuditProject } from "./types";
+import type { Flow, SpecBrief, ProjectBrief, PrdBrief, AuditDoc, BreakdownPrd, Autonomy, CrossAuditCtx, CrossAuditProject } from "./types";
 import { REVERSE_STANDARD } from "./reverse-standard";
 
 export const PIPELINES: Record<Flow, readonly string[]> = {
@@ -109,8 +109,37 @@ const auditDecisionInstruction = (flow: Flow): string =>
     + "jalankan Spec → Plan → Execute penuh. Keputusan ini milikmu berdasarkan hasil Audit, "
     + "bukan default — jangan bayar perencanaan yang tak perlu untuk perbaikan sepele.";
 
+// SPEC-340 · ADR-0076 — rekomendasi tindak lanjut audit harus TERBACA MESIN, bukan prosa. Sesi
+// audit menulis satu blok ```json kanonik di dokumen auditnya; server mem-parse-nya
+// (services/audit-escalation.ts) dan UI menyorot target yang direkomendasikan. Pola manifest
+// breakdown (ADR-0069): prosa untuk manusia + satu blok json untuk mesin, di dokumen yang sama.
+export const ESCALATION_CONTRACT = [
+  "REKOMENDASI ESKALASI (wajib, terbaca mesin). Di bagian akhir dokumen audit, tulis bagian",
+  "`## Rekomendasi eskalasi` berisi penjelasan singkat untuk manusia, LALU tepat SATU blok ```json",
+  "berbentuk persis seperti ini (satu-satunya blok json di dokumen itu):",
+  "",
+  "```json",
+  '{ "escalation": { "target": "none|qa|brief|prd", "reason": "<alasan singkat>",',
+  '  "alternatives": ["<target lain yang masuk akal>"],',
+  '  "prefill": { "title": "", "context": "", "outcome": "", "constraints": "", "severity": "", "steps": "" } } }',
+  "```",
+  "",
+  "Pilih `target` dari hasil auditmu, bukan default:",
+  '- "qa" — bug / regresi / perilaku salah yang perlu diperbaiki. Isi `prefill.severity`',
+  "  (critical|major|minor) dan `prefill.steps` (langkah reproduksi).",
+  '- "brief" — kebutuhan/fitur yang bentuknya sudah jelas dan cakupannya satu backlog.',
+  "  Isi `prefill.title`, `prefill.context`, `prefill.outcome`.",
+  '- "prd" — kebutuhan produk yang besar, ambigu, atau lintas modul sehingga perlu dokumen PRD',
+  "  lebih dulu. Isi `prefill.title`, `prefill.context`, `prefill.outcome`.",
+  '- "none" — pertanyaannya sudah terjawab; tak perlu perbaikan maupun fitur baru.',
+  "",
+  "`alternatives` boleh array kosong. Jangan menulis blok json lain di dokumen itu.",
+].join("\n");
+
 // SPEC-237 · ADR-0057 — flow audit-only: investigasi + dokumen, TANPA perbaikan kode. Deliverable =
-// dokumen audit SoT yang menilai apakah issue terdefinisi baik + rekomendasi (cukup jawaban / naik jadi QA).
+// dokumen audit SoT yang menilai apakah issue terdefinisi baik + rekomendasi tindak lanjut.
+// SPEC-340 · ADR-0076 — rekomendasi itu kini bukan lagi prosa bebas "cukup jawaban / naik jadi QA":
+// ia memuat blok json kanonik dengan salah satu dari EMPAT target (none/qa/brief/prd).
 const auditOnlyInstruction = (flow: Flow): string =>
   flow !== "audit" ? "" :
     "Ini audit-only: investigasi SAJA, JANGAN menulis perbaikan kode apa pun. Fase Audit "
@@ -118,18 +147,29 @@ const auditOnlyInstruction = (flow: Flow): string =>
     + "terdefinisi dengan baik. Fase Laporan: tulis DOKUMEN AUDIT ke Source of Truth "
     + "`internal/docs/research/audit-<spec-id>-<slug>.md` (ikuti konvensi audit yang ada), tautkan "
     + "di `internal/docs/README.md`, memuat: keluhan/pertanyaan, temuan (dengan bukti/log), apakah "
-    + "issue terdefinisi baik, dan REKOMENDASI — 'cukup jawaban, tak perlu perbaikan' ATAU 'perlu "
-    + "dinaikkan jadi Finding QA untuk diperbaiki'. Commit dokumen itu lalu push. Tak ada kode fitur.";
+    + "issue terdefinisi baik, dan rekomendasi tindak lanjut. Commit dokumen itu lalu push. "
+    + "Tak ada kode fitur.\n\n" + ESCALATION_CONTRACT;
 
 // SPEC-244 · ADR-0059 — qa yang DINAIKKAN dari audit (payload.fromAudit) berjalan di branch audit,
 // jadi dokumen audit sudah ada di worktree. Lewati fase Audit (jangan investigasi ulang), baca
 // dokumen itu, tandai `Audit skipped`, lalu keputusan pasca-Audit ADR-0040.
+// SPEC-340 · ADR-0076 — brief pun bisa dinaikkan dari audit. Bedanya SADAR: dokumen audit memuat
+// TEMUAN, bukan bentuk solusi, jadi tak ada fase yang dilewati — Brainstorm tetap berjalan, hanya
+// diberi bahan awal supaya tak menginvestigasi ulang dari nol.
 const auditContinuationInstruction = (flow: Flow, spec: SpecBrief): string => {
-  const fromAudit = flow === "qa" && spec.payload && typeof spec.payload === "object"
+  if (flow !== "qa" && flow !== "feature") return "";
+  const fromAudit = spec.payload && typeof spec.payload === "object"
     ? (spec.payload as { fromAudit?: unknown }).fromAudit : undefined;
   if (typeof fromAudit !== "string" || !fromAudit) return "";
+  const doc = `internal/docs/research/audit-${fromAudit.toLowerCase()}-*.md`;
+  if (flow === "feature")
+    return `Backlog brief ini LANJUTAN dari audit ${fromAudit}. Worktree ini lahir dari branch audit itu, `
+      + `jadi dokumen audit sudah ada di ${doc}. BACA dokumen itu lebih dulu dan pakai sebagai bahan `
+      + "fase Brainstorm & Objective — temuannya sudah terbukti, jangan menginvestigasi ulang dari nol. "
+      + "Semua fase tetap dijalankan: dokumen audit memuat TEMUAN, bukan bentuk solusi, jadi perancangan "
+      + "fitur tetap pekerjaanmu.";
   return `Backlog qa ini LANJUTAN dari audit ${fromAudit}. Worktree ini lahir dari branch audit itu, `
-    + `jadi dokumen audit sudah ada di internal/docs/research/audit-${fromAudit.toLowerCase()}-*.md. `
+    + `jadi dokumen audit sudah ada di ${doc}. `
     + "JANGAN mengulang investigasi fase Audit dari nol — baca dokumen audit itu sebagai temuan, "
     + "tandai fase Audit dilewati (`echo \"Audit skipped\" >> \"$HANOMAN_PHASE_FILE\"`), lalu ambil "
     + "keputusan pasca-Audit: perbaikan jelas & kecil → langsung Execute (tandai `Spec skipped` dan "
@@ -214,8 +254,16 @@ export function startProjectPrompt(flow: Flow, project: ProjectBrief, branchTo: 
 // kode fitur. Brainstorm interaktif (satu pertanyaan per giliran; PM menonton terminal), lalu
 // tulis PRD terstruktur, commit, push ke branch prd/<slug>; manusia yang merge. Tak membawa
 // AUTONOMY_CLAUSE: seperti Wawancara reverse, brainstorm PRD memang berjalan bergiliran dgn PM.
-export function startPrdPrompt(project: ProjectBrief, brief: PrdBrief, branchTo: string): string {
+export function startPrdPrompt(project: ProjectBrief, brief: PrdBrief, branchTo: string, audit?: AuditDoc): string {
   const slug = branchTo.slice(branchTo.lastIndexOf("/") + 1);
+  // SPEC-340 · ADR-0076 · PRD hasil eskalasi audit: temuan audit adalah BAHAN brainstorm yang sudah
+  // terbukti. Disematkan utuh (bukan path) agar prompt lepas dari status merge branch audit —
+  // pola startBreakdownPrompt yang menyematkan isi PRD.
+  const auditBlock = audit
+    ? `=== DOKUMEN AUDIT ${audit.id} (${audit.path}) ===\nPRD ini adalah TINDAK LANJUT audit di bawah. `
+      + "Pakai temuannya sebagai bahan brainstorm — jangan menginvestigasi ulang, dan jangan pula "
+      + `menyalinnya mentah-mentah ke PRD.\n\n${audit.content}`
+    : "";
   return [
     `hanoman prd. Kamu memandu PM/PO menyusun SATU dokumen PRD untuk project ini dari brief + `
       + `brainstorm. Keluaranmu HANYA dokumen PRD — JANGAN menulis kode fitur.`,
@@ -233,6 +281,7 @@ export function startPrdPrompt(project: ProjectBrief, brief: PrdBrief, branchTo:
       + `ini detached HEAD — memang disengaja. Manusia yang me-review lalu merge branch ${branchTo}.`,
     `Project ${project.id} · ${project.name}\nBrief — Judul: ${brief.title}\nKonteks: ${brief.context}\n`
       + `Outcome: ${brief.outcome}${brief.constraints ? `\nBatasan: ${brief.constraints}` : ""}`,
+    auditBlock,
   ].filter(Boolean).join("\n\n");
 }
 
@@ -384,8 +433,10 @@ export function startCrossAuditPrompt(ctx: CrossAuditCtx, mode: "backlog" | "liv
       + `AUDIT ke Source of Truth project utama \`internal/docs/research/audit-${spec.id.toLowerCase()}-${slug}.md\` `
       + `(ikuti konvensi audit yang ada), tautkan di \`internal/docs/README.md\`, memuat: keluhan/pertanyaan, `
       + `peta integrasi yang diaudit, temuan dengan BUKTI dari tiap project (kutipan kode + baris timeline `
-      + `beserta waktunya), apakah issue terdefinisi baik, dan REKOMENDASI — "cukup jawaban" ATAU "naikkan `
-      + `jadi Finding QA di project <id>" (sebut project mana yang harus diperbaiki). JANGAN menulis perbaikan kode.`,
+      + `beserta waktunya), apakah issue terdefinisi baik, dan rekomendasi tindak lanjut — sebut project `
+      + `mana yang harus ditindaklanjuti. JANGAN menulis perbaikan kode.`,
+    // SPEC-340 · ADR-0076 · cross-audit berdokumen memakai kontrak rekomendasi yang sama dgn audit-only.
+    ESCALATION_CONTRACT,
     AUTONOMY_CLAUSE,
     skillInstruction(PIPELINES["cross-audit"]),
     `Setelah fase terakhir: commit, lalu \`git push origin HEAD:refs/heads/${ctx.branchTo}\`. `
