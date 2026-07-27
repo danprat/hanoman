@@ -199,6 +199,10 @@ GET/PUT  /settings                      # Setting blob (zSetting): model, effort
 #                                         goal { enabled:false, condition:"" } (SPEC-332/ADR-0073) — default global mode goal
 #                                           sesi backlog; condition kosong = pakai default DoD bawaan. Blok selalu ADA di response
 #                                           (zod .default()), jadi baris Setting lama tetap parse tanpa migration.
+#                                         agent: "claude"|"codex" (default "claude") + codex { model:"gpt-5.5",
+#                                           effort:"xhigh" } (SPEC-338/ADR-0074) — mesin sesi default + katalog
+#                                           model/effort codex. model/effort di akar TETAP milik claude.
+#                                           Keduanya .default() → baris lama tetap parse, TANPA migration.
 #                                         PUT ganti seluruh blob (full replace).
 GET      /notifications                 # { items:Notification[] (≤50 terbaru dulu), unread:int }  (SPEC-180)
 #   Notification dibuat server-side saat backlog masuk `done` (advanceStage + write-through GET /specs).
@@ -262,22 +266,32 @@ DELETE /agent-tokens/:id             # 204 · revoke (set revokedAt); 404 tak ad
 
 ## Terminal
 ```
-GET    /terminal/sessions            # [{ id, projectId, specId?, flow?, cwd, branch?, exited, decision }]
+GET    /terminal/sessions            # [{ id, projectId, specId?, flow?, cwd, branch?, exited, decision, agent }]
 #   branch? (SPEC-230): branch integrasi sesi project-level (PRD = prd/<slug>) — menyalakan review+merge di sel
+#   agent (SPEC-338/ADR-0074): "claude" | "codex" — mesin sesi, dibaca dari opsi tmux @hanoman_agent.
+#     Sesi yang lahir sebelum ADR-0074 (tanpa opsi itu) dilaporkan sebagai "claude".
 POST   /terminal/sessions  {project, flow?} # 201 { id } · 404 project · 400 tanpa repoDir
-#   {project, shell:true} (SPEC-236, ADR-0056): terminal biasa NON-claude — shell mentah
+#   {project, shell:true} (SPEC-236, ADR-0056): terminal biasa NON-agen — shell mentah
 #     (HANOMAN_SHELL ?? $SHELL ?? /bin/bash) di repoDir project, tanpa flow (tak menggerakkan stage,
 #     tak buat worktree). 201 { id } · 404 project · 400 tanpa repoDir (needsBind).
-#   {spec, flow, model?, effort?, goal?, goalCondition?} (SPEC-162; model/effort SPEC-252/ADR-0061;
-#     goal SPEC-332/ADR-0073): sesi backlog item di worktree .worktrees/<spec>, prompt pipeline penuh.
+#   {spec, flow, model?, effort?, goal?, goalCondition?, agent?} (SPEC-162; model/effort SPEC-252/ADR-0061;
+#     goal SPEC-332/ADR-0073; agent SPEC-338/ADR-0074): sesi backlog di worktree .worktrees/<spec>, prompt pipeline penuh.
+#     agent?: "claude"|"codex" — override PER SESI; kosong → Setting.agent. Agen menentukan katalog
+#       model/effort default (claude → Setting.model/effort, codex → Setting.codex.model/effort) dan
+#       bentuk argv: claude `--model/--effort/--settings`, codex `-m / -c model_reasoning_effort / -c hooks.*`.
+#       Sesi project-level (reverse/prd/scaffold/breakdown/terminal/konflik) TAK punya override — ikut Setting.agent.
 #     model/effort opsional = override PER SESI (kosong → default global);
 #     jadi argv --model/--effort saat sesi lahir (andal, tak bergantung agen).
 #     goal?: boolean — mode goal PER SESI. undefined → ikut Setting.goal.enabled; false → MATI walau
 #       global menyala; true → nyala. goalCondition?: string ≤4000 — kondisi khusus sesi ini.
 #       Presedens kondisi: goalCondition → Setting.goal.condition → default DoD bawaan runner
 #       (semua fase tercatat di $HANOMAN_PHASE_FILE, plan tak menyisakan `- [ ]`, push sukses).
-#       Nyala → argv --settings membawa hooks.Stop=[{type:"prompt",prompt:<kondisi>}] (sesi menolak
+#       claude: argv --settings membawa hooks.Stop=[{type:"prompt",prompt:<kondisi>}] (sesi menolak
 #       berhenti sampai kondisi terbukti di transkrip) + keystroke `/goal` best-effort ke pane.
+#       codex (SPEC-338/ADR-0074): codex MENDIAMKAN hook type:"prompt", jadi gate-nya skrip sh
+#       DETERMINISTIK sebagai Stop hook `command` — cek phase file lengkap + plan tak menyisakan
+#       `- [ ]`; belum terpenuhi → exit 2 (stderr jadi continuation prompt, codex dipaksa lanjut).
+#       Kondisi prosa ikut sebagai teks alasan, bukan yang menggerbang. Pagar anti-loop: 25 penolakan.
 #     flow ∈ feature|qa|audit (dari source; flowForSource). audit (SPEC-237/ADR-0057) = pipeline
 #     Audit → Laporan: investigasi + dokumen SoT (research/audit-<spec>-<slug>.md), TANPA Execute; stage done via Laporan.
 #   SPEC-172: bila Spec.stage === "done", sesi baru dibuka dengan prompt LANJUTAN (fase Execute

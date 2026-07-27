@@ -40,18 +40,38 @@ definisi pipeline fase (`prompt.ts`), teks standar reverse-docs (`reverse-standa
 guardrail PreToolUse (`safety.ts`/`settings.ts`). Tidak ada lagi invokasi `claude` headless — flow CLI
 lama (`execute/spec/plan/qa`) sudah dicabut (ADR-0024).
 
-Mesin eksekusi nyata adalah **`server/src/services/pty.ts`**. `createSession()` men-spawn
-`claude <prompt> --model … --effort … --dangerously-skip-permissions --settings <guard>` di dalam
-window **tmux** (socket `-L hanoman`, `remain-on-exit on`); sebuah node-pty `tmux attach` menjembatani
-sesi itu ke klien WebSocket, dan satu poll 500 ms mengawasi exit + perubahan phase-file lalu mem-broadcast
-frame. tmux adalah satu-satunya sumber kebenaran pekerjaan yang berjalan — tidak ada baris `Run` di DB.
+Mesin eksekusi nyata adalah **`server/src/services/pty.ts`**. `createSession()` men-spawn agen
+`<prompt> …flag agen…` di dalam window **tmux** (socket `-L hanoman`, `remain-on-exit on`); sebuah
+node-pty `tmux attach` menjembatani sesi itu ke klien WebSocket, dan satu poll 500 ms mengawasi exit +
+perubahan phase-file lalu mem-broadcast frame. tmux adalah satu-satunya sumber kebenaran pekerjaan yang
+berjalan — tidak ada baris `Run` di DB.
+
+**Dua agen didukung** (SPEC-338/ADR-0074): `Agent = "claude" | "codex"`. Default global
+`Setting.agent` berlaku untuk semua sesi yang men-spawn agen; sesi backlog bisa meng-override saat
+Start. Argv dirakit `runner/src/agent-cli.ts` (`agentFlags()`, murni & bertest); agen sesi disimpan di
+opsi tmux `@hanoman_agent`. Perilaku sesi identik — worktree, fase, stage, review, integrate. Yang
+berbeda hanya CLI-nya:
+
+| | Claude Code | Codex CLI |
+|---|---|---|
+| Model | `--model <id>` | `-m <slug>` |
+| Effort | `--effort <v>` | `-c model_reasoning_effort="<v>"` |
+| Bypass izin | `--dangerously-skip-permissions` | `--dangerously-bypass-approvals-and-sandbox` |
+| Hook | `--settings <json>` | `-c hooks.<Event>=<toml>` + `--dangerously-bypass-hook-trust` |
+| Marker keputusan | hook `Notification` (grep teks) | hook `Stop` (tak ada event `Notification`) |
+| Mode goal | Stop hook `type:"prompt"` (evaluator prosa) | Stop hook `command` — gate sh **deterministik** (`type:"prompt"` didiamkan codex) |
+| Biner | `HANOMAN_CLAUDE_BIN` | `HANOMAN_CODEX_BIN` |
+
+Codex menolak jalan di direktori yang belum dipercaya; `services/codex-trust.ts` menambahkan satu
+entri `[projects."<repoDir>"]` ke config codex sebelum spawn (worktree mewarisi trust root repo).
+Indikator limit (`services/limits.ts`) membaca kuota Anthropic → **khusus claude**.
 
 **Satu backlog = satu sesi** (ADR-0015): id sesi diturunkan deterministik dari id spec, sehingga menekan
 Start dua kali **re-attach**, bukan spawn kedua. Sesi berjalan di worktree-nya sendiri di
 `<repoDir>/.worktrees/<id>` yang dibuat `--detach` dari `branchFrom` (default `main`); `baseSha` dicatat
 untuk rentang review (SPEC-176/ADR-0030). Jenis sesi: **spec-flow** (`feature`/`qa`), **reverse**
-(project-level, `reverse-<project>`), **plain terminal** (claude di repoDir ATAU shell mentah
-non-claude `{shell:true}`, SPEC-236/ADR-0056), **integrate-conflict** (`merge-<id>`), **vps**.
+(project-level, `reverse-<project>`), **plain terminal** (agen di repoDir ATAU shell mentah
+non-agen `{shell:true}`, SPEC-236/ADR-0056), **integrate-conflict** (`merge-<id>`), **vps**.
 
 **Fase bukan proses melainkan giliran** di dalam sesi itu: `runner/src/prompt.ts` `PIPELINES` mendefinisikan
 nama fase per flow, dan prompt menyuruh agen `echo "<Fase> done" >> $HANOMAN_PHASE_FILE` selesai tiap fase.

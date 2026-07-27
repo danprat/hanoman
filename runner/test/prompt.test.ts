@@ -49,12 +49,20 @@ describe("startPrompt", () => {
     expect(p).toContain("git push");
   });
 
-  it("feature: menyuruh invoke skill superpowers per fase lewat Skill tool", () => {
+  it("feature: menyuruh invoke skill superpowers per fase", () => {
     const p = startPrompt("feature", spec, "b");
     for (const s of ["superpowers:brainstorming", "superpowers:writing-plans",
       "superpowers:executing-plans", "superpowers:test-driven-development",
       "superpowers:verification-before-completion"]) expect(p).toContain(s);
-    expect(p).toContain("Skill tool");
+    expect(p).toContain("Skills superpowers WAJIB");
+  });
+
+  // SPEC-338 · satu prompt melayani claude & codex. "Skill tool" adalah istilah Claude Code;
+  // codex memuat skill secara native, jadi prompt menyebut HASIL yang diminta, bukan mekanismenya.
+  it("instruksi skill netral-agen — tak menyebut mekanisme khas satu CLI", () => {
+    const p = startPrompt("feature", spec, "hanoman/x");
+    expect(p).toContain("superpowers:brainstorming");
+    expect(p).not.toContain("Skill tool");
   });
 
   it("qa: Audit memakai systematic-debugging, tanpa brainstorming", () => {

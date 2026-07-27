@@ -83,9 +83,12 @@ const skillInstruction = (phases: readonly string[]) => {
   const lines = phases
     .filter((p) => PHASE_SKILLS[p])
     .map((p) => `- ${p}: ${PHASE_SKILLS[p]!.join(", ")}`);
+  // SPEC-338 · ADR-0074 · netral-agen: Claude Code meng-invoke skill lewat Skill tool, Codex CLI
+  // memuatnya secara native. Prompt menyebut HASIL yang diminta, bukan mekanismenya — satu prompt
+  // melayani kedua agen tanpa percabangan.
   return lines.length
-    ? "Skills superpowers WAJIB: sebelum mengerjakan fase di bawah, invoke skill-nya lewat "
-      + `Skill tool — bila skill relevan tersedia, pakai.\n${lines.join("\n")}`
+    ? "Skills superpowers WAJIB: sebelum mengerjakan fase di bawah, muat & ikuti skill-nya dengan "
+      + `mekanisme yang tersedia di agenmu — bila skill relevan tersedia, pakai.\n${lines.join("\n")}`
     : "";
 };
 

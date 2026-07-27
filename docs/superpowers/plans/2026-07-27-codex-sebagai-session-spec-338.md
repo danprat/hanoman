@@ -1408,7 +1408,7 @@ git commit -m "feat(spec-338): picker agen saat Start + kartu Agen sesi di Setti
 - Consumes: seluruh Task 1-7.
 - Produces: docs SoT + verifikasi nyata.
 
-- [ ] **Step 1: Tulis test yang gagal untuk prompt netral-agen**
+- [x] **Step 1: Tulis test yang gagal untuk prompt netral-agen**
 
 Tambahkan di `runner/test/prompt.test.ts`:
 
@@ -1424,12 +1424,12 @@ Tambahkan di `runner/test/prompt.test.ts`:
 
 > `brief` = fixture SpecBrief yang sudah dipakai berkas test itu.
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/runner exec vitest run test/prompt.test.ts`
 Expected: FAIL — prompt masih memuat "Skill tool".
 
-- [ ] **Step 3: Netralkan `skillInstruction` (`runner/src/prompt.ts:82-90`)**
+- [x] **Step 3: Netralkan `skillInstruction` (`runner/src/prompt.ts:82-90`)**
 
 ```ts
 const skillInstruction = (phases: readonly string[]) => {
@@ -1445,12 +1445,12 @@ const skillInstruction = (phases: readonly string[]) => {
 };
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/runner exec vitest run test/prompt.test.ts`
 Expected: PASS — snapshot/assert prompt lain tetap hijau (perbarui bila ada assert literal yang menyebut kalimat lama).
 
-- [ ] **Step 5: Tulis ADR-0074**
+- [x] **Step 5: Tulis ADR-0074**
 
 Buat `internal/docs/adr/0074-codex-sebagai-mesin-sesi.md` dengan struktur ADR repo (`# ADR-0074 — …`, `Status: accepted`, `Konteks`, `Keputusan`, `Konsekuensi`, `Alternatif ditolak`). Isi wajib memuat:
 - Keputusan: `Agent = claude|codex` sebagai dimensi sesi; `Setting.agent` + `Setting.codex` (tanpa migration, `Setting` kolom `Json`); override `agent` di `POST /terminal/sessions` varian spec; `@hanoman_agent` di tmux.
@@ -1464,7 +1464,7 @@ Buat `internal/docs/adr/0074-codex-sebagai-mesin-sesi.md` dengan struktur ADR re
 - Batasan diketahui: indikator limit (`services/limits.ts`) membaca OAuth usage Anthropic → **khusus claude**; sesi codex tak muncul di sana.
 - Terkait: memperluas 0024 (sesi interaktif), 0061 (knob → argv saat lahir), 0073 (mode goal), 0016 (tmux), 0002 (worktree); tak mengubah 0029.
 
-- [ ] **Step 6: Tautkan & perbarui docs SoT**
+- [x] **Step 6: Tautkan & perbarui docs SoT**
 
 `internal/docs/README.md` — sisipkan di puncak daftar `## adr`:
 
@@ -1478,7 +1478,7 @@ Buat `internal/docs/adr/0074-codex-sebagai-mesin-sesi.md` dengan struktur ADR re
 
 `internal/skills/hanoman/SKILL.md` — di **Aturan Sesi & Eksekusi**, tambahkan butir SPEC-338/ADR-0074 (agen per sesi + perbedaan mekanis codex + `ensureCodexTrust`), dan sesuaikan kalimat pembuka yang menyebut `createSession()` men-spawn `claude` saja.
 
-- [ ] **Step 7: Jalankan seluruh suite + typecheck**
+- [x] **Step 7: Jalankan seluruh suite + typecheck**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm test
@@ -1486,7 +1486,7 @@ pnpm -r typecheck
 ```
 Expected: seluruh test hijau; typecheck exit 0.
 
-- [ ] **Step 8: Smoke NYATA — boot server + curl (wajib, bukan hanya unit test)**
+- [x] **Step 8: Smoke NYATA — boot server + curl (wajib, bukan hanya unit test)**
 
 Ikuti pola smoke SPEC-294/332 (DB khusus, jangan `hanoman_test` yang dipakai sibling):
 
@@ -1530,7 +1530,7 @@ Bila ada yang merah, perbaiki dulu sampai hijau sebelum lanjut.
 
 Bersihkan: `tmux -L smoke338 kill-server`, hentikan server, `DROP DATABASE hanoman338`.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add runner/src/prompt.ts runner/test/prompt.test.ts internal/docs internal/skills
@@ -1541,9 +1541,9 @@ git commit -m "docs(spec-338): ADR-0074 codex sebagai mesin sesi + SoT tersentuh
 
 ## Verifikasi akhir
 
-- [ ] `env -u NODE_ENV -u DATABASE_URL pnpm test` hijau (server + runner + shared + frontend).
-- [ ] `pnpm -r typecheck` exit 0.
-- [ ] Smoke Task 8 Step 8 lolos seluruh butir verifikasi.
-- [ ] `git status` bersih di worktree.
-- [ ] Setiap kotak di plan ini `- [x]`.
+- [x] `env -u NODE_ENV -u DATABASE_URL pnpm test` hijau (server + runner + shared + frontend).
+- [x] `pnpm -r typecheck` exit 0.
+- [x] Smoke Task 8 Step 8 lolos seluruh butir verifikasi.
+- [x] `git status` bersih di worktree.
+- [x] Setiap kotak di plan ini `- [x]`.
 - [ ] `git push origin HEAD:refs/heads/hanoman/spec-338`.
