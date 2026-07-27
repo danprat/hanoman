@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { tmpdir } from "node:os";
-import { guardSettings, goalOneLine, type Flow } from "@hanoman/runner";
+import { goalOneLine, agentFlags, codexGoalScript, type Flow, type Agent } from "@hanoman/runner";
 import { readPhases, type Phase } from "./session-phases";
 import { effectiveStr } from "../config";
 
@@ -41,6 +41,8 @@ export type Client = { send(msg: string): void; close(): void };
 export type SessionInfo = {
   id: string; projectId: string; specId?: string; flow?: Flow; cwd: string; exited: boolean;
   branch?: string; decision: boolean;
+  // SPEC-338 · ADR-0074 · mesin sesi. Sesi lama (tanpa opsi tmux ini) dibaca sebagai "claude".
+  agent: Agent;
 };
 type Pane = SessionInfo & { code: number; phaseFile?: string; decisionFile?: string };
 
@@ -55,6 +57,9 @@ const claudeBin = () => effectiveStr("HANOMAN_CLAUDE_BIN") ?? "claude";
 // lalu $SHELL operator, lalu /bin/bash. Diserahkan ke createSession({command:[shellBin()]}) —
 // cabang argv mentah yang sama dipakai Console VPS (ADR-0042).
 export const shellBin = (): string => effectiveStr("HANOMAN_SHELL") ?? process.env.SHELL ?? "/bin/bash";
+// SPEC-338 · ADR-0074 · cermin HANOMAN_CLAUDE_BIN untuk Codex CLI.
+const codexBin = () => effectiveStr("HANOMAN_CODEX_BIN") ?? "codex";
+const agentBin = (agent: Agent): string => (agent === "codex" ? codexBin() : claudeBin());
 
 const frame = (f: Frame): string => JSON.stringify(f);
 const name = (id: string): string => PREFIX + id;
@@ -62,6 +67,12 @@ const name = (id: string): string => PREFIX + id;
 // SPEC-223 · berkas prompt awal sesi, dibaca `"$(cat …)"` saat sesi lahir (lihat createSession).
 // Di tmpdir: ephemeral, always-writable, tak bergantung cwd sesi. id sudah tersanitasi ([a-z0-9_-]).
 export const promptFilePath = (id: string): string => `${tmpdir()}/hanoman-prompts/${id}`;
+
+// SPEC-338 · skrip gate mode goal sesi codex. Sekamar dengan berkas prompt: ephemeral, di tmpdir,
+// tak bergantung cwd sesi (worktree bisa lenyap saat sesi ditutup). id sudah tersanitasi.
+export const goalGatePath = (id: string): string => `${tmpdir()}/hanoman-goal-gates/${id}.sh`;
+// Berkas penghitung penolakan gate (pagar anti-loop) — bersebelahan dengan skripnya.
+const goalStatePath = (id: string): string => `${tmpdir()}/hanoman-goal-gates/${id}.count`;
 
 function tmux(...args: string[]): string {
   try {
@@ -95,7 +106,7 @@ const idFor = (specId?: string) =>
 const FMT = [
   "#{session_name}", "#{@hanoman_project}", "#{@hanoman_spec}", "#{@hanoman_flow}",
   "#{@hanoman_phase_file}", "#{@hanoman_cwd}", "#{pane_dead}", "#{pane_dead_status}",
-  "#{@hanoman_decision_file}", "#{@hanoman_branch}",
+  "#{@hanoman_decision_file}", "#{@hanoman_branch}", "#{@hanoman_agent}",
 ].join("\t");
 
 // Satu-satunya sumber kebenaran soal sesi adalah tmux server. Tidak ada map yang perlu
@@ -105,7 +116,7 @@ function listPanes(): Pane[] {
   try { out = tmux("list-panes", "-a", "-F", FMT); }
   catch { return []; } // tmux server belum jalan — belum ada sesi sama sekali
   return out.split("\n").filter(Boolean).flatMap((line) => {
-    const [n, projectId, specId, flow, phaseFile, cwd, dead, code, decisionFile, branch] = line.split("\t");
+    const [n, projectId, specId, flow, phaseFile, cwd, dead, code, decisionFile, branch, agent] = line.split("\t");
     if (!n?.startsWith(PREFIX)) return [];
     const exited = dead === "1";
     return [{
@@ -117,13 +128,15 @@ function listPanes(): Pane[] {
       branch: branch || undefined,
       // SPEC-196 · sesi hidup dengan marker keputusan terisi = menunggu manusia.
       decision: !exited && !!decisionFile && markerFilled(decisionFile),
+      // SPEC-338 · sesi yang lahir sebelum ADR-0074 tak punya opsi ini → claude.
+      agent: (agent === "codex" ? "codex" : "claude") as Agent,
     }];
   });
 }
 
 export const listSessions = (): SessionInfo[] =>
-  listPanes().map(({ id, projectId, specId, flow, cwd, exited, branch, decision }) => ({
-    id, projectId, specId, flow, cwd, exited, branch, decision,
+  listPanes().map(({ id, projectId, specId, flow, cwd, exited, branch, decision, agent }) => ({
+    id, projectId, specId, flow, cwd, exited, branch, decision, agent,
   }));
 
 // SPEC-184 · sesi hidup yang punya marker keputusan — masukan scanDecisions().
@@ -139,6 +152,8 @@ export type CreateOpts = {
   decisionFile?: string; model?: string; effort?: string; command?: string[];
   // SPEC-332 · ADR-0073 · kondisi mode goal; kosong = mode goal mati untuk sesi ini.
   goal?: string;
+  // SPEC-338 · ADR-0074 · mesin sesi; kosong = claude (default historis).
+  agent?: Agent;
 };
 
 export function createSession(projectId: string, cwd: string, opts: CreateOpts = {}): SessionInfo {
@@ -171,18 +186,30 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
     writeFileSync(promptFile, opts.prompt);
     promptArg = `"$(cat ${sq(promptFile)})"`;
   }
+  // SPEC-338 · ADR-0074 · perbedaan CLI antar agen dirakit `agentFlags`; di sini tinggal
+  // mengutip & merangkai, persis seperti sebelumnya untuk claude.
+  const agent: Agent = opts.agent ?? "claude";
   let argv: string;
   if (opts.command) {
     argv = opts.command.map(sq).join(" ");
   } else {
-    // Prompt (bila ada) = argumen positional pertama claude, TANPA sq (sudah dikutip ganda).
-    const flags = [
-      ...(opts.model ? ["--model", opts.model] : []),
-      ...(opts.effort ? ["--effort", opts.effort] : []),
-      "--dangerously-skip-permissions",
-      "--settings", JSON.stringify(guardSettings(opts.decisionFile, opts.goal)),
-    ].map(sq).join(" ");
-    argv = [sq(claudeBin()), promptArg, flags].filter(Boolean).join(" ");
+    // SPEC-338 · mode goal codex = gate deterministik (hook codex hanya dukung type="command").
+    // Skripnya ditulis sekarang supaya sudah ada saat hook pertama menembak.
+    let goalGate: string | undefined;
+    if (agent === "codex" && opts.goal && opts.flow && opts.specId) {
+      goalGate = goalGatePath(id);
+      mkdirSync(dirname(goalGate), { recursive: true });
+      writeFileSync(goalGate, codexGoalScript({
+        flow: opts.flow, specId: opts.specId, condition: opts.goal,
+        phaseFile: opts.phaseFile ?? "", worktree: cwd, stateFile: goalStatePath(id),
+      }), { mode: 0o755 });
+    }
+    // Prompt (bila ada) = argumen positional pertama agen, TANPA sq (sudah dikutip ganda).
+    const flags = agentFlags({
+      agent, model: opts.model, effort: opts.effort,
+      decisionFile: opts.decisionFile, goal: opts.goal, goalGate,
+    }).map(sq).join(" ");
+    argv = [sq(agentBin(agent)), promptArg, flags].filter(Boolean).join(" ");
   }
 
   // Env di depan perintah, bukan `new-session -e`: tmux menyerahkan sisa argv-nya ke shell,
@@ -220,12 +247,16 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
   if (opts.flow) tmux("set-option", "-t", name(id), "@hanoman_flow", opts.flow);
   // SPEC-230 · branch integrasi sesi (mis. PRD prd/<slug>) → dipakai review/integrate ber-skop sesi.
   if (opts.branch) tmux("set-option", "-t", name(id), "@hanoman_branch", opts.branch);
+  // SPEC-338 · mesin sesi ikut tersimpan di tmux — sumber kebenaran sesi tetap tmux, bukan DB.
+  tmux("set-option", "-t", name(id), "@hanoman_agent", agent);
   if (opts.phaseFile) tmux("set-option", "-t", name(id), "@hanoman_phase_file", opts.phaseFile);
   if (opts.decisionFile) tmux("set-option", "-t", name(id), "@hanoman_decision_file", opts.decisionFile);
   // SPEC-332 · fire-and-forget: respons HTTP tak boleh menunggu TUI siap. Gagal = diam, karena
-  // jaminan mode goal sudah dipegang hook Stop di `--settings` di atas.
-  if (opts.goal && !opts.command) void armGoalInTui(id, opts.goal).catch(() => { /* best-effort */ });
-  return { id, projectId, specId: opts.specId, flow: opts.flow, cwd, branch: opts.branch, exited: false, decision: false };
+  // jaminan mode goal sudah dipegang hook Stop di argv di atas.
+  // SPEC-338 · khusus claude: `/goal` adalah perintah Claude Code; codex tak punya padanan
+  // terverifikasi — jaminannya di sana adalah gate hook deterministik.
+  if (opts.goal && !opts.command && agent === "claude") void armGoalInTui(id, opts.goal).catch(() => { /* best-effort */ });
+  return { id, projectId, specId: opts.specId, flow: opts.flow, cwd, branch: opts.branch, exited: false, decision: false, agent };
 }
 
 // SPEC-332 · ADR-0073 — jalur KEDUA mode goal. Hook Stop di `--settings` adalah jaminannya; ini

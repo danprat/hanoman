@@ -627,7 +627,7 @@ git commit -m "feat(spec-338): agentFlags — pembangun argv per agen (claude|co
   - `codexBin(): string` (env `HANOMAN_CODEX_BIN`)
   - `goalGatePath(id: string): string` — `${tmpdir()}/hanoman-goal-gates/<id>.sh`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `server/test/pty.test.ts`, di dalam `describe("pty service", …)`:
 
@@ -683,12 +683,12 @@ Tambahkan di `server/test/pty.test.ts`, di dalam `describe("pty service", …)`:
 
 Tambahkan `goalGatePath` ke daftar import dari `../src/services/pty` di kepala berkas.
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run test/pty.test.ts --no-file-parallelism`
 Expected: FAIL — `goalGatePath` tak diekspor; `opts.agent` diabaikan.
 
-- [ ] **Step 3: Tambahkan binary & path gate di `pty.ts`**
+- [x] **Step 3: Tambahkan binary & path gate di `pty.ts`**
 
 Tambahkan `agentFlags`, `codexGoalScript`, `type Agent` ke import `@hanoman/runner` (baris 7):
 
@@ -714,7 +714,7 @@ export const goalGatePath = (id: string): string => `${tmpdir()}/hanoman-goal-ga
 const goalStatePath = (id: string): string => `${tmpdir()}/hanoman-goal-gates/${id}.count`;
 ```
 
-- [ ] **Step 4: Bawa `agent` ke tipe sesi & pembacaan tmux**
+- [x] **Step 4: Bawa `agent` ke tipe sesi & pembacaan tmux**
 
 Ubah `SessionInfo` (baris 41-44) menjadi:
 
@@ -757,7 +757,7 @@ export const listSessions = (): SessionInfo[] =>
   }));
 ```
 
-- [ ] **Step 5: Rakit argv lewat `agentFlags` di `createSession`**
+- [x] **Step 5: Rakit argv lewat `agentFlags` di `createSession`**
 
 Tambahkan ke `CreateOpts` (baris 137-142):
 
@@ -794,7 +794,7 @@ Ganti blok perakitan argv (baris 174-186) menjadi:
   }
 ```
 
-- [ ] **Step 6: Simpan `@hanoman_agent` & kembalikan `agent`**
+- [x] **Step 6: Simpan `@hanoman_agent` & kembalikan `agent`**
 
 Sisipkan setelah baris `if (opts.branch) tmux(…@hanoman_branch…)` (baris 222):
 
@@ -809,7 +809,7 @@ Ubah `return` (baris 228) menjadi:
   return { id, projectId, specId: opts.specId, flow: opts.flow, cwd, branch: opts.branch, exited: false, decision: false, agent };
 ```
 
-- [ ] **Step 7: Batasi `armGoalInTui` ke claude**
+- [x] **Step 7: Batasi `armGoalInTui` ke claude**
 
 Ubah baris 227 (`if (opts.goal && !opts.command) …`) menjadi:
 
@@ -820,12 +820,12 @@ Ubah baris 227 (`if (opts.goal && !opts.command) …`) menjadi:
   if (opts.goal && !opts.command && agent === "claude") void armGoalInTui(id, opts.goal).catch(() => { /* best-effort */ });
 ```
 
-- [ ] **Step 8: Jalankan test, pastikan LULUS**
+- [x] **Step 8: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run test/pty.test.ts --no-file-parallelism`
 Expected: PASS — test lama (claude) tetap hijau, 4 test codex baru hijau.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add server/src/services/pty.ts server/test/pty.test.ts

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   createSession, getSession, listSessions, killSession, killAll, detachAll, attach, writeTo,
-  sessionPhases, markerFilled, promptFilePath, armGoalInTui,
+  sessionPhases, markerFilled, promptFilePath, armGoalInTui, goalGatePath,
 } from "../src/services/pty";
 import { phaseFilePath, type Phase } from "../src/services/session-phases";
 
@@ -72,6 +72,54 @@ describe("pty service", () => {
     const c = fakeClient();
     attach(s.id, c);
     expect(allData(c)).not.toContain('"Stop"');
+  });
+
+  // SPEC-338 · ADR-0074 · sesi codex lahir dengan argv codex, bukan claude.
+  it("agent codex memakai biner & flag codex", async () => {
+    process.env.HANOMAN_CODEX_BIN = "/bin/echo";
+    const s = createSession("cx1", process.cwd(), { agent: "codex", model: "gpt-5.5", effort: "high" });
+    await waitFor(() => exited(s.id));
+    const c = fakeClient();
+    attach(s.id, c);
+    const out = allData(c).replace(/\s+/g, " ");
+    expect(out).toContain("-m gpt-5.5");
+    expect(out).toContain('model_reasoning_effort="high"');
+    expect(out).toContain("--dangerously-bypass-approvals-and-sandbox");
+    expect(out).toContain("--dangerously-bypass-hook-trust");
+    expect(out).not.toContain("--dangerously-skip-permissions");
+  });
+
+  it("agent tercatat di tmux & terbaca listSessions", async () => {
+    process.env.HANOMAN_CODEX_BIN = "/bin/echo";
+    const s = createSession("p-cx2", process.cwd(), { id: "cx2", agent: "codex" });
+    expect(s.agent).toBe("codex");
+    expect(getSession("cx2")?.agent).toBe("codex");
+    expect(listSessions().find((x) => x.id === "cx2")?.agent).toBe("codex");
+  });
+
+  it("tanpa opts.agent sesi tetap claude (default historis)", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+    const s = createSession("cx3", process.cwd());
+    expect(s.agent).toBe("claude");
+    await waitFor(() => exited(s.id));
+    const c = fakeClient();
+    attach(s.id, c);
+    expect(allData(c)).toContain("--dangerously-skip-permissions");
+  });
+
+  it("goal codex menulis skrip gate & memasangnya sebagai Stop hook", async () => {
+    process.env.HANOMAN_CODEX_BIN = "/bin/echo";
+    const phaseFile = phaseFilePath(repoDir, "cx4");
+    const s = createSession("cx4", process.cwd(), {
+      agent: "codex", flow: "feature", specId: "SPEC-338", phaseFile,
+      goal: "KONDISI-338",
+    });
+    await waitFor(() => exited(s.id));
+    const gate = goalGatePath(s.id);
+    expect(readFileSync(gate, "utf8")).toContain("KONDISI-338");
+    const c = fakeClient();
+    attach(s.id, c);
+    expect(allData(c).replace(/\s+/g, " ")).toContain(gate);
   });
 
   // SPEC-332 · ADR-0073 · jalur KEDUA: teks `/goal …` benar-benar sampai ke pane. fake-claude
