@@ -846,7 +846,7 @@ git commit -m "feat(spec-338): pty men-spawn agen terpilih + @hanoman_agent di t
 
 > **Kenapa perlu:** TUI codex berhenti di layar "Do you trust the contents of this directory?" untuk direktori yang belum dipercaya, dan `-c projects."…".trust_level` **tidak** membukanya (gerbang membaca config tersimpan). Trust root repo **menurun ke worktree-nya**, jadi cukup satu entri per project. Ini persis yang codex tulis sendiri ketika manusia menjawab "Yes, continue".
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/codex-trust.test.ts`:
 
@@ -901,12 +901,12 @@ describe("ensureCodexTrust", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run test/codex-trust.test.ts --no-file-parallelism`
 Expected: FAIL — modul `../src/services/codex-trust` tidak ada.
 
-- [ ] **Step 3: Tulis `server/src/services/codex-trust.ts`**
+- [x] **Step 3: Tulis `server/src/services/codex-trust.ts`**
 
 ```ts
 import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
@@ -945,12 +945,12 @@ export function ensureCodexTrust(repoDir: string, home?: string): void {
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm --filter @hanoman/server exec vitest run test/codex-trust.test.ts --no-file-parallelism`
 Expected: PASS — 5 test hijau.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/codex-trust.ts server/test/codex-trust.test.ts
