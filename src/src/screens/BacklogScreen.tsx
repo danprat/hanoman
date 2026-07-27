@@ -12,6 +12,7 @@ import { SyncButton } from "./SyncButton";
 import { branchOptions } from "./branch";
 import type { Spec } from "./types";
 import type { ProjectVM } from "./types";
+import type { AuditEscalation } from "@hanoman/shared";
 
 // Kosakata stage frontend (key → label). Di-reuse oleh BacklogPicker di TerminalScreen (SPEC-179).
 export const B_STAGES = [
@@ -88,7 +89,19 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, onStart, onIntegrate, onEditSpec, onPromoteToQa }:
+// SPEC-340 · ADR-0076 · label & penekanan tombol menurut rekomendasi audit.
+const ESC_LABEL: Record<string, string> = {
+  qa: "Finding QA — ada yang perlu diperbaiki.",
+  brief: "Feature brief — kebutuhan yang bentuknya sudah jelas.",
+  prd: "PRD — kebutuhan produk yang perlu didefinisikan dulu.",
+};
+// Target rekomendasi menonjol; sisanya tetap tersedia (manusia terakhir yang memutuskan).
+const escVariant = (e: AuditEscalation | null, target: string): "primary" | "secondary" =>
+  e && e.target === target ? "primary" : "secondary";
+// Source yang berujung dokumen audit — keduanya berhak atas ketiga pintu eskalasi.
+const isAuditSource = (source: string) => source === "audit" || source === "cross-audit";
+
+function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, onStart, onIntegrate, onEditSpec, onPromoteToQa, onPromoteToBrief, onPromoteToPrd }:
   {
     spec: Spec | null; onClose: () => void; onEditBranch?: (s: Spec, b: string | null) => void;
     onRevertStage?: (s: Spec, target: string, confirmDelete?: boolean) => Promise<any>;
@@ -96,7 +109,11 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
     onStart?: (s: Spec) => void;
     onIntegrate?: (s: Spec, op: "merge" | "rebase", target: string) => void;
     onEditSpec?: (s: Spec, patch: { title?: string; priority?: string; payload?: unknown }) => void;
-    onPromoteToQa?: (s: Spec) => void   // SPEC-237
+    // SPEC-237 · naikkan audit → Finding QA. SPEC-340 · ADR-0076 · dua pintu lagi (brief & PRD);
+    // argumen kedua = rekomendasi terbaca (null bila dokumen audit belum punya blok escalation).
+    onPromoteToQa?: (s: Spec, e: AuditEscalation | null) => void;
+    onPromoteToBrief?: (s: Spec, e: AuditEscalation | null) => void;
+    onPromoteToPrd?: (s: Spec, e: AuditEscalation | null) => void;
   }) {
   // Hook HARUS mendahului early-return `if (!spec)` — rules-of-hooks.
   const [branches, setBranches] = React.useState<string[]>([]);
@@ -114,6 +131,19 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
     setEditing(true);
   };
   const setField = (k: string) => (e: React.ChangeEvent<any>) => setForm((s) => ({ ...s, [k]: e.target.value }));
+  // SPEC-340 · ADR-0076 · rekomendasi eskalasi = turunan dokumen audit, dimuat saat detail dibuka.
+  // Hanya untuk source yang memang berujung dokumen audit; source lain tak menyentuh endpoint.
+  const [esc, setEsc] = React.useState<AuditEscalation | null>(null);
+  const escSpecId = spec && isAuditSource(spec.source) ? spec.id : null;
+  React.useEffect(() => {
+    setEsc(null);
+    if (!escSpecId) return;
+    let alive = true;
+    api.getEscalation?.(escSpecId)
+      .then((r) => { if (alive) setEsc(r.escalation); })
+      .catch(() => { if (alive) setEsc(null); });
+    return () => { alive = false; };
+  }, [escSpecId]);
   const saveEdit = () => {
     if (!spec || !onEditSpec) return;
     const patch = spec.source === "qa"
@@ -179,13 +209,34 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
             </Button>
           </div>
         )}
-        {/* SPEC-237 · audit tetap doc-of-record; bila perlu perbaikan, naikkan jadi Finding QA. */}
-        {spec.source === "audit" && onPromoteToQa && (
+        {/* SPEC-237 · audit tetap doc-of-record. SPEC-340 · ADR-0076 · tiga pintu eskalasi:
+            target rekomendasi disorot (primary + badge), sisanya secondary — ketiganya selalu
+            tersedia karena manusia yang terakhir memutuskan. */}
+        {isAuditSource(spec.source) && (onPromoteToQa || onPromoteToBrief || onPromoteToPrd) && (
           <div style={{ marginTop: 12 }}>
             <div className="hn-eyebrow" style={{ marginBottom: 4 }}>Tindak lanjut</div>
-            <Button size="sm" variant="secondary" leftIcon="bug" onClick={() => onPromoteToQa(spec)}>
-              Jadikan Finding QA
-            </Button>
+            {esc && (
+              <div style={{ fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 8 }}>
+                {esc.target === "none"
+                  ? <span>Audit menilai <strong>cukup jawaban</strong> — tak perlu perbaikan.</span>
+                  : <span><Badge tone="brass" size="sm">direkomendasikan hanoman</Badge>{" "}{ESC_LABEL[esc.target]}</span>}
+                {esc.reason ? <div style={{ marginTop: 4 }}>{esc.reason}</div> : null}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {onPromoteToQa && (
+                <Button size="sm" variant={escVariant(esc, "qa")} leftIcon="bug"
+                  onClick={() => onPromoteToQa(spec, esc)}>Jadikan Finding QA</Button>
+              )}
+              {onPromoteToBrief && (
+                <Button size="sm" variant={escVariant(esc, "brief")} leftIcon="lightbulb"
+                  onClick={() => onPromoteToBrief(spec, esc)}>Jadikan Feature brief</Button>
+              )}
+              {onPromoteToPrd && (
+                <Button size="sm" variant={escVariant(esc, "prd")} leftIcon="scroll-text"
+                  onClick={() => onPromoteToPrd(spec, esc)}>Jadikan PRD</Button>
+              )}
+            </div>
           </div>
         )}
         {/* SPEC-175 · rebase/merge branch hasil done spec ke target pilihan (lokal/origin). */}
@@ -524,7 +575,7 @@ const VIEWS = [
   { value: "board", label: "Board", icon: "kanban" },
 ];
 
-export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onOpenReview, onNew, onEditBranch, onRevertStage, onIntegrate, onEditSpec, onPromoteToQa, projectFilter, onProjectFilter, dataVersion, onToast, initialDetailId }:
+export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onOpenReview, onNew, onEditBranch, onRevertStage, onIntegrate, onEditSpec, onPromoteToQa, onPromoteToBrief, onPromoteToPrd, projectFilter, onProjectFilter, dataVersion, onToast, initialDetailId }:
   {
     backlog: Spec[]; projects: ProjectVM[]; pageSize?: number;
     onStart?: (s: Spec) => void; activeSpecs?: Set<string>;
@@ -533,7 +584,11 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
     onRevertStage?: (s: Spec, target: string, confirmDelete?: boolean) => Promise<any>;
     onIntegrate?: (s: Spec, op: "merge" | "rebase", target: string) => void;
     onEditSpec?: (s: Spec, patch: { title?: string; priority?: string; payload?: unknown }) => void;
-    onPromoteToQa?: (s: Spec) => void;   // SPEC-237 · naikkan audit → Finding QA
+    // SPEC-237 · naikkan audit → Finding QA. SPEC-340 · ADR-0076 · + feature brief & PRD;
+    // argumen kedua = rekomendasi hanoman yang terbaca dari dokumen audit (bisa null).
+    onPromoteToQa?: (s: Spec, e: AuditEscalation | null) => void;
+    onPromoteToBrief?: (s: Spec, e: AuditEscalation | null) => void;
+    onPromoteToPrd?: (s: Spec, e: AuditEscalation | null) => void;
     projectFilter: string; onProjectFilter: (id: string) => void; dataVersion?: number;
     onToast?: (msg: string, kind?: string, icon?: string) => void; // SPEC-268 · hasil tombol Sync
     initialDetailId?: string | null;     // SPEC-293 · deep-link #spec= → buka SpecDetail saat mount
@@ -649,7 +704,8 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
         </>
       )}
       <SpecDetail spec={backlog.find((s) => s.id === detailId) || null} onClose={() => setDetailId(null)}
-        onEditBranch={onEditBranch} onRevertStage={onRevertStage} onOpenReview={onOpenReview} onStart={onStart} onIntegrate={onIntegrate} onEditSpec={onEditSpec} onPromoteToQa={onPromoteToQa} />
+        onEditBranch={onEditBranch} onRevertStage={onRevertStage} onOpenReview={onOpenReview} onStart={onStart} onIntegrate={onIntegrate} onEditSpec={onEditSpec} onPromoteToQa={onPromoteToQa}
+        onPromoteToBrief={onPromoteToBrief} onPromoteToPrd={onPromoteToPrd} />
     </div>
   );
 }
