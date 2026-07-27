@@ -9,14 +9,15 @@ describe("SPEC-338 · agent sesi", () => {
     expect(zAgent.safeParse("gemini").success).toBe(false);
   });
 
-  it("default codex = gpt-5.5 / xhigh", () => {
-    expect(CODEX_DEFAULTS).toEqual({ model: "gpt-5.5", effort: "xhigh" });
+  it("default codex = gpt-5.6-sol / xhigh", () => {
+    expect(CODEX_DEFAULTS).toEqual({ model: "gpt-5.6-sol", effort: "xhigh" });
     expect(zCodex.parse({})).toEqual(CODEX_DEFAULTS);
   });
 
   it("katalog codex memuat slug & effort yang didukung CLI", () => {
-    expect(CODEX_MODELS.map((m) => m.id)).toContain("gpt-5.5");
-    expect(CODEX_EFFORTS).toEqual(["xhigh", "high", "medium", "low"]);
+    expect(CODEX_MODELS.map((m) => m.id)).toContain("gpt-5.6-sol");
+    // SPEC-339 · CODEX_EFFORTS kini GABUNGAN semua effort; pilihan per model ada di codexEfforts().
+    expect(CODEX_EFFORTS).toEqual(["ultra", "max", "xhigh", "high", "medium", "low"]);
   });
 
   // Baris Setting lama (tanpa blok codex/agent) HARUS tetap parse — tanpa migration.
