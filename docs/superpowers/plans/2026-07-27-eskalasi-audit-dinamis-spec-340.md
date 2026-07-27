@@ -1,6 +1,6 @@
 # SPEC-340 — Eskalasi audit dinamis (QA · Feature brief · PRD) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Audit (dan cross-audit) bisa dieskalasi ke Finding QA, Feature brief, atau PRD — dengan hanoman merekomendasikan target yang cocok, terbaca mesin dari blok `json` di dokumen audit.
 
@@ -65,7 +65,7 @@
   - `zAuditEscalationView` → `{ escalation: AuditEscalation | null; docPath: string | null; live: boolean }` · `type AuditEscalationView`
   - `zBriefPayload` kini menerima `fromAudit?: string`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `shared/test/escalation.test.ts`:
 
@@ -119,12 +119,12 @@ describe("zBriefPayload menerima fromAudit (SPEC-340)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism shared/test/escalation.test.ts`
 Expected: FAIL — `zAuditEscalation` tak ter-ekspor (`SyntaxError`/`undefined`), dan test `fromAudit` gagal karena zod membuangnya.
 
-- [ ] **Step 3: Tambah `fromAudit` ke `zBriefPayload`**
+- [x] **Step 3: Tambah `fromAudit` ke `zBriefPayload`**
 
 Di `shared/src/entities.ts`, ganti:
 
@@ -143,7 +143,7 @@ export const zBriefPayload = z.object({
   fromAudit: z.string().optional() });
 ```
 
-- [ ] **Step 4: Tambah kontrak escalation di `shared/src/dto.ts`**
+- [x] **Step 4: Tambah kontrak escalation di `shared/src/dto.ts`**
 
 Sisipkan tepat setelah blok `zBreakdownDoc`/`zBatchCreateSpec` (sekitar baris 184):
 
@@ -183,7 +183,7 @@ export const zAuditEscalationView = z.object({
 export type AuditEscalationView = z.infer<typeof zAuditEscalationView>;
 ```
 
-- [ ] **Step 5: Jalankan test, pastikan LULUS**
+- [x] **Step 5: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism shared/test/escalation.test.ts`
 Expected: PASS (6 test).
@@ -192,7 +192,7 @@ Lalu pastikan tak ada regresi kontrak lama:
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism shared`
 Expected: seluruh test shared PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add shared/src/entities.ts shared/src/dto.ts shared/test/escalation.test.ts
@@ -214,7 +214,7 @@ git commit -m "feat(spec-340): kontrak AuditEscalation + fromAudit di brief payl
   - `readEscalation(specId: string, sessions?: ReturnType<typeof listSessions>): Promise<{ escalation: AuditEscalation | null; docPath: string | null; live: boolean }>`
   - `readAuditDoc(specId: string, sessions?): Promise<{ path: string; content: string } | null>` — dipakai Task 6 untuk menyematkan isi audit ke prompt PRD
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/audit-escalation.test.ts`:
 
@@ -330,7 +330,7 @@ describe("readAuditDoc (SPEC-340 · penyematan ke prompt PRD)", () => {
 > dengan field wajib model `Spec` (`id, projectId, title, source, stage, priority, author,
 > objective`) alih-alih menambah helper baru — periksa isi `factory.ts` lebih dulu.
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run:
 ```bash
@@ -339,7 +339,7 @@ DATABASE_URL=postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman340 \
 ```
 Expected: FAIL — `Cannot find module '../src/services/audit-escalation'`.
 
-- [ ] **Step 3: Implementasi service**
+- [x] **Step 3: Implementasi service**
 
 Buat `server/src/services/audit-escalation.ts`:
 
@@ -404,7 +404,7 @@ export async function readEscalation(
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run:
 ```bash
@@ -413,7 +413,7 @@ DATABASE_URL=postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman340 \
 ```
 Expected: PASS (12 test).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/audit-escalation.ts server/test/audit-escalation.test.ts
@@ -432,7 +432,7 @@ git commit -m "feat(spec-340): parser + pembaca rekomendasi eskalasi audit (fres
 - Consumes: `readEscalation` (Task 2)
 - Produces: `GET /api/specs/:id/escalation` → `{ escalation, docPath, live }` (bentuk `AuditEscalationView`); 404 hanya bila spec tak ada di DB.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/escalation.route.test.ts`:
 
@@ -494,7 +494,7 @@ describe("GET /specs/:id/escalation (SPEC-340 · ADR-0076)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run:
 ```bash
@@ -503,7 +503,7 @@ DATABASE_URL=postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman340 \
 ```
 Expected: FAIL — semua non-404 balas 404 (route belum ada).
 
-- [ ] **Step 3: Tambah route**
+- [x] **Step 3: Tambah route**
 
 Di `server/src/routes/specs.ts`, tambahkan import di dekat import service lain (setelah baris `import { listSpecDocs, resolveDir } from "../services/spec-docs";`):
 
@@ -526,7 +526,7 @@ Lalu sisipkan route tepat setelah handler `app.get("/specs/:id/docs/*", …)`:
   });
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run:
 ```bash
@@ -535,7 +535,7 @@ DATABASE_URL=postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman340 \
 ```
 Expected: PASS (4 test).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/routes/specs.ts server/test/escalation.route.test.ts
@@ -554,7 +554,7 @@ git commit -m "feat(spec-340): GET /specs/:id/escalation menyajikan rekomendasi 
 - Consumes: —
 - Produces: konstanta modul `ESCALATION_CONTRACT: string` di `runner/src/prompt.ts` (di-`export` supaya bisa diuji dan dipakai kedua prompt).
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `runner/test/escalation-prompt.test.ts`:
 
@@ -600,12 +600,12 @@ describe("kontrak escalation di prompt audit (SPEC-340 · ADR-0076)", () => {
 > lalu sesuaikan objek `ctx` di atas dengan bentuk `CrossAuditCtx` yang sebenarnya — jangan
 > menebak field.
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism runner/test/escalation-prompt.test.ts`
 Expected: FAIL — `ESCALATION_CONTRACT` tak ter-ekspor.
 
-- [ ] **Step 3: Tambah kontrak + pasang di kedua prompt**
+- [x] **Step 3: Tambah kontrak + pasang di kedua prompt**
 
 Di `runner/src/prompt.ts`, tepat sebelum `auditOnlyInstruction`, tambahkan:
 
@@ -664,12 +664,12 @@ Dan di `startCrossAuditPrompt`, ganti kalimat Laporan yang berakhir `"naikkan ja
     ESCALATION_CONTRACT,
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism runner`
 Expected: PASS — termasuk `prompt.test.ts` & `cross-audit-prompt.test.ts` lama. Bila ada test lama yang mengasesi frasa "dinaikkan jadi Finding QA", **perbarui asersinya** ke frasa baru (perilaku memang berubah secara sengaja) — jangan mengembalikan teks lama.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runner/src/prompt.ts runner/test/escalation-prompt.test.ts runner/test/prompt.test.ts runner/test/cross-audit-prompt.test.ts
@@ -688,7 +688,7 @@ git commit -m "feat(spec-340): prompt audit & cross-audit menulis blok json reko
 - Consumes: `ESCALATION_CONTRACT` tidak dipakai di sini; hanya `SpecBrief.payload.fromAudit`.
 - Produces: `auditContinuationInstruction(flow, spec)` kini menyala untuk `flow === "qa"` **dan** `flow === "feature"`, dengan teks berbeda.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan ke `runner/test/escalation-prompt.test.ts`:
 
@@ -721,12 +721,12 @@ describe("kontinuitas brief lanjutan audit (SPEC-340 · ADR-0076)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism runner/test/escalation-prompt.test.ts`
 Expected: FAIL pada dua test pertama — `feature` belum pernah memuat klausa kontinuitas.
 
-- [ ] **Step 3: Lebarkan `auditContinuationInstruction`**
+- [x] **Step 3: Lebarkan `auditContinuationInstruction`**
 
 Ganti fungsi itu di `runner/src/prompt.ts` menjadi:
 
@@ -758,12 +758,12 @@ const auditContinuationInstruction = (flow: Flow, spec: SpecBrief): string => {
 };
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism runner`
 Expected: PASS seluruh paket runner.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runner/src/prompt.ts runner/test/escalation-prompt.test.ts
@@ -788,7 +788,7 @@ git commit -m "feat(spec-340): klausa kontinuitas brief lanjutan audit (tanpa fa
   - `startPrdPrompt(project: ProjectBrief, brief: PrdBrief, branchTo: string, audit?: AuditDoc): string`
   - `zTerminalSession` varian prd: `{ project, flow:"prd", brief, branchFrom?: string, fromAudit?: string }`
 
-- [ ] **Step 1: Tulis test prompt yang gagal**
+- [x] **Step 1: Tulis test prompt yang gagal**
 
 Tambahkan ke `runner/test/escalation-prompt.test.ts`:
 
@@ -813,12 +813,12 @@ describe("startPrdPrompt dengan dokumen audit tersemat (SPEC-340 · ADR-0076)", 
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism runner/test/escalation-prompt.test.ts`
 Expected: FAIL — argumen keempat diabaikan, "DOKUMEN AUDIT" tak muncul.
 
-- [ ] **Step 3: Tambah tipe + parameter prompt**
+- [x] **Step 3: Tambah tipe + parameter prompt**
 
 Di `runner/src/types.ts`, tepat setelah `export type PrdBrief = …`:
 
@@ -863,12 +863,12 @@ export function startPrdPrompt(project: ProjectBrief, brief: PrdBrief, branchTo:
 }
 ```
 
-- [ ] **Step 4: Jalankan test prompt, pastikan LULUS**
+- [x] **Step 4: Jalankan test prompt, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism runner`
 Expected: PASS.
 
-- [ ] **Step 5: Tulis test route yang gagal**
+- [x] **Step 5: Tulis test route yang gagal**
 
 Buat `server/test/prd-from-audit.route.test.ts`:
 
@@ -939,7 +939,7 @@ describe("POST /terminal/sessions flow:prd dari audit (SPEC-340 · ADR-0076)", (
 > alih-alih bentuk di atas bila berbeda; yang penting **tak ada `claude`/`codex` yang benar-benar
 > di-spawn** dan `addWorktree` tak menyentuh git sungguhan.
 
-- [ ] **Step 6: Jalankan test route, pastikan GAGAL**
+- [x] **Step 6: Jalankan test route, pastikan GAGAL**
 
 Run:
 ```bash
@@ -948,7 +948,7 @@ DATABASE_URL=postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman340 \
 ```
 Expected: FAIL — `branchFrom`/`fromAudit` ditolak/diabaikan zod, `addWorktree` dipanggil dengan `"HEAD"`.
 
-- [ ] **Step 7: Lebarkan `zTerminalSession` + route prd**
+- [x] **Step 7: Lebarkan `zTerminalSession` + route prd**
 
 Di `shared/src/dto.ts`, ganti varian prd:
 
@@ -995,7 +995,7 @@ dan pada pembuatan sesi ganti argumen prompt:
           auditDoc ? { id: fromAudit!, path: auditDoc.path, content: auditDoc.content } : undefined),
 ```
 
-- [ ] **Step 8: Jalankan test route, pastikan LULUS**
+- [x] **Step 8: Jalankan test route, pastikan LULUS**
 
 Run:
 ```bash
@@ -1004,7 +1004,7 @@ DATABASE_URL=postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman340 \
 ```
 Expected: PASS (2 test).
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add runner/src/types.ts runner/src/prompt.ts shared/src/dto.ts server/src/routes/terminal.ts \
@@ -1026,7 +1026,7 @@ git commit -m "feat(spec-340): sesi PRD dari audit (branchFrom + dokumen audit t
   - `api.getEscalation(specId: string): Promise<AuditEscalationView>`
   - `api.startPrd(project, brief, opts?: { branchFrom?: string; fromAudit?: string }): Promise<{ id: string }>`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/test/audit-escalation-client.test.ts`:
 
@@ -1071,12 +1071,12 @@ describe("api.startPrd meneruskan branchFrom/fromAudit (SPEC-340)", () => {
 > **Sebelum menulis test ini, baca `src/test/api-client.test.ts`** dan tiru cara berkas itu men-stub
 > `fetch` (bentuk `Response` mock & pembungkus `j()` bisa berbeda dari tebakan di atas). Sesuaikan.
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism src/test/audit-escalation-client.test.ts`
 Expected: FAIL — `api.getEscalation is not a function`.
 
-- [ ] **Step 3: Tambah endpoint di klien**
+- [x] **Step 3: Tambah endpoint di klien**
 
 Di `src/src/api/client.ts`, tambahkan path (di objek `paths`, dekat `spec(id)`):
 
@@ -1101,12 +1101,12 @@ lalu ganti `startPrd` dan tambahkan `getEscalation` di blok PRD:
 
 Tambahkan `AuditEscalationView` ke import `@hanoman/shared` di kepala berkas.
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism src/test/audit-escalation-client.test.ts`
 Expected: PASS (3 test).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/api/client.ts src/test/audit-escalation-client.test.ts
@@ -1129,7 +1129,7 @@ git commit -m "feat(spec-340): klien API getEscalation + startPrd beropsi audit"
   - `onPromoteToPrd?: (s: Spec, e: AuditEscalation | null) => void`
   - `onPromoteToQa` dipanggil dengan argumen kedua yang sama: ubah tanda tangannya jadi `(s: Spec, e: AuditEscalation | null) => void`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/test/audit-escalation.test.tsx`:
 
@@ -1228,12 +1228,12 @@ describe("SpecDetail eskalasi audit (SPEC-340 · ADR-0076)", () => {
 > Test frontend WAJIB dijalankan dengan `env -u NODE_ENV` — `NODE_ENV=production` di shell membuat
 > React Testing Library gagal di `act()`.
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism src/test/audit-escalation.test.tsx`
 Expected: FAIL — hanya tombol "Jadikan Finding QA" yang ada.
 
-- [ ] **Step 3: Implementasi blok "Tindak lanjut"**
+- [x] **Step 3: Implementasi blok "Tindak lanjut"**
 
 Di `src/src/screens/BacklogScreen.tsx`:
 
@@ -1337,13 +1337,13 @@ function escVariant(e: AuditEscalation | null, target: string): "primary" | "sec
 `onPromoteToPrd` di destrukturisasi props `BacklogScreen` (baris ~527) beserta tipenya (cermin
 `onPromoteToQa` yang sudah ada), dan tambahkan keduanya di JSX `<SpecDetail … />`.
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism src/test/audit-escalation.test.tsx src/test/backlog-board.test.tsx`
 Expected: PASS. Bila `backlog-board.test.tsx` (test SPEC-237 lama) gagal karena tanda tangan
 `onPromoteToQa` berubah, perbarui asersinya — pemanggilan kini membawa argumen kedua.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/BacklogScreen.tsx src/test/audit-escalation.test.tsx src/test/backlog-board.test.tsx
@@ -1364,7 +1364,7 @@ git commit -m "feat(spec-340): tiga pintu eskalasi + sorotan rekomendasi di Spec
 - Produces: `NewPrdModal` ter-ekspor dengan props
   `{ projects, defaultProject, onClose, onCreate, prefill?: { title?: string; context?: string; outcome?: string; constraints?: string }, lockProject?: boolean }`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/test/audit-escalation-app.test.tsx`:
 
@@ -1399,12 +1399,12 @@ describe("NewPrdModal ter-prefill dari audit (SPEC-340 · ADR-0076)", () => {
 > **Baca `src/test/prd-screen.test.tsx` lebih dulu** untuk meniru cara berkas itu me-render layar
 > PRD & memilih tombol; sesuaikan selektor bila label tombol berbeda dari tebakan di atas.
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism src/test/audit-escalation-app.test.tsx`
 Expected: FAIL — `NewPrdModal` tak ter-ekspor.
 
-- [ ] **Step 3: Ekspor + prefill `NewPrdModal`**
+- [x] **Step 3: Ekspor + prefill `NewPrdModal`**
 
 Di `src/src/screens/PrdScreen.tsx`, ganti deklarasi & state awal:
 
@@ -1424,7 +1424,7 @@ export function NewPrdModal({ projects, defaultProject, onClose, onCreate, prefi
 
 dan tambahkan `disabled={lockProject}` pada `<Select aria-label="Project untuk PRD baru" … />`.
 
-- [ ] **Step 4: Wiring di `App.tsx`**
+- [x] **Step 4: Wiring di `App.tsx`**
 
 (a) Tambah import: `import { PrdScreen, NewPrdModal, type PrdPrefill, type PrdBriefForm } from "./screens/PrdScreen";`
 dan `import type { AuditEscalation } from "@hanoman/shared";`
@@ -1518,12 +1518,12 @@ Di blok render (dekat `<NewSpecModal … />`, baris ~1064):
           onPromoteToQa={promoteToQa} onPromoteToBrief={promoteToBrief} onPromoteToPrd={promoteToPrd}
 ```
 
-- [ ] **Step 5: Jalankan test, pastikan LULUS**
+- [x] **Step 5: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism src`
 Expected: seluruh test `src` PASS (termasuk `prd-screen.test.tsx` & `app-flows.test.tsx`).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/src/App.tsx src/src/screens/PrdScreen.tsx src/test/audit-escalation-app.test.tsx
@@ -1542,12 +1542,12 @@ git commit -m "feat(spec-340): wiring App — eskalasi audit ke feature brief & 
 - Consumes: semua task sebelumnya
 - Produces: bukti verifikasi (output perintah) + docs SoT yang sinkron
 
-- [ ] **Step 1: Typecheck seluruh workspace**
+- [x] **Step 1: Typecheck seluruh workspace**
 
 Run: `pnpm typecheck`
 Expected: exit 0, tanpa error TS.
 
-- [ ] **Step 2: Suite penuh**
+- [x] **Step 2: Suite penuh**
 
 Run:
 ```bash
@@ -1560,7 +1560,7 @@ DATABASE_URL=postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman340_test \
   pnpm --filter ./server exec prisma migrate deploy
 ```
 
-- [ ] **Step 3: Boot server nyata + smoke `GET /specs/:id/escalation`**
+- [x] **Step 3: Boot server nyata + smoke `GET /specs/:id/escalation`**
 
 Siapkan DB & repo uji, lalu:
 ```bash
@@ -1580,7 +1580,7 @@ PORT=8797 DATABASE_URL=postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman340 no
 Jangan pakai port 8787 (dev sesi lain) dan jangan pakai DB `hanoman_test` (sibling vitest
 men-truncate-nya di tengah smoke).
 
-- [ ] **Step 4: Smoke `POST /terminal/sessions` flow prd dari audit**
+- [x] **Step 4: Smoke `POST /terminal/sessions` flow prd dari audit**
 
 Di repo uji, buat branch `hanoman/spec-900` lebih dulu (`git branch hanoman/spec-900`), lalu:
 ```bash
@@ -1593,7 +1593,7 @@ Expected: 201 `{ "id": "prd-kuota-tenant" }`, dan worktree `<repo>/.worktrees/pr
 meninggalkan proses agen hidup. Catat: sesi ini men-spawn agen sungguhan — jalankan hanya sekali,
 di repo uji throwaway, lalu hentikan.
 
-- [ ] **Step 5: Sinkronkan docs SoT**
+- [x] **Step 5: Sinkronkan docs SoT**
 
 Periksa ulang bahwa yang berikut sudah menggambarkan implementasi final (ditulis di fase Spec —
 perbaiki bila ada yang meleset saat implementasi):
@@ -1601,7 +1601,7 @@ perbaiki bila ada yang meleset saat implementasi):
 - `internal/docs/README.md` — baris ADR-0076 ter-link.
 - `internal/skills/hanoman/SKILL.md` — tambahkan satu butir di "Aturan Sesi & Eksekusi" (dekat butir audit lintas project) yang menyebut: audit punya TIGA pintu eskalasi, rekomendasi = blok json di dokumen audit (turunan, bukan kolom), brief lanjutan audit tak melewati fase, PRD dari audit memakai `branchFrom` + penyematan dokumen.
 
-- [ ] **Step 6: Verifikasi diff bersih & commit akhir**
+- [x] **Step 6: Verifikasi diff bersih & commit akhir**
 
 ```bash
 git status --porcelain
@@ -1610,7 +1610,7 @@ git commit -m "docs(spec-340): sinkronkan SKILL.md + hasil verifikasi eskalasi a
 ```
 Expected: `git status --porcelain` kosong setelah commit.
 
-- [ ] **Step 7: Verifikasi nomor ADR belum diklaim sibling, lalu push**
+- [x] **Step 7: Verifikasi nomor ADR belum diklaim sibling, lalu push**
 
 ```bash
 for b in $(git branch -a --format='%(refname:short)'); do git ls-tree -r --name-only "$b" -- internal/docs/adr 2>/dev/null; done | grep -c '0076'
