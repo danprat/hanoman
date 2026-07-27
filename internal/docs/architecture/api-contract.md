@@ -96,6 +96,9 @@ POST /specs/batch         { project, items:[BreakdownItem], branchFrom?, prdPath
 #   source ∈ brief|qa|audit (SPEC-237). audit = audit-only (payload brief-shaped, author `Audit ·`);
 #   qa payload ber-severity (superRefine mengikat source↔bentuk payload). audit → flow `audit`
 #   (Audit → Laporan, dokumen SoT tanpa Execute; ADR-0057). Client memetakan source→flow via flowForSource.
+#   SPEC-340 · ADR-0076 · eskalasi audit → backlog: payload boleh membawa `fromAudit:"SPEC-n"` untuk
+#   source `qa` (ADR-0059, lewati fase Audit) MAUPUN `brief` (baca dokumen audit sbg bahan Brainstorm/
+#   Objective, tanpa `skipped`). Pasangannya branchFrom `hanoman/<audit-id>` agar dokumen audit ada di worktree.
 #   404 bila project tak dikenal; 400 bila branchFrom tak ada di refs/heads repo project.
 PATCH /specs/:id          { branchFrom?: string|null, stage?, confirmDelete? }   -> Spec
 #   branchFrom null = kembali ke default project (main); menentukan basis sesi BERIKUTNYA. Lihat ADR-0032.
@@ -107,6 +110,13 @@ DELETE /specs/:id
 GET  /specs/:id/docs                   # daftar dokumen superpowers backlog ini (audit/spec/plan/objective/brainstorm) — SPEC-170
 #   kind audit = `*-audit.md` ATAU `…/research/audit-…` (SPEC-237/ADR-0057) — dokumen audit SoT ikut tampil sbg audit
 GET  /specs/:id/docs/*path             # isi satu dokumen superpowers (raw)
+GET  /specs/:id/escalation             # SPEC-340 · ADR-0076 · { escalation, docPath, live } — rekomendasi
+#   tindak lanjut audit, DITURUNKAN dari blok ```json di dokumen audit (bukan kolom DB; ADR-0018/0011).
+#   escalation = { target:"none"|"qa"|"brief"|"prd", reason, alternatives:[target], prefill:{title,
+#   context,outcome,constraints,severity,steps} }. Dokumen dibaca freshest-wins (cwd sesi hidup >
+#   repoDir) lewat listSpecDocs kind `audit`; live=true saat dari worktree sesi. Tanpa dokumen / tanpa
+#   blok / json rusak / target tak dikenal → 200 { escalation:null } (keadaan normal, bukan error).
+#   404 hanya bila spec tak ada.
 GET  /specs/:id/review                 # { base, files:string[], changed:{path,add,del,status,binary}[] }  (SPEC-171)
 #   worktree hidup <repoDir>/.worktrees/<specid> → diff working tree, base = merge-base(branchFrom‖main, HEAD).
 #   worktree lenyap (done) → diff baseSha..headSha tersimpan (SPEC-176, ADR-0030), fallback grep (spec-N) utk spec lama.
@@ -337,8 +347,14 @@ POST   /terminal/sessions  {project, flow?} # 201 { id } · 404 project · 400 t
 #   dengan prompt standar docs; 422 bila repoDir kosong atau worktree gagal dibuat
 #   flow "scaffold" (SPEC-222, ADR-0052): sesi project-level di worktree .worktrees/scaffold-<project>,
 #     menyusun SoT penuh dari ide (Project.desc), pipeline Brainstorm→Objective→Doc index; 422 bila repoDir kosong/worktree gagal
-#   {project, flow:"prd", brief} (SPEC-210, ADR-0041): sesi project-level di .worktrees/prd-<slug>;
-#     brainstorm interaktif → dokumen docs/prd/<slug>.md, push branch prd/<slug>; 400 judul kosong, 422 worktree
+#   {project, flow:"prd", brief, branchFrom?, fromAudit?} (SPEC-210, ADR-0041): sesi project-level di
+#     .worktrees/prd-<slug>; brainstorm interaktif → dokumen docs/prd/<slug>.md, push branch prd/<slug>;
+#     400 judul kosong, 422 worktree.
+#     SPEC-340 · ADR-0076 · eskalasi audit → PRD: branchFrom = branch audit (hanoman/<audit-id>) →
+#     worktree lahir dari sana (resolveCommit + fallback origin/<rev>, SPEC-244) alih-alih HEAD;
+#     fromAudit = id spec audit → isi dokumen auditnya (freshest-wins) DISEMATKAN ke prompt PRD
+#     sebagai blok `=== DOKUMEN AUDIT <id> ===`. Keduanya opsional & independen; tanpa keduanya
+#     perilaku lama utuh (worktree dari HEAD, prompt polos). 422 bila branchFrom tak resolve.
 #   {project, flow:"breakdown", prdPath} (SPEC-273, ADR-0069): sesi project-level di .worktrees/breakdown-<slug>;
 #     baca PRD (tersemat, freshest-wins) → manifest docs/prd/<slug>.breakdown.md, push branch breakdown/<slug>;
 #     400 PRD tak terbaca / path tak valid, 422 worktree gagal
