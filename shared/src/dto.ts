@@ -228,7 +228,11 @@ export const zTerminalSession = z.union([
   // menyusun Source of Truth dari kode. Tanpa flow = terminal biasa (claude) di repoDir.
   z.object({ project: z.string(), flow: z.literal("reverse").optional() }),
   // SPEC-210 · sesi prd project-level di worktree sendiri; menghasilkan dokumen PRD dari brief.
-  z.object({ project: z.string(), flow: z.literal("prd"), brief: zPrdBrief }),
+  // SPEC-340 · ADR-0076 · eskalasi audit → PRD: branchFrom = branch audit (worktree lahir dari sana,
+  // resolveCommit + fallback origin/<rev>), fromAudit = id spec audit (isi dokumennya disematkan ke
+  // prompt). Keduanya opsional & independen; tanpa keduanya perilaku lama utuh (HEAD, prompt polos).
+  z.object({ project: z.string(), flow: z.literal("prd"), brief: zPrdBrief,
+    branchFrom: z.string().min(1).optional(), fromAudit: z.string().min(1).optional() }),
   // SPEC-273 · sesi breakdown project-level: pecah SATU PRD (prdPath) → manifest N backlog.
   z.object({ project: z.string(), flow: z.literal("breakdown"), prdPath: z.string().min(1) }),
   // SPEC-337 · ADR-0075 · sesi audit lintas project LEPAS (tanya-jawab): tanpa Spec, tanpa fase.
