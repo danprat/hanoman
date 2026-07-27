@@ -21,6 +21,17 @@ Tiga hal yang hilang hari ini:
    timeline gabungan yang membuat "error di A pukul 10:03:11 setelah B gagal pukul 10:03:10"
    terlihat sebagai satu peristiwa.
 
+## Objective (MVP, terkunci)
+
+**Satu sesi `claude` yang lahir sudah tahu project mana saja yang saling bergantung, bisa membaca
+kode & docs semuanya, dan bisa menarik timeline error gabungan mereka kapan saja selama sesi
+berjalan** — sehingga issue integrasi antar-project bisa diaudit dan ditanya-tanya dari satu
+tempat, tanpa membuka sesi terpisah per project.
+
+Terukur: operator membuka **satu** sesi lalu bertanya "apa yang salah antara A dan B"; agen
+menjawab dengan bukti dari **kedua** sisi — error yang berkorelasi waktu dari timeline gabungan
+dan kutipan kode/kontrak dari kedua checkout — tanpa operator menyalin apa pun antar sesi.
+
 ## Keputusan bentuk (dari brainstorm dengan operator)
 
 | Pertanyaan | Keputusan |
