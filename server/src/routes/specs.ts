@@ -13,6 +13,7 @@ import { STAGES } from "../services/stage-machine";
 import { artifactsToRemove } from "../services/stage-artifacts";
 import { deleteDoc } from "../services/docs";
 import { listSpecDocs, resolveDir } from "../services/spec-docs";
+import { readEscalation } from "../services/audit-escalation";
 import { resolveRepoDir } from "../services/local-binding";
 import { readDocFile } from "../services/scan";
 import { paginate } from "../services/paginate";
@@ -199,6 +200,17 @@ export default async function (app: FastifyInstance) {
     const dir = await resolveDir(id);
     const content = dir ? readDocFile(dir, path) : null; // readDocFile menolak non-.md -> null
     return content === null ? reply.code(404).send({ error: "not found" }) : { path, content };
+  });
+
+  // SPEC-340 · ADR-0076 · rekomendasi tindak lanjut audit — NILAI TURUNAN dari blok ```json di
+  // dokumen audit (freshest-wins), bukan kolom DB. Dokumen/blok tak ada atau rusak → 200 dengan
+  // escalation:null; itu keadaan normal (audit pra-SPEC-340 / sesi masih menulis), bukan error.
+  // 404 hanya bila spec-nya sendiri tak ada.
+  app.get("/specs/:id/escalation", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const exists = await prisma.spec.findUnique({ where: { id }, select: { id: true } });
+    if (!exists) return reply.code(404).send({ error: "not found" });
+    return readEscalation(id);
   });
 
   app.delete("/specs/:id", async (req, reply) => {
