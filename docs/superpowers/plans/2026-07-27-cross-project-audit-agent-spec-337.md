@@ -1337,7 +1337,7 @@ git commit -m "feat(spec-337): flow cross-audit + prompt sesi audit lintas proje
   - `crossAuditSessionOpts(scope: string[]): { key: string; audit: {…}; env: Record<string,string> }`
   - `POST /terminal/sessions { project, flow: "cross-audit" }` → 201 `{ id }`, id `xaudit-<projectId>`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/cross-audit-session.test.ts`:
 
@@ -1459,7 +1459,7 @@ describe("sesi backlog cross-audit", () => {
 
 > Catatan: sesi di test ini men-spawn `claude` sungguhan bila `HANOMAN_CLAUDE_BIN` tak diset. Ikuti pola `terminal.route.test.ts` — set `HANOMAN_CLAUDE_BIN` ke stub di `beforeEach` bila file itu melakukannya; kalau ia memakai variabel env dari `vitest.setup`, tak ada yang perlu ditambahkan.
 
-- [ ] **Step 2: Jalankan test — harus gagal**
+- [x] **Step 2: Jalankan test — harus gagal**
 
 ```bash
 cd server && env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman337" npx vitest run test/cross-audit-session.test.ts --no-file-parallelism
@@ -1467,7 +1467,7 @@ cd server && env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@127.0.0.
 
 Expected: FAIL — `Failed to resolve import "../src/services/cross-audit"`.
 
-- [ ] **Step 3: Implementasikan pembangun konteks**
+- [x] **Step 3: Implementasikan pembangun konteks**
 
 Buat `server/src/services/cross-audit.ts`:
 
@@ -1530,7 +1530,7 @@ export function crossAuditSessionOpts(scope: string[]): {
 }
 ```
 
-- [ ] **Step 4: Sambungkan ke jalur peluncuran backlog**
+- [x] **Step 4: Sambungkan ke jalur peluncuran backlog**
 
 Di `server/src/services/session-launch.ts`:
 
@@ -1567,7 +1567,7 @@ import { buildCrossAuditCtx, crossAuditSessionOpts } from "./cross-audit";
   return { id: s.id };
 ```
 
-- [ ] **Step 5: Tambahkan pintu sesi lepas di route terminal**
+- [x] **Step 5: Tambahkan pintu sesi lepas di route terminal**
 
 Di `server/src/routes/terminal.ts`:
 
@@ -1608,7 +1608,7 @@ import { buildCrossAuditCtx, crossAuditSessionOpts } from "../services/cross-aud
     }
 ```
 
-- [ ] **Step 6: Jalankan test — harus lolos**
+- [x] **Step 6: Jalankan test — harus lolos**
 
 ```bash
 cd server && env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman337" npx vitest run test/cross-audit-session.test.ts test/terminal.route.test.ts --no-file-parallelism
@@ -1616,7 +1616,7 @@ cd server && env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@127.0.0.
 
 Expected: PASS — sesi lepas & backlog lahir dengan kunci ber-scope; suite terminal lama tetap hijau.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/services/cross-audit.ts server/src/services/session-launch.ts server/src/routes/terminal.ts server/test/cross-audit-session.test.ts
