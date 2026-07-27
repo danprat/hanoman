@@ -100,7 +100,7 @@ const FMT = [
   "#{session_name}", "#{@hanoman_project}", "#{@hanoman_spec}", "#{@hanoman_flow}",
   "#{@hanoman_phase_file}", "#{@hanoman_cwd}", "#{pane_dead}", "#{pane_dead_status}",
   "#{@hanoman_decision_file}", "#{@hanoman_branch}",
-  // SPEC-337 · ADR-0074 · kunci audit lintas project + scope-nya. Hidup di tmux (bukan DB): selamat
+  // SPEC-337 · ADR-0075 · kunci audit lintas project + scope-nya. Hidup di tmux (bukan DB): selamat
   // dari restart API, mati bersama pane. TAK PERNAH ikut ke SessionInfo/API — lihat listSessions.
   "#{@hanoman_audit_key}", "#{@hanoman_audit_projects}",
 ].join("\t");
@@ -145,7 +145,7 @@ export const liveDecisions = (): { id: string; specId?: string; projectId: strin
 
 export const getSession = (id: string): Pane | undefined => listPanes().find((p) => p.id === id);
 
-// SPEC-337 · ADR-0074 · scope sesi cross-audit pemilik kunci. Hanya pane HIDUP yang dihitung —
+// SPEC-337 · ADR-0075 · scope sesi cross-audit pemilik kunci. Hanya pane HIDUP yang dihitung —
 // sesi mati = kunci mati, tanpa revoke. Scope kosong diperlakukan tak sah (sesi selalu punya
 // minimal project-nya sendiri), jadi pemanggil tak pernah menerima daftar kosong yang menipu.
 export function auditSessionScope(key: string): string[] | null {
@@ -161,9 +161,9 @@ export type CreateOpts = {
   decisionFile?: string; model?: string; effort?: string; command?: string[];
   // SPEC-332 · ADR-0073 · kondisi mode goal; kosong = mode goal mati untuk sesi ini.
   goal?: string;
-  // SPEC-337 · ADR-0074 · env tambahan di depan argv sesi (mis. kunci + URL audit lintas).
+  // SPEC-337 · ADR-0075 · env tambahan di depan argv sesi (mis. kunci + URL audit lintas).
   env?: Record<string, string>;
-  // SPEC-337 · ADR-0074 · kunci audit + daftar project ter-scope, dipasang sebagai tmux option.
+  // SPEC-337 · ADR-0075 · kunci audit + daftar project ter-scope, dipasang sebagai tmux option.
   audit?: { key: string; projects: string[] };
 };
 
@@ -251,7 +251,7 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
   if (opts.branch) tmux("set-option", "-t", name(id), "@hanoman_branch", opts.branch);
   if (opts.phaseFile) tmux("set-option", "-t", name(id), "@hanoman_phase_file", opts.phaseFile);
   if (opts.decisionFile) tmux("set-option", "-t", name(id), "@hanoman_decision_file", opts.decisionFile);
-  // SPEC-337 · ADR-0074 · kunci audit + scope-nya. Dibaca auditSessionScope saat request masuk.
+  // SPEC-337 · ADR-0075 · kunci audit + scope-nya. Dibaca auditSessionScope saat request masuk.
   if (opts.audit) {
     tmux("set-option", "-t", name(id), "@hanoman_audit_key", opts.audit.key);
     tmux("set-option", "-t", name(id), "@hanoman_audit_projects", opts.audit.projects.join(","));

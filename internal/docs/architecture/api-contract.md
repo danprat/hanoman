@@ -64,7 +64,7 @@ GET    /projects/:id/help-center  -> { enabled, publicUrl }   # 404 project.
 POST   /projects/:id/help-center  -> 200 { enabled:true, publicUrl }   # aktifkan. 404.
 DELETE /projects/:id/help-center  # 200-ish 204 · nonaktifkan (tak hapus tiket yang sudah ada). 404.
 
-# SPEC-337 · ADR-0074 · relasi integrasi/dependency antar project (ProjectLink, LOCAL-only).
+# SPEC-337 · ADR-0075 · relasi integrasi/dependency antar project (ProjectLink, LOCAL-only).
 GET    /projects/:id/links  -> { links: LinkView[] }   # KEDUA arah milik project ini. 404 project.
 #   LinkView = { id, fromProjectId, toProjectId, kind, note, direction:"keluar"|"masuk", other:{id,name} }
 #   direction relatif :id — "keluar" = :id bergantung pada other; "masuk" = other bergantung pada :id.
@@ -290,9 +290,9 @@ POST   /terminal/sessions  {project, flow?} # 201 { id } · 404 project · 400 t
 #       berhenti sampai kondisi terbukti di transkrip) + keystroke `/goal` best-effort ke pane.
 #     flow ∈ feature|qa|audit|cross-audit (dari source; flowForSource). audit (SPEC-237/ADR-0057) = pipeline
 #     Audit → Laporan: investigasi + dokumen SoT (research/audit-<spec>-<slug>.md), TANPA Execute; stage done via Laporan.
-#     cross-audit (SPEC-337/ADR-0074) = pipeline & deliverable SAMA, tapi ber-scope project ini + tetangga
+#     cross-audit (SPEC-337/ADR-0075) = pipeline & deliverable SAMA, tapi ber-scope project ini + tetangga
 #     ProjectLink-nya: prompt memuat path checkout tetangga (read-only) + sesi memegang kunci /api/audit/logs.
-#   {project, flow:"cross-audit"} (SPEC-337, ADR-0074): sesi audit lintas LEPAS (tanya-jawab) di worktree
+#   {project, flow:"cross-audit"} (SPEC-337, ADR-0075): sesi audit lintas LEPAS (tanya-jawab) di worktree
 #     .worktrees/xaudit-<project>; TANPA Spec/fase/branch → tak menggerakkan stage. Id deterministik (Start
 #     kedua = re-attach). Sama-sama memegang kunci audit. 422 bila repoDir kosong/worktree gagal.
 #   SPEC-172: bila Spec.stage === "done", sesi baru dibuka dengan prompt LANJUTAN (fase Execute
@@ -424,7 +424,7 @@ DELETE /errors/:id           # 200 { ok:true } — hapus grup; ErrorEvent cascad
 > asal-hub pada grup baru + escalate/resolve); `ErrorEvent` mentah **tetap server-local**. Realtime
 > area Error = **HTTP polling** (silent poll, pola GitGraph), bukan kanal WS baru (ADR-0039).
 
-## Audit lintas project (SPEC-337 · ADR-0074)
+## Audit lintas project (SPEC-337 · ADR-0075)
 ```
 # Dibaca SESI cross-audit (hanoman sendiri, bukan agen eksternal). Pengecualian sah gate /api:
 # prefix /api/audit/ lolos TANPA cookie bila header X-Hanoman-Audit-Key cocok dengan sesi tmux HIDUP
@@ -444,7 +444,7 @@ GET /api/audit/logs/:groupId
 #   404 bila grup tak ada ATAU project-nya di luar scope (keberadaannya pun tak dibocorkan).
 ```
 
-> Scope sebuah sesi = project utama **+ tetangga `ProjectLink` satu hop kedua arah** (ADR-0074).
+> Scope sebuah sesi = project utama **+ tetangga `ProjectLink` satu hop kedua arah** (ADR-0075).
 > Kewenangan kunci **read-only** dan hanya atas `ErrorGroup`/`ErrorEvent` project ter-scope — tak ada
 > jalur tulis, tak ada akses ke domain lain. Bandingkan dengan agent token (ADR-0065) yang berlingkup
 > global & butuh master switch: kunci audit sengaja seumur-sesi dan tak dikelola manusia.

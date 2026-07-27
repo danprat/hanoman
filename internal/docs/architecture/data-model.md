@@ -5,7 +5,7 @@ Session, Vps — plus model pendukung (VpsAuditSnapshot/VpsItemState, DeviceToke
 LocalBinding, SyncOutbox, SyncState, SyncConflict, RuntimeConfig), **model error monitoring** (`ErrorGroup`,
 `ErrorEvent`, SPEC-249/[ADR-0060](../adr/0060-error-monitoring-ingest-ber-dsn.md)), **model Help
 Center** (`Ticket`, `TicketAttachment`, SPEC-253/[ADR-0062](../adr/0062-help-center-tiket-publik-triase.md))
-dan **relasi antar project** (`ProjectLink`, SPEC-337/[ADR-0074](../adr/0074-audit-lintas-project-projectlink-kunci-sesi.md)).
+dan **relasi antar project** (`ProjectLink`, SPEC-337/[ADR-0075](../adr/0075-audit-lintas-project-projectlink-kunci-sesi.md)).
 Tidak ada model `Run` maupun `Trigger` — keduanya di-drop saat pindah ke sesi interaktif (ADR-0024; migrasi
 `drop_run_trigger_github`). Enum stage/source/priority/error-status/ticket-status/ticket-category disimpan
 sebagai `String` dan divalidasi zod di `@hanoman/shared` (`enums.ts`), bukan enum Prisma.
@@ -41,7 +41,7 @@ sebagai `String` dan divalidasi zod di `@hanoman/shared` (`enums.ts`), bukan enu
   **Tidak** masuk whitelist `FIELDS` sync → tetap **lokal per-instance** (cermin `helpEnabled`/`ingestKeyHash`).
 - `docStatus` ("ok" | "drift" | "broken") + `coverage` (0–100) **bukan kolom** — diturunkan dari disk tiap `toProjectView` (ADR-0018).
 
-## ProjectLink (SPEC-337 · [ADR-0074](../adr/0074-audit-lintas-project-projectlink-kunci-sesi.md))
+## ProjectLink (SPEC-337 · [ADR-0075](../adr/0075-audit-lintas-project-projectlink-kunci-sesi.md))
 Relasi **berarah** antar project: `fromProjectId` **bergantung pada** `toProjectId`. Inilah satu-satunya
 pengetahuan hanoman tentang project mana yang saling berintegrasi; ia menentukan scope sesi audit lintas.
 - `id` (cuid), `fromProjectId`, `toProjectId` — FK ke `Project` dengan `onDelete: Cascade` **dan**
@@ -53,7 +53,7 @@ pengetahuan hanoman tentang project mana yang saling berintegrasi; ia menentukan
 - **Tetangga** sebuah project = union kedua arah, **satu hop** (bukan closure transitif). Itulah "grup"
   yang diaudit satu sesi.
 - **LOCAL-only — tidak masuk `SYNCED`**: id cuid + unique pasangan membuat dua device yang mendeklarasikan
-  edge sama bertabrakan saat `applyPush` upsert-by-id. Alasan & jalan keluarnya di ADR-0074.
+  edge sama bertabrakan saat `applyPush` upsert-by-id. Alasan & jalan keluarnya di ADR-0075.
 
 ## Spec (backlog item)
 - `id` (SPEC-n), `projectId`, `title`, `source` ("brief" | "qa" | "audit" | "cross-audit" | "help")
@@ -67,7 +67,7 @@ pengetahuan hanoman tentang project mana yang saling berintegrasi; ia menentukan
     Plan/Execute, jadi gerbang ADR-0029 tak berlaku. Payload brief-shaped; author berawalan `Audit ·`. Bisa
     dinaikkan jadi Finding QA (source `qa`) lewat "Take ke backlog" (cermin PRD, ADR-0041). Tanpa migration
     (source/flow = String + zod, bukan enum Prisma).
-  - **`cross-audit`** (SPEC-337/[ADR-0074](../adr/0074-audit-lintas-project-projectlink-kunci-sesi.md)):
+  - **`cross-audit`** (SPEC-337/[ADR-0075](../adr/0075-audit-lintas-project-projectlink-kunci-sesi.md)):
     audit **lintas project**. Flow `cross-audit` memakai pipeline yang sama (`Audit → Laporan`) dan
     deliverable yang sama (dokumen `internal/docs/research/audit-<spec-id>-<slug>.md`, tanpa perbaikan
     kode), tetapi scope-nya = project ini **+ tetangga `ProjectLink`-nya**: prompt memuat path checkout

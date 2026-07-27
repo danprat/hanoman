@@ -30,7 +30,7 @@ model Project {
   linksIn     ProjectLink[] @relation("ProjectLinkTo")   // SPEC-337 · … yang bergantung pada project ini
 }
 
-// SPEC-337 · ADR-0074 · relasi integrasi/dependency BERARAH antar project: from BERGANTUNG PADA to.
+// SPEC-337 · ADR-0075 · relasi integrasi/dependency BERARAH antar project: from BERGANTUNG PADA to.
 // LOCAL-only (tak masuk SYNCED): id cuid + unique pasangan bertabrakan saat upsert-by-id lintas device.
 // onUpdate: Cascade → rename project (ADR-0064) merambat gratis; tak ada ref longgar baru.
 model ProjectLink {

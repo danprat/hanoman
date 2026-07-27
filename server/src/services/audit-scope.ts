@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { auditSessionScope } from "./pty";
 
-// SPEC-337 · ADR-0074 · kunci audit lintas project: dipegang SESI claude milik hanoman sendiri
+// SPEC-337 · ADR-0075 · kunci audit lintas project: dipegang SESI claude milik hanoman sendiri
 // (bukan agen eksternal — bandingkan ADR-0065). Hidup di tmux option, mati bersama pane-nya.
 export const AUDIT_KEY_HEADER = "x-hanoman-audit-key";
 

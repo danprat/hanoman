@@ -59,7 +59,7 @@
   - **Ketahanan**: rate-limit token-bucket in-memory **per IP & per project** (429) + **honeypot** (`hp`
     terisi → 200 palsu, tak buat tiket) + caps field. **Bukan** anti-spam berat (tanpa CAPTCHA/verifikasi
     email) — spam disaring saat triase (Non-goal PRD). PII isi/lampiran disimpan apa adanya (scrub pasca-MVP).
-- **Kunci audit lintas project (SPEC-337, [ADR-0074](../adr/0074-audit-lintas-project-projectlink-kunci-sesi.md))**:
+- **Kunci audit lintas project (SPEC-337, [ADR-0075](../adr/0075-audit-lintas-project-projectlink-kunci-sesi.md))**:
   prefix `/api/audit/*` adalah **pengecualian sah** gate `/api` — dipanggil **sesi `claude` milik hanoman
   sendiri** (bukan agen eksternal) yang tak punya cookie. Gate di-bypass **hanya bila** header
   `X-Hanoman-Audit-Key` cocok dengan sesi tmux **hidup**; selain itu jatuh ke jalur auth normal → 401.

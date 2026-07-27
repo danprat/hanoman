@@ -139,7 +139,7 @@ export const paths = {
   ticketAccept: (id: string) => `${API}/tickets/${id}/accept`,
   ticketUnlink: (id: string) => `${API}/tickets/${id}/unlink`,  // SPEC-271 · lepas tautan backlog
   ticketReject: (id: string) => `${API}/tickets/${id}/reject`,
-  // SPEC-337 · ADR-0074 · relasi integrasi antar project (LOCAL-only) + log lintas project.
+  // SPEC-337 · ADR-0075 · relasi integrasi antar project (LOCAL-only) + log lintas project.
   projectLinks: (id: string) => `${API}/projects/${encodeURIComponent(id)}/links`,
   projectLink: (id: string, linkId: string) =>
     `${API}/projects/${encodeURIComponent(id)}/links/${encodeURIComponent(linkId)}`,

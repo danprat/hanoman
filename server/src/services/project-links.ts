@@ -1,7 +1,7 @@
 import { prisma } from "../db";
 import type { ProjectLink } from "@prisma/client";
 
-// SPEC-337 · ADR-0074 · relasi integrasi antar project. Berarah (from BERGANTUNG PADA to), tapi
+// SPEC-337 · ADR-0075 · relasi integrasi antar project. Berarah (from BERGANTUNG PADA to), tapi
 // "tetangga" sebuah project selalu union KEDUA arah — issue integrasi tak peduli siapa pemanggil.
 // Satu hop, bukan closure transitif: batasnya harus bisa diterangkan dalam satu kalimat.
 export type LinkDirection = "keluar" | "masuk";

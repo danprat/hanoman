@@ -30,7 +30,7 @@ export const zCreateProject = z.object({
 // awal/akhir). Dipakai operasi rename id (bukan field PATCH). Regex = gate 400 endpoint rename.
 export const zProjectId = z.string().regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/, "slug tak sah");
 export const zRenameProject = z.object({ newId: zProjectId });
-// SPEC-337 · ADR-0074 · relasi integrasi/dependency antar project (from = project di path,
+// SPEC-337 · ADR-0075 · relasi integrasi/dependency antar project (from = project di path,
 // BERGANTUNG PADA to). `note` = bentuk integrasinya, disalin apa adanya ke prompt sesi audit lintas.
 export const zCreateLink = z.object({
   to: z.string().min(1),
@@ -197,7 +197,7 @@ export const zTerminalSession = z.union([
   z.object({ project: z.string(), flow: z.literal("prd"), brief: zPrdBrief }),
   // SPEC-273 · sesi breakdown project-level: pecah SATU PRD (prdPath) → manifest N backlog.
   z.object({ project: z.string(), flow: z.literal("breakdown"), prdPath: z.string().min(1) }),
-  // SPEC-337 · ADR-0074 · sesi audit lintas project LEPAS (tanya-jawab): tanpa Spec, tanpa fase.
+  // SPEC-337 · ADR-0075 · sesi audit lintas project LEPAS (tanya-jawab): tanpa Spec, tanpa fase.
   z.object({ project: z.string(), flow: z.literal("cross-audit") }),
   // SPEC-222 · scaffold: sesi project-level from-scratch, menyusun SoT dari ide. Tanpa brief
   // (diseed dari Project.desc), tanpa Spec — cermin reverse.

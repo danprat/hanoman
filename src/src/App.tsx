@@ -698,7 +698,7 @@ export default function App() {
     }
   }
 
-  // SPEC-337 · ADR-0074 · sesi audit LINTAS project (lepas, tanya-jawab), lalu ke Terminal.
+  // SPEC-337 · ADR-0075 · sesi audit LINTAS project (lepas, tanya-jawab), lalu ke Terminal.
   async function crossAudit(p: ProjectVM) {
     try {
       const { id } = await api.crossAudit(p.id);

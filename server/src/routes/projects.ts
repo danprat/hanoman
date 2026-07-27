@@ -163,7 +163,7 @@ export default async function (app: FastifyInstance) {
     return reply.code(204).send();
   });
 
-  // SPEC-337 · ADR-0074 · relasi integrasi/dependency antar project. LOCAL-only (tak disync):
+  // SPEC-337 · ADR-0075 · relasi integrasi/dependency antar project. LOCAL-only (tak disync):
   // JANGAN panggil notifySynced di sini. Ubah = hapus + tambah (tanpa PATCH).
   app.get("/projects/:id/links", async (req, reply) => {
     const { id } = req.params as { id: string };

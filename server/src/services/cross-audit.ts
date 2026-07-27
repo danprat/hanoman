@@ -1,4 +1,4 @@
-// SPEC-337 · ADR-0074 · menyiapkan sesi audit lintas project: peta project ter-scope (utama +
+// SPEC-337 · ADR-0075 · menyiapkan sesi audit lintas project: peta project ter-scope (utama +
 // tetangga ProjectLink satu hop, kedua arah) + kunci baca log seumur sesi.
 import { prisma } from "../db";
 import type { CrossAuditCtx, CrossAuditProject } from "@hanoman/runner";

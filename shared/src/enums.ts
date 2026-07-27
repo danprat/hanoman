@@ -8,4 +8,4 @@ export const zSeverity = z.enum(["critical","major","minor"]);
 export const zErrorStatus = z.enum(["new","escalated","resolved"]);  // SPEC-249 · siklus status grup error
 export const zTicketCategory = z.enum(["bug","fitur","pertanyaan","lainnya"]);  // SPEC-253 · kategori keluhan
 export const zTicketStatus = z.enum(["new","accepted","rejected"]);  // SPEC-253 · status triase tiket
-export const zLinkKind = z.enum(["api","sdk","data","event","lainnya"]);  // SPEC-337 · ADR-0074 · jenis relasi antar project
+export const zLinkKind = z.enum(["api","sdk","data","event","lainnya"]);  // SPEC-337 · ADR-0075 · jenis relasi antar project

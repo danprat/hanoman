@@ -1,4 +1,4 @@
-/* SPEC-337 · ADR-0074 · kartu "Integrasi antar project": deklarasikan relasi dependency, lalu
+/* SPEC-337 · ADR-0075 · kartu "Integrasi antar project": deklarasikan relasi dependency, lalu
    buka sesi audit lintas dari sini. Relasi berarah (project ini bergantung pada X / X bergantung
    pada project ini); catatannya dibaca agen apa adanya saat sesi audit lahir. */
 import React from "react";

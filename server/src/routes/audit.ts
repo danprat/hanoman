@@ -1,4 +1,4 @@
-// SPEC-337 · ADR-0074 · permukaan baca log untuk SESI cross-audit milik hanoman sendiri.
+// SPEC-337 · ADR-0075 · permukaan baca log untuk SESI cross-audit milik hanoman sendiri.
 // Read-only & ber-scope: hanya ErrorGroup/ErrorEvent project di scope sesi (utama + tetangga
 // ProjectLink satu hop). Gate /api meloloskan prefix ini bila X-Hanoman-Audit-Key cocok dengan
 // pane tmux HIDUP (app.ts) — cermin pengecualian DSN ingest (ADR-0060).

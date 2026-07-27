@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- **ADR acuan:** [ADR-0074](../../../internal/docs/adr/0074-audit-lintas-project-projectlink-kunci-sesi.md). Desain lengkap: `docs/superpowers/specs/2026-07-27-spec-337-cross-project-audit-agent-design.md`.
+- **ADR acuan:** [ADR-0075](../../../internal/docs/adr/0075-audit-lintas-project-projectlink-kunci-sesi.md). Desain lengkap: `docs/superpowers/specs/2026-07-27-spec-337-cross-project-audit-agent-design.md`.
 - **Bahasa komentar & string UI:** Indonesia (ikuti gaya file yang disentuh). Nama simbol tetap Inggris.
 - **Enum baru = `String` + zod di `@hanoman/shared`**, bukan enum Prisma (aturan data-model).
 - **Migration ditulis tangan** + `prisma migrate deploy` per DB dengan env override — JANGAN `migrate dev` (reset saat ada drift worktree). Sesudahnya `prisma generate`.
@@ -50,7 +50,7 @@
 Di akhir `shared/src/enums.ts`:
 
 ```ts
-export const zLinkKind = z.enum(["api","sdk","data","event","lainnya"]);  // SPEC-337 · ADR-0074 · jenis relasi antar project
+export const zLinkKind = z.enum(["api","sdk","data","event","lainnya"]);  // SPEC-337 · ADR-0075 · jenis relasi antar project
 ```
 
 - [x] **Step 2: Tambahkan model Prisma**
@@ -65,7 +65,7 @@ Di `server/prisma/schema.prisma`, pada model `Project`, tambahkan dua relasi bal
 Lalu tambahkan model baru di akhir file:
 
 ```prisma
-// SPEC-337 · ADR-0074 · relasi integrasi/dependency BERARAH antar project: from BERGANTUNG PADA to.
+// SPEC-337 · ADR-0075 · relasi integrasi/dependency BERARAH antar project: from BERGANTUNG PADA to.
 // LOCAL-only (tak masuk SYNCED): id cuid + unique pasangan bertabrakan saat upsert-by-id lintas device.
 // onUpdate: Cascade → rename project (ADR-0064) merambat gratis; tak ada ref longgar baru.
 model ProjectLink {
@@ -89,7 +89,7 @@ model ProjectLink {
 Buat `server/prisma/migrations/2026072701_spec337_project_link/migration.sql`:
 
 ```sql
--- SPEC-337 · ADR-0074 · relasi integrasi/dependency antar project (LOCAL-only, tak disync).
+-- SPEC-337 · ADR-0075 · relasi integrasi/dependency antar project (LOCAL-only, tak disync).
 -- Aditif: satu tabel baru. Tak menyentuh kolom mana pun yang sudah ada.
 CREATE TABLE "ProjectLink" (
   "id"            TEXT NOT NULL,
@@ -213,7 +213,7 @@ Buat `server/src/services/project-links.ts`:
 import { prisma } from "../db";
 import type { ProjectLink } from "@prisma/client";
 
-// SPEC-337 · ADR-0074 · relasi integrasi antar project. Berarah (from BERGANTUNG PADA to), tapi
+// SPEC-337 · ADR-0075 · relasi integrasi antar project. Berarah (from BERGANTUNG PADA to), tapi
 // "tetangga" sebuah project selalu union KEDUA arah — issue integrasi tak peduli siapa pemanggil.
 // Satu hop, bukan closure transitif: batasnya harus bisa diterangkan dalam satu kalimat.
 export type LinkDirection = "keluar" | "masuk";
@@ -383,7 +383,7 @@ Expected: FAIL — semua request menjawab 404 (route belum ada).
 Di `shared/src/dto.ts`, setelah blok `zRenameProject` (cari `export const zRenameProject`), tambahkan:
 
 ```ts
-// SPEC-337 · ADR-0074 · relasi integrasi/dependency antar project (from = project di path, BERGANTUNG PADA to).
+// SPEC-337 · ADR-0075 · relasi integrasi/dependency antar project (from = project di path, BERGANTUNG PADA to).
 export const zCreateLink = z.object({
   to: z.string().min(1),
   kind: zLinkKind,
@@ -406,7 +406,7 @@ import { linksOf, linkViews } from "../services/project-links";
 lalu tambahkan sebelum `}` penutup handler default export:
 
 ```ts
-  // SPEC-337 · ADR-0074 · relasi integrasi/dependency antar project. LOCAL-only (tak disync):
+  // SPEC-337 · ADR-0075 · relasi integrasi/dependency antar project. LOCAL-only (tak disync):
   // JANGAN panggil notifySynced di sini. Ubah = hapus + tambah (tanpa PATCH).
   app.get("/projects/:id/links", async (req, reply) => {
     const { id } = req.params as { id: string };
@@ -543,7 +543,7 @@ const FMT = [
   "#{session_name}", "#{@hanoman_project}", "#{@hanoman_spec}", "#{@hanoman_flow}",
   "#{@hanoman_phase_file}", "#{@hanoman_cwd}", "#{pane_dead}", "#{pane_dead_status}",
   "#{@hanoman_decision_file}", "#{@hanoman_branch}",
-  // SPEC-337 · ADR-0074 · kunci audit lintas project + scope-nya. Hidup di tmux (bukan DB): selamat
+  // SPEC-337 · ADR-0075 · kunci audit lintas project + scope-nya. Hidup di tmux (bukan DB): selamat
   // dari restart API, mati bersama pane. TAK PERNAH ikut ke SessionInfo/API — lihat listSessions.
   "#{@hanoman_audit_key}", "#{@hanoman_audit_projects}",
 ].join("\t");
@@ -571,7 +571,7 @@ dan tambahkan dua field pada objek hasil (setelah `decisionFile: decisionFile ||
 (c) Tambahkan ekspor lookup, tepat setelah `export const getSession = …`:
 
 ```ts
-// SPEC-337 · ADR-0074 · scope sesi cross-audit pemilik kunci. Hanya pane HIDUP yang dihitung —
+// SPEC-337 · ADR-0075 · scope sesi cross-audit pemilik kunci. Hanya pane HIDUP yang dihitung —
 // sesi mati = kunci mati, tanpa revoke. Scope kosong diperlakukan tak sah (sesi selalu punya
 // minimal project-nya sendiri), jadi pemanggil tak pernah menerima daftar kosong yang menipu.
 export function auditSessionScope(key: string): string[] | null {
@@ -591,9 +591,9 @@ export type CreateOpts = {
   decisionFile?: string; model?: string; effort?: string; command?: string[];
   // SPEC-332 · ADR-0073 · kondisi mode goal; kosong = mode goal mati untuk sesi ini.
   goal?: string;
-  // SPEC-337 · ADR-0074 · env tambahan di depan argv sesi (mis. kunci+URL audit lintas).
+  // SPEC-337 · ADR-0075 · env tambahan di depan argv sesi (mis. kunci+URL audit lintas).
   env?: Record<string, string>;
-  // SPEC-337 · ADR-0074 · kunci audit + daftar project ter-scope, dipasang sebagai tmux option.
+  // SPEC-337 · ADR-0075 · kunci audit + daftar project ter-scope, dipasang sebagai tmux option.
   audit?: { key: string; projects: string[] };
 };
 ```
@@ -617,7 +617,7 @@ export type CreateOpts = {
 (f) Setelah baris `if (opts.decisionFile) tmux("set-option", …)`, tambahkan:
 
 ```ts
-  // SPEC-337 · ADR-0074 · kunci audit + scope-nya. Dibaca auditSessionScope saat request masuk.
+  // SPEC-337 · ADR-0075 · kunci audit + scope-nya. Dibaca auditSessionScope saat request masuk.
   if (opts.audit) {
     tmux("set-option", "-t", name(id), "@hanoman_audit_key", opts.audit.key);
     tmux("set-option", "-t", name(id), "@hanoman_audit_projects", opts.audit.projects.join(","));
@@ -632,7 +632,7 @@ Buat `server/src/services/audit-scope.ts`:
 import { randomBytes } from "node:crypto";
 import { auditSessionScope } from "./pty";
 
-// SPEC-337 · ADR-0074 · kunci audit lintas project: dipegang SESI claude milik hanoman sendiri
+// SPEC-337 · ADR-0075 · kunci audit lintas project: dipegang SESI claude milik hanoman sendiri
 // (bukan agen eksternal — bandingkan ADR-0065). Hidup di tmux option, mati bersama pane-nya.
 export const AUDIT_KEY_HEADER = "x-hanoman-audit-key";
 
@@ -846,7 +846,7 @@ Expected: FAIL — `Failed to resolve import "../src/routes/audit"`.
 Buat `server/src/routes/audit.ts`:
 
 ```ts
-// SPEC-337 · ADR-0074 · permukaan baca log untuk SESI cross-audit milik hanoman sendiri.
+// SPEC-337 · ADR-0075 · permukaan baca log untuk SESI cross-audit milik hanoman sendiri.
 // Read-only & ber-scope: hanya ErrorGroup/ErrorEvent project di scope sesi (utama + tetangga
 // ProjectLink satu hop). Gate /api meloloskan prefix ini bila X-Hanoman-Audit-Key cocok dengan
 // pane tmux HIDUP (app.ts) — cermin pengecualian DSN ingest (ADR-0060).
@@ -974,7 +974,7 @@ import { auditScopeFromReq } from "./services/audit-scope";
 (b) Di dalam hook `onRequest`, tepat setelah baris pengecualian `/api/help`, tambahkan:
 
 ```ts
-        // SPEC-337 · ADR-0074 · sesi cross-audit milik hanoman sendiri memanggil /api/audit tanpa
+        // SPEC-337 · ADR-0075 · sesi cross-audit milik hanoman sendiri memanggil /api/audit tanpa
         // cookie; diotorisasi kunci per-sesi yang hidup di tmux (mati bersama pane). Read-only &
         // ber-scope — cermin pengecualian /api/ingest. Kunci tak cocok → jatuh ke auth normal.
         if (path.startsWith("/api/audit/") && auditScopeFromReq(req)) return;
@@ -1113,7 +1113,7 @@ export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit" |
 ```
 
 ```ts
-// SPEC-337 · ADR-0074 · satu project di dalam scope sesi audit lintas. repoDir null = belum
+// SPEC-337 · ADR-0075 · satu project di dalam scope sesi audit lintas. repoDir null = belum
 // di-bind di mesin ini (tetap masuk scope log; prompt menandainya, bukan menyembunyikannya).
 export type CrossAuditProject = {
   id: string; name: string; stack: string; repoDir: string | null;
@@ -1146,7 +1146,7 @@ export const PIPELINES: Record<Flow, readonly string[]> = {
   prd: ["Brainstorm", "PRD"],
   audit: ["Audit", "Laporan"],
   breakdown: ["Analisis", "Breakdown"],
-  // SPEC-337 · ADR-0074 · audit lintas project: fase & stage-map identik audit-only, scope-nya
+  // SPEC-337 · ADR-0075 · audit lintas project: fase & stage-map identik audit-only, scope-nya
   // yang berbeda (project utama + tetangga ProjectLink).
   "cross-audit": ["Audit", "Laporan"],
 };
@@ -1161,7 +1161,7 @@ import type { Flow, SpecBrief, ProjectBrief, PrdBrief, BreakdownPrd, Autonomy, C
 (c) Tambahkan di akhir file:
 
 ```ts
-// SPEC-337 · ADR-0074 · sesi audit lintas project. Satu worktree (project utama) + checkout
+// SPEC-337 · ADR-0075 · sesi audit lintas project. Satu worktree (project utama) + checkout
 // tetangga READ-ONLY. Dua mode berbagi badan prompt yang sama: `backlog` (Spec, berfase,
 // berdokumen, di-push) dan `live` (tanya-jawab di terminal, tanpa jejak).
 const projectLine = (p: CrossAuditProject, primary: boolean): string => {
@@ -1289,7 +1289,7 @@ export function flowForSource(source: string): FlowName {
 Tambahkan anggota union baru di `zTerminalSession`, tepat setelah anggota `breakdown`:
 
 ```ts
-  // SPEC-337 · ADR-0074 · sesi audit lintas project LEPAS (tanya-jawab): tanpa Spec, tanpa fase.
+  // SPEC-337 · ADR-0075 · sesi audit lintas project LEPAS (tanya-jawab): tanpa Spec, tanpa fase.
   z.object({ project: z.string(), flow: z.literal("cross-audit") }),
 ```
 
@@ -1472,7 +1472,7 @@ Expected: FAIL — `Failed to resolve import "../src/services/cross-audit"`.
 Buat `server/src/services/cross-audit.ts`:
 
 ```ts
-// SPEC-337 · ADR-0074 · menyiapkan sesi audit lintas project: peta project ter-scope (utama +
+// SPEC-337 · ADR-0075 · menyiapkan sesi audit lintas project: peta project ter-scope (utama +
 // tetangga ProjectLink satu hop, kedua arah) + kunci baca log seumur sesi.
 import { prisma } from "../db";
 import type { CrossAuditCtx, CrossAuditProject } from "@hanoman/runner";
@@ -1544,7 +1544,7 @@ import { buildCrossAuditCtx, crossAuditSessionOpts } from "./cross-audit";
 (b) Ganti blok `createSession(...)` di akhir fungsi dengan:
 
 ```ts
-  // SPEC-337 · ADR-0074 · flow cross-audit: prompt ber-peta project + kunci baca log seumur sesi.
+  // SPEC-337 · ADR-0075 · flow cross-audit: prompt ber-peta project + kunci baca log seumur sesi.
   // Flow lain tak tersentuh (prompt & opsi persis seperti sebelumnya).
   let prompt = isContinue
     ? continuePrompt(opts.flow, brief, `hanoman/${id}`, opts.autonomy)
@@ -1581,7 +1581,7 @@ import { buildCrossAuditCtx, crossAuditSessionOpts } from "../services/cross-aud
 (b) Sisipkan cabang baru sebelum baris terakhir `const s = createSession(project.id, repoDir);`:
 
 ```ts
-    // SPEC-337 · ADR-0074 · sesi audit LINTAS project yang lepas (tanya-jawab): worktree sendiri,
+    // SPEC-337 · ADR-0075 · sesi audit LINTAS project yang lepas (tanya-jawab): worktree sendiri,
     // TANPA Spec/fase/branch → tak menggerakkan stage apa pun. Id deterministik dari project
     // (Start kedua = re-attach, ADR-0015). Kunci baca log ikut lahir & mati bersama sesi.
     if (parsed.data.flow === "cross-audit") {
@@ -1726,7 +1726,7 @@ Di `src/src/api/client.ts`, tambahkan path (dekat `projectHelpCenter`):
 dan method di objek `api` (setelah `disableHelpCenter`):
 
 ```ts
-  // SPEC-337 · ADR-0074 · relasi integrasi antar project + sesi audit lintas (lepas).
+  // SPEC-337 · ADR-0075 · relasi integrasi antar project + sesi audit lintas (lepas).
   listProjectLinks: (id: string) => j<{ links: LinkView[] }>(paths.projectLinks(id)),
   createProjectLink: (id: string, b: { to: string; kind: string; note?: string }) =>
     j<LinkView>(paths.projectLinks(id), { method: "POST", ...body(b) }),
@@ -1753,7 +1753,7 @@ export type LinkView = {
 Buat `src/src/screens/ProjectLinksCard.tsx`:
 
 ```tsx
-/* SPEC-337 · ADR-0074 · kartu "Integrasi antar project": deklarasikan relasi dependency, lalu
+/* SPEC-337 · ADR-0075 · kartu "Integrasi antar project": deklarasikan relasi dependency, lalu
    buka sesi audit lintas dari sini. Relasi berarah (project ini bergantung pada X / X bergantung
    pada project ini); catatannya dibaca agen apa adanya saat sesi audit lahir. */
 import React from "react";
@@ -1873,7 +1873,7 @@ Di `src/src/App.tsx`:
 (a) Tambahkan handler tepat setelah `scaffoldDocs`:
 
 ```tsx
-  // SPEC-337 · ADR-0074 · sesi audit LINTAS project (lepas, tanya-jawab), lalu ke Terminal.
+  // SPEC-337 · ADR-0075 · sesi audit LINTAS project (lepas, tanya-jawab), lalu ke Terminal.
   async function crossAudit(p: ProjectVM) {
     try {
       const { id } = await api.crossAudit(p.id);
@@ -2092,7 +2092,7 @@ git commit -m "test(spec-337): verifikasi nyata audit lintas project (server + c
 
 ## Catatan untuk pelaksana
 
-- **Jangan** menambahkan `projectLink` ke `SYNCED`/`FIELDS`/`DELEGATE` di `server/src/services/sync.ts` — LOCAL-only adalah keputusan ADR-0074, bukan kelalaian.
+- **Jangan** menambahkan `projectLink` ke `SYNCED`/`FIELDS`/`DELEGATE` di `server/src/services/sync.ts` — LOCAL-only adalah keputusan ADR-0075, bukan kelalaian.
 - **Jangan** menaruh kunci audit di response mana pun. Bila sebuah view perlu menandai "sesi ini punya akses log", pakai boolean, bukan kuncinya.
 - Bila `tmux` menolak `set-option` untuk daftar project yang sangat panjang, potong scope pada 50 project pertama dan catat pemotongan itu di prompt — jangan gagal diam-diam.
 - Sesi cross-audit **membaca** checkout project lain; kalau nanti ada kebutuhan menulis di sana, itu ADR baru, bukan tambalan di prompt.

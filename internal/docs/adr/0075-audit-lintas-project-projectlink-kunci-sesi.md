@@ -1,4 +1,4 @@
-# ADR-0074 — Audit lintas project: relasi `ProjectLink` + flow `cross-audit` + kunci log ber-scope sesi
+# ADR-0075 — Audit lintas project: relasi `ProjectLink` + flow `cross-audit` + kunci log ber-scope sesi
 
 **Status:** accepted · **Tanggal:** 2026-07-27 · **Spec:** SPEC-337
 **Terkait:** [ADR-0057](0057-audit-only-source-flow.md) (audit-only sebagai source + flow),

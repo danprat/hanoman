@@ -24,7 +24,7 @@ export type PrdBrief = { title: string; context: string; outcome: string; constr
 // jadi breakdown lepas dari status merge PRD (tak perlu PRD sudah ada di default branch).
 export type BreakdownPrd = { title: string; path: string; content: string };
 
-// SPEC-337 · ADR-0074 · satu project di dalam scope sesi audit lintas. repoDir null = belum
+// SPEC-337 · ADR-0075 · satu project di dalam scope sesi audit lintas. repoDir null = belum
 // di-bind di mesin ini (tetap masuk scope log; prompt menandainya, bukan menyembunyikannya).
 export type CrossAuditProject = {
   id: string; name: string; stack: string; repoDir: string | null;

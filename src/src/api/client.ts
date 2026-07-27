@@ -286,7 +286,7 @@ export const api = {
   getHelpCenter: (id: string) => j<{ enabled: boolean; publicUrl: string }>(paths.projectHelpCenter(id)),
   enableHelpCenter: (id: string) => j<{ enabled: boolean; publicUrl: string }>(paths.projectHelpCenter(id), { method: "POST" }),
   disableHelpCenter: (id: string) => j<void>(paths.projectHelpCenter(id), { method: "DELETE" }),
-  // SPEC-337 · ADR-0074 · relasi integrasi antar project + sesi audit lintas (lepas).
+  // SPEC-337 · ADR-0075 · relasi integrasi antar project + sesi audit lintas (lepas).
   listProjectLinks: (id: string) => j<{ links: LinkView[] }>(paths.projectLinks(id)),
   createProjectLink: (id: string, b: { to: string; kind: string; note?: string }) =>
     j<LinkView>(paths.projectLinks(id), { method: "POST", ...body(b) }),

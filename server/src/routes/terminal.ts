@@ -224,7 +224,7 @@ export default async function (app: FastifyInstance) {
       return reply.code(201).send({ id: s.id });
     }
 
-    // SPEC-337 · ADR-0074 · sesi audit LINTAS project yang lepas (tanya-jawab): worktree sendiri,
+    // SPEC-337 · ADR-0075 · sesi audit LINTAS project yang lepas (tanya-jawab): worktree sendiri,
     // TANPA Spec/fase/branch → tak menggerakkan stage apa pun. Id deterministik dari project
     // (Start kedua = re-attach, ADR-0015). Kunci baca log ikut lahir & mati bersama sesi.
     if (parsed.data.flow === "cross-audit") {

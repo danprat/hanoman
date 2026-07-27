@@ -1,4 +1,4 @@
--- SPEC-337 · ADR-0074 · relasi integrasi/dependency antar project (LOCAL-only, tak disync).
+-- SPEC-337 · ADR-0075 · relasi integrasi/dependency antar project (LOCAL-only, tak disync).
 -- Aditif: satu tabel baru. Tak menyentuh kolom mana pun yang sudah ada.
 CREATE TABLE "ProjectLink" (
   "id"            TEXT NOT NULL,

@@ -95,7 +95,7 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
         // SPEC-253 · ADR-0062 · halaman/submit/status Help Center dipanggil pengguna akhir tanpa sesi
         // login; route /api/help di-otorisasi helpEnabled + kunci opaque tiket sendiri (pengecualian sah).
         if (path.startsWith("/api/help")) return;
-        // SPEC-337 · ADR-0074 · sesi cross-audit milik hanoman sendiri memanggil /api/audit tanpa
+        // SPEC-337 · ADR-0075 · sesi cross-audit milik hanoman sendiri memanggil /api/audit tanpa
         // cookie; diotorisasi kunci per-sesi yang hidup di tmux (mati bersama pane). Read-only &
         // ber-scope — cermin pengecualian /api/ingest. Kunci tak cocok → jatuh ke auth normal.
         if (path.startsWith("/api/audit/") && auditScopeFromReq(req)) return;

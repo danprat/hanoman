@@ -77,7 +77,7 @@ model ProjectLink {
 - **Satu hop**, bukan closure transitif. Cukup untuk "issue antar integrasi", dan batasnya jelas.
 - `onUpdate: Cascade` → rename project (ADR-0064) merambat gratis; tak ada ref longgar baru.
 - **LOCAL-only** (tak masuk `SYNCED`): id `cuid` + `@@unique(pair)` berarti dua device yang
-  membuat edge sama akan bertabrakan unique saat upsert-by-id. Sync ditunda sadar — lihat ADR-0074.
+  membuat edge sama akan bertabrakan unique saat upsert-by-id. Sync ditunda sadar — lihat ADR-0075.
 - `note` adalah field paling berharga bagi agen: "web memanggil `/api/orders`, auth lewat cookie
   sesi, retry 3×". Prompt menyalinnya apa adanya.
 
@@ -232,6 +232,6 @@ Start (backlog / lepas) ──────┼──▶ resolve tetangga (1 hop, 
 
 - Log runtime VPS (journald/systemd) — dipilih keluar scope saat brainstorm.
 - Closure dependency transitif (>1 hop) dan visualisasi graf.
-- Sync `ProjectLink` antar device (ADR-0074 mencatat alasan & jalan keluarnya).
+- Sync `ProjectLink` antar device (ADR-0075 mencatat alasan & jalan keluarnya).
 - Perubahan pada `ErrorEvent`/ingest: SPEC-337 murni pembaca.
 - Auto-eskalasi temuan lintas jadi Spec — tetap lewat promosi manual "Jadikan Finding QA".

@@ -64,7 +64,7 @@ export async function startSpecSession(
     id: spec.id, title: spec.title, source: spec.source,
     priority: spec.priority, objective: spec.objective, payload: spec.payload ?? undefined,
   };
-  // SPEC-337 · ADR-0074 · flow cross-audit: prompt ber-peta project + kunci baca log seumur sesi.
+  // SPEC-337 · ADR-0075 · flow cross-audit: prompt ber-peta project + kunci baca log seumur sesi.
   // Flow lain tak tersentuh (prompt & opsi persis seperti sebelumnya).
   let prompt = isContinue
     ? continuePrompt(opts.flow, brief, `hanoman/${id}`, opts.autonomy)

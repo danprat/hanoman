@@ -9,7 +9,7 @@ export const PIPELINES: Record<Flow, readonly string[]> = {
   prd: ["Brainstorm", "PRD"],
   audit: ["Audit", "Laporan"],
   breakdown: ["Analisis", "Breakdown"],
-  // SPEC-337 · ADR-0074 · audit lintas project: fase & stage-map identik audit-only, scope-nya
+  // SPEC-337 · ADR-0075 · audit lintas project: fase & stage-map identik audit-only, scope-nya
   // yang berbeda (project utama + tetangga ProjectLink).
   "cross-audit": ["Audit", "Laporan"],
 };
@@ -302,7 +302,7 @@ export function startScaffoldPrompt(project: ProjectBrief, branchTo: string): st
   ].filter(Boolean).join("\n\n");
 }
 
-// SPEC-337 · ADR-0074 · sesi audit lintas project. Satu worktree (project utama) + checkout
+// SPEC-337 · ADR-0075 · sesi audit lintas project. Satu worktree (project utama) + checkout
 // tetangga READ-ONLY. Dua mode berbagi badan prompt yang sama: `backlog` (Spec, berfase,
 // berdokumen, di-push) dan `live` (tanya-jawab di terminal, tanpa jejak).
 const projectLine = (p: CrossAuditProject, primary: boolean): string => {
