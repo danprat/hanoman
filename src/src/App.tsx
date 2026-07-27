@@ -8,7 +8,7 @@ import { Shell, Modal, Field, HnTextarea, Button, StatusPill, Select, Input, Swi
 import { api, ApiError, type TerminalSession } from "./api/client";
 import { subscribe } from "./api/events";
 import type { ProjectView, Spec, AuthStatus, UserView, Notification, BreakdownItem } from "@hanoman/shared";
-import { flowForSource, MODELS, EFFORTS, CODEX_MODELS, CODEX_EFFORTS, CODEX_DEFAULTS, type Agent } from "@hanoman/shared";
+import { flowForSource, MODELS, EFFORTS, CODEX_MODELS, codexEfforts, coerceCodexEffort, CODEX_DEFAULTS, type Agent } from "@hanoman/shared";
 import { AuthScreen } from "./screens/AuthScreen";
 import { AuthProvider } from "./auth/AuthContext";
 import type { ProjectVM } from "./screens/types";
@@ -74,9 +74,21 @@ export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
       setGoalOn(s.goal.enabled); setGoalCond(s.goal.condition);
     }).catch(() => {});
   }, [open]);
-  const pickAgent = (a: Agent) => { setAgent(a); setModel(defs[a].model); setEffort(defs[a].effort); };
+  const pickAgent = (a: Agent) => {
+    setAgent(a);
+    setModel(defs[a].model);
+    // SPEC-339 · default global bisa saja pasangan lama yang kini tak sah — koreksi saat dipasang.
+    setEffort(a === "codex" ? coerceCodexEffort(defs[a].model, defs[a].effort) : defs[a].effort);
+  };
+  // SPEC-339 · menukar model bisa membuat effort terpilih jadi tak sah (Luna tak punya `ultra`).
+  // Turunkan SEKARANG supaya perubahannya terlihat di picker, bukan diam-diam saat sesi lahir.
+  const pickModel = (id: string) => {
+    setModel(id);
+    if (agent === "codex") setEffort((e) => coerceCodexEffort(id, e));
+  };
   const models: readonly { id: string; label: string }[] = agent === "codex" ? CODEX_MODELS : MODELS;
-  const efforts: readonly string[] = agent === "codex" ? CODEX_EFFORTS : EFFORTS;
+  // SPEC-339 · effort adalah properti MODEL untuk codex — daftarnya menyempit mengikuti pilihan.
+  const efforts: readonly string[] = agent === "codex" ? codexEfforts(model) : EFFORTS;
   if (!spec) return null;
   const s = spec;
   const flow = flowForSource(s.source);
@@ -112,7 +124,7 @@ export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
       <Field label="Model">
         <Select aria-label="Model" value={model} style={{ width: "100%" }}
           options={models.map((m) => ({ value: m.id, label: m.label }))}
-          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setModel(e.target.value)} />
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => pickModel(e.target.value)} />
       </Field>
       <Field label="Effort">
         <Select aria-label="Effort" value={effort} style={{ width: "100%" }}

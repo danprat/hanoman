@@ -14,7 +14,7 @@ const settings = (over: object = {}) => ({
   model: "claude-opus-5", effort: "xhigh", autoDefault: true, autoScaffold: true, notifyFail: true,
   notifyDone: true, notifySound: "short", notifyDecision: true, notifyDecisionSound: "alert",
   agentAccessEnabled: false, scheduler: {}, goal: { enabled: false, condition: "" },
-  agent: "claude", codex: { model: "gpt-5.5", effort: "xhigh" }, ...over,
+  agent: "claude", codex: { model: "gpt-5.6-sol", effort: "xhigh" }, ...over,
 });
 
 beforeEach(() => {
@@ -39,9 +39,9 @@ describe("SettingsScreen · kartu agen sesi (SPEC-338)", () => {
   it("mengubah model codex → PUT settings menjaga effort codex", async () => {
     openModel();
     const sel = await screen.findByLabelText("Model codex");
-    fireEvent.change(sel, { target: { value: "gpt-5.4" } });
+    fireEvent.change(sel, { target: { value: "gpt-5.6-terra" } });
     await waitFor(() => expect(api.putSettings).toHaveBeenCalledWith(
-      expect.objectContaining({ codex: { model: "gpt-5.4", effort: "xhigh" } })));
+      expect.objectContaining({ codex: { model: "gpt-5.6-terra", effort: "xhigh" } })));
   });
 
   it("mengubah effort codex → PUT settings menjaga model codex", async () => {
@@ -49,12 +49,42 @@ describe("SettingsScreen · kartu agen sesi (SPEC-338)", () => {
     const sel = await screen.findByLabelText("Effort codex");
     fireEvent.change(sel, { target: { value: "low" } });
     await waitFor(() => expect(api.putSettings).toHaveBeenCalledWith(
-      expect.objectContaining({ codex: { model: "gpt-5.5", effort: "low" } })));
+      expect.objectContaining({ codex: { model: "gpt-5.6-sol", effort: "low" } })));
   });
 
   it("kartu model claude tetap ada berdampingan", async () => {
     openModel();
     expect(await screen.findByLabelText("Agen default")).toBeInTheDocument();
     expect(screen.getByText("Model sesi — default global")).toBeInTheDocument();
+  });
+
+  // SPEC-339 · effort per model: memilih Luna saat effort `ultra` harus menyimpan pasangan yang
+  // sah, bukan pasangan yang nanti ditolak codex saat sesi lahir.
+  it("memilih Luna saat effort ultra ikut menurunkan effort di PUT", async () => {
+    vi.mocked(api.getSettings).mockResolvedValue(
+      settings({ codex: { model: "gpt-5.6-sol", effort: "ultra" } }) as any);
+    openModel();
+    const sel = await screen.findByLabelText("Model codex");
+    fireEvent.change(sel, { target: { value: "gpt-5.6-luna" } });
+    await waitFor(() => expect(api.putSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ codex: { model: "gpt-5.6-luna", effort: "xhigh" } })));
+  });
+
+  it("daftar effort codex mengikuti model terpilih", async () => {
+    openModel();
+    await screen.findByLabelText("Effort codex");
+    const opts = [...screen.getByLabelText("Effort codex").querySelectorAll("option")].map((o) => o.value);
+    expect(opts).toEqual(["ultra", "max", "xhigh", "high", "medium", "low"]);
+  });
+
+  // SPEC-339 · nilai di luar katalog tetap harus TERLIHAT, bukan membuat Select kosong.
+  it("model codex di luar katalog tetap tampil sebagai opsi", async () => {
+    vi.mocked(api.getSettings).mockResolvedValue(
+      settings({ codex: { model: "gpt-7-belum-ada", effort: "ultra" } }) as any);
+    openModel();
+    const sel = await screen.findByLabelText("Model codex");
+    expect(sel).toHaveValue("gpt-7-belum-ada");
+    const opts = [...sel.querySelectorAll("option")].map((o) => o.value);
+    expect(opts).toContain("gpt-7-belum-ada");
   });
 });

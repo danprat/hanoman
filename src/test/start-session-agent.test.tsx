@@ -14,7 +14,7 @@ const settings = (over: object = {}) => ({
   model: "claude-opus-5", effort: "xhigh", autoDefault: true, autoScaffold: true, notifyFail: true,
   notifyDone: true, notifySound: "short", notifyDecision: true, notifyDecisionSound: "alert",
   agentAccessEnabled: false, scheduler: {}, goal: { enabled: false, condition: "" },
-  agent: "claude", codex: { model: "gpt-5.5", effort: "xhigh" }, ...over,
+  agent: "claude", codex: { model: "gpt-5.6-sol", effort: "xhigh" }, ...over,
 });
 
 beforeEach(() => {
@@ -33,39 +33,65 @@ describe("StartSessionModal · agen (SPEC-338)", () => {
     render(<StartSessionModal open spec={spec} onClose={() => {}} onStarted={() => {}} />);
     await waitFor(() => expect(screen.getByLabelText("Model")).toHaveValue("claude-opus-5"));
     fireEvent.change(screen.getByLabelText("Agen"), { target: { value: "codex" } });
-    await waitFor(() => expect(screen.getByLabelText("Model")).toHaveValue("gpt-5.5"));
+    await waitFor(() => expect(screen.getByLabelText("Model")).toHaveValue("gpt-5.6-sol"));
     const opts = [...screen.getByLabelText("Model").querySelectorAll("option")].map((o) => o.value);
-    expect(opts).toContain("gpt-5.4");
+    expect(opts).toContain("gpt-5.6-luna");
     expect(opts).not.toContain("claude-opus-5");
-    // codex tak punya effort `max`/`ultracode` — daftarnya harus ikut menyempit.
+    // SPEC-339 · codex tak punya `ultracode`; daftarnya kini juga per model, bukan satu untuk semua.
     const eff = [...screen.getByLabelText("Effort").querySelectorAll("option")].map((o) => o.value);
-    expect(eff).toEqual(["xhigh", "high", "medium", "low"]);
+    expect(eff).toEqual(["ultra", "max", "xhigh", "high", "medium", "low"]);
   });
 
   it("mengirim agent + model codex ke POST /terminal/sessions", async () => {
     render(<StartSessionModal open spec={spec} onClose={() => {}} onStarted={() => {}} />);
     await waitFor(() => expect(screen.getByLabelText("Agen")).toBeInTheDocument());
     fireEvent.change(screen.getByLabelText("Agen"), { target: { value: "codex" } });
-    await waitFor(() => expect(screen.getByLabelText("Model")).toHaveValue("gpt-5.5"));
+    await waitFor(() => expect(screen.getByLabelText("Model")).toHaveValue("gpt-5.6-sol"));
     fireEvent.click(screen.getByText("Mulai"));
     await waitFor(() => expect(api.startSession).toHaveBeenCalledWith(
-      expect.objectContaining({ spec: "SPEC-338", agent: "codex", model: "gpt-5.5", effort: "xhigh" })));
+      expect.objectContaining({ spec: "SPEC-338", agent: "codex", model: "gpt-5.6-sol", effort: "xhigh" })));
   });
 
   it("Setting.agent codex → picker terbuka sudah di codex dengan default codex-nya", async () => {
     vi.mocked(api.getSettings).mockResolvedValue(
-      settings({ agent: "codex", codex: { model: "gpt-5.4", effort: "low" } }) as any);
+      settings({ agent: "codex", codex: { model: "gpt-5.6-terra", effort: "low" } }) as any);
     render(<StartSessionModal open spec={spec} onClose={() => {}} onStarted={() => {}} />);
     await waitFor(() => expect(screen.getByLabelText("Agen")).toHaveValue("codex"));
-    expect(screen.getByLabelText("Model")).toHaveValue("gpt-5.4");
+    expect(screen.getByLabelText("Model")).toHaveValue("gpt-5.6-terra");
     expect(screen.getByLabelText("Effort")).toHaveValue("low");
   });
 
   it("balik ke claude memulihkan default claude, bukan menyisakan model codex", async () => {
     vi.mocked(api.getSettings).mockResolvedValue(settings({ agent: "codex" }) as any);
     render(<StartSessionModal open spec={spec} onClose={() => {}} onStarted={() => {}} />);
-    await waitFor(() => expect(screen.getByLabelText("Model")).toHaveValue("gpt-5.5"));
+    await waitFor(() => expect(screen.getByLabelText("Model")).toHaveValue("gpt-5.6-sol"));
     fireEvent.change(screen.getByLabelText("Agen"), { target: { value: "claude" } });
     await waitFor(() => expect(screen.getByLabelText("Model")).toHaveValue("claude-opus-5"));
+  });
+
+  it("daftar effort menyempit mengikuti model: Luna tanpa ultra", async () => {
+    render(<StartSessionModal open spec={spec} onClose={() => {}} onStarted={() => {}} />);
+    await waitFor(() => expect(screen.getByLabelText("Model")).toHaveValue("claude-opus-5"));
+    fireEvent.change(screen.getByLabelText("Agen"), { target: { value: "codex" } });
+    await waitFor(() => expect(screen.getByLabelText("Model")).toHaveValue("gpt-5.6-sol"));
+
+    const effortsOf = () =>
+      [...screen.getByLabelText("Effort").querySelectorAll("option")].map((o) => o.value);
+    expect(effortsOf()).toEqual(["ultra", "max", "xhigh", "high", "medium", "low"]);
+
+    fireEvent.change(screen.getByLabelText("Model"), { target: { value: "gpt-5.6-luna" } });
+    await waitFor(() => expect(screen.getByLabelText("Model")).toHaveValue("gpt-5.6-luna"));
+    expect(effortsOf()).toEqual(["max", "xhigh", "high", "medium", "low"]);
+  });
+
+  // Menurunkan effort HARUS terlihat di picker, bukan terjadi diam-diam saat sesi lahir.
+  it("effort tak didukung turun ke xhigh saat model ditukar", async () => {
+    render(<StartSessionModal open spec={spec} onClose={() => {}} onStarted={() => {}} />);
+    await waitFor(() => expect(screen.getByLabelText("Model")).toHaveValue("claude-opus-5"));
+    fireEvent.change(screen.getByLabelText("Agen"), { target: { value: "codex" } });
+    await waitFor(() => expect(screen.getByLabelText("Model")).toHaveValue("gpt-5.6-sol"));
+    fireEvent.change(screen.getByLabelText("Effort"), { target: { value: "ultra" } });
+    fireEvent.change(screen.getByLabelText("Model"), { target: { value: "gpt-5.6-luna" } });
+    await waitFor(() => expect(screen.getByLabelText("Effort")).toHaveValue("xhigh"));
   });
 });
