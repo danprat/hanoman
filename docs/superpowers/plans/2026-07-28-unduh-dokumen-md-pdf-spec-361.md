@@ -934,7 +934,7 @@ git commit -m "feat(spec-361): DS DocDownload + Button as=\"a\" + URL unduh"
 - Consumes: `DocDownload` + `api.*DownloadUrl` (Task 4)
 - Produces: —
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/test/doc-download-screens.test.tsx`:
 
@@ -987,7 +987,7 @@ describe("tombol unduh pada pratinjau dokumen", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan GAGAL**
+- [x] **Step 2: Jalankan test — pastikan GAGAL**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/doc-download-screens.test.tsx
@@ -995,7 +995,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/doc-dow
 
 Expected: FAIL — `Unable to find role="link"`.
 
-- [ ] **Step 3: Pasang di `SpecDocsModal.tsx`**
+- [x] **Step 3: Pasang di `SpecDocsModal.tsx`**
 
 Ubah import baris 5 menjadi:
 
@@ -1019,7 +1019,7 @@ Ganti pane kanan (baris 86–90) menjadi:
             </div>
 ```
 
-- [ ] **Step 4: Pasang di `PrdScreen.tsx`**
+- [x] **Step 4: Pasang di `PrdScreen.tsx`**
 
 Tambahkan `DocDownload` ke daftar import dari `"../ds"` (baris 6–9). Lalu di `PrdPreviewPane`, di dalam `<div style={{ display: "flex", gap: 8, flexShrink: 0 }}>` (baris 108), sisipkan sebagai anak **pertama**:
 
@@ -1027,7 +1027,7 @@ Tambahkan `DocDownload` ke daftar import dari `"../ds"` (baris 6–9). Lalu di `
           <DocDownload href={(f) => api.prdDownloadUrl(projectId, prd.path, f)} disabled={content === null} />
 ```
 
-- [ ] **Step 5: Pasang di `DocsWorkspace.tsx`**
+- [x] **Step 5: Pasang di `DocsWorkspace.tsx`**
 
 Tambahkan `DocDownload` ke import baris 5. Lalu di header kartu preview, ganti blok tombol mode preview (baris 225–230) menjadi:
 
@@ -1044,7 +1044,7 @@ Tambahkan `DocDownload` ke import baris 5. Lalu di header kartu preview, ganti b
           ) : (
 ```
 
-- [ ] **Step 6: Pasang di `IdeScreen.tsx`**
+- [x] **Step 6: Pasang di `IdeScreen.tsx`**
 
 Tambahkan import:
 
@@ -1062,7 +1062,7 @@ Di toolbar mode `view` (baris 264–281), sisipkan `DocDownload` tepat sebelum t
                         disabled={!file || file.binary} />
 ```
 
-- [ ] **Step 7: Jalankan test — pastikan LULUS**
+- [x] **Step 7: Jalankan test — pastikan LULUS**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/doc-download-screens.test.tsx
@@ -1070,7 +1070,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/doc-dow
 
 Expected: PASS, 2 test.
 
-- [ ] **Step 8: Pastikan layar lama tak regresi**
+- [x] **Step 8: Pastikan layar lama tak regresi**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/spec-docs-modal.test.tsx test/ide-screen.test.tsx test/prd-screen.test.tsx test/docs-tree.test.ts
@@ -1078,7 +1078,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/spec-do
 
 Expected: semua PASS. (Kalau ada berkas test yang tak ada dengan nama itu, jalankan seluruh suite `src` saja.)
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/src/screens/SpecDocsModal.tsx src/src/screens/PrdScreen.tsx src/src/screens/DocsWorkspace.tsx src/src/screens/IdeScreen.tsx src/test/doc-download-screens.test.tsx
