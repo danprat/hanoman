@@ -48,15 +48,18 @@ masuk sebagai **parameter**, bukan import — supaya murni & mudah dites.
 
 ```ts
 export type BranchLock = "current" | "base" | "worktree" | "spec-open" | "session";
+export type BranchScope = "local" | "remote" | "both";
 export type UnusedBranch = {
   name: string;            // tanpa prefix origin/
-  local: boolean;          // ada di refs/heads
-  remote: boolean;         // ada di refs/remotes/origin
-  merged: boolean;         // ter-merge ke base (local ATAU remote sisi mana pun)
+  local: boolean;          // ada di refs/heads DAN ter-merge ke base
+  remote: boolean;         // ada di refs/remotes/origin DAN ter-merge ke baseRemote
   lastCommit: { sha: string; at: string; subject: string } | null;
   locks: BranchLock[];     // kosong = boleh dihapus
 };
-export type UnusedReport = { base: string; current: string; branches: UnusedBranch[] };
+export type UnusedReport = {
+  base: string; baseRemote: string | null; current: string; branches: UnusedBranch[];
+};
+export type DeleteResult = { name: string; ok: boolean; scope: BranchScope | "none"; error?: string };
 
 export async function listUnusedBranches(
   repoDir: string | null,
@@ -66,19 +69,27 @@ export async function listUnusedBranches(
 export async function deleteBranches(
   repoDir: string,
   names: string[],
-  opts: { scope: "local" | "remote" | "both"; base: string; openSpecBranches: Set<string>;
+  opts: { scope: BranchScope; base?: string; openSpecBranches: Set<string>;
           sessionBranches: Set<string> },
-): Promise<{ results: { name: string; ok: boolean; local?: boolean; remote?: boolean; error?: string }[] }>;
+): Promise<{ base: string; results: DeleteResult[] }>;
 ```
 
-**Resolusi base** (`resolveBase`): kandidat `[opts.base, "main", "master", "HEAD"]`,
-ambil yang pertama benar-benar resolve — pola `mergeBase` di `spec-review.ts` (SPEC-227).
-**Tak pernah** hardcode `"main"`: repo target bisa `master`/`develop`.
+**Daftar itu SENDIRI adalah himpunan "tak terpakai"** — hanya branch ter-merge yang masuk.
+Tak ada field `merged` (selalu `true`, jadi mubazir). Branch `base` & `current` **ikut
+tampil** tapi ber-`locks`, supaya operator melihat alasannya alih-alih bertanya-tanya
+mengapa `main` hilang.
+
+**Resolusi base** (`resolveBase`): kandidat `[opts.base, "main", "master"]`, ambil yang
+pertama benar-benar resolve; bila tak satu pun → branch aktif; bila detached → `"HEAD"`.
+Pola `mergeBase` di `spec-review.ts` (SPEC-227). **Tak pernah** hardcode `"main"`: repo
+target bisa `master`/`develop`.
 
 **Penemuan merged**: `git branch --merged <base> --format=%(refname:short)` untuk local dan
-`git branch -r --merged <base>` untuk origin, digabung per nama branch (tanpa prefix
-`origin/`). Metadata terakhir dari satu `git for-each-ref --format` (sha, tanggal ISO,
-subject) sehingga tak ada N panggilan git per branch.
+`git branch -r --merged <baseRemote>` untuk origin, digabung per nama branch (tanpa prefix
+`origin/`). `baseRemote` = `origin/<base>` bila resolve, else `<base>` — untuk ref origin,
+"branch utamanya" adalah `origin/main`, bukan `main` lokal yang bisa tertinggal.
+`origin/HEAD` selalu dibuang. Metadata commit terakhir dari satu
+`git for-each-ref --format` (sha, tanggal ISO, subject) — tak ada N panggilan git per branch.
 
 **Deteksi kunci**:
 - `current` — hasil `git rev-parse --abbrev-ref HEAD`.
@@ -87,23 +98,38 @@ subject) sehingga tak ada N panggilan git per branch.
 - `spec-open` — nama ada di `openSpecBranches` (dipasok route).
 - `session` — nama ada di `sessionBranches` (dipasok route).
 
-**Eksekusi**: reuse jalur yang sudah terbukti — `git branch -d` untuk local (aman: hanya
-branch ter-merge yang sampai ke sini, jadi **tak ada `-D`/force**) dan
-`git push origin --delete` untuk origin, keduanya dengan `--end-of-options` (ADR-0032,
-refname bisa berbentuk flag). Satu branch gagal **tidak** membatalkan sisanya — tiap
-baris punya hasilnya sendiri, mencerminkan `runDeleteBranch` SPEC-206 yang melaporkan
-langkah yang sudah terjadi apa adanya.
+**Eksekusi**: `deleteBranches` memanggil `listUnusedBranches` lebih dulu, lalu untuk tiap
+nama mendelegasikan ke `runGitOp(repoDir, { op:"delete-branch", name, local, remote })`
+yang sudah ada dan sudah bertest (SPEC-206). **Satu jalur hapus branch di seluruh
+codebase** — tak ada `git branch -d` kedua yang bisa drift. Force **tidak pernah**
+dipakai: hanya branch ter-merge yang sampai ke sini, jadi `-d` polos selalu cukup.
 
-`deleteBranches` **memvalidasi ulang** kunci di server. Kunci di jalur read adalah
-petunjuk UI; kunci di jalur write adalah penegakan. Branch terkunci → baris hasil
-`ok:false` dengan alasan, bukan 4xx untuk seluruh batch.
+Ini memberi tiga invarian sekaligus, gratis:
+
+1. **Hanya yang ter-merge bisa dihapus.** Nama yang tak muncul di laporan →
+   `ok:false, error:"branch tak ditemukan di daftar ter-merge ke <base>"`. Klien tak bisa
+   menyelundupkan branch sembarang lewat body.
+2. **Kunci ditegakkan di jalur write**, bukan sekadar petunjuk UI. Branch ber-`locks` →
+   `ok:false` dengan alasan.
+3. **Scope dipersempit per branch.** Diminta `both` tapi branch hanya ada di local →
+   jalankan `local` saja. Tak ada ref origin sama sekali & diminta `remote` → `scope:"none"`,
+   `ok:false`, tanpa memanggil git.
+
+Satu branch gagal **tidak** membatalkan sisanya — tiap baris punya hasilnya sendiri.
+Batch selalu `200`; kegagalan hidup di baris, bukan di status HTTP.
 
 ### 2. `server/src/routes/ide.ts` (tambah 2 route) — perekat
 
 ```
 GET  /projects/:id/branches/unused?base=   → UnusedReport
-POST /projects/:id/branches/delete { names:string[], scope?, base? } → { results[] }
+POST /projects/:id/branches/delete { names:string[], scope?, base? } → { base, results[] }
 ```
+
+**Capability agent** (ADR-0065): `branches` bukan anggota `IDE_SUBS`, jadi kedua route
+jatuh ke cabang `projects` — `projects:read` untuk GET, `projects:write` untuk POST.
+Ini **sengaja dibiarkan**: `GET /projects/:id/branches` yang sudah ada memetakan begitu,
+dan memasukkan `branches` ke `IDE_SUBS` akan diam-diam mengubah capability endpoint lama.
+Dikunci dengan satu test agar pemetaan ini jadi keputusan, bukan kebetulan.
 
 Route menyusun dua himpunan sinyal lalu meneruskannya ke service:
 
@@ -160,13 +186,16 @@ ada cache, tak ada migration.
 | Kondisi | Perilaku |
 |---|---|
 | Project tak ada | 404 (pola `repoOf` yang sudah ada) |
-| Project tanpa `repoDir` | `GET` → `{ base:"", current:"", branches:[] }`; `POST` → 400 (cermin route git lain) |
-| `base` tak resolve | Fallback berurutan `main` → `master` → `HEAD`; `base` yang dipakai selalu ikut di respons |
+| Project tanpa `repoDir` | `GET` → `{ base:"", baseRemote:null, current:"", branches:[] }`; `POST` → 400 (cermin route git lain) |
+| Bukan repo git / git error | Sama seperti di atas — `[]`, tak pernah melempar (cermin `refs()` di `branches.ts`) |
+| `base` tak resolve | Fallback berurutan `main` → `master` → branch aktif → `HEAD`; `base` terpakai selalu ikut di respons |
 | `names` kosong / bukan array | 400 `names wajib` |
-| Branch terkunci ikut dikirim | Baris `ok:false, error:"<alasan>"` — batch lain tetap jalan |
-| `git branch -d` gagal (tak ter-merge) | Baris `ok:false` + stderr git; **tak** eskalasi ke `-D` |
-| `git push origin --delete` gagal | Baris `ok:false`, `local:true` bila local sudah terhapus — laporan jujur separuh-jalan |
-| Repo tanpa remote `origin` | Branch tampil `remote:false`; scope `remote` pada branch itu → `ok:false` beralasan |
+| `scope` bukan local/remote/both | 400 `scope harus local, remote, atau both` |
+| Nama tak ada di daftar ter-merge | Baris `ok:false, error:"branch tak ditemukan di daftar ter-merge ke <base>"` |
+| Branch terkunci ikut dikirim | Baris `ok:false, error:"<alasan kunci>"` — batch lain tetap jalan |
+| Scope diminta tak berlaku untuk branch itu | `scope:"none"`, `ok:false`, git tak dipanggil |
+| `git branch -d` / `push --delete` gagal | Baris `ok:false` + stderr git; **tak** eskalasi ke `-D` |
+| Repo tanpa remote `origin` | Branch tampil `remote:false`; scope `both` menyempit jadi `local` |
 
 ## Testing
 
