@@ -19,6 +19,17 @@ export const zSessionResult = z.object({
 });
 export type SessionResultView = z.infer<typeof zSessionResult>;
 
+// SPEC-362 · ADR-0079 · satu baris riwayat sesi terminal. `transcriptBytes` non-null = transkrip
+// tersedia; isinya sendiri diambil terpisah lewat endpoint transcript (bisa sampai 1 MiB).
+export const zSessionHistory = z.object({
+  id: z.string(), sessionId: z.string(), projectId: z.string(), specId: z.string().nullable(),
+  title: z.string().nullable(), kind: z.string(), flow: z.string().nullable(), agent: z.string(),
+  model: z.string().nullable(), effort: z.string().nullable(), branch: z.string().nullable(),
+  cwd: z.string(), startedAt: z.string(), endedAt: z.string().nullable(),
+  exitCode: z.number().nullable(), transcriptBytes: z.number().nullable(),
+});
+export type SessionHistoryView = z.infer<typeof zSessionHistory>;
+
 export const zCreateProject = z.object({
   name: z.string().min(1), kind: zProjectKind, repoDir: z.string().optional(),
   gitRemote: z.string().optional(),

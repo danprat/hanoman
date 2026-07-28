@@ -140,6 +140,21 @@ repoDir project terpilih (`POST {project, shell:true}`) untuk sekadar menjalanka
 di sebelah **Sesi baru** yang men-spawn `claude`. Sesi shell tak punya flow/spec, tampil seperti
 sesi biasa; menutupnya hanya kill pane (cwd = repoDir, bukan worktree). Lihat ADR-0056.
 
+Toolbar juga punya **Riwayat** (SPEC-362 · [ADR-0079](../adr/0079-history-sesi-terminal-store-lokal-plus-transkrip.md)):
+membuka `SessionHistoryModal` — **modal**, bukan panel tetap, persis seperti picker "Ambil backlog".
+Itulah cara memenuhi "mudah diakses tapi tidak menghalangi UI terminal": grid di belakangnya tak
+berubah ukuran sama sekali, dan selama modal tak dibuka **tak ada request riwayat** yang berjalan.
+Isinya: penyaring (project · jenis · cari), daftar baris (waktu mulai, badge jenis **berlabel manusia**
+dari `SESSION_KIND_LABEL` — bukan slug, pelajaran SPEC-262/264 — judul/spec, penanda transkrip, durasi,
+status `berjalan`/`selesai`/`exit <code>`), lalu **muat lebih**: `IntersectionObserver` auto-load dengan
+tombol manual sebagai fallback, dan **baris penutup** yang membedakan "masih ada" dari "seluruh riwayat"
+(pelajaran SPEC-351 — daftar habis yang tak terbedakan dari daftar terpotong terbaca sebagai bug).
+Server yang memaginasi (`{items,total,page,pageSize}`); modal hanya menaikkan `page` dan **menambah**
+item, tak menggantinya. Klik baris → detail: metadata + transkrip read-only dalam `<pre>` teks polos,
+tombol **Salin transkrip** dan **Mulai lagi**. "Mulai lagi" tak pernah menghidupkan sesi lama (tmux
+sudah membunuhnya) — ia men-spawn sesi baru lewat endpoint yang sudah ada, dan hanya muncul untuk
+`restartableKind()` (`spec`/`terminal`/`shell`/`reverse`/`scaffold`/`cross-audit`).
+
 Grid-grid itu dikelompokkan ke **grup** bernama yang dipindah lewat tabbar (`+` menambah, `✎`
 mengganti nama, `×` menghapus; grup terakhir tak bisa dihapus). Tiap grup memegang `Layout`-nya
 sendiri, dan satu sesi menempati paling banyak satu sel **di satu grup** — tray karena itu global,

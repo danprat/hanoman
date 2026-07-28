@@ -22,6 +22,7 @@ import deviceTokens from "./routes/device-tokens";
 import bindings from "./routes/bindings";
 import sync from "./routes/sync";
 import sessionResults from "./routes/session-results";
+import sessionHistory from "./routes/session-history";
 import config from "./routes/config";
 import ingest from "./routes/ingest";
 import errors from "./routes/errors";
@@ -138,6 +139,7 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
     await api.register(bindings);
     await api.register(sync);
     await api.register(sessionResults);
+    await api.register(sessionHistory);  // SPEC-362 · riwayat sesi terminal (di belakang gate cookie)
     await api.register(config);
     await api.register(ingest);   // SPEC-249 · ingest publik ber-DSN (gate di-bypass di atas)
     await api.register(errors);   // SPEC-249 · area Error (di belakang gate cookie)

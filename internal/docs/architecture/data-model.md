@@ -296,6 +296,36 @@ overlay sesi live — status live (running/done/failed) tetap diturunkan dari `p
   **tanpa retry** (PRD non-goal); atau **biarkan `launched`** (pane hidup, stage<done — masih kerja / menunggu
   keputusan → `scanDecisions` menerbitkan `Notification decision`, sesi tetap **memegang slot** governor `liveCount`).
 
+## SessionHistory (SPEC-362 · [ADR-0079](../adr/0079-history-sesi-terminal-store-lokal-plus-transkrip.md))
+Riwayat **setiap** sesi terminal — **LOCAL-ONLY, tak disync** (cermin `LocalBinding`/`SchedulerQueueItem`:
+sesi hidup di tmux mesin ini dan transkripnya berkas di disk mesin ini). tmux tetap sumber kebenaran
+sesi **hidup** (ADR-0016); tabel ini adalah jejak sesi yang **sudah berlalu**, yang sebelumnya lenyap
+total saat `killSession()` + `removeWorktree()`. Berbeda dari `SessionResult` (ADR-0047) yang hanya
+lahir saat transisi stage **spec** — tabel ini mencatat semua jenis sesi, termasuk shell, PRD, reverse,
+scaffold, breakdown, cross-audit, dan konsol VPS.
+- `id` (**uuid milik BARIS**), `sessionId` (id tmux — **bukan** PK: `sessionIdForSpec()` deterministik,
+  jadi satu backlog yang dibuka-tutup lima kali menghasilkan lima baris ber-`sessionId` sama; PK
+  `sessionId` akan menimpa riwayat lama tiap reopen), `projectId` (**tanpa FK** — sesi VPS memakai
+  `vps:<id>`/`vps-console:<id>`, konvensi `SessionResult`), `specId?`, `title?` (**snapshot** judul spec
+  saat sesi lahir — riwayat tetap terbaca setelah spec-nya dihapus), `kind`
+  (`spec|reverse|prd|scaffold|breakdown|cross-audit|vps|shell|worktree|terminal`), `flow?`, `agent`
+  (`claude|codex`), `model?`, `effort?`, `branch?`, `cwd`, `startedAt`, `endedAt?` (null = **berjalan**),
+  `exitCode?`, `transcriptKey?` + `transcriptBytes?` (pointer berkas; **isi tak pernah di DB**),
+  `createdAt`, `updatedAt`. Index `(projectId, startedAt)`, `(specId)`, `(sessionId)`.
+- **Baris lahir saat sesi LAHIR**, bukan saat ditutup — sesi berjalan pun sudah tercatat. Penulisnya
+  `services/session-history.ts`, dipicu hook `registerSessionHooks({onBirth,onDeath})` dari **dua titik
+  cekik** `pty.createSession()`/`pty.killSession()`; `pty.ts` tetap **nol dependensi DB**. `onBirth`
+  tak menembak saat re-attach (ADR-0015).
+- **Transkrip bukan kolom:** `capture-pane -p -J -S -50000` **tanpa `-e`** dijalankan SEBELUM
+  `tmux kill-session` (sesudah itu scrollback lenyap), disimpan sebagai berkas di
+  `HANOMAN_TRANSCRIPT_DIR` oleh `services/transcript-store.ts` (cermin `services/uploads.ts`), cap
+  **1 MiB menyimpan ekor** + penanda pemangkasan.
+- **Zombie dibereskan saat boot:** `reconcileHistory()` menutup baris `endedAt: null` yang `sessionId`-nya
+  tak ada di `pty.listSessions()` (tmux mati di luar hanoman) dengan `endedAt = updatedAt`, `exitCode`
+  tetap null. Cermin `backfillFeed` saat hub boot (ADR-0067).
+- **Purge manual ber-scope** (`projectId` dan/atau `before`) adalah satu-satunya penghapusan; ia ikut
+  menghapus berkas transkripnya. Cermin `DELETE /session-results` (ADR-0047).
+
 ## Docs (Source of Truth) — TIDAK dipersist
 Docs bukan entitas DB. Tabel `DocFile` sudah di-drop (ADR-0011). Docs dibaca **live dari path
 efektif** (`resolveRepoDir` = binding per-mesin ?? `Project.repoDir` — SPEC-217): korpus = semua

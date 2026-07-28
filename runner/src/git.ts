@@ -49,9 +49,19 @@ export const realGit: GitOps = {
   // `fatal: not a working tree` → membuat DELETE /terminal/sessions balas 500. remove+prune+rm
   // semuanya toleran, jadi penutupan sesi selalu 204 dan registrasi worktree tak stale (SPEC-197).
   removeWorktree: (repo, path) => {
-    tryGit(repo, ["worktree", "remove", "--force", path]);
+    const target = isAbsolute(path) ? resolve(path) : resolve(repo, path);
+    // SPEC-362 · jaring pengaman terakhir. `git worktree remove` di bawah ini memakai tryGit
+    // (gagal-diam), jadi `rmSync` tetap jalan meski git MENOLAK — dan git memang menolak saat
+    // path-nya bukan worktree tertaut melainkan checkout itu sendiri. Satu pemanggil yang salah
+    // karenanya bisa menghapus seluruh checkout project; itu benar-benar pernah terjadi (lihat
+    // gerbang `ownsWorktree` di routes/terminal.ts). Melempar, bukan diam: pemanggil yang sampai
+    // ke sini punya bug, dan menyembunyikannya hanya menunda kerusakan berikutnya.
+    if (target === resolve(repo)) {
+      throw new Error(`removeWorktree menolak menghapus repo itu sendiri: ${target}`);
+    }
+    tryGit(repo, ["worktree", "remove", "--force", target]);
     tryGit(repo, ["worktree", "prune"]);
-    rmSync(isAbsolute(path) ? path : resolve(repo, path), { recursive: true, force: true });
+    rmSync(target, { recursive: true, force: true });
   },
   // Dibaca di worktree sesi (bukan repo utama) tepat sebelum removeWorktree: HEAD-nya =
   // ujung range diff review sesudah item selesai (SPEC-176, ADR-0030).

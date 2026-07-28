@@ -1,0 +1,220 @@
+import React from "react";
+import { Modal, Input, Select, Button, Badge, StateBlock, Icon } from "../ds";
+import { api } from "../api/client";
+import { SESSION_KINDS, SESSION_KIND_LABEL, restartableKind, type SessionHistoryView } from "@hanoman/shared";
+
+const PAGE = 20;
+
+// Durasi manusiawi. Sesi yang belum ditutup tak punya durasi — jangan mengarang "0 dtk".
+export function humanDuration(startedAt: string, endedAt: string | null): string {
+  if (!endedAt) return "—";
+  const ms = new Date(endedAt).getTime() - new Date(startedAt).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return "—";
+  const s = Math.round(ms / 1000);
+  if (s < 60) return `${s} dtk`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m} mnt`;
+  const h = Math.floor(m / 60);
+  return `${h} jam ${m % 60} mnt`;
+}
+
+export function statusOf(r: SessionHistoryView): { label: string; tone: "ok" | "err" | "neutral" } {
+  if (!r.endedAt) return { label: "berjalan", tone: "neutral" };
+  if (r.exitCode === null) return { label: "selesai", tone: "ok" };
+  return r.exitCode === 0 ? { label: "selesai", tone: "ok" } : { label: `exit ${r.exitCode}`, tone: "err" };
+}
+
+const labelOfKind = (kind: string): string =>
+  SESSION_KIND_LABEL[kind as keyof typeof SESSION_KIND_LABEL] ?? kind;
+
+// SPEC-362 · ADR-0079 · riwayat sesi sebagai MODAL, bukan panel tetap: grid terminal di belakangnya
+// tak berubah ukuran sama sekali (syarat "tidak menghalangi UI terminal"). Pola sama dengan
+// BacklogPicker di TerminalScreen.
+export function SessionHistoryModal({ projects, onClose, onRestart }: {
+  projects: { id: string; name: string }[];
+  onClose: () => void;
+  onRestart: (row: SessionHistoryView) => void;
+}) {
+  const [items, setItems] = React.useState<SessionHistoryView[]>([]);
+  const [total, setTotal] = React.useState(0);
+  const [page, setPage] = React.useState(1);
+  const [loading, setLoading] = React.useState(false);
+  const [project, setProject] = React.useState("");
+  const [kind, setKind] = React.useState("");
+  const [q, setQ] = React.useState("");
+  const [dq, setDq] = React.useState("");
+  const [selected, setSelected] = React.useState<SessionHistoryView | null>(null);
+
+  React.useEffect(() => { const t = setTimeout(() => setDq(q.trim()), 250); return () => clearTimeout(t); }, [q]);
+  // Ganti penyaring = jendela riwayat dimulai ulang dari halaman 1; tanpa reset, item halaman lama
+  // dari filter sebelumnya akan menempel di bawah hasil baru.
+  React.useEffect(() => { setItems([]); setPage(1); }, [project, kind, dq]);
+
+  React.useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    api.listSessionHistory({
+      projectId: project || undefined, kind: kind || undefined, q: dq || undefined, page, limit: PAGE,
+    })
+      .then((r) => {
+        if (!alive) return;
+        setTotal(r.total);
+        // page 1 = ganti (filter baru), page > 1 = tambah (muat lebih).
+        setItems((prev) => (r.page > 1 ? [...prev, ...r.items] : r.items));
+      })
+      .catch(() => { if (alive) { setItems([]); setTotal(0); } })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [project, kind, dq, page]);
+
+  const hasMore = items.length < total;
+  const sentinel = React.useRef<HTMLDivElement | null>(null);
+  // Auto-load saat penutup daftar terlihat; tombol manual tetap ada sebagai fallback (jsdom &
+  // browser tanpa IntersectionObserver tak boleh kehilangan aksesnya) — pola SPEC-351.
+  React.useEffect(() => {
+    const el = sentinel.current;
+    if (!el || !hasMore || loading || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) setPage((p) => p + 1); });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore, loading, items.length]);
+
+  const nameOf = (pid: string) => projects.find((p) => p.id === pid)?.name ?? pid;
+
+  return (
+    <Modal open title="Riwayat sesi" icon="history" onClose={onClose} width={900}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+        <Input size="sm" leftIcon="search" placeholder="Cari sesi…" aria-label="Cari riwayat sesi"
+          value={q} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value)}
+          style={{ flex: "1 1 200px" }} />
+        <Select size="sm" aria-label="Filter project" value={project} onChange={(e) => setProject(e.target.value)}
+          options={[{ value: "", label: "Semua project" }].concat(projects.map((p) => ({ value: p.id, label: p.name })))} />
+        <Select size="sm" aria-label="Filter jenis" value={kind} onChange={(e) => setKind(e.target.value)}
+          options={[{ value: "", label: "Semua jenis" }].concat(
+            SESSION_KINDS.map((k) => ({ value: k, label: SESSION_KIND_LABEL[k] })))} />
+      </div>
+
+      {items.length === 0 && !loading ? (
+        <StateBlock kind="empty" icon="history" title="Belum ada riwayat sesi"
+          hint="Riwayat terisi sendiri saat sesi terminal dibuka lalu ditutup — termasuk sesi backlog, terminal biasa, dan sesi project-level." />
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", maxHeight: "60vh", overflowY: "auto" }}>
+          {items.map((r) => {
+            const st = statusOf(r);
+            return (
+              <button key={r.id} onClick={() => setSelected(r)} style={{
+                all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
+                padding: "9px 8px", borderBottom: "1px solid var(--border-hair)",
+              }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)", flex: "0 0 132px" }}>
+                  {new Date(r.startedAt).toLocaleString("id-ID")}
+                </span>
+                <Badge size="sm" tone="neutral">{labelOfKind(r.kind)}</Badge>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: "var(--text-strong)",
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {r.title ?? r.specId ?? nameOf(r.projectId)}
+                </span>
+                {r.transcriptBytes !== null && <Icon name="file-text" size={12} color="var(--text-subtle)" />}
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-muted)", flex: "0 0 72px" }}>
+                  {humanDuration(r.startedAt, r.endedAt)}
+                </span>
+                <Badge size="sm" tone={st.tone}>{st.label}</Badge>
+              </button>
+            );
+          })}
+          {/* Baris penutup: daftar yang HABIS harus terbaca berbeda dari daftar yang terpotong —
+              pelajaran SPEC-351, di mana keduanya tak terbedakan dan terbaca sebagai bug. */}
+          <div ref={sentinel} style={{ padding: "10px 8px", textAlign: "center", fontSize: 11, color: "var(--text-subtle)" }}>
+            {loading ? "memuat…"
+              : hasMore
+                ? <Button size="sm" variant="ghost" onClick={() => setPage((p) => p + 1)}>Muat lebih</Button>
+                : `${items.length} dari ${total} — seluruh riwayat`}
+          </div>
+        </div>
+      )}
+
+      {selected && <SessionHistoryDetail row={selected} projectName={nameOf(selected.projectId)}
+        onBack={() => setSelected(null)} onRestart={onRestart} />}
+    </Modal>
+  );
+}
+
+// Detail satu baris riwayat: metadata + transkrip read-only. Transkrip dirender sebagai TEKS POLOS
+// di <pre> — server menyimpannya tanpa `capture-pane -e`, jadi tak ada ANSI yang perlu (atau boleh)
+// ditafsirkan jadi HTML.
+function SessionHistoryDetail({ row, projectName, onBack, onRestart }: {
+  row: SessionHistoryView; projectName: string; onBack: () => void; onRestart: (r: SessionHistoryView) => void;
+}) {
+  const [text, setText] = React.useState<string | null>(null);
+  const [state, setState] = React.useState<"idle" | "loading" | "none" | "error">("idle");
+
+  React.useEffect(() => {
+    // Baris tanpa transkrip tak perlu request — 404-nya sudah bisa diprediksi dari metadata.
+    if (row.transcriptBytes === null) { setState("none"); setText(null); return; }
+    let alive = true;
+    setState("loading");
+    api.sessionTranscript(row.id)
+      .then((r) => { if (alive) { setText(r.text); setState("idle"); } })
+      .catch(() => { if (alive) { setText(null); setState("error"); } });
+    return () => { alive = false; };
+  }, [row.id, row.transcriptBytes]);
+
+  const meta: [string, string][] = [
+    ["Project", projectName],
+    ["Sesi", row.sessionId],
+    ["Jenis", labelOfKind(row.kind)],
+    ["Agen", [row.agent, row.model, row.effort].filter(Boolean).join(" · ")],
+    ["Mulai", new Date(row.startedAt).toLocaleString("id-ID")],
+    ["Selesai", row.endedAt ? new Date(row.endedAt).toLocaleString("id-ID") : "berjalan"],
+    ["Durasi", humanDuration(row.startedAt, row.endedAt)],
+    ["Direktori", row.cwd],
+  ];
+  if (row.specId) meta.splice(1, 0, ["Backlog", `${row.specId}${row.title ? ` · ${row.title}` : ""}`]);
+  if (row.branch) meta.push(["Branch", row.branch]);
+
+  return (
+    <Modal open title={row.title ?? row.specId ?? row.sessionId} icon="history" onClose={onBack} width={1000}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
+        <Button size="sm" variant="ghost" leftIcon="arrow-left" onClick={onBack}>Kembali</Button>
+        <div style={{ flex: 1 }} />
+        {text && (
+          <Button size="sm" variant="secondary" leftIcon="copy"
+            onClick={() => void navigator.clipboard?.writeText(text)}>Salin transkrip</Button>
+        )}
+        {/* Sesi lama tak pernah "hidup lagi" — tmux sudah membunuhnya. Ini men-spawn sesi BARU
+            dengan konteks yang sama, dan hanya untuk kind yang konteksnya bisa dibangun ulang. */}
+        {restartableKind(row.kind) && (
+          <Button size="sm" leftIcon="play" onClick={() => onRestart(row)}>Mulai lagi</Button>
+        )}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "4px 12px", marginBottom: 12,
+        fontSize: 12 }}>
+        {meta.map(([k, v]) => (
+          <React.Fragment key={k}>
+            <span style={{ color: "var(--text-subtle)" }}>{k}</span>
+            <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-body)", wordBreak: "break-all" }}>{v}</span>
+          </React.Fragment>
+        ))}
+      </div>
+
+      {state === "loading" && <div style={{ fontSize: 12, color: "var(--text-subtle)" }}>memuat transkrip…</div>}
+      {state === "none" && (
+        <div style={{ fontSize: 12, color: "var(--text-subtle)" }}>
+          Tanpa transkrip — sesi ini ditutup sebelum fitur riwayat ada, atau panenya tak menyisakan keluaran.
+        </div>
+      )}
+      {state === "error" && (
+        <div style={{ fontSize: 12, color: "var(--clay-600)" }}>Transkrip tak terbaca lagi di server.</div>
+      )}
+      {text !== null && (
+        <pre style={{
+          maxHeight: "52vh", overflow: "auto", margin: 0, padding: 10,
+          background: "var(--bone-200)", border: "1px solid var(--border-hair)",
+          borderRadius: "var(--radius-sm)", fontFamily: "var(--font-mono)", fontSize: 11,
+          whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-body)",
+        }}>{text}</pre>
+      )}
+    </Modal>
+  );
+}

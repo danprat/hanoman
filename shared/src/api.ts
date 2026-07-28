@@ -82,6 +82,11 @@ export const paths = {
   sessionReviewFile: (id: string, path: string) => `${API}/terminal/sessions/${id}/review/${path}`,
   sessionIntegrate: (id: string) => `${API}/terminal/sessions/${id}/integrate`,
   terminalWs: (id: string) => `${API}/terminal/sessions/${id}/ws`,
+  // SPEC-362 · ADR-0079 · riwayat sesi. Di bawah prefix /terminal supaya ikut capability
+  // `sessions` yang sudah ada (services/agent-capabilities.ts) tanpa menambah domain baru.
+  sessionHistory: (qs = "") => `${API}/terminal/history${qs}`,
+  sessionHistoryItem: (id: string) => `${API}/terminal/history/${encodeURIComponent(id)}`,
+  sessionTranscript: (id: string) => `${API}/terminal/history/${encodeURIComponent(id)}/transcript`,
   eventsWs: `${API}/events/ws`,   // SPEC-199 · WebSocket siar dashboard (global, bukan per-sesi)
   vps: `${API}/vps`,
   vpsOne: (id: string) => `${API}/vps/${id}`,

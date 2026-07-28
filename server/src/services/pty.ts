@@ -5,7 +5,7 @@ import { mkdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { goalOneLine, agentFlags, codexGoalScript, type Flow, type Agent } from "@hanoman/runner";
-import { coerceCodexEffort } from "@hanoman/shared";
+import { coerceCodexEffort, type SessionKind } from "@hanoman/shared";
 import { readPhases, type Phase } from "./session-phases";
 import { effectiveStr } from "../config";
 
@@ -159,6 +159,47 @@ export const liveDecisions = (): { id: string; specId?: string; projectId: strin
 
 export const getSession = (id: string): Pane | undefined => listPanes().find((p) => p.id === id);
 
+// SPEC-362 · ADR-0079 · riwayat sesi. pty.ts sengaja TETAP nol dependensi DB: ia hanya menembakkan
+// dua peristiwa, dan services/session-history.ts yang mendaftarkan diri lewat server.ts (pola
+// registerSchedulerSource, SPEC-294). createSession & killSession adalah SATU-SATUNYA pintu lahir
+// & mati sesi — seluruh pemanggil (routes/terminal, session-launch, specs, ide, vps) lewat sini,
+// jadi dua titik ini menangkap semuanya tanpa menyentuh 12 call site.
+export type SessionBirth = {
+  sessionId: string; projectId: string; specId?: string; flow?: string; kind: SessionKind;
+  agent: Agent; model?: string; effort?: string; branch?: string; cwd: string;
+};
+export type SessionDeath = { sessionId: string; exitCode: number | null; transcript: string | null };
+type SessionHooks = { onBirth?: (b: SessionBirth) => void; onDeath?: (d: SessionDeath) => void };
+let hooks: SessionHooks = {};
+export function registerSessionHooks(h: SessionHooks): void { hooks = h; }
+// Fire-and-forget: riwayat tak boleh memblokir atau menggagalkan kelahiran/penutupan sesi.
+const emitBirth = (b: SessionBirth): void => { try { hooks.onBirth?.(b); } catch { /* riwayat opsional */ } };
+const emitDeath = (d: SessionDeath): void => { try { hooks.onDeath?.(d); } catch { /* riwayat opsional */ } };
+
+// Jenis sesi diturunkan saat LAHIR, saat opsinya masih di tangan — sesudah itu tmux hanya menyimpan
+// sebagian (tak ada jejak `command` maupun `prompt`). Fungsi murni supaya bisa diuji tanpa tmux.
+export function sessionKind(
+  o: { id: string; specId?: string; flow?: string; command?: string[] }, projectId: string, cwd: string,
+): SessionKind {
+  if (o.specId) return "spec";
+  if (o.flow === "reverse" || o.flow === "prd" || o.flow === "scaffold" || o.flow === "breakdown") return o.flow;
+  if (o.id.startsWith("xaudit-")) return "cross-audit";
+  if (projectId.startsWith("vps")) return "vps";           // routes/vps.ts: "vps:<id>" & "vps-console:<id>"
+  if (o.command) return "shell";
+  if (cwd.includes("/.worktrees/")) return "worktree";     // sesi konflik merge/integrate
+  return "terminal";
+}
+
+// Scrollback lenyap bersama pane: ini WAJIB dipanggil sebelum `tmux kill-session`. Tanpa `-e`
+// (kebalikan attach() untuk pane mati) — arsip disimpan sebagai teks polos: bisa dicari, aman
+// dirender di <pre>, tak menyuntikkan ANSI ke DOM.
+function captureTranscript(id: string): string | null {
+  try {
+    const out = tmux("capture-pane", "-p", "-J", "-S", "-50000", "-t", name(id));
+    return out.trim() ? out : null;
+  } catch { return null; }
+}
+
 // SPEC-337 · ADR-0075 · scope sesi cross-audit pemilik kunci. Hanya pane HIDUP yang dihitung —
 // sesi mati = kunci mati, tanpa revoke. Scope kosong diperlakukan tak sah (sesi selalu punya
 // minimal project-nya sendiri), jadi pemanggil tak pernah menerima daftar kosong yang menipu.
@@ -298,6 +339,13 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
   // SPEC-338 · khusus claude: `/goal` adalah perintah Claude Code; codex tak punya padanan
   // terverifikasi — jaminannya di sana adalah gate hook deterministik.
   if (opts.goal && !opts.command && agent === "claude") void armGoalInTui(id, opts.goal).catch(() => { /* best-effort */ });
+  // SPEC-362 · sesi benar-benar BARU (cabang `existing` di atas sudah return lebih dulu — re-attach
+  // ADR-0015 bukan sesi baru dan tak boleh melahirkan baris riwayat kedua).
+  emitBirth({
+    sessionId: id, projectId, specId: opts.specId, flow: opts.flow,
+    kind: sessionKind({ id, specId: opts.specId, flow: opts.flow, command: opts.command }, projectId, cwd),
+    agent, model: opts.model, effort: opts.effort, branch: opts.branch, cwd,
+  });
   return { id, projectId, specId: opts.specId, flow: opts.flow, cwd, branch: opts.branch, exited: false, decision: false, agent };
 }
 
@@ -470,9 +518,13 @@ export function resize(id: string, cols: number, rows: number): void {
 }
 
 export function killSession(id: string): boolean {
-  if (!getSession(id)) return false;
+  const p = getSession(id);
+  if (!p) return false;
+  // SPEC-362 · capture SEBELUM kill: sesudah `kill-session` scrollback-nya tak ada lagi.
+  const transcript = captureTranscript(id);
   drop(id);
   tmux("kill-session", "-t", name(id));
+  emitDeath({ sessionId: id, exitCode: p.exited ? p.code : null, transcript });
   return true;
 }
 

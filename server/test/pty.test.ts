@@ -3,9 +3,11 @@ import { fileURLToPath } from "node:url";
 import { appendFileSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { execFileSync } from "node:child_process";
 import {
   createSession, getSession, listSessions, killSession, killAll, detachAll, attach, writeTo,
   sessionPhases, markerFilled, promptFilePath, armGoalInTui, goalGatePath,
+  sessionKind, registerSessionHooks, type SessionBirth, type SessionDeath,
 } from "../src/services/pty";
 import { phaseFilePath, type Phase } from "../src/services/session-phases";
 
@@ -29,6 +31,14 @@ const waitFor = async (ok: () => boolean, ms = 5000) => {
     if (Date.now() > deadline) throw new Error("timeout menunggu kondisi");
     await new Promise((r) => setTimeout(r, 20));
   }
+};
+// SPEC-362 · mengintip pane langsung (bukan lewat attach) untuk membuktikan transkrip yang
+// ditangkap hook benar-benar berasal dari scrollback tmux sebelum pane dibunuh.
+const tmuxCapture = (id: string): string | null => {
+  try {
+    return execFileSync("tmux", ["-L", process.env.HANOMAN_TMUX_SOCKET ?? "hanoman-test",
+      "-f", "/dev/null", "capture-pane", "-p", "-t", `hanoman-${id}`], { encoding: "utf8" });
+  } catch { return null; }
 };
 const lastFrame = (c: ReturnType<typeof fakeClient>) => c.frames[c.frames.length - 1];
 const allData = (c: ReturnType<typeof fakeClient>) =>
@@ -361,5 +371,47 @@ describe("pty service", () => {
     const c = fakeClient();
     attach(s.id, c);
     expect(allData(c).replace(/\s+/g, "")).toContain("--effortultracode");
+  });
+});
+
+// SPEC-362 · ADR-0079 · hook riwayat sesi. pty.ts tetap nol dependensi DB: ia hanya menembakkan
+// dua peristiwa dari dua titik cekik (createSession/killSession).
+describe("hook riwayat sesi (SPEC-362)", () => {
+  afterEach(() => { registerSessionHooks({}); });  // singleton modul — jangan bocor ke test lain
+
+  it("sessionKind menurunkan jenis dari opsi kelahiran, bukan dari tebakan belakangan", () => {
+    expect(sessionKind({ id: "spec-1", specId: "SPEC-1" }, "p1", "/r/.worktrees/spec-1")).toBe("spec");
+    expect(sessionKind({ id: "prd-x", flow: "prd" }, "p1", "/r/.worktrees/prd-x")).toBe("prd");
+    expect(sessionKind({ id: "reverse-p1", flow: "reverse" }, "p1", "/r/.worktrees/reverse-p1")).toBe("reverse");
+    expect(sessionKind({ id: "xaudit-p1" }, "p1", "/r/.worktrees/xaudit-p1")).toBe("cross-audit");
+    expect(sessionKind({ id: "vpsc-1", command: ["ssh"] }, "vps-console:1", "/home/x")).toBe("vps");
+    expect(sessionKind({ id: "abc", command: ["/bin/bash"] }, "p1", "/r")).toBe("shell");
+    expect(sessionKind({ id: "merge-x" }, "p1", "/r/.worktrees/merge-x")).toBe("worktree");
+    expect(sessionKind({ id: "abc" }, "p1", "/r")).toBe("terminal");
+  });
+
+  it("onBirth menembak sekali saat sesi lahir dan TIDAK menembak saat Start kedua (re-attach)", () => {
+    const births: SessionBirth[] = [];
+    registerSessionHooks({ onBirth: (b) => { births.push(b); } });
+    const id = "hook-birth";
+    createSession("p-hook", process.cwd(), { id, command: ["/bin/sh", "-c", "sleep 30"] });
+    createSession("p-hook", process.cwd(), { id, command: ["/bin/sh", "-c", "sleep 30"] }); // re-attach
+    expect(births.filter((b) => b.sessionId === id)).toHaveLength(1);
+    expect(births[births.length - 1]).toMatchObject({
+      sessionId: id, projectId: "p-hook", kind: "shell", agent: "claude",
+    });
+    killSession(id);
+  });
+
+  it("onDeath membawa transkrip yang di-capture SEBELUM pane dibunuh", async () => {
+    const deaths: SessionDeath[] = [];
+    registerSessionHooks({ onDeath: (d) => { deaths.push(d); } });
+    const id = "hook-death";
+    createSession("p-hook", process.cwd(), { id, command: ["/bin/sh", "-c", "echo PENANDA-RIWAYAT; sleep 30"] });
+    await waitFor(() => (tmuxCapture(id) ?? "").includes("PENANDA-RIWAYAT"));
+    killSession(id);
+    const d = deaths.find((x) => x.sessionId === id);
+    expect(d).toBeDefined();
+    expect(d!.transcript).toContain("PENANDA-RIWAYAT");
   });
 });

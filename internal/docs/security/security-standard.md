@@ -99,3 +99,20 @@
   - **Bukan perluasan permukaan eksekusi**: `sessions:write` = RCE (spawn `claude --dangerously-skip-permissions`)
     & `vps:write` = remote exec tetap dibatasi **isolasi worktree** (ADR-0037) — agent token hanya membuka
     pintu API yang sama lewat auth berbeda, bukan menambah kemampuan baru.
+- **Transkrip sesi tersimpan (SPEC-362, [ADR-0079](../adr/0079-history-sesi-terminal-store-lokal-plus-transkrip.md))**:
+  riwayat sesi menyimpan **snapshot layar** tiap sesi yang ditutup — data baru yang sebelumnya tak
+  pernah ada di disk hanoman. ADR-0047 dulu **sengaja** melarangnya masuk `SessionResult`; ADR-0079
+  membuka pengecualian **terbatas dan eksplisit**, dengan pagar berikut:
+  - **LOCAL-only.** `SessionHistory` tak masuk record-sync dan berkas transkripnya tak pernah
+    menyeberang ke hub (cermin `Vps.keyPath` & upload lampiran: berkas server-local, di luar repoDir).
+  - **Berkas, bukan kolom.** Isi hidup di `HANOMAN_TRANSCRIPT_DIR` (`services/transcript-store.ts`),
+    nama berkas opaque (`<uuid>.log`) dan di-`basename` sebelum menyentuh disk. DB hanya memegang
+    pointer + ukuran. Batas 1 MiB menyimpan ekor.
+  - **Teks polos.** `capture-pane` dijalankan **tanpa `-e`**, jadi tak ada ANSI yang tersimpan maupun
+    dirender; UI menampilkannya di `<pre>` — bukan `dangerouslySetInnerHTML`, bukan ANSI-ke-HTML.
+  - **Tergerbang seperti sesi.** Endpoint ada di bawah prefix `/terminal`, jadi ia mewarisi gate cookie
+    (ADR-0028) dan capability `sessions` (ADR-0065) tanpa domain baru.
+  - **Isinya sekelas isi repo** (kode, path, output perintah), bukan kredensial: rahasia yang hanoman
+    pegang (Keychain, `~/.claude/.credentials.json`, `Vps.keyPath`) tak pernah dicetak ke pane.
+  - **Purge manual ber-scope** (`projectId` dan/atau `before`, minimal satu) adalah satu-satunya
+    penghapusan, dan ia ikut membuang berkas transkripnya — tak ada retensi otomatis.

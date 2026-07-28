@@ -109,6 +109,18 @@ describe("git worktree ops", () => {
 
   // SPEC-197 · worktree bisa lenyap di tengah run (dipangkas sesi sibling). removeWorktree harus
   // toleran — DELETE /terminal/sessions tak boleh 500 hanya karena pohonnya sudah tak ada.
+  // SPEC-362 · `git worktree remove` di bawahnya memakai tryGit (gagal-diam), jadi rmSync di baris
+  // terakhir tetap jalan meski git menolak. Satu pemanggil yang salah karenanya bisa menghapus
+  // seluruh checkout — itu benar-benar terjadi. Jaring pengaman terakhir: tolak repo itu sendiri.
+  it("removeWorktree MENOLAK menghapus repo itu sendiri, dan isinya selamat", () => {
+    const { repo } = seedRepo();
+    expect(() => realGit.removeWorktree(repo, repo)).toThrow(/repo itu sendiri/);
+    expect(existsSync(join(repo, "README.md"))).toBe(true);
+    // path relatif yang menunjuk balik ke repo ditolak juga (dinormalkan dulu).
+    expect(() => realGit.removeWorktree(repo, ".")).toThrow(/repo itu sendiri/);
+    expect(existsSync(join(repo, "README.md"))).toBe(true);
+  });
+
   it("removeWorktree pada path yang sudah hilang tak throw", () => {
     const { repo } = seedRepo();
     const wt = join(repo, ".worktrees", "spec-lenyap");
