@@ -771,7 +771,7 @@ git commit -m "feat(spec-361): query ?download=md|pdf di empat endpoint dokumen"
   - `<DocDownload href={(fmt: "md" | "pdf") => string} disabled?: boolean />`
   - `<Button as="a" href=… download />`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/test/doc-download.test.tsx`:
 
@@ -818,7 +818,7 @@ describe("DocDownload", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan GAGAL**
+- [x] **Step 2: Jalankan test — pastikan GAGAL**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-361
@@ -827,7 +827,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/doc-dow
 
 Expected: FAIL — `Failed to resolve import "../src/ds/DocDownload"`.
 
-- [ ] **Step 3: Tambahkan prop `as` ke `Button`**
+- [x] **Step 3: Tambahkan prop `as` ke `Button`**
 
 Di `src/src/ds/components/forms.tsx`, ubah tipe props (baris 22–24) menjadi:
 
@@ -852,7 +852,7 @@ Ubah tanda tangan (baris 25–26) menambahkan `as: asTag = "button",` sesudah `t
 
 (sisa properti di objek itu tidak berubah; hanya `type`/`disabled` yang jadi kondisional). Tambahkan `textDecoration: "none"` ke objek `style` agar anchor tak tergaris bawah.
 
-- [ ] **Step 4: Buat `src/src/ds/DocDownload.tsx`**
+- [x] **Step 4: Buat `src/src/ds/DocDownload.tsx`**
 
 ```tsx
 /* DocDownload (SPEC-361 · ADR-0077) — sepasang tombol unduh untuk setiap pratinjau dokumen.
@@ -881,7 +881,7 @@ Tambahkan ke `src/src/ds/index.ts` sesudah baris `export { MarkdownView, hnDocHt
 export { DocDownload } from "./DocDownload";
 ```
 
-- [ ] **Step 5: Tambahkan `paths.download` di `shared/src/api.ts`**
+- [x] **Step 5: Tambahkan `paths.download` di `shared/src/api.ts`**
 
 Sisipkan sebelum penutup `} as const;`:
 
@@ -902,7 +902,7 @@ Lalu di `src/src/api/client.ts`, tambahkan sesudah `getSpecDocFile`:
 
 `paths` sudah di-import di baris 1 file itu — pastikan namanya ikut di daftar import.
 
-- [ ] **Step 6: Jalankan test — pastikan LULUS**
+- [x] **Step 6: Jalankan test — pastikan LULUS**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/doc-download.test.tsx
@@ -910,7 +910,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/doc-dow
 
 Expected: PASS, 5 test.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/src/ds/components/forms.tsx src/src/ds/DocDownload.tsx src/src/ds/index.ts shared/src/api.ts src/src/api/client.ts src/test/doc-download.test.tsx

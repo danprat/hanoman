@@ -136,6 +136,13 @@ export const api = {
   getDoc: (id: string, path: string) => j<{ path: string; content: string }>(paths.docFile(id, path)),
   getSpecDocs: (id: string) => j<{ files: SpecDoc[] }>(paths.specDocs(id)),
   getSpecDocFile: (id: string, path: string) => j<{ path: string; content: string }>(paths.specDocFile(id, path)),
+  // SPEC-361 · ADR-0077 · URL unduh dokumen. Dipakai <a download>, BUKAN fetch: server yang
+  // menamai berkas lewat content-disposition, dan cookie sesi ikut same-origin.
+  specDocDownloadUrl: (id: string, path: string, fmt: "md" | "pdf") => paths.download(paths.specDocFile(id, path), fmt),
+  docDownloadUrl: (id: string, path: string, fmt: "md" | "pdf") => paths.download(paths.docFile(id, path), fmt),
+  prdDownloadUrl: (id: string, path: string, fmt: "md" | "pdf") => paths.download(paths.prdFile(id, path), fmt),
+  ideFileDownloadUrl: (id: string, path: string, ref: string, fmt: "md" | "pdf") =>
+    paths.download(paths.ideFile(id, path, ref), fmt),
   // SPEC-340 · ADR-0076 · rekomendasi tindak lanjut audit (turunan dokumen audit, bukan kolom DB).
   getEscalation: (id: string) => j<AuditEscalationView>(paths.specEscalation(id)),
   putDoc: (id: string, path: string, content: string) =>

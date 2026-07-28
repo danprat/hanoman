@@ -10,4 +10,5 @@ export type { ToastData, ShowToast } from "./kit";
 export { ConfirmDialog } from "./ConfirmDialog";
 export { Shell } from "./shell";
 export { MarkdownView, hnDocHtml } from "./markdown";
+export { DocDownload } from "./DocDownload";
 export { Mark, Wordmark, HN_MARKS } from "./marks";
