@@ -1,4 +1,4 @@
-import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type ConfigResponse, type ConfigEntryView, type IngestKeyView, type ErrorGroupView, type ErrorGroupDetail, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView, type Agent, type LinkView, type AuditEscalationView } from "@hanoman/shared";
+import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type SessionHistoryView, type ConfigResponse, type ConfigEntryView, type IngestKeyView, type ErrorGroupView, type ErrorGroupDetail, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView, type Agent, type LinkView, type AuditEscalationView } from "@hanoman/shared";
 export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit" | "breakdown" | "cross-audit";
 // SPEC-210 · dokumen PRD project (freshest-wins: worktree sesi prd hidup > repoDir). Tipe di @hanoman/shared.
@@ -278,6 +278,11 @@ export const api = {
   listSessionResults: (projectId?: string) => j<SessionResultView[]>(paths.sessionResults(projectId)),
   purgeSessionResults: (projectId: string, before?: string) =>
     j<{ purged: number }>(`${paths.sessionResults(projectId)}${before ? `&before=${encodeURIComponent(before)}` : ""}`, { method: "DELETE" }),
+  // SPEC-362 · ADR-0077 · riwayat sesi terminal. Paginasi di server (amplop Paginated); UI memakai
+  // muat-lebih, jadi ia menaikkan `page` dan MENAMBAH item, bukan menggantinya.
+  listSessionHistory: (p: { projectId?: string; kind?: string; q?: string; page?: number; limit?: number } = {}) =>
+    j<Paginated<SessionHistoryView>>(paths.sessionHistory(qs(p))),
+  sessionTranscript: (id: string) => j<{ text: string; bytes: number }>(paths.sessionTranscript(id)),
   // SPEC-249 · error monitoring — DSN ingest key (plaintext hanya balik di rotate, sekali).
   getIngestKey: (id: string) => j<IngestKeyView>(paths.projectIngestKey(id)),
   rotateIngestKey: (id: string) => j<IngestKeyView>(paths.projectIngestKey(id), { method: "POST" }),
