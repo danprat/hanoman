@@ -35,7 +35,7 @@ process.on("SIGINT", () => void shutdown("SIGINT"));
 
 app.listen({ port, host }).then(() => {
   console.log(`hanoman api ${host}:${port}`);
-  // SPEC-362 · ADR-0077 · pasang hook riwayat SEBELUM apa pun bisa melahirkan sesi, lalu tutup
+  // SPEC-362 · ADR-0079 · pasang hook riwayat SEBELUM apa pun bisa melahirkan sesi, lalu tutup
   // baris "berjalan" yang panenya sudah lenyap (tmux mati di luar hanoman: kill-server, reboot).
   installSessionHistory();
   void reconcileHistory(listSessions().map((s) => s.id))

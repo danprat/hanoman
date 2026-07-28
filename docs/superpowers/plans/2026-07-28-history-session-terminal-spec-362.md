@@ -36,7 +36,7 @@
 | `server/test/session-history.route.test.ts` | Test route + paginasi + filter |
 | `src/src/screens/SessionHistoryModal.tsx` | Modal riwayat: filter, daftar, muat-lebih, detail, transkrip, Mulai lagi |
 | `src/test/session-history-modal.test.tsx` | Test UI modal |
-| `internal/docs/adr/0077-history-sesi-terminal-store-lokal-plus-transkrip.md` | ADR |
+| `internal/docs/adr/0079-history-sesi-terminal-store-lokal-plus-transkrip.md` | ADR |
 
 **Diubah:**
 | File | Perubahan |
@@ -65,7 +65,7 @@
 - Consumes: —
 - Produces: `SESSION_KINDS: readonly SessionKind[]`, `type SessionKind`, `zSessionKind` (zod enum), `SESSION_KIND_LABEL: Record<SessionKind, string>`, `restartableKind(kind: string): boolean`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `shared/src/session-kind.test.ts`:
 
@@ -104,19 +104,19 @@ describe("SessionKind (SPEC-362)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd shared && env -u NODE_ENV -u DATABASE_URL npx vitest run src/session-kind.test.ts`
 Expected: FAIL — `Failed to resolve import "./session-kind"`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Create `shared/src/session-kind.ts`:
 
 ```ts
 import { z } from "zod";
 
-// SPEC-362 · ADR-0077 · jenis sesi terminal, diturunkan saat sesi LAHIR (pty.sessionKind) dan
+// SPEC-362 · ADR-0079 · jenis sesi terminal, diturunkan saat sesi LAHIR (pty.sessionKind) dan
 // disimpan di SessionHistory.kind. Label ikut di sini, bukan di UI: SPEC-262/264 sudah membuktikan
 // grid yang merender slug mentah membuat fiturnya tak ketemu saat dicari manusia.
 export const SESSION_KINDS = [
@@ -153,12 +153,12 @@ Append to `shared/src/index.ts` (setelah baris `export * from "./ticket-status";
 export * from "./session-kind";
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd shared && env -u NODE_ENV -u DATABASE_URL npx vitest run src/session-kind.test.ts`
 Expected: PASS, 5 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add shared/src/session-kind.ts shared/src/session-kind.test.ts shared/src/index.ts
@@ -177,12 +177,12 @@ git commit -m "feat(spec-362): katalog SessionKind + restartableKind di shared"
 - Consumes: —
 - Produces: `prisma.sessionHistory` dengan kolom `id, sessionId, projectId, specId, title, kind, flow, agent, model, effort, branch, cwd, startedAt, endedAt, exitCode, transcriptKey, transcriptBytes, createdAt, updatedAt`
 
-- [ ] **Step 1: Tambahkan model ke schema.prisma**
+- [x] **Step 1: Tambahkan model ke schema.prisma**
 
 Sisipkan setelah blok `model SessionResult { … }` (`server/prisma/schema.prisma:205`):
 
 ```prisma
-// SPEC-362 · ADR-0077 · riwayat sesi terminal. LOCAL-only: sesi hidup di tmux mesin ini dan
+// SPEC-362 · ADR-0079 · riwayat sesi terminal. LOCAL-only: sesi hidup di tmux mesin ini dan
 // transkripnya berkas di disk mesin ini — menyiarkannya ke hub akan mengirim baris yang menunjuk
 // berkas yang tak ada di sana (cermin LocalBinding & SchedulerQueueItem). Tanpa `version`/`notifySynced`.
 model SessionHistory {
@@ -216,12 +216,12 @@ model SessionHistory {
 }
 ```
 
-- [ ] **Step 2: Tulis migration.sql**
+- [x] **Step 2: Tulis migration.sql**
 
 Create `server/prisma/migrations/2026072801_spec362_session_history/migration.sql`:
 
 ```sql
--- SPEC-362 · ADR-0077 · riwayat sesi terminal (LOCAL-only, tak disync).
+-- SPEC-362 · ADR-0079 · riwayat sesi terminal (LOCAL-only, tak disync).
 -- Aditif: satu tabel baru. Tak menyentuh kolom mana pun yang sudah ada.
 CREATE TABLE "SessionHistory" (
   "id"              TEXT NOT NULL,
@@ -251,7 +251,7 @@ CREATE INDEX "SessionHistory_specId_idx" ON "SessionHistory"("specId");
 CREATE INDEX "SessionHistory_sessionId_idx" ON "SessionHistory"("sessionId");
 ```
 
-- [ ] **Step 3: Buat DB task ini + terapkan migration ke DB kerja dan DB test**
+- [x] **Step 3: Buat DB task ini + terapkan migration ke DB kerja dan DB test**
 
 ```bash
 docker exec hanoman-db-1 psql -U hanoman -d postgres -c 'CREATE DATABASE hanoman362;'
@@ -265,7 +265,7 @@ npx prisma generate
 Expected: dua kali `All migrations have been successfully applied`, lalu `Generated Prisma Client`.
 Catatan: kredensial/port persis ada di `.env` root — pakai nilai dari sana bila berbeda.
 
-- [ ] **Step 4: Verifikasi klien Prisma mengenal model baru**
+- [x] **Step 4: Verifikasi klien Prisma mengenal model baru**
 
 Run:
 ```bash
@@ -278,7 +278,7 @@ p.sessionHistory.count().then(n=>{console.log('rows',n);return p.\$disconnect();
 ```
 Expected: `rows 0`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/prisma/schema.prisma server/prisma/migrations/2026072801_spec362_session_history
@@ -297,7 +297,7 @@ git commit -m "feat(spec-362): model SessionHistory (LOCAL-only) + migration adi
 - Consumes: `effectiveStr` dari `../config`
 - Produces: `MAX_TRANSCRIPT_BYTES: number`, `transcriptDir(): string`, `saveTranscript(text: string): Promise<{ key: string; bytes: number; truncated: boolean }>`, `readTranscript(key: string): Promise<string | null>`, `deleteTranscript(key: string): Promise<void>`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `server/test/transcript-store.test.ts`:
 
@@ -361,17 +361,17 @@ describe("transcript-store (SPEC-362)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run test/transcript-store.test.ts`
 Expected: FAIL — `Failed to resolve import "../src/services/transcript-store"`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Create `server/src/services/transcript-store.ts`:
 
 ```ts
-// SPEC-362 · ADR-0077 · transkrip layar sesi yang sudah ditutup. Berkas hidup di
+// SPEC-362 · ADR-0079 · transkrip layar sesi yang sudah ditutup. Berkas hidup di
 // HANOMAN_TRANSCRIPT_DIR — server-local, DI LUAR repoDir, TAK disync (cermin services/uploads.ts
 // dan Vps.keyPath). DB hanya memegang nama berkasnya.
 import { randomUUID } from "node:crypto";
@@ -424,12 +424,12 @@ export async function deleteTranscript(key: string): Promise<void> {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run test/transcript-store.test.ts`
 Expected: PASS, 6 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/transcript-store.ts server/test/transcript-store.test.ts
@@ -452,7 +452,7 @@ git commit -m "feat(spec-362): store transkrip sesi di disk (cap 1 MiB, simpan e
   - `type SessionDeath = { sessionId: string; exitCode: number | null; transcript: string | null }`
   - `registerSessionHooks(h: { onBirth?: (b: SessionBirth) => void; onDeath?: (d: SessionDeath) => void }): void`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `server/test/pty.test.ts` (impor `sessionKind`, `registerSessionHooks`, `type SessionBirth`, `type SessionDeath` ke daftar impor `../src/services/pty` di atas berkas):
 
@@ -506,12 +506,12 @@ const tmuxCapture = (id: string): string | null => {
 };
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run test/pty.test.ts -t "riwayat sesi"`
 Expected: FAIL — `sessionKind is not exported` / `registerSessionHooks is not a function`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Di `server/src/services/pty.ts`:
 
@@ -524,7 +524,7 @@ import { coerceCodexEffort, type SessionKind } from "@hanoman/shared";
 (b) Sisipkan setelah blok `export const getSession = …` (sekitar baris 160):
 
 ```ts
-// SPEC-362 · ADR-0077 · riwayat sesi. pty.ts sengaja TETAP nol dependensi DB: ia hanya menembakkan
+// SPEC-362 · ADR-0079 · riwayat sesi. pty.ts sengaja TETAP nol dependensi DB: ia hanya menembakkan
 // dua peristiwa, dan services/session-history.ts yang mendaftarkan diri lewat server.ts (pola
 // registerSchedulerSource, SPEC-294). createSession & killSession adalah SATU-SATUNYA pintu lahir
 // & mati sesi — seluruh pemanggil (routes/terminal, session-launch, specs, ide, vps) lewat sini,
@@ -593,12 +593,12 @@ export function killSession(id: string): boolean {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run test/pty.test.ts`
 Expected: PASS — seluruh test pty lama tetap hijau + 3 test baru.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/pty.ts server/test/pty.test.ts
@@ -627,7 +627,7 @@ git commit -m "feat(spec-362): hook lahir/mati sesi + sessionKind di pty (pty te
 
 > **Catatan urutan:** Task 6 mendefinisikan `SessionHistoryView` di `shared/src/dto.ts`. Kerjakan **Step 1 Task 6** (DTO) lebih dulu bila TypeScript mengeluh, lalu kembali ke sini.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `server/test/session-history.service.test.ts`:
 
@@ -745,17 +745,17 @@ describe("session-history service (SPEC-362)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd server && env -u NODE_ENV -u DATABASE_URL DATABASE_URL='postgresql://hanoman:hanoman@localhost:5432/hanoman362' npx vitest run test/session-history.service.test.ts`
 Expected: FAIL — `Failed to resolve import "../src/services/session-history"`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Create `server/src/services/session-history.ts`:
 
 ```ts
-// SPEC-362 · ADR-0077 · riwayat sesi terminal. Satu-satunya tempat yang menyentuh tabel
+// SPEC-362 · ADR-0079 · riwayat sesi terminal. Satu-satunya tempat yang menyentuh tabel
 // SessionHistory; pty.ts tetap bebas DB dan hanya menembakkan peristiwa ke sini.
 import { randomUUID } from "node:crypto";
 import type { Paginated, SessionHistoryView } from "@hanoman/shared";
@@ -892,12 +892,12 @@ export function installSessionHistory(): void {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd server && env -u NODE_ENV -u DATABASE_URL DATABASE_URL='postgresql://hanoman:hanoman@localhost:5432/hanoman362' npx vitest run test/session-history.service.test.ts`
 Expected: PASS, 10 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/session-history.ts server/test/session-history.service.test.ts
@@ -919,12 +919,12 @@ git commit -m "feat(spec-362): service session-history (begin/finish/list/purge/
 - Consumes: service dari Task 5
 - Produces: `SessionHistoryView` (shared), `paths.sessionHistory(qs)`, `paths.sessionHistoryItem(id)`, `paths.sessionTranscript(id)`, endpoint `GET /api/terminal/history`, `GET /api/terminal/history/:id`, `GET /api/terminal/history/:id/transcript`, `DELETE /api/terminal/history`
 
-- [ ] **Step 1: Tambahkan DTO di shared**
+- [x] **Step 1: Tambahkan DTO di shared**
 
 Sisipkan di `shared/src/dto.ts` tepat setelah blok `zSessionResult`/`SessionResultView`:
 
 ```ts
-// SPEC-362 · ADR-0077 · satu baris riwayat sesi terminal. `transcriptBytes` non-null = transkrip
+// SPEC-362 · ADR-0079 · satu baris riwayat sesi terminal. `transcriptBytes` non-null = transkrip
 // tersedia; isinya sendiri diambil terpisah lewat endpoint transcript (bisa sampai 1 MiB).
 export const zSessionHistory = z.object({
   id: z.string(), sessionId: z.string(), projectId: z.string(), specId: z.string().nullable(),
@@ -939,14 +939,14 @@ export type SessionHistoryView = z.infer<typeof zSessionHistory>;
 Tambahkan di `shared/src/api.ts`, tepat setelah baris `terminalWs: (id: string) => …`:
 
 ```ts
-  // SPEC-362 · ADR-0077 · riwayat sesi. Di bawah prefix /terminal supaya ikut capability
+  // SPEC-362 · ADR-0079 · riwayat sesi. Di bawah prefix /terminal supaya ikut capability
   // `sessions` yang sudah ada (services/agent-capabilities.ts) tanpa menambah domain baru.
   sessionHistory: (qs = "") => `${API}/terminal/history${qs}`,
   sessionHistoryItem: (id: string) => `${API}/terminal/history/${encodeURIComponent(id)}`,
   sessionTranscript: (id: string) => `${API}/terminal/history/${encodeURIComponent(id)}/transcript`,
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Create `server/test/session-history.route.test.ts`:
 
@@ -1042,12 +1042,12 @@ describe("GET/DELETE /api/terminal/history (SPEC-362)", () => {
 });
 ```
 
-- [ ] **Step 3: Run test to verify it fails**
+- [x] **Step 3: Run test to verify it fails**
 
 Run: `cd server && env -u NODE_ENV -u DATABASE_URL DATABASE_URL='postgresql://hanoman:hanoman@localhost:5432/hanoman362' npx vitest run test/session-history.route.test.ts`
 Expected: FAIL — semua request riwayat balas 404 (route belum terdaftar).
 
-- [ ] **Step 4: Write minimal implementation**
+- [x] **Step 4: Write minimal implementation**
 
 Create `server/src/routes/session-history.ts`:
 
@@ -1055,7 +1055,7 @@ Create `server/src/routes/session-history.ts`:
 import type { FastifyInstance } from "fastify";
 import { listHistory, getHistory, transcriptOf, purgeHistory } from "../services/session-history";
 
-// SPEC-362 · ADR-0077 · baca & purge riwayat sesi terminal. Path sengaja di bawah /terminal:
+// SPEC-362 · ADR-0079 · baca & purge riwayat sesi terminal. Path sengaja di bawah /terminal:
 // capabilityForRoute() sudah memetakan seluruh top-level `terminal` ke sessions:read|write, jadi
 // endpoint ini tergerbang tanpa menambah domain capability baru (ADR-0065).
 export default async function (app: FastifyInstance) {
@@ -1103,12 +1103,12 @@ dan registrasi tepat setelah `await api.register(sessionResults);`:
     await api.register(sessionHistory);  // SPEC-362 · riwayat sesi terminal (di belakang gate cookie)
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `cd server && env -u NODE_ENV -u DATABASE_URL DATABASE_URL='postgresql://hanoman:hanoman@localhost:5432/hanoman362' npx vitest run test/session-history.route.test.ts`
 Expected: PASS, 6 test.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add shared/src/dto.ts shared/src/api.ts server/src/routes/session-history.ts server/src/app.ts server/test/session-history.route.test.ts
@@ -1126,7 +1126,7 @@ git commit -m "feat(spec-362): endpoint GET/DELETE /terminal/history + DTO Sessi
 - Consumes: `installSessionHistory`, `reconcileHistory` (Task 5); `listSessions` dari `./services/pty`
 - Produces: —
 
-- [ ] **Step 1: Pasang di server.ts**
+- [x] **Step 1: Pasang di server.ts**
 
 Tambah impor di dekat impor scheduler:
 
@@ -1138,7 +1138,7 @@ import { listSessions } from "./services/pty";
 Di dalam `app.listen(...).then(() => { … })`, sisipkan **sebelum** `startVpsMonitor()`:
 
 ```ts
-  // SPEC-362 · ADR-0077 · pasang hook riwayat SEBELUM apa pun bisa melahirkan sesi, lalu tutup
+  // SPEC-362 · ADR-0079 · pasang hook riwayat SEBELUM apa pun bisa melahirkan sesi, lalu tutup
   // baris "berjalan" yang panenya sudah lenyap (tmux mati di luar hanoman: kill-server, reboot).
   installSessionHistory();
   void reconcileHistory(listSessions().map((s) => s.id))
@@ -1146,17 +1146,17 @@ Di dalam `app.listen(...).then(() => { … })`, sisipkan **sebelum** `startVpsMo
     .catch((e) => console.error("rekonsiliasi riwayat sesi:", e));
 ```
 
-- [ ] **Step 2: Verifikasi build server**
+- [x] **Step 2: Verifikasi build server**
 
 Run: `cd server && npm run build`
 Expected: exit 0, tanpa error TypeScript.
 
-- [ ] **Step 3: Verifikasi seluruh suite server masih hijau**
+- [x] **Step 3: Verifikasi seluruh suite server masih hijau**
 
 Run: `cd server && env -u NODE_ENV -u DATABASE_URL DATABASE_URL='postgresql://hanoman:hanoman@localhost:5432/hanoman362' npx vitest run --no-file-parallelism`
 Expected: seluruh test PASS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add server/src/server.ts
@@ -1176,24 +1176,24 @@ git commit -m "feat(spec-362): pasang hook riwayat sesi + rekonsiliasi saat boot
   - `api.listSessionHistory(p: { projectId?: string; kind?: string; q?: string; page?: number; limit?: number }): Promise<Paginated<SessionHistoryView>>`
   - `api.sessionTranscript(id: string): Promise<{ text: string; bytes: number }>`
 
-- [ ] **Step 1: Tambahkan metode klien**
+- [x] **Step 1: Tambahkan metode klien**
 
 Di `src/src/api/client.ts`, tambahkan `SessionHistoryView` ke daftar `import type … from "@hanoman/shared"` di baris 1, lalu sisipkan tepat setelah `sessionResults: …` (sekitar baris 278):
 
 ```ts
-  // SPEC-362 · ADR-0077 · riwayat sesi terminal. Paginasi di server (amplop Paginated); UI memakai
+  // SPEC-362 · ADR-0079 · riwayat sesi terminal. Paginasi di server (amplop Paginated); UI memakai
   // muat-lebih, jadi ia menaikkan `page` dan MENAMBAH item, bukan menggantinya.
   listSessionHistory: (p: { projectId?: string; kind?: string; q?: string; page?: number; limit?: number } = {}) =>
     j<Paginated<SessionHistoryView>>(paths.sessionHistory(qs(p))),
   sessionTranscript: (id: string) => j<{ text: string; bytes: number }>(paths.sessionTranscript(id)),
 ```
 
-- [ ] **Step 2: Verifikasi typecheck frontend**
+- [x] **Step 2: Verifikasi typecheck frontend**
 
 Run: `cd src && npx tsc --noEmit -p tsconfig.json`
 Expected: exit 0.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/src/api/client.ts
@@ -1212,7 +1212,7 @@ git commit -m "feat(spec-362): klien API riwayat sesi + transkrip"
 - Consumes: `api.listSessionHistory`, `SESSION_KIND_LABEL`, `SESSION_KINDS`
 - Produces: `export function SessionHistoryModal({ projects, onClose, onRestart }: { projects: { id: string; name: string }[]; onClose: () => void; onRestart: (row: SessionHistoryView) => void })`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/test/session-history-modal.test.tsx`:
 
@@ -1295,12 +1295,12 @@ describe("SessionHistoryModal (SPEC-362)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd src && env -u NODE_ENV -u DATABASE_URL npx vitest run test/session-history-modal.test.tsx`
 Expected: FAIL — `Failed to resolve import "../src/screens/SessionHistoryModal"`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Create `src/src/screens/SessionHistoryModal.tsx`:
 
@@ -1331,7 +1331,7 @@ export function statusOf(r: SessionHistoryView): { label: string; tone: "ok" | "
   return r.exitCode === 0 ? { label: "selesai", tone: "ok" } : { label: `exit ${r.exitCode}`, tone: "err" };
 }
 
-// SPEC-362 · ADR-0077 · riwayat sesi sebagai MODAL, bukan panel tetap: grid terminal di belakangnya
+// SPEC-362 · ADR-0079 · riwayat sesi sebagai MODAL, bukan panel tetap: grid terminal di belakangnya
 // tak berubah ukuran sama sekali (syarat "tidak menghalangi UI terminal"). Pola sama dengan
 // BacklogPicker di TerminalScreen.
 export function SessionHistoryModal({ projects, onClose, onRestart }: {
@@ -1452,12 +1452,12 @@ function SessionHistoryDetail(_: {
 }) { return null; }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd src && env -u NODE_ENV -u DATABASE_URL npx vitest run test/session-history-modal.test.tsx`
 Expected: PASS, 6 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/SessionHistoryModal.tsx src/test/session-history-modal.test.tsx
@@ -1476,7 +1476,7 @@ git commit -m "feat(spec-362): modal riwayat sesi — filter, daftar, muat lebih
 - Consumes: `api.sessionTranscript`, `restartableKind` dari `@hanoman/shared`
 - Produces: panel detail di dalam modal yang sama
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Tambahkan di akhir `src/test/session-history-modal.test.tsx`:
 
@@ -1519,12 +1519,12 @@ describe("SessionHistoryModal — detail (SPEC-362)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd src && env -u NODE_ENV -u DATABASE_URL npx vitest run test/session-history-modal.test.tsx -t "detail"`
 Expected: FAIL — teks transkrip / tombol tak ditemukan (stub mengembalikan null).
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Ganti stub `SessionHistoryDetail` di `src/src/screens/SessionHistoryModal.tsx` dengan:
 
@@ -1616,12 +1616,12 @@ Tambahkan `restartableKind` ke impor `@hanoman/shared` di atas berkas:
 import { SESSION_KINDS, SESSION_KIND_LABEL, restartableKind, type SessionHistoryView } from "@hanoman/shared";
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd src && env -u NODE_ENV -u DATABASE_URL npx vitest run test/session-history-modal.test.tsx`
 Expected: PASS, 10 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/SessionHistoryModal.tsx src/test/session-history-modal.test.tsx
@@ -1640,7 +1640,7 @@ git commit -m "feat(spec-362): detail riwayat — transkrip read-only + Mulai la
 - Consumes: `SessionHistoryModal` (Task 9/10), `api.startSession`/`api.createTerminal`/`api.createShell`
 - Produces: —
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/test/terminal-history-button.test.tsx`:
 
@@ -1723,12 +1723,12 @@ describe("Riwayat di Terminal (SPEC-362)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd src && env -u NODE_ENV -u DATABASE_URL npx vitest run test/terminal-history-button.test.tsx`
 Expected: FAIL — `Unable to find an element with the text: Riwayat`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Di `src/src/screens/TerminalScreen.tsx`:
 
@@ -1800,17 +1800,17 @@ import type { SessionHistoryView } from "@hanoman/shared";
     j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, flow }) }),
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd src && env -u NODE_ENV -u DATABASE_URL npx vitest run test/terminal-history-button.test.tsx`
 Expected: PASS, 4 test.
 
-- [ ] **Step 5: Verifikasi seluruh suite frontend hijau**
+- [x] **Step 5: Verifikasi seluruh suite frontend hijau**
 
 Run: `cd src && env -u NODE_ENV -u DATABASE_URL npx vitest run`
 Expected: seluruh test PASS (termasuk `terminal-screen.test.tsx` yang lama).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/src/screens/TerminalScreen.tsx src/src/api/client.ts src/test/terminal-history-button.test.tsx
@@ -1819,10 +1819,10 @@ git commit -m "feat(spec-362): tombol Riwayat di Terminal + Mulai lagi dari riwa
 
 ---
 
-### Task 12: ADR-0077 + docs Source of Truth
+### Task 12: ADR-0079 + docs Source of Truth
 
 **Files:**
-- Create: `internal/docs/adr/0077-history-sesi-terminal-store-lokal-plus-transkrip.md`
+- Create: `internal/docs/adr/0079-history-sesi-terminal-store-lokal-plus-transkrip.md`
 - Modify: `internal/docs/README.md`
 - Modify: `internal/docs/architecture/data-model.md`
 - Modify: `internal/docs/architecture/api-contract.md`
@@ -1834,11 +1834,11 @@ git commit -m "feat(spec-362): tombol Riwayat di Terminal + Mulai lagi dari riwa
 - Consumes: seluruh keputusan Task 1–11
 - Produces: —
 
-- [ ] **Step 1: Tulis ADR-0077**
+- [x] **Step 1: Tulis ADR-0079**
 
-Create `internal/docs/adr/0077-history-sesi-terminal-store-lokal-plus-transkrip.md` dengan bagian:
+Create `internal/docs/adr/0079-history-sesi-terminal-store-lokal-plus-transkrip.md` dengan bagian:
 
-- **Judul:** `# ADR-0077 — Riwayat sesi terminal: store LOCAL-only + transkrip berkas, hook di dua titik cekik pty`
+- **Judul:** `# ADR-0079 — Riwayat sesi terminal: store LOCAL-only + transkrip berkas, hook di dua titik cekik pty`
 - **Status:** `aktif (SPEC-362). Memperluas 0016 (tmux sumber kebenaran sesi HIDUP) & 0047 (activity log stage); membuka pengecualian TERBATAS atas larangan transkrip di 0047. Terkait 0002/0015/0028/0038/0065.`
 - **Konteks:** tmux satu-satunya sumber kebenaran → `DELETE /terminal/sessions/:id` menghapus sesi + worktree tanpa jejak; `SessionResult` hanya lahir saat transisi stage spec sehingga shell/PRD/reverse/scaffold/breakdown/cross-audit/VPS tak pernah tercatat, dan whitelist-nya melarang transkrip.
 - **Keputusan (enam poin):**
@@ -1850,27 +1850,27 @@ Create `internal/docs/adr/0077-history-sesi-terminal-store-lokal-plus-transkrip.
   6. UI = modal di Terminal, muat-lebih; "Mulai lagi" men-spawn sesi baru lewat endpoint yang sudah ada, dibatasi `restartableKind`.
 - **Konsekuensi:** riwayat tumbuh → purge manual ber-scope (cermin ADR-0047); transkrip sekelas isi repo → LOCAL-only, tak pernah ke hub; **ponytail:** sesi yang panenya lenyap tanpa lewat `killSession` (tmux `kill-server`, reboot) kehilangan transkripnya — `reconcileHistory()` saat boot hanya menutup barisnya, tak bisa memulihkan isi.
 
-- [ ] **Step 2: Tautkan di index**
+- [x] **Step 2: Tautkan di index**
 
 Di `internal/docs/README.md`, di bagian `## adr` **paling atas** (di atas baris 0076):
 
 ```markdown
-- [0077 — Riwayat sesi terminal: store LOCAL-only + transkrip berkas, hook di dua titik cekik pty](adr/0077-history-sesi-terminal-store-lokal-plus-transkrip.md) — **memperluas 0016/0047**, membuka pengecualian terbatas atas larangan transkrip di 0047, terkait 0002/0015/0028/0038/0065 (SPEC-362): `SessionHistory` LOCAL-only (PK uuid — `sessionId` sesi spec berulang tiap reopen), baris lahir saat sesi LAHIR sehingga sesi berjalan pun tercatat; `registerSessionHooks` ditembak dari `createSession`/`killSession` sehingga `pty.ts` tetap nol dependensi DB dan 12 call site tak tersentuh; transkrip `capture-pane` tanpa `-e` (teks polos, cap 1 MiB menyimpan ekor) jadi berkas di `HANOMAN_TRANSCRIPT_DIR`, DB hanya pointer; `GET/DELETE /api/terminal/history*` mewarisi capability `sessions`, `skip`/`take` DB sah karena tak ada overlay live; UI modal di Terminal (muat-lebih) + "Mulai lagi" ber-`restartableKind`
+- [0077 — Riwayat sesi terminal: store LOCAL-only + transkrip berkas, hook di dua titik cekik pty](adr/0079-history-sesi-terminal-store-lokal-plus-transkrip.md) — **memperluas 0016/0047**, membuka pengecualian terbatas atas larangan transkrip di 0047, terkait 0002/0015/0028/0038/0065 (SPEC-362): `SessionHistory` LOCAL-only (PK uuid — `sessionId` sesi spec berulang tiap reopen), baris lahir saat sesi LAHIR sehingga sesi berjalan pun tercatat; `registerSessionHooks` ditembak dari `createSession`/`killSession` sehingga `pty.ts` tetap nol dependensi DB dan 12 call site tak tersentuh; transkrip `capture-pane` tanpa `-e` (teks polos, cap 1 MiB menyimpan ekor) jadi berkas di `HANOMAN_TRANSCRIPT_DIR`, DB hanya pointer; `GET/DELETE /api/terminal/history*` mewarisi capability `sessions`, `skip`/`take` DB sah karena tak ada overlay live; UI modal di Terminal (muat-lebih) + "Mulai lagi" ber-`restartableKind`
 ```
 
-- [ ] **Step 3: Perbarui data-model, api-contract, frontend, security**
+- [x] **Step 3: Perbarui data-model, api-contract, frontend, security**
 
 - `architecture/data-model.md`: tambah bagian `SessionHistory` (kolom + kenapa PK uuid + kenapa tanpa FK + LOCAL-only, tak masuk `SYNCED`).
 - `architecture/api-contract.md`: tambah keempat endpoint dengan parameter, bentuk respons `Paginated<SessionHistoryView>`, dan aturan purge wajib ber-scope.
 - `frontend/frontend-implementation.md`: tambah `SessionHistoryModal` (pola modal seperti `BacklogPicker`, muat-lebih `IntersectionObserver` seperti `GitGraph`, tombol "Riwayat" di toolbar Terminal).
 - `security/security-standard.md`: tambah paragraf transkrip — apa yang tersimpan, di mana, kenapa tak disync, dan bahwa purge manual adalah satu-satunya penghapusan.
 
-- [ ] **Step 4: Perbarui SKILL project**
+- [x] **Step 4: Perbarui SKILL project**
 
 Di `internal/skills/hanoman/SKILL.md`, bagian "Aturan Sesi & Eksekusi", tambahkan butir:
 
 ```markdown
-- **Riwayat sesi** (SPEC-362/ADR-0077): tmux tetap sumber kebenaran sesi **hidup**, tapi setiap sesi
+- **Riwayat sesi** (SPEC-362/ADR-0079): tmux tetap sumber kebenaran sesi **hidup**, tapi setiap sesi
   kini meninggalkan baris `SessionHistory` (LOCAL-only, tak disync) yang lahir bersama sesinya dan
   ditutup saat `killSession`. `pty.ts` tetap **nol dependensi DB** — ia hanya menembakkan
   `registerSessionHooks({onBirth,onDeath})` dari dua titik cekik `createSession`/`killSession`; jangan
@@ -1881,16 +1881,16 @@ Di `internal/skills/hanoman/SKILL.md`, bagian "Aturan Sesi & Eksekusi", tambahka
   /api/terminal/history*` mewarisi capability `sessions` karena berada di bawah prefix `/terminal`.
 ```
 
-- [ ] **Step 5: Verifikasi index konsisten**
+- [x] **Step 5: Verifikasi index konsisten**
 
 Run: `node cli/dist/index.js docs index --check 2>/dev/null || npx hanoman docs index --check`
 Expected: laporan tanpa dokumen yatim. Bila CLI belum ter-build, cukup pastikan setiap berkas baru di `internal/docs/**` muncul di `internal/docs/README.md`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/docs internal/skills
-git commit -m "docs(spec-362): ADR-0077 + data-model/api-contract/frontend/security + index"
+git commit -m "docs(spec-362): ADR-0079 + data-model/api-contract/frontend/security + index"
 ```
 
 ---
@@ -2017,7 +2017,7 @@ git add -A && git commit -m "chore(spec-362): hasil verifikasi smoke" || echo "t
 | UI modal tak menghalangi + muat lebih + baris penutup | 9 + 11 |
 | Detail + transkrip read-only + Mulai lagi ber-`restartableKind` | 1 (`restartableKind`) + 10 + 11 |
 | Keamanan (gate, LOCAL-only, `<pre>` teks polos) | 6 (prefix `/terminal`) + 10 + 12 (dokumentasi) |
-| Docs + ADR-0077 | 12 |
+| Docs + ADR-0079 | 12 |
 | Smoke nyata | 13 |
 
 **Type consistency:** `SessionBirth`/`SessionDeath` (Task 4) dipakai apa adanya oleh `beginSession`/`finishSession` (Task 5). `SessionHistoryView` (Task 6) dipakai service (Task 5), klien (Task 8), dan UI (Task 9/10) dengan nama field identik. `restartableKind` (Task 1) dipakai Task 10; `SESSION_KIND_LABEL` dipakai Task 9 & 10. `paths.sessionHistory(qs)` menerima string query siap pakai — `qs()` di klien menghasilkan `"?a=b"`.

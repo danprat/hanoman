@@ -159,7 +159,7 @@ export const liveDecisions = (): { id: string; specId?: string; projectId: strin
 
 export const getSession = (id: string): Pane | undefined => listPanes().find((p) => p.id === id);
 
-// SPEC-362 · ADR-0077 · riwayat sesi. pty.ts sengaja TETAP nol dependensi DB: ia hanya menembakkan
+// SPEC-362 · ADR-0079 · riwayat sesi. pty.ts sengaja TETAP nol dependensi DB: ia hanya menembakkan
 // dua peristiwa, dan services/session-history.ts yang mendaftarkan diri lewat server.ts (pola
 // registerSchedulerSource, SPEC-294). createSession & killSession adalah SATU-SATUNYA pintu lahir
 // & mati sesi — seluruh pemanggil (routes/terminal, session-launch, specs, ide, vps) lewat sini,

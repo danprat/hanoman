@@ -78,7 +78,7 @@ export const paths = {
   sessionReviewFile: (id: string, path: string) => `${API}/terminal/sessions/${id}/review/${path}`,
   sessionIntegrate: (id: string) => `${API}/terminal/sessions/${id}/integrate`,
   terminalWs: (id: string) => `${API}/terminal/sessions/${id}/ws`,
-  // SPEC-362 · ADR-0077 · riwayat sesi. Di bawah prefix /terminal supaya ikut capability
+  // SPEC-362 · ADR-0079 · riwayat sesi. Di bawah prefix /terminal supaya ikut capability
   // `sessions` yang sudah ada (services/agent-capabilities.ts) tanpa menambah domain baru.
   sessionHistory: (qs = "") => `${API}/terminal/history${qs}`,
   sessionHistoryItem: (id: string) => `${API}/terminal/history/${encodeURIComponent(id)}`,

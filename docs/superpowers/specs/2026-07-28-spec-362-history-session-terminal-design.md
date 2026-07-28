@@ -185,7 +185,7 @@ hidup → `endedAt = updatedAt` (waktu terbaik yang tersedia), `exitCode` tetap 
 ## Keamanan
 
 - **Transkrip adalah data baru yang tersimpan di disk.** ADR-0047 dulu **sengaja** melarang transkrip
-  masuk `SessionResult`; ADR-0077 membuka pengecualian **terbatas dan eksplisit**: hanya di store
+  masuk `SessionResult`; ADR-0079 membuka pengecualian **terbatas dan eksplisit**: hanya di store
   LOCAL-only, tak pernah masuk record-sync, tak pernah menyeberang ke hub.
 - Endpoint tergerbang auth `/api` yang sudah ada (ADR-0028) dan capability `sessions` (ADR-0065).
 - Transkrip bisa memuat isi kode, path, dan output perintah. Ia **tidak** memuat kredensial yang

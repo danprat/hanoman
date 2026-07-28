@@ -1,4 +1,4 @@
-// SPEC-362 · ADR-0077 · riwayat sesi terminal. Satu-satunya tempat yang menyentuh tabel
+// SPEC-362 · ADR-0079 · riwayat sesi terminal. Satu-satunya tempat yang menyentuh tabel
 // SessionHistory; pty.ts tetap bebas DB dan hanya menembakkan peristiwa ke sini.
 import { randomUUID } from "node:crypto";
 import type { Paginated, SessionHistoryView } from "@hanoman/shared";

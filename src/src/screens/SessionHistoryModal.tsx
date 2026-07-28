@@ -27,7 +27,7 @@ export function statusOf(r: SessionHistoryView): { label: string; tone: "ok" | "
 const labelOfKind = (kind: string): string =>
   SESSION_KIND_LABEL[kind as keyof typeof SESSION_KIND_LABEL] ?? kind;
 
-// SPEC-362 · ADR-0077 · riwayat sesi sebagai MODAL, bukan panel tetap: grid terminal di belakangnya
+// SPEC-362 · ADR-0079 · riwayat sesi sebagai MODAL, bukan panel tetap: grid terminal di belakangnya
 // tak berubah ukuran sama sekali (syarat "tidak menghalangi UI terminal"). Pola sama dengan
 // BacklogPicker di TerminalScreen.
 export function SessionHistoryModal({ projects, onClose, onRestart }: {

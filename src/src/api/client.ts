@@ -282,7 +282,7 @@ export const api = {
   listSessionResults: (projectId?: string) => j<SessionResultView[]>(paths.sessionResults(projectId)),
   purgeSessionResults: (projectId: string, before?: string) =>
     j<{ purged: number }>(`${paths.sessionResults(projectId)}${before ? `&before=${encodeURIComponent(before)}` : ""}`, { method: "DELETE" }),
-  // SPEC-362 · ADR-0077 · riwayat sesi terminal. Paginasi di server (amplop Paginated); UI memakai
+  // SPEC-362 · ADR-0079 · riwayat sesi terminal. Paginasi di server (amplop Paginated); UI memakai
   // muat-lebih, jadi ia menaikkan `page` dan MENAMBAH item, bukan menggantinya.
   listSessionHistory: (p: { projectId?: string; kind?: string; q?: string; page?: number; limit?: number } = {}) =>
     j<Paginated<SessionHistoryView>>(paths.sessionHistory(qs(p))),

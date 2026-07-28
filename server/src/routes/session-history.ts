@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { listHistory, getHistory, transcriptOf, purgeHistory } from "../services/session-history";
 
-// SPEC-362 · ADR-0077 · baca & purge riwayat sesi terminal. Path sengaja di bawah /terminal:
+// SPEC-362 · ADR-0079 · baca & purge riwayat sesi terminal. Path sengaja di bawah /terminal:
 // capabilityForRoute() sudah memetakan seluruh top-level `terminal` ke sessions:read|write, jadi
 // endpoint ini tergerbang tanpa menambah domain capability baru (ADR-0065).
 export default async function (app: FastifyInstance) {

@@ -1,4 +1,4 @@
--- SPEC-362 · ADR-0077 · riwayat sesi terminal (LOCAL-only, tak disync).
+-- SPEC-362 · ADR-0079 · riwayat sesi terminal (LOCAL-only, tak disync).
 -- Aditif: satu tabel baru. Tak menyentuh kolom mana pun yang sudah ada.
 CREATE TABLE "SessionHistory" (
   "id"              TEXT NOT NULL,

@@ -296,7 +296,7 @@ overlay sesi live — status live (running/done/failed) tetap diturunkan dari `p
   **tanpa retry** (PRD non-goal); atau **biarkan `launched`** (pane hidup, stage<done — masih kerja / menunggu
   keputusan → `scanDecisions` menerbitkan `Notification decision`, sesi tetap **memegang slot** governor `liveCount`).
 
-## SessionHistory (SPEC-362 · [ADR-0077](../adr/0077-history-sesi-terminal-store-lokal-plus-transkrip.md))
+## SessionHistory (SPEC-362 · [ADR-0079](../adr/0079-history-sesi-terminal-store-lokal-plus-transkrip.md))
 Riwayat **setiap** sesi terminal — **LOCAL-ONLY, tak disync** (cermin `LocalBinding`/`SchedulerQueueItem`:
 sesi hidup di tmux mesin ini dan transkripnya berkas di disk mesin ini). tmux tetap sumber kebenaran
 sesi **hidup** (ADR-0016); tabel ini adalah jejak sesi yang **sudah berlalu**, yang sebelumnya lenyap

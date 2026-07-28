@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// SPEC-362 · ADR-0077 · jenis sesi terminal, diturunkan saat sesi LAHIR (pty.sessionKind) dan
+// SPEC-362 · ADR-0079 · jenis sesi terminal, diturunkan saat sesi LAHIR (pty.sessionKind) dan
 // disimpan di SessionHistory.kind. Label ikut di sini, bukan di UI: SPEC-262/264 sudah membuktikan
 // grid yang merender slug mentah membuat fiturnya tak ketemu saat dicari manusia.
 export const SESSION_KINDS = [

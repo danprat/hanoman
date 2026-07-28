@@ -372,7 +372,7 @@ GET    /terminal/sessions/:id/ws     # WebSocket; close 4004 bila sesi tak ada
 #   server->klien: { t:"data", d } · { t:"phase", … } · { t:"exit", code }
 #   klien->server: { t:"in", d } · { t:"resize", cols, rows }
 
-# --- riwayat sesi (SPEC-362, ADR-0077) — LOCAL-only, tak disync -------------------------------
+# --- riwayat sesi (SPEC-362, ADR-0079) — LOCAL-only, tak disync -------------------------------
 GET    /terminal/history?projectId&specId&kind&q&page&limit
 #   → { items: SessionHistoryView[], total, page, pageSize } · urut startedAt desc
 #   q mencocokkan sessionId/specId/title/branch (insensitive). Tanpa `limit` → seluruh riwayat

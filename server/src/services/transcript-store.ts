@@ -1,4 +1,4 @@
-// SPEC-362 · ADR-0077 · transkrip layar sesi yang sudah ditutup. Berkas hidup di
+// SPEC-362 · ADR-0079 · transkrip layar sesi yang sudah ditutup. Berkas hidup di
 // HANOMAN_TRANSCRIPT_DIR — server-local, DI LUAR repoDir, TAK disync (cermin services/uploads.ts
 // dan Vps.keyPath). DB hanya memegang nama berkasnya.
 import { randomUUID } from "node:crypto";

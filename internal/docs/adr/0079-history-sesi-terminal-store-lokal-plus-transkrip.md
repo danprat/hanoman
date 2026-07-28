@@ -1,4 +1,4 @@
-# ADR-0077 — Riwayat sesi terminal: store LOCAL-only + transkrip berkas, hook di dua titik cekik pty
+# ADR-0079 — Riwayat sesi terminal: store LOCAL-only + transkrip berkas, hook di dua titik cekik pty
 
 **Status:** aktif (SPEC-362). **Memperluas 0016** (tmux tetap sumber kebenaran sesi *hidup*) &
 **0047** (activity log stage) — dan membuka **pengecualian terbatas** atas larangan transkrip di

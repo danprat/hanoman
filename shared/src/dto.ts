@@ -19,7 +19,7 @@ export const zSessionResult = z.object({
 });
 export type SessionResultView = z.infer<typeof zSessionResult>;
 
-// SPEC-362 · ADR-0077 · satu baris riwayat sesi terminal. `transcriptBytes` non-null = transkrip
+// SPEC-362 · ADR-0079 · satu baris riwayat sesi terminal. `transcriptBytes` non-null = transkrip
 // tersedia; isinya sendiri diambil terpisah lewat endpoint transcript (bisa sampai 1 MiB).
 export const zSessionHistory = z.object({
   id: z.string(), sessionId: z.string(), projectId: z.string(), specId: z.string().nullable(),

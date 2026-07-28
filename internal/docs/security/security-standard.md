@@ -99,9 +99,9 @@
   - **Bukan perluasan permukaan eksekusi**: `sessions:write` = RCE (spawn `claude --dangerously-skip-permissions`)
     & `vps:write` = remote exec tetap dibatasi **isolasi worktree** (ADR-0037) — agent token hanya membuka
     pintu API yang sama lewat auth berbeda, bukan menambah kemampuan baru.
-- **Transkrip sesi tersimpan (SPEC-362, [ADR-0077](../adr/0077-history-sesi-terminal-store-lokal-plus-transkrip.md))**:
+- **Transkrip sesi tersimpan (SPEC-362, [ADR-0079](../adr/0079-history-sesi-terminal-store-lokal-plus-transkrip.md))**:
   riwayat sesi menyimpan **snapshot layar** tiap sesi yang ditutup — data baru yang sebelumnya tak
-  pernah ada di disk hanoman. ADR-0047 dulu **sengaja** melarangnya masuk `SessionResult`; ADR-0077
+  pernah ada di disk hanoman. ADR-0047 dulu **sengaja** melarangnya masuk `SessionResult`; ADR-0079
   membuka pengecualian **terbatas dan eksplisit**, dengan pagar berikut:
   - **LOCAL-only.** `SessionHistory` tak masuk record-sync dan berkas transkripnya tak pernah
     menyeberang ke hub (cermin `Vps.keyPath` & upload lampiran: berkas server-local, di luar repoDir).

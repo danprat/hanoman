@@ -374,7 +374,7 @@ describe("pty service", () => {
   });
 });
 
-// SPEC-362 · ADR-0077 · hook riwayat sesi. pty.ts tetap nol dependensi DB: ia hanya menembakkan
+// SPEC-362 · ADR-0079 · hook riwayat sesi. pty.ts tetap nol dependensi DB: ia hanya menembakkan
 // dua peristiwa dari dua titik cekik (createSession/killSession).
 describe("hook riwayat sesi (SPEC-362)", () => {
   afterEach(() => { registerSessionHooks({}); });  // singleton modul — jangan bocor ke test lain

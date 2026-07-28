@@ -140,7 +140,7 @@ repoDir project terpilih (`POST {project, shell:true}`) untuk sekadar menjalanka
 di sebelah **Sesi baru** yang men-spawn `claude`. Sesi shell tak punya flow/spec, tampil seperti
 sesi biasa; menutupnya hanya kill pane (cwd = repoDir, bukan worktree). Lihat ADR-0056.
 
-Toolbar juga punya **Riwayat** (SPEC-362 · [ADR-0077](../adr/0077-history-sesi-terminal-store-lokal-plus-transkrip.md)):
+Toolbar juga punya **Riwayat** (SPEC-362 · [ADR-0079](../adr/0079-history-sesi-terminal-store-lokal-plus-transkrip.md)):
 membuka `SessionHistoryModal` — **modal**, bukan panel tetap, persis seperti picker "Ambil backlog".
 Itulah cara memenuhi "mudah diakses tapi tidak menghalangi UI terminal": grid di belakangnya tak
 berubah ukuran sama sekali, dan selama modal tak dibuka **tak ada request riwayat** yang berjalan.
