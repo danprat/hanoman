@@ -1,4 +1,4 @@
-/* doc-export (SPEC-361 · ADR-0077) — unduh dokumen sebagai .md mentah atau .pdf.
+/* doc-export (SPEC-361 · ADR-0078) — unduh dokumen sebagai .md mentah atau .pdf.
    Dipakai empat endpoint dokumen lewat query `?download=`. PDF dirender dari token
    `marked` (parser yang SAMA dengan preview frontend) ke pdfkit. */
 import PDFDocument from "pdfkit";

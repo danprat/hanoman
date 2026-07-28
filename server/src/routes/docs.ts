@@ -20,7 +20,7 @@ export default async function (app: FastifyInstance) {
     const path = (req.params as Record<string, string>)["*"] ?? "";
     const content = await readPrd(id, path);
     if (content === null) return reply.code(404).send({ error: "not found" });
-    // SPEC-361 · ADR-0077 · unduh .md mentah / .pdf; tanpa query → JSON seperti semula.
+    // SPEC-361 · ADR-0078 · unduh .md mentah / .pdf; tanpa query → JSON seperti semula.
     const fmt = downloadFormat(req.query);
     if (fmt) return sendDocDownload(reply, fmt, { content, name: path, prefix: id, eyebrow: `hanoman · ${id} · PRD`, path });
     return { path, content };
@@ -39,7 +39,7 @@ export default async function (app: FastifyInstance) {
     const path = (req.params as Record<string, string>)["*"] ?? "";
     const content = await readDoc(id, path);
     if (content === null) return reply.code(404).send({ error: "not found" });
-    // SPEC-361 · ADR-0077 · unduh .md mentah / .pdf; tanpa query → JSON seperti semula.
+    // SPEC-361 · ADR-0078 · unduh .md mentah / .pdf; tanpa query → JSON seperti semula.
     const fmt = downloadFormat(req.query);
     if (fmt) return sendDocDownload(reply, fmt, { content, name: path, prefix: id, eyebrow: `hanoman · ${id}`, path });
     return { path, content };

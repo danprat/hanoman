@@ -40,7 +40,7 @@ export default async function (app: FastifyInstance) {
     try {
       const f = await readRepoFile(repoDir, path, ref ?? "");
       if (f === null) return reply.code(404).send({ error: "not found" });
-      // SPEC-361 · ADR-0077 · unduh berkas teks; biner tak punya bentuk .md/.pdf yang berarti.
+      // SPEC-361 · ADR-0078 · unduh berkas teks; biner tak punya bentuk .md/.pdf yang berarti.
       const fmt = downloadFormat(req.query);
       if (fmt && !f.binary) {
         return sendDocDownload(reply, fmt, {

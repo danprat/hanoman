@@ -148,7 +148,7 @@ GET    /projects/:id/breakdown?prd=<path> # SPEC-273 · ADR-0069 · { items:[Bre
 #   Manifest bukan PRD → dikecualikan dari daftar/isi PRD di atas.
 ```
 
-### Unduh dokumen (SPEC-361 · ADR-0077)
+### Unduh dokumen (SPEC-361 · ADR-0078)
 
 Empat endpoint dokumen menerima query **opsional** `?download=md|pdf`. Tak ada endpoint ekspor
 terpisah — pola sama dengan `GET /projects/:id/archive` (SPEC-233).

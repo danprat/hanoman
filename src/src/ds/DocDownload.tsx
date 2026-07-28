@@ -1,4 +1,4 @@
-/* DocDownload (SPEC-361 · ADR-0077) — sepasang tombol unduh untuk setiap pratinjau dokumen.
+/* DocDownload (SPEC-361 · ADR-0078) — sepasang tombol unduh untuk setiap pratinjau dokumen.
    Anchor sungguhan (bukan onClick) supaya `content-disposition` server yang menentukan nama
    berkas; cookie sesi ikut terkirim same-origin, jadi gate auth ADR-0028 berlaku apa adanya. */
 import React from "react";

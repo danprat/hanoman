@@ -1,7 +1,7 @@
 # SPEC-361 — Unduh dokumen preview sebagai `.md` mentah dan `.pdf`
 
 **Tanggal:** 2026-07-28 · **Sumber:** brief · **Prioritas:** tinggi
-**ADR:** [0077 — Unduh dokumen: query `?download=` di endpoint dokumen + render PDF server-side](../../../internal/docs/adr/0077-unduh-dokumen-md-pdf.md)
+**ADR:** [0077 — Unduh dokumen: query `?download=` di endpoint dokumen + render PDF server-side](../../../internal/docs/adr/0078-unduh-dokumen-md-pdf.md)
 
 ## Objective
 
@@ -147,5 +147,5 @@ dan magic bytes PDF, lalu render PDF hasilnya jadi gambar untuk pemeriksaan mata
 | `internal/docs/adr/0077-*.md` | **baru** |
 | `internal/docs/architecture/api-contract.md` | dokumentasi `?download=` |
 | `internal/docs/frontend/frontend-implementation.md` | permukaan unduh |
-| `internal/docs/README.md` | taut ADR-0077 |
+| `internal/docs/README.md` | taut ADR-0078 |
 | `internal/skills/hanoman/SKILL.md` | satu baris aturan |

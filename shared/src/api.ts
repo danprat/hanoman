@@ -147,7 +147,7 @@ export const paths = {
   projectLinks: (id: string) => `${API}/projects/${encodeURIComponent(id)}/links`,
   projectLink: (id: string, linkId: string) =>
     `${API}/projects/${encodeURIComponent(id)}/links/${encodeURIComponent(linkId)}`,
-  // SPEC-361 · ADR-0077 · unduh dokumen: query ditempelkan ke URL endpoint dokumen yang sudah ada
+  // SPEC-361 · ADR-0078 · unduh dokumen: query ditempelkan ke URL endpoint dokumen yang sudah ada
   // (tak ada endpoint ekspor terpisah). `base` bisa sudah membawa query, mis. ideFile(?path=…).
   download: (base: string, fmt: "md" | "pdf") => `${base}${base.includes("?") ? "&" : "?"}download=${fmt}`,
 } as const;

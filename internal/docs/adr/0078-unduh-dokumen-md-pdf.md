@@ -1,4 +1,4 @@
-# ADR-0077 — Unduh dokumen: query `?download=` di endpoint dokumen + render PDF server-side
+# ADR-0078 — Unduh dokumen: query `?download=` di endpoint dokumen + render PDF server-side
 
 **Status:** accepted · **Tanggal:** 2026-07-28 · **Spec:** SPEC-361
 **Terkait:** [ADR-0011](0011-docs-realtime-filesystem.md) (**memperluas** — docs = filesystem nyata,

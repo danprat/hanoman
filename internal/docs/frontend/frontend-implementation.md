@@ -431,7 +431,7 @@ icon `inbox`; `NotificationBell` per-tipe (icon/warna brass, label "keluhan baru
 `notifTarget` → `{ section: "triage", projectFilter }`. Server menotifikasi **setiap** tiket baru (dedup `key`),
 tersiar lewat grup `notifications` WS existing.
 
-**Unduh dokumen** (SPEC-361 · ADR-0077). `ds/DocDownload.tsx` merender sepasang anchor `.md` /
+**Unduh dokumen** (SPEC-361 · ADR-0078). `ds/DocDownload.tsx` merender sepasang anchor `.md` /
 `.pdf` dan dipasang di **setiap** pratinjau Markdown: `SpecDocsModal` (komponen yang sama dipakai
 Backlog **dan** Terminal, jadi satu pemasangan menutup dua entry point), `PrdScreen` (pane preview),
 `DocsWorkspace` (**mode preview saja** — isi tersimpan, bukan draft editor), dan `IdeScreen`

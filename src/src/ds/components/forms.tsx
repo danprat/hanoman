@@ -38,9 +38,14 @@ export function Button({ children, variant = "primary", size = "md", leftIcon, r
     : variant === "secondary" ? { background: "var(--bone-100)", borderColor: "var(--ink-300)" }
     : { filter: "brightness(0.95)" };
   const isAnchor = asTag === "a";
+  // `type`/`disabled` bukan atribut sah pada <a>; padanannya aria-disabled. Dipisah ke variabel
+  // ber-tipe longgar karena spread kondisional di dalam argumen createElement membuat TS
+  // menyimpulkan union prop yang tak cocok overload mana pun.
+  const tagProps: Record<string, unknown> = isAnchor
+    ? { "aria-disabled": isDisabled || undefined }
+    : { type, disabled: isDisabled };
   return React.createElement(isAnchor ? "a" : "button", _extends({
-    // `type`/`disabled` bukan atribut sah pada <a>; padanannya aria-disabled.
-    ...(isAnchor ? { "aria-disabled": isDisabled || undefined } : { type, disabled: isDisabled }),
+    ...tagProps,
     onMouseEnter: () => setHover(true),
     onMouseLeave: () => { setHover(false); setActive(false); },
     onMouseDown: () => setActive(true), onMouseUp: () => setActive(false), className,

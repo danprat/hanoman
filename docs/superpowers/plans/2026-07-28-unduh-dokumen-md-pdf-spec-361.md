@@ -110,7 +110,7 @@ Expected: FAIL — `Failed to resolve import "../src/services/doc-export"`.
 Buat `server/src/services/doc-export.ts`:
 
 ```ts
-/* doc-export (SPEC-361 · ADR-0077) — unduh dokumen sebagai .md mentah atau .pdf.
+/* doc-export (SPEC-361 · ADR-0078) — unduh dokumen sebagai .md mentah atau .pdf.
    Dipakai empat endpoint dokumen lewat query `?download=`. PDF dirender dari token
    `marked` (parser yang SAMA dengan preview frontend) ke pdfkit. */
 
@@ -652,7 +652,7 @@ Ganti badan `app.get("/specs/:id/docs/*", …)` (baris 197–203) menjadi:
     const dir = await resolveDir(id);
     const content = dir ? readDocFile(dir, path) : null; // readDocFile menolak non-.md -> null
     if (content === null) return reply.code(404).send({ error: "not found" });
-    // SPEC-361 · ADR-0077 · unduh .md mentah / .pdf; tanpa query → JSON seperti semula.
+    // SPEC-361 · ADR-0078 · unduh .md mentah / .pdf; tanpa query → JSON seperti semula.
     const fmt = downloadFormat(req.query);
     if (fmt) return sendDocDownload(reply, fmt, { content, name: path, prefix: id, eyebrow: `hanoman · ${id}`, path });
     return { path, content };
@@ -675,7 +675,7 @@ Ganti handler PRD (baris 17–22):
     const path = (req.params as Record<string, string>)["*"] ?? "";
     const content = await readPrd(id, path);
     if (content === null) return reply.code(404).send({ error: "not found" });
-    // SPEC-361 · ADR-0077
+    // SPEC-361 · ADR-0078
     const fmt = downloadFormat(req.query);
     if (fmt) return sendDocDownload(reply, fmt, { content, name: path, prefix: id, eyebrow: `hanoman · ${id} · PRD`, path });
     return { path, content };
@@ -690,7 +690,7 @@ Ganti handler docs (baris 32–37):
     const path = (req.params as Record<string, string>)["*"] ?? "";
     const content = await readDoc(id, path);
     if (content === null) return reply.code(404).send({ error: "not found" });
-    // SPEC-361 · ADR-0077
+    // SPEC-361 · ADR-0078
     const fmt = downloadFormat(req.query);
     if (fmt) return sendDocDownload(reply, fmt, { content, name: path, prefix: id, eyebrow: `hanoman · ${id}`, path });
     return { path, content };
@@ -716,7 +716,7 @@ Ganti handler `GET /projects/:id/file` (baris 33–42):
     try {
       const f = await readRepoFile(repoDir, path, ref ?? "");
       if (f === null) return reply.code(404).send({ error: "not found" });
-      // SPEC-361 · ADR-0077 · unduh berkas teks; biner tak punya bentuk .md/.pdf yang berarti.
+      // SPEC-361 · ADR-0078 · unduh berkas teks; biner tak punya bentuk .md/.pdf yang berarti.
       const fmt = downloadFormat(req.query);
       if (fmt && !f.binary) {
         const id = (req.params as { id: string }).id;
@@ -855,7 +855,7 @@ Ubah tanda tangan (baris 25–26) menambahkan `as: asTag = "button",` sesudah `t
 - [x] **Step 4: Buat `src/src/ds/DocDownload.tsx`**
 
 ```tsx
-/* DocDownload (SPEC-361 · ADR-0077) — sepasang tombol unduh untuk setiap pratinjau dokumen.
+/* DocDownload (SPEC-361 · ADR-0078) — sepasang tombol unduh untuk setiap pratinjau dokumen.
    Anchor sungguhan (bukan onClick) supaya `content-disposition` server yang menentukan nama
    berkas; cookie sesi ikut terkirim same-origin, jadi gate auth ADR-0028 berlaku apa adanya. */
 import React from "react";
@@ -886,14 +886,14 @@ export { DocDownload } from "./DocDownload";
 Sisipkan sebelum penutup `} as const;`:
 
 ```ts
-  // SPEC-361 · ADR-0077 · unduh dokumen: query ditempelkan ke URL endpoint dokumen yang sudah ada.
+  // SPEC-361 · ADR-0078 · unduh dokumen: query ditempelkan ke URL endpoint dokumen yang sudah ada.
   download: (base: string, fmt: "md" | "pdf") => `${base}${base.includes("?") ? "&" : "?"}download=${fmt}`,
 ```
 
 Lalu di `src/src/api/client.ts`, tambahkan sesudah `getSpecDocFile`:
 
 ```ts
-  // SPEC-361 · ADR-0077 · URL unduh (dipakai <a download>, bukan fetch — server yang menamai berkas).
+  // SPEC-361 · ADR-0078 · URL unduh (dipakai <a download>, bukan fetch — server yang menamai berkas).
   specDocDownloadUrl: (id: string, path: string, fmt: "md" | "pdf") => paths.download(paths.specDocFile(id, path), fmt),
   docDownloadUrl: (id: string, path: string, fmt: "md" | "pdf") => paths.download(paths.docFile(id, path), fmt),
   prdDownloadUrl: (id: string, path: string, fmt: "md" | "pdf") => paths.download(paths.prdFile(id, path), fmt),
@@ -1087,10 +1087,10 @@ git commit -m "feat(spec-361): tombol unduh .md/.pdf di Backlog, Terminal, PRD, 
 
 ---
 
-### Task 6: Docs Source of Truth + ADR-0077
+### Task 6: Docs Source of Truth + ADR-0078
 
 **Files:**
-- Create: `internal/docs/adr/0077-unduh-dokumen-md-pdf.md`
+- Create: `internal/docs/adr/0078-unduh-dokumen-md-pdf.md`
 - Modify: `internal/docs/README.md`
 - Modify: `internal/docs/architecture/api-contract.md`
 - Modify: `internal/docs/frontend/frontend-implementation.md`
@@ -1100,9 +1100,9 @@ git commit -m "feat(spec-361): tombol unduh .md/.pdf di Backlog, Terminal, PRD, 
 - Consumes: keputusan Task 1–5
 - Produces: —
 
-- [x] **Step 1: Tulis ADR-0077**
+- [x] **Step 1: Tulis ADR-0078**
 
-Buat `internal/docs/adr/0077-unduh-dokumen-md-pdf.md` dengan status `Accepted`, tanggal 2026-07-28, mengikuti bentuk ADR tetangga (`0076-*.md` sebagai contoh gaya). Isi yang wajib ada:
+Buat `internal/docs/adr/0078-unduh-dokumen-md-pdf.md` dengan status `Accepted`, tanggal 2026-07-28, mengikuti bentuk ADR tetangga (`0076-*.md` sebagai contoh gaya). Isi yang wajib ada:
 
 - **Konteks:** dokumen agen (PRD/spec/plan/audit) hanya terbaca di dalam dashboard; tak ada artefak untuk dibagikan sebagai evidence.
 - **Keputusan:** (a) PDF dirender **server-side** dengan `pdfkit`, bukan di klien; (b) tanpa endpoint baru — query `?download=md|pdf` menempel pada empat endpoint dokumen yang sudah ada, mengikuti preseden `GET /projects/:id/archive` (SPEC-233); (c) parser Markdown yang dipakai server **sama** dengan preview (`marked`), sehingga yang tercetak = yang tampil; (d) tanpa perubahan skema, tanpa penyimpanan PDF.
@@ -1115,7 +1115,7 @@ Buat `internal/docs/adr/0077-unduh-dokumen-md-pdf.md` dengan status `Accepted`, 
 Di `internal/docs/README.md`, bagian `## adr`, sisipkan sebagai baris **pertama** daftar (di atas 0076):
 
 ```markdown
-- [0077 — Unduh dokumen: query `?download=` di endpoint dokumen + render PDF server-side](adr/0077-unduh-dokumen-md-pdf.md) — memperluas 0011/0018/0041, terkait 0028/0057/0076 (SPEC-361): PRD/spec/plan/audit/docs SoT/berkas IDE bisa diunduh `.md` mentah maupun `.pdf` dari setiap pratinjau; **tanpa endpoint baru** (query menempel di empat endpoint dokumen, preseden `GET /projects/:id/archive`), **tanpa skema/migration**; PDF dirender server-side `marked.lexer` → `pdfkit` memakai parser yang sama dengan preview; standard-14 font → glyph non-WinAnsi ditransliterasi (`→` jadi `->`) & emoji dibuang, sebab mojibake pdfkit **senyap** (tak melempar)
+- [0077 — Unduh dokumen: query `?download=` di endpoint dokumen + render PDF server-side](adr/0078-unduh-dokumen-md-pdf.md) — memperluas 0011/0018/0041, terkait 0028/0057/0076 (SPEC-361): PRD/spec/plan/audit/docs SoT/berkas IDE bisa diunduh `.md` mentah maupun `.pdf` dari setiap pratinjau; **tanpa endpoint baru** (query menempel di empat endpoint dokumen, preseden `GET /projects/:id/archive`), **tanpa skema/migration**; PDF dirender server-side `marked.lexer` → `pdfkit` memakai parser yang sama dengan preview; standard-14 font → glyph non-WinAnsi ditransliterasi (`→` jadi `->`) & emoji dibuang, sebab mojibake pdfkit **senyap** (tak melempar)
 ```
 
 - [x] **Step 3: Dokumentasikan kontrak API**
@@ -1123,7 +1123,7 @@ Di `internal/docs/README.md`, bagian `## adr`, sisipkan sebagai baris **pertama*
 Di `internal/docs/architecture/api-contract.md`, tambahkan subbagian pada bagian dokumen/docs (cari `GET /projects/:id/docs/*` di file itu dan tulis tepat di dekatnya):
 
 ```markdown
-### Unduh dokumen (SPEC-361 · ADR-0077)
+### Unduh dokumen (SPEC-361 · ADR-0078)
 
 Empat endpoint dokumen menerima query opsional `?download=md|pdf`:
 
@@ -1147,7 +1147,7 @@ Empat endpoint dokumen menerima query opsional `?download=md|pdf`:
 Di `internal/docs/frontend/frontend-implementation.md`, tambahkan satu paragraf:
 
 ```markdown
-**Unduh dokumen (SPEC-361 · ADR-0077).** `ds/DocDownload.tsx` merender sepasang anchor `.md` /
+**Unduh dokumen (SPEC-361 · ADR-0078).** `ds/DocDownload.tsx` merender sepasang anchor `.md` /
 `.pdf` dan dipasang di setiap pratinjau Markdown: `SpecDocsModal` (dipakai Backlog **dan**
 Terminal), `PrdScreen`, `DocsWorkspace` (mode preview saja — bukan draft editor), dan
 `IdeScreen` (berkas non-biner). Anchor sungguhan, bukan `onClick`: `content-disposition` server
@@ -1160,7 +1160,7 @@ yang menentukan nama berkas, dan cookie sesi ikut terkirim same-origin. `Button`
 Di `internal/skills/hanoman/SKILL.md`, bagian **Aturan Dokumentasi & Alur**, tambahkan butir:
 
 ```markdown
-- **Unduh dokumen** (SPEC-361/ADR-0077): setiap pratinjau Markdown (Backlog/Terminal `SpecDocsModal`, PRD, Docs SoT, IDE) punya tombol `.md` & `.pdf`. Mekanismenya query `?download=md|pdf` pada endpoint dokumen yang **sudah ada** — jangan bikin endpoint ekspor baru. PDF dirender `server/src/services/doc-export.ts` (`marked.lexer` → `pdfkit`, standard-14 font). **Gotcha wajib:** pdfkit **tidak melempar** untuk glyph di luar WinAnsi — ia mencetak mojibake senyap (`→` jadi `!'`, emoji jadi `Ø<ß‰`), jadi setiap teks harus lewat `toWinAnsi()`.
+- **Unduh dokumen** (SPEC-361/ADR-0078): setiap pratinjau Markdown (Backlog/Terminal `SpecDocsModal`, PRD, Docs SoT, IDE) punya tombol `.md` & `.pdf`. Mekanismenya query `?download=md|pdf` pada endpoint dokumen yang **sudah ada** — jangan bikin endpoint ekspor baru. PDF dirender `server/src/services/doc-export.ts` (`marked.lexer` → `pdfkit`, standard-14 font). **Gotcha wajib:** pdfkit **tidak melempar** untuk glyph di luar WinAnsi — ia mencetak mojibake senyap (`→` jadi `!'`, emoji jadi `Ø<ß‰`), jadi setiap teks harus lewat `toWinAnsi()`.
 ```
 
 - [x] **Step 6: Verifikasi integritas index**
@@ -1174,8 +1174,8 @@ Expected: `1` atau lebih.
 - [x] **Step 7: Commit**
 
 ```bash
-git add internal/docs/adr/0077-unduh-dokumen-md-pdf.md internal/docs/README.md internal/docs/architecture/api-contract.md internal/docs/frontend/frontend-implementation.md internal/skills/hanoman/SKILL.md
-git commit -m "docs(spec-361): ADR-0077 unduh dokumen .md/.pdf + kontrak API + skill"
+git add internal/docs/adr/0078-unduh-dokumen-md-pdf.md internal/docs/README.md internal/docs/architecture/api-contract.md internal/docs/frontend/frontend-implementation.md internal/skills/hanoman/SKILL.md
+git commit -m "docs(spec-361): ADR-0078 unduh dokumen .md/.pdf + kontrak API + skill"
 ```
 
 ---
@@ -1191,7 +1191,7 @@ Ini gerbang terakhir. CLAUDE.md mewajibkan endpoint diuji **nyata di local** (bo
 - Consumes: Task 1–6
 - Produces: —
 
-- [ ] **Step 1: Typecheck seluruh workspace**
+- [x] **Step 1: Typecheck seluruh workspace**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-361
@@ -1200,7 +1200,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm typecheck
 
 Expected: exit 0. **Jangan** pakai `tsc -p .` tanpa `--noEmit` — itu mengotori `src/` dengan `.js`/`.d.ts`.
 
-- [ ] **Step 2: Suite penuh**
+- [x] **Step 2: Suite penuh**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm test
@@ -1208,7 +1208,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm test
 
 Expected: semua PASS. Kalau server test gagal massal dengan `P2022`/`prisma.<model> undefined`, jalankan `pnpm --filter ./server exec prisma generate` dulu — itu efek worktree, bukan perubahan SPEC ini.
 
-- [ ] **Step 3: Build (membuktikan `--external:pdfkit` benar)**
+- [x] **Step 3: Build (membuktikan `--external:pdfkit` benar)**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm build && echo BUILD_OK
@@ -1216,7 +1216,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm build && echo BUILD_OK
 
 Expected: `BUILD_OK`. Kalau esbuild mengeluh soal `.afm`, berarti `--external:pdfkit` belum terpasang di script build.
 
-- [ ] **Step 4: Siapkan DB smoke khusus (jangan pakai `hanoman_test`)**
+- [x] **Step 4: Siapkan DB smoke khusus (jangan pakai `hanoman_test`)**
 
 DB `hanoman_test` bisa di-truncate sesi lain di tengah smoke. Pakai basis sendiri:
 
@@ -1226,7 +1226,7 @@ export SMOKE_DB="postgresql://hanoman:hanoman@127.0.0.1:5432/hanoman361?schema=p
 DATABASE_URL="$SMOKE_DB" pnpm --filter ./server exec prisma migrate deploy
 ```
 
-- [ ] **Step 5: Boot server smoke di port sendiri**
+- [x] **Step 5: Boot server smoke di port sendiri**
 
 Port 8787 dipakai sesi dev lain. Pakai 8791.
 
@@ -1235,7 +1235,7 @@ DATABASE_URL="$SMOKE_DB" PORT=8791 node server/dist/server.js > /tmp/spec361-ser
 sleep 3 && curl -sf http://127.0.0.1:8791/health && echo " HEALTH_OK"
 ```
 
-- [ ] **Step 6: Seed project + spec + dokumen, lalu curl keempat endpoint**
+- [x] **Step 6: Seed project + spec + dokumen, lalu curl keempat endpoint**
 
 ```bash
 REPO=$(mktemp -d) && git -C "$REPO" init -q
@@ -1291,7 +1291,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -H "Cookie: $COOKIE" "$B/projects/p1/do
 
 Expected: baris pertama JSON `{"path":…`; baris kedua `404`.
 
-- [ ] **Step 7: Periksa PDF hasil smoke dengan mata**
+- [x] **Step 7: Periksa PDF hasil smoke dengan mata**
 
 ```bash
 curl -s -H "Cookie: $COOKIE" "$B/projects/p1/prds/docs/prd/x.md?download=pdf" -o /tmp/spec361-smoke.pdf
@@ -1300,7 +1300,7 @@ qlmanage -t -s 900 -o /tmp /tmp/spec361-smoke.pdf >/dev/null 2>&1 && echo /tmp/s
 
 Buka gambarnya. Wajib: `→` tercetak `->` (bukan `!'`), emoji hilang bersih (bukan `Ø<ß‰`), judul + garis brass, footer `hal. 1/1`.
 
-- [ ] **Step 8: Bereskan proses smoke**
+- [x] **Step 8: Bereskan proses smoke**
 
 ```bash
 pkill -f 'PORT=8791' 2>/dev/null; pkill -f 'node server/dist/server.js' 2>/dev/null; true
@@ -1309,7 +1309,7 @@ git status --short
 
 Expected: `git status` bersih (tak ada `.js`/`.d.ts` nyasar, tak ada berkas smoke di worktree).
 
-- [ ] **Step 9: Centang seluruh checklist plan ini & commit penutup**
+- [x] **Step 9: Centang seluruh checklist plan ini & commit penutup**
 
 Pastikan setiap `- [ ]` di berkas plan ini sudah `- [x]` (hanoman menahan backlog di `executing` selama masih ada yang kosong).
 
