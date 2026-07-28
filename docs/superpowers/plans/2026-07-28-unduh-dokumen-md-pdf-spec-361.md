@@ -35,7 +35,7 @@ Dua fungsi murni yang tak menyentuh pdfkit sama sekali, plus pemasangan dependen
   - `toWinAnsi(s: string): string`
   - `downloadFilename(prefix: string, path: string, ext: "md" | "pdf"): string`
 
-- [ ] **Step 1: Pasang dependensi**
+- [x] **Step 1: Pasang dependensi**
 
 ```bash
 cd server && pnpm add pdfkit@^0.19.1 marked@^12.0.2 && pnpm add -D @types/pdfkit@^0.13.4
@@ -49,7 +49,7 @@ Lalu tambahkan `--external:pdfkit` pada script `build` di `server/package.json` 
 
 Verifikasi: `node -e "import('pdfkit').then(m=>console.log(typeof m.default))"` dijalankan dari `server/` mencetak `function`.
 
-- [ ] **Step 2: Tulis test yang gagal**
+- [x] **Step 2: Tulis test yang gagal**
 
 Buat `server/test/doc-export.test.ts`:
 
@@ -96,7 +96,7 @@ describe("downloadFilename", () => {
 });
 ```
 
-- [ ] **Step 3: Jalankan test — pastikan GAGAL**
+- [x] **Step 3: Jalankan test — pastikan GAGAL**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-361
@@ -105,7 +105,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run test/doc-
 
 Expected: FAIL — `Failed to resolve import "../src/services/doc-export"`.
 
-- [ ] **Step 4: Implementasikan `toWinAnsi` + `downloadFilename`**
+- [x] **Step 4: Implementasikan `toWinAnsi` + `downloadFilename`**
 
 Buat `server/src/services/doc-export.ts`:
 
@@ -160,7 +160,7 @@ export function downloadFilename(prefix: string, path: string, ext: "md" | "pdf"
 }
 ```
 
-- [ ] **Step 5: Jalankan test — pastikan LULUS**
+- [x] **Step 5: Jalankan test — pastikan LULUS**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run test/doc-export.test.ts
@@ -168,7 +168,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run test/doc-
 
 Expected: PASS, 8 test.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/package.json server/src/services/doc-export.ts server/test/doc-export.test.ts pnpm-lock.yaml
@@ -187,7 +187,7 @@ git commit -m "feat(spec-361): fondasi doc-export — sanitasi WinAnsi + nama be
 - Consumes: `toWinAnsi` (Task 1)
 - Produces: `renderDocPdf(text: string, name: string, meta: { eyebrow: string; path: string }): Promise<Buffer>`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/doc-export-pdf.test.ts`:
 
@@ -245,7 +245,7 @@ describe("renderDocPdf", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan GAGAL**
+- [x] **Step 2: Jalankan test — pastikan GAGAL**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run test/doc-export-pdf.test.ts
@@ -253,7 +253,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run test/doc-
 
 Expected: FAIL — `renderDocPdf is not a function`.
 
-- [ ] **Step 3: Implementasikan renderer**
+- [x] **Step 3: Implementasikan renderer**
 
 Tambahkan ke `server/src/services/doc-export.ts` (di bawah kode Task 1):
 
@@ -465,7 +465,7 @@ export function renderDocPdf(text: string, name: string, meta: Meta): Promise<Bu
 
 **Catatan implementasi:** footer memerlukan `bufferPages: true` pada konstruktor. Tambahkan opsi itu ke `new PDFDocument({ ... })` di atas: `bufferPages: true`.
 
-- [ ] **Step 4: Jalankan test — pastikan LULUS**
+- [x] **Step 4: Jalankan test — pastikan LULUS**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run test/doc-export-pdf.test.ts
@@ -473,7 +473,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run test/doc-
 
 Expected: PASS, 6 test. Kalau ada yang melempar, perbaiki renderer — jangan melonggarkan test.
 
-- [ ] **Step 5: Periksa hasilnya dengan mata (bukan hanya magic bytes)**
+- [x] **Step 5: Periksa hasilnya dengan mata (bukan hanya magic bytes)**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-361
@@ -488,7 +488,7 @@ node --experimental-strip-types /tmp/spec361-render.mjs && qlmanage -t -s 900 -o
 
 Buka `/tmp/spec361.pdf.png`. Yang harus terlihat: judul + garis brass, tabel bergaris, blok kode berlatar bone, panah tercetak `->` (BUKAN `!'`), footer `hal. 1/N`. Perbaiki layout kalau ada yang tabrakan.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/services/doc-export.ts server/test/doc-export-pdf.test.ts
