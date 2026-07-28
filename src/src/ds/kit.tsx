@@ -39,9 +39,10 @@ export function Toast({ toast }: { toast: ToastData | null }) {
   );
 }
 
-export function Modal({ open, title, eyebrow, icon, onClose, footer, width = 560, closeOnEscape = true, children }:
+export function Modal({ open, title, eyebrow, icon, onClose, footer, width = 560, closeOnEscape = true, fillHeight = false, children }:
   { open: boolean; title?: React.ReactNode; eyebrow?: React.ReactNode; icon?: string;
-    onClose?: () => void; footer?: React.ReactNode; width?: number; closeOnEscape?: boolean; children?: React.ReactNode }) {
+    onClose?: () => void; footer?: React.ReactNode; width?: number; closeOnEscape?: boolean;
+    fillHeight?: boolean; children?: React.ReactNode }) {
   // SPEC-232 · Escape adalah tombol tersibuk di TUI Claude Code; modal yang memuat terminal
   // mengoper closeOnEscape={false} supaya Escape tetap milik terminal (keluar via × / backdrop).
   React.useEffect(() => {
@@ -57,8 +58,12 @@ export function Modal({ open, title, eyebrow, icon, onClose, footer, width = 560
       background: "color-mix(in srgb, var(--ink-900) 42%, transparent)", padding: 24,
       animation: "hn-fade-in 160ms ease-out",
     }}>
-      <div style={{
+      {/* SPEC-363 · `fillHeight` untuk modal yang MEMBACA dokumen: tanpa tinggi pasti di panel,
+          isinya cuma bisa memakai tinggi tetap (dulu `62vh`) dan membuang 18–23% ruang di tiap
+          layar. Opt-in supaya 20-an modal lain tetap setinggi isinya. */}
+      <div data-testid="modal-panel" style={{
         width, maxWidth: "100%", maxHeight: "88vh", display: "flex", flexDirection: "column",
+        ...(fillHeight ? { height: "88vh" } : null),
         background: "var(--surface-card)", borderRadius: "var(--radius-lg)",
         border: "1px solid var(--border-hair)", boxShadow: "var(--shadow-xl)", overflow: "hidden",
         animation: "hn-modal-in 200ms var(--ease-out, ease-out)",
@@ -79,7 +84,8 @@ export function Modal({ open, title, eyebrow, icon, onClose, footer, width = 560
             padding: 4, borderRadius: "var(--radius-sm)", display: "inline-flex",
           }}><Icon name="x" size={18} /></button>
         </div>
-        <div style={{ padding: "18px 20px", overflow: "auto" }}>{children}</div>
+        <div data-testid="modal-body" style={{ padding: "18px 20px", overflow: "auto",
+          ...(fillHeight ? { flex: "1 1 auto", minHeight: 0 } : null) }}>{children}</div>
         {footer && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10,
             padding: "14px 20px", borderTop: "1px solid var(--border-hair)", background: "var(--bone-100)" }}>

@@ -50,13 +50,15 @@ export function SpecDocsModal({ specId, onClose }: { specId: string; onClose: ()
   }
 
   return (
-    <Modal open title="Dokumen backlog item" eyebrow={specId} icon="file-text" onClose={onClose} width={900}>
+    <Modal open title="Dokumen backlog item" eyebrow={specId} icon="file-text" onClose={onClose} width={900} fillHeight>
       {ixError ? <StateBlock kind="error" title="Gagal memuat daftar dokumen" hint={specId} />
         : loading ? <StateBlock kind="loading" title="Memuat dokumen…" hint={specId} />
         : !files!.length ? <StateBlock kind="empty" icon="file-text" title="Belum ada dokumen untuk item ini"
             hint="Jalankan item ini agar agent menulis audit/spec/plan." />
         : (
-          <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 16, height: "62vh" }}>
+          // SPEC-363 · tinggi diwarisi dari panel modal (`fillHeight`), bukan `62vh` — angka
+          // tetap itu membuang 18–23% ruang baca di setiap tinggi layar (terukur).
+          <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 16, height: "100%", minHeight: 0 }}>
             <div style={{ overflow: "auto", borderRight: "1px solid var(--border-hair)", paddingRight: 8 }}>
               {groups.map((grp) => (
                 <div key={grp.kind} style={{ marginBottom: 10 }}>
@@ -90,7 +92,7 @@ export function SpecDocsModal({ specId, onClose }: { specId: string; onClose: ()
                 <DocDownload href={(f) => api.specDocDownloadUrl(specId, sel, f)}
                   disabled={!sel || docLoading || docFailed} />
               </div>
-              <div style={{ flex: "1 1 auto", overflow: "auto", padding: "0 8px 16px" }}>
+              <div data-testid="doc-preview-scroll" style={{ flex: "1 1 auto", minHeight: 0, overflow: "auto", padding: "0 8px 16px" }}>
                 {docLoading ? <StateBlock kind="loading" title="Memuat…" hint={sel} />
                   : docFailed ? <StateBlock kind="error" title="Gagal memuat berkas" hint={sel} />
                   : <MarkdownView text={cache[sel] ?? ""} name={sel} />}

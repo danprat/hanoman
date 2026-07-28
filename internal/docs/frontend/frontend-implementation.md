@@ -232,6 +232,29 @@ Pemicunya dua, keduanya membuka modal ber-`specId` yang sama:
 Renderer Markdown dipakai bersama: `MarkdownView`/`hnDocHtml` (`ds/markdown.tsx`, marked +
 kelas `.hn-md`) — sumber yang sama untuk `SpecDocsModal` dan `DocsWorkspace`.
 
+**Pratinjau dokumen tak boleh menggulir ke samping** (SPEC-363). `.hn-md` (`app.css`) memasang
+`overflow-wrap: anywhere` di akar, `table-layout: fixed` + `overflow-wrap` di sel, dan
+`white-space: pre-wrap` + `overflow-wrap` di `pre` (`overflow: auto` ditahan sebagai jaring
+pengaman). `anywhere`, **bukan** `break-word`: hanya `anywhere` yang mengecilkan *min-content*,
+dan min-content itulah yang membuat rantai inline `code` tanpa spasi serta tabel lebar mendorong
+container. Terukur di Chrome atas 353 `.md` nyata: 33 dokumen menggulir horizontal → 0, dan 187
+dokumen ber-`pre` menggulir → 0 (harga: konten 12,5% lebih tinggi). Rincian & metode di
+[audit SPEC-363](../research/audit-spec-363-preview-docs-menggulir-samping.md).
+
+**Jendela pratinjau setinggi ruang yang ada, bukan angka tetap** (SPEC-363). `62vh`
+(`SpecDocsModal`) dan `maxHeight: 620` (`DocsWorkspace`, `IdeScreen` Explorer) dicabut: yang
+pertama membuang 18–23% tinggi di tiap layar, yang kedua **melebihi** `<main>` di layar 13"
+(dua scrollbar) sekaligus memakai kurang dari separuh tinggi di monitor besar. Penggantinya
+rantai flex: `Modal` punya prop **`fillHeight`** (opt-in — panel dapat `height: 88vh`, badannya
+`flex: 1 1 auto` + `minHeight: 0`; 20-an modal lain tak berubah), dan layar Docs/IDE menaruh
+`flex: 1 1 0` + `minHeight: 0` di root-nya lalu `flex: 1 1 auto` + `overflow: auto` di pane.
+**`flex-basis` wajib `0` di item terluar**: pembungkus `<main>` memakai `min-height: 100%`
+(bukan `height`, SPEC-351), jadi basis `auto` membuat item memakai tinggi isinya dan menumbuhkan
+halaman — terukur pane 6000 px + halaman ikut menggulir. Karena itu `LIST_SCREEN_STYLE`
+(yang ber-basis `auto`) tidak dipakai apa adanya di sini. Pane pratinjau ditandai
+`data-testid="doc-preview-scroll"`; Git Graph & Branches di IDE sengaja **tidak** ikut rantai
+ini karena auto-load `IntersectionObserver`-nya bergantung pada `<main>` yang menggulir.
+
 ## Review worktree: collapse & tree Changed (SPEC-171, SPEC-177)
 `ReviewScreen` (`screens/ReviewScreen.tsx`) menampilkan file worktree backlog item ala VSCode:
 sidebar **Changed** (SCM) + **Files** (tree), viewer Diff|Source, read-only. Dua pohon dibangun

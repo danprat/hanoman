@@ -139,15 +139,44 @@ function rule(doc: Doc, color = HAIR, gap = 6) {
   doc.y = y + gap;
 }
 
+// SPEC-363 · blok kode digambar BERSEGMEN, satu segmen per halaman. Versi lama memakai satu
+// `rect` setinggi seluruh blok dan satu tes "muat di sisa halaman?": untuk blok yang lebih
+// tinggi dari satu halaman penuh tes itu SELALU benar, jadi ia pindah halaman lalu bloknya
+// tetap tak muat — halaman sebelumnya tertinggal kosong 35–55% dan latar krem-nya (terukur
+// 2126,6 pt di halaman 841,89 pt) menimpa garis + teks footer.
 function drawCode(doc: Doc, text: string) {
   const left = doc.page.margins.left, right = doc.page.width - doc.page.margins.right;
-  const body = toWinAnsi(text.replace(/\n+$/, ""));
+  const width = right - left - 16;
+  const opts = { width, lineGap: 1.5 };
+  const lines = toWinAnsi(text.replace(/\n+$/, "")).split("\n");
+  const bottom = () => doc.page.height - doc.page.margins.bottom;
+
   doc.font("Courier").fontSize(CODE);
-  const h = doc.heightOfString(body, { width: right - left - 16, lineGap: 1.5 }) + 12;
-  if (doc.y + h > doc.page.height - doc.page.margins.bottom) doc.addPage();
-  doc.save().rect(left, doc.y, right - left, h).fill(PANEL).restore();
-  doc.fillColor(INK).text(body, left + 8, doc.y + 6, { width: right - left - 16, lineGap: 1.5 });
-  doc.x = left;
+  const total = doc.heightOfString(lines.join("\n"), opts) + 12;
+  // Pindah halaman hanya bila bloknya benar-benar MUAT di halaman kosong.
+  if (doc.y + total > bottom() && total <= bottom() - doc.page.margins.top) doc.addPage();
+
+  for (let i = 0; i < lines.length;) {
+    doc.font("Courier").fontSize(CODE);
+    const room = bottom() - doc.y - 12;
+    const seg: string[] = [];
+    for (let used = 0; i < lines.length; i++) {
+      // `heightOfString("")` mengembalikan 0, padahal baris kosong tetap satu baris saat
+      // digambar; ukur pakai spasi agar akuntansinya tak melenceng.
+      const hl = doc.heightOfString(lines[i] || " ", opts);
+      if (seg.length && used + hl > room) break;
+      seg.push(lines[i]!);
+      used += hl;
+    }
+    const body = seg.join("\n");
+    const h = doc.heightOfString(body, opts) + 12;
+    const top = doc.y;
+    doc.save().rect(left, top, right - left, h).fill(PANEL).restore();
+    doc.fillColor(INK).text(body, left + 8, top + 6, opts);
+    doc.x = left;
+    doc.y = top + h;
+    if (i < lines.length) doc.addPage();
+  }
   doc.moveDown(0.5);
 }
 
@@ -158,9 +187,19 @@ function drawList(doc: Doc, list: Tokens.List, depth: number) {
     const marker = list.ordered ? `${n++}.`
       : item.task ? (item.checked ? "[x]" : "[ ]")
       : depth > 0 ? "-" : "•";
+    // SPEC-363 · halaman kosong berselang-seling (terukur 5 dari 12 halaman di PRD
+    // hardening-vps) lahir dari rantai DUA mata: (1) penanda digambar ber-`width`, dan `width`
+    // menyalakan pembungkus baris pdfkit yang di tepi bawah halaman memanggil `addPage()`
+    // sendiri — walau `lineBreak: false`; (2) `doc.y = top` di bawah lalu memasang koordinat
+    // halaman LAMA di halaman BARU, jadi butir berikutnya pindah lagi. Diukur lewat matriks
+    // 2×2: memutus mata mana pun SUDAH cukup membuat test hijau. Keduanya tetap diputus karena
+    // masing-masing benar sendiri — penanda memang tak pernah perlu dibungkus, dan pindah
+    // halaman memang harus terjadi SEBELUM `top` dikunci (tanpa guard ini, butir yang mulai
+    // tepat di bawah batas menggambar penandanya di area footer, tanpa ada yang memaksa pindah).
+    doc.font("Helvetica").fontSize(BODY);
+    if (doc.y + doc.currentLineHeight(true) > doc.page.height - doc.page.margins.bottom) doc.addPage();
     const top = doc.y;
-    doc.font("Helvetica").fontSize(BODY).fillColor(MUTED)
-      .text(toWinAnsi(marker), doc.page.margins.left + indent, top, { width: 24, lineBreak: false });
+    doc.fillColor(MUTED).text(toWinAnsi(marker), doc.page.margins.left + indent, top, { lineBreak: false });
     doc.y = top;
     const x = doc.page.margins.left + indent + 24;
     const w = doc.page.width - doc.page.margins.right - x;
@@ -268,13 +307,18 @@ export function renderDocPdf(text: string, name: string, meta: DocPdfMeta): Prom
   for (let i = 0; i < range.count; i++) {
     doc.switchToPage(range.start + i);
     const y = doc.page.height - 42;
+    const right = doc.page.width - doc.page.margins.right;
     doc.save().strokeColor(HAIR).lineWidth(0.6)
-      .moveTo(doc.page.margins.left, y - 8).lineTo(doc.page.width - doc.page.margins.right, y - 8).stroke().restore();
+      .moveTo(doc.page.margins.left, y - 8).lineTo(right, y - 8).stroke().restore();
     doc.font("Courier").fontSize(7.4).fillColor(MUTED)
       .text(toWinAnsi(meta.path), doc.page.margins.left, y, { lineBreak: false });
+    // SPEC-363 · nomor halaman diposisikan SENDIRI, tanpa `width`+`align:"right"`. Opsi itu
+    // menyalakan pembungkus baris pdfkit, yang memeriksa batas bawah halaman lalu memanggil
+    // `addPage()` — jadi setiap halaman melahirkan satu halaman kosong di belakangnya (jumlah
+    // halaman dua kali lipat) DAN nomornya tercetak di halaman kosong itu, bukan di sini.
+    const label = `hal. ${i + 1}/${range.count}`;
     doc.font("Helvetica").fontSize(7.4).fillColor(MUTED)
-      .text(`hal. ${i + 1}/${range.count}`, doc.page.margins.left, y,
-        { width: doc.page.width - doc.page.margins.left - doc.page.margins.right, align: "right", lineBreak: false });
+      .text(label, right - doc.widthOfString(label), y, { lineBreak: false });
   }
   doc.flushPages();
   doc.end();

@@ -212,21 +212,26 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
   const inDiff = selKind !== "file"; // pane kanan mode diff (dari Staged/Changed)
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+    // SPEC-363 · hanya tab Explorer yang ikut rantai flex (dua pane-nya menggulir sendiri);
+    // Git Graph & Branches tetap tumbuh mengikuti isi seperti sebelumnya — graph bergantung
+    // pada `<main>` yang menggulir untuk auto-load `IntersectionObserver` (SPEC-351).
+    <div style={{ display: "flex", flexDirection: "column", gap: 16,
+      ...(tab === "explorer" ? { flex: "1 1 0", minHeight: 0 } : null) }}>
+      <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <Tabs tabs={[{ value: "explorer", label: "Explorer" }, { value: "graph", label: "Git Graph" },
           { value: "branches", label: "Branches" }]} value={tab} onChange={setTab} />
         {toolbar}
       </div>
 
       {tab === "explorer" ? (
-        <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 20, alignItems: "start" }}>
-          <Card padding={0}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderBottom: "1px solid var(--border-hair)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 20, alignItems: "stretch",
+          flex: "1 1 auto", minHeight: 0 }}>
+          <Card padding={0} style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+            <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderBottom: "1px solid var(--border-hair)" }}>
               <span className="hn-eyebrow" style={{ flex: 1 }}>changes{status?.branch ? ` · ${status.branch}` : ""}</span>
               <Button size="sm" variant="ghost" leftIcon="rotate-ccw" onClick={() => { reloadTree(); reloadStatus(); }}>Muat ulang</Button>
             </div>
-            <div style={{ padding: 8, maxHeight: 620, overflow: "auto" }}>
+            <div style={{ padding: 8, flex: "1 1 auto", minHeight: 0, overflow: "auto" }}>
               <ChangedSection label="Staged" changed={status?.staged ?? []}
                 selected={selKind === "staged" ? selected : ""} onSelect={selectStaged}
                 view={stagedView} onView={setStagedView} emptyText="Tak ada file staged." />
@@ -245,8 +250,8 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
                   ))}
             </div>
           </Card>
-          <Card padding={0}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderBottom: "1px solid var(--border-hair)", flexWrap: "wrap" }}>
+          <Card padding={0} style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+            <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderBottom: "1px solid var(--border-hair)", flexWrap: "wrap" }}>
               <Icon name="file-text" size={15} color="var(--text-muted)" />
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--text-strong)" }}>{selected || "—"}</span>
               {!inDiff && file?.truncated && <Badge tone="warn" size="sm">terpotong</Badge>}
@@ -289,7 +294,7 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
                       <Button size="sm" leftIcon="check" onClick={save}>Simpan</Button>
                     </div>}
             </div>
-            <div style={{ maxHeight: 620, overflow: "auto" }}>
+            <div data-testid="doc-preview-scroll" style={{ flex: "1 1 auto", minHeight: 0, overflow: "auto" }}>
               {inDiff
                 ? (!selected ? <StateBlock kind="empty" icon="file-text" title="Pilih file dari Staged/Changed" />
                     : diff === null ? <StateBlock kind="loading" title="Memuat…" hint={selected} />
