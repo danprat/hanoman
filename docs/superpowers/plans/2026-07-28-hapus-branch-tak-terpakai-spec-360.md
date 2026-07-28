@@ -73,7 +73,7 @@ Satu helper `shortName()` menangani gotcha 1 & 2 di satu tempat.
   export const LOCK_REASON: Record<BranchLock, string>;
   ```
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/branch-cleanup.test.ts`:
 
@@ -197,7 +197,7 @@ describe("listUnusedBranches", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-360
@@ -205,7 +205,7 @@ env -u NODE_ENV -u DATABASE_URL npx vitest run --no-file-parallelism server/test
 ```
 Expected: FAIL — `Cannot find module '../src/services/branch-cleanup'`.
 
-- [ ] **Step 3: Implementasi `listUnusedBranches`**
+- [x] **Step 3: Implementasi `listUnusedBranches`**
 
 Buat `server/src/services/branch-cleanup.ts`:
 
@@ -342,14 +342,14 @@ export async function listUnusedBranches(
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL npx vitest run --no-file-parallelism server/test/branch-cleanup.test.ts
 ```
 Expected: PASS — 12 test hijau.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/branch-cleanup.ts server/test/branch-cleanup.test.ts
@@ -375,7 +375,7 @@ git commit -m "feat(spec-360): penemuan branch ter-merge + lima kunci proteksi"
   ): Promise<{ base: string; results: DeleteResult[] }>;
   ```
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Ubah baris import service di `server/test/branch-cleanup.test.ts` menjadi:
 
@@ -473,14 +473,14 @@ describe("deleteBranches", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL npx vitest run --no-file-parallelism server/test/branch-cleanup.test.ts
 ```
 Expected: FAIL — `deleteBranches is not a function`.
 
-- [ ] **Step 3: Implementasi `deleteBranches`**
+- [x] **Step 3: Implementasi `deleteBranches`**
 
 Tambahkan `import { runGitOp } from "./git-ide";` di blok import atas `branch-cleanup.ts`, lalu tambahkan di akhir file:
 
@@ -536,14 +536,14 @@ export async function deleteBranches(
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL npx vitest run --no-file-parallelism server/test/branch-cleanup.test.ts
 ```
 Expected: PASS — 22 test hijau (12 dari Task 1 + 10 baru).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/branch-cleanup.ts server/test/branch-cleanup.test.ts
@@ -564,7 +564,7 @@ git commit -m "feat(spec-360): hapus branch batch — validasi ulang kunci + sco
 - Consumes: `listUnusedBranches`, `deleteBranches`, `BranchScope` (Task 1–2); `sourceBranch` dari `../services/integrate`; `listSessions` & `prisma` (keduanya sudah di-import di `ide.ts`).
 - Produces: `paths.branchesUnused(id, base?)`, `paths.branchesDelete(id)` di `@hanoman/shared`.
 
-- [ ] **Step 1: Tulis test route yang gagal**
+- [x] **Step 1: Tulis test route yang gagal**
 
 Di `server/test/ide.route.test.ts`, tambahkan `makeSpec` ke daftar impor dari `./factory`, lalu tambahkan helper di dekat `ffRepo()`:
 
@@ -668,14 +668,14 @@ Di `server/test/agent-capabilities.test.ts` tambahkan (ikuti gaya `it` yang suda
   });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL npx vitest run --no-file-parallelism server/test/ide.route.test.ts server/test/agent-capabilities.test.ts
 ```
 Expected: FAIL — `GET /branches/unused` balas 404 dari Fastify (route belum terdaftar).
 
-- [ ] **Step 3a: Tambah path di `shared/src/api.ts`**
+- [x] **Step 3a: Tambah path di `shared/src/api.ts`**
 
 Tepat di bawah baris `branches: (id: string) => ...`:
 
@@ -686,7 +686,7 @@ Tepat di bawah baris `branches: (id: string) => ...`:
   branchesDelete: (id: string) => `${API}/projects/${id}/branches/delete`,
 ```
 
-- [ ] **Step 3b: Tambah dua route di `server/src/routes/ide.ts`**
+- [x] **Step 3b: Tambah dua route di `server/src/routes/ide.ts`**
 
 Tambahkan satu baris import baru:
 
@@ -758,14 +758,14 @@ Tambahkan dua route setelah route `/git/drop`, sebelum penutup `}` fungsi plugin
   });
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL npx vitest run --no-file-parallelism server/test/ide.route.test.ts server/test/agent-capabilities.test.ts server/test/branch-cleanup.test.ts
 ```
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add shared/src/api.ts server/src/routes/ide.ts server/test/ide.route.test.ts server/test/agent-capabilities.test.ts
@@ -796,7 +796,7 @@ git commit -m "feat(spec-360): route GET /branches/unused + POST /branches/delet
     Promise<{ base: string; results: BranchDeleteResult[] }>;
   ```
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/test/branch-cleanup-client.test.ts`:
 
@@ -842,14 +842,14 @@ describe("api branch cleanup (SPEC-360)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 env -u NODE_ENV npx vitest run --no-file-parallelism src/test/branch-cleanup-client.test.ts
 ```
 Expected: FAIL — `api.branchesUnused is not a function`.
 
-- [ ] **Step 3: Implementasi di `src/src/api/client.ts`**
+- [x] **Step 3: Implementasi di `src/src/api/client.ts`**
 
 Tambahkan tipe di dekat `export type GitOpResult` (blok tipe git yang sudah ada):
 
@@ -884,14 +884,14 @@ Tambahkan dua metode di objek `api`, tepat setelah `ideGitDrop`:
     j<{ base: string; results: BranchDeleteResult[] }>(paths.branchesDelete(id), { method: "POST", ...body(b) }),
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 ```bash
 env -u NODE_ENV npx vitest run --no-file-parallelism src/test/branch-cleanup-client.test.ts
 ```
 Expected: PASS — 4 test hijau.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/api/client.ts src/test/branch-cleanup-client.test.ts
@@ -914,7 +914,7 @@ git commit -m "feat(spec-360): klien api branchesUnused + deleteBranches"
 1. `Checkbox` **bukan** `<input type="checkbox">`; ia `<label>` + `<span>` yang menangani klik sendiri. `getByRole("checkbox")` dan `getByLabelText` **tak akan menemukannya** (pelajaran SPEC-299). Props sisa di-spread ke `<label>`, jadi pakai `data-testid`. `Select` men-spread props sisa ke `<select>` di dalamnya ✓, `Button` ke `<button>` ✓.
 2. Tombol hapus per baris berlabel "Hapus" — **sama** dengan `confirmLabel` default `ConfirmDialog`. Query `getByRole("button", { name: /hapus/i })` akan ambigu. Karena itu dialog memakai `confirmLabel="Ya, hapus"`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/test/branches-panel.test.tsx`:
 
@@ -1029,14 +1029,14 @@ describe("BranchesPanel", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 env -u NODE_ENV npx vitest run --no-file-parallelism src/test/branches-panel.test.tsx
 ```
 Expected: FAIL — `Failed to resolve import "../src/screens/BranchesPanel"`.
 
-- [ ] **Step 3: Implementasi `src/src/screens/BranchesPanel.tsx`**
+- [x] **Step 3: Implementasi `src/src/screens/BranchesPanel.tsx`**
 
 ```tsx
 /* SPEC-360 · ADR-0077 — panel branch tak terpakai: branch yang sudah ter-merge ke base, dengan
@@ -1192,14 +1192,14 @@ export function BranchesPanel({ projectId }: { projectId: string }) {
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 ```bash
 env -u NODE_ENV npx vitest run --no-file-parallelism src/test/branches-panel.test.tsx
 ```
 Expected: PASS — 9 test hijau.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/BranchesPanel.tsx src/test/branches-panel.test.tsx
@@ -1218,7 +1218,7 @@ git commit -m "feat(spec-360): panel Branches — tabel ter-merge, hapus per bar
 - Consumes: `BranchesPanel` (Task 5).
 - Produces: tab value `"branches"` di `IdeScreen`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan `describe` baru di akhir `src/test/ide-screen.test.tsx`:
 
@@ -1238,14 +1238,14 @@ describe("IdeScreen tab Branches (SPEC-360)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 env -u NODE_ENV npx vitest run --no-file-parallelism src/test/ide-screen.test.tsx
 ```
 Expected: FAIL — tak ada tombol/tab bernama "Branches".
 
-- [ ] **Step 3: Ubah `IdeScreen.tsx`**
+- [x] **Step 3: Ubah `IdeScreen.tsx`**
 
 Tambahkan impor di dekat `import { GitGraph } from "./GitGraph";`:
 
@@ -1273,14 +1273,14 @@ Ganti penutup blok render — yang sekarang `) : (` + `<GitGraph … />` + `)}` 
       )}
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 ```bash
 env -u NODE_ENV npx vitest run --no-file-parallelism src/test/ide-screen.test.tsx src/test/branches-panel.test.tsx
 ```
 Expected: PASS — seluruh test IdeScreen lama tetap hijau + tab baru hijau.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/IdeScreen.tsx src/test/ide-screen.test.tsx
@@ -1301,7 +1301,7 @@ git commit -m "feat(spec-360): tab Branches di IDE Visual"
 **Interfaces:**
 - Consumes: perilaku final Task 1–6. Tak ada kode.
 
-- [ ] **Step 1: Tulis ADR-0077**
+- [x] **Step 1: Tulis ADR-0077**
 
 Buat `internal/docs/adr/0077-hapus-branch-tak-terpakai-pagar-per-branch.md`:
 
@@ -1384,7 +1384,7 @@ dipakai. Dikunci satu test agar jadi keputusan, bukan kebetulan.
   (yaitu setiap sesi hanoman), dan git memendekkan `origin/HEAD` menjadi bare `origin`.
 ```
 
-- [ ] **Step 2: Tautkan ADR di index**
+- [x] **Step 2: Tautkan ADR di index**
 
 Di `internal/docs/README.md`, sisipkan sebagai baris **pertama** daftar di bawah `## adr`
 (tepat sebelum baris `- [0076 — …`):
@@ -1393,7 +1393,7 @@ Di `internal/docs/README.md`, sisipkan sebagai baris **pertama** daftar di bawah
 - [0077 — Hapus branch tak terpakai: daftar ter-merge turunan + pagar proteksi per-branch](adr/0077-hapus-branch-tak-terpakai-pagar-per-branch.md) — **memperluas 0055**, terkait 0018/0011/0002/0032/0037/0065 (SPEC-360): `GET /projects/:id/branches/unused` menurunkan daftar branch ter-merge langsung dari git (`git branch --merged`, base `?base=→main→master→branch aktif`, ref origin dibanding `origin/<base>`) — tanpa kolom DB, tanpa migration; lima kunci proteksi per-branch (`current`/`base`/`worktree`/`spec-open`/`session` — `session` terpisah karena sesi lahir `--detach` sehingga tak muncul di `git worktree list`) **ditegakkan ulang di jalur tulis** `POST /projects/:id/branches/delete`, sehingga hanya branch ter-merge & tak terkunci yang bisa dihapus dan scope menyempit per branch; eksekusi tetap lewat `runGitOp` `delete-branch` (SPEC-206) tanpa `--force`. Pagar ini **keselamatan data untuk satu endpoint bulk**, bukan guardrail eksekusi — ADR-0037 utuh. Dua keluaran git yang wajib disaring: baris `(no branch)` di worktree detached, dan `origin/HEAD` yang dipendekkan jadi bare `origin`
 ```
 
-- [ ] **Step 3: Perbarui kontrak API**
+- [x] **Step 3: Perbarui kontrak API**
 
 Di `internal/docs/architecture/api-contract.md`, di dalam blok kode `### Git graph parity`,
 tambahkan tepat sebelum baris `# Isolasi (merge/rebase/pull/drop): …`:
@@ -1417,7 +1417,7 @@ POST /projects/:id/branches/delete  { names:string[], scope?, base? }   # { base
 #   Capability agent: keduanya di domain `projects` (projects:read/write), BUKAN `ide` — cermin GET /branches lama.
 ```
 
-- [ ] **Step 4: Perbarui docs frontend & skill project**
+- [x] **Step 4: Perbarui docs frontend & skill project**
 
 Di `internal/docs/frontend/frontend-implementation.md`, pada bagian yang menjelaskan IDE Visual,
 tambahkan:
@@ -1451,7 +1451,7 @@ Di `internal/skills/hanoman/SKILL.md`, bagian **Aturan Arsitektur**, tambahkan s
   keselamatan data untuk satu endpoint bulk, **bukan** guardrail eksekusi — ADR-0037 tetap utuh.
 ```
 
-- [ ] **Step 5: Verifikasi index & commit**
+- [x] **Step 5: Verifikasi index & commit**
 
 ```bash
 git add internal/docs internal/skills
@@ -1468,7 +1468,7 @@ git commit -m "docs(spec-360): ADR-0077 + kontrak branches/unused & branches/del
 - Consumes: seluruh Task 1–7.
 - Produces: bukti hijau (output test + output curl) sebelum menulis `Execute done`.
 
-- [ ] **Step 1: Jalankan seluruh suite repo**
+- [x] **Step 1: Jalankan seluruh suite repo**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-360
@@ -1478,7 +1478,7 @@ Expected: seluruh test hijau. **Bila ada yang merah, perbaiki dulu — jangan la
 Bila `@prisma/client` tak resolve: `pnpm install` lalu
 `npx prisma generate --schema server/prisma/schema.prisma` di worktree ini dulu.
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
 ```bash
 npx tsc -p server --noEmit && npx tsc -p src --noEmit && npx tsc -p shared --noEmit
@@ -1487,13 +1487,13 @@ Expected: exit 0, tanpa output.
 **PENTING:** selalu `--noEmit`. Tanpa itu `tsc -p` menaburkan `.js`/`.d.ts` di `src/` & `test/`
 dan mengotori diff (pelajaran SPEC-296/298).
 
-- [ ] **Step 3: Siapkan DB & repo fixture untuk smoke**
+- [x] **Step 3: Siapkan DB & repo fixture untuk smoke**
 
 DB khusus — **jangan** `hanoman_test` (sesi sibling bisa men-truncate di tengah smoke):
 
 ```bash
-docker exec hanoman-db-1 psql -U hanoman -d postgres -c 'CREATE DATABASE hanoman360;' || true
-export SMOKE_DB='postgresql://hanoman:hanoman@127.0.0.1:5433/hanoman360'
+docker exec hanoman-db-1 psql -U hanoman -d postgres -c 'CREATE DATABASE hanoman360smoke;' || true
+export SMOKE_DB='postgresql://hanoman:hanoman@localhost:5432/hanoman360smoke'
 DATABASE_URL="$SMOKE_DB" npx prisma migrate deploy --schema server/prisma/schema.prisma
 ```
 
@@ -1521,7 +1521,7 @@ git -C "$SMOKE/repo" commit -q --allow-empty -m "sisa maju"
 git -C "$SMOKE/repo" checkout -q main
 ```
 
-- [ ] **Step 4: Boot server, login, curl `unused`**
+- [x] **Step 4: Boot server, login, curl `unused`**
 
 Port **9360** (jangan 8787 — ada sesi dev lain di sana dengan kode & DB berbeda).
 Server prod **selalu** tergerbang auth (`buildApp()` default `requireAuth: true`, tak ada env
@@ -1532,8 +1532,9 @@ npm --prefix server run build
 DATABASE_URL="$SMOKE_DB" PORT=9360 node server/dist/server.js > /tmp/spec360-server.log 2>&1 &
 sleep 3
 JAR=/tmp/spec360-cookies.txt && rm -f "$JAR"
+# Catatan: POST /projects MEN-SLUG id — "smoke360" balik sebagai "smoke". Pakai id dari respons.
 curl -s -c "$JAR" -X POST localhost:9360/api/auth/setup -H 'content-type: application/json' \
-  -d '{"email":"smoke@local","password":"smoke-password-360"}'
+  -d '{"email":"smoke@local.test","password":"smoke-password-360"}'  # TLD wajib (zSignup)
 CURL="curl -s -b $JAR -H content-type:application/json"
 $CURL -X POST localhost:9360/api/projects \
   -d "{\"id\":\"smoke360\",\"name\":\"smoke\",\"kind\":\"existing\",\"repoDir\":\"$SMOKE/repo\"}"
@@ -1548,7 +1549,7 @@ Expected pada output `unused`:
 - baris `main` dengan `locks` memuat `"base"` **dan** `"current"`
 - **tak ada** baris `sisa` (belum ter-merge), `origin`, maupun `(no branch)`
 
-- [ ] **Step 5: Curl hapus — kasus tertolak lalu kasus berhasil**
+- [x] **Step 5: Curl hapus — kasus tertolak lalu kasus berhasil**
 
 ```bash
 echo "--- tolak: base/current ---"
@@ -1576,16 +1577,16 @@ Expected:
 - `hanoman/spec-999` hilang dari **kedua** daftar git; `belum-merge` hilang dari daftar lokal
 - `main` & `sisa` masih ada
 
-- [ ] **Step 6: Bereskan smoke & pastikan diff bersih**
+- [x] **Step 6: Bereskan smoke & pastikan diff bersih**
 
 ```bash
 pkill -f 'server/dist/server.js' || true
 rm -rf "$SMOKE" /tmp/spec360-cookies.txt /tmp/spec360-server.log
-docker exec hanoman-db-1 psql -U hanoman -d postgres -c 'DROP DATABASE hanoman360;' || true
+docker exec hanoman-db-1 psql -U hanoman -d postgres -c 'DROP DATABASE hanoman360smoke;' || true
 git status --short   # WAJIB bersih — tak boleh ada .js/.d.ts hasil tsc atau dist ter-stage
 ```
 
-- [ ] **Step 7: Centang seluruh checklist plan, commit, push**
+- [x] **Step 7: Centang seluruh checklist plan, commit, push**
 
 Pastikan setiap `- [ ]` di berkas plan ini sudah jadi `- [x]` (hanoman menahan backlog di
 `executing` selama masih ada kotak kosong — ADR-0029), lalu:
