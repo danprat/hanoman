@@ -61,6 +61,14 @@ wajib, kalau tidak padding menambah tinggi di atas 100% dan melahirkan scrollbar
 (Projects, dan daftar berpager lain): ia meneruskan rantai flex ke pembungkus anaknya. Tanpa `fill`,
 `Card` berperilaku persis seperti sebelumnya.
 
+**Kecuali untuk pane yang harus setinggi viewport** (pratinjau dokumen, SPEC-363):
+`LIST_SCREEN_STYLE` ber-`flex-basis: auto`, dan karena `<main>` memakai `min-height: 100%`
+(bukan `height` — lihat alinea di atas), item ber-basis `auto` memakai tinggi **isi**-nya lalu
+menumbuhkan halaman alih-alih menggulir di dalam dirinya — terukur pane 6000 px + halaman ikut
+menggulir. Layar yang ingin pane-nya terikat viewport memakai **`flex: 1 1 0`** di root-nya
+(basis 0 membuat tinggi container pasti lebih dulu), baru `flex: 1 1 auto` + `overflow: auto`
+di pane. Lihat bagian pratinjau dokumen di bawah.
+
 ## Backlog: tiga mode tampilan, dan board yang tidak boleh berbohong
 `BacklogScreen` merender satu daftar spec dalam tiga bentuk — **grid** (default, kartu penuh
 dengan stage bar), **list** (satu baris per spec), dan **board** (kanban). Grid dan list
