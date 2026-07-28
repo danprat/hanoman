@@ -11,6 +11,7 @@ import { sessionAgentDefaults } from "../services/settings";
 import { ensureCodexTrust } from "../services/codex-trust";
 import { startSpecSession, LaunchError } from "../services/session-launch";
 import { resolveRepoDir } from "../services/local-binding";
+import { ownsWorktree } from "../services/session-worktree";
 import { readPrd } from "../services/project-prds";
 import { readAuditDoc } from "../services/audit-escalation";
 import { recordSessionResult } from "../services/session-result";
@@ -356,6 +357,8 @@ export default async function (app: FastifyInstance) {
     // Sesi ber-flow (run/reverse) DAN sesi integrasi (SPEC-175, tanpa flow) sama-sama hidup di
     // worktree-nya sendiri di `.worktrees/*` — keduanya harus dibersihkan. Hanya yang ber-spec-flow
     // menggerakkan stage. Terminal biasa (cwd = repoDir) tak tersentuh.
+    // SPEC-362 · syarat ini hanya memilih sesi mana yang perlu BOOKKEEPING akhir; penghapusan
+    // worktree digerbangi `ownsWorktree` di bawah, karena bentuk path saja bukan bukti kepemilikan.
     if (s.flow || s.cwd.includes("/.worktrees/")) {
       // SPEC-213 · pakai binding lokal (menang atas Project.repoDir) agar worktree sesi ter-bind
       // pada project murni-metadata tetap dibersihkan.
@@ -372,7 +375,10 @@ export default async function (app: FastifyInstance) {
           } catch { /* HEAD tak resolve — biarkan headSha apa adanya */ }
         }
         killSession(id);
-        realGit.removeWorktree(repoDir, s.cwd);
+        // SPEC-362 · hanya hapus worktree yang benar-benar milik sesi ini. Tanpa gerbang ini,
+        // project yang di-bind ke checkout di bawah `.worktrees/` kehilangan seluruh checkout-nya
+        // saat sebuah terminal biasa ditutup (`cwd === repoDir`).
+        if (ownsWorktree(repoDir, s.cwd)) realGit.removeWorktree(repoDir, s.cwd);
         return reply.code(204).send();
       }
     }

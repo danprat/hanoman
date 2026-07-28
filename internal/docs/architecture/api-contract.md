@@ -368,6 +368,10 @@ POST   /terminal/sessions/:id/integrate  { op:"merge"|"rebase", target:"local:<b
 #   (SPEC-230, ADR-0054) rebase/merge branch sesi (PRD prd/<slug>); { status:"clean", detail } |
 #   { status:"conflict", sessionId } (spawn sesi claude di worktree merge-<id>) | 400 op/target · 409 branch/sesi tanpa branch
 DELETE /terminal/sessions/:id        # 204 · 404; menutup sesi: majukan stage, simpan headSha, removeWorktree
+#   removeWorktree HANYA dijalankan bila cwd sesi benar-benar berada DI DALAM <repoDir>/.worktrees/
+#   (`ownsWorktree`, services/session-worktree.ts). Bentuk path saja bukan bukti kepemilikan:
+#   project yang di-bind ke checkout di bawah .worktrees/ (dogfooding hanoman di worktree sendiri)
+#   punya `cwd === repoDir` untuk terminal biasa, dan gerbang lama menghapus checkout itu sendiri.
 GET    /terminal/sessions/:id/ws     # WebSocket; close 4004 bila sesi tak ada
 #   server->klien: { t:"data", d } · { t:"phase", … } · { t:"exit", code }
 #   klien->server: { t:"in", d } · { t:"resize", cols, rows }

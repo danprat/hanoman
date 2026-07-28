@@ -164,6 +164,32 @@ describe("terminal routes · shell non-claude (SPEC-236)", () => {
     await app.inject({ method: "DELETE", url: `/api/terminal/sessions/${id}` });
   });
 
+  // SPEC-362 · REGRESI (kerusakan data nyata): menutup terminal biasa pernah MENGHAPUS checkout
+  // project-nya sendiri. Guard lama menguji substring "/.worktrees/" pada cwd, bukan hubungan
+  // cwd↔repoDir — jadi project yang di-bind ke checkout DI BAWAH .worktrees/ (persis keadaan saat
+  // hanoman didogfood di worktree-nya sendiri) lolos ke removeWorktree(repoDir, repoDir).
+  it("menutup shell TIDAK menghapus repoDir project, walau repoDir ada di bawah .worktrees/", async () => {
+    process.env.HANOMAN_SHELL = FAKE_SHELL;
+    const parent = mkdtempSync(join(tmpdir(), "hanoman-dogfood-"));
+    const nested = join(parent, ".worktrees", "spec-362");
+    mkdirSync(nested, { recursive: true });
+    execFileSync("git", ["init", "-q", "-b", "main"], { cwd: nested });
+    execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t",
+      "commit", "-qm", "init", "--allow-empty"], { cwd: nested });
+    writeFileSync(join(nested, "PENANDA.txt"), "jangan hapus saya");
+    await makeProject({ id: "p-dogfood", name: "p-dogfood", repoDir: nested });
+
+    const res = await startShell("p-dogfood");
+    expect(res.statusCode).toBe(201);
+    const id = res.json().id as string;
+    expect(listSessions().find((x) => x.id === id)!.cwd).toBe(nested);
+
+    const del = await app.inject({ method: "DELETE", url: `/api/terminal/sessions/${id}` });
+    expect(del.statusCode).toBe(204);
+    expect(existsSync(nested)).toBe(true);
+    expect(existsSync(join(nested, "PENANDA.txt"))).toBe(true);
+  });
+
   it("shell untuk project tanpa repoDir → 400 (bukan 422)", async () => {
     const res = await startShell("p2");   // p2.repoDir = null
     expect(res.statusCode).toBe(400);

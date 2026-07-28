@@ -81,6 +81,15 @@ Pakai skill lebih sempit saat task cocok:
   riwayat lama. `GET/DELETE /api/terminal/history*` sengaja di bawah prefix `/terminal` agar mewarisi
   capability `sessions`; `skip`/`take` DB sah di sana (tak ada overlay live seperti `GET /specs`, ADR-0038).
   UI = modal di Terminal (grid tak berubah ukuran) + "Mulai lagi" ber-`restartableKind`.
+- **Penghapusan worktree saat sesi ditutup digerbangi `ownsWorktree`** (`services/session-worktree.ts`,
+  SPEC-362): `DELETE /terminal/sessions/:id` hanya memanggil `realGit.removeWorktree` bila cwd sesi
+  benar-benar berada DI DALAM `<repoDir>/.worktrees/`. Jangan pernah memutuskannya dari substring
+  `"/.worktrees/"` pada cwd — itu menguji **bentuk path**, bukan **hubungan cwd↔repoDir**, dan begitu
+  sebuah project di-bind ke checkout di bawah `.worktrees/` (persis saat hanoman didogfood di
+  worktree-nya sendiri) terminal biasa ber-`cwd === repoDir` ikut lolos dan checkout project itu
+  sendiri terhapus. `realGit.removeWorktree` juga **melempar** bila diminta menghapus repo itu sendiri:
+  `git worktree remove` di dalamnya gagal-diam (`tryGit`), jadi `rmSync` terakhir tetap jalan meski
+  git menolak.
 - **Satu backlog = satu sesi** (ADR-0015): id sesi diturunkan deterministik dari id spec — menekan Start dua kali = **re-attach**, bukan spawn kedua.
 - Sesi berjalan di worktree sendiri di `<repoDir>/.worktrees/<id>`, dibuat `--detach` dari `branchFrom` (default `main`); `baseSha` dicatat untuk rentang review (ADR-0030). Jenis sesi: **spec-flow** (feature/qa/audit), **reverse** (project-level), **prd**, **plain terminal** (claude di repoDir; atau shell mentah non-claude via `{shell:true}`, SPEC-236/ADR-0056), **integrate-conflict** (merge-<id>), **vps**. Flow **audit** (SPEC-237/ADR-0057) = audit-only: pipeline `Audit → Laporan`, hanya dokumen SoT (`research/audit-<id>-<slug>.md`), tanpa Execute; bisa dinaikkan jadi Finding QA.
 - **Fase bukan proses melainkan giliran** dalam satu sesi: `runner/src/prompt.ts` `PIPELINES` mendefinisikan nama fase per flow; prompt menyuruh agen `echo "<Fase> done" >> $HANOMAN_PHASE_FILE`. Server membaca file append-only itu (`services/session-phases.ts`) untuk menurunkan fase aktif → `Stage`. Konteks terbawa antar fase karena semuanya satu sesi.
