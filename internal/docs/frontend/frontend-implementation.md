@@ -301,7 +301,8 @@ bersandar pada notifikasi yang **dibuat server-side** (`GET /notifications`) —
 
 ## IDE Visual (SPEC-182 · ADR-0034)
 Nav entri **IDE** (`code-2`) membuka `IdeScreen` (`screens/IdeScreen.tsx`), difilter per project lewat
-`Select` di toolbar (pola sama dengan Docs · SoT). Dua tab berbagi toolbar: **Explorer** dan **Git Graph**.
+`Select` di toolbar (pola sama dengan Docs · SoT). Tiga tab berbagi toolbar: **Explorer**, **Git Graph**,
+dan **Branches** (SPEC-360).
 
 - **Toolbar**: `Select` project + `Select` **ref** (opsi `· working tree ·` + branch local +
   `origin/<b>` dari `api.listBranches`) + tombol **Checkout**. Memilih ref hanya mengubah **sudut
@@ -341,6 +342,28 @@ Nav entri **IDE** (`code-2`) membuka `IdeScreen` (`screens/IdeScreen.tsx`), difi
 - **Dialog Paksa**: mutasi yang balas **409** (sesi aktif / tree kotor) memunculkan `ForceDialog`
   dengan pesan git asli + tombol **Paksa** yang mengulang op `force:true` (peringatan: bisa membuang
   perubahan tak ter-commit & mengganggu sesi Claude). Aman-default; force opt-in per aksi.
+
+### Tab Branches — bersihkan branch tak terpakai (SPEC-360 · ADR-0077)
+Tab ketiga IDE Visual, di samping Explorer & Git Graph. `BranchesPanel.tsx` hidup sebagai komponen
+sendiri — `GitGraph.tsx` sudah 43 KB dan tak layak ditumpangi lagi. Isinya branch yang **sudah
+ter-merge ke base** (`api.branchesUnused`):
+
+- **Header**: `Select` **base** (default "base otomatis", opsinya dari `api.listBranches`) + `Select`
+  **scope** (`local + origin` default · `local saja` · `origin saja`) + **Muat ulang** + tombol
+  **Hapus terpilih (N)**. Mengganti base memuat ulang laporan dan mengosongkan pilihan.
+- **Baris**: checkbox · nama branch (mono) · badge `local`/`origin`/`local + origin` · badge alasan
+  untuk baris terkunci (`LOCK_LABEL`) · subject + umur commit terakhir · tombol **Hapus** per baris.
+  Baris terkunci (`locks` tak kosong — termasuk `main` yang selalu tampil sebagai base+current)
+  checkbox-nya mati dan tombol Hapus-nya disabled; "Pilih semua yang boleh" melewatinya.
+- **Konfirmasi & hasil**: `ConfirmDialog` menyebut jumlah + scope; hasil dilaporkan per baris
+  (`N terhapus · M gagal`, tiap kegagalan menampilkan `error` dari server) sehingga kegagalan
+  sebagian terlihat apa adanya, bukan tersembunyi di balik satu toast.
+- **Dua jebakan test yang sudah memakan korban** — keduanya membuat test "lulus" secara palsu:
+  `Checkbox` design system bukan `<input type=checkbox>` melainkan `<label>` (pembawa `data-testid`)
+  yang membungkus `<span>`, dan **onClick hidup di span itu** — mengklik label adalah no-op
+  (pelajaran SPEC-299), jadi test mengklik `getByTestId(id).firstElementChild`. Dan `Tabs` merender
+  `<button role="tab">`; role eksplisit menimpa role implisit, jadi query tab WAJIB `role: "tab"`,
+  bukan `"button"`. `confirmLabel` dialog sengaja "Ya, hapus" karena tombol per baris sudah "Hapus".
 
 ### Parity ekstensi Git Graph (SPEC-233 · ADR-0055)
 Git graph diperluas mendekati ekstensi VS Code **Git Graph** (mhutchie). Semua tetap tunduk gate sesi +

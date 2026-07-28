@@ -61,6 +61,18 @@ Pakai skill lebih sempit saat task cocok:
 - **Tidak ada** message queue, Redis, worker terpisah, scheduler cron, maupun webhook GitHub — semua dicabut saat pindah ke sesi interaktif (ADR-0024). Satu-satunya kerja latar = dua `setInterval` di `server.ts` untuk monitor VPS (health 5 mnt, audit 24 jam).
 - Server **bind `127.0.0.1:8787`** di belakang reverse proxy TLS; `HOST=0.0.0.0` hanya bila ada TLS di depan.
 - `runner/src/*` adalah **library**, bukan proses: `git.ts` (worktree), `prompt.ts` (prompt + `PIPELINES` fase), `reverse-standard.ts`, `settings.ts`. Tak ada lagi invokasi `claude` headless; flow CLI lama (execute/spec/plan/qa) sudah dicabut (ADR-0024).
+- **Bersihkan branch tak terpakai** (SPEC-360/ADR-0077): daftar branch ter-merge = **nilai turunan git**
+  (`GET /projects/:id/branches/unused`, `git branch --merged`, base `?base=→main→master→branch aktif`,
+  ref origin dibanding `origin/<base>` — jangan hardcode `"main"`). Lima kunci proteksi per-branch
+  (`current`/`base`/`worktree`/`spec-open`/`session`) **ditegakkan ulang** di `POST …/branches/delete`
+  (yang menurunkan ulang daftarnya sendiri), jadi klien tak bisa menyelundupkan branch lewat body;
+  scope (`local`/`remote`/`both`) menyempit per branch. Eksekusi tetap lewat `runGitOp` `delete-branch`
+  (SPEC-206) — satu jalur, **tanpa `-D`/force**. Kunci `session` terpisah dari `worktree` karena sesi
+  lahir `--detach` (ADR-0002) sehingga tak muncul di `git worktree list`. **Tiga gotcha git terukur:**
+  `git branch --merged --format` memancarkan baris `(no branch)` di worktree detached; `origin/HEAD`
+  dipendekkan git jadi bare `origin` (cermin `services/branches.ts`); dan `--end-of-options` **tak
+  berlaku** untuk argumen `--merged` → base wajib di-resolve ke SHA lebih dulu. Ini pagar keselamatan
+  data untuk satu endpoint bulk, **bukan** guardrail eksekusi — ADR-0037 tetap utuh.
 - Docs SoT & coverage dipindai **live dari path efektif** tiap request (ADR-0011/0018), bukan tabel DB.
 - Verifikasi doc terkini via Context7 sebelum mengubah keputusan platform/framework.
 
