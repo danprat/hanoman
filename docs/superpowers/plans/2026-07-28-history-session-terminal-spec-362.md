@@ -1904,7 +1904,7 @@ git commit -m "docs(spec-362): ADR-0079 + data-model/api-contract/frontend/secur
 - Consumes: seluruh task sebelumnya
 - Produces: bukti bahwa endpoint bekerja di server yang benar-benar berjalan
 
-- [ ] **Step 1: Jalankan seluruh suite repo**
+- [x] **Step 1: Jalankan seluruh suite repo**
 
 Run:
 ```bash
@@ -1913,7 +1913,7 @@ env -u NODE_ENV -u DATABASE_URL DATABASE_URL='postgresql://hanoman:hanoman@local
 ```
 Expected: seluruh paket (`shared`, `server`, `src`, `runner`, `cli`, `sdk`) PASS. Perbaiki apa pun yang merah sebelum lanjut.
 
-- [ ] **Step 2: Boot server nyata di port terpisah**
+- [x] **Step 2: Boot server nyata di port terpisah**
 
 Port 8787 dipakai sesi dev lain (kode lama + DB dev) — pakai port & DB sendiri.
 
@@ -1926,7 +1926,7 @@ HANOMAN_TMUX_SOCKET=hanoman362 PORT=8799 HANOMAN_UPDATE_FETCH=0 \
 ```
 Expected: `hanoman api 127.0.0.1:8799`.
 
-- [ ] **Step 3: Smoke — auth, sesi shell nyata, tutup, riwayat, transkrip**
+- [x] **Step 3: Smoke — auth, sesi shell nyata, tutup, riwayat, transkrip**
 
 ```bash
 BASE=http://127.0.0.1:8799
@@ -1962,7 +1962,7 @@ Expected:
 - riwayat memuat satu baris `kind: "shell"`, `endedAt` terisi, `transcriptBytes` > 0
 - transkrip memuat `PENANDA-SMOKE-362`
 
-- [ ] **Step 4: Smoke — paginasi & purge**
+- [x] **Step 4: Smoke — paginasi & purge**
 
 ```bash
 # tiga sesi shell lagi supaya paginasi punya bahan
@@ -1984,7 +1984,7 @@ Expected:
 - `DELETE ?projectId=smoke362` → `{"purged":4}`, riwayat jadi `total: 0`
 - berkas transkrip di `/tmp/hanoman362-transcripts` ikut hilang: `ls /tmp/hanoman362-transcripts` kosong
 
-- [ ] **Step 5: Bereskan server smoke & tmux socket**
+- [x] **Step 5: Bereskan server smoke & tmux socket**
 
 ```bash
 kill %1
@@ -1992,7 +1992,7 @@ tmux -L hanoman362 kill-server 2>/dev/null || true
 rm -rf /tmp/hanoman362-transcripts
 ```
 
-- [ ] **Step 6: Verifikasi diff bersih & commit sisa**
+- [x] **Step 6: Verifikasi diff bersih & commit sisa**
 
 ```bash
 git status --short
