@@ -21,9 +21,14 @@ function variantStyle(variant: string): React.CSSProperties {
 }
 type ButtonProps = { children?: React.ReactNode; variant?: "primary" | "secondary" | "ghost" | "danger";
   size?: Size; leftIcon?: string; rightIcon?: string; loading?: boolean; disabled?: boolean; fullWidth?: boolean;
-  type?: "button" | "submit" | "reset"; style?: React.CSSProperties } & Record<string, any>;
+  type?: "button" | "submit" | "reset";
+  // SPEC-361 · `as="a"` dipakai tombol unduh: unduhan butuh anchor sungguhan (atribut `download`)
+  // agar nama berkas dari `content-disposition` server dihormati, bukan <button> ber-onClick.
+  as?: "button" | "a";
+  style?: React.CSSProperties } & Record<string, any>;
 export function Button({ children, variant = "primary", size = "md", leftIcon, rightIcon, loading = false,
-  disabled = false, fullWidth = false, type = "button", className = "", style = {}, ...rest }: ButtonProps) {
+  disabled = false, fullWidth = false, type = "button", as: asTag = "button",
+  className = "", style = {}, ...rest }: ButtonProps) {
   const s = BTN_SIZES[size] || BTN_SIZES.md!;
   const [hover, setHover] = React.useState(false);
   const [active, setActive] = React.useState(false);
@@ -32,11 +37,20 @@ export function Button({ children, variant = "primary", size = "md", leftIcon, r
   const hoverOverlay: React.CSSProperties = variant === "ghost" ? { background: "var(--bone-200)" }
     : variant === "secondary" ? { background: "var(--bone-100)", borderColor: "var(--ink-300)" }
     : { filter: "brightness(0.95)" };
-  return React.createElement("button", _extends({
-    type, disabled: isDisabled, onMouseEnter: () => setHover(true),
+  const isAnchor = asTag === "a";
+  // `type`/`disabled` bukan atribut sah pada <a>; padanannya aria-disabled. Dipisah ke variabel
+  // ber-tipe longgar karena spread kondisional di dalam argumen createElement membuat TS
+  // menyimpulkan union prop yang tak cocok overload mana pun.
+  const tagProps: Record<string, unknown> = isAnchor
+    ? { "aria-disabled": isDisabled || undefined }
+    : { type, disabled: isDisabled };
+  return React.createElement(isAnchor ? "a" : "button", _extends({
+    ...tagProps,
+    onMouseEnter: () => setHover(true),
     onMouseLeave: () => { setHover(false); setActive(false); },
     onMouseDown: () => setActive(true), onMouseUp: () => setActive(false), className,
     style: { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: s.gap, height: s.h,
+      textDecoration: "none",
       padding: `0 ${s.px}px`, width: fullWidth ? "100%" : "auto", font: `var(--weight-medium) ${s.fs}/1 var(--font-ui)`,
       letterSpacing: "0.005em", borderRadius: "var(--radius-sm)", cursor: isDisabled ? "not-allowed" : "pointer",
       opacity: isDisabled ? 0.5 : 1, transition: "var(--transition-fast)",

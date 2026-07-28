@@ -453,3 +453,15 @@ Aktifkan/Nonaktifkan (`api.enableHelpCenter`/`disableHelpCenter`); saat aktif ta
 icon `inbox`; `NotificationBell` per-tipe (icon/warna brass, label "keluhan baru", aksi "Lihat triase");
 `notifTarget` → `{ section: "triage", projectFilter }`. Server menotifikasi **setiap** tiket baru (dedup `key`),
 tersiar lewat grup `notifications` WS existing.
+
+**Unduh dokumen** (SPEC-361 · ADR-0078). `ds/DocDownload.tsx` merender sepasang anchor `.md` /
+`.pdf` dan dipasang di **setiap** pratinjau Markdown: `SpecDocsModal` (komponen yang sama dipakai
+Backlog **dan** Terminal, jadi satu pemasangan menutup dua entry point), `PrdScreen` (pane preview),
+`DocsWorkspace` (**mode preview saja** — isi tersimpan, bukan draft editor), dan `IdeScreen`
+(Explorer, berkas non-biner, honor `viewRef` sehingga unduhan mengikuti branch yang dilihat).
+URL-nya dari `api.specDocDownloadUrl`/`docDownloadUrl`/`prdDownloadUrl`/`ideFileDownloadUrl`
+(pembungkus `paths.download`, cermin `ideArchiveUrl` SPEC-233) — **URL, bukan `fetch`**: anchor
+sungguhan agar `content-disposition` server yang menamai berkas, dan cookie sesi ikut same-origin.
+Karena itu `Button` DS menerima prop `as="a"` (menekan atribut `type`/`disabled` yang tak sah pada
+`<a>`, memakai `aria-disabled`). Test yang mem-*mock* `../src/api/client` secara parsial perlu ikut
+menyediakan fungsi URL ini.

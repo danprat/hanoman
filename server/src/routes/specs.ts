@@ -16,6 +16,7 @@ import { listSpecDocs, resolveDir } from "../services/spec-docs";
 import { readEscalation } from "../services/audit-escalation";
 import { resolveRepoDir } from "../services/local-binding";
 import { readDocFile } from "../services/scan";
+import { downloadFormat, sendDocDownload } from "../services/doc-export";
 import { paginate } from "../services/paginate";
 // SPEC-199 · overlay stage-live + write-through + notifikasi kini di liveSpecs (dipakai juga hub
 // siar WS) supaya push & pull tak drift. Rute tinggal filter+paginasi (SPEC-198) di atasnya.
@@ -199,7 +200,11 @@ export default async function (app: FastifyInstance) {
     const path = (req.params as Record<string, string>)["*"] ?? "";
     const dir = await resolveDir(id);
     const content = dir ? readDocFile(dir, path) : null; // readDocFile menolak non-.md -> null
-    return content === null ? reply.code(404).send({ error: "not found" }) : { path, content };
+    if (content === null) return reply.code(404).send({ error: "not found" });
+    // SPEC-361 · ADR-0078 · unduh .md mentah / .pdf; tanpa query → JSON seperti semula.
+    const fmt = downloadFormat(req.query);
+    if (fmt) return sendDocDownload(reply, fmt, { content, name: path, prefix: id, eyebrow: `hanoman · ${id}`, path });
+    return { path, content };
   });
 
   // SPEC-340 · ADR-0076 · rekomendasi tindak lanjut audit — NILAI TURUNAN dari blok ```json di

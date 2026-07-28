@@ -2,7 +2,7 @@
    to the API: tree+coverage from GET /docs, file bodies from GET/PUT
    /docs/*path (server-persisted, replacing the prototype's localStorage). */
 import React from "react";
-import { Card, StatusPill, Badge, Button, ProgressBar, Icon, StateBlock, MarkdownView } from "../ds";
+import { Card, StatusPill, Badge, Button, ProgressBar, Icon, StateBlock, MarkdownView, DocDownload } from "../ds";
 import { api } from "../api/client";
 
 type DocCat = { cat: string; files: string[]; linked: boolean; scored: boolean; root?: boolean };
@@ -223,7 +223,10 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
             : <Badge tone="err" size="sm" icon="unlink">unlinked</Badge>)}
           <span style={{ flex: 1 }} />
           {mode === "preview" ? (
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              {/* SPEC-361 · unduh dokumen SoT; hanya di mode preview (isi tersimpan, bukan draft) */}
+              <DocDownload href={(f) => api.docDownloadUrl(projectId, selected, f)}
+                disabled={!selected || docLoading || docFailed} />
               <Button size="sm" variant="ghost" leftIcon="trash-2" onClick={removeDoc} disabled={!selected}>Hapus</Button>
               <Button size="sm" variant="secondary" leftIcon="pencil" onClick={startEdit}
                 disabled={!selected || docLoading || docFailed}>Edit</Button>

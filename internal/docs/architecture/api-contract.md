@@ -148,6 +148,26 @@ GET    /projects/:id/breakdown?prd=<path> # SPEC-273 · ADR-0069 · { items:[Bre
 #   Manifest bukan PRD → dikecualikan dari daftar/isi PRD di atas.
 ```
 
+### Unduh dokumen (SPEC-361 · ADR-0078)
+
+Empat endpoint dokumen menerima query **opsional** `?download=md|pdf`. Tak ada endpoint ekspor
+terpisah — pola sama dengan `GET /projects/:id/archive` (SPEC-233).
+
+| Endpoint | Prefix nama berkas |
+|---|---|
+| `GET /specs/:id/docs/*path` | `<specId>` |
+| `GET /projects/:id/prds/*path` | `<projectId>` |
+| `GET /projects/:id/docs/*path` | `<projectId>` |
+| `GET /projects/:id/file?path=&ref=` | `<projectId>` (+`-<ref>` bila melihat ref tertentu) |
+
+- `download=md` → `200 text/markdown; charset=utf-8`, badan = sumber Markdown mentah.
+- `download=pdf` → `200 application/pdf`, dirender server-side dari token `marked` (parser yang
+  sama dengan preview) lewat `services/doc-export.ts`.
+- Keduanya menyetel `content-disposition: attachment; filename="<prefix>-<basename>.<ext>"`.
+- Nilai lain **atau query absen** → respons JSON `{path, content}` **persis seperti sebelumnya**.
+- 404 tetap 404. Berkas biner di IDE tak ditawari unduhan (`f.binary` → respons JSON biasa).
+- Auth tak berubah: cookie sesi same-origin (ADR-0028); UI memakai `<a download>`, bukan `fetch`.
+
 > **PRD (SPEC-210 · ADR-0041):** PRD = dokumen `docs/prd/<slug>.md` (bukan entitas DB). `PrdDoc` =
 > `{slug,name,path,title,live,projectId,projectName}` (`projectId`/`projectName` menyertai tiap item agar
 > view lintas-project mengelompokkan & membuka PRD ke project asalnya). List/baca **freshest-wins**:

@@ -17,6 +17,8 @@ vi.mock("../src/api/client", () => ({
     getBreakdown: vi.fn(async () => ({ items: [], live: false })),
     startBreakdown: vi.fn(),
     createSpecsBatch: vi.fn(async () => ({ created: [{ id: "SPEC-300" }, { id: "SPEC-301" }] })),
+    // SPEC-361 · pane preview memasang tombol unduh
+    prdDownloadUrl: (id: string, p: string, f: string) => `/api/projects/${id}/prds/${p}?download=${f}`,
   },
   ApiError: class extends Error {},
 }));

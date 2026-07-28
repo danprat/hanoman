@@ -2,7 +2,7 @@
    (audit/objective/spec/plan/brainstorm). Data dari GET /specs/:id/docs (+ /docs/*);
    sumber freshest-wins (worktree sesi hidup > repoDir) di-resolve server. */
 import React from "react";
-import { Modal, StateBlock, Icon, MarkdownView } from "../ds";
+import { Modal, StateBlock, Icon, MarkdownView, DocDownload } from "../ds";
 import { api, type SpecDoc } from "../api/client";
 
 const KIND_LABEL: Record<string, string> = {
@@ -83,10 +83,18 @@ export function SpecDocsModal({ specId, onClose }: { specId: string; onClose: ()
                 </div>
               ))}
             </div>
-            <div style={{ overflow: "auto", padding: "0 8px 16px" }}>
-              {docLoading ? <StateBlock kind="loading" title="Memuat…" hint={sel} />
-                : docFailed ? <StateBlock kind="error" title="Gagal memuat berkas" hint={sel} />
-                : <MarkdownView text={cache[sel] ?? ""} name={sel} />}
+            <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+              {/* SPEC-361 · unduh dokumen yang sedang dibuka sebagai evidence untuk tim */}
+              <div style={{ display: "flex", justifyContent: "flex-end", paddingBottom: 6,
+                borderBottom: "1px solid var(--border-hair)", marginBottom: 8 }}>
+                <DocDownload href={(f) => api.specDocDownloadUrl(specId, sel, f)}
+                  disabled={!sel || docLoading || docFailed} />
+              </div>
+              <div style={{ flex: "1 1 auto", overflow: "auto", padding: "0 8px 16px" }}>
+                {docLoading ? <StateBlock kind="loading" title="Memuat…" hint={sel} />
+                  : docFailed ? <StateBlock kind="error" title="Gagal memuat berkas" hint={sel} />
+                  : <MarkdownView text={cache[sel] ?? ""} name={sel} />}
+              </div>
             </div>
           </div>
         )}

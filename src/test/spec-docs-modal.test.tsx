@@ -8,6 +8,8 @@ vi.mock("../src/api/client", () => ({
   api: {
     getSpecDocs: (...a: unknown[]) => getSpecDocs(...a),
     getSpecDocFile: (...a: unknown[]) => getSpecDocFile(...a),
+    // SPEC-361 · header preview memasang tombol unduh
+    specDocDownloadUrl: (id: string, p: string, f: string) => `/api/specs/${id}/docs/${p}?download=${f}`,
   },
 }));
 

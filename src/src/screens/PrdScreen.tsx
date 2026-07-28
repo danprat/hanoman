@@ -5,7 +5,7 @@
 import React from "react";
 import {
   Badge, Button, Select, Modal, Field, Input, HnTextarea, StateBlock, MarkdownView, Icon,
-  LIST_SCREEN_STYLE, FIXED_ROW_STYLE,
+  DocDownload, LIST_SCREEN_STYLE, FIXED_ROW_STYLE,
 } from "../ds";
 import { api, type PrdDoc } from "../api/client";
 import type { BreakdownItem } from "@hanoman/shared";
@@ -105,7 +105,9 @@ function PrdPreviewPane({ prd, projectId, onTake, onStartBreakdown, onMaterializ
           <div className="hn-eyebrow" style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-subtle)", marginBottom: 4 }}>{prd.path}</div>
           <div style={{ fontFamily: "var(--font-sans)", fontSize: 18, fontWeight: 700, color: "var(--text-strong)" }}>{prd.title}</div>
         </div>
-        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+        <div style={{ display: "flex", gap: 8, flexShrink: 0, alignItems: "center" }}>
+          {/* SPEC-361 · unduh PRD sebagai .md / .pdf untuk dibagikan ke tim */}
+          <DocDownload href={(f) => api.prdDownloadUrl(projectId, prd.path, f)} disabled={content === null} />
           <Button size="sm" variant="ghost" leftIcon="list-checks"
             onClick={() => onTake({ project: projectId, title: prd.title, context: `Dari PRD: ${prd.path}`, outcome: "", prdPath: prd.path, branchFrom: prdBranchOf(prd.path) })}>
             Take ke backlog

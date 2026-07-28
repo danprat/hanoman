@@ -3,7 +3,7 @@
 import React from "react";
 import hljs from "highlight.js";
 import "highlight.js/styles/github.css";
-import { Card, Button, Select, Icon, StateBlock, Tabs, Badge } from "../ds";
+import { Card, Button, Select, Icon, StateBlock, Tabs, Badge, DocDownload } from "../ds";
 import { api, ApiError, type RepoFile, type ReviewFile, type WorkingStatus, type GitOp, type Remote } from "../api/client";
 import type { ProjectVM } from "./types";
 import { GitGraph } from "./GitGraph";
@@ -278,6 +278,9 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
                           ))}
                         </div>
                       )}
+                      {/* SPEC-361 · unduh berkas teks yang sedang dibuka (biner tak ditawari) */}
+                      <DocDownload href={(f) => api.ideFileDownloadUrl(projectId, selected, viewRef, f)}
+                        disabled={!file || file.binary} />
                       <Button size="sm" variant="secondary" leftIcon="pencil" onClick={startEdit}
                         disabled={!file || file.binary}>Edit</Button>
                     </div>

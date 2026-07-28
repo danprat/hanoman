@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { basename } from "node:path";
 import { spawn } from "node:child_process";
 import { listRemotes, addRemote, setRemoteUrl, removeRemote, prUrl } from "../services/git-remotes";
+import { downloadFormat, sendDocDownload } from "../services/doc-export";
 import { prisma } from "../db";
 import { resolveRepoDir } from "../services/local-binding";
 import { listSessions, createSession } from "../services/pty";
@@ -51,13 +52,23 @@ export default async function (app: FastifyInstance) {
   });
 
   app.get("/projects/:id/file", async (req, reply) => {
-    const repoDir = await repoOf((req.params as { id: string }).id);
+    const id = (req.params as { id: string }).id;
+    const repoDir = await repoOf(id);
     if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
     const { path, ref } = req.query as { path?: string; ref?: string };
     if (!path) return reply.code(400).send({ error: "path wajib" });
     try {
       const f = await readRepoFile(repoDir, path, ref ?? "");
-      return f === null ? reply.code(404).send({ error: "not found" }) : f;
+      if (f === null) return reply.code(404).send({ error: "not found" });
+      // SPEC-361 · ADR-0078 · unduh berkas teks; biner tak punya bentuk .md/.pdf yang berarti.
+      const fmt = downloadFormat(req.query);
+      if (fmt && !f.binary) {
+        return sendDocDownload(reply, fmt, {
+          content: f.content ?? "", name: path, prefix: ref ? `${id}-${ref}` : id,
+          eyebrow: `hanoman · ${id}${ref ? ` · ${ref}` : ""}`, path,
+        });
+      }
+      return f;
     } catch (e) { return reply.code(400).send({ error: (e as Error).message }); }
   });
 
