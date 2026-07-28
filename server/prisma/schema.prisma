@@ -204,6 +204,39 @@ model SessionResult {
   updatedAt DateTime @updatedAt
 }
 
+// SPEC-362 · ADR-0077 · riwayat sesi terminal. LOCAL-only: sesi hidup di tmux mesin ini dan
+// transkripnya berkas di disk mesin ini — menyiarkannya ke hub akan mengirim baris yang menunjuk
+// berkas yang tak ada di sana (cermin LocalBinding & SchedulerQueueItem). Tanpa `version`/notifySynced.
+model SessionHistory {
+  id              String    @id
+  // id tmux sesi. BUKAN primary key: sessionIdForSpec() deterministik, jadi satu backlog yang
+  // dibuka-tutup lima kali menghasilkan lima baris dengan sessionId yang sama.
+  sessionId       String
+  // Tanpa FK: sesi VPS memakai projectId sintetis "vps:<id>"/"vps-console:<id>" (routes/vps.ts).
+  // Konvensi yang sama dipakai SessionResult.
+  projectId       String
+  specId          String?
+  title           String?
+  kind            String
+  flow            String?
+  agent           String
+  model           String?
+  effort          String?
+  branch          String?
+  cwd             String
+  startedAt       DateTime  @default(now())
+  endedAt         DateTime?
+  exitCode        Int?
+  transcriptKey   String?
+  transcriptBytes Int?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([projectId, startedAt])
+  @@index([specId])
+  @@index([sessionId])
+}
+
 // SPEC-213 · ADR-0045 · change-feed server-authoritative. seq = kursor global sync.
 model SyncLog {
   seq       BigInt   @id @default(autoincrement())
