@@ -6,7 +6,8 @@ import { prisma } from "../db";
 import { resolveRepoDir } from "../services/local-binding";
 import { listSessions, createSession } from "../services/pty";
 import { sessionModel } from "../services/settings";
-import { mergeIntoCurrent, rebaseOntoCurrent, pullIntoCurrent, dropCommit, type GraphMergeResult } from "../services/integrate";
+import { mergeIntoCurrent, rebaseOntoCurrent, pullIntoCurrent, dropCommit, sourceBranch, type GraphMergeResult } from "../services/integrate";
+import { listUnusedBranches, deleteBranches, type BranchScope } from "../services/branch-cleanup";
 import {
   listRepoTree, readRepoFile, writeRepoFile, listGraph, commitDetail, commitFileDiff, compareCommits, compareFile,
   searchCommits, runGitOp, validateGitOp, touchesTree, repoStatus, listStashes,
@@ -21,6 +22,25 @@ async function repoOf(id: string): Promise<string | null | undefined> {
   return (await resolveRepoDir(id)) ?? null;
 }
 const activeSessions = (id: string) => listSessions().filter((s) => s.projectId === id && !s.exited).length;
+
+// SPEC-360 · ADR-0077 · sinyal NON-git yang mengunci sebuah branch dari penghapusan. Dikumpulkan
+// di route (yang boleh menyentuh DB & tmux) lalu diserahkan ke service sebagai himpunan nama
+// branch — service tetap murni & bisa dites tanpa DB maupun tmux.
+async function lockInputs(id: string) {
+  const open = await prisma.spec.findMany({
+    where: { projectId: id, stage: { not: "done" } }, select: { id: true } });
+  // Sesi backlog lahir TANPA opts.branch (session-launch.ts) → SessionInfo.branch undefined;
+  // nama branch-nya diturunkan dari id sesi yang deterministik dari id spec (ADR-0015).
+  // Sesi PRD/breakdown memang membawa `branch`. Keduanya harus terlindungi.
+  const sessions = listSessions()
+    .filter((s) => s.projectId === id && !s.exited)
+    .map((s) => s.branch || (s.specId ? `hanoman/${s.id}` : ""))
+    .filter(Boolean);
+  return {
+    openSpecBranches: new Set(open.map((s) => sourceBranch(s.id))),
+    sessionBranches: new Set(sessions),
+  };
+}
 
 export default async function (app: FastifyInstance) {
   app.get("/projects/:id/tree", async (req, reply) => {
@@ -275,6 +295,36 @@ export default async function (app: FastifyInstance) {
     const b = req.body as { sha?: unknown };
     if (typeof b?.sha !== "string" || !b.sha) return reply.code(400).send({ error: "sha wajib" });
     return finishGraphOp(reply, id, await dropCommit(repoDir, b.sha), "drop");
+  });
+
+  // SPEC-360 · ADR-0077 · daftar branch yang sudah ter-merge ke base + alasan kunci per branch.
+  // Read murni turunan git (ADR-0018) — tak digerbang sesi aktif.
+  app.get("/projects/:id/branches/unused", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const repoDir = await repoOf(id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    const { base } = req.query as { base?: string };
+    return listUnusedBranches(repoDir, { base, ...(await lockInputs(id)) });
+  });
+
+  // SPEC-360 · ADR-0077 · hapus batch. TAK memakai gerbang sesi-aktif global (touchesTree):
+  // delete-branch adalah op ref-only (ADR-0055) dan pagarnya sudah per-branch & lebih tepat.
+  // Selalu 200 bila body sah — kegagalan hidup di baris `results`, bukan di status HTTP.
+  app.post("/projects/:id/branches/delete", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const repoDir = await repoOf(id);
+    if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
+    if (!repoDir) return reply.code(400).send({ error: "project tidak punya repoDir" });
+    const b = req.body as { names?: unknown; scope?: unknown; base?: unknown };
+    if (!Array.isArray(b?.names) || b.names.some((n) => typeof n !== "string" || !n))
+      return reply.code(400).send({ error: "names wajib berisi nama branch" });
+    if (b.scope !== undefined && b.scope !== "local" && b.scope !== "remote" && b.scope !== "both")
+      return reply.code(400).send({ error: "scope harus local, remote, atau both" });
+    return deleteBranches(repoDir, b.names as string[], {
+      scope: (b.scope as BranchScope | undefined) ?? "both",
+      base: typeof b.base === "string" && b.base ? b.base : undefined,
+      ...(await lockInputs(id)),
+    });
   });
 }
 

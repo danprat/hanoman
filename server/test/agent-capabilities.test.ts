@@ -8,6 +8,10 @@ describe("capabilityForRoute", () => {
     ["GET", "/api/projects/foo", "projects:read"],
     ["POST", "/api/projects/foo/rename", "projects:write"],
     ["GET", "/api/projects/foo/branches", "projects:read"],
+    // SPEC-360 · `branches` SENGAJA bukan anggota IDE_SUBS: baris di atas sudah memetakan ke
+    // projects:read, dan memasukkannya ke IDE_SUBS akan diam-diam mengubah endpoint lama itu.
+    ["GET", "/api/projects/foo/branches/unused", "projects:read"],
+    ["POST", "/api/projects/foo/branches/delete", "projects:write"],
     ["PUT", "/api/projects/foo/binding", "projects:write"],
     ["GET", "/api/projects/foo/docs/README.md", "docs:read"],
     ["PUT", "/api/projects/foo/docs/x.md", "docs:write"],

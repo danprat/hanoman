@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { buildApp } from "../src/app";
-import { resetDb, makeProject, makeRepoWithBranches, makeRepoWithSpecBranch, makeRepoWithChanges } from "./factory";
+import { resetDb, makeProject, makeSpec, makeRepoWithBranches, makeRepoWithSpecBranch, makeRepoWithChanges } from "./factory";
 import { createSession, killAll } from "../src/services/pty";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -16,6 +16,15 @@ function ffRepo(): string {
   g("checkout", "-q", "dev"); writeFileSync(`${dir}/x.txt`, "d"); g("add", "-A"); g("commit", "-qm", "dev ahead");
   g("checkout", "-q", "main");
   return dir;
+}
+
+// SPEC-360 · repo dgn hanoman/<id> SUDAH ter-merge ke main (local + origin).
+function mergedRepo(specId: string): string {
+  const { repoDir } = makeRepoWithSpecBranch(specId);
+  const gg = (...a: string[]) => spawnSync("git", a, { cwd: repoDir, encoding: "utf8" });
+  gg("merge", "--no-ff", "--no-edit", `hanoman/${specId}`);
+  gg("push", "-q", "origin", "main");
+  return repoDir;
 }
 
 // Repo main dengan 2 commit → uji reset (SPEC-233).
@@ -36,6 +45,10 @@ beforeAll(async () => {
   await makeProject({ id: "resetrepo", repoDir: twoCommitRepo() });
   await makeProject({ id: "nodir", repoDir: null });
   await makeProject({ id: "chg", repoDir: makeRepoWithChanges() });
+  // SPEC-360 · branch cleanup
+  await makeProject({ id: "cleanrepo", repoDir: mergedRepo("clean") });
+  await makeProject({ id: "lockrepo", repoDir: mergedRepo("locked") });
+  await makeSpec({ id: "locked", projectId: "lockrepo", stage: "executing" }); // → hanoman/locked terkunci
 }, 30_000); // fixtures git+DB banyak — beri ruang di mesin ber-load tinggi
 
 describe("ide routes", () => {
@@ -307,5 +320,71 @@ describe("ide routes", () => {
     const r = await app.inject({ method: "POST", url: "/api/projects/droprepo/git/drop", payload: { sha: buang } });
     expect(r.statusCode).toBe(200);
     expect(r.json().status).toBe("clean");
+  });
+});
+
+describe("branch cleanup (SPEC-360)", () => {
+  it("GET /branches/unused: project tak ada → 404", async () => {
+    const r = await app.inject({ url: "/api/projects/ghost/branches/unused" });
+    expect(r.statusCode).toBe(404);
+  });
+
+  it("GET /branches/unused: branch ter-merge tampil, base & current terkunci", async () => {
+    const r = await app.inject({ url: "/api/projects/cleanrepo/branches/unused" });
+    expect(r.statusCode).toBe(200);
+    const j = r.json();
+    expect(j.base).toBe("main");
+    expect(j.baseRemote).toBe("origin/main");
+    expect(j.current).toBe("main");
+    const b = j.branches.find((x: { name: string }) => x.name === "hanoman/clean");
+    expect(b).toMatchObject({ local: true, remote: true, locks: [] });
+    expect(j.branches.find((x: { name: string }) => x.name === "main").locks).toContain("base");
+  });
+
+  it("GET /branches/unused: Spec belum done mengunci branch-nya", async () => {
+    const r = await app.inject({ url: "/api/projects/lockrepo/branches/unused" });
+    const b = r.json().branches.find((x: { name: string }) => x.name === "hanoman/locked");
+    expect(b.locks).toContain("spec-open");
+  });
+
+  it("GET /branches/unused: project tanpa repoDir → laporan kosong", async () => {
+    const r = await app.inject({ url: "/api/projects/nodir/branches/unused" });
+    expect(r.statusCode).toBe(200);
+    expect(r.json()).toEqual({ base: "", baseRemote: null, current: "", branches: [] });
+  });
+
+  it("POST /branches/delete: names wajib", async () => {
+    const r = await app.inject({ method: "POST", url: "/api/projects/cleanrepo/branches/delete", payload: {} });
+    expect(r.statusCode).toBe(400);
+  });
+
+  it("POST /branches/delete: scope tak sah → 400", async () => {
+    const r = await app.inject({ method: "POST", url: "/api/projects/cleanrepo/branches/delete",
+      payload: { names: ["hanoman/clean"], scope: "semua" } });
+    expect(r.statusCode).toBe(400);
+  });
+
+  it("POST /branches/delete: project tanpa repoDir → 400", async () => {
+    const r = await app.inject({ method: "POST", url: "/api/projects/nodir/branches/delete",
+      payload: { names: ["x"] } });
+    expect(r.statusCode).toBe(400);
+  });
+
+  it("POST /branches/delete: branch terkunci → results ok:false, branch selamat", async () => {
+    const r = await app.inject({ method: "POST", url: "/api/projects/lockrepo/branches/delete",
+      payload: { names: ["hanoman/locked"], scope: "both" } });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().results[0]).toMatchObject({ name: "hanoman/locked", ok: false });
+    const after = await app.inject({ url: "/api/projects/lockrepo/branches/unused" });
+    expect(after.json().branches.some((x: { name: string }) => x.name === "hanoman/locked")).toBe(true);
+  });
+
+  it("POST /branches/delete: hapus local+origin benar-benar terjadi", async () => {
+    const r = await app.inject({ method: "POST", url: "/api/projects/cleanrepo/branches/delete",
+      payload: { names: ["hanoman/clean"], scope: "both" } });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().results[0]).toMatchObject({ name: "hanoman/clean", ok: true, scope: "both" });
+    const after = await app.inject({ url: "/api/projects/cleanrepo/branches/unused" });
+    expect(after.json().branches.some((x: { name: string }) => x.name === "hanoman/clean")).toBe(false);
   });
 });

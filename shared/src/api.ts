@@ -5,6 +5,10 @@ export const paths = {
   // SPEC-255 · ADR-0064 · rename slug project (efek: DSN, Help Center, sync).
   projectRename: (id: string) => `${API}/projects/${encodeURIComponent(id)}/rename`,
   branches: (id: string) => `${API}/projects/${id}/branches`,
+  // SPEC-360 · ADR-0077 · branch ter-merge (nilai turunan git) + hapus batch local/origin.
+  branchesUnused: (id: string, base?: string) =>
+    `${API}/projects/${id}/branches/unused${base ? `?base=${encodeURIComponent(base)}` : ""}`,
+  branchesDelete: (id: string) => `${API}/projects/${id}/branches/delete`,
   // SPEC-217 · path per-mesin (LocalBinding, tak disync) + clone dari gitRemote
   binding: (id: string) => `${API}/projects/${id}/binding`,
   clone: (id: string) => `${API}/projects/${id}/clone`,
