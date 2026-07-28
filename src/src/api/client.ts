@@ -191,6 +191,10 @@ export const api = {
   // SPEC-222 · scaffold: sesi project-level menyusun Source of Truth dari ide (from-scratch).
   scaffoldDocs: (project: string) =>
     j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, flow: "scaffold" }) }),
+  // SPEC-362 · "Mulai lagi" sesi project-level dari riwayat (reverse/scaffold/cross-audit): bentuk
+  // body-nya identik dengan reverseDocs/scaffoldDocs, hanya flow-nya yang datang dari baris riwayat.
+  createTerminalFlow: (project: string, flow: Flow) =>
+    j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, flow }) }),
   // SPEC-210 · dokumen PRD. listPrds/getPrd baca freshest-wins; startPrd buka sesi prd.
   listPrds: (project: string) => j<{ items: PrdDoc[] }>(paths.prds(project)),
   // perbaikan SPEC-210 · daftar PRD lintas-project (filter "Semua project").

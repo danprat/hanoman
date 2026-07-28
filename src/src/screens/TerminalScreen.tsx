@@ -2,8 +2,9 @@ import React from "react";
 import { Button, IconButton, Icon, Select, StateBlock, Modal, Input, Badge, StatusPill } from "../ds";
 import { api, ApiError, type TerminalSession, type Phase, type Flow } from "../api/client";
 import { subscribe } from "../api/events";
-import { flowForSource } from "@hanoman/shared";
+import { flowForSource, type SessionHistoryView } from "@hanoman/shared";
 import { TerminalPane } from "./TerminalPane";
+import { SessionHistoryModal } from "./SessionHistoryModal";
 import { SpecDocsModal } from "./SpecDocsModal";
 import { IntegrateDialog } from "./IntegrateDialog";
 import { B_STAGES } from "./BacklogScreen";
@@ -29,6 +30,9 @@ export function TerminalScreen({ projects, backlog = [], focusSession, onOpenRev
   const [fullId, setFullId] = React.useState<string | null>(null);
   const [picking, setPicking] = React.useState(false);
   const [pickError, setPickError] = React.useState<string | null>(null);
+  // SPEC-362 · riwayat sesi. State-nya sekadar boolean: modal baru dirender saat diminta, jadi
+  // tak ada request riwayat maupun elemen tambahan selama operator tak membukanya.
+  const [historyOpen, setHistoryOpen] = React.useState(false);
 
   const [loaded, setLoaded] = React.useState(false);
   React.useEffect(() => {
@@ -105,6 +109,28 @@ export function TerminalScreen({ projects, backlog = [], focusSession, onOpenRev
     }
   }
 
+  // SPEC-362 · "Mulai lagi" = sesi BARU dengan konteks yang sama; sesi lamanya sudah mati bersama
+  // panenya. Endpoint yang dipakai persis endpoint yang melahirkan sesi jenis itu pertama kali.
+  async function restartFromHistory(r: SessionHistoryView) {
+    try {
+      const born = r.specId
+        ? await api.startSession({ spec: r.specId, flow: (r.flow ?? "feature") as Flow })
+        : r.kind === "shell"
+          ? await api.createShell(r.projectId)
+          : r.kind === "terminal"
+            ? await api.createTerminal(r.projectId)
+            : await api.createTerminalFlow(r.projectId, r.kind as Flow);
+      setSessions((s) => (s.some((x) => x.id === born.id)
+        ? s
+        : [...s, { id: born.id, projectId: r.projectId, specId: r.specId ?? undefined, cwd: "", exited: false }]));
+      setWs((w) => W.placeFirstEmptyInActive(w, born.id));
+      setHistoryOpen(false);
+    } catch {
+      // Gagal (project tak ter-bind, worktree tak bisa dibuat) — biarkan modal terbuka; pesan
+      // detailnya sudah muncul di jalur Start biasa, riwayat tak perlu menduplikasinya.
+    }
+  }
+
   // Startable = belum selesai & belum punya sesi hidup di terminal ini (cermin Backlog
   // "Mulai/Lanjutkan": stage !== "done" && !running).
   const activeSpecIds = new Set(
@@ -168,6 +194,9 @@ export function TerminalScreen({ projects, backlog = [], focusSession, onOpenRev
             options={projects.map((p) => ({ value: p.id, label: p.name }))} />
           <Button size="sm" variant="secondary" leftIcon="inbox"
             onClick={() => { setPickError(null); setPicking(true); }}>Ambil backlog</Button>
+          <Button size="sm" variant="secondary" leftIcon="history"
+            title="Riwayat sesi yang sudah berlalu — buka kembali atau baca transkripnya"
+            onClick={() => setHistoryOpen(true)}>Riwayat</Button>
           <Button size="sm" variant="secondary" leftIcon="terminal"
             title="Buka shell tmux tanpa Claude di project terpilih — jalankan command di project"
             onClick={() => void openShell()}>Terminal biasa</Button>
@@ -245,6 +274,11 @@ export function TerminalScreen({ projects, backlog = [], focusSession, onOpenRev
       {picking && (
         <BacklogPicker seed={startable} activeIds={activeSpecIds} error={pickError}
           onPick={(s) => void pickBacklog(s)} onClose={() => setPicking(false)} />
+      )}
+
+      {historyOpen && (
+        <SessionHistoryModal projects={projects} onClose={() => setHistoryOpen(false)}
+          onRestart={(r) => void restartFromHistory(r)} />
       )}
 
       {fullId && byId(fullId) && (
