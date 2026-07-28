@@ -371,7 +371,24 @@ DELETE /terminal/sessions/:id        # 204 · 404; menutup sesi: majukan stage, 
 GET    /terminal/sessions/:id/ws     # WebSocket; close 4004 bila sesi tak ada
 #   server->klien: { t:"data", d } · { t:"phase", … } · { t:"exit", code }
 #   klien->server: { t:"in", d } · { t:"resize", cols, rows }
+
+# --- riwayat sesi (SPEC-362, ADR-0077) — LOCAL-only, tak disync -------------------------------
+GET    /terminal/history?projectId&specId&kind&q&page&limit
+#   → { items: SessionHistoryView[], total, page, pageSize } · urut startedAt desc
+#   q mencocokkan sessionId/specId/title/branch (insensitive). Tanpa `limit` → seluruh riwayat
+#   terfilter dalam satu halaman. `limit` di-clamp 1..200. `endedAt: null` = sesi masih berjalan.
+#   skip/take dilakukan di query DB — SAH di sini, tak seperti larangan ADR-0038 untuk GET /specs
+#   (riwayat adalah baris mati; tak ada overlay stage live / write-through yang butuh set penuh).
+GET    /terminal/history/:id         # SessionHistoryView + { hasTranscript } · 404
+GET    /terminal/history/:id/transcript  # { text, bytes } · 404 bila baris/transkrip tak ada
+#   Teks POLOS (capture-pane tanpa -e), di-capture sebelum pane dibunuh, cap 1 MiB menyimpan ekor.
+DELETE /terminal/history?projectId&before
+#   → { purged } · 400 tanpa parameter (purge WAJIB ber-scope) · 400 `before` bukan tanggal valid.
+#   Ikut menghapus berkas transkrip milik baris yang dibuang. Cermin DELETE /session-results.
 ```
+
+> Riwayat sesi sengaja hidup di bawah prefix `/terminal` supaya mewarisi capability `sessions`
+> (`capabilityForRoute()`, ADR-0065) tanpa menambah domain baru.
 
 > PTY menjalankan `claude --dangerously-skip-permissions` di worktree/`repoDir`, di dalam **tmux**
 > (socket `-L hanoman`) sehingga sesi hidup melewati restart API (ADR-0016); scrollback 256 KB terakhir
