@@ -175,8 +175,16 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "288px 1fr", gap: 20, alignItems: "start" }}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 12 }}>
+    // SPEC-363 · tinggi pane diturunkan dari viewport lewat rantai flex Shell, bukan angka
+    // tetap. Dulu `maxHeight: 620`: MELEBIHI `<main>` di layar 13" (dua scrollbar) dan cuma
+    // memakai 57% tinggi di monitor 1329 px (terukur).
+    // `flex-basis` WAJIB `0`, bukan `auto`: pembungkus `<main>` memakai `min-height: 100%`
+    // (bukan `height`, SPEK-351), jadi item ber-basis-auto memakai tinggi ISI-nya dan justru
+    // menumbuhkan halaman — terukur pane 6000 px + halaman ikut menggulir. Basis 0 membuat
+    // tinggi container pasti lebih dulu, lalu item mengisi sisanya.
+    <div style={{ display: "grid", gridTemplateColumns: "288px 1fr", gap: 20, alignItems: "stretch",
+      flex: "1 1 0", minHeight: 0 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, minHeight: 0, overflow: "auto" }}>
         <Card padding={0}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "12px 14px", borderBottom: "1px solid var(--border-hair)" }}>
             <span className="hn-eyebrow">docs · {projectName}</span>
@@ -214,8 +222,8 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
         </Card>
       </div>
 
-      <Card padding={0}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--border-hair)", flexWrap: "wrap" }}>
+      <Card padding={0} style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+        <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--border-hair)", flexWrap: "wrap" }}>
           <Icon name="file-text" size={15} color="var(--text-muted)" />
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--text-strong)", fontWeight: 500 }}>{displayPath}</span>
           {node && node.scored && (node.linked
@@ -240,7 +248,7 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
         </div>
 
         {mode === "preview" ? (
-          <div style={{ padding: "8px 30px 34px", maxHeight: 620, overflow: "auto" }}>
+          <div data-testid="doc-preview-scroll" style={{ padding: "8px 30px 34px", flex: "1 1 auto", minHeight: 0, overflow: "auto" }}>
             {!selected ? <StateBlock kind="empty" icon="file-text" title="Tidak ada dokumen dipilih"
                 hint="Pilih file dari pohon docs di kiri." />
               : docLoading ? <StateBlock kind="loading" title="Memuat dokumen…" hint={selected} />
@@ -248,7 +256,7 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
               : <MarkdownView text={current} name={selected} />}
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", height: 620 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", flex: "1 1 auto", minHeight: 0 }}>
             <div style={{ display: "flex", flexDirection: "column", borderRight: "1px solid var(--border-hair)", minHeight: 0 }}>
               <div style={{ padding: "8px 14px", borderBottom: "1px solid var(--border-hair)", background: "var(--bone-100)" }}>
                 <span className="hn-eyebrow">Markdown</span>

@@ -11,7 +11,12 @@ a { color: var(--text-link); text-decoration: none; }
 a:hover { color: var(--wind-700); text-decoration: underline; }
 
 /* ---- rendered markdown (Source of Truth preview) ---- */
-.hn-md { color: var(--text-body); font-family: var(--font-sans); font-size: 15px; line-height: 1.72; }
+/* SPEC-363 · pratinjau dokumen tidak boleh menggulir ke SAMPING. `overflow-wrap: anywhere`
+   (bukan `break-word`) dipilih sengaja: hanya `anywhere` yang mengecilkan **min-content**,
+   dan min-content itulah yang membuat rantai inline `code` tanpa spasi (33 dokumen terukur)
+   dan tabel lebar mendorong container. Diukur di Chrome atas 353 `.md` nyata: 33 -> 0. */
+.hn-md { color: var(--text-body); font-family: var(--font-sans); font-size: 15px; line-height: 1.72;
+  overflow-wrap: anywhere; }
 .hn-md > :first-child { margin-top: 8px; }
 .hn-md h1, .hn-md h2, .hn-md h3, .hn-md h4 {
   font-family: var(--font-display); font-weight: 600; letter-spacing: -0.02em;
@@ -38,9 +43,14 @@ a:hover { color: var(--wind-700); text-decoration: underline; }
   background: var(--bone-200); color: var(--ink-800);
   padding: 1.5px 5px; border-radius: var(--radius-xs); border: 1px solid var(--border-hair);
 }
+/* Baris kode dibungkus, bukan digulir: 187 dari 353 dokumen punya blok yang lebih lebar dari
+   pane-nya (api-contract.md 5,3x, plan SPEC-360 8,9x). `overflow: auto` ditahan sebagai jaring
+   pengaman untuk isi yang benar-benar tak bisa dibungkus — supaya ia menggulir di dalam
+   kotaknya sendiri, bukan mendorong prosa di sekitarnya. */
 .hn-md pre {
   background: var(--surface-code); border: 1px solid var(--term-line);
   border-radius: var(--radius-lg); padding: 14px 16px; overflow: auto; margin: 1em 0;
+  white-space: pre-wrap; overflow-wrap: anywhere;
 }
 .hn-md pre code {
   background: transparent; border: none; padding: 0;
@@ -51,7 +61,12 @@ a:hover { color: var(--wind-700); text-decoration: underline; }
   background: var(--brass-050); color: var(--text-body); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 .hn-md blockquote p { margin: 0.4em 0; }
-.hn-md table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 14px; }
+/* `width: 100%` saja tak menahan tabel: ia tak bisa menyusut di bawah min-content-nya
+   (terukur 1122 px di pane 586 px). `table-layout: fixed` juga menyamakan pratinjau dengan
+   PDF, yang sudah memakai lebar kolom rata (`drawTable`) — ADR-0078 §3. */
+.hn-md table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 14px;
+  table-layout: fixed; }
+.hn-md th, .hn-md td { overflow-wrap: anywhere; }
 .hn-md th {
   font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
   color: var(--text-muted); text-align: left; padding: 8px 12px; background: var(--bone-100);
