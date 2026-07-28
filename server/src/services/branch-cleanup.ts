@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { runGitOp } from "./git-ide";
 
 // SPEC-360 · ADR-0077 · penemuan & pembersihan branch yang sudah ter-merge ke branch utamanya.
 // Nilai turunan penuh dari git tiap request (ADR-0018/0011): tak ada kolom DB, tak ada cache.
@@ -127,4 +128,54 @@ export async function listUnusedBranches(
     return { name, local: locals.has(name), remote: remotes.has(name), lastCommit: meta.get(name) ?? null, locks };
   });
   return { base, baseRemote, current, branches };
+}
+
+export type DeleteResult = { name: string; ok: boolean; scope: BranchScope | "none"; error?: string };
+
+// Scope efektif = irisan yang DIMINTA dengan ref yang benar-benar ADA pada branch itu.
+function effectiveScope(want: BranchScope, b: UnusedBranch): BranchScope | "none" {
+  const local = b.local && want !== "remote";
+  const remote = b.remote && want !== "local";
+  if (local && remote) return "both";
+  if (local) return "local";
+  if (remote) return "remote";
+  return "none";
+}
+
+// SPEC-360 · ADR-0077 · hapus batch. Menurunkan daftar ter-merge lebih dulu, lalu MEMVALIDASI ULANG
+// tiap nama terhadap daftar itu: klien tak bisa menyelundupkan branch sembarang lewat body, dan
+// kunci proteksi ditegakkan di jalur tulis (bukan sekadar petunjuk UI). Eksekusi didelegasikan ke
+// runGitOp `delete-branch` (SPEC-206) — satu-satunya jalur hapus branch di codebase, jadi tak ada
+// implementasi kedua yang bisa drift. Force TAK PERNAH dipakai: semua kandidat sudah ter-merge.
+export async function deleteBranches(
+  repoDir: string,
+  names: string[],
+  opts: { scope: BranchScope; base?: string } & LockInputs,
+): Promise<{ base: string; results: DeleteResult[] }> {
+  const report = await listUnusedBranches(repoDir, opts);
+  const byName = new Map(report.branches.map((b) => [b.name, b]));
+  const results: DeleteResult[] = [];
+  for (const name of names) {
+    const b = byName.get(name);
+    if (!b) {
+      results.push({ name, ok: false, scope: "none",
+        error: `branch tak ditemukan di daftar ter-merge ke ${report.base}` });
+      continue;
+    }
+    if (b.locks.length) {
+      results.push({ name, ok: false, scope: "none",
+        error: `terkunci: ${b.locks.map((l) => LOCK_REASON[l]).join(", ")}` });
+      continue;
+    }
+    const scope = effectiveScope(opts.scope, b);
+    if (scope === "none") {
+      results.push({ name, ok: false, scope: "none",
+        error: opts.scope === "remote" ? "branch tak punya ref origin" : "branch tak punya ref lokal" });
+      continue;
+    }
+    const r = await runGitOp(repoDir, {
+      op: "delete-branch", name, local: scope !== "remote", remote: scope !== "local" });
+    results.push(r.ok ? { name, ok: true, scope } : { name, ok: false, scope, error: r.stderr || "hapus branch gagal" });
+  }
+  return { base: report.base, results };
 }

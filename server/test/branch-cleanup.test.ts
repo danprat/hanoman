@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { makeRepoWithSpecBranch, makeRepoWithBranches } from "./factory";
-import { listUnusedBranches, LOCK_REASON } from "../src/services/branch-cleanup";
+import { listUnusedBranches, deleteBranches, LOCK_REASON } from "../src/services/branch-cleanup";
 
 const NONE = { openSpecBranches: new Set<string>(), sessionBranches: new Set<string>() };
 const g = (cwd: string, ...a: string[]) => {
@@ -113,5 +113,91 @@ describe("listUnusedBranches", () => {
     for (const k of ["current", "base", "worktree", "spec-open", "session"] as const) {
       expect(LOCK_REASON[k]).toMatch(/\S/);
     }
+  });
+});
+
+const branchList = (dir: string) =>
+  g(dir, "branch", "--format=%(refname:short)").split("\n").map((s) => s.trim()).filter(Boolean);
+const originList = (dir: string) =>
+  g(dir, "branch", "-r", "--format=%(refname:short)").split("\n").map((s) => s.trim()).filter(Boolean);
+
+describe("deleteBranches", () => {
+  it("scope both menghapus local DAN origin", async () => {
+    const dir = mergedRepo("d1");
+    const r = await deleteBranches(dir, ["hanoman/d1"], { scope: "both", ...NONE });
+    expect(r.results).toEqual([{ name: "hanoman/d1", ok: true, scope: "both" }]);
+    expect(branchList(dir)).not.toContain("hanoman/d1");
+    expect(originList(dir)).not.toContain("origin/hanoman/d1");
+  });
+
+  it("scope local menyisakan ref origin", async () => {
+    const dir = mergedRepo("d2");
+    const r = await deleteBranches(dir, ["hanoman/d2"], { scope: "local", ...NONE });
+    expect(r.results[0]).toMatchObject({ ok: true, scope: "local" });
+    expect(branchList(dir)).not.toContain("hanoman/d2");
+    expect(originList(dir)).toContain("origin/hanoman/d2");
+  });
+
+  it("scope remote menyisakan branch local", async () => {
+    const dir = mergedRepo("d3");
+    const r = await deleteBranches(dir, ["hanoman/d3"], { scope: "remote", ...NONE });
+    expect(r.results[0]).toMatchObject({ ok: true, scope: "remote" });
+    expect(branchList(dir)).toContain("hanoman/d3");
+    expect(originList(dir)).not.toContain("origin/hanoman/d3");
+  });
+
+  it("branch terkunci ditolak dengan alasan, git tak dipanggil", async () => {
+    const dir = mergedRepo("d4");
+    const r = await deleteBranches(dir, ["hanoman/d4"], {
+      scope: "both", openSpecBranches: new Set(["hanoman/d4"]), sessionBranches: new Set() });
+    expect(r.results[0]!.ok).toBe(false);
+    expect(r.results[0]!.error).toContain(LOCK_REASON["spec-open"]);
+    expect(branchList(dir)).toContain("hanoman/d4"); // masih ada
+  });
+
+  it("base & current tak bisa dihapus", async () => {
+    const dir = mergedRepo("d5");
+    const r = await deleteBranches(dir, ["main"], { scope: "both", ...NONE });
+    expect(r.results[0]!.ok).toBe(false);
+    expect(branchList(dir)).toContain("main");
+  });
+
+  it("nama di luar daftar ter-merge ditolak (tak bisa diselundupkan lewat body)", async () => {
+    const { repoDir } = makeRepoWithSpecBranch("d6"); // hanoman/d6 BELUM ter-merge
+    const r = await deleteBranches(repoDir, ["hanoman/d6"], { scope: "both", ...NONE });
+    expect(r.results[0]!.ok).toBe(false);
+    expect(r.results[0]!.error).toContain("ter-merge");
+    expect(branchList(repoDir)).toContain("hanoman/d6");
+  });
+
+  it("scope menyempit per branch: minta both pada branch tanpa origin → local saja", async () => {
+    const dir = mergedRepo("d7");
+    g(dir, "branch", "lokal-saja"); // di commit main → ter-merge, tanpa ref origin
+    const r = await deleteBranches(dir, ["lokal-saja"], { scope: "both", ...NONE });
+    expect(r.results[0]).toMatchObject({ ok: true, scope: "local" });
+    expect(branchList(dir)).not.toContain("lokal-saja");
+  });
+
+  it("minta remote pada branch tanpa origin → scope none, git tak dipanggil", async () => {
+    const dir = mergedRepo("d8");
+    g(dir, "branch", "lokal2");
+    const r = await deleteBranches(dir, ["lokal2"], { scope: "remote", ...NONE });
+    expect(r.results[0]).toMatchObject({ ok: false, scope: "none" });
+    expect(branchList(dir)).toContain("lokal2");
+  });
+
+  it("satu gagal tak menjatuhkan sisanya", async () => {
+    const dir = mergedRepo("d9");
+    g(dir, "branch", "ikut");
+    const r = await deleteBranches(dir, ["main", "ikut"], { scope: "local", ...NONE });
+    expect(r.results.find((x) => x.name === "main")!.ok).toBe(false);
+    expect(r.results.find((x) => x.name === "ikut")!.ok).toBe(true);
+    expect(branchList(dir)).not.toContain("ikut");
+  });
+
+  it("names kosong → results kosong, base tetap dilaporkan", async () => {
+    const r = await deleteBranches(mergedRepo("d10"), [], { scope: "both", ...NONE });
+    expect(r.results).toEqual([]);
+    expect(r.base).toBe("main");
   });
 });
