@@ -19,9 +19,11 @@ function take(map: Map<string, Bucket>, k: string, cap: number, now: number): bo
 export function helpRateOk(projectId: string, ip: string, now = Date.now()): boolean {
   const ipCap = effectiveInt("HANOMAN_HELP_RATE_PER_MIN_IP") ?? 5;
   const projCap = effectiveInt("HANOMAN_HELP_RATE_PER_MIN_PROJECT") ?? 20;
-  const okIp = take(ipBuckets, ip, ipCap, now);
-  const okProj = take(projBuckets, projectId, projCap, now);
-  return okIp && okProj;
+  // SPEC-352 · short-circuit disengaja. Sebelumnya kedua bucket SELALU dikuras, jadi tiap
+  // percobaan yang sudah pasti ditolak karena jatah IP habis tetap memakan satu token dari
+  // bucket per-project yang dipakai BERSAMA semua pelapor lain — satu pembanjir cukup untuk
+  // membuat pelapor sah dari IP lain ikut kena 429.
+  return take(ipBuckets, ip, ipCap, now) && take(projBuckets, projectId, projCap, now);
 }
 
 export function __resetHelpBuckets() { ipBuckets.clear(); projBuckets.clear(); }

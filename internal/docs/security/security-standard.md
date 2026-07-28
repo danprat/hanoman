@@ -56,9 +56,14 @@
     opaque `uuid+ext` (bukan input user → tanpa path traversal), disajikan **hanya ber-auth**
     (`GET /api/tickets/:id/attachments/:attId` di belakang gate); halaman status publik tak menampilkannya
     balik. Batas: ≤3 berkas, ≤5MB, mime gambar; invalid di-skip (submit sisanya tetap jadi).
-  - **Ketahanan**: rate-limit token-bucket in-memory **per IP & per project** (429) + **honeypot** (`hp`
-    terisi → 200 palsu, tak buat tiket) + caps field. **Bukan** anti-spam berat (tanpa CAPTCHA/verifikasi
-    email) — spam disaring saat triase (Non-goal PRD). PII isi/lampiran disimpan apa adanya (scrub pasca-MVP).
+  - **Ketahanan**: rate-limit token-bucket in-memory **per IP & per project** (429) + **honeypot**
+    (`hc_trap` terisi → 200 palsu, tak buat tiket) + caps field. **Bukan** anti-spam berat (tanpa
+    CAPTCHA/verifikasi email) — spam disaring saat triase (Non-goal PRD). PII isi/lampiran disimpan apa
+    adanya (scrub pasca-MVP). SPEC-352: nama honeypot WAJIB netral bagi autofill (`hp` = "handphone"
+    diisi browser untuk pelapor sungguhan) dan atributnya `autocomplete="new-password"`, bukan `off`
+    yang diabaikan browser; honeypot yang menyala WAJIB meninggalkan jejak log agar false positive
+    teramati. Rate-limit per IP **short-circuit** — IP yang jatahnya habis tak boleh ikut menguras
+    bucket per-project bersama (amplifikasi 429 ke pelapor lain).
 - **Kunci audit lintas project (SPEC-337, [ADR-0075](../adr/0075-audit-lintas-project-projectlink-kunci-sesi.md))**:
   prefix `/api/audit/*` adalah **pengecualian sah** gate `/api` — dipanggil **sesi `claude` milik hanoman
   sendiri** (bukan agen eksternal) yang tak punya cookie. Gate di-bypass **hanya bila** header

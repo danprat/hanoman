@@ -246,7 +246,8 @@ di-cache lokal. `status`/`category` = `String` + zod (`zTicketStatus`/`zTicketCa
   `GET /api/help/:slug/tickets/:key` diotorisasi **kunci opaque** — pengecualian sah gate `/api` (ADR-0062).
   Tiket baru → `Notification` type `ticket`. Promosi (`POST /tickets/:id/accept`) → `Spec` source `help`
   (payload brief-shaped + backlink). Status publik **diturunkan** (`publicStatus`) dari status tiket +
-  `stage` Spec. Rate-limit token-bucket in-memory (per IP & per project) + honeypot + retensi opportunistic.
+  `stage` Spec. Rate-limit token-bucket in-memory (per IP & per project, short-circuit per SPEC-352)
+  + honeypot (`hc_trap`) + retensi opportunistic.
 
 ## Sync — konflik & jam LWW (SPEC-270 · [ADR-0067](../adr/0067-sync-lww-reconciliation-manual.md))
 - **`updatedAt` = jam LWW.** Enam model synced (`Project`, `Spec`, `Vps`, `SessionResult`,

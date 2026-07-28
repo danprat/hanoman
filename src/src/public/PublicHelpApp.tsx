@@ -63,7 +63,7 @@ function ReportForm({ slug }: { slug: string }) {
   const [title, setTitle] = React.useState("");
   const [detail, setDetail] = React.useState("");
   const [email, setEmail] = React.useState("");
-  const [hp, setHp] = React.useState(""); // honeypot — harus tetap kosong
+  const [trap, setTrap] = React.useState(""); // honeypot — harus tetap kosong
   const [files, setFiles] = React.useState<File[]>([]);
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
@@ -87,7 +87,7 @@ function ReportForm({ slug }: { slug: string }) {
     try {
       const form = new FormData();
       form.set("category", category); form.set("title", title); form.set("detail", detail);
-      form.set("email", email); form.set("hp", hp);
+      form.set("email", email); form.set("hc_trap", trap);
       for (const f of files.slice(0, MAX_FILES)) form.append("files", f, f.name);
       const r = await helpApi.submit(slug, form);
       const statusUrl = `${window.location.origin}${r.statusPath}`;
@@ -146,9 +146,13 @@ function ReportForm({ slug }: { slug: string }) {
               onChange={(e) => setFiles(Array.from(e.target.files ?? []).slice(0, MAX_FILES))} />
             {files.length > 0 && <div style={{ fontSize: 12, color: "var(--text-subtle)", marginTop: 4 }}>{files.map((f) => f.name).join(", ")}</div>}
           </div>
-          {/* honeypot — disembunyikan dari manusia; bot cenderung mengisinya */}
-          <input tabIndex={-1} autoComplete="off" aria-hidden value={hp} onChange={(e) => setHp(e.target.value)}
-            name="hp" style={{ position: "absolute", left: "-9999px", width: 1, height: 1 }} />
+          {/* honeypot — disembunyikan dari manusia; bot cenderung mengisinya. SPEC-352: namanya
+              WAJIB netral dan autocomplete-nya WAJIB `new-password`. Versi lama bernama `hp`
+              (= "handphone") dengan `autocomplete="off"` — atribut yang diabaikan browser untuk
+              autofill — sehingga autofill mengisinya untuk pelapor sungguhan dan submit mereka
+              tertelan sukses palsu. `new-password` dihormati semua browser. */}
+          <input tabIndex={-1} autoComplete="new-password" aria-hidden value={trap} onChange={(e) => setTrap(e.target.value)}
+            name="hc_trap" style={{ position: "absolute", left: "-9999px", width: 1, height: 1 }} />
           {err && <div style={{ color: "var(--clay-600)", fontSize: 13 }}>{err}</div>}
           <Button type="submit" disabled={busy} leftIcon="send">Kirim keluhan</Button>
         </form>

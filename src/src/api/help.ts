@@ -13,7 +13,13 @@ export const helpApi = {
     if (r.status === 429) throw new Error("Terlalu banyak permintaan. Coba lagi beberapa saat lagi.");
     if (r.status === 404) throw new Error("Help Center tidak aktif untuk project ini.");
     if (!r.ok) throw new Error("Gagal mengirim keluhan. Pastikan semua isian wajib terisi.");
-    return r.json();
+    // SPEC-352 · sukses asli = 201 {number, key, statusPath}; honeypot server menjawab
+    // 200 {ok:true} — bentuk yang BEDA. Tanpa penjagaan ini klien merender "tiket #undefined"
+    // dan tautan status rusak (origin dirangkai dengan `undefined`), padahal tiket tak pernah ada.
+    const data = (await r.json()) as Partial<{ number: number; key: string; statusPath: string }>;
+    if (typeof data.number !== "number" || typeof data.statusPath !== "string")
+      throw new Error("Gagal mengirim keluhan. Silakan coba lagi.");
+    return data as { number: number; key: string; statusPath: string };
   },
   async status(slug: string, key: string): Promise<PublicTicketStatus> {
     const r = await fetch(paths.helpStatus(slug, key));

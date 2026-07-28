@@ -1,6 +1,10 @@
 # ADR-0062 — Help Center: model tiket + endpoint publik ber-scope-project + jembatan triase→backlog
 
 **Status:** accepted · **Tanggal:** 2026-07-20 · **Spec:** SPEC-253
+**Amandemen:** SPEC-352 (2026-07-28) — keputusan honeypot **tidak** dibalik, tapi field-nya berganti
+nama `hp` → `hc_trap` (+ `autocomplete="new-password"`) karena `hp` diisi autofill browser untuk
+pelapor sungguhan, dan rate-limit per-IP kini short-circuit. Rincian & bukti:
+[audit SPEC-352](../research/audit-spec-352-help-desk-tiket-tidak-masuk.md).
 **Terkait:** [ADR-0060](0060-error-monitoring-ingest-ber-dsn.md) (pola endpoint publik ber-scope-project + jembatan ke Spec — SPEC-253 menutup jalur **manusia → backlog**, ADR-0060 menutup **mesin → backlog**),
 [ADR-0028](0028-auth-sesi-opaque-di-db.md) (auth sesi menggerbangi `/api`),
 [ADR-0044](0044-device-token-machine-identity.md) (kunci hash-at-rest, pola verifikasi),
@@ -52,7 +56,7 @@ Tiket **baru** → `Notification { type:"ticket", key:"ticket:<id>" }` (dedup id
 
 ### 8. Ketahanan: rate-limit + honeypot + retensi — tanpa infrastruktur baru
 
-Rate-limit token-bucket **in-memory** per IP (default 5/min) **dan** per project (default 20/min) → 429 (cermin `error-ingest`). Honeypot `hp` terisi → 200 sukses palsu tanpa tiket. Caps `title ≤ 200`/`detail ≤ 10_000`/`email ≤ 200`. Retensi **opportunistic-on-write**: submit memangkas tiket `rejected` tua (default 90 hari, ber-`specId` dikecualikan) + hapus berkasnya — **tanpa scheduler global baru**.
+Rate-limit token-bucket **in-memory** per IP (default 5/min) **dan** per project (default 20/min) → 429 (cermin `error-ingest`; sejak SPEC-352 **short-circuit**, agar IP yang jatahnya habis tak menguras bucket project bersama). Honeypot `hc_trap` terisi → 200 sukses palsu tanpa tiket (+ jejak log; bernama `hp` sampai SPEC-352). Caps `title ≤ 200`/`detail ≤ 10_000`/`email ≤ 200`. Retensi **opportunistic-on-write**: submit memangkas tiket `rejected` tua (default 90 hari, ber-`specId` dikecualikan) + hapus berkasnya — **tanpa scheduler global baru**.
 
 ### 9. Email transaksional DITUNDA
 

@@ -12,6 +12,12 @@ import { saveUpload } from "../services/uploads";
 import { helpRateOk } from "../services/help-ratelimit";
 
 const CATEGORIES = ["bug", "fitur", "pertanyaan", "lainnya"];
+// SPEC-352 · nama field honeypot WAJIB netral bagi heuristik autofill. Nama lama `hp` berarti
+// "handphone" dalam bahasa Indonesia — di form berbahasa Indonesia yang juga punya field email,
+// autofill browser mengisinya untuk pelapor sungguhan, sehingga submit mereka tertelan sukses
+// palsu tanpa jejak. `hp` sengaja TIDAK lagi dianggap honeypot: tab lama yang masih memegang
+// bundle basi pun kini menghasilkan tiket, bukan hilang diam-diam.
+const HONEYPOT_FIELD = "hc_trap";
 const OK_MIME = new Set(["image/png", "image/jpeg", "image/webp"]);
 const MAX_FILES = 3;
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -60,7 +66,12 @@ export default async function (app: FastifyInstance) {
       return reply.code(400).send({ error: "unggahan tak valid" });
     }
 
-    if (fields.hp) return reply.code(200).send({ ok: true }); // honeypot: bot → sukses palsu, tak buat tiket
+    // honeypot: bot → sukses palsu, tak buat tiket. Jejak log wajib — tanpa ini sebuah false
+    // positive tak meninggalkan bukti apa pun (tak ada tiket, notifikasi, maupun baris feed).
+    if (fields[HONEYPOT_FIELD]) {
+      console.warn(`help: honeypot terpicu · project=${slug} ip=${req.ip}`);
+      return reply.code(200).send({ ok: true });
+    }
 
     const parsed = zField.safeParse({
       category: fields.category, title: fields.title, detail: fields.detail, email: fields.email,

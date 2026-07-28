@@ -514,10 +514,13 @@ GET /api/audit/logs/:groupId
 GET     /api/help/:slug                  -> { projectName, categories }
 #   Info halaman publik. Otorisasi = helpEnabled. 404 generik bila project tak ada / helpEnabled=false.
 POST    /api/help/:slug/tickets          # multipart/form-data
-#   Field: category, title, detail, email, hp (honeypot) + files[] (≤3 gambar png/jpeg/webp, ≤5MB).
+#   Field: category, title, detail, email, hc_trap (honeypot) + files[] (≤3 gambar png/jpeg/webp, ≤5MB).
 #   Otorisasi = helpEnabled. 201 { number, key, statusPath } (key+link ditampilkan SEKALI di layar).
 #   400 field wajib kosong/kategori invalid (tak buat tiket). 404 helpEnabled=false. 429 rate-limit
 #   per IP & per project. Honeypot terisi → 200 { ok:true } palsu (tak buat tiket). Berkas invalid di-skip.
+#   SPEC-352 · honeypot bernama `hc_trap`, BUKAN lagi `hp` — `hp` (= "handphone") diisi autofill
+#   browser untuk pelapor sungguhan; kini `hp` field biasa yang diabaikan (bundle basi tetap jadi
+#   tiket). Klien WAJIB memvalidasi bentuk respons: 200 { ok:true } bukan sukses.
 GET     /api/help/:slug/tickets/:key     -> { number, category, title, status, createdAt }
 #   Cek status publik by kunci opaque; status terpetakan otomatis (publicStatus), tanpa jargon internal.
 #   Scoped ke slug (isolasi). 404 bila kunci tak dikenal / bukan milik slug (tak membocorkan).
