@@ -75,3 +75,40 @@ describe("SessionHistoryModal (SPEC-362)", () => {
     expect(await screen.findByText("Belum ada riwayat sesi")).toBeTruthy();
   });
 });
+
+describe("SessionHistoryModal — detail (SPEC-362)", () => {
+  it("klik baris memuat transkrip dan menampilkannya", async () => {
+    listSessionHistory.mockResolvedValue({ items: [row()], total: 1, page: 1, pageSize: 20 });
+    sessionTranscript.mockResolvedValue({ text: "PENANDA-TRANSKRIP", bytes: 17 });
+    render(<SessionHistoryModal projects={projects} onClose={() => {}} onRestart={() => {}} />);
+    fireEvent.click(await screen.findByText("History session terminal"));
+    expect(await screen.findByText(/PENANDA-TRANSKRIP/)).toBeTruthy();
+  });
+
+  it("baris tanpa transkrip tak memanggil endpoint transkrip", async () => {
+    listSessionHistory.mockResolvedValue({ items: [row({ transcriptBytes: null })], total: 1, page: 1, pageSize: 20 });
+    render(<SessionHistoryModal projects={projects} onClose={() => {}} onRestart={() => {}} />);
+    fireEvent.click(await screen.findByText("History session terminal"));
+    expect(await screen.findByText(/Tanpa transkrip/)).toBeTruthy();
+    expect(sessionTranscript).not.toHaveBeenCalled();
+  });
+
+  it("'Mulai lagi' memanggil onRestart dengan barisnya (kind restartable)", async () => {
+    const onRestart = vi.fn();
+    listSessionHistory.mockResolvedValue({ items: [row()], total: 1, page: 1, pageSize: 20 });
+    sessionTranscript.mockResolvedValue({ text: "x", bytes: 1 });
+    render(<SessionHistoryModal projects={projects} onClose={() => {}} onRestart={onRestart} />);
+    fireEvent.click(await screen.findByText("History session terminal"));
+    fireEvent.click(await screen.findByText("Mulai lagi"));
+    expect(onRestart).toHaveBeenCalledWith(expect.objectContaining({ id: "h1" }));
+  });
+
+  it("kind tak restartable tak menawarkan 'Mulai lagi'", async () => {
+    listSessionHistory.mockResolvedValue({
+      items: [row({ kind: "prd", title: "PRD sesuatu", transcriptBytes: null })], total: 1, page: 1, pageSize: 20 });
+    render(<SessionHistoryModal projects={projects} onClose={() => {}} onRestart={() => {}} />);
+    fireEvent.click(await screen.findByText("PRD sesuatu"));
+    expect(await screen.findByText(/Tanpa transkrip/)).toBeTruthy();
+    expect(screen.queryByText("Mulai lagi")).toBeNull();
+  });
+});
