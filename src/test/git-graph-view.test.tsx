@@ -122,3 +122,71 @@ describe("GitGraph", () => {
     await waitFor(() => expect(onMerge).toHaveBeenCalledWith("feat", { deleteBranch: "feat" }));
   });
 });
+
+// SPEC-351 · jendela commit berhalaman. `limit` dulu konstanta hardcode 200: daftar berhenti
+// diam-diam di commit ke-200 (79% history repo ini tak pernah terlihat) dan tak ada satu pun
+// sinyal bahwa masih ada lanjutannya. Kini 200 = HALAMAN PERTAMA.
+const page = (n: number, from = 0) => Array.from({ length: n }, (_, i) => {
+  const idx = from + i;
+  const num = (k: number) => `sha${String(k).padStart(4, "0")}`;
+  return { sha: num(idx), parents: [num(idx + 1)], author: "t", at: "2026-01-02T00:00:00Z",
+    subject: `commit ${idx}`, refs: idx === 0 ? ["main"] : idx === 1 ? ["feat"] : [], tags: [] };
+});
+const render351 = () => render(<GitGraph projectId="p1" onRunGit={vi.fn()} onMerge={vi.fn()}
+  onRebase={vi.fn()} onPull={vi.fn()} onDrop={vi.fn()} onOpenFile={vi.fn()} />);
+
+describe("GitGraph — jendela commit berhalaman (SPEC-351)", () => {
+  it("halaman penuh: tampilkan hitungan + tombol muat lebih, bukan berhenti senyap", async () => {
+    vi.spyOn(api, "ideGraph").mockResolvedValue({ commits: page(200), current: "main" });
+    render351();
+    expect(await screen.findByText(/200 commit dimuat/)).toBeInTheDocument();
+    expect(screen.getByText("Muat 200 lagi")).toBeInTheDocument();
+    expect(screen.queryByText(/seluruh history/)).toBeNull();
+  });
+
+  it("history habis (halaman tak penuh): tandai seluruh history, tanpa tombol", async () => {
+    render351(); // beforeEach: 2 commit
+    expect(await screen.findByText(/2 commit dimuat/)).toBeInTheDocument();
+    expect(screen.getByText(/seluruh history/)).toBeInTheDocument();
+    expect(screen.queryByText(/Muat \d+ lagi/)).toBeNull();
+  });
+
+  it("muat lebih meminta halaman berikutnya (limit 400) dan merender commit lama", async () => {
+    const graph = vi.spyOn(api, "ideGraph").mockImplementation(
+      async (_id: string, limit = 200) => ({ commits: page(Math.min(250, limit)), current: "main" }));
+    render351();
+    fireEvent.click(await screen.findByText("Muat 200 lagi"));
+    await waitFor(() => expect(graph).toHaveBeenCalledWith("p1", 400, expect.anything()));
+    expect(await screen.findByText("commit 249")).toBeInTheDocument();
+    expect(await screen.findByText(/250 commit dimuat/)).toBeInTheDocument();
+    expect(screen.queryByText(/Muat \d+ lagi/)).toBeNull(); // 250 < 400 → habis
+  });
+
+  it("menggulir sampai penutup memuat halaman berikutnya sendiri (IntersectionObserver)", async () => {
+    let fire: (() => void) | null = null;
+    vi.stubGlobal("IntersectionObserver", class {
+      constructor(cb: (e: { isIntersecting: boolean }[]) => void) { fire = () => cb([{ isIntersecting: true }]); }
+      observe() {} unobserve() {} disconnect() {}
+    });
+    try {
+      const graph = vi.spyOn(api, "ideGraph").mockImplementation(
+        async (_id: string, limit = 200) => ({ commits: page(Math.min(250, limit)), current: "main" }));
+      render351();
+      await screen.findByText("Muat 200 lagi");
+      await act(async () => { fire!(); });
+      await waitFor(() => expect(graph).toHaveBeenCalledWith("p1", 400, expect.anything()));
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  it("ganti filter branch me-reset jendela ke halaman pertama", async () => {
+    const graph = vi.spyOn(api, "ideGraph").mockImplementation(
+      async (_id: string, limit = 200) => ({ commits: page(Math.min(250, limit)), current: "main" }));
+    render351();
+    fireEvent.click(await screen.findByText("Muat 200 lagi"));
+    await waitFor(() => expect(graph).toHaveBeenCalledWith("p1", 400, expect.anything()));
+
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "feat" } });
+    await waitFor(() => expect(graph).toHaveBeenCalledWith("p1", 200, expect.objectContaining({ branches: ["feat"] })));
+    expect(graph.mock.calls.at(-1)?.[1]).toBe(200);
+  });
+});

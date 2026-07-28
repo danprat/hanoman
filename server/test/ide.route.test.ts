@@ -65,6 +65,15 @@ describe("ide routes", () => {
     expect(["main", "dev"]).toContain(r.json().current); // worktree factory checkout main
     expect(Array.isArray(r.json().commits)).toBe(true);
   });
+  // SPEC-351 · penjaga kontrak, bukan perbaikan: jendela commit berhalaman di client bersandar pada
+  // `?limit=` dihormati untuk nilai SELAIN default. Sebelumnya tak ada test yang pernah mengirimnya,
+  // jadi paginasi bisa patah tanpa satu pun test server memerah.
+  it("GET /graph menghormati ?limit= non-default (SPEC-351)", async () => {
+    const one = await app.inject({ url: "/api/projects/resetrepo/graph?limit=1" });
+    expect(one.json().commits).toHaveLength(1);
+    const many = await app.inject({ url: "/api/projects/resetrepo/graph?limit=50" });
+    expect(many.json().commits.length).toBeGreaterThan(1);
+  });
   it("POST /git checkout: sesi aktif → 409; force → 200", async () => {
     process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
     createSession("ide", process.cwd());

@@ -10,6 +10,7 @@ import { emojify, renderMessage, gravatarUrl } from "./git-graph-render";
 
 const LANE_W = 14, ROW_H = 30, DOT = 4;
 const POLL_MS = 4000; // SPEC-245 · kadens live-refresh git graph (HTTP polling, ADR-stack)
+const PAGE = 200;     // SPEC-351 · besar satu halaman commit; jendela tumbuh kelipatan ini
 const COLORS = ["#a9791c", "#3b7a57", "#8a5a44", "#4a6fa5", "#7d5ba6", "#b0503a"]; // brass-leaf-clay-ink
 const laneColor = (i: number, palette: string[] = COLORS) => palette[i % palette.length];
 const rel = (iso: string): string => {
@@ -156,6 +157,11 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
     onOpenFile: (path: string, ref: string) => void }) {
   const [state, setState] = React.useState<"loading" | "ready" | "error">("loading");
   const [rows, setRows] = React.useState<GraphRow[]>([]);
+  // SPEC-351 · jendela commit berhalaman: `hasMore` = halaman terakhir balas penuh, `paging` = halaman
+  // berikutnya sedang diambil, `moreRef` = baris penutup yang jadi sentinel auto-load.
+  const [hasMore, setHasMore] = React.useState(false);
+  const [paging, setPaging] = React.useState(false);
+  const moreRef = React.useRef<HTMLDivElement | null>(null);
   const [current, setCurrent] = React.useState("");
   const [detail, setDetail] = React.useState<CommitDetail | null>(null);
   const [menu, setMenu] = React.useState<{ x: number; y: number; c: GraphCommit } | null>(null);
@@ -204,7 +210,12 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
     if (r) scrollToSha(r.commit.sha);
   }, [rows, current, scrollToSha]);
   // SPEC-233 · kontrol tampilan: filter branch, show/hide remote/tag (refetch), muted & style (client).
-  const [gopts, setGopts] = React.useState<{ branch: string; showRemote: boolean; showTags: boolean }>({ branch: "", showRemote: true, showTags: true });
+  // SPEC-351 · `limit` ikut di sini supaya perubahan opsi me-reset jendela ke halaman pertama dalam
+  // SATU update state — kalau limit hidup di state terpisah, ganti filter memicu dua fetch (jendela
+  // lama lalu jendela reset).
+  const [gopts, setGopts] = React.useState<{ branch: string; showRemote: boolean; showTags: boolean; limit: number }>(
+    { branch: "", showRemote: true, showTags: true, limit: PAGE });
+  const setView = React.useCallback((patch: Partial<typeof gopts>) => setGopts((o) => ({ ...o, ...patch, limit: PAGE })), []);
   const [muted, setMuted] = React.useState(true);
   const [style, setStyle] = React.useState<"rounded" | "angular">("rounded");
   const localBranches = React.useMemo(() => [...new Set(rows.flatMap((r) => r.commit.refs).filter((x) => !x.startsWith("origin/")))].sort(), [rows]);
@@ -217,6 +228,9 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
       setCfg(m);
       if (m["gitGraph.style"]) setStyle(m["gitGraph.style"] === "angular" ? "angular" : "rounded");
       if (m["gitGraph.muteMergeCommits"]) setMuted(m["gitGraph.muteMergeCommits"] !== "0");
+      // SPEC-351 · sengaja BUKAN `setView`: ini inisialisasi preferensi, bukan perubahan pilihan
+      // manusia. `getConfig` bisa balas setelah operator sempat memuat halaman berikutnya, dan
+      // reset jendela di sini akan menariknya balik ke 200 tanpa sebab.
       setGopts((o) => ({ ...o, showRemote: m["gitGraph.showRemoteBranches"] !== "0", showTags: m["gitGraph.showTags"] !== "0" }));
     }).catch(() => {});
   }, []);
@@ -240,13 +254,35 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
   // poll transien tak menghapus data yang ada.
   const load = React.useCallback((silent = false) => {
     if (!silent) setState("loading");
-    api.ideGraph(projectId, 200, { branches: gopts.branch ? [gopts.branch] : undefined, showRemote: gopts.showRemote ? undefined : false, showTags: gopts.showTags ? undefined : false })
-      .then((g) => { setRows(computeLanes(g.commits)); setCurrent(g.current); setState("ready"); })
-      .catch(() => { if (!silent) setState("error"); });
+    api.ideGraph(projectId, gopts.limit, { branches: gopts.branch ? [gopts.branch] : undefined, showRemote: gopts.showRemote ? undefined : false, showTags: gopts.showTags ? undefined : false })
+      // SPEC-351 · git memotong tepat di `--max-count`, jadi "balasan sepenuh yang diminta" =
+      // "kemungkinan masih ada lanjutannya". Halaman berikutnya yang balas lebih sedikit
+      // menutup sendiri penandanya — tak perlu hitungan total yang mahal.
+      .then((g) => { setRows(computeLanes(g.commits)); setCurrent(g.current); setHasMore(g.commits.length >= gopts.limit); setState("ready"); })
+      .catch(() => { if (!silent) setState("error"); })
+      .finally(() => setPaging(false));
     api.ideStatus(projectId).then(setStatus).catch(() => { if (!silent) setStatus(null); });
     api.ideStashes(projectId).then(setStashes).catch(() => { if (!silent) setStashes([]); });
   }, [projectId, gopts]);
-  React.useEffect(() => { load(); }, [load]);
+  // SPEC-351 · penambahan halaman dimuat DIAM: user sedang berdiri di kaki daftar, mengganti
+  // baris yang sudah tampil dengan StateBlock "Memuat…" akan melempar posisi gulirnya.
+  const pagingRef = React.useRef(false);
+  React.useEffect(() => { load(pagingRef.current); pagingRef.current = false; }, [load]);
+  const more = React.useCallback(() => {
+    if (pagingRef.current) return;
+    pagingRef.current = true; setPaging(true);
+    setGopts((o) => ({ ...o, limit: o.limit + PAGE }));
+  }, []);
+  // SPEC-351 · baris penutup jadi sentinel: begitu ia tergulir masuk viewport, halaman
+  // berikutnya dimuat sendiri — "scroll ke bawah sampai tahu history" tanpa klik beruntun.
+  // Tombolnya tetap ada untuk lingkungan tanpa IntersectionObserver dan untuk pilihan manual.
+  React.useEffect(() => {
+    const el = moreRef.current;
+    if (!el || !hasMore || paging || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver((entries) => { if (entries.some((e) => e.isIntersecting)) more(); });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore, paging, more]);
   // SPEC-245 · live-refresh: perubahan repo yang datang di luar aksi sinkron sendiri
   // (sesi claude yang commit, konflik merge/rebase diselesaikan di Terminal, commit
   // dari terminal) muncul tanpa refresh manual. Poll diam tiap POLL_MS; berhenti saat
@@ -323,16 +359,16 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
         </div>
         {/* SPEC-233 · kontrol tampilan: filter branch, show/hide remote/tag, muted, style */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "6px 12px", borderBottom: "1px solid var(--border-hair)", fontSize: 12 }}>
-          <select value={gopts.branch} onChange={(e) => setGopts((o) => ({ ...o, branch: e.target.value }))}
+          <select value={gopts.branch} onChange={(e) => setView({ branch: e.target.value })}
             style={{ fontSize: 12, padding: "3px 6px", border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", background: "var(--surface-card)", color: "var(--text-body)" }}>
             <option value="">semua branch</option>
             {localBranches.map((b) => <option key={b} value={b}>{b}</option>)}
           </select>
           <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", color: "var(--text-muted)" }}>
-            <input type="checkbox" checked={gopts.showRemote} onChange={(e) => setGopts((o) => ({ ...o, showRemote: e.target.checked }))} /> remote
+            <input type="checkbox" checked={gopts.showRemote} onChange={(e) => setView({ showRemote: e.target.checked })} /> remote
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", color: "var(--text-muted)" }}>
-            <input type="checkbox" checked={gopts.showTags} onChange={(e) => setGopts((o) => ({ ...o, showTags: e.target.checked }))} /> tag
+            <input type="checkbox" checked={gopts.showTags} onChange={(e) => setView({ showTags: e.target.checked })} /> tag
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", color: "var(--text-muted)" }}>
             <input type="checkbox" checked={muted} onChange={(e) => setMuted(e.target.checked)} /> muted merge
@@ -422,6 +458,19 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
             </div>
           );
         })}
+        {/* SPEC-351 · baris penutup: daftar tak pernah lagi berhenti tanpa kabar. Menyatakan
+            berapa yang dimuat, apakah masih ada lanjutannya, dan jadi sentinel auto-load. */}
+        <div ref={moreRef} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+          padding: "9px 12px", borderTop: "1px solid var(--border-hair)" }}>
+          <span style={{ fontSize: 11.5, color: "var(--text-subtle)" }}>
+            {rows.length} commit dimuat{hasMore ? "" : " · seluruh history"}
+          </span>
+          {hasMore && (
+            <Button size="sm" variant="ghost" leftIcon="chevron-down" disabled={paging} onClick={more}>
+              {paging ? "Memuat…" : `Muat ${PAGE} lagi`}
+            </Button>
+          )}
+        </div>
       </Card>
 
       {detail && (

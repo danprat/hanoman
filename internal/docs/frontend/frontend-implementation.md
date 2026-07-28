@@ -362,6 +362,15 @@ force (op menyentuh working tree) atau worktree isolasi + handoff sesi claude (o
 - **Kontrol tampilan**: filter branch (`?branches=`), toggle remote/tag, redup merge-commit, style rounded↔angular.
   Preferensi dari **CONFIG_REGISTRY grup `gitGraph`** (`api.getConfig`): warna lane, style, tanggal, show/hide, mute,
   fetchAvatars, emoji/markdown, issue-link pattern.
+- **Jendela commit berhalaman (SPEC-351)**: `?limit=` bukan konstanta melainkan **halaman** (`PAGE = 200`).
+  `limit` hidup di dalam state `gopts` — satu update, jadi mengganti filter/toggle me-reset jendela ke halaman
+  pertama tanpa fetch ganda. `hasMore` diturunkan dari `commits.length >= limit` (git memotong tepat di
+  `--max-count`, jadi balasan penuh = mungkin masih ada; halaman yang tak penuh menutup sendiri penandanya).
+  **Baris penutup** di kaki daftar selalu menyatakan `N commit dimuat` + `· seluruh history` atau tombol
+  `Muat 200 lagi`; baris itu sekaligus **sentinel `IntersectionObserver`** yang memuat halaman berikutnya begitu
+  tergulir masuk viewport (tombol = jalur manual + fallback tanpa `IntersectionObserver`). Penambahan halaman
+  dimuat **diam** (`pagingRef`) supaya baris yang sudah tampil tak diganti StateBlock dan posisi guliran bertahan;
+  silent poll SPEC-245 ikut memakai `limit` berjalan sehingga jendela tak pernah menyusut tiap tick.
 - **Modal Remotes** (`IdeScreen`): list/add/hapus remote (`api.ideRemotes`/`ideAddRemote`/`ideDeleteRemote`); tombol **Fetch** (`--prune`).
 
 ## Error monitoring — area Errors + DSN (SPEC-249 · ADR-0060)

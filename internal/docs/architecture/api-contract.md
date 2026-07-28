@@ -171,6 +171,8 @@ GET    /projects/:id/file-diff?path=&staged=  # (SPEC-234) ReviewFile diff satu 
 PUT    /projects/:id/file               { path, content }   # tulis file ke working tree; 400 guard path. TAK digerbang sesi.
 GET    /projects/:id/graph?limit=200    # { commits:{sha,parents,author,at,subject,refs[],tags[]}[], current }  git log --date-order
 #   SPEC-233: tag dipisah dari refs (tags[]). Filter opsional ?branches=a,b (bukan --all) & showRemote=/showTags=false.
+#   SPEC-351: limit = HALAMAN, bukan plafon. Tak ada cap server; client menaikkannya kelipatan 200 saat
+#   operator menggulir ke kaki daftar. commits.length < limit = history habis (satu-satunya penanda akhir).
 GET    /projects/:id/commit/:sha        # { sha,parents,author,at,subject,body,changed[], signed,committer,committedAt,authorEmail }  404 sha bukan hex / tak ada (SPEC-233)
 POST   /projects/:id/git                { op, ...args, force? }   # { ok, stdout, stderr, current }
 #   op ∈ checkout|branch|merge|cherry-pick|revert|delete-branch (+ SPEC-233 di blok Git graph parity). 400 op/field cacat; 400 tanpa repoDir.
