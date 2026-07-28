@@ -51,4 +51,43 @@ describe("SPEC-253 · PublicHelpApp routing", () => {
     const submitCall = fetchMock.mock.calls.find((c) => String(c[0]).endsWith("/tickets"));
     expect((submitCall?.[1] as any)?.body instanceof FormData).toBe(true);
   });
+
+  // SPEC-352 · honeypot menjawab 200 {ok:true} — bentuk yang BEDA dari sukses asli. Dulu klien
+  // menelannya mentah dan merender "tiket #undefined" + tautan rusak `origin` + undefined.
+  it("respons 200 tanpa number/statusPath → pesan gagal, bukan 'tiket #undefined'", async () => {
+    setPath("/help/demo");
+    vi.spyOn(global, "fetch").mockImplementation((url: any, init?: any) => {
+      const u = String(url);
+      if (u.endsWith("/api/help/demo") && (!init || init.method === undefined))
+        return Promise.resolve(new Response(JSON.stringify({ projectName: "Demo", categories: ["bug"] }), { status: 200 }));
+      if (u.endsWith("/api/help/demo/tickets"))
+        return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+      return Promise.resolve(new Response("{}", { status: 200 }));
+    });
+    render(<PublicHelpApp />);
+    await waitFor(() => screen.getByLabelText(/judul/i));
+    fireEvent.change(screen.getByLabelText(/judul/i), { target: { value: "Rusak" } });
+    fireEvent.change(screen.getByLabelText(/detail/i), { target: { value: "Detil masalah" } });
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "a@b.co" } });
+    fireEvent.click(screen.getByRole("button", { name: /kirim keluhan/i }));
+    await waitFor(() => expect(screen.getByText(/gagal mengirim/i)).toBeTruthy());
+    expect(screen.queryByText(/undefined/i)).toBeNull();
+    expect(screen.queryByText(/terima kasih/i)).toBeNull();
+  });
+
+  // SPEC-352 · akar masalah: honeypot bernama `hp` (= "handphone") di form berbahasa Indonesia
+  // diisi autofill browser. Nama netral + autocomplete yang benar-benar dihormati browser.
+  it("field honeypot tak bernama `hp` dan memakai autocomplete yang dihormati browser", async () => {
+    setPath("/help/demo");
+    vi.spyOn(global, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ projectName: "Demo", categories: ["bug"] }), { status: 200 }),
+    );
+    const { container } = render(<PublicHelpApp />);
+    await waitFor(() => screen.getByLabelText(/judul/i));
+    expect(container.querySelector('input[name="hp"]')).toBeNull();
+    const trap = container.querySelector('input[name="hc_trap"]') as HTMLInputElement | null;
+    expect(trap).toBeTruthy();
+    expect(trap!.getAttribute("autocomplete")).toBe("new-password");
+    expect(trap!.tabIndex).toBe(-1);
+  });
 });

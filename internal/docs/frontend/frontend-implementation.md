@@ -399,7 +399,9 @@ apa adanya di web via modal `IntegrationGuideModal` (`GET /api/errors/integratio
 Fallback `index.html` sudah ada (prod `setNotFoundHandler`; dev Vite historyApiFallback) → bundle yang sama
 melayani keduanya, **nol perubahan server** untuk menyajikan halaman. `PublicHelpApp` mem-parse path:
 `/help/:slug` → **form keluhan** (Select kategori, judul, detail, email, input file ≤3 gambar + preview,
-field honeypot `hp` tersembunyi) yang submit multipart via `api/help.ts` (`helpApi`, same-origin fetch) lalu
+field honeypot `hc_trap` tersembunyi — nama netral + `autocomplete="new-password"`, SPEC-352) yang submit
+multipart via `api/help.ts` (`helpApi`, same-origin fetch; **memvalidasi bentuk respons** sebelum merender
+sukses, karena honeypot menjawab `200 {ok:true}`) lalu
 menampilkan **nomor tiket + link status berkode** (Salin); `/help/:slug/status/:key` → **status publik**
 terpetakan otomatis. Layout minimal (bone paper, `Card`/`Button`/`Select`/`StateBlock` DS tanpa context auth).
 

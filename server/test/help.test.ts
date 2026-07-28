@@ -91,9 +91,34 @@ describe("SPEC-253 · Help Center publik", () => {
   it("honeypot → 200 tanpa tiket", async () => {
     __resetHelpBuckets();
     const before = await prisma.ticket.count({ where: { projectId: "hc-proj" } });
-    const res = await app.inject({ method: "POST", url: "/api/help/hc-proj/tickets", ...form({ category: "bug", title: "spam", detail: "spam", email: "x@y.z", hp: "iambot" }) });
+    const res = await app.inject({ method: "POST", url: "/api/help/hc-proj/tickets", ...form({ category: "bug", title: "spam", detail: "spam", email: "x@y.z", hc_trap: "iambot" }) });
     expect(res.statusCode).toBe(200);
     expect(await prisma.ticket.count({ where: { projectId: "hc-proj" } })).toBe(before);
+  });
+
+  // SPEC-352 · `hp` (nama honeypot lama) berarti "handphone" dalam bahasa Indonesia, jadi autofill
+  // browser mengisinya untuk pelapor sungguhan → submit tertelan diam-diam. Field itu kini field
+  // biasa yang diabaikan: bundle basi di tab lama tetap menghasilkan tiket, bukan sukses palsu.
+  it("field lama `hp` terisi autofill → tetap 201 dan tiket sungguh dibuat (SPEC-352)", async () => {
+    __resetHelpBuckets();
+    const before = await prisma.ticket.count({ where: { projectId: "hc-proj" } });
+    const res = await app.inject({ method: "POST", url: "/api/help/hc-proj/tickets", ...form({ category: "bug", title: "Diisi autofill", detail: "d", email: "a@b.c", hp: "0812-3456-7890" }) });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().statusPath).toContain(res.json().key);
+    expect(await prisma.ticket.count({ where: { projectId: "hc-proj" } })).toBe(before + 1);
+  });
+
+  // SPEC-352 · honeypot yang menjawab 200 tanpa jejak apa pun membuat false positive mustahil
+  // didiagnosis (lima hari senyap di produksi tanpa satu baris bukti).
+  it("honeypot meninggalkan jejak di log supaya false positive teramati (SPEC-352)", async () => {
+    __resetHelpBuckets();
+    const seen: string[] = [];
+    const orig = console.warn;
+    console.warn = (...a: unknown[]) => { seen.push(a.join(" ")); };
+    try {
+      await app.inject({ method: "POST", url: "/api/help/hc-proj/tickets", ...form({ category: "bug", title: "spam", detail: "spam", email: "x@y.z", hc_trap: "iambot" }) });
+    } finally { console.warn = orig; }
+    expect(seen.join("\n")).toMatch(/honeypot.*hc-proj/i);
   });
 
   it("kunci salah / slug salah → 404 (tak membocorkan)", async () => {
