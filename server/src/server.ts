@@ -5,6 +5,8 @@ import { startScheduler } from "./services/scheduler/engine";
 import { registerBacklogSource } from "./services/scheduler/sources/backlog";
 import { registerErrorsSource } from "./services/scheduler/sources/errors";
 import { registerTriaseSource } from "./services/scheduler/sources/triase";
+import { installSessionHistory, reconcileHistory } from "./services/session-history";
+import { listSessions } from "./services/pty";
 
 // SPEC-215 · deteksi update default ON (registry HANOMAN_UPDATE_FETCH="1"), dibaca via resolver
 // di services/update.ts. Test memuat buildApp dari app.ts (tak pernah server.ts) dan vitest.config
@@ -33,6 +35,12 @@ process.on("SIGINT", () => void shutdown("SIGINT"));
 
 app.listen({ port, host }).then(() => {
   console.log(`hanoman api ${host}:${port}`);
+  // SPEC-362 · ADR-0077 · pasang hook riwayat SEBELUM apa pun bisa melahirkan sesi, lalu tutup
+  // baris "berjalan" yang panenya sudah lenyap (tmux mati di luar hanoman: kill-server, reboot).
+  installSessionHistory();
+  void reconcileHistory(listSessions().map((s) => s.id))
+    .then((n) => { if (n) console.log(`riwayat sesi: ${n} baris berjalan direkonsiliasi`); })
+    .catch((e) => console.error("rekonsiliasi riwayat sesi:", e));
   startVpsMonitor(); // healthcheck 5 menit + audit harian (SPEC-164)
   registerBacklogSource(); // SPEC-295 · daftarkan checker backlog sebelum engine tick pertama
   registerErrorsSource(); // SPEC-296 · daftarkan checker errors sebelum engine tick pertama
