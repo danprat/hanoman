@@ -935,6 +935,10 @@ const report = (over: Partial<UnusedReport> = {}): UnusedReport => ({
   ...over,
 });
 const confirm = async () => fireEvent.click(await screen.findByRole("button", { name: /ya, hapus/i }));
+// `Checkbox` design system BUKAN <input type=checkbox>: ia <label> (pembawa data-testid) yang
+// membungkus <span> kotak — dan onClick hidup di span itu, bukan di label. Mengklik label = no-op,
+// jadi test yang mengklik label bisa "lulus" karena tak terjadi apa-apa (pelajaran SPEC-299).
+const pick = (id: string) => fireEvent.click(screen.getByTestId(id).firstElementChild!);
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -953,14 +957,14 @@ describe("BranchesPanel", () => {
     render(<BranchesPanel projectId="p1" />);
     await screen.findByText("hanoman/spec-3");
     expect(screen.getByText(/sesi aktif/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId("pick-hanoman/spec-3"));
+    pick("pick-hanoman/spec-3");
     expect(screen.getByTestId("bulk-delete")).toBeDisabled();
   });
 
   it("pilih semua hanya mencentang yang boleh dihapus", async () => {
     render(<BranchesPanel projectId="p1" />);
     await screen.findByText("hanoman/spec-1");
-    fireEvent.click(screen.getByTestId("pick-all"));
+    pick("pick-all");
     // spec-1 & spec-2 saja — bukan main (base+current) maupun spec-3 (session)
     expect(screen.getByTestId("bulk-delete")).toHaveTextContent("2");
   });
@@ -981,7 +985,7 @@ describe("BranchesPanel", () => {
       results: [{ name: "hanoman/spec-1", ok: true, scope: "both" }, { name: "hanoman/spec-2", ok: true, scope: "local" }] });
     render(<BranchesPanel projectId="p1" />);
     await screen.findByText("hanoman/spec-1");
-    fireEvent.click(screen.getByTestId("pick-all"));
+    pick("pick-all");
     fireEvent.click(screen.getByTestId("bulk-delete"));
     await confirm();
     await waitFor(() => expect(del).toHaveBeenCalledTimes(1));
@@ -993,7 +997,7 @@ describe("BranchesPanel", () => {
     render(<BranchesPanel projectId="p1" />);
     await screen.findByText("hanoman/spec-1");
     fireEvent.change(screen.getByTestId("scope"), { target: { value: "local" } });
-    fireEvent.click(screen.getByTestId("pick-hanoman/spec-1"));
+    pick("pick-hanoman/spec-1");
     fireEvent.click(screen.getByTestId("bulk-delete"));
     await confirm();
     await waitFor(() => expect(del.mock.calls[0]![1]).toMatchObject({ scope: "local" }));
@@ -1226,7 +1230,9 @@ describe("IdeScreen tab Branches (SPEC-360)", () => {
       branches: [{ name: "hanoman/spec-9", local: true, remote: true, lastCommit: null, locks: [] }],
     });
     render(<IdeScreen projects={projects} projectId="p1" onProject={() => {}} />);
-    fireEvent.click(await screen.findByRole("button", { name: /branches/i }));
+    // `Tabs` merender <button role="tab">; role eksplisit menimpa role implisit "button",
+    // jadi query WAJIB role "tab" — bukan "button".
+    fireEvent.click(await screen.findByRole("tab", { name: /branches/i }));
     expect(await screen.findByText("hanoman/spec-9")).toBeInTheDocument();
   });
 });

@@ -7,6 +7,7 @@ import { Card, Button, Select, Icon, StateBlock, Tabs, Badge } from "../ds";
 import { api, ApiError, type RepoFile, type ReviewFile, type WorkingStatus, type GitOp, type Remote } from "../api/client";
 import type { ProjectVM } from "./types";
 import { GitGraph } from "./GitGraph";
+import { BranchesPanel } from "./BranchesPanel";
 import { buildFileTree, TreeRow, ChangedSection } from "./file-tree";
 import { DiffView } from "./diff-view";
 import { MarkdownView } from "../ds/markdown";
@@ -213,7 +214,8 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-        <Tabs tabs={[{ value: "explorer", label: "Explorer" }, { value: "graph", label: "Git Graph" }]} value={tab} onChange={setTab} />
+        <Tabs tabs={[{ value: "explorer", label: "Explorer" }, { value: "graph", label: "Git Graph" },
+          { value: "branches", label: "Branches" }]} value={tab} onChange={setTab} />
         {toolbar}
       </div>
 
@@ -311,10 +313,13 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
             </div>
           </Card>
         </div>
-      ) : (
+      ) : tab === "graph" ? (
         <GitGraph projectId={projectId} onRunGit={runGit} onMerge={mergeGraph}
           onRebase={(onto) => graphIsolated("rebase", onto)} onPull={(src) => graphIsolated("pull", src)} onDrop={(sha) => graphIsolated("drop", sha)}
           onOpenFile={(p, ref) => { setViewRef(ref); selectFile(p); setTab("explorer"); }} />
+      ) : (
+        /* SPEC-360 · ADR-0077 · bersihkan branch yang sudah ter-merge ke branch utamanya. */
+        <BranchesPanel projectId={projectId} />
       )}
 
       {pendingForce && <ForceDialog msg={pendingForce.msg} onForce={confirmForce} onCancel={() => setPendingForce(null)} />}
