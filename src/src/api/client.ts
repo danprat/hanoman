@@ -59,6 +59,24 @@ export type Remote = { name: string; fetch: string; push: string };
 export type GitOpResult = { ok: boolean; stdout: string; stderr: string; current: string; error?: string };
 // SPEC-229 · hasil merge via git graph: bersih → detail; konflik → sesi claude (sessionId).
 export type GraphMergeResult = { status: "clean"; detail: string } | { status: "conflict"; sessionId: string };
+// SPEC-360 · ADR-0077 · branch ter-merge & hapus batch. Cermin server/src/services/branch-cleanup.ts.
+export type BranchLock = "current" | "base" | "worktree" | "spec-open" | "session";
+export type BranchScope = "local" | "remote" | "both";
+export type UnusedBranch = {
+  name: string; local: boolean; remote: boolean;
+  lastCommit: { sha: string; at: string; subject: string } | null;
+  locks: BranchLock[];
+};
+export type UnusedReport = { base: string; baseRemote: string | null; current: string; branches: UnusedBranch[] };
+export type BranchDeleteResult = { name: string; ok: boolean; scope: BranchScope | "none"; error?: string };
+// Label badge kunci di UI — versi ringkas LOCK_REASON server (badge sempit, prosa panjang di error).
+export const LOCK_LABEL: Record<BranchLock, string> = {
+  current: "branch aktif",
+  base: "base",
+  worktree: "dipakai worktree",
+  "spec-open": "backlog belum selesai",
+  session: "sesi aktif",
+};
 async function j<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { headers: { "content-type": "application/json" }, ...init });
   if (!res.ok) throw new ApiError(res.status, `${init?.method ?? "GET"} ${url} → ${res.status}`);
@@ -173,6 +191,10 @@ export const api = {
   ideGitRebase: (id: string, onto: string) => j<GraphMergeResult>(paths.ideGitRebase(id), { method: "POST", ...body({ onto }) }),
   ideGitPull: (id: string, b: { source: string; ff?: "no-ff" | "ff-only" }) => j<GraphMergeResult>(paths.ideGitPull(id), { method: "POST", ...body(b) }),
   ideGitDrop: (id: string, sha: string) => j<GraphMergeResult>(paths.ideGitDrop(id), { method: "POST", ...body({ sha }) }),
+  // SPEC-360 · ADR-0077 · daftar branch ter-merge + hapus batch (local/origin).
+  branchesUnused: (id: string, base?: string) => j<UnusedReport>(paths.branchesUnused(id, base)),
+  deleteBranches: (id: string, b: { names: string[]; scope?: BranchScope; base?: string }) =>
+    j<{ base: string; results: BranchDeleteResult[] }>(paths.branchesDelete(id), { method: "POST", ...body(b) }),
   browseFs: (path?: string) =>
     j<{ path: string; parent: string | null; entries: { name: string; path: string }[] }>(paths.fsBrowse(path)),
   listTerminals: () => j<TerminalSession[]>(paths.terminalSessions),
