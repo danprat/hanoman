@@ -1,0 +1,117 @@
+import { describe, it, expect } from "vitest";
+import { spawnSync } from "node:child_process";
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
+import { makeRepoWithSpecBranch, makeRepoWithBranches } from "./factory";
+import { listUnusedBranches, LOCK_REASON } from "../src/services/branch-cleanup";
+
+const NONE = { openSpecBranches: new Set<string>(), sessionBranches: new Set<string>() };
+const g = (cwd: string, ...a: string[]) => {
+  const r = spawnSync("git", a, { cwd, encoding: "utf8" });
+  if (r.status !== 0) throw new Error(`git ${a.join(" ")}: ${r.stderr}`);
+  return r.stdout;
+};
+
+// Repo dgn origin + branch hanoman/<id> yang SUDAH di-merge ke main (local & origin).
+function mergedRepo(specId: string): string {
+  const { repoDir } = makeRepoWithSpecBranch(specId);
+  g(repoDir, "merge", "--no-ff", "--no-edit", `hanoman/${specId}`);
+  g(repoDir, "push", "-q", "origin", "main");
+  return repoDir;
+}
+
+describe("listUnusedBranches", () => {
+  it("branch ter-merge muncul dengan local+remote true", async () => {
+    const r = await listUnusedBranches(mergedRepo("s1"), NONE);
+    expect(r.base).toBe("main");
+    expect(r.baseRemote).toBe("origin/main");
+    expect(r.current).toBe("main");
+    const b = r.branches.find((x) => x.name === "hanoman/s1");
+    expect(b).toBeTruthy();
+    expect(b!.local).toBe(true);
+    expect(b!.remote).toBe(true);
+    expect(b!.locks).toEqual([]);
+    expect(b!.lastCommit?.subject).toBe("feat(s1): work");
+  });
+
+  it("branch BELUM ter-merge tidak muncul sama sekali", async () => {
+    const { repoDir } = makeRepoWithSpecBranch("s2"); // tak di-merge
+    const r = await listUnusedBranches(repoDir, NONE);
+    expect(r.branches.some((x) => x.name === "hanoman/s2")).toBe(false);
+  });
+
+  it("base & current ikut tampil tapi terkunci", async () => {
+    const r = await listUnusedBranches(mergedRepo("s3"), NONE);
+    const main = r.branches.find((x) => x.name === "main")!;
+    expect(main.locks).toContain("base");
+    expect(main.locks).toContain("current");
+  });
+
+  // GOTCHA · git memendekkan origin/HEAD jadi bare "origin"
+  it("origin/HEAD maupun bare origin tak pernah jadi baris", async () => {
+    const dir = mergedRepo("s4");
+    g(dir, "remote", "set-head", "origin", "main"); // membuat refs/remotes/origin/HEAD
+    const r = await listUnusedBranches(dir, NONE);
+    expect(r.branches.some((x) => x.name === "origin")).toBe(false);
+    expect(r.branches.some((x) => x.name === "HEAD")).toBe(false);
+    expect(r.branches.some((x) => x.name === "origin/HEAD")).toBe(false);
+  });
+
+  // GOTCHA · di worktree detached, git branch --merged memancarkan baris "(no branch)"
+  it('detached HEAD tak memunculkan baris hantu "(no branch)"', async () => {
+    const dir = mergedRepo("s5");
+    g(dir, "checkout", "-q", "--detach", "HEAD");
+    const r = await listUnusedBranches(dir, NONE);
+    expect(r.current).toBe("HEAD");
+    expect(r.branches.some((x) => x.name === "(no branch)")).toBe(false);
+    expect(r.branches.some((x) => x.name === "")).toBe(false);
+    expect(r.branches.some((x) => x.name === "hanoman/s5")).toBe(true); // tetap terdeteksi
+  });
+
+  it("base non-main: repo ber-default master tetap resolve", async () => {
+    const dir = makeRepoWithBranches("dev");
+    g(dir, "branch", "-M", "master");
+    const r = await listUnusedBranches(dir, NONE);
+    expect(r.base).toBe("master");
+    expect(r.baseRemote).toBeNull(); // repo tanpa remote
+    expect(r.branches.some((x) => x.name === "dev")).toBe(true); // commit sama → ter-merge
+  });
+
+  it("base eksplisit dipakai bila resolve", async () => {
+    const r = await listUnusedBranches(makeRepoWithBranches("dev"), { ...NONE, base: "dev" });
+    expect(r.base).toBe("dev");
+  });
+
+  it("base eksplisit yang tak resolve jatuh ke fallback", async () => {
+    const r = await listUnusedBranches(makeRepoWithBranches("dev"), { ...NONE, base: "ghost" });
+    expect(r.base).toBe("main");
+  });
+
+  it("kunci worktree: branch ter-checkout di worktree lain", async () => {
+    const dir = mergedRepo("s6");
+    mkdirSync(join(dir, ".worktrees"), { recursive: true });
+    g(dir, "worktree", "add", join(dir, ".worktrees", "wt"), "hanoman/s6");
+    const r = await listUnusedBranches(dir, NONE);
+    expect(r.branches.find((x) => x.name === "hanoman/s6")!.locks).toContain("worktree");
+  });
+
+  it("kunci spec-open & session dari parameter", async () => {
+    const dir = mergedRepo("s7");
+    const a = await listUnusedBranches(dir, { ...NONE, openSpecBranches: new Set(["hanoman/s7"]) });
+    expect(a.branches.find((x) => x.name === "hanoman/s7")!.locks).toContain("spec-open");
+    const b = await listUnusedBranches(dir, { ...NONE, sessionBranches: new Set(["hanoman/s7"]) });
+    expect(b.branches.find((x) => x.name === "hanoman/s7")!.locks).toContain("session");
+  });
+
+  it("repoDir null / bukan repo → laporan kosong, tak melempar", async () => {
+    expect(await listUnusedBranches(null, NONE)).toEqual({ base: "", baseRemote: null, current: "", branches: [] });
+    const r = await listUnusedBranches("/tmp/hanoman-tidak-ada-repo-360", NONE);
+    expect(r.branches).toEqual([]);
+  });
+
+  it("LOCK_REASON punya prosa Indonesia untuk tiap kunci", () => {
+    for (const k of ["current", "base", "worktree", "spec-open", "session"] as const) {
+      expect(LOCK_REASON[k]).toMatch(/\S/);
+    }
+  });
+});
