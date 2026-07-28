@@ -511,7 +511,7 @@ git commit -m "feat(spec-361): renderer PDF dokumen — marked.lexer ke pdfkit"
 - Produces: `downloadFormat(q: unknown): "md" | "pdf" | null` dan
   `sendDocDownload(reply, fmt, args: { content: string; name: string; prefix: string; eyebrow: string; path: string }): Promise<unknown>`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/doc-download.route.test.ts`:
 
@@ -598,7 +598,7 @@ describe("unduh dokumen (?download=)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan GAGAL**
+- [x] **Step 2: Jalankan test — pastikan GAGAL**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run test/doc-download.route.test.ts
@@ -608,7 +608,7 @@ Expected: FAIL — respons JSON, bukan `text/markdown`.
 
 Kalau `makeSpec` belum ada di `server/test/factory.ts`, pakai helper pembuat spec yang memang ada di sana (buka file itu dan sesuaikan nama fungsinya); jangan menambah helper baru.
 
-- [ ] **Step 3: Tambahkan helper ke `doc-export.ts`**
+- [x] **Step 3: Tambahkan helper ke `doc-export.ts`**
 
 ```ts
 import type { FastifyReply } from "fastify";
@@ -635,7 +635,7 @@ export async function sendDocDownload(
 }
 ```
 
-- [ ] **Step 4: Pasang di `server/src/routes/specs.ts`**
+- [x] **Step 4: Pasang di `server/src/routes/specs.ts`**
 
 Tambahkan import di dekat import service lain:
 
@@ -659,7 +659,7 @@ Ganti badan `app.get("/specs/:id/docs/*", …)` (baris 197–203) menjadi:
   });
 ```
 
-- [ ] **Step 5: Pasang di `server/src/routes/docs.ts`**
+- [x] **Step 5: Pasang di `server/src/routes/docs.ts`**
 
 Tambahkan import:
 
@@ -697,7 +697,7 @@ Ganti handler docs (baris 32–37):
   });
 ```
 
-- [ ] **Step 6: Pasang di `server/src/routes/ide.ts`**
+- [x] **Step 6: Pasang di `server/src/routes/ide.ts`**
 
 Tambahkan import:
 
@@ -729,7 +729,7 @@ Ganti handler `GET /projects/:id/file` (baris 33–42):
   });
 ```
 
-- [ ] **Step 7: Jalankan test — pastikan LULUS**
+- [x] **Step 7: Jalankan test — pastikan LULUS**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run test/doc-download.route.test.ts
@@ -737,7 +737,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run test/doc-
 
 Expected: PASS, 9 test.
 
-- [ ] **Step 8: Pastikan tak ada regresi di rute lama**
+- [x] **Step 8: Pastikan tak ada regresi di rute lama**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run test/docs.route.test.ts test/ide.route.test.ts test/specs.route.test.ts
@@ -745,7 +745,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server exec vitest run test/docs
 
 Expected: semua PASS.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add server/src/services/doc-export.ts server/src/routes/specs.ts server/src/routes/docs.ts server/src/routes/ide.ts server/test/doc-download.route.test.ts

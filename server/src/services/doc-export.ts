@@ -3,6 +3,7 @@
    `marked` (parser yang SAMA dengan preview frontend) ke pdfkit. */
 import PDFDocument from "pdfkit";
 import { marked, type Tokens } from "marked";
+import type { FastifyReply } from "fastify";
 
 // PDF standard-14 font hanya meng-encode WinAnsi. Glyph di luar itu tidak melempar error —
 // ia tercetak sebagai mojibake senyap (`→` jadi `!'`, emoji jadi `Ø<ß‰`). Jadi setiap teks
@@ -278,4 +279,28 @@ export function renderDocPdf(text: string, name: string, meta: DocPdfMeta): Prom
   doc.flushPages();
   doc.end();
   return done;
+}
+
+// ---------------------------------------------------------------------------
+// Jembatan HTTP: dipakai keempat endpoint dokumen.
+// ---------------------------------------------------------------------------
+
+/** Baca query `?download=`. Nilai lain (termasuk absen) → null → respons JSON lama. */
+export function downloadFormat(q: unknown): "md" | "pdf" | null {
+  const v = (q as { download?: string } | undefined)?.download;
+  return v === "md" || v === "pdf" ? v : null;
+}
+
+/** Kirim dokumen sebagai attachment. `name` menentukan md vs blok kode di PDF. */
+export async function sendDocDownload(
+  reply: FastifyReply, fmt: "md" | "pdf",
+  a: { content: string; name: string; prefix: string; eyebrow: string; path: string },
+): Promise<unknown> {
+  reply.header("content-disposition", `attachment; filename="${downloadFilename(a.prefix, a.name, fmt)}"`);
+  if (fmt === "md") {
+    reply.header("content-type", "text/markdown; charset=utf-8");
+    return reply.send(a.content);
+  }
+  reply.header("content-type", "application/pdf");
+  return reply.send(await renderDocPdf(a.content, a.name, { eyebrow: a.eyebrow, path: a.path }));
 }

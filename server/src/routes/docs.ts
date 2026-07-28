@@ -3,6 +3,7 @@ import { zDocFileContent } from "@hanoman/shared";
 import { docIndex, readDoc, writeDoc, deleteDoc } from "../services/docs";
 import { listPrds, listAllPrds, readPrd } from "../services/project-prds";
 import { readBreakdown } from "../services/project-breakdowns";
+import { downloadFormat, sendDocDownload } from "../services/doc-export";
 
 export default async function (app: FastifyInstance) {
   app.get("/projects/:id/docs", async (req) => docIndex((req.params as { id: string }).id));
@@ -18,7 +19,11 @@ export default async function (app: FastifyInstance) {
     const { id } = req.params as { id: string };
     const path = (req.params as Record<string, string>)["*"] ?? "";
     const content = await readPrd(id, path);
-    return content === null ? reply.code(404).send({ error: "not found" }) : { path, content };
+    if (content === null) return reply.code(404).send({ error: "not found" });
+    // SPEC-361 · ADR-0077 · unduh .md mentah / .pdf; tanpa query → JSON seperti semula.
+    const fmt = downloadFormat(req.query);
+    if (fmt) return sendDocDownload(reply, fmt, { content, name: path, prefix: id, eyebrow: `hanoman · ${id} · PRD`, path });
+    return { path, content };
   });
 
   // SPEC-273 · manifest breakdown sebuah PRD (freshest-wins). prd absen / tak-PRD / manifest belum
@@ -33,7 +38,11 @@ export default async function (app: FastifyInstance) {
     const { id } = req.params as { id: string };
     const path = (req.params as Record<string, string>)["*"] ?? "";
     const content = await readDoc(id, path);
-    return content === null ? reply.code(404).send({ error: "not found" }) : { path, content };
+    if (content === null) return reply.code(404).send({ error: "not found" });
+    // SPEC-361 · ADR-0077 · unduh .md mentah / .pdf; tanpa query → JSON seperti semula.
+    const fmt = downloadFormat(req.query);
+    if (fmt) return sendDocDownload(reply, fmt, { content, name: path, prefix: id, eyebrow: `hanoman · ${id}`, path });
+    return { path, content };
   });
 
   app.put("/projects/:id/docs/*", async (req, reply) => {
