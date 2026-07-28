@@ -1100,7 +1100,7 @@ git commit -m "feat(spec-361): tombol unduh .md/.pdf di Backlog, Terminal, PRD, 
 - Consumes: keputusan Task 1–5
 - Produces: —
 
-- [ ] **Step 1: Tulis ADR-0077**
+- [x] **Step 1: Tulis ADR-0077**
 
 Buat `internal/docs/adr/0077-unduh-dokumen-md-pdf.md` dengan status `Accepted`, tanggal 2026-07-28, mengikuti bentuk ADR tetangga (`0076-*.md` sebagai contoh gaya). Isi yang wajib ada:
 
@@ -1110,7 +1110,7 @@ Buat `internal/docs/adr/0077-unduh-dokumen-md-pdf.md` dengan status `Accepted`, 
 - **Alternatif ditolak:** dialog print browser (bukan unduhan sungguhan, nama berkas tak terkendali); `pdfmake` di klien (bundle +2 MB, PDF tak bisa diambil lewat API/curl).
 - **Terkait:** memperluas 0011/0018 (docs sebagai nilai turunan dari filesystem), 0041 (PRD sebagai dokumen), 0028 (gate auth), 0057/0076 (dokumen audit).
 
-- [ ] **Step 2: Taut ADR di index**
+- [x] **Step 2: Taut ADR di index**
 
 Di `internal/docs/README.md`, bagian `## adr`, sisipkan sebagai baris **pertama** daftar (di atas 0076):
 
@@ -1118,7 +1118,7 @@ Di `internal/docs/README.md`, bagian `## adr`, sisipkan sebagai baris **pertama*
 - [0077 — Unduh dokumen: query `?download=` di endpoint dokumen + render PDF server-side](adr/0077-unduh-dokumen-md-pdf.md) — memperluas 0011/0018/0041, terkait 0028/0057/0076 (SPEC-361): PRD/spec/plan/audit/docs SoT/berkas IDE bisa diunduh `.md` mentah maupun `.pdf` dari setiap pratinjau; **tanpa endpoint baru** (query menempel di empat endpoint dokumen, preseden `GET /projects/:id/archive`), **tanpa skema/migration**; PDF dirender server-side `marked.lexer` → `pdfkit` memakai parser yang sama dengan preview; standard-14 font → glyph non-WinAnsi ditransliterasi (`→` jadi `->`) & emoji dibuang, sebab mojibake pdfkit **senyap** (tak melempar)
 ```
 
-- [ ] **Step 3: Dokumentasikan kontrak API**
+- [x] **Step 3: Dokumentasikan kontrak API**
 
 Di `internal/docs/architecture/api-contract.md`, tambahkan subbagian pada bagian dokumen/docs (cari `GET /projects/:id/docs/*` di file itu dan tulis tepat di dekatnya):
 
@@ -1142,7 +1142,7 @@ Empat endpoint dokumen menerima query opsional `?download=md|pdf`:
 - Auth tak berubah: cookie sesi same-origin (ADR-0028).
 ```
 
-- [ ] **Step 4: Catat permukaan frontend**
+- [x] **Step 4: Catat permukaan frontend**
 
 Di `internal/docs/frontend/frontend-implementation.md`, tambahkan satu paragraf:
 
@@ -1155,7 +1155,7 @@ yang menentukan nama berkas, dan cookie sesi ikut terkirim same-origin. `Button`
 `as="a"` untuk keperluan ini.
 ```
 
-- [ ] **Step 5: Tambahkan aturan di skill project**
+- [x] **Step 5: Tambahkan aturan di skill project**
 
 Di `internal/skills/hanoman/SKILL.md`, bagian **Aturan Dokumentasi & Alur**, tambahkan butir:
 
@@ -1163,7 +1163,7 @@ Di `internal/skills/hanoman/SKILL.md`, bagian **Aturan Dokumentasi & Alur**, tam
 - **Unduh dokumen** (SPEC-361/ADR-0077): setiap pratinjau Markdown (Backlog/Terminal `SpecDocsModal`, PRD, Docs SoT, IDE) punya tombol `.md` & `.pdf`. Mekanismenya query `?download=md|pdf` pada endpoint dokumen yang **sudah ada** — jangan bikin endpoint ekspor baru. PDF dirender `server/src/services/doc-export.ts` (`marked.lexer` → `pdfkit`, standard-14 font). **Gotcha wajib:** pdfkit **tidak melempar** untuk glyph di luar WinAnsi — ia mencetak mojibake senyap (`→` jadi `!'`, emoji jadi `Ø<ß‰`), jadi setiap teks harus lewat `toWinAnsi()`.
 ```
 
-- [ ] **Step 6: Verifikasi integritas index**
+- [x] **Step 6: Verifikasi integritas index**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL node --experimental-strip-types -e "1" >/dev/null 2>&1; grep -c "0077" internal/docs/README.md
@@ -1171,7 +1171,7 @@ env -u NODE_ENV -u DATABASE_URL node --experimental-strip-types -e "1" >/dev/nul
 
 Expected: `1` atau lebih.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add internal/docs/adr/0077-unduh-dokumen-md-pdf.md internal/docs/README.md internal/docs/architecture/api-contract.md internal/docs/frontend/frontend-implementation.md internal/skills/hanoman/SKILL.md
