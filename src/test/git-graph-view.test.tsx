@@ -190,3 +190,46 @@ describe("GitGraph — jendela commit berhalaman (SPEC-351)", () => {
     expect(graph.mock.calls.at(-1)?.[1]).toBe(200);
   });
 });
+
+// SPEC-385 · berkas .md di detail commit dulu hanya bisa dibaca sebagai <pre> mentah.
+describe("GitGraph preview .md (SPEC-385)", () => {
+  beforeEach(() => {
+    vi.spyOn(api, "ideCommit").mockResolvedValue({ sha: "aaaa111", parents: ["bbbb222"], author: "t", at: "",
+      subject: "kedua", body: "", changed: [{ path: "docs/a.md", add: 1, del: 0, status: "M", binary: false }],
+      signed: false, committer: "t", committedAt: "", authorEmail: "t@t" });
+    vi.spyOn(api, "ideCommitFile").mockResolvedValue({ path: "docs/a.md", status: "M", binary: false,
+      truncated: false, diff: "@@ -1 +1 @@\n+# Judul", content: "# Judul\n\nisi" });
+  });
+
+  const openFile = async () => {
+    render(<GitGraph projectId="p1" onRunGit={vi.fn()} onMerge={vi.fn()} onRebase={vi.fn()} onPull={vi.fn()} onDrop={vi.fn()} onOpenFile={vi.fn()} />);
+    fireEvent.click(await screen.findByText("kedua"));
+    fireEvent.click(await screen.findByText("docs/a.md"));
+    await waitFor(() => expect(api.ideCommitFile).toHaveBeenCalledWith("p1", "aaaa111", "docs/a.md"));
+  };
+
+  it("tab preview merender markdown, bukan teks mentah", async () => {
+    await openFile();
+    fireEvent.click(await screen.findByText("preview"));
+    expect(await screen.findByRole("heading", { name: "Judul" })).toBeInTheDocument();
+  });
+
+  it("modal berkas commit menaut unduh .md/.pdf (ADR-0078)", async () => {
+    await openFile();
+    expect(await screen.findByRole("link", { name: /unduh \.md/i }))
+      .toHaveAttribute("href", "/api/projects/p1/commit/aaaa111/file?path=docs%2Fa.md&download=md");
+  });
+
+  it("berkas non-.md tak punya tab preview", async () => {
+    vi.spyOn(api, "ideCommit").mockResolvedValue({ sha: "aaaa111", parents: [], author: "t", at: "",
+      subject: "kedua", body: "", changed: [{ path: "src/a.ts", add: 1, del: 0, status: "M", binary: false }],
+      signed: false, committer: "t", committedAt: "", authorEmail: "t@t" });
+    vi.spyOn(api, "ideCommitFile").mockResolvedValue({ path: "src/a.ts", status: "M", binary: false,
+      truncated: false, diff: "@@", content: "const x = 1" });
+    render(<GitGraph projectId="p1" onRunGit={vi.fn()} onMerge={vi.fn()} onRebase={vi.fn()} onPull={vi.fn()} onDrop={vi.fn()} onOpenFile={vi.fn()} />);
+    fireEvent.click(await screen.findByText("kedua"));
+    fireEvent.click(await screen.findByText("src/a.ts"));
+    await waitFor(() => expect(api.ideCommitFile).toHaveBeenCalled());
+    expect(screen.queryByText("preview")).toBeNull();
+  });
+});

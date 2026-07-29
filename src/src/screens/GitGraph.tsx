@@ -1,7 +1,7 @@
 /* GitGraph — DAG commit read + aksi (SPEC-182). Lane dihitung computeLanes (nol dep).
    Baris = grid [svg lane | subject | refs | meta]; klik = detail; klik-kanan = context-menu. */
 import React from "react";
-import { Card, Button, StateBlock, Badge, Icon } from "../ds";
+import { Card, Button, StateBlock, Badge, Icon, DocDownload, MarkdownView, isMarkdownPath } from "../ds";
 import { api, type GraphCommit, type CommitDetail, type GitOp, type RepoStatus, type Stash, type ReviewFile } from "../api/client";
 import { computeLanes, rowEdges, type GraphRow, type Edge } from "./git-graph";
 import { buildFileTree, TreeRow } from "./file-tree";
@@ -174,7 +174,9 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
   const allRefs = React.useMemo(() => rows.flatMap((r) => r.commit.refs), [rows]);
   // SPEC-233 · detail commit: toggle tree/flat + diff per-file (modal, reuse DiffView).
   const [detailView, setDetailView] = React.useState<"list" | "tree">("list");
-  const [fileDiff, setFileDiff] = React.useState<{ path: string; sha: string; from?: string; data: ReviewFile | null; tab: "diff" | "source" } | null>(null);
+  // SPEC-385 · tab ketiga `preview` untuk .md. Permukaan ini SUDAH modal, jadi pratinjaunya
+  // tab — bukan DocPreviewModal di atas modal (Escape jadi ambigu, dua backdrop menumpuk).
+  const [fileDiff, setFileDiff] = React.useState<{ path: string; sha: string; from?: string; data: ReviewFile | null; tab: "diff" | "source" | "preview" } | null>(null);
   const openFileDiff = React.useCallback((path: string, sha: string, from?: string) => {
     setFileDiff({ path, sha, from, data: null, tab: "diff" });
     const p = from ? api.ideCompareFile(projectId, from, sha, path) : api.ideCommitFile(projectId, sha, path);
@@ -580,19 +582,32 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
                 {fileDiff.path} <span style={{ color: "var(--text-subtle)" }}>@ {fileDiff.sha.slice(0, 8)}</span>
               </span>
               <div style={{ display: "flex", gap: 2, background: "var(--bone-100)", borderRadius: "var(--radius-pill)", padding: 2 }}>
-                {(["diff", "source"] as const).map((t) => (
+                {(isMarkdownPath(fileDiff.path)
+                  ? (["diff", "source", "preview"] as const)
+                  : (["diff", "source"] as const)
+                ).map((t) => (
                   <button key={t} onClick={() => setFileDiff((s) => (s ? { ...s, tab: t } : s))} style={{ padding: "4px 12px", border: "none",
                     cursor: "pointer", borderRadius: "var(--radius-pill)", fontSize: 12, textTransform: "capitalize",
                     background: fileDiff.tab === t ? "var(--surface-card)" : "transparent",
                     color: fileDiff.tab === t ? "var(--text-strong)" : "var(--text-muted)", fontWeight: fileDiff.tab === t ? 600 : 400 }}>{t}</button>
                 ))}
               </div>
+              {/* SPEC-385 · ADR-0078 · pratinjau baru wajib bisa dibawa pergi sebagai .md/.pdf */}
+              {isMarkdownPath(fileDiff.path) && !fileDiff.data?.binary && fileDiff.data?.content != null && (
+                <DocDownload href={(f) => (fileDiff.from
+                  ? api.ideCompareFileDownloadUrl(projectId, fileDiff.from, fileDiff.sha, fileDiff.path, f)
+                  : api.ideCommitFileDownloadUrl(projectId, fileDiff.sha, fileDiff.path, f))} />
+              )}
               <Button size="sm" variant="ghost" leftIcon="x" onClick={() => setFileDiff(null)}>Tutup</Button>
             </div>
             <div style={{ overflow: "auto", padding: "10px 0" }}>
               {!fileDiff.data ? <StateBlock kind="loading" title="Memuat diff…" hint={fileDiff.path} />
                 : fileDiff.data.binary ? <StateBlock kind="empty" icon="file" title="Berkas biner" />
                 : fileDiff.tab === "diff" ? <DiffView diff={fileDiff.data.diff ?? ""} emptyHint="File tak berubah di commit ini." />
+                : fileDiff.tab === "preview"
+                  ? <div style={{ padding: "0 16px" }}>
+                      <MarkdownView text={fileDiff.data.content ?? ""} name={fileDiff.path} />
+                    </div>
                 : <pre style={{ margin: 0, padding: "0 16px", fontFamily: "var(--font-mono)", fontSize: 12.5, lineHeight: 1.6,
                     whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-body)" }}>{fileDiff.data.content ?? "(kosong / dihapus)"}</pre>}
             </div>
