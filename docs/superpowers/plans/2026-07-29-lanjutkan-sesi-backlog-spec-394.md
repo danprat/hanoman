@@ -1018,7 +1018,7 @@ git commit -m "feat(spec-394): respons & toast membedakan sesi dilanjutkan dari 
 - Consumes: keputusan di design doc + perilaku yang sudah terkunci test Task 3-6.
 - Produces: nomor ADR **0084** (0083 sudah diklaim SPEC-386 di `origin/hanoman/spec-386`).
 
-- [ ] **Step 1: Verifikasi ulang nomor ADR sebelum mengklaim**
+- [x] **Step 1: Verifikasi ulang nomor ADR sebelum mengklaim**
 
 Run:
 ```bash
@@ -1028,7 +1028,7 @@ ls ../*/internal/docs/adr 2>/dev/null | grep -E '008[3-9]' | sort -u
 ```
 Expected: hanya `0083-retensi-dokumen-audit.md`. Bila `0084` muncul, naikkan ke nomor bebas berikutnya dan sesuaikan seluruh rujukan di doc yang sudah ditulis (audit doc, design doc, komentar kode).
 
-- [ ] **Step 2: Tulis ADR-0084**
+- [x] **Step 2: Tulis ADR-0084**
 
 Buat `internal/docs/adr/0084-melanjutkan-sesi-backlog.md` dengan struktur ADR repo ini (Status · Konteks · Keputusan · Konsekuensi · Ditolak). Isi wajib:
 
@@ -1038,7 +1038,7 @@ Buat `internal/docs/adr/0084-melanjutkan-sesi-backlog.md` dengan struktur ADR re
 - **Konsekuensi:** (+) retry governor scheduler berhenti menghancurkan pekerjaan; (+) push di akhir sesi lanjutan fast-forward; (−) worktree lama kini bisa hidup lebih panjang (Tutup tetap menghapusnya); (−) resume mempercayai artefak di disk, jadi worktree rusak harus terdeteksi git (`worktreeAlive`), bukan `existsSync`.
 - **Ditolak:** `claude --resume <sessionId>` (percakapan agen bukan kontrak hanoman & melanggar netralitas agen ADR-0074); server menulis sendiri berkas fase (state ganda); parameter `reuse` pada `addWorktree` ala ADR-0017 (menaruh keputusan di pemanggil membuat satu-satunya jalur penghapus worktree tetap satu baris).
 
-- [ ] **Step 3: Perbarui kontrak API**
+- [x] **Step 3: Perbarui kontrak API**
 
 `internal/docs/architecture/api-contract.md`, pada blok `POST /terminal/sessions`, sesudah baris `#     sesi backlog di worktree .worktrees/<spec>, prompt pipeline penuh.` sisipkan:
 
@@ -1054,7 +1054,7 @@ Buat `internal/docs/adr/0084-melanjutkan-sesi-backlog.md` dengan struktur ADR re
 #       (continuePrompt, worktree dari branchFrom).
 ```
 
-- [ ] **Step 4: Perbarui skill project**
+- [x] **Step 4: Perbarui skill project**
 
 `internal/skills/hanoman/SKILL.md`, di bagian **Aturan Sesi & Eksekusi**, tepat sesudah butir "**Satu backlog = satu sesi** (ADR-0015)", sisipkan butir baru:
 
@@ -1078,7 +1078,7 @@ Buat `internal/docs/adr/0084-melanjutkan-sesi-backlog.md` dengan struktur ADR re
   Respons: `201 { id, resumed: true }`. Berlaku juga untuk governor scheduler (jalur peluncuran sama).
 ```
 
-- [ ] **Step 5: Tautkan ADR di kedua index**
+- [x] **Step 5: Tautkan ADR di kedua index**
 
 `internal/docs/README.md` — tambahkan baris ADR-0084 di daftar ADR, mengikuti format tetangganya (ADR-0083).
 
@@ -1088,12 +1088,12 @@ membuatnya di sini akan melahirkan berkas tandingan yang bentrok saat merge. Yan
 spec-386 dan spec-394 bertemu di `main`, tambahkan narasi ADR-0084 ke sub-index itu (aturan "ADR
 baru wajib ditaut di KEDUANYA" berlaku begitu berkasnya ada).
 
-- [ ] **Step 6: Verifikasi integritas index**
+- [x] **Step 6: Verifikasi integritas index**
 
 Run: `npx tsx cli/src/hanoman.ts docs index --check`
 Expected: exit 0 (`node cli/src/hanoman.ts` **gagal** — berkas TS, wajib lewat `tsx`).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add internal/docs/adr/0084-melanjutkan-sesi-backlog.md internal/docs/adr/README.md \
@@ -1108,7 +1108,7 @@ git commit -m "docs(spec-394): ADR-0084 melanjutkan sesi backlog + kontrak, skil
 
 **Files:** tak ada perubahan berkas — hanya bukti.
 
-- [ ] **Step 1: Jalankan seluruh test yang tersentuh perubahan**
+- [x] **Step 1: Jalankan seluruh test yang tersentuh perubahan**
 
 Run:
 ```bash
@@ -1121,7 +1121,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src exec vitest run test/start-s
 ```
 Expected: semua PASS. Jangan menerima "no test files" sebagai bukti — pastikan jumlah test yang berjalan masuk akal.
 
-- [ ] **Step 2: Smoke endpoint nyata (task ini menyentuh endpoint)**
+- [x] **Step 2: Smoke endpoint nyata (task ini menyentuh endpoint)**
 
 Boot server ke DB sekali-pakai yang sudah dimigrasi (JANGAN `hanoman_test` — run tetangga men-truncate di tengah smoke), lalu buktikan siklus penuh dengan `curl`:
 
@@ -1138,7 +1138,7 @@ env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@localhost:5432/hanoma
 ```
 Expected: langkah 3 tanpa `resumed`, langkah 4 dengan `resumed: true`, langkah 5 berkasnya masih ada.
 
-- [ ] **Step 3: Diff bersih & push**
+- [x] **Step 3: Diff bersih & push**
 
 ```bash
 git status --porcelain          # kosong
