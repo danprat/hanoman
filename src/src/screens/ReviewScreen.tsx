@@ -1,7 +1,7 @@
 /* ReviewScreen (SPEC-171) — review file worktree backlog item ala VSCode:
    sidebar CHANGED (SCM) + FILES (tree), viewer Diff|Source. Read-only. */
 import React from "react";
-import { Card, Badge, Button, Icon, StateBlock } from "../ds";
+import { Card, Badge, Button, Icon, StateBlock, DocPreviewModal, isMarkdownPath } from "../ds";
 import { api, type SpecReview, type ReviewFile } from "../api/client";
 import { buildFileTree, TreeRow, ChangedSection } from "./file-tree";
 import { DiffView } from "./diff-view";
@@ -20,6 +20,9 @@ export function ReviewScreen({ specId, title, onBack, kind = "spec" }:
   const [tab, setTab] = React.useState<"diff" | "source">("diff");
   const [tries, setTries] = React.useState(0);
   const [chView, setChView] = React.useState<"list" | "tree">("list");
+  // SPEC-385 · pratinjau .md sebagai dokumen terbaca; pane ini berorientasi diff, jadi
+  // preview-nya sebuah AKSI, bukan tab ketiga (Diff|Source tetap apa adanya).
+  const [preview, setPreview] = React.useState(false);
 
   React.useEffect(() => {
     let alive = true;
@@ -40,7 +43,7 @@ export function ReviewScreen({ specId, title, onBack, kind = "spec" }:
   React.useEffect(() => {
     if (!selected) { setFile(null); return; }
     let alive = true;
-    setFile(null);
+    setFile(null); setPreview(false);
     fetchFile(specId, selected)
       .then((f) => { if (alive) setFile(f); })
       .catch(() => { if (alive) setFile(null); });
@@ -49,6 +52,9 @@ export function ReviewScreen({ specId, title, onBack, kind = "spec" }:
 
   const tree = React.useMemo(() => buildFileTree(review?.files ?? []), [review]);
   const changed = review?.changed ?? [];
+  // Gerbang seragam SPEC-385: .md + tak biner + punya isi (berkas terhapus tak bisa dibaca).
+  const canPreview = !!file && !file.binary && file.content !== null && isMarkdownPath(selected);
+  const downloadUrl = kind === "session" ? api.sessionReviewFileDownloadUrl : api.specReviewFileDownloadUrl;
 
   if (state === "loading") return <StateBlock kind="loading" title="Memuat review…" hint={specId} />;
   if (state === "error") return <StateBlock kind="error" title="Gagal memuat review" hint={specId} action={() => setTries((n) => n + 1)} />;
@@ -76,6 +82,10 @@ export function ReviewScreen({ specId, title, onBack, kind = "spec" }:
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--text-strong)", fontWeight: 500 }}>{selected || "—"}</span>
           {file?.status && <Badge tone={file.status === "D" ? "err" : file.status === "A" ? "ok" : "brass"} size="sm">{file.status}</Badge>}
           <span style={{ flex: 1 }} />
+          {/* SPEC-385 · baca .md sebagai dokumen terender di ruang lebar */}
+          {canPreview && (
+            <Button size="sm" variant="secondary" leftIcon="book-open" onClick={() => setPreview(true)}>Preview</Button>
+          )}
           <div style={{ display: "flex", gap: 2, background: "var(--bone-100)", borderRadius: "var(--radius-pill)", padding: 2 }}>
             {(["diff", "source"] as const).map((t) => (
               <button key={t} onClick={() => setTab(t)} style={{
@@ -98,6 +108,11 @@ export function ReviewScreen({ specId, title, onBack, kind = "spec" }:
                 lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-body)" }}>{file.content}</pre>}
         </div>
       </Card>
+
+      {preview && canPreview && (
+        <DocPreviewModal path={selected} text={file!.content ?? ""} eyebrow={specId}
+          download={(f) => downloadUrl(specId, selected, f)} onClose={() => setPreview(false)} />
+      )}
     </div>
   );
 }
