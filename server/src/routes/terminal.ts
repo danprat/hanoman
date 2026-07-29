@@ -6,6 +6,7 @@ import { realGit, startProjectPrompt, startPrdPrompt, startScaffoldPrompt, start
 import { buildCrossAuditCtx, crossAuditSessionOpts } from "../services/cross-audit";
 import { phaseFilePath, decisionFilePath, readPhases, stageForRun } from "../services/session-phases";
 import { specReview, reviewFile } from "../services/spec-review";
+import { downloadFormat, sendReviewDownload } from "../services/doc-export";
 import { integrateBranch } from "../services/integrate";
 import { sessionAgentDefaults, conflictSessionDefaults } from "../services/settings";
 import { ensureCodexTrust } from "../services/codex-trust";
@@ -316,7 +317,11 @@ export default async function (app: FastifyInstance) {
     const r = await sessionWorktree(id);
     if (!r.ok) return reply.code(r.code).send({ error: r.msg });
     const rf = await reviewFile(r.repoDir, r.id, null, null, path);
-    return rf === null ? reply.code(404).send({ error: "not found" }) : rf;
+    if (rf === null) return reply.code(404).send({ error: "not found" });
+    // SPEC-385 · ADR-0078 · sama seperti review backlog; Review sesi PRD memakai layar yang sama.
+    const fmt = downloadFormat(req.query);
+    if (fmt) return sendReviewDownload(reply, fmt, rf, { prefix: id, eyebrow: `hanoman · ${id}`, path });
+    return rf;
   });
 
   // SPEC-230 · rebase/merge branch sesi project-level (PRD: prd/<slug>). Bersih → langsung;

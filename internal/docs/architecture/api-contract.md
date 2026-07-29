@@ -151,10 +151,12 @@ GET    /projects/:id/breakdown?prd=<path> # SPEC-273 · ADR-0069 · { items:[Bre
 #   Manifest bukan PRD → dikecualikan dari daftar/isi PRD di atas.
 ```
 
-### Unduh dokumen (SPEC-361 · ADR-0078)
+### Unduh dokumen (SPEC-361 · ADR-0078 · diperluas SPEC-385)
 
-Empat endpoint dokumen menerima query **opsional** `?download=md|pdf`. Tak ada endpoint ekspor
+Sembilan endpoint menerima query **opsional** `?download=md|pdf`. Tak ada endpoint ekspor
 terpisah — pola sama dengan `GET /projects/:id/archive` (SPEC-233).
+
+**Endpoint dokumen** (SPEC-361) — badan respons normalnya `{path, content}`:
 
 | Endpoint | Prefix nama berkas |
 |---|---|
@@ -163,12 +165,27 @@ terpisah — pola sama dengan `GET /projects/:id/archive` (SPEC-233).
 | `GET /projects/:id/docs/*path` | `<projectId>` |
 | `GET /projects/:id/file?path=&ref=` | `<projectId>` (+`-<ref>` bila melihat ref tertentu) |
 
+**Endpoint review & diff** (SPEC-385) — badan respons normalnya `ReviewFile`; yang diunduh adalah
+`ReviewFile.content`, yaitu isi **sesudah** perubahan, persis yang dirender pratinjaunya:
+
+| Endpoint | Prefix nama berkas |
+|---|---|
+| `GET /specs/:id/review/*path` | `<specId>` |
+| `GET /terminal/sessions/:id/review/*path` | `<sessionId>` |
+| `GET /projects/:id/file-diff?path=[&staged=1]` | `<projectId>` |
+| `GET /projects/:id/commit/:sha/file?path=` | `<projectId>-<sha8>` |
+| `GET /projects/:id/compare/file?from=&to=&path=` | `<projectId>-<to8>` |
+
 - `download=md` → `200 text/markdown; charset=utf-8`, badan = sumber Markdown mentah.
 - `download=pdf` → `200 application/pdf`, dirender server-side dari token `marked` (parser yang
   sama dengan preview) lewat `services/doc-export.ts`.
 - Keduanya menyetel `content-disposition: attachment; filename="<prefix>-<basename>.<ext>"`.
-- Nilai lain **atau query absen** → respons JSON `{path, content}` **persis seperti sebelumnya**.
-- 404 tetap 404. Berkas biner di IDE tak ditawari unduhan (`f.binary` → respons JSON biasa).
+- Nilai lain **atau query absen** → respons JSON lama (`{path, content}` untuk endpoint dokumen,
+  `ReviewFile` untuk endpoint review/diff) **persis seperti sebelumnya**.
+- 404 tetap 404. Berkas biner tak ditawari unduhan; di endpoint dokumen ia jatuh ke respons JSON
+  biasa, di endpoint review/diff `sendReviewDownload` membalas **404** — begitu pula berkas yang
+  **dihapus** (`content === null`), karena tak ada dokumen untuk dicetak dan string kosong akan
+  menghasilkan PDF menyesatkan.
 - Auth tak berubah: cookie sesi same-origin (ADR-0028); UI memakai `<a download>`, bukan `fetch`.
 
 > **PRD (SPEC-210 · ADR-0041):** PRD = dokumen `docs/prd/<slug>.md` (bukan entitas DB). `PrdDoc` =

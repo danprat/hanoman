@@ -348,3 +348,18 @@ export async function sendDocDownload(
   reply.header("content-type", "application/pdf");
   return reply.send(await renderDocPdf(a.content, a.name, { eyebrow: a.eyebrow, path: a.path }));
 }
+
+/** SPEC-385 · ADR-0078 · unduh isi sebuah `ReviewFile` (isi SESUDAH perubahan) dari endpoint
+    review/diff yang sudah ada. Berkas biner atau yang dihapus (`content === null`) → 404: tak
+    ada dokumen untuk diunduh, dan mengarang string kosong akan menghasilkan PDF menyesatkan. */
+export async function sendReviewDownload(
+  reply: FastifyReply, fmt: "md" | "pdf",
+  rf: { binary: boolean; content: string | null },
+  a: { prefix: string; eyebrow: string; path: string },
+): Promise<unknown> {
+  if (rf.binary || rf.content === null)
+    return reply.code(404).send({ error: "tak ada isi untuk diunduh" });
+  return sendDocDownload(reply, fmt, {
+    content: rf.content, name: a.path, prefix: a.prefix, eyebrow: a.eyebrow, path: a.path,
+  });
+}

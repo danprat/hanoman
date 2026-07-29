@@ -240,6 +240,30 @@ Pemicunya dua, keduanya membuka modal ber-`specId` yang sama:
 Renderer Markdown dipakai bersama: `MarkdownView`/`hnDocHtml` (`ds/markdown.tsx`, marked +
 kelas `.hn-md`) — sumber yang sama untuk `SpecDocsModal` dan `DocsWorkspace`.
 
+**Aksi preview `.md` di IDE & Review** (SPEC-385). Empat permukaan dulu hanya bisa menampilkan
+`.md` sebagai teks mentah dalam `<pre>` — pane diff Explorer, modal berkas Git Graph, dan Review
+(backlog **maupun** sesi PRD) — sementara IDE mode file punya preview inline SPEC-240 yang hanya
+memakai sisa lebar di samping tree 300 px. Penyelesaiannya satu komponen design system,
+**`DocPreviewModal`** (`ds/DocPreviewModal.tsx`): `Modal` ber-`fillHeight` `width={980}` berisi
+`MarkdownView` di pane `flex: 1 1 0` ber-`data-testid="doc-preview-scroll"`, plus `DocDownload`
+opsional. Komponen ini **tak menyentuh api client** — pemanggil menyerahkan `text` dan (opsional)
+fungsi `download`, jadi ia tak tahu apa-apa soal spec/ide/review.
+
+- **Gerbang seragam** di semua permukaan: `isMarkdownPath(path)` (satu-satunya definisi "berkas
+  markdown", diangkat dari const lokal `IdeScreen` ke `ds/markdown.tsx`) **dan** `binary === false`
+  **dan** `content !== null` — berkas yang dihapus tak punya isi untuk dibaca.
+- **IDE Explorer** — tombol `Preview lebar` di kedua pane. Labelnya sengaja **bukan** "Preview":
+  toggle inline SPEC-240 sudah memakai kata itu, dan dua tombol berlabel sama membuat query test
+  ambigu. Toggle inline **tetap ada** (default preview); sumber isi mengikuti pane yang aktif —
+  mode file = isi berkas di ref yang dilihat, mode diff = isi sesudah perubahan (bukan diff-nya).
+- **Review** — tombol `Preview` di toolbar; `kind="session"` memilih endpoint review sesi.
+- **Git Graph** — **tab ketiga `preview`**, bukan modal: permukaannya sudah modal, jadi
+  `DocPreviewModal` di atasnya membuat Escape ambigu dan menumpuk dua backdrop.
+- Pratinjau tetap ditutup otomatis saat seleksi berkas berpindah.
+- Unduhannya menunjuk endpoint yang sama dengan isi yang dirender (lihat tabel review/diff di
+  [api-contract](../architecture/api-contract.md)), jadi yang diunduh persis yang dibaca —
+  memenuhi ADR-0078 untuk keempat permukaan baru tanpa endpoint ekspor baru.
+
 **Pratinjau dokumen tak boleh menggulir ke samping** (SPEC-363). `.hn-md` (`app.css`) memasang
 `overflow-wrap: anywhere` di akar, `table-layout: fixed` + `overflow-wrap` di sel, dan
 `white-space: pre-wrap` + `overflow-wrap` di `pre` (`overflow: auto` ditahan sebagai jaring

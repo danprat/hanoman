@@ -9,6 +9,7 @@ export { useToast, Toast, Modal, Field, HnTextarea, serverPage, Pager, LIST_SCRO
 export type { ToastData, ShowToast } from "./kit";
 export { ConfirmDialog } from "./ConfirmDialog";
 export { Shell } from "./shell";
-export { MarkdownView, hnDocHtml } from "./markdown";
+export { MarkdownView, hnDocHtml, isMarkdownPath } from "./markdown";
 export { DocDownload } from "./DocDownload";
+export { DocPreviewModal } from "./DocPreviewModal";
 export { Mark, Wordmark, HN_MARKS } from "./marks";

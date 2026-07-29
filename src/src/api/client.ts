@@ -164,6 +164,18 @@ export const api = {
   prdDownloadUrl: (id: string, path: string, fmt: "md" | "pdf") => paths.download(paths.prdFile(id, path), fmt),
   ideFileDownloadUrl: (id: string, path: string, ref: string, fmt: "md" | "pdf") =>
     paths.download(paths.ideFile(id, path, ref), fmt),
+  // SPEC-385 · ADR-0078 · URL unduh untuk pratinjau di Review & pane diff IDE. Isi yang diunduh
+  // = `ReviewFile.content` (isi SESUDAH perubahan), persis yang dirender DocPreviewModal.
+  specReviewFileDownloadUrl: (id: string, path: string, fmt: "md" | "pdf") =>
+    paths.download(paths.specReviewFile(id, path), fmt),
+  sessionReviewFileDownloadUrl: (id: string, path: string, fmt: "md" | "pdf") =>
+    paths.download(paths.sessionReviewFile(id, path), fmt),
+  ideFileDiffDownloadUrl: (id: string, path: string, staged: boolean, fmt: "md" | "pdf") =>
+    paths.download(paths.ideFileDiff(id, path, staged), fmt),
+  ideCommitFileDownloadUrl: (id: string, sha: string, path: string, fmt: "md" | "pdf") =>
+    paths.download(paths.ideCommitFile(id, sha, path), fmt),
+  ideCompareFileDownloadUrl: (id: string, from: string, to: string, path: string, fmt: "md" | "pdf") =>
+    paths.download(paths.ideCompareFile(id, from, to, path), fmt),
   // SPEC-340 · ADR-0076 · rekomendasi tindak lanjut audit (turunan dokumen audit, bukan kolom DB).
   getEscalation: (id: string) => j<AuditEscalationView>(paths.specEscalation(id)),
   putDoc: (id: string, path: string, content: string) =>

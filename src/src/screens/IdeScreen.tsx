@@ -3,7 +3,7 @@
 import React from "react";
 import hljs from "highlight.js";
 import "highlight.js/styles/github.css";
-import { Card, Button, Select, Icon, StateBlock, Tabs, Badge, DocDownload } from "../ds";
+import { Card, Button, Select, Icon, StateBlock, Tabs, Badge, DocDownload, DocPreviewModal, isMarkdownPath } from "../ds";
 import { api, ApiError, type RepoFile, type ReviewFile, type WorkingStatus, type GitOp, type Remote } from "../api/client";
 import type { ProjectVM } from "./types";
 import { GitGraph } from "./GitGraph";
@@ -20,7 +20,8 @@ const langOf = (p: string): string => {
 };
 
 // SPEC-240 · berkas markdown mendapat toggle Preview | Source (default preview).
-const isMarkdown = (p: string): boolean => /\.md$/i.test(p);
+// SPEC-385 · predikatnya pindah ke `ds/markdown.tsx` (`isMarkdownPath`) karena kini dipakai
+// bersama Git Graph & Review.
 
 // Dialog "Paksa": muncul saat mutasi git balas 409. Mengulang op dengan force:true.
 function ForceDialog({ msg, onForce, onCancel }: { msg: string; onForce: () => void; onCancel: () => void }) {
@@ -98,6 +99,9 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
   const [diff, setDiff] = React.useState<ReviewFile | null>(null);
   const [diffTab, setDiffTab] = React.useState<"diff" | "source">("diff");
   const [showRemotes, setShowRemotes] = React.useState(false); // SPEC-233 · kelola remote
+  // SPEC-385 · ruang baca lebar untuk .md — di mode file toggle SPEC-240 tetap ada (preview
+  // sempit di samping tree), di mode diff inilah satu-satunya cara membacanya terender.
+  const [preview, setPreview] = React.useState(false);
 
   const reloadTree = React.useCallback(() => {
     setTreeState("loading");
@@ -116,6 +120,7 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
   React.useEffect(() => {
     if (!selected) { setFile(null); setDiff(null); return; }
     let alive = true;
+    setPreview(false); // SPEC-385 · pratinjau selalu mengikuti berkas yang sedang dipilih
     if (selKind === "file") {
       setDiff(null);
       api.ideFile(projectId, selected, viewRef).then((f) => { if (alive) { setFile(f); setMode("view"); setMdView("preview"); } })
@@ -197,6 +202,21 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
     catch { return file.content; }
   }, [file, selected]);
 
+  // SPEC-385 · sumber pratinjau mengikuti pane yang aktif: mode file = isi berkas di ref yang
+  // dilihat, mode diff = isi SESUDAH perubahan (bukan diff-nya). Unduhannya menunjuk endpoint
+  // yang sama dengan isinya, jadi yang diunduh persis yang dibaca.
+  const previewSrc = ((): { text: string; download: (f: "md" | "pdf") => string } | null => {
+    const isDiff = selKind !== "file";
+    const rf = isDiff ? diff : file;
+    if (!rf || rf.binary || rf.content === null || !isMarkdownPath(selected)) return null;
+    return {
+      text: rf.content,
+      download: isDiff
+        ? (f: "md" | "pdf") => api.ideFileDiffDownloadUrl(projectId, selected, selKind === "staged", f)
+        : (f: "md" | "pdf") => api.ideFileDownloadUrl(projectId, selected, viewRef, f),
+    };
+  })();
+
   const toolbar = (
     <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
       <Select size="sm" value={projectId} onChange={(e) => onProject(e.target.value)}
@@ -258,20 +278,27 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
               {inDiff && diff?.status && <Badge tone={diff.status === "D" ? "err" : diff.status === "A" ? "ok" : "brass"} size="sm">{diff.status}</Badge>}
               <span style={{ flex: 1 }} />
               {inDiff
-                ? <div style={{ display: "flex", gap: 2, background: "var(--bone-100)", borderRadius: "var(--radius-pill)", padding: 2 }}>
-                    {(["diff", "source"] as const).map((t) => (
-                      <button key={t} onClick={() => setDiffTab(t)} style={{
-                        padding: "4px 12px", border: "none", cursor: "pointer", borderRadius: "var(--radius-pill)",
-                        fontSize: 12, textTransform: "capitalize",
-                        background: diffTab === t ? "var(--surface-card)" : "transparent",
-                        color: diffTab === t ? "var(--text-strong)" : "var(--text-muted)", fontWeight: diffTab === t ? 600 : 400,
-                      }}>{t}</button>
-                    ))}
+                ? <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {/* SPEC-385 · pane diff dulu hanya bisa membaca .md sebagai <pre> mentah */}
+                    {previewSrc && (
+                      <Button size="sm" variant="secondary" leftIcon="book-open"
+                        onClick={() => setPreview(true)}>Preview lebar</Button>
+                    )}
+                    <div style={{ display: "flex", gap: 2, background: "var(--bone-100)", borderRadius: "var(--radius-pill)", padding: 2 }}>
+                      {(["diff", "source"] as const).map((t) => (
+                        <button key={t} onClick={() => setDiffTab(t)} style={{
+                          padding: "4px 12px", border: "none", cursor: "pointer", borderRadius: "var(--radius-pill)",
+                          fontSize: 12, textTransform: "capitalize",
+                          background: diffTab === t ? "var(--surface-card)" : "transparent",
+                          color: diffTab === t ? "var(--text-strong)" : "var(--text-muted)", fontWeight: diffTab === t ? 600 : 400,
+                        }}>{t}</button>
+                      ))}
+                    </div>
                   </div>
                 : mode === "view"
                   ? <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       {/* SPEC-240 · toggle Preview | Source hanya untuk .md */}
-                      {file && !file.binary && isMarkdown(selected) && (
+                      {file && !file.binary && isMarkdownPath(selected) && (
                         <div style={{ display: "flex", gap: 2, background: "var(--bone-100)", borderRadius: "var(--radius-pill)", padding: 2 }}>
                           {(["preview", "source"] as const).map((t) => (
                             <button key={t} onClick={() => setMdView(t)} style={{
@@ -282,6 +309,12 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
                             }}>{t === "preview" ? "Preview" : "Source"}</button>
                           ))}
                         </div>
+                      )}
+                      {/* SPEC-385 · toggle di atas hanya memakai sisa lebar di samping tree;
+                          tombol ini membuka dokumen yang sama di ruang baca lebar */}
+                      {previewSrc && (
+                        <Button size="sm" variant="secondary" leftIcon="book-open"
+                          onClick={() => setPreview(true)}>Preview lebar</Button>
                       )}
                       {/* SPEC-361 · unduh berkas teks yang sedang dibuka (biner tak ditawari) */}
                       <DocDownload href={(f) => api.ideFileDownloadUrl(projectId, selected, viewRef, f)}
@@ -312,7 +345,7 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
                           width: "100%", minHeight: 560, boxSizing: "border-box", resize: "vertical", border: "none",
                           outline: "none", padding: "16px 18px", fontFamily: "var(--font-mono)", fontSize: 12.5,
                           lineHeight: 1.7, color: "var(--text-body)", background: "var(--surface-card)" }} />
-                      : isMarkdown(selected) && mdView === "preview"
+                      : isMarkdownPath(selected) && mdView === "preview"
                         ? <div style={{ padding: "16px 20px" }}><MarkdownView text={file.content ?? ""} name={selected} /></div>
                         : <pre style={{ margin: 0, padding: "16px 18px", overflow: "auto" }}>
                             <code className="hljs" style={{ fontFamily: "var(--font-mono)", fontSize: 12.5, lineHeight: 1.7 }}
@@ -330,6 +363,10 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
         <BranchesPanel projectId={projectId} />
       )}
 
+      {preview && previewSrc && (
+        <DocPreviewModal path={selected} text={previewSrc.text} eyebrow={viewRef || status?.branch || projectId}
+          download={previewSrc.download} onClose={() => setPreview(false)} />
+      )}
       {pendingForce && <ForceDialog msg={pendingForce.msg} onForce={confirmForce} onCancel={() => setPendingForce(null)} />}
       {showRemotes && <RemotesModal projectId={projectId} onClose={() => setShowRemotes(false)} />}
     </div>

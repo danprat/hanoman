@@ -17,7 +17,7 @@ import { listSpecDocs, resolveDir } from "../services/spec-docs";
 import { readEscalation } from "../services/audit-escalation";
 import { resolveRepoDir } from "../services/local-binding";
 import { readDocFile } from "../services/scan";
-import { downloadFormat, sendDocDownload } from "../services/doc-export";
+import { downloadFormat, sendDocDownload, sendReviewDownload } from "../services/doc-export";
 import { paginate } from "../services/paginate";
 // SPEC-199 · overlay stage-live + write-through + notifikasi kini di liveSpecs (dipakai juga hub
 // siar WS) supaya push & pull tak drift. Rute tinggal filter+paginasi (SPEC-198) di atasnya.
@@ -305,6 +305,10 @@ export default async function (app: FastifyInstance) {
     if (!r) return reply.code(409).send({ error: "belum ada worktree atau commit" });
     const rf = r.wt ? await reviewFile(repoDir, id, spec.baseSha, spec.branchFrom, path)
       : await reviewFileRange(repoDir, r.base, r.head, path);
-    return rf === null ? reply.code(404).send({ error: "not found" }) : rf;
+    if (rf === null) return reply.code(404).send({ error: "not found" });
+    // SPEC-385 · ADR-0078 · unduh berkas yang sedang dipratinjau di Review. Tanpa query → JSON lama.
+    const fmt = downloadFormat(req.query);
+    if (fmt) return sendReviewDownload(reply, fmt, rf, { prefix: id, eyebrow: `hanoman · ${id}`, path });
+    return rf;
   });
 }

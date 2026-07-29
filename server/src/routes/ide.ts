@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { basename } from "node:path";
 import { spawn } from "node:child_process";
 import { listRemotes, addRemote, setRemoteUrl, removeRemote, prUrl } from "../services/git-remotes";
-import { downloadFormat, sendDocDownload } from "../services/doc-export";
+import { downloadFormat, sendDocDownload, sendReviewDownload } from "../services/doc-export";
 import { prisma } from "../db";
 import { resolveRepoDir } from "../services/local-binding";
 import { listSessions, createSession } from "../services/pty";
@@ -83,13 +83,18 @@ export default async function (app: FastifyInstance) {
 
   // SPEC-234 · diff satu file working tree. staged=1 → index vs HEAD, else working tree vs index.
   app.get("/projects/:id/file-diff", async (req, reply) => {
-    const repoDir = await repoOf((req.params as { id: string }).id);
+    const id = (req.params as { id: string }).id;
+    const repoDir = await repoOf(id);
     if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
     const { path, staged } = req.query as { path?: string; staged?: string };
     if (!path) return reply.code(400).send({ error: "path wajib" });
     try {
       const f = await workingFileDiff(repoDir, path, staged === "1" || staged === "true");
-      return f === null ? reply.code(404).send({ error: "not found" }) : f;
+      if (f === null) return reply.code(404).send({ error: "not found" });
+      // SPEC-385 · ADR-0078 · unduh berkas .md yang sedang dipratinjau dari pane diff Explorer.
+      const fmt = downloadFormat(req.query);
+      if (fmt) return sendReviewDownload(reply, fmt, f, { prefix: id, eyebrow: `hanoman · ${id}`, path });
+      return f;
     } catch (e) { return reply.code(400).send({ error: (e as Error).message }); }
   });
 
@@ -216,13 +221,20 @@ export default async function (app: FastifyInstance) {
   });
 
   app.get("/projects/:id/compare/file", async (req, reply) => {
-    const repoDir = await repoOf((req.params as { id: string }).id);
+    const id = (req.params as { id: string }).id;
+    const repoDir = await repoOf(id);
     if (repoDir === undefined) return reply.code(404).send({ error: "not found" });
     const { from, to, path } = req.query as { from?: string; to?: string; path?: string };
     if (!from || !to || !path) return reply.code(400).send({ error: "from, to & path wajib" });
     try {
       const f = await compareFile(repoDir, from, to, path);
-      return f === null ? reply.code(404).send({ error: "not found" }) : f;
+      if (f === null) return reply.code(404).send({ error: "not found" });
+      // SPEC-385 · ADR-0078 · unduh berkas .md yang dipratinjau dari compare dua commit.
+      const fmt = downloadFormat(req.query);
+      if (fmt) return sendReviewDownload(reply, fmt, f, {
+        prefix: `${id}-${to.slice(0, 8)}`, eyebrow: `hanoman · ${from.slice(0, 8)}…${to.slice(0, 8)}`, path,
+      });
+      return f;
     } catch (e) { return reply.code(400).send({ error: (e as Error).message }); }
   });
 
@@ -235,7 +247,13 @@ export default async function (app: FastifyInstance) {
     if (!path) return reply.code(400).send({ error: "path wajib" });
     try {
       const f = await commitFileDiff(repoDir, sha, path);
-      return f === null ? reply.code(404).send({ error: "not found" }) : f;
+      if (f === null) return reply.code(404).send({ error: "not found" });
+      // SPEC-385 · ADR-0078 · unduh berkas .md yang dipratinjau dari detail commit di Git Graph.
+      const fmt = downloadFormat(req.query);
+      if (fmt) return sendReviewDownload(reply, fmt, f, {
+        prefix: `${id}-${sha.slice(0, 8)}`, eyebrow: `hanoman · ${id} · ${sha.slice(0, 8)}`, path,
+      });
+      return f;
     } catch (e) { return reply.code(400).send({ error: (e as Error).message }); }
   });
 
