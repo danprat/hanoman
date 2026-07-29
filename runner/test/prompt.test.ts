@@ -1,8 +1,72 @@
 import { describe, it, expect } from "vitest";
-import { PIPELINES, startPrompt, startProjectPrompt, continuePrompt, startPrdPrompt, startScaffoldPrompt, startBreakdownPrompt } from "../src/prompt";
+import { PIPELINES, startPrompt, startProjectPrompt, continuePrompt, resumePrompt, startPrdPrompt, startScaffoldPrompt, startBreakdownPrompt } from "../src/prompt";
 
 const spec = { id: "SPEC-162", title: "Sesi interaktif", source: "brief",
   priority: "high", objective: "Ganti runOne dengan tmux" };
+
+// SPEC-394 · prompt lanjutan: kerangka startPrompt + blok RESUME. Ia harus MENYEBUT keadaan
+// nyata (fase tercatat, bentuk worktree) — agen tak punya cara lain mengetahuinya.
+describe("resumePrompt", () => {
+  const ctx = { recorded: ["Audit done", "Spec skipped"], next: "Plan", worktreeKept: true };
+
+  it("menyebut fase yang sudah tercatat dan fase berikutnya", () => {
+    const p = resumePrompt("qa", spec, "hanoman/spec-394", ctx);
+    expect(p).toContain("MELANJUTKAN");
+    expect(p).toContain("Audit done");
+    expect(p).toContain("Spec skipped");
+    expect(p).toContain("Lanjutkan dari fase: Plan.");
+    // Fase yang BELUM tercatat tak boleh dikarang. Sengaja bukan "Execute done": kalimat itu
+    // memang ada di phaseInstruction (gerbang plan ADR-0029), jadi assertion-nya akan lulus palsu.
+    expect(p).not.toContain("Plan skipped");
+    expect(p).not.toContain("Plan done");
+  });
+
+  it("membedakan worktree utuh dari worktree yang dibangun ulang", () => {
+    const utuh = resumePrompt("qa", spec, "b", { ...ctx, worktreeKept: true });
+    const ulang = resumePrompt("qa", spec, "b", { ...ctx, worktreeKept: false });
+    expect(utuh).toContain("belum di-commit");
+    expect(ulang).toContain("DIBANGUN ULANG");
+    expect(ulang).toContain("TIDAK ada");
+  });
+
+  it("tetap membawa kerangka startPrompt: fase, otonomi, skill, push, dan blok backlog", () => {
+    const p = resumePrompt("qa", spec, "hanoman/spec-394", ctx);
+    expect(p).toContain("Kerjakan fase berurutan: Audit → Spec → Plan → Execute.");
+    expect(p).toContain("$HANOMAN_PHASE_FILE");
+    expect(p).toContain("git push origin HEAD:refs/heads/hanoman/spec-394");
+    expect(p).toContain(spec.id);
+    expect(p).toContain(spec.objective);
+    expect(p).toContain("superpowers:test-driven-development");
+  });
+
+  it("membawa klausa scope verifikasi seperti startPrompt", () => {
+    expect(resumePrompt("qa", spec, "b", ctx, undefined, "changed")).toContain("Scope verifikasi");
+    expect(resumePrompt("qa", spec, "b", ctx, undefined, "full")).not.toContain("Scope verifikasi");
+  });
+
+  it("tanpa fase tercatat tetap sah — worktree-nya sendiri yang jadi alasan melanjutkan", () => {
+    const p = resumePrompt("qa", spec, "b", { recorded: [], next: "Audit", worktreeKept: true });
+    expect(p).toContain("Belum ada fase yang tercatat");
+    expect(p).toContain("Lanjutkan dari fase: Audit.");
+    // Audit belum tercatat → keputusan pasca-Audit (ADR-0040) memang masih di depan.
+    expect(p).toContain("Keputusan pasca-Audit");
+  });
+
+  // Sesudah Audit tercatat, keputusan pasca-Audit SUDAH mewujud sebagai baris fase. Mengulanginya
+  // mengundang agen membatalkan keputusan sesi sebelumnya di tengah jalan.
+  it("Audit sudah tercatat → klausa keputusan pasca-Audit tak diulang", () => {
+    expect(resumePrompt("qa", spec, "b", ctx)).not.toContain("Keputusan pasca-Audit");
+    expect(resumePrompt("qa", spec, "b", { ...ctx, recorded: ["Audit skipped"], next: "Spec" }))
+      .not.toContain("Keputusan pasca-Audit");
+  });
+
+  it("semua fase tercatat → disuruh memeriksa sisa task plan, bukan fase berikutnya", () => {
+    const p = resumePrompt("qa", spec, "b",
+      { recorded: ["Audit done", "Spec done", "Plan done", "Execute done"], worktreeKept: true });
+    expect(p).toContain("Semua fase sudah tercatat");
+    expect(p).not.toContain("Lanjutkan dari fase:");
+  });
+});
 
 describe("startPrompt", () => {
   it("memuat identitas backlog item dan objective-nya", () => {

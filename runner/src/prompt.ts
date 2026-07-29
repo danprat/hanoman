@@ -1,4 +1,4 @@
-import type { Flow, SpecBrief, ProjectBrief, PrdBrief, AuditDoc, BreakdownPrd, Autonomy, CrossAuditCtx, CrossAuditProject, VerifyScope } from "./types";
+import type { Flow, SpecBrief, ProjectBrief, PrdBrief, AuditDoc, BreakdownPrd, Autonomy, CrossAuditCtx, CrossAuditProject, VerifyScope, ResumeCtx } from "./types";
 import { REVERSE_STANDARD } from "./reverse-standard";
 import { verifyScopeClause } from "./verify-scope";
 
@@ -226,6 +226,62 @@ export function continuePrompt(
     skillInstruction(["Execute"]),
     `Setelah selesai: commit, lalu \`git push origin HEAD:refs/heads/${branchTo}\`. Worktree `
       + `ini detached HEAD — itu memang disengaja.`,
+    `Backlog item ${spec.id} · sumber ${spec.source} · prioritas ${spec.priority}\n`
+      + `Judul: ${spec.title}\nObjective: ${spec.objective}${detail}`,
+  ].filter(Boolean).join("\n\n");
+}
+
+// SPEC-394 · ADR-0084 — sesi backlog yang DILANJUTKAN. Beda dari continuePrompt (SPEC-172, yang
+// melayani spec keburu-`done` dan karena itu melompat ke Execute): di sini pipeline-nya UTUH dan
+// yang berubah hanya titik masuknya. Agen tak bisa menurunkan sendiri "fase mana yang sudah
+// selesai" — berkas fase hidup di luar worktree dan tak ikut ter-checkout — jadi server yang
+// menyebutkannya. Sengaja TIDAK menyalin baris fase ke phase file: berkas itu milik agen.
+const resumeClause = (r: ResumeCtx, branchTo: string): string => {
+  const fase = r.recorded.length
+    ? `Fase yang SUDAH tercatat di $HANOMAN_PHASE_FILE: ${r.recorded.join(" · ")}. `
+      + "JANGAN mengulang fase itu dan JANGAN menulis ulang barisnya."
+    : "Belum ada fase yang tercatat di $HANOMAN_PHASE_FILE — worktree ini sendiri yang jadi "
+      + "alasan melanjutkan.";
+  const lanjut = r.next
+    ? `Lanjutkan dari fase: ${r.next}.`
+    : "Semua fase sudah tercatat. Periksa apakah plan di `docs/superpowers/plans/**` masih "
+      + "menyisakan task `- [ ]` dan selesaikan sisanya; bila sudah bersih, tinggal commit & push.";
+  const worktree = r.worktreeKept
+    ? "Worktree ini adalah worktree sesi sebelumnya apa adanya — termasuk perubahan yang belum "
+      + "di-commit."
+    : `Worktree ini DIBANGUN ULANG dari tip branch sesi \`${branchTo}\`: commit sesi sebelumnya `
+      + "ada, tetapi perubahan yang belum sempat di-commit TIDAK ada.";
+  return [
+    "Sesi ini MELANJUTKAN pekerjaan sesi sebelumnya untuk backlog item yang sama — bukan memulai "
+      + "dari nol.",
+    fase, lanjut, worktree,
+    "Sebelum menulis apa pun: baca `git log --oneline` dan `git status`, lalu plan di "
+      + "`docs/superpowers/plans/**` untuk backlog item ini (`- [x]` sudah selesai, `- [ ]` belum). "
+      + "Jangan menulis ulang yang sudah ada.",
+  ].join(" ");
+};
+
+export function resumePrompt(
+  flow: Flow, spec: SpecBrief, branchTo: string, resume: ResumeCtx,
+  autonomy?: Autonomy, verifyScope?: VerifyScope,
+): string {
+  const detail = spec.payload ? `\nDetail: ${JSON.stringify(spec.payload)}` : "";
+  // Keputusan pasca-Audit (ADR-0040) hanya relevan selama Audit belum tercatat. Sesudah itu
+  // keputusannya SUDAH diambil dan sudah mewujud sebagai baris `Spec skipped`/`Spec done` di
+  // berkas fase — menyuruh agen memutuskannya lagi berarti mengundangnya membatalkan keputusan
+  // sesi sebelumnya.
+  const auditDecided = resume.recorded.some((line) => line.startsWith("Audit "));
+  return [
+    `hanoman ${flow} — MELANJUTKAN sesi backlog yang sudah berjalan. Ikuti internal/docs sebagai `
+      + `Source of Truth; perbarui docs yang tersentuh dan link-nya di index, dalam commit yang sama.`,
+    resumeClause(resume, branchTo),
+    phaseInstruction(PIPELINES[flow]),
+    auditDecided ? "" : auditDecisionInstruction(flow),
+    autonomyClause(autonomy),
+    scopeClause(flow, verifyScope),
+    skillInstruction(PIPELINES[flow]),
+    `Setelah fase terakhir: commit, lalu \`git push origin HEAD:refs/heads/${branchTo}\`. `
+      + `Worktree ini detached HEAD — itu memang disengaja.`,
     `Backlog item ${spec.id} · sumber ${spec.source} · prioritas ${spec.priority}\n`
       + `Judul: ${spec.title}\nObjective: ${spec.objective}${detail}`,
   ].filter(Boolean).join("\n\n");

@@ -21,6 +21,18 @@ export type SpecBrief = {
   objective: string; payload?: unknown;
 };
 
+// SPEC-394 · keadaan yang HANYA diketahui server saat sebuah sesi backlog dilanjutkan. Dipisah
+// dari SpecBrief karena isinya bukan properti backlog item melainkan properti peluncuran ini.
+export type ResumeCtx = {
+  /** Baris yang SUDAH tercatat di $HANOMAN_PHASE_FILE, apa adanya ("Audit done"/"Spec skipped"). */
+  recorded: readonly string[];
+  /** Fase pertama yang belum tercatat; undefined bila seluruh pipeline sudah tercatat. */
+  next?: string;
+  /** true = worktree sesi sebelumnya dipakai apa adanya (kerja belum-commit masih ada);
+   *  false = worktree dibangun ulang dari tip branch sesi (hanya commit yang selamat). */
+  worktreeKept: boolean;
+};
+
 // Identitas project untuk sesi project-level (reverse): tak ada backlog item, jadi
 // konteksnya diambil dari baris Project (SPEC-166).
 export type ProjectBrief = { id: string; name: string; desc: string; stack: string };
