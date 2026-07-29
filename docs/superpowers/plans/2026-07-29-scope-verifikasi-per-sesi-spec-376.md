@@ -752,7 +752,7 @@ git commit -m "feat(spec-376): picker scope verifikasi di Start + kartu default 
 - Consumes: nama & nilai dari Task 1-4 (`verifyScope`, `changed`/`full`, `HANOMAN_BASE_SHA`, `HANOMAN_VERIFY_SCOPE`).
 - Produces: dokumen SoT yang menjelaskan mekanisme + DoD hanoman yang tak lagi menyuruh suite penuh.
 
-- [ ] **Step 1: Verifikasi nomor ADR masih bebas**
+- [x] **Step 1: Verifikasi nomor ADR masih bebas**
 
 ```bash
 for r in $(git for-each-ref --format='%(refname)' refs/heads refs/remotes); do git ls-tree -r --name-only "$r" -- internal/docs/adr; done | sed 's#.*/##' | grep -c '^0080' 
@@ -761,7 +761,7 @@ ls /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/*/internal/docs/adr
 ```
 Expected: hitungan `0` dan tak ada berkas `0080-*` di worktree mana pun. Bila ada, naikkan ke nomor bebas berikutnya **dan** ganti semua rujukan `ADR-0080` di kode & docs.
 
-- [ ] **Step 2: Tulis `internal/docs/adr/0080-scope-verifikasi-per-sesi.md`**
+- [x] **Step 2: Tulis `internal/docs/adr/0080-scope-verifikasi-per-sesi.md`**
 
 Isi wajib memuat (ikuti bentuk ADR tetangga — Status · Konteks · Keputusan · Konsekuensi · Alternatif yang ditolak):
 - **Status:** aktif (SPEC-376). Memperluas ADR-0061/0073/0074 (properti per sesi); **TIDAK** membalik ADR-0037.
@@ -770,21 +770,21 @@ Isi wajib memuat (ikuti bentuk ADR tetangga — Status · Konteks · Keputusan �
 - **Konsekuensi:** mengarahkan, bukan memaksa; agen boleh memperluas scope dengan alasan; suite penuh pindah ke manusia sebelum merge; terminal biasa tak punya prompt → hanya menerima env (batas yang disadari); jebakan `--changed` + `passWithNoTests` disebut di klausa.
 - **Alternatif yang ditolak:** hook `PreToolUse` deny (butuh ADR yang mencabut 0037 — ditolak operator), dan mengandalkan `AGENTS.md` repo target saja (tak menjangkau project lain yang didorong hanoman).
 
-- [ ] **Step 3: Tautkan ADR di index** (`internal/docs/README.md`, sisipkan sebagai butir pertama di bawah `## adr`)
+- [x] **Step 3: Tautkan ADR di index** (`internal/docs/README.md`, sisipkan sebagai butir pertama di bawah `## adr`)
 
 ```markdown
 - [0080 — Scope verifikasi per sesi: klausa prompt + env, bukan hook deny](adr/0080-scope-verifikasi-per-sesi.md) — **memperluas 0061/0073/0074** (properti per sesi), **TIDAK membalik 0037**, terkait 0002/0029/0072 (SPEC-376): `verifyScope` (`changed` default | `full`) menyuruh sesi menguji berkas yang berubah saja — `vitest --changed "$HANOMAN_BASE_SHA"` / `vitest related`, typecheck per paket, lint per berkas, build & smoke server hanya bila relevan — supaya RAM & CPU tersisa untuk sesi lain di mesin yang sama. Knob `Setting.verifyScope` (kolom `Json` → **tanpa migration**) + override di `POST /terminal/sessions`; mewujud sebagai klausa prompt (hanya flow ber-fase `Execute` — flow dokumen tak punya test) + env `HANOMAN_BASE_SHA`/`HANOMAN_VERIFY_SCOPE`. **Mengarahkan, bukan memaksa:** tak ada hook deny (preseden ADR-0073), dan klausanya memberi jalan keluar eksplisit untuk perubahan berdampak luas. **Gotcha wajib:** `vitest --changed` menyalakan `passWithNoTests`, jadi nol test **terlihat hijau** — klausa menyebutnya terang-terangan; dan `baseSha` HARUS diteruskan lewat env karena worktree lahir `--detach` (tak ada `main`, `HEAD~1` salah)
 ```
 
-- [ ] **Step 4: Perbarui `internal/docs/architecture/api-contract.md`**
+- [x] **Step 4: Perbarui `internal/docs/architecture/api-contract.md`**
 
 Di entri `POST /terminal/sessions`, tambahkan `verifyScope` ke daftar field body varian backlog dengan penjelasan presedens (`override → Setting.verifyScope → "changed"`). Di entri `GET/PUT /settings`, tambahkan kunci `verifyScope` ke bentuk `Setting`. Cari heading-nya dengan `grep -n "terminal/sessions" internal/docs/architecture/api-contract.md`.
 
-- [ ] **Step 5: Perbarui `internal/docs/architecture/nfr.md`**
+- [x] **Step 5: Perbarui `internal/docs/architecture/nfr.md`**
 
 Tambahkan satu butir di bagian sumber daya/performa: sesi memverifikasi ber-scope secara default (`verifyScope=changed`) supaya N sesi paralel tak melipatgandakan suite penuh; suite penuh dipindahkan ke manusia sebelum merge. Cari bagiannya dengan `grep -n "^##" internal/docs/architecture/nfr.md`.
 
-- [ ] **Step 6: Perbarui `internal/skills/hanoman/SKILL.md`**
+- [x] **Step 6: Perbarui `internal/skills/hanoman/SKILL.md`**
 
 Tambahkan butir baru di "Aturan Sesi & Eksekusi" (sesudah butir mode goal SPEC-332):
 
@@ -813,7 +813,7 @@ Ubah baris DoD (166-167) menjadi:
 - Definition of done: test yang tersentuh hijau · docs tersentuh diperbarui + ter-link · diff bersih di worktree, siap push ke target branch.
 ```
 
-- [ ] **Step 7: Perbarui `AGENTS.md`** (bagian "Definition of done", baris 42-47)
+- [x] **Step 7: Perbarui `AGENTS.md`** (bagian "Definition of done", baris 42-47)
 
 ```markdown
 ## Definition of done
@@ -830,7 +830,7 @@ Ubah baris DoD (166-167) menjadi:
 - Diff bersih di worktree; siap push ke target branch.
 ```
 
-- [ ] **Step 8: Perbarui `CLAUDE.md`** (butir terakhir bagian "Kebiasaan")
+- [x] **Step 8: Perbarui `CLAUDE.md`** (butir terakhir bagian "Kebiasaan")
 
 ```markdown
 - **Setiap selesai satu task execute:** centang checklist task/step yang selesai di file plan
@@ -841,12 +841,12 @@ Ubah baris DoD (166-167) menjadi:
   Kalau masih ada issue, fixing dulu sampai hijau sebelum lanjut ke task berikutnya.
 ```
 
-- [ ] **Step 9: Verifikasi integritas index docs**
+- [x] **Step 9: Verifikasi integritas index docs**
 
 Run: `node cli/dist/index.js docs index --check 2>/dev/null || npx tsx cli/src/index.ts docs index --check`
 Expected: index konsisten (semua doc ter-link). Bila CLI belum ter-build, cukup pastikan tautan ADR baru ada di `internal/docs/README.md` dengan `grep -n "0080" internal/docs/README.md`.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add internal/docs/adr/0080-scope-verifikasi-per-sesi.md internal/docs/README.md internal/docs/architecture/api-contract.md internal/docs/architecture/nfr.md internal/skills/hanoman/SKILL.md AGENTS.md CLAUDE.md

@@ -260,6 +260,10 @@ GET/PUT  /settings                      # Setting blob (zSetting): model, effort
 #                                         agent: "claude"|"codex" (default "claude") + codex { model:"gpt-5.6-sol",
 #                                           effort:"xhigh" } (SPEC-338/ADR-0074) — mesin sesi default + katalog
 #                                           model/effort codex. model/effort di akar TETAP milik claude.
+#                                         verifyScope: "changed"|"full" (default "changed") — SPEC-376/ADR-0080 ·
+#                                           scope verifikasi default sesi backlog; per sesi di-override saat Start.
+#                                           Kunci selalu ADA di response (zod .default()), jadi baris Setting lama
+#                                           tetap parse tanpa migration.
 #                                           Keduanya .default() → baris lama tetap parse, TANPA migration.
 #                                         SPEC-339 · blok codex dinormalkan saat DIBACA: model pensiun
 #                                           (gpt-5.4, gpt-5.4-mini, gpt-5.3-codex-spark) → gpt-5.5, lalu effort
@@ -354,8 +358,18 @@ POST   /terminal/sessions  {project, flow?} # 201 { id } · 404 project · 400 t
 #   {project, shell:true} (SPEC-236, ADR-0056): terminal biasa NON-agen — shell mentah
 #     (HANOMAN_SHELL ?? $SHELL ?? /bin/bash) di repoDir project, tanpa flow (tak menggerakkan stage,
 #     tak buat worktree). 201 { id } · 404 project · 400 tanpa repoDir (needsBind).
-#   {spec, flow, model?, effort?, goal?, goalCondition?, agent?} (SPEC-162; model/effort SPEC-252/ADR-0061;
-#     goal SPEC-332/ADR-0073; agent SPEC-338/ADR-0074): sesi backlog di worktree .worktrees/<spec>, prompt pipeline penuh.
+#   {spec, flow, model?, effort?, goal?, goalCondition?, agent?, verifyScope?} (SPEC-162; model/effort SPEC-252/ADR-0061;
+#     goal SPEC-332/ADR-0073; agent SPEC-338/ADR-0074; verifyScope SPEC-376/ADR-0080):
+#     sesi backlog di worktree .worktrees/<spec>, prompt pipeline penuh.
+#     verifyScope?: "changed"|"full" — scope verifikasi PER SESI; kosong → Setting.verifyScope
+#       (default "changed"). "changed" menyisipkan klausa scope ke prompt (uji berkas yang berubah
+#       saja: `vitest --changed "$HANOMAN_BASE_SHA"`/`vitest related`, typecheck per paket, lint per
+#       berkas, build & smoke server hanya bila relevan) dan HANYA untuk flow ber-fase Execute —
+#       flow dokumen (audit/cross-audit) tak menulis kode jadi tak membawanya. "full" = prompt
+#       persis seperti sebelum SPEC-376. Sesi juga lahir membawa env HANOMAN_BASE_SHA (= commit
+#       tempat worktree lahir, wajib karena worktree `--detach` tak punya `main`) dan
+#       HANOMAN_VERIFY_SCOPE. BUKAN gerbang: tak ada hook yang menolak perintah (ADR-0037 utuh).
+#       Nilai di luar "changed"|"full" → 400 (ditolak zod SEBELUM lookup spec).
 #     agent?: "claude"|"codex" — override PER SESI; kosong → Setting.agent. Agen menentukan katalog
 #       model/effort default (claude → Setting.model/effort, codex → Setting.codex.model/effort) dan
 #       bentuk argv: claude `--model/--effort/--settings`, codex `-m / -c model_reasoning_effort / -c hooks.*`.
