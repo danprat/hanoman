@@ -250,6 +250,19 @@ Pakai skill lebih sempit saat task cocok:
 
 - **SoT sebagai konvensi** (ADR-0023, supersedes ADR-0001): `internal/docs/**` tetap Source of Truth — diperbarui dalam **commit yang sama** & ter-link di index (`internal/docs/README.md`). Tapi guardrail/Stop hook/gate Execute yang menegakkannya **dicabut** (SPEC-160). `hanoman docs scan` tetap ada sebagai laporan coverage read-only. **Jangan menambahkan gate kembali tanpa ADR baru.**
 - **Nomor SPEC & ADR unik & imutable**; ADR usang tidak dihapus — ditandai statusnya. Sibling worktree bisa mereservasi nomor yang sama — **enumerasi lintas semua branch** sebelum mengklaim nomor (ADR-0021).
+- **Dokumen audit berumur, ADR tidak** (SPEC-386/ADR-0083): laporan
+  `internal/docs/research/audit-<spec>-<slug>.md` hidup sampai eskalasinya diputuskan (ADR-0076) dan
+  spec turunannya tuntas, lalu **dihapus berikut entri indexnya**. Tiga syarat: temuannya sudah punya
+  **jejak permanen** (ADR, baris di doc SoT, atau kode ter-commit); **rujukan masuk ikut dibereskan** —
+  doc permanen kerap menaut dokumen auditnya, dan melewatkannya meninggalkan link mati di doc yang
+  justru dimaksudkan abadi (di SPEC-386 ada empat: ADR-0062/0064/0081 + `frontend-implementation.md`);
+  dan index **tidak** menyimpan abstrak audit. **Struktur index sejak SPEC-386:**
+  `internal/docs/README.md` memuat **satu baris per ADR** (nomor · judul · penanda status), sedangkan
+  **narasi** tiap keputusan hidup di sub-index `internal/docs/adr/README.md` — ADR baru wajib ditaut di
+  **keduanya**. Reachability aman karena coverage memakai BFS graf link (`linkedSetFrom`), bukan daftar
+  datar, jadi doc yang hanya ter-link lewat sub-index tetap terhitung `linked`. Alasan pemisahan: index
+  dibaca **setiap** sesi agen; sebelum SPEC-386 94% isinya (46,6 KB) adalah changelog ADR + abstrak
+  audit, sekarang ±9 KB.
 - **Alur fitur:** spec → plan → execute. **Alur QA:** audit → keputusan → (spec → plan)? → execute — temuan kecil langsung execute, Spec & Plan ditandai `skipped`; keputusan dielicit lewat prompt & diambil agen (ADR-0020/0040). **Alur audit-only** (SPEC-237/ADR-0057): audit → laporan (dokumen), berhenti; tanpa perbaikan, promotable ke Finding QA.
 - Prompt sesi memetakan fase → skill superpowers: Brainstorm→brainstorming, Audit→systematic-debugging, Plan→writing-plans, Execute→executing-plans + TDD + verification-before-completion.
 - Ikuti design system di `internal/docs/design-system/**` (editorial, bone paper, brass accent).

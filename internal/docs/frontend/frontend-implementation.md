@@ -293,8 +293,9 @@ fungsi `download`, jadi ia tak tahu apa-apa soal spec/ide/review.
 pengaman). `anywhere`, **bukan** `break-word`: hanya `anywhere` yang mengecilkan *min-content*,
 dan min-content itulah yang membuat rantai inline `code` tanpa spasi serta tabel lebar mendorong
 container. Terukur di Chrome atas 353 `.md` nyata: 33 dokumen menggulir horizontal → 0, dan 187
-dokumen ber-`pre` menggulir → 0 (harga: konten 12,5% lebih tinggi). Rincian & metode di
-[audit SPEC-363](../research/audit-spec-363-preview-docs-menggulir-samping.md).
+dokumen ber-`pre` menggulir → 0 (harga: konten 12,5% lebih tinggi). Metode pengukurannya dulu hidup di
+dokumen audit SPEC-363; dokumen itu dipensiunkan di SPEC-386
+([ADR-0083](../adr/0083-retensi-dokumen-audit.md)) — naskah penuhnya ada di riwayat git.
 
 **Jendela pratinjau setinggi ruang yang ada, bukan angka tetap** (SPEC-363). `62vh`
 (`SpecDocsModal`) dan `maxHeight: 620` (`DocsWorkspace`, `IdeScreen` Explorer) dicabut: yang

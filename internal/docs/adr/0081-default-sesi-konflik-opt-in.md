@@ -29,8 +29,9 @@ Pekerjaan menyelesaikan konflik berbeda bentuknya dari mengeksekusi backlog: sko
 effort sesi Execute berarti membayar effort tertinggi untuk pekerjaan yang sebagian besar mekanis.
 
 Ironisnya dialog Rebase/Merge sudah menjanjikan hal ini secara harfiah — *"memakai agen, model &
-effort dari Settings"* — sementara Settings tak punya barisnya. Detail temuan:
-[audit SPEC-383](../research/audit-spec-383-setting-model-sesi.md).
+effort dari Settings"* — sementara Settings tak punya barisnya. Detail temuannya dulu hidup di dokumen
+audit SPEC-383; dokumen itu dipensiunkan di SPEC-386 ([ADR-0083](0083-retensi-dokumen-audit.md)) —
+ringkasannya ada di ledger ADR itu, naskah penuhnya di riwayat git.
 
 ## Keputusan
 

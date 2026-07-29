@@ -2,7 +2,7 @@
 
 **Status:** accepted · **Tanggal:** 2026-07-21 · **Spec:** SPEC-255
 **Terkait:** SPEC-146 (id kekal — sebagian **dicabut** di sini) · [ADR-0045](0045-skema-sync-synclog-version-stamp.md)/[0046](0046-kanal-ws-sync-terpisah.md) (sync) · [ADR-0060](0060-error-monitoring-ingest-ber-dsn.md) (DSN) · [ADR-0062](0062-help-center-tiket-publik-triase.md) (Help Center)
-**Doc-of-record audit:** [audit SPEC-255](../research/audit-spec-255-edit-id-project.md)
+**Doc-of-record audit:** audit SPEC-255 — dokumen auditnya dipensiunkan di SPEC-386 ([ADR-0083](0083-retensi-dokumen-audit.md)); **ADR ini** adalah rekaman permanennya.
 
 ## Konteks
 
