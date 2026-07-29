@@ -130,8 +130,11 @@ POST /specs/:id/integrate     { op:"merge"|"rebase", target:"local:<b>"|"origin:
 #     tak di-checkout, else fast-forward `git merge --ff-only` di worktree pemiliknya (409 bila working tree
 #     kotor/bukan-ff — commit/stash lalu ulangi atau pilih origin); target origin `git push` (409 non-ff). rebase → replay branch
 #     spec di atas target, bersih → `git push --force-with-lease` ke hanoman/<id>.
-#   Bersih → 200 { status:"clean", detail }. Conflict → 200 { status:"conflict", sessionId } — sesi claude di
+#   Bersih → 200 { status:"clean", detail }. Conflict → 200 { status:"conflict", sessionId } — sesi agen di
 #     worktree konflik itu menyelesaikannya (dibuka di Terminal). 400 op/target invalid; 409 non-done/source hilang.
+#   SPEC-377 · sesi konflik itu lahir dari Setting.agent + model/effort blok agen itu (codex →
+#     ensureCodexTrust dulu), sama seperti POST /terminal/sessions/:id/integrate. Body tak menerima
+#     agent/model/effort — pilihan agen hidup di Settings, bukan per-request.
 ```
 
 ## Docs (project SoT)
@@ -210,9 +213,11 @@ POST   /projects/:id/git                { op, ...args, force? }   # { ok, stdout
 ```
 # Merge isolasi (SPEC-229/ADR-0053) — bentuk { status:"clean",detail } | { status:"conflict",sessionId }
 POST   /projects/:id/git/merge          { source, ff?, deleteBranch? }   # merge → branch current, worktree isolasi
-POST   /projects/:id/git/rebase         { onto }                         # rebase branch current → onto (isolasi + claude)
-POST   /projects/:id/git/pull           { source, ff? }                  # pull remote branch → current (isolasi + claude)
-POST   /projects/:id/git/drop           { sha }                          # buang satu commit dari branch current (isolasi + claude)
+POST   /projects/:id/git/rebase         { onto }                         # rebase branch current → onto (isolasi + sesi agen)
+POST   /projects/:id/git/pull           { source, ff? }                  # pull remote branch → current (isolasi + sesi agen)
+POST   /projects/:id/git/drop           { sha }                          # buang satu commit dari branch current (isolasi + sesi agen)
+#   SPEC-377 · sesi penyelesai konflik keempatnya lahir dari Setting.agent + model/effort blok agen itu
+#   (codex → ensureCodexTrust dulu). Tak ada override per-request: pilihan agen hidup di Settings.
 # Read live (ADR-0018) — tanpa cache/kolom DB
 GET    /projects/:id/status             # { branch, ahead, behind, staged[], unstaged[], untracked[], clean }
 GET    /projects/:id/stashes            # [{ ref, message, at }]

@@ -6,7 +6,8 @@ import { downloadFormat, sendDocDownload } from "../services/doc-export";
 import { prisma } from "../db";
 import { resolveRepoDir } from "../services/local-binding";
 import { listSessions, createSession } from "../services/pty";
-import { sessionModel } from "../services/settings";
+import { sessionAgentDefaults } from "../services/settings";
+import { ensureCodexTrust } from "../services/codex-trust";
 import { mergeIntoCurrent, rebaseOntoCurrent, pullIntoCurrent, dropCommit, sourceBranch, type GraphMergeResult } from "../services/integrate";
 import { listUnusedBranches, deleteBranches, type BranchScope } from "../services/branch-cleanup";
 import {
@@ -258,7 +259,7 @@ export default async function (app: FastifyInstance) {
   });
 
   // SPEC-229 · merge via git graph (ADR-0053): deterministik di worktree isolasi (working tree utama
-  // tak pernah dirusak), konflik → spawn sesi claude di worktree itu. Tanpa gerbang sesi aktif —
+  // tak pernah dirusak), konflik → spawn sesi agen di worktree itu. Tanpa gerbang sesi aktif —
   // isolasi + ff-aman menggantikan alasan 409 lama. Bentuk response mirror POST /specs/:id/integrate.
   app.post("/projects/:id/git/merge", async (req, reply) => {
     const { id } = req.params as { id: string };
@@ -271,10 +272,10 @@ export default async function (app: FastifyInstance) {
     if (b.deleteBranch !== undefined && !(typeof b.deleteBranch === "string" && b.deleteBranch)) return reply.code(400).send({ error: "deleteBranch harus string tak kosong" });
     const r = await mergeIntoCurrent(repoDir, b.source, {
       ff: b.ff as "no-ff" | "ff-only" | undefined, deleteBranch: b.deleteBranch as string | undefined });
-    return finishGraphOp(reply, id, r, "merge");
+    return finishGraphOp(reply, id, repoDir, r, "merge");
   });
 
-  // SPEC-233/ADR-0055 · rebase branch current ke commit/branch (isolasi + konflik → sesi claude).
+  // SPEC-233/ADR-0055 · rebase branch current ke commit/branch (isolasi + konflik → sesi agen).
   app.post("/projects/:id/git/rebase", async (req, reply) => {
     const { id } = req.params as { id: string };
     const repoDir = await repoOf(id);
@@ -282,10 +283,10 @@ export default async function (app: FastifyInstance) {
     if (!repoDir) return reply.code(400).send({ error: "project tidak punya repoDir" });
     const b = req.body as { onto?: unknown };
     if (typeof b?.onto !== "string" || !b.onto) return reply.code(400).send({ error: "onto wajib" });
-    return finishGraphOp(reply, id, await rebaseOntoCurrent(repoDir, b.onto), "rebase");
+    return finishGraphOp(reply, id, repoDir, await rebaseOntoCurrent(repoDir, b.onto), "rebase");
   });
 
-  // SPEC-233 · pull remote branch ke current (fetch + merge, isolasi + konflik → sesi claude).
+  // SPEC-233 · pull remote branch ke current (fetch + merge, isolasi + konflik → sesi agen).
   app.post("/projects/:id/git/pull", async (req, reply) => {
     const { id } = req.params as { id: string };
     const repoDir = await repoOf(id);
@@ -294,10 +295,10 @@ export default async function (app: FastifyInstance) {
     const b = req.body as { source?: unknown; ff?: unknown };
     if (typeof b?.source !== "string" || !b.source) return reply.code(400).send({ error: "source wajib" });
     if (b.ff !== undefined && b.ff !== "no-ff" && b.ff !== "ff-only") return reply.code(400).send({ error: "ff harus no-ff atau ff-only" });
-    return finishGraphOp(reply, id, await pullIntoCurrent(repoDir, b.source, { ff: b.ff as "no-ff" | "ff-only" | undefined }), "pull");
+    return finishGraphOp(reply, id, repoDir, await pullIntoCurrent(repoDir, b.source, { ff: b.ff as "no-ff" | "ff-only" | undefined }), "pull");
   });
 
-  // SPEC-233 · buang satu commit dari branch current (isolasi + konflik → sesi claude).
+  // SPEC-233 · buang satu commit dari branch current (isolasi + konflik → sesi agen).
   app.post("/projects/:id/git/drop", async (req, reply) => {
     const { id } = req.params as { id: string };
     const repoDir = await repoOf(id);
@@ -305,7 +306,7 @@ export default async function (app: FastifyInstance) {
     if (!repoDir) return reply.code(400).send({ error: "project tidak punya repoDir" });
     const b = req.body as { sha?: unknown };
     if (typeof b?.sha !== "string" || !b.sha) return reply.code(400).send({ error: "sha wajib" });
-    return finishGraphOp(reply, id, await dropCommit(repoDir, b.sha), "drop");
+    return finishGraphOp(reply, id, repoDir, await dropCommit(repoDir, b.sha), "drop");
   });
 
   // SPEC-360 · ADR-0077 · daftar branch yang sudah ter-merge ke base + alasan kunci per branch.
@@ -340,17 +341,23 @@ export default async function (app: FastifyInstance) {
 }
 
 // SPEC-233 · penyelesaian seragam operasi graph isolasi (merge/rebase/pull/drop): error → kode;
-// clean → { status, detail }; conflict → spawn sesi claude di worktree yang tertinggal → sessionId.
-async function finishGraphOp(reply: import("fastify").FastifyReply, id: string, r: GraphMergeResult, verb: string) {
+// clean → { status, detail }; conflict → spawn sesi agen di worktree yang tertinggal → sessionId.
+// SPEC-377 · ADR-0074 · agen/model/effort dari Setting (cermin POST /terminal/sessions/:id/integrate).
+// `repoDir` diteruskan pemanggil — keempatnya sudah me-resolve-nya untuk menjalankan operasi git.
+async function finishGraphOp(
+  reply: import("fastify").FastifyReply, id: string, repoDir: string, r: GraphMergeResult, verb: string,
+) {
   if (r.status === "error") return reply.code(r.code).send({ error: r.error });
   if (r.status === "clean") return { status: "clean", detail: r.detail };
-  const { model, effort } = await sessionModel();
+  const { agent, model, effort } = await sessionAgentDefaults();
+  // Gerbang trust codex dibuka untuk ROOT REPO; worktree `.worktrees/merge-*` mewarisinya.
+  if (agent === "codex") ensureCodexTrust(repoDir);
   const prompt = [
     `hanoman · selesaikan konflik ${verb} \`${r.source}\` → \`${r.target}\`.`,
     `Kamu berada di worktree yang tertinggal di tengah ${verb} dengan konflik. Resolve konflik pada file bertanda, jaga kedua sisi perubahan sesuai maksudnya.`,
     r.finalize,
     `${verb} via git graph project ${id}.`,
   ].join("\n\n");
-  const s = createSession(id, r.worktree, { id: basename(r.worktree), model, effort, prompt });
+  const s = createSession(id, r.worktree, { id: basename(r.worktree), model, effort, agent, prompt });
   return { status: "conflict", sessionId: s.id };
 }

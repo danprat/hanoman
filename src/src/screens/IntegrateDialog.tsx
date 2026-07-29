@@ -32,7 +32,8 @@ export function IntegrateDialog({ projectId, ownBranch, eyebrow, onClose, onInte
     <Modal open title="Rebase / Merge" eyebrow={`${eyebrow} · ${own}`} icon="git-merge" onClose={onClose}>
       <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.5 }}>
         Rebase menata ulang branch di atas target (force-push balik ke branch itu). Merge
-        menggabungkan branch ke target. Bila ada konflik, sesi claude membereskannya di Terminal.
+        menggabungkan branch ke target. Bila ada konflik, sesi agen membereskannya di Terminal —
+        memakai agen, model & effort dari Settings.
       </div>
       <div style={{ marginBottom: 16 }}>
         <div className="hn-eyebrow" style={{ marginBottom: 4 }}>Target</div>

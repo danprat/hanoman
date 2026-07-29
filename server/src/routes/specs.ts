@@ -3,7 +3,8 @@ import { existsSync } from "node:fs";
 import { zCreateSpec, zPatchSpec, zIntegrate, zBatchCreateSpec, type Stage } from "@hanoman/shared";
 import { integrate, sourceBranch } from "../services/integrate";
 import { createSession } from "../services/pty";
-import { sessionModel } from "../services/settings";
+import { sessionAgentDefaults } from "../services/settings";
+import { ensureCodexTrust } from "../services/codex-trust";
 import { prisma } from "../db";
 import { specReview, reviewFile, worktreeDir, specCommitRange, specReviewRange, reviewFileRange, shaResolvable } from "../services/spec-review";
 import { nextSpecId } from "../services/id";
@@ -239,9 +240,14 @@ export default async function (app: FastifyInstance) {
     const r = await integrate(repoDir, spec.id, parsed.data.op, parsed.data.target);
     if (r.status === "error") return reply.code(r.code).send({ error: r.error });
     if (r.status === "clean") return { status: "clean", detail: r.detail };
-    // conflict → sesi claude interaktif di worktree yang tertinggal (never touch main working tree).
+    // conflict → sesi agen interaktif di worktree yang tertinggal (never touch main working tree).
     // Tanpa flow: tak menggerakkan stage; worktree-nya dibersihkan saat sesi ditutup (terminal.ts DELETE).
-    const { model, effort } = await sessionModel();
+    // SPEC-377 · ADR-0074 · ikut agen default global (cermin POST /terminal/sessions/:id/integrate).
+    // `sessionModel()` hanya membaca blok claude, jadi memakainya di sini membuat sesi konflik selalu
+    // lahir claude dengan model default — apa pun isi Settings.
+    const { agent, model, effort } = await sessionAgentDefaults();
+    // Gerbang trust codex dibuka untuk ROOT REPO; worktree `.worktrees/merge-*` mewarisinya.
+    if (agent === "codex") ensureCodexTrust(repoDir);
     const prompt = [
       `hanoman · selesaikan konflik ${r.op} branch \`${sourceBranch(spec.id)}\` ${r.op === "merge" ? "ke" : "di atas"} \`${r.target}\`.`,
       `Kamu berada di worktree yang tertinggal di tengah operasi ${r.op} dengan konflik. Resolve konflik pada file bertanda, jaga kedua sisi perubahan sesuai maksudnya.`,
@@ -250,7 +256,7 @@ export default async function (app: FastifyInstance) {
     ].join("\n\n");
     const s = createSession(spec.projectId, r.worktree, {
       id: `merge-${spec.id.toLowerCase().replace(/[^a-z0-9_-]/g, "_")}`,
-      specId: spec.id, model, effort, prompt,
+      specId: spec.id, model, effort, agent, prompt,
     });
     return { status: "conflict", sessionId: s.id };
   });
