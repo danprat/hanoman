@@ -3,8 +3,9 @@
 **Status:** accepted · **Tanggal:** 2026-07-20 · **Spec:** SPEC-253
 **Amandemen:** SPEC-352 (2026-07-28) — keputusan honeypot **tidak** dibalik, tapi field-nya berganti
 nama `hp` → `hc_trap` (+ `autocomplete="new-password"`) karena `hp` diisi autofill browser untuk
-pelapor sungguhan, dan rate-limit per-IP kini short-circuit. Rincian & bukti:
-[audit SPEC-352](../research/audit-spec-352-help-desk-tiket-tidak-masuk.md).
+pelapor sungguhan, dan rate-limit per-IP kini short-circuit. Bukti detailnya dulu hidup di dokumen
+audit SPEC-352; dokumen itu dipensiunkan di SPEC-386 ([ADR-0083](0083-retensi-dokumen-audit.md)) —
+ringkasan temuannya ada di ledger ADR itu, naskah penuhnya di riwayat git.
 **Terkait:** [ADR-0060](0060-error-monitoring-ingest-ber-dsn.md) (pola endpoint publik ber-scope-project + jembatan ke Spec — SPEC-253 menutup jalur **manusia → backlog**, ADR-0060 menutup **mesin → backlog**),
 [ADR-0028](0028-auth-sesi-opaque-di-db.md) (auth sesi menggerbangi `/api`),
 [ADR-0044](0044-device-token-machine-identity.md) (kunci hash-at-rest, pola verifikasi),
