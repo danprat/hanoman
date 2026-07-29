@@ -6,7 +6,7 @@ import { buildCrossAuditCtx, crossAuditSessionOpts } from "./cross-audit";
 import { resolveRepoDir } from "./local-binding";
 import { getSetting } from "./settings";
 import { ensureCodexTrust } from "./codex-trust";
-import { createSession, getSession, sessionIdForSpec } from "./pty";
+import { createSession, getSession, killSession, sessionIdForSpec } from "./pty";
 import { phaseFilePath, decisionFilePath } from "./session-phases";
 
 // Re-ekspor supaya pemanggil (governor, test) punya satu titik impor jalur peluncuran.
@@ -41,9 +41,14 @@ export async function startSpecSession(
   if (!repoDir) throw new LaunchError(`project "${spec.projectId}" belum di-bind ke checkout lokal`, "needs-bind");
 
   const id = sessionIdForSpec(spec.id);
-  // Sesi hidup: JANGAN bangun ulang worktree (ada kerja belum-commit) — re-attach (ADR-0015).
-  const live = getSession(id);
-  if (live) return { id: live.id, reused: true };
+  // SPEC-394 · ADR-0084 — pane HIDUP adalah sesinya: re-attach (ADR-0015), jangan sentuh apa pun.
+  // Pane MATI bukan sesi: tmux menahannya (`remain-on-exit on`) hanya supaya layar terakhirnya
+  // masih terbaca. Mengembalikannya sebagai "sesi" membuat tombol Lanjutkan diam — UI sendiri
+  // sudah menghitung `!exited`, jadi tombol itu muncul persis saat pane-nya mati. Dibunuh dulu
+  // (SPEC-362: menutup baris SessionHistory + menyimpan transkrip pane) lalu dilahirkan ulang.
+  const pane = getSession(id);
+  if (pane && !pane.exited) return { id: pane.id, reused: true };
+  if (pane) killSession(id);
 
   // SPEC-252 · ADR-0061 · model/effort per SESI: default global, override per-instance opsional.
   // Satu bacaan Setting dipakai bersama resolusi mode goal di bawah.
