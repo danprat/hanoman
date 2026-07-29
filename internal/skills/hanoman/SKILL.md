@@ -135,6 +135,32 @@ Pakai skill lebih sempit saat task cocok:
   `git worktree remove` di dalamnya gagal-diam (`tryGit`), jadi `rmSync` terakhir tetap jalan meski
   git menolak.
 - **Satu backlog = satu sesi** (ADR-0015): id sesi diturunkan deterministik dari id spec — menekan Start dua kali = **re-attach**, bukan spawn kedua.
+- **Sesi backlog DILANJUTKAN, bukan diulang** (SPEC-394/ADR-0084, memulihkan substansi ADR-0017 yang
+  ikut tercabut bersama ADR-0024 atas premis "sesi tmux tak pernah terputus" — benar untuk restart
+  API, **salah** untuk mesin restart / agen keluar / operator menutup sesi): `startSpecSession` punya
+  **tiga** keadaan, bukan dua. **live** = pane tmux hidup → re-attach. **resume** = `stage ≠ done` +
+  `baseSha` ada + artefak masih ada → lanjutkan (`201 { id, resumed: true }`). **fresh** = selain itu.
+  **Pane MATI bukan sesi** — `remain-on-exit on` menahannya hanya agar layar terakhirnya terbaca, dan
+  mengembalikannya sebagai sesi membuat tombol "Lanjutkan" **diam** (UI sudah menghitung `!exited`,
+  jadi tombol itu muncul persis saat pane mati); ia dibunuh dulu (menutup `SessionHistory` + simpan
+  transkrip, ADR-0079) lalu sesi dilahirkan ulang. Dua bentuk resume: worktree `.worktrees/<id>` yang
+  masih sah dipakai **apa adanya** — satu-satunya jalur yang TIDAK memanggil `addWorktree`, karena
+  helper itu selalu merebut path dengan `remove --force` + `rmSync` — atau, bila worktree hilang,
+  dibangun ulang `--detach` di tip **`origin/hanoman/<id>` → `hanoman/<id>` → `Spec.headSha`**.
+  Urutan itu mengikat: `origin/…` adalah ref yang `git push` di akhir sesi harus fast-forward, dan
+  worktree yang lahir dari `branchFrom` membuat push itu **ditolak non-fast-forward** (terukur —
+  sesi ulangan bahkan tak bisa menyimpan hasil ulangannya). `baseSha` & `headSha` **tak pernah
+  ditulis ulang saat resume** (rentang review ADR-0030 tetap dari basis asli); `baseSha` null =
+  belum pernah punya worktree = bukan resume. Prompt-nya `resumePrompt` yang menyebut baris fase
+  yang sudah tercatat + fase berikutnya + bentuk worktree-nya, dan **tak mengulang** klausa keputusan
+  pasca-Audit (ADR-0040) begitu `Audit` tercatat — keputusannya sudah mewujud sebagai baris fase.
+  Server **tak pernah menulis** ke `$HANOMAN_PHASE_FILE` (tetap milik agen, append-only). Ia hidup
+  di luar worktree, jadi ia **selamat** dari penghapusan worktree — itulah kenapa server bisa
+  menyebutkannya dan agen tidak bisa menurunkannya sendiri. `stage = done` tetap jalur SPEC-172
+  (`continuePrompt`, worktree dari `branchFrom`) — kerjanya umumnya sudah ter-merge. `worktreeAlive`
+  bertanya ke **git** (`rev-parse --is-inside-work-tree` + toplevel = path itu sendiri), bukan
+  `existsSync`: direktori telanjang di dalam repo pun "ada". Berlaku juga untuk governor scheduler
+  (jalur peluncuran sama), dan **belum** untuk sesi project-level (reverse/prd/scaffold/cross-audit).
 - Sesi berjalan di worktree sendiri di `<repoDir>/.worktrees/<id>`, dibuat `--detach` dari `branchFrom` (default `main`); `baseSha` dicatat untuk rentang review (ADR-0030). Jenis sesi: **spec-flow** (feature/qa/audit), **reverse** (project-level), **prd**, **plain terminal** (claude di repoDir; atau shell mentah non-claude via `{shell:true}`, SPEC-236/ADR-0056), **integrate-conflict** (merge-<id>), **vps**. Flow **audit** (SPEC-237/ADR-0057) = audit-only: pipeline `Audit → Laporan`, hanya dokumen SoT (`research/audit-<id>-<slug>.md`), tanpa Execute; bisa dinaikkan jadi Finding QA.
 - **Fase bukan proses melainkan giliran** dalam satu sesi: `runner/src/prompt.ts` `PIPELINES` mendefinisikan nama fase per flow; prompt menyuruh agen `echo "<Fase> done" >> $HANOMAN_PHASE_FILE`. Server membaca file append-only itu (`services/session-phases.ts`) untuk menurunkan fase aktif → `Stage`. Konteks terbawa antar fase karena semuanya satu sesi.
 - **Kontrak otonomi** (ADR-0035): agen menembus batas antar-fase tanpa berhenti — checkpoint "review" milik skill superpowers **bukan** titik berhenti — dan hanya berhenti untuk bertanya di terminal saat butuh keputusan manusia sejati. Waspada: subagent async bisa bikin agen `end_turn` dan runner mengira fase selesai (fase jadi dangkal).

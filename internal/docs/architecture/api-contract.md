@@ -399,6 +399,17 @@ POST   /terminal/sessions  {project, flow?} # 201 { id } · 404 project · 400 t
 #   {spec, flow, model?, effort?, goal?, goalCondition?, agent?, verifyScope?} (SPEC-162; model/effort SPEC-252/ADR-0061;
 #     goal SPEC-332/ADR-0073; agent SPEC-338/ADR-0074; verifyScope SPEC-376/ADR-0080):
 #     sesi backlog di worktree .worktrees/<spec>, prompt pipeline penuh.
+#     201 { id } · 201 { id, resumed: true } bila peluncuran MELANJUTKAN sesi yang sudah berjalan
+#       (SPEC-394/ADR-0084). TIGA keadaan: pane tmux HIDUP → re-attach (ADR-0015), tak menyentuh
+#       apa pun. Pane MATI (`remain-on-exit on` menahannya) → dibunuh dulu lalu sesi dilahirkan
+#       ulang — pane mati BUKAN sesi. Resume bila stage ≠ done DAN baseSha ada DAN artefaknya masih
+#       ada: worktree .worktrees/<id> yang masih sah dipakai APA ADANYA (tak dihapus), atau — bila
+#       hilang — dibangun ulang `--detach` di tip origin/hanoman/<id> → hanoman/<id> → Spec.headSha
+#       (urutan mengikat: origin/… adalah ref yang push di akhir sesi harus fast-forward). baseSha &
+#       headSha TIDAK ditulis ulang saat resume (rentang review ADR-0030 tetap dari basis asli), dan
+#       prompt = resumePrompt yang menyebut baris fase yang sudah tercatat + fase berikutnya.
+#       Selain itu → fresh: persis perilaku sebelum SPEC-394. stage = done tetap jalur SPEC-172
+#       (continuePrompt, worktree dari branchFrom). Server tak pernah menulis $HANOMAN_PHASE_FILE.
 #     verifyScope?: "changed"|"full" — scope verifikasi PER SESI; kosong → Setting.verifyScope
 #       (default "changed"). "changed" menyisipkan klausa scope ke prompt (uji berkas yang berubah
 #       saja: `vitest --changed "$HANOMAN_BASE_SHA"`/`vitest related`, typecheck per paket, lint per
