@@ -120,6 +120,36 @@ describe("startPrompt", () => {
       expect(p).toContain("keputusan manusia");
     }
   });
+
+  // SPEC-376 · ADR-0080 · scope verifikasi. Default pemanggil lama (parameter absen) harus
+  // tetap seperti dulu: tanpa klausa. Klausa hanya muncul saat diminta eksplisit.
+  it("tanpa parameter verifyScope, prompt tak memuat klausa scope (kompatibel mundur)", () => {
+    const p = startPrompt("feature", spec, "hanoman/spec-162");
+    expect(p).not.toContain("$HANOMAN_BASE_SHA");
+  });
+
+  it("verifyScope changed menyisipkan klausa scope ke prompt", () => {
+    const p = startPrompt("feature", spec, "hanoman/spec-162", undefined, "changed");
+    expect(p).toContain("$HANOMAN_BASE_SHA");
+    expect(p).toContain("Scope verifikasi");
+  });
+
+  it("verifyScope full tak menyisipkan klausa apa pun", () => {
+    const p = startPrompt("feature", spec, "hanoman/spec-162", undefined, "full");
+    expect(p).not.toContain("$HANOMAN_BASE_SHA");
+  });
+
+  // Flow audit-only tak menulis kode → tak ada test untuk dijalankan; klausa di sana hanya
+  // menambah token. Sengaja tak disisipkan meski scope-nya `changed`.
+  it("flow audit tak membawa klausa scope walau verifyScope changed", () => {
+    const p = startPrompt("audit", spec, "hanoman/spec-237", undefined, "changed");
+    expect(p).not.toContain("$HANOMAN_BASE_SHA");
+  });
+
+  it("continuePrompt ikut membawa klausa scope", () => {
+    const p = continuePrompt("feature", spec, "hanoman/spec-162", undefined, "changed");
+    expect(p).toContain("$HANOMAN_BASE_SHA");
+  });
 });
 
 // SPEC-298 · klausa autonomy per mode untuk sesi yang diluncurkan scheduler.

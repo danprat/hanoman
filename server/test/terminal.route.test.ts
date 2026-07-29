@@ -122,6 +122,22 @@ describe("terminal routes", () => {
     expect(noDir.statusCode).toBe(400);
   });
 
+  // SPEC-376 · ADR-0080 · body verifyScope divalidasi di batas HTTP. Nilai tak dikenal ditolak
+  // zod SEBELUM lookup spec, jadi 400 (bukan 404) walau spec-nya memang tak ada — itulah yang
+  // membedakan "bentuk body salah" dari "spec tak ketemu".
+  it("POST /terminal/sessions menolak verifyScope yang tak dikenal", async () => {
+    const bad = await app.inject({
+      method: "POST", url: "/api/terminal/sessions",
+      payload: { spec: "SPEC-TIDAKADA", flow: "feature", verifyScope: "sebagian" },
+    });
+    expect(bad.statusCode).toBe(400);
+    const ok = await app.inject({
+      method: "POST", url: "/api/terminal/sessions",
+      payload: { spec: "SPEC-TIDAKADA", flow: "feature", verifyScope: "changed" },
+    });
+    expect(ok.statusCode).toBe(404);   // bentuk body sah; spec-nya yang tak ada
+  });
+
   it("closes the socket for an unknown session id", async () => {
     const c = connect("tidakada");
     c.opened.catch(() => {}); // socket ini memang ditutup; jangan biarkan rejection-nya menganggur

@@ -41,7 +41,14 @@ hanoman --version | --help
 
 ## Definition of done
 
-- Test hijau (`vitest run --no-file-parallelism`).
+- **Test yang tersentuh** hijau — `pnpm vitest --run --changed "$HANOMAN_BASE_SHA"` (atau sebut path
+  test-nya langsung) dan typecheck paket yang tersentuh (`pnpm --filter ./server typecheck`). Sesi
+  hanoman default `verifyScope=changed` (SPEC-376, ADR-0080): jangan menjalankan suite penuh,
+  `pnpm -r typecheck`, atau build penuh sebagai rutinitas — mesin ini menjalankan beberapa sesi
+  sekaligus. Perluas scope hanya bila perubahannya memang berdampak luas, dan katakan alasannya.
+  Jebakan: `--changed` menyalakan `passWithNoTests`, jadi nol test **terlihat hijau**.
+- Suite penuh (`vitest run --no-file-parallelism`) dijalankan **manusia** sebelum merge, bukan sesi.
 - Docs yang tersentuh diperbarui + ter-link di `internal/docs/README.md`.
-- Endpoint yang tersentuh diuji nyata di local (boot server + curl), bukan hanya unit test.
+- Endpoint yang tersentuh diuji nyata di local (boot server + curl) **bila task menyentuh endpoint** —
+  sekali di akhir, bukan tiap task.
 - Diff bersih di worktree; siap push ke target branch.

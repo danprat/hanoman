@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { zProject, zBriefPayload, zQaPayload, zSpec, zScheduler, zAgent } from "./entities";
 import type { Spec, Notification } from "./entities";
-import { zProjectKind, zSpecSource, zPriority, zStage, zErrorStatus, zTicketCategory, zTicketStatus, zLinkKind } from "./enums";
+import { zProjectKind, zSpecSource, zPriority, zStage, zErrorStatus, zTicketCategory, zTicketStatus, zLinkKind, zVerifyScope } from "./enums";
 
 // SPEC-198 · amplop daftar via API: search/filter/paginasi dilakukan server-side.
 export type Paginated<T> = { items: T[]; total: number; page: number; pageSize: number };
@@ -255,10 +255,12 @@ export const zTerminalSession = z.union([
   // SPEC-332 · ADR-0073 — mode goal per SESI: `goal` undefined → ikut Setting.goal.enabled,
   // false → mati walau global nyala; `goalCondition` kosong → template global → default bawaan.
   // SPEC-338 · ADR-0074 — agen per SESI: undefined → ikut Setting.agent (default global).
+  // SPEC-376 · ADR-0080 — scope verifikasi per SESI: undefined → ikut Setting.verifyScope.
   z.object({
     spec: z.string(), flow: zFlow, model: z.string().optional(), effort: z.string().optional(),
     goal: z.boolean().optional(), goalCondition: z.string().max(4000).optional(),
     agent: zAgent.optional(),
+    verifyScope: zVerifyScope.optional(),
   }),
 ]);
 

@@ -29,8 +29,9 @@ describe("StartSessionModal (SPEC-252)", () => {
     fireEvent.click(screen.getByRole("button", { name: /Mulai/i }));
     await waitFor(() => expect(api.startSession).toHaveBeenCalledWith(
       // SPEC-338 · payload kini juga membawa agen sesi; tanpa pilihan lain ia "claude".
+      // SPEC-376 · dan scope verifikasi; tanpa pilihan lain ia "changed" (default global).
       { spec: "SPEC-9", flow: "qa", model: "claude-sonnet-5", effort: "xhigh", agent: "claude",
-        goal: false, goalCondition: undefined }));
+        goal: false, goalCondition: undefined, verifyScope: "changed" }));
     expect(onStarted).toHaveBeenCalledWith("spec-9");
   });
 

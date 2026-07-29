@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { prisma } from "../src/db";
 import { startSpecSession, LaunchError, sessionIdForSpec } from "../src/services/session-launch";
@@ -143,6 +143,41 @@ describe("session-launch", () => {
     const spec = await seedRepo("SPEC-A3");
     const r = await startSpecSession(spec, { flow: "feature", model: "gpt-5.4-mini" });
     expect(await argvOf(r.id)).toContain("-m gpt-5.4-mini");
+    killSession(r.id);
+  });
+
+  // SPEC-376 · ADR-0080 · scope verifikasi. Env sesi dipasang sebagai PREFIX shell di depan argv
+  // (`K=V … claude …`), jadi ia TIDAK ikut tercetak oleh /bin/echo yang hanya melihat argv-nya
+  // sendiri. Satu-satunya bukti jujur adalah membacanya dari DALAM proses — itulah gunanya
+  // fixtures/fake-agent-env.sh (pola SPEC-337 untuk kunci audit lintas).
+  it("sesi lahir membawa env HANOMAN_BASE_SHA & HANOMAN_VERIFY_SCOPE, default changed", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = resolve(import.meta.dirname, "fixtures/fake-agent-env.sh");
+    const spec = await seedRepo("SPEC-V1");
+    const r = await startSpecSession(spec, { flow: "feature" });
+    const pane = await argvOf(r.id);
+    const row = await prisma.spec.findUnique({ where: { id: "SPEC-V1" } });
+    expect(row!.baseSha).toBeTruthy();
+    expect(pane).toContain("Scope verifikasi");                     // klausa masuk ke prompt
+    expect(pane).toContain(`HANOMAN_BASE_SHA=${row!.baseSha}`);     // = commit lahirnya worktree
+    expect(pane).toContain("HANOMAN_VERIFY_SCOPE=changed");         // default global
+    killSession(r.id);
+  });
+
+  it("Setting.verifyScope full → sesi tanpa override tak membawa klausa (jalur scheduler)", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+    await setSetting({ verifyScope: "full" });
+    const spec = await seedRepo("SPEC-V2");
+    const r = await startSpecSession(spec, { flow: "feature" });   // governor memanggil persis begini
+    expect(await argvOf(r.id)).not.toContain("Scope verifikasi");
+    killSession(r.id);
+  });
+
+  it("override per sesi menang atas Setting global", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+    await setSetting({ verifyScope: "full" });
+    const spec = await seedRepo("SPEC-V3");
+    const r = await startSpecSession(spec, { flow: "feature", verifyScope: "changed" });
+    expect(await argvOf(r.id)).toContain("Scope verifikasi");
     killSession(r.id);
   });
 

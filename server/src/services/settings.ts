@@ -18,6 +18,7 @@ export const DEFAULT_SETTING: Setting = {
   goal: GOAL_DEFAULTS,             // SPEC-332 · ADR-0073 · mode goal default mati
   agent: "claude",                 // SPEC-338 · ADR-0074 · mesin sesi default
   codex: CODEX_DEFAULTS,           // SPEC-338 · ADR-0074 · model/effort codex
+  verifyScope: "changed",          // SPEC-376 · ADR-0080 · uji hanya yang berubah
 };
 
 // Baris Setting adalah `Json` bebas bentuk, dan baris yang ditulis SEBELUM SPEC-162 masih

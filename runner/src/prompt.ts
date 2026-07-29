@@ -1,5 +1,6 @@
-import type { Flow, SpecBrief, ProjectBrief, PrdBrief, AuditDoc, BreakdownPrd, Autonomy, CrossAuditCtx, CrossAuditProject } from "./types";
+import type { Flow, SpecBrief, ProjectBrief, PrdBrief, AuditDoc, BreakdownPrd, Autonomy, CrossAuditCtx, CrossAuditProject, VerifyScope } from "./types";
 import { REVERSE_STANDARD } from "./reverse-standard";
+import { verifyScopeClause } from "./verify-scope";
 
 export const PIPELINES: Record<Flow, readonly string[]> = {
   feature: ["Brainstorm", "Objective", "Spec", "Plan", "Execute"],
@@ -176,7 +177,16 @@ const auditContinuationInstruction = (flow: Flow, spec: SpecBrief): string => {
     + "`Plan skipped` bila sesuai); selain itu Spec → Plan → Execute penuh.";
 };
 
-export function startPrompt(flow: Flow, spec: SpecBrief, branchTo: string, autonomy?: Autonomy): string {
+// SPEC-376 · ADR-0080 — klausa scope verifikasi hanya untuk flow yang MENULIS KODE. Flow
+// dokumen (audit, cross-audit, prd, breakdown, reverse, scaffold) tak punya test untuk
+// dijalankan, jadi klausanya cuma menambah token. Ditentukan dari kehadiran fase Execute —
+// sumber kebenaran yang sama dengan gate plan di phaseInstruction.
+const scopeClause = (flow: Flow, scope?: VerifyScope): string =>
+  scope && PIPELINES[flow].includes("Execute") ? verifyScopeClause(scope) : "";
+
+export function startPrompt(
+  flow: Flow, spec: SpecBrief, branchTo: string, autonomy?: Autonomy, verifyScope?: VerifyScope,
+): string {
   const detail = spec.payload ? `\nDetail: ${JSON.stringify(spec.payload)}` : "";
   return [
     `hanoman ${flow}. Ikuti internal/docs sebagai Source of Truth; perbarui docs yang tersentuh `
@@ -186,6 +196,7 @@ export function startPrompt(flow: Flow, spec: SpecBrief, branchTo: string, auton
     auditContinuationInstruction(flow, spec),
     auditOnlyInstruction(flow),
     autonomyClause(autonomy),
+    scopeClause(flow, verifyScope),
     skillInstruction(PIPELINES[flow]),
     `Setelah fase terakhir: commit, lalu \`git push origin HEAD:refs/heads/${branchTo}\`. `
       + `Worktree ini detached HEAD — itu memang disengaja.`,
@@ -199,7 +210,9 @@ export function startPrompt(flow: Flow, spec: SpecBrief, branchTo: string, auton
 // menggiring pipeline dari awal — spec & plan sudah ada, jadi sesi lanjut langsung di
 // Execute. Kontinuitas: plan di docs/superpowers/plans/** menandai task `[x]`/`[ ]`, dan
 // kerja yang selesai umumnya sudah ter-merge ke branchFrom (worktree lahir dari sana).
-export function continuePrompt(flow: Flow, spec: SpecBrief, branchTo: string, autonomy?: Autonomy): string {
+export function continuePrompt(
+  flow: Flow, spec: SpecBrief, branchTo: string, autonomy?: Autonomy, verifyScope?: VerifyScope,
+): string {
   const detail = spec.payload ? `\nDetail: ${JSON.stringify(spec.payload)}` : "";
   return [
     `hanoman ${flow} — MELANJUTKAN backlog item yang sebelumnya ditandai selesai padahal `
@@ -209,6 +222,7 @@ export function continuePrompt(flow: Flow, spec: SpecBrief, branchTo: string, au
       + `di docs/superpowers/plans/** untuk backlog item ini, periksa task yang sudah \`[x]\` `
       + `dan selesaikan yang masih \`[ ]\`. Verifikasi nyata sebelum klaim selesai.`,
     autonomyClause(autonomy),
+    scopeClause(flow, verifyScope),
     skillInstruction(["Execute"]),
     `Setelah selesai: commit, lalu \`git push origin HEAD:refs/heads/${branchTo}\`. Worktree `
       + `ini detached HEAD — itu memang disengaja.`,
