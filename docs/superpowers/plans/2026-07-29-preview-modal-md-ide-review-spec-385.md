@@ -54,7 +54,7 @@ Komponen berdiri sendiri tanpa konsumen — bisa di-review terpisah dari layar m
   - `isMarkdownPath(p: string): boolean`
   - `DocPreviewModal(props: { path: string; text: string; eyebrow?: React.ReactNode; download?: (fmt: "md" | "pdf") => string; onClose: () => void })`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/test/doc-preview-modal.test.tsx`:
 
@@ -131,14 +131,14 @@ describe("DocPreviewModal", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — harus gagal**
+- [x] **Step 2: Jalankan test — harus gagal**
 
 ```bash
 cd src && env -u NODE_ENV -u DATABASE_URL npx vitest run test/doc-preview-modal.test.tsx
 ```
 Expected: FAIL — `No "DocPreviewModal" export is defined on the "../src/ds" mock` / resolusi impor gagal.
 
-- [ ] **Step 3: Tambahkan `isMarkdownPath` ke `ds/markdown.tsx`**
+- [x] **Step 3: Tambahkan `isMarkdownPath` ke `ds/markdown.tsx`**
 
 Sisipkan tepat di bawah `hnLang`, di atas `hnDocHtml`:
 
@@ -148,7 +148,7 @@ Sisipkan tepat di bawah `hnLang`, di atas `hnDocHtml`:
 export const isMarkdownPath = (p: string): boolean => /\.md$/i.test(p);
 ```
 
-- [ ] **Step 4: Buat `src/src/ds/DocPreviewModal.tsx`**
+- [x] **Step 4: Buat `src/src/ds/DocPreviewModal.tsx`**
 
 ```tsx
 /* DocPreviewModal (SPEC-385) — pratinjau `.md` terender di ruang baca lebar, dipanggil sebagai
@@ -191,7 +191,7 @@ export function DocPreviewModal({ path, text, eyebrow, download, onClose }: {
 }
 ```
 
-- [ ] **Step 5: Ekspor dari barrel `src/src/ds/index.ts`**
+- [x] **Step 5: Ekspor dari barrel `src/src/ds/index.ts`**
 
 Ganti baris `export { MarkdownView, hnDocHtml } from "./markdown";` menjadi:
 
@@ -200,21 +200,21 @@ export { MarkdownView, hnDocHtml, isMarkdownPath } from "./markdown";
 export { DocPreviewModal } from "./DocPreviewModal";
 ```
 
-- [ ] **Step 6: Jalankan test — harus lulus**
+- [x] **Step 6: Jalankan test — harus lulus**
 
 ```bash
 cd src && env -u NODE_ENV -u DATABASE_URL npx vitest run test/doc-preview-modal.test.tsx
 ```
 Expected: PASS, **8 test** (2 `isMarkdownPath` + 6 `DocPreviewModal`). Kalau tertulis "no test files", berkasnya salah path — jangan terima itu sebagai hijau.
 
-- [ ] **Step 7: Typecheck paket `src`**
+- [x] **Step 7: Typecheck paket `src`**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src typecheck
 ```
 Expected: exit 0, tanpa keluaran error.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/src/ds/DocPreviewModal.tsx src/src/ds/markdown.tsx src/src/ds/index.ts src/test/doc-preview-modal.test.tsx
@@ -238,7 +238,7 @@ Lima endpoint, satu pola. Bisa di-review dan ditolak tanpa menyentuh frontend sa
 - Consumes: `downloadFormat(q: unknown): "md" | "pdf" | null` dan `sendDocDownload(reply, fmt, { content, name, prefix, eyebrow, path })` — keduanya sudah ada di `doc-export.ts`. `ReviewFile` (`server/src/services/spec-review.ts:19`) punya `binary: boolean` dan `content: string | null`.
 - Produces: `sendReviewDownload(reply: FastifyReply, fmt: "md" | "pdf", rf: { binary: boolean; content: string | null }, a: { prefix: string; eyebrow: string; path: string }): Promise<unknown>`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/review-download.route.test.ts`:
 
@@ -334,14 +334,14 @@ describe("unduh berkas commit & compare di Git Graph (?download=)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — harus gagal**
+- [x] **Step 2: Jalankan test — harus gagal**
 
 ```bash
 cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run test/review-download.route.test.ts --no-file-parallelism
 ```
 Expected: FAIL — permintaan ber-`?download=md` masih membalas JSON, jadi `res.body` bukan markdown mentah dan `content-disposition` tak ada.
 
-- [ ] **Step 3: Tambahkan `sendReviewDownload` ke `server/src/services/doc-export.ts`**
+- [x] **Step 3: Tambahkan `sendReviewDownload` ke `server/src/services/doc-export.ts`**
 
 Sisipkan tepat di bawah `sendDocDownload`:
 
@@ -362,7 +362,7 @@ export async function sendReviewDownload(
 }
 ```
 
-- [ ] **Step 4: Pasang di `server/src/routes/specs.ts`**
+- [x] **Step 4: Pasang di `server/src/routes/specs.ts`**
 
 Ganti dua baris terakhir handler `app.get("/specs/:id/review/*", …)`:
 
@@ -390,7 +390,7 @@ Lalu perluas impor `doc-export` yang sudah ada di baris 20 menjadi:
 import { downloadFormat, sendDocDownload, sendReviewDownload } from "../services/doc-export";
 ```
 
-- [ ] **Step 5: Pasang di `server/src/routes/terminal.ts`**
+- [x] **Step 5: Pasang di `server/src/routes/terminal.ts`**
 
 Ganti dua baris terakhir handler `app.get("/terminal/sessions/:id/review/*", …)`:
 
@@ -416,7 +416,7 @@ Tambahkan impor di bagian atas berkas (setelah impor `spec-review` di baris 8):
 import { downloadFormat, sendReviewDownload } from "../services/doc-export";
 ```
 
-- [ ] **Step 6: Pasang di tiga handler `server/src/routes/ide.ts`**
+- [x] **Step 6: Pasang di tiga handler `server/src/routes/ide.ts`**
 
 `/projects/:id/file-diff` — ganti isi `try`:
 
@@ -465,28 +465,28 @@ Perluas impor baris 5 menjadi:
 import { downloadFormat, sendDocDownload, sendReviewDownload } from "../services/doc-export";
 ```
 
-- [ ] **Step 7: Jalankan test — harus lulus**
+- [x] **Step 7: Jalankan test — harus lulus**
 
 ```bash
 cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run test/review-download.route.test.ts --no-file-parallelism
 ```
 Expected: PASS, **9 test**.
 
-- [ ] **Step 8: Jalankan test route tetangga yang bisa terdampak**
+- [x] **Step 8: Jalankan test route tetangga yang bisa terdampak**
 
 ```bash
 cd server && env -u NODE_ENV -u DATABASE_URL npx vitest run test/ide.route.test.ts test/doc-download.route.test.ts test/spec-docs.route.test.ts --no-file-parallelism
 ```
 Expected: PASS semua — membuktikan respons tanpa `?download=` tak berubah bentuk.
 
-- [ ] **Step 9: Typecheck paket `server`**
+- [x] **Step 9: Typecheck paket `server`**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server typecheck
 ```
 Expected: exit 0.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add server/src/services/doc-export.ts server/src/routes/specs.ts server/src/routes/terminal.ts server/src/routes/ide.ts server/test/review-download.route.test.ts
@@ -510,7 +510,7 @@ git commit -m "feat(spec-385): ?download=md|pdf di endpoint review & diff (ADR-0
   - `api.ideCommitFileDownloadUrl(id: string, sha: string, path: string, fmt: "md" | "pdf"): string`
   - `api.ideCompareFileDownloadUrl(id: string, from: string, to: string, path: string, fmt: "md" | "pdf"): string`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di akhir `src/test/api-client.test.ts` (di luar `describe` yang sudah ada):
 
@@ -543,14 +543,14 @@ describe("URL unduh pratinjau review & diff (SPEC-385)", () => {
 
 Kalau `describe`/`it`/`expect`/`api` belum diimpor di berkas itu, pakai impor yang sudah ada di puncak berkas — jangan menduplikasi.
 
-- [ ] **Step 2: Jalankan test — harus gagal**
+- [x] **Step 2: Jalankan test — harus gagal**
 
 ```bash
 cd src && env -u NODE_ENV -u DATABASE_URL npx vitest run test/api-client.test.ts
 ```
 Expected: FAIL — `api.specReviewFileDownloadUrl is not a function`.
 
-- [ ] **Step 3: Tambahkan lima builder**
+- [x] **Step 3: Tambahkan lima builder**
 
 Di `src/src/api/client.ts`, tepat di bawah baris `ideFileDownloadUrl: …` yang sudah ada:
 
@@ -569,14 +569,14 @@ Di `src/src/api/client.ts`, tepat di bawah baris `ideFileDownloadUrl: …` yang 
     paths.download(paths.ideCompareFile(id, from, to, path), fmt),
 ```
 
-- [ ] **Step 4: Jalankan test — harus lulus**
+- [x] **Step 4: Jalankan test — harus lulus**
 
 ```bash
 cd src && env -u NODE_ENV -u DATABASE_URL npx vitest run test/api-client.test.ts
 ```
 Expected: PASS, termasuk **3 test baru**.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/api/client.ts src/test/api-client.test.ts
@@ -597,7 +597,7 @@ git commit -m "feat(spec-385): builder URL unduh untuk pratinjau review & diff"
 - Consumes: `DocPreviewModal`, `isMarkdownPath` (Task 1); `api.specReviewFileDownloadUrl`, `api.sessionReviewFileDownloadUrl` (Task 3).
 - Produces: — (tak ada yang bergantung padanya)
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Di `src/test/review-screen.test.tsx`, perluas `vi.mock` di puncak berkas menjadi:
 
@@ -681,14 +681,14 @@ describe("ReviewScreen preview .md (SPEC-385)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — harus gagal**
+- [x] **Step 2: Jalankan test — harus gagal**
 
 ```bash
 cd src && env -u NODE_ENV -u DATABASE_URL npx vitest run test/review-screen.test.tsx
 ```
 Expected: FAIL pada tiga test pertama — `Unable to find an accessible element with the role "button" and name /preview/i`.
 
-- [ ] **Step 3: Implementasi di `ReviewScreen.tsx`**
+- [x] **Step 3: Implementasi di `ReviewScreen.tsx`**
 
 Perluas impor DS di baris 4:
 
@@ -729,14 +729,14 @@ Render modalnya tepat sebelum `</div>` penutup komponen (setelah `</Card>` kedua
       )}
 ```
 
-- [ ] **Step 4: Jalankan test — harus lulus**
+- [x] **Step 4: Jalankan test — harus lulus**
 
 ```bash
 cd src && env -u NODE_ENV -u DATABASE_URL npx vitest run test/review-screen.test.tsx
 ```
 Expected: PASS seluruh berkas (4 test lama + **5 test baru** = 9).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/ReviewScreen.tsx src/test/review-screen.test.tsx
@@ -755,7 +755,7 @@ git commit -m "feat(spec-385): aksi Preview .md di Review (backlog & sesi PRD)"
 - Consumes: `DocPreviewModal`, `isMarkdownPath` (Task 1); `api.ideFileDownloadUrl` (sudah ada), `api.ideFileDiffDownloadUrl` (Task 3).
 - Produces: — (tak ada yang bergantung padanya)
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan `describe` baru di akhir `src/test/ide-screen.test.tsx`:
 
@@ -807,7 +807,7 @@ describe("IdeScreen preview .md (SPEC-385)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — harus gagal**
+- [x] **Step 2: Jalankan test — harus gagal**
 
 ```bash
 cd src && env -u NODE_ENV -u DATABASE_URL npx vitest run test/ide-screen.test.tsx
@@ -816,7 +816,7 @@ Expected: FAIL pada test 1 & 3 — tombol `Preview` (role button) belum ada; yan
 
 Catatan: toggle SPEC-240 memang merender `<button>Preview</button>`, jadi di mode file `getByRole("button", {name: /^preview$/i})` akan menemukan **dua** elemen setelah tombol baru ditambahkan. Karena itu Step 3 memberi tombol aksi label yang berbeda: **"Preview lebar"**. Sesuaikan test ke `/preview lebar/i` di Step 3 kalau bentrok.
 
-- [ ] **Step 3: Implementasi di `IdeScreen.tsx`**
+- [x] **Step 3: Implementasi di `IdeScreen.tsx`**
 
 Perluas impor DS di baris 6:
 
@@ -893,25 +893,25 @@ Render modalnya bersama dialog lain di akhir komponen, tepat sebelum `{showRemot
       )}
 ```
 
-- [ ] **Step 4: Selaraskan nama tombol di test**
+- [x] **Step 4: Selaraskan nama tombol di test**
 
 Ubah ketiga query `/^preview$/i` di test Step 1 menjadi `/preview lebar/i` (dan yang `queryByRole` juga), agar tak bentrok dengan tombol toggle SPEC-240 yang berlabel "Preview".
 
-- [ ] **Step 5: Jalankan test — harus lulus**
+- [x] **Step 5: Jalankan test — harus lulus**
 
 ```bash
 cd src && env -u NODE_ENV -u DATABASE_URL npx vitest run test/ide-screen.test.tsx test/preview-fill-height.test.tsx test/doc-download-screens.test.tsx
 ```
 Expected: PASS semua tiga berkas — `preview-fill-height` & `doc-download-screens` membuktikan perilaku SPEC-361/363 di IDE tak mundur.
 
-- [ ] **Step 6: Typecheck paket `src`**
+- [x] **Step 6: Typecheck paket `src`**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src typecheck
 ```
 Expected: exit 0.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/src/screens/IdeScreen.tsx src/test/ide-screen.test.tsx
@@ -932,7 +932,7 @@ Permukaannya **sudah** modal, jadi aksinya berupa tab ketiga — modal bertumpuk
 - Consumes: `MarkdownView`, `isMarkdownPath` (Task 1); `api.ideCommitFileDownloadUrl`, `api.ideCompareFileDownloadUrl` (Task 3).
 - Produces: — (tak ada yang bergantung padanya)
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan `describe` di akhir `src/test/git-graph-view.test.tsx`:
 
@@ -981,14 +981,14 @@ describe("GitGraph preview .md (SPEC-385)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — harus gagal**
+- [x] **Step 2: Jalankan test — harus gagal**
 
 ```bash
 cd src && env -u NODE_ENV -u DATABASE_URL npx vitest run test/git-graph-view.test.tsx
 ```
 Expected: FAIL — tak ada teks "preview" dan tak ada tautan unduh di modal berkas commit.
 
-- [ ] **Step 3: Implementasi di `GitGraph.tsx`**
+- [x] **Step 3: Implementasi di `GitGraph.tsx`**
 
 Perluas impor DS (baris ~4, blok `from "../ds"`) dengan `DocDownload`, `MarkdownView`, `isMarkdownPath`.
 
@@ -1032,21 +1032,21 @@ Tambahkan cabang render sebelum cabang `<pre>` terakhir:
                     </div>
 ```
 
-- [ ] **Step 4: Jalankan test — harus lulus**
+- [x] **Step 4: Jalankan test — harus lulus**
 
 ```bash
 cd src && env -u NODE_ENV -u DATABASE_URL npx vitest run test/git-graph-view.test.tsx test/git-graph-render.test.tsx
 ```
 Expected: PASS kedua berkas (test lama + **3 test baru**).
 
-- [ ] **Step 5: Typecheck paket `src`**
+- [x] **Step 5: Typecheck paket `src`**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src typecheck
 ```
 Expected: exit 0.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/src/screens/GitGraph.tsx src/test/git-graph-view.test.tsx
@@ -1067,7 +1067,7 @@ git commit -m "feat(spec-385): tab preview .md di modal berkas Git Graph"
 - Consumes: seluruh perilaku dari Task 1-6.
 - Produces: — (fase terakhir)
 
-- [ ] **Step 1: Perbarui `internal/docs/architecture/api-contract.md`**
+- [x] **Step 1: Perbarui `internal/docs/architecture/api-contract.md`**
 
 Cari bagian yang mendokumentasikan `?download=` (SPEC-361/ADR-0078) dan endpoint review/IDE. Tambahkan kelima endpoint baru ke daftar yang menerima `?download=md|pdf`, dengan aturan eksplisit:
 
@@ -1079,19 +1079,19 @@ Cari bagian yang mendokumentasikan `?download=` (SPEC-361/ADR-0078) dan endpoint
 
 Aturan yang harus tertulis: isi yang dikirim = `ReviewFile.content` (isi **sesudah** perubahan, sama dengan yang dirender pratinjau); berkas biner atau `content === null` → **404**; `download` absen/tak dikenal → JSON `ReviewFile` lama **utuh**; tak ada endpoint ekspor baru.
 
-- [ ] **Step 2: Perbarui `internal/docs/frontend/frontend-implementation.md`**
+- [x] **Step 2: Perbarui `internal/docs/frontend/frontend-implementation.md`**
 
 Tambahkan entri untuk `ds/DocPreviewModal.tsx` dan `isMarkdownPath`: satu komponen pratinjau dokumen dipakai `ReviewScreen` + `IdeScreen`; Git Graph memakai **tab** karena permukaannya sudah modal (hindari modal bertumpuk); toggle inline `Preview | Source` SPEC-240 di IDE mode file **tetap ada**; gerbang seragam `.md` + non-biner + `content !== null`; tinggi diwarisi lewat `Modal fillHeight` (SPEC-363) — jangan menambah px/vh.
 
-- [ ] **Step 3: Perbarui `internal/skills/hanoman/SKILL.md`**
+- [x] **Step 3: Perbarui `internal/skills/hanoman/SKILL.md`**
 
 Di bagian "Aturan Dokumentasi & Alur", tepat setelah butir SPEC-363, tambahkan butir SPEC-385 yang memuat: empat permukaan yang mendapat aksi preview, keputusan tab-vs-modal di Git Graph, parity unduh lewat query di lima endpoint yang sudah ada (tanpa endpoint/skema/ADR baru), dan gerbang `.md` + non-biner + `content !== null`.
 
-- [ ] **Step 4: Perbarui index `internal/docs/README.md`**
+- [x] **Step 4: Perbarui index `internal/docs/README.md`**
 
 Pastikan doc yang tersentuh tetap ter-link dan tambahkan keterangan SPEC-385 pada baris ADR-0078 (bahwa cakupan `?download=` kini termasuk endpoint review/diff).
 
-- [ ] **Step 5: Jalankan SELURUH test yang tersentuh perubahan**
+- [x] **Step 5: Jalankan SELURUH test yang tersentuh perubahan**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm vitest --run --changed "$HANOMAN_BASE_SHA" --no-file-parallelism
@@ -1100,7 +1100,7 @@ Expected: PASS. **Verifikasi jumlah berkas test yang benar-benar berjalan** — 
 
 Kalau `sync-ws.test.ts` gagal: ia **non-deterministik** (SPEC-376). Ulangi set yang sama sebelum menyalahkan perubahan ini.
 
-- [ ] **Step 6: Typecheck kedua paket yang tersentuh**
+- [x] **Step 6: Typecheck kedua paket yang tersentuh**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm --filter ./src typecheck
@@ -1108,7 +1108,7 @@ env -u NODE_ENV -u DATABASE_URL pnpm --filter ./server typecheck
 ```
 Expected: exit 0 keduanya. **Jangan** `pnpm -r typecheck`.
 
-- [ ] **Step 7: Smoke nyata endpoint (sekali, di akhir)**
+- [x] **Step 7: Smoke nyata endpoint (sekali, di akhir)**
 
 Task ini menyentuh endpoint, jadi wajib satu smoke sungguhan. Pakai DB sekali-pakai (bukan `hanoman_test` — sesi tetangga men-truncate-nya di tengah jalan) dan port bukan 8787.
 
@@ -1131,14 +1131,14 @@ Yang harus dibuktikan untuk **setiap** endpoint:
 
 Bersihkan sesudahnya: `kill %1` dan `docker exec hanoman-db-1 psql -U hanoman -d postgres -c 'DROP DATABASE hanoman385_smoke;'`.
 
-- [ ] **Step 8: Commit docs + hasil verifikasi**
+- [x] **Step 8: Commit docs + hasil verifikasi**
 
 ```bash
 git add internal/docs internal/skills docs/superpowers/plans
 git commit -m "docs(spec-385): kontrak ?download= endpoint review/diff + DocPreviewModal di SoT"
 ```
 
-- [ ] **Step 9: Push**
+- [x] **Step 9: Push**
 
 ```bash
 git push origin HEAD:refs/heads/hanoman/spec-385
@@ -1168,3 +1168,39 @@ git push origin HEAD:refs/heads/hanoman/spec-385
 - `const inDiff` di `IdeScreen` dideklarasikan setelah blok `previewSrc` → dihitung ulang lokal (Task 5 Step 3).
 - `vi.mock` di `review-screen.test.tsx` mengganti seluruh modul → mock harus ditambah fungsi baru (Task 4 Step 1).
 - Test PDF yang lulus palsu → Task 7 Step 7 menuntut ekstraksi teks, bukan magic bytes.
+
+---
+
+## Hasil verifikasi (2026-07-29)
+
+**Test tersentuh** — `pnpm vitest --run --changed "$HANOMAN_BASE_SHA" --no-file-parallelism`:
+**129 berkas / 874 test, 0 gagal**. Bukan "no test files" — daftar berkas yang benar-benar berjalan
+diperiksa dari laporan JSON dan memuat seluruh berkas yang direncanakan (`doc-preview-modal`,
+`api-client`, `review-screen`, `ide-screen`, `git-graph-view`, `preview-fill-height`,
+`doc-download-screens`, `review-download.route`, `ide.route`, `doc-download.route`,
+`spec-docs.route`, tiga berkas `terminal*`). 129 berkas memang mendekati seluruh paket `src`:
+`ds/index.ts` diimpor hampir semua layar, jadi itulah blast radius sebenarnya (ADR-0080).
+
+**Typecheck** — `pnpm --filter ./src typecheck` dan `pnpm --filter ./server typecheck`: keduanya
+exit 0. `pnpm -r typecheck` sengaja tak dijalankan.
+
+**Smoke endpoint nyata** — server `node server/dist/server.js` di `PORT=8799` dengan DB sekali-pakai
+`hanoman385_smoke` (dibuat + `migrate deploy`, di-`DROP` sesudahnya) dan tmux socket terpisah
+`hanoman-smoke385`; repo uji ber-worktree `.worktrees/spec-141` + perubahan working tree. Empat
+endpoint diuji lewat `curl` sungguhan — `/specs/:id/review/*`, `/projects/:id/file-diff`,
+`/projects/:id/commit/:sha/file`, `/projects/:id/compare/file` — masing-masing tiga hal:
+
+1. tanpa query → JSON `ReviewFile` (`binary`/`diff`/`content` ada) — bentuk lama utuh;
+2. `?download=md` → `content-disposition: attachment; filename="<prefix>-catatan.md"` dan badan
+   `cmp`-identik dengan `content` pada (1);
+3. `?download=pdf` → `%PDF-` **dan** teks yang diekstrak `pdftotext` benar-benar memuat isi
+   dokumen (judul, paragraf, tabel), bukan sekadar magic bytes. Prefix nama berkas terbukti
+   sesuai kontrak: `SPEC-141-catatan.md`, `smoke-catatan.md`, `smoke-f6465b86-catatan.md`.
+   Panah `→` tercetak `->` — `toWinAnsi()` bekerja, tak ada mojibake senyap (jebakan SPEC-361).
+
+Endpoint kelima `/terminal/sessions/:id/review/*` butuh sesi hidup ber-worktree; ia diuji lewat
+`app.inject` sungguhan di `review-download.route.test.ts` dengan sesi yang dibuat langsung dari
+service ber-`command: ["/bin/sleep","30"]` (pola `terminal.route.test.ts`) — **tak pernah** men-spawn
+agen sungguhan dari test. Test yang sama juga mengunci aturan **berkas dihapus**: JSON tetap 200
+(diff-nya masih berguna) tapi `?download=` → 404, karena PDF dari string kosong tampak sah padahal
+isinya bohong.
