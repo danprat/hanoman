@@ -265,6 +265,17 @@ GET/PUT  /settings                      # Setting blob (zSetting): model, effort
 #                                         agent: "claude"|"codex" (default "claude") + codex { model:"gpt-5.6-sol",
 #                                           effort:"xhigh" } (SPEC-338/ADR-0074) — mesin sesi default + katalog
 #                                           model/effort codex. model/effort di akar TETAP milik claude.
+#                                         conflict { enabled:false, agent:"claude", model:"claude-opus-5",
+#                                           effort:"xhigh" } — SPEC-383/ADR-0081 · default KHUSUS sesi
+#                                           penyelesai konflik rebase/merge (3 pintu: POST /specs/:id/integrate,
+#                                           POST /projects/:id/git/{merge,rebase,pull,drop}, POST
+#                                           /terminal/sessions/:id/integrate). OPT-IN: enabled:false →
+#                                           mewarisi default global (agent + model/effort agen itu) persis
+#                                           seperti sebelum SPEC-383. Satu triple (bukan blok per-agen):
+#                                           menukar `agent` menukar model/effort sekalian. Effort codex
+#                                           dikoersi saat dibaca (coerceCodexEffort). Blok selalu ADA di
+#                                           response (zod .default()) → baris Setting lama tetap parse,
+#                                           TANPA migration. Tak ada override per-request di body integrate.
 #                                         verifyScope: "changed"|"full" (default "changed") — SPEC-376/ADR-0080 ·
 #                                           scope verifikasi default sesi backlog; per sesi di-override saat Start.
 #                                           Kunci selalu ADA di response (zod .default()), jadi baris Setting lama

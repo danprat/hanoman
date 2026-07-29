@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { zCreateSpec, zPatchSpec, zIntegrate, zBatchCreateSpec, type Stage } from "@hanoman/shared";
 import { integrate, sourceBranch } from "../services/integrate";
 import { createSession } from "../services/pty";
-import { sessionAgentDefaults } from "../services/settings";
+import { conflictSessionDefaults } from "../services/settings";
 import { ensureCodexTrust } from "../services/codex-trust";
 import { prisma } from "../db";
 import { specReview, reviewFile, worktreeDir, specCommitRange, specReviewRange, reviewFileRange, shaResolvable } from "../services/spec-review";
@@ -242,10 +242,12 @@ export default async function (app: FastifyInstance) {
     if (r.status === "clean") return { status: "clean", detail: r.detail };
     // conflict → sesi agen interaktif di worktree yang tertinggal (never touch main working tree).
     // Tanpa flow: tak menggerakkan stage; worktree-nya dibersihkan saat sesi ditutup (terminal.ts DELETE).
-    // SPEC-377 · ADR-0074 · ikut agen default global (cermin POST /terminal/sessions/:id/integrate).
+    // SPEC-377 · ADR-0074 · ikut agen dari Settings (cermin POST /terminal/sessions/:id/integrate).
     // `sessionModel()` hanya membaca blok claude, jadi memakainya di sini membuat sesi konflik selalu
     // lahir claude dengan model default — apa pun isi Settings.
-    const { agent, model, effort } = await sessionAgentDefaults();
+    // SPEC-383 · ADR-0081 · lewat `conflictSessionDefaults()`: blok `Setting.conflict` bila operator
+    // menyalakannya, kalau tidak mewarisi default global persis seperti sebelumnya.
+    const { agent, model, effort } = await conflictSessionDefaults();
     // Gerbang trust codex dibuka untuk ROOT REPO; worktree `.worktrees/merge-*` mewarisinya.
     if (agent === "codex") ensureCodexTrust(repoDir);
     const prompt = [

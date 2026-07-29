@@ -92,8 +92,26 @@ Pakai skill lebih sempit saat task cocok:
   (PRD, sudah benar sejak SPEC-338). Wajib disertai **`ensureCodexTrust(repoDir)`** saat agennya codex:
   tanpa itu sesi mentok di layar trust tanpa manusia di pane. Tak ada override per-request — pilihan agen
   hidup di Settings (kartu "Agen sesi" memang sudah menjanjikan "worktree, fase, stage, review, **integrate**").
-  Aturan umumnya: **setiap titik kelahiran sesi baru wajib lewat `sessionAgentDefaults()`**; `sessionModel()`
-  tersisa hanya untuk `POST /vps/:id/session` dan menunggu dipensiunkan.
+  Aturan umumnya: **setiap titik kelahiran sesi baru wajib lewat `sessionAgentDefaults()`** — kecuali tiga
+  pintu konflik yang kini lewat `conflictSessionDefaults()` (di bawah); `sessionModel()` tersisa hanya untuk
+  `POST /vps/:id/session` dan menunggu dipensiunkan.
+- **Sesi konflik boleh punya default sendiri** (SPEC-383/ADR-0081): blok `Setting.conflict`
+  `{enabled,agent,model,effort}` (kolom `Json` → **tanpa migration**, tanpa endpoint baru) dibaca
+  `conflictSessionDefaults()` dan dipakai **ketiga** pintu konflik (backlog `POST /specs/:id/integrate`,
+  `finishGraphOp` di `routes/ide.ts`, PRD `POST /terminal/sessions/:id/integrate`). **OPT-IN**: selama
+  `enabled` mati helper itu **mendelegasikan penuh** ke `sessionAgentDefaults()` — perilaku SPEC-377 tanpa
+  selisih satu argv pun. Alasan pemisahannya: menyelesaikan konflik itu sempit, tak berfase, tak berplan,
+  dan sering beruntun — tak perlu effort sesi Execute. **Satu triple, bukan blok per-agen** seperti `Setting`
+  akar: menukar `agent` menukar model/effort sekalian (cermin `pickAgent` di `StartSessionModal`), effort
+  codex dikoersi `coerceCodexEffort` di helper. **Gotcha wajib:** `ensureCodexTrust` HARUS diturunkan dari
+  agen **hasil helper**, bukan `Setting.agent` — dengan blok ini keduanya bisa berbeda, dan membaca yang
+  salah mengulang bug SPEC-377 (sesi codex mentok di layar trust) dalam bentuk baru. Tetap **tak ada**
+  override per-request; pilihan hidup di Settings. UI: kartu "Konflik rebase & merge" di tab Model sesi;
+  saat mati kartunya **menampilkan nilai warisan** supaya tak ada pertanyaan "lalu konflik pakai apa".
+  Tab itu sekalian ditata ulang **bersumbu agen** (dua blok berjudul "Claude Code"/"Codex CLI" + badge
+  `dipakai sesi baru`): sebelumnya blok claude cuma berbunyi "Model"/"Effort" — nama agennya hanya di
+  `aria-label` — sementara judul "default global" tetap terpampang meski agen aktifnya codex. Katalog claude
+  di Settings kini dibaca dari `MODELS`/`EFFORTS` (`@hanoman/shared`), sumber yang sama dengan picker Start.
 - **Katalog codex per model** (SPEC-339): effort adalah properti MODEL, bukan properti CLI. `CODEX_MODELS` (shared) membawa `efforts`/`fallback`/`minClient` per entri; `CODEX_EFFORTS` tinggal gabungan, **bukan** sumber pilihan UI — picker WAJIB `codexEfforts(model)`. Isi katalog: `gpt-5.6-sol` (default global) & `gpt-5.6-terra` = ultra/max/xhigh/high/medium/low, `gpt-5.6-luna` = **tanpa ultra**, `gpt-5.5` = tanpa max & ultra. Koersi effort dilakukan di **`createSession`** (titik cekik tunggal — jalur ber-`AgentToken` pun lewat sana), dan model pensiun (`gpt-5.4`, `gpt-5.4-mini`, `gpt-5.3-codex-spark`) diremap ke `gpt-5.5` saat `getSetting()` membaca; sengaja bukan ke 5.6 agar setelan lama tak pindah ke model yang CLI-nya belum sanggup. **Gotcha wajib:** trio 5.6 butuh codex CLI **≥ 0.144.0** dan manifest model disaring server **berdasarkan versi klien** (cache `~/.codex/models_cache.json`) — CLI lama tak akan pernah melihat model itu, dan `max` bahkan belum ada di enum effort 0.142.5. `GET /api/codex/version` memberi catatan lunak di Settings & picker Start, **tanpa** memblokir Start. Rujukan otoritatif katalog = `codex debug models`, bukan ingatan.
 - **Riwayat sesi** (SPEC-362/ADR-0079): tmux tetap sumber kebenaran sesi **hidup**, tapi setiap sesi kini
   meninggalkan baris `SessionHistory` (LOCAL-only, tak disync) yang **lahir bersama sesinya** (sesi berjalan

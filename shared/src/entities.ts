@@ -184,6 +184,23 @@ export const zGoal = z.object({
 export type Goal = z.infer<typeof zGoal>;
 export const GOAL_DEFAULTS: Goal = zGoal.parse({});
 
+// SPEC-383 · ADR-0081 · default KHUSUS sesi penyelesai konflik rebase/merge. Opt-in: `enabled`
+// mati berarti sesi konflik mewarisi default global (`sessionAgentDefaults()`) persis seperti
+// sebelum SPEC-383 — instalasi yang ada tak berubah perilakunya sampai operator menyalakannya.
+// Satu triple (agen + model + effort), bukan blok per-agen bercabang seperti Setting akar:
+// menukar agen di UI menukar model/effort-nya sekalian, cermin `pickAgent` di StartSessionModal.
+// Dipasang ke zSetting lewat .default() seperti goal/codex/verifyScope → baris Setting lama tetap
+// parse, TANPA migration (kolom `Setting.data` bertipe Json).
+export const zConflict = z.object({
+  enabled: z.boolean().default(false),
+  agent: zAgent.default("claude"),
+  // Lenient z.string() seperti `model`/`effort` di akar: katalog ditegakkan UI, bukan server.
+  model: z.string().default("claude-opus-5"),
+  effort: z.string().default("xhigh"),
+});
+export type Conflict = z.infer<typeof zConflict>;
+export const CONFLICT_DEFAULTS: Conflict = zConflict.parse({});
+
 export const zSetting = z.object({
   model: z.string().default("claude-opus-5"),
   effort: z.string().default("xhigh"),
@@ -200,6 +217,7 @@ export const zSetting = z.object({
   agent: zAgent.default("claude"),                                        // SPEC-338 · ADR-0074 · mesin sesi default
   codex: zCodex.default(CODEX_DEFAULTS),                                  // SPEC-338 · ADR-0074 · model/effort codex
   verifyScope: zVerifyScope.default("changed"),                           // SPEC-376 · ADR-0080 · scope verifikasi sesi
+  conflict: zConflict.default(CONFLICT_DEFAULTS),                         // SPEC-383 · ADR-0081 · default sesi konflik rebase/merge
 });
 export type Setting = z.infer<typeof zSetting>;
 
