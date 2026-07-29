@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { zStage, zSpecSource, zDocStatus, zPriority, zProjectKind, zAgent } from "./enums";
+import { zStage, zSpecSource, zDocStatus, zPriority, zProjectKind, zAgent, zVerifyScope } from "./enums";
 
 export type Stage = z.infer<typeof zStage>;
 // SPEC-338 · ADR-0074 · mesin sesi. Di-re-ekspor dari sini supaya konsumen setelan cukup
@@ -199,6 +199,7 @@ export const zSetting = z.object({
   goal: zGoal.default(GOAL_DEFAULTS),                                     // SPEC-332 · ADR-0073 · mode goal (default mati)
   agent: zAgent.default("claude"),                                        // SPEC-338 · ADR-0074 · mesin sesi default
   codex: zCodex.default(CODEX_DEFAULTS),                                  // SPEC-338 · ADR-0074 · model/effort codex
+  verifyScope: zVerifyScope.default("changed"),                           // SPEC-376 · ADR-0080 · scope verifikasi sesi
 });
 export type Setting = z.infer<typeof zSetting>;
 

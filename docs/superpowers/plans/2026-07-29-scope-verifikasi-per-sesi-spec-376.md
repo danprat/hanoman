@@ -34,7 +34,7 @@
 - Consumes: —
 - Produces: `zVerifyScope` (zod enum), `VERIFY_SCOPES: readonly ["changed","full"]`, `type VerifyScope = "changed" | "full"`, `Setting["verifyScope"]`, field opsional `verifyScope` di body sesi backlog.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `shared/test/verify-scope.test.ts`:
 
@@ -80,12 +80,12 @@ describe("verifyScope", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run shared/test/verify-scope.test.ts`
 Expected: FAIL — `zVerifyScope` / `VERIFY_SCOPES` tidak diekspor (`SyntaxError` atau `undefined`).
 
-- [ ] **Step 3: Tambah kosakata di `shared/src/enums.ts`**
+- [x] **Step 3: Tambah kosakata di `shared/src/enums.ts`**
 
 Tambahkan di akhir berkas:
 
@@ -99,7 +99,7 @@ export const zVerifyScope = z.enum(VERIFY_SCOPES);
 export type VerifyScope = (typeof VERIFY_SCOPES)[number];
 ```
 
-- [ ] **Step 4: Tambah knob ke `zSetting`** (`shared/src/entities.ts`)
+- [x] **Step 4: Tambah knob ke `zSetting`** (`shared/src/entities.ts`)
 
 Impor `zVerifyScope` bila belum ada di berkas itu (periksa daftar impor di baris teratas — `enums` sudah diimpor untuk `zAgent`), lalu tambahkan satu baris di dalam `z.object({ … })` `zSetting`, tepat di bawah `codex`:
 
@@ -108,7 +108,7 @@ Impor `zVerifyScope` bila belum ada di berkas itu (periksa daftar impor di baris
   verifyScope: zVerifyScope.default("changed"),                           // SPEC-376 · ADR-0080 · scope verifikasi sesi
 ```
 
-- [ ] **Step 5: Tambah override per sesi ke `zTerminalSession`** (`shared/src/dto.ts:258-262`)
+- [x] **Step 5: Tambah override per sesi ke `zTerminalSession`** (`shared/src/dto.ts:258-262`)
 
 Ganti varian sesi backlog menjadi:
 
@@ -128,17 +128,17 @@ Ganti varian sesi backlog menjadi:
 
 Pastikan `zVerifyScope` ikut diimpor di `dto.ts` (berkas itu sudah mengimpor `zAgent`/`zFlow` dari `./enums` — tambahkan ke daftar yang sama).
 
-- [ ] **Step 6: Jalankan test, pastikan LULUS**
+- [x] **Step 6: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run shared/test/verify-scope.test.ts`
 Expected: PASS — 4 test.
 
-- [ ] **Step 7: Typecheck paket yang tersentuh saja**
+- [x] **Step 7: Typecheck paket yang tersentuh saja**
 
 Run: `pnpm --filter ./shared typecheck`
 Expected: exit 0, tanpa output error.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add shared/src/enums.ts shared/src/entities.ts shared/src/dto.ts shared/test/verify-scope.test.ts
