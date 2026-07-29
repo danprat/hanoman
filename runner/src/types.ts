@@ -64,4 +64,11 @@ export interface GitOps {
   /** Menyiapkan repo siap-worktree untuk project from-scratch: git init + satu commit
    *  bila belum ada HEAD. Idempoten; membuat direktori bila belum ada (SPEC-222). */
   initRepo(dir: string): void;
+  /** SPEC-394 · true hanya bila `path` adalah AKAR sebuah worktree git yang masih bisa dipakai.
+   *  Bukan `existsSync`: direktori telanjang di dalam repo pun "ada", dan worktree yang gitdir-nya
+   *  sudah dipangkas tetap menyisakan direktori. Murni-baca. */
+  worktreeAlive(path: string): boolean;
+  /** SPEC-394 · resolve rev secara LITERAL (tanpa DWIM `origin/` milik addWorktree) — `null` bila
+   *  tak resolve, tak pernah melempar. Dipakai memilih basis worktree saat sesi dilanjutkan. */
+  revParse(repo: string, rev: string): string | null;
 }

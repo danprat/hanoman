@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mkdtempSync, writeFileSync, existsSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, existsSync, rmSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -155,5 +155,52 @@ describe("git initRepo", () => {
     const before = g(repo, "rev-parse", "HEAD").stdout.trim();
     realGit.initRepo(repo);
     expect(g(repo, "rev-parse", "HEAD").stdout.trim()).toBe(before); // no new commit
+  });
+});
+
+// SPEC-394 · jalur "melanjutkan" harus bisa bertanya ke git tanpa efek samping: apakah
+// worktree-nya masih sah, dan apakah sebuah rev masih resolve.
+describe("git · pembacaan untuk resume (SPEC-394)", () => {
+  it("worktreeAlive true untuk worktree yang sah, false sesudah dihapus", () => {
+    const { repo } = seedRepo();
+    const wt = join(repo, ".worktrees", "spec-alive");
+    realGit.addWorktree(repo, wt, "main");
+    expect(realGit.worktreeAlive(wt)).toBe(true);
+    realGit.removeWorktree(repo, wt);
+    expect(realGit.worktreeAlive(wt)).toBe(false);
+  });
+
+  it("worktreeAlive false untuk direktori biasa DI DALAM repo", () => {
+    const { repo } = seedRepo();
+    const plain = join(repo, ".worktrees", "bukan-worktree");
+    mkdirSync(plain, { recursive: true });
+    // `rev-parse --is-inside-work-tree` di sini menjawab true (ia di dalam repo induk);
+    // yang membedakan hanya toplevel-nya, dan itulah yang wajib diuji.
+    expect(realGit.worktreeAlive(plain)).toBe(false);
+  });
+
+  it("worktreeAlive false untuk path yang tak ada", () => {
+    const { repo } = seedRepo();
+    expect(realGit.worktreeAlive(join(repo, ".worktrees", "tak-pernah-ada"))).toBe(false);
+  });
+
+  it("revParse mengembalikan sha untuk rev yang ada, null untuk yang tidak", () => {
+    const { repo } = seedRepo();
+    const head = g(repo, "rev-parse", "HEAD").stdout.trim();
+    expect(realGit.revParse(repo, "main")).toBe(head);
+    expect(realGit.revParse(repo, "hanoman/tidak-ada")).toBeNull();
+    expect(realGit.revParse(repo, "--upload-pack=jahat")).toBeNull();   // ADR-0032: argumen berbentuk flag
+  });
+
+  it("revParse melihat branch yang di-push dari worktree detached", () => {
+    const { repo } = seedRepo();
+    const wt = join(repo, ".worktrees", "spec-push");
+    realGit.addWorktree(repo, wt, "main");
+    writeFileSync(join(wt, "a.txt"), "x");
+    g(wt, "add", "-A"); g(wt, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "kerja");
+    const tip = g(wt, "rev-parse", "HEAD").stdout.trim();
+    g(wt, "push", "-q", "origin", "HEAD:refs/heads/hanoman/spec-push");
+    realGit.removeWorktree(repo, wt);
+    expect(realGit.revParse(repo, "origin/hanoman/spec-push")).toBe(tip);
   });
 });

@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { rmSync, mkdirSync } from "node:fs";
+import { rmSync, mkdirSync, realpathSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import type { GitOps } from "./types";
 function git(cwd: string, args: string[]) {
@@ -26,6 +26,12 @@ const resolveCommit = (repo: string, rev: string) => {
   // Gagal keras menyebut rev asli (ADR-0009) bila lokal maupun origin tak resolve.
   return tryRev(rev) ?? tryRev(`origin/${rev}`) ??
     git(repo, ["rev-parse", "--verify", "--end-of-options", `${rev}^{commit}`]).trim();
+};
+
+// macOS men-symlink /tmp → /private/tmp, dan `git rev-parse --show-toplevel` selalu menjawab
+// path fisik. Membandingkan string mentah karenanya gagal palsu di direktori test.
+const samePath = (a: string, b: string): boolean => {
+  try { return realpathSync(a) === realpathSync(b); } catch { return false; }
 };
 
 export const realGit: GitOps = {
@@ -78,5 +84,24 @@ export const realGit: GitOps = {
     if (hasHead.status !== 0)
       git(dir, ["-c", "user.email=hanoman@local", "-c", "user.name=hanoman",
         "commit", "-qm", "init: hanoman scaffold", "--allow-empty"]);
+  },
+  // SPEC-394 · "boleh dipakai ulang?" harus dijawab git, bukan filesystem. Dua pertanyaan, dan
+  // keduanya wajib: (1) apakah ini di dalam work tree — menyingkirkan direktori yang gitdir-nya
+  // sudah dipangkas; (2) apakah toplevel-nya path ini SENDIRI — menyingkirkan direktori telanjang
+  // di dalam repo induk, yang menjawab "true" untuk pertanyaan pertama. cwd yang tak ada membuat
+  // spawnSync gagal (`status` null), dan itu sudah tertangkap `!== 0`.
+  worktreeAlive: (path) => {
+    const inside = spawnSync("git", ["rev-parse", "--is-inside-work-tree"], { cwd: path, encoding: "utf8" });
+    if (inside.status !== 0 || inside.stdout.trim() !== "true") return false;
+    const top = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd: path, encoding: "utf8" });
+    return top.status === 0 && samePath(top.stdout.trim(), path);
+  },
+  // SPEC-394 · cermin `tryRev` di resolveCommit, tapi LITERAL: pemanggil yang memilih urutan
+  // (origin/<branch> → <branch> → headSha), jadi DWIM `origin/` di sini justru menyamarkan
+  // "branch lokal tak ada" jadi "ada". `--end-of-options` menjaga ADR-0032.
+  revParse: (repo, rev) => {
+    const r = spawnSync("git", ["rev-parse", "--verify", "--end-of-options", `${rev}^{commit}`],
+      { cwd: repo, encoding: "utf8" });
+    return r.status === 0 ? r.stdout.trim() : null;
   },
 };
