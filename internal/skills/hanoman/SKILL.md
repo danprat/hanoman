@@ -214,6 +214,23 @@ Pakai skill lebih sempit saat task cocok:
 - Ikuti design system di `internal/docs/design-system/**` (editorial, bone paper, brass accent).
 - **Unduh dokumen** (SPEC-361/ADR-0078): setiap pratinjau Markdown (`SpecDocsModal` — dipakai Backlog **dan** Terminal, PRD, Docs SoT, IDE) punya tombol `.md` & `.pdf`. Mekanismenya query `?download=md|pdf` pada endpoint dokumen yang **sudah ada** — jangan bikin endpoint ekspor baru; nilai lain/absen mengembalikan JSON lama utuh. PDF dirender `server/src/services/doc-export.ts` (`marked.lexer` → `pdfkit`, standard-14 font, `--external:pdfkit` di esbuild). **Gotcha wajib:** pdfkit **tidak melempar** untuk glyph di luar WinAnsi — ia mencetak mojibake senyap (`→` jadi `!'`, emoji jadi `Ø<ß‰`), jadi semua teks harus lewat `toWinAnsi()`; dan pdfkit **mewariskan opsi** di sepanjang rantai `continued`, jadi flag seperti `strike` wajib eksplisit boolean atau satu `~~coret~~` mencoret sisa paragraf.
 - **Pratinjau dokumen tak menggulir ke samping & setinggi ruang yang ada** (SPEC-363, tanpa ADR — memperbaiki SPEC-361/ADR-0078): `.hn-md` memasang `overflow-wrap: anywhere` (**bukan** `break-word` — hanya `anywhere` yang mengecilkan *min-content*, dan min-content itulah yang membuat rantai inline `code` tanpa spasi & tabel lebar mendorong container), `table-layout: fixed`, dan `pre` ber-`white-space: pre-wrap`. Terukur atas **353 `.md` nyata**: 33 dokumen menggulir horizontal → 0, 187 dokumen ber-`pre` → 0 (harga +12,5% tinggi konten). Tinggi pane diturunkan dari viewport lewat rantai flex (`Modal fillHeight` opt-in + `flex: 1 1 0` di root layar Docs/IDE), bukan `62vh`/`620` tetap. **Dua gotcha wajib.** (1) `flex-basis` di item terluar **harus `0`**, bukan `auto`: pembungkus `<main>` memakai `min-height: 100%` (SPEC-351), jadi basis `auto` membuat item memakai tinggi ISI-nya dan justru menumbuhkan halaman — terukur pane 6000 px + halaman ikut menggulir; `LIST_SCREEN_STYLE` (basis `auto`) karena itu **tak** bisa dipakai apa adanya di sini. (2) di pdfkit, `doc.text(str, x, y, { width })` **menyalakan pembungkus baris yang memanggil `addPage()` sendiri — walau `lineBreak: false`**; karena renderer menaruh teks di koordinat eksplisit sambil membukukan `doc.y` sendiri, setiap pemakaian `width` di posisi eksplisit melahirkan halaman kosong (footer bernomor → satu halaman kosong PER halaman, dan nomornya ikut tercetak di halaman kosong itu; penanda butir daftar → `doc.y = top` jadi koordinat halaman basi, 5 dari 12 halaman PRD kosong — rantai DUA mata, dan matriks 2×2 membuktikan memutus salah satu saja sudah cukup). Blok kode digambar **bersegmen** — satu `rect` latar per halaman — dan hanya pindah halaman bila bloknya memang muat di halaman kosong (dulu satu `rect` 2126,6 pt menabrak footer). Hasil: `api-contract.md` 42→18 halaman, PRD hardening-vps 12→7 tanpa halaman kosong.
+- **Kartu yang berisi pane bergulir wajib `<Card fill>`, bukan `style`** (SPEC-393, tanpa ADR —
+  memperbaiki SPEC-363): `Card` **selalu** menyisipkan satu pembungkus `<div>` di sekitar
+  `children`, dan pembungkus itu `display: block` kecuali prop **`fill`** dipasang — `fill` yang
+  menyetel `display:flex`+`flexDirection:column`+`flex:1 1 auto`+`minHeight:0` pada **dua-duanya**
+  (div terluar *dan* pembungkus anak). SPEC-363 memasang rantainya lewat `style`, yang hanya
+  mengenai div terluar, jadi pembungkus anak memutus rantai: `flex`/`minHeight` di pane jadi
+  **inert**, pane tumbuh setinggi isinya, dan karena `Card` ber-`overflow: hidden` isinya
+  **terpotong tanpa scroller mana pun** — Docs & IDE Explorer tak bisa digulir sama sekali.
+  Terukur di Chrome (viewport 1512×813, `<main>` 757 px): pane 11 830 px di dalam kartu 701 px →
+  **11 184 px hilang**, dan `clientHeight === scrollHeight` di pane membuktikan ia tak pernah
+  menggulir melainkan hanya tumbuh. **Jebakan test:** kontrak style SPEC-363 memeriksa PANE-nya
+  (`flex: 1 1 auto`, `overflow: auto`, tanpa px/vh) dan itu tetap benar sepanjang bug — yang salah
+  induknya. Karena itu `src/test/scroll-chain.test.tsx` **menaiki rantai leluhur** pane dan
+  menuntut tiap mata rantai meneruskan tinggi (`display` flex/grid + `minHeight: 0`); jsdom tak
+  melayout, jadi hanya kontrak itu yang bisa dijaga di test. Kontrol kerjanya sejak 2026-07-10:
+  `ProjectsScreen.tsx` `<Card padding={0} fill>`; `DocPreviewModal` aman karena rantainya
+  `Modal fillHeight` → `modal-body`, tanpa `Card`.
 - **Aksi preview `.md` di IDE & Review** (SPEC-385, tanpa ADR — memperluas ADR-0078 + preseden
   SPEC-240/363): empat permukaan yang dulu menampilkan `.md` sebagai `<pre>` mentah kini punya aksi
   preview — pane **diff** Explorer, modal berkas **Git Graph**, dan **Review** (backlog *dan* sesi

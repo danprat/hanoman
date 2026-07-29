@@ -246,12 +246,16 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
       {tab === "explorer" ? (
         <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 20, alignItems: "stretch",
           flex: "1 1 auto", minHeight: 0 }}>
-          <Card padding={0} style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+          {/* SPEC-393 · `fill`, BUKAN `style`: `Card` menyisipkan satu pembungkus <div> di sekitar
+              `children` yang `display: block` kecuali `fill` dipasang. Rantai flex lewat `style`
+              hanya mengenai div terluar, jadi pembungkus itu memutusnya — pane tumbuh setinggi isi
+              lalu terpotong `overflow: hidden` milik kartu, tanpa scroller mana pun. */}
+          <Card padding={0} fill>
             <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderBottom: "1px solid var(--border-hair)" }}>
               <span className="hn-eyebrow" style={{ flex: 1 }}>changes{status?.branch ? ` · ${status.branch}` : ""}</span>
               <Button size="sm" variant="ghost" leftIcon="rotate-ccw" onClick={() => { reloadTree(); reloadStatus(); }}>Muat ulang</Button>
             </div>
-            <div style={{ padding: 8, flex: "1 1 auto", minHeight: 0, overflow: "auto" }}>
+            <div data-testid="ide-tree-scroll" style={{ padding: 8, flex: "1 1 auto", minHeight: 0, overflow: "auto" }}>
               <ChangedSection label="Staged" changed={status?.staged ?? []}
                 selected={selKind === "staged" ? selected : ""} onSelect={selectStaged}
                 view={stagedView} onView={setStagedView} emptyText="Tak ada file staged." />
@@ -270,7 +274,7 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
                   ))}
             </div>
           </Card>
-          <Card padding={0} style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+          <Card padding={0} fill>
             <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderBottom: "1px solid var(--border-hair)", flexWrap: "wrap" }}>
               <Icon name="file-text" size={15} color="var(--text-muted)" />
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--text-strong)" }}>{selected || "—"}</span>

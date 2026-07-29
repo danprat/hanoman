@@ -61,6 +61,18 @@ wajib, kalau tidak padding menambah tinggi di atas 100% dan melahirkan scrollbar
 (Projects, dan daftar berpager lain): ia meneruskan rantai flex ke pembungkus anaknya. Tanpa `fill`,
 `Card` berperilaku persis seperti sebelumnya.
 
+**Kartu yang berisi pane bergulir WAJIB memakai `fill` — bukan `style`** (SPEC-393). `Card`
+selalu menyisipkan satu pembungkus `<div>` di sekitar `children`, dan pembungkus itu
+`display: block` kecuali `fill` dipasang; `fill`-lah yang menyetel
+`display:flex` + `flexDirection:column` + `flex:1 1 auto` + `minHeight:0` pada **dua-duanya**
+(div terluar *dan* pembungkus anak). Memasang rantai flex lewat `style` hanya mengenai div
+terluar, sehingga pembungkus anak memutus rantainya: `flex`/`minHeight` di pane jadi inert, pane
+tumbuh setinggi isinya, dan karena `Card` ber-`overflow: hidden` isinya **terpotong tanpa
+scroller mana pun**. Terukur di Chrome: pane 11 830 px di dalam kartu 701 px → 11 184 px hilang.
+Test kontrak `src/test/scroll-chain.test.tsx` menaiki rantai leluhur tiap pane dan menuntut
+setiap mata rantai meneruskan tinggi; rinciannya di
+[audit SPEC-393](../research/audit-spec-393-ide-docs-tak-bisa-scroll.md).
+
 **Kecuali untuk pane yang harus setinggi viewport** (pratinjau dokumen, SPEC-363):
 `LIST_SCREEN_STYLE` ber-`flex-basis: auto`, dan karena `<main>` memakai `min-height: 100%`
 (bukan `height` — lihat alinea di atas), item ber-basis `auto` memakai tinggi **isi**-nya lalu
@@ -284,8 +296,13 @@ rantai flex: `Modal` punya prop **`fillHeight`** (opt-in — panel dapat `height
 (bukan `height`, SPEC-351), jadi basis `auto` membuat item memakai tinggi isinya dan menumbuhkan
 halaman — terukur pane 6000 px + halaman ikut menggulir. Karena itu `LIST_SCREEN_STYLE`
 (yang ber-basis `auto`) tidak dipakai apa adanya di sini. Pane pratinjau ditandai
-`data-testid="doc-preview-scroll"`; Git Graph & Branches di IDE sengaja **tidak** ikut rantai
-ini karena auto-load `IntersectionObserver`-nya bergantung pada `<main>` yang menggulir.
+`data-testid="doc-preview-scroll"` (pohon berkas Explorer: `data-testid="ide-tree-scroll"`);
+Git Graph & Branches di IDE sengaja **tidak** ikut rantai ini karena auto-load
+`IntersectionObserver`-nya bergantung pada `<main>` yang menggulir.
+
+Rantai itu awalnya dipasang lewat `style` pada `Card` dan karena itu tak pernah benar-benar
+menggulir sampai SPEC-393 memindahkannya ke prop **`fill`** — lihat aturan `Card` di atas.
+Kartu Docs (`DocsWorkspace`) dan kedua kartu IDE Explorer (`IdeScreen`) kini `<Card padding={0} fill>`.
 
 ## Review worktree: collapse & tree Changed (SPEC-171, SPEC-177)
 `ReviewScreen` (`screens/ReviewScreen.tsx`) menampilkan file worktree backlog item ala VSCode:

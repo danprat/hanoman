@@ -222,7 +222,11 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
         </Card>
       </div>
 
-      <Card padding={0} style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+      {/* SPEC-393 · `fill`, BUKAN `style`: `Card` menyisipkan satu pembungkus <div> di sekitar
+          `children` yang `display: block` kecuali `fill` dipasang. Rantai flex lewat `style`
+          hanya mengenai div terluar, jadi pembungkus itu memutusnya — pane tumbuh setinggi isi
+          lalu terpotong `overflow: hidden` milik kartu, tanpa scroller mana pun. */}
+      <Card padding={0} fill>
         <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--border-hair)", flexWrap: "wrap" }}>
           <Icon name="file-text" size={15} color="var(--text-muted)" />
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--text-strong)", fontWeight: 500 }}>{displayPath}</span>
