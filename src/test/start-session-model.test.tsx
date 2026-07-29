@@ -32,7 +32,8 @@ describe("StartSessionModal (SPEC-252)", () => {
       // SPEC-376 · dan scope verifikasi; tanpa pilihan lain ia "changed" (default global).
       { spec: "SPEC-9", flow: "qa", model: "claude-sonnet-5", effort: "xhigh", agent: "claude",
         goal: false, goalCondition: undefined, verifyScope: "changed" }));
-    expect(onStarted).toHaveBeenCalledWith("spec-9");
+    // SPEC-394 · onStarted kini juga menerima `resumed`; respons ini sesi baru, jadi undefined.
+    expect(onStarted).toHaveBeenCalledWith("spec-9", undefined);
   });
 
   it("tak merender apa pun bila spec null", () => {

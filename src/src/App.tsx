@@ -45,7 +45,10 @@ type SpecPrefill = { project?: string; title?: string; context?: string; outcome
 // (GET /settings); nilai terpilih dikirim ke POST /terminal/sessions dan jadi argv `--model`/`--effort`
 // saat sesi lahir. Sesi = satu proses satu model seumur hidup (matrix per-fase ADR-0058 dicabut).
 export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
-  { open: boolean; spec: Spec | null; onClose: () => void; onStarted: (id: string) => void; onError?: (e: unknown) => void }) {
+  // SPEC-394 · `resumed` diteruskan apa adanya dari server: pemanggil yang memutuskan cara
+  // menyampaikannya (toast di App), modal ini tak menebak-nebak.
+  { open: boolean; spec: Spec | null; onClose: () => void;
+    onStarted: (id: string, resumed?: boolean) => void; onError?: (e: unknown) => void }) {
   const [model, setModel] = React.useState("claude-opus-5");
   const [effort, setEffort] = React.useState("xhigh");
   // SPEC-338 · ADR-0074 · agen sesi. Model/effort dipilih dari katalog agen terpilih — mengganti
@@ -104,12 +107,12 @@ export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
   async function start() {
     setBusy(true);
     try {
-      const { id } = await api.startSession({
+      const { id, resumed } = await api.startSession({
         spec: s.id, flow, model, effort, agent,
         goal: goalOn, goalCondition: goalOn && goalCond.trim() ? goalCond.trim() : undefined,
         verifyScope,
       });
-      onStarted(id); onClose();
+      onStarted(id, resumed); onClose();
     }
     catch (e) { onError?.(e); }
     finally { setBusy(false); }
@@ -1126,9 +1129,14 @@ export default function App() {
         )}
         <NewProjectModal open={modal === "project"} onClose={() => setModal(null)} onCreate={createProject} />
         <EditProjectModal open={modal === "project-edit"} project={proj} onClose={() => setModal(null)} onSave={updateProject} />
-        {/* SPEC-252 · ADR-0061 · picker model/effort per sesi saat Start backlog. */}
+        {/* SPEC-252 · ADR-0061 · picker model/effort per sesi saat Start backlog.
+            SPEC-394 · ADR-0084 · toast membedakan "dilanjutkan" dari "dimulai": tombolnya memang
+            berbunyi "Lanjutkan", jadi toast yang selalu berkata "dimulai" ikut menegaskan kesan
+            keliru bahwa pekerjaan sebelumnya dibuang. */}
         <StartSessionModal open={!!startSpec} spec={startSpec} onClose={() => setStartSpec(null)}
-          onStarted={(id) => showToast((startSpec?.id ?? "") + " · sesi " + id + " dimulai", "info", "play")}
+          onStarted={(id, resumed) => showToast(
+            (startSpec?.id ?? "") + " · sesi " + id + (resumed ? " dilanjutkan" : " dimulai"),
+            "info", "play")}
           onError={(e) => {
             const noRepo = e instanceof ApiError && (e.status === 400 || e.status === 422);
             showToast((startSpec?.id ?? "") + " · gagal mulai sesi" + (noRepo ? " · project belum punya repoDir" : ""), "warn", "x-circle");

@@ -229,7 +229,9 @@ export const api = {
   startSession: (b: { spec: string; flow: Flow; model?: string; effort?: string; goal?: boolean; goalCondition?: string;
     agent?: Agent;                    // SPEC-338 · ADR-0074 · mesin sesi; kosong → Setting.agent
     verifyScope?: VerifyScope }) =>   // SPEC-376 · ADR-0080 · scope verifikasi; kosong → Setting.verifyScope
-    j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body(b) }),
+    // SPEC-394 · ADR-0084 · `resumed` ada HANYA saat peluncuran melanjutkan artefak sesi sebelumnya
+    // (worktree utuh atau tip branch sesi). Absen = sesi baru atau re-attach ke sesi hidup.
+    j<{ id: string; resumed?: boolean }>(paths.terminalSessions, { method: "POST", ...body(b) }),
   // SPEC-166 · reverse: sesi project-level menyusun Source of Truth dari kode, di worktree-nya.
   reverseDocs: (project: string) =>
     j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, flow: "reverse" }) }),

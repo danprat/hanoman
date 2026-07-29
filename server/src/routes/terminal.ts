@@ -75,7 +75,9 @@ export default async function (app: FastifyInstance) {
           agent: parsed.data.agent,                                           // SPEC-338 · ADR-0074
           verifyScope: parsed.data.verifyScope,                               // SPEC-376 · ADR-0080
         });
-        return reply.code(201).send({ id: r.id });
+        // SPEC-394 · ADR-0084 · `resumed` hanya muncul saat peluncuran benar-benar MELANJUTKAN
+        // artefak sesi sebelumnya. Aditif — klien yang hanya membaca `id` tak terpengaruh.
+        return reply.code(201).send(r.resumed ? { id: r.id, resumed: true } : { id: r.id });
       } catch (e) {
         if (e instanceof LaunchError) {
           // Parity status: needs-bind → 400 {needsBind}, worktree gagal → 422.

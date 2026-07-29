@@ -319,6 +319,23 @@ describe("terminal routes · sesi backlog", () => {
     expect(listSessions().filter((s) => s.id === "spec-901")).toHaveLength(1);
   });
 
+  // SPEC-394 · ADR-0084 · respons menyebut apa yang benar-benar terjadi. Keluhan aslinya soal
+  // persepsi ("malah membuat session baru"), jadi umpan baliknya tak boleh sama untuk dua hal
+  // yang berbeda.
+  it("peluncuran pertama 201 {id} tanpa resumed; peluncuran lanjutan 201 {id, resumed:true}", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    await makeSpec({ id: "SPEC-394A", projectId: "p1", stage: "planned" });
+    const a = await start("SPEC-394A", "qa");
+    expect(a.statusCode).toBe(201);
+    expect(a.json().resumed).toBeUndefined();
+
+    // worktree tetap, pane dibunuh → peluncuran berikutnya adalah lanjutan
+    killSession("spec-394a");
+    const b = await start("SPEC-394A", "qa");
+    expect(b.statusCode).toBe(201);
+    expect(b.json()).toEqual({ id: "spec-394a", resumed: true });
+  });
+
   it("spec tak dikenal → 404; project tanpa repoDir → 400", async () => {
     expect((await start("SPEC-XXX")).statusCode).toBe(404);
     await makeSpec({ id: "SPEC-902", projectId: "p2" }); // p2.repoDir = null
