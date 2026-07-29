@@ -11,6 +11,10 @@ function hnLang(name: string) {
   return /\.json$/.test(name) ? "json" : /\.toml$/.test(name) ? "toml"
     : /\.ya?ml$/.test(name) ? "yaml" : /\.(ts|tsx|js)$/.test(name) ? "ts" : "";
 }
+/* SPEC-385 · satu-satunya definisi "berkas markdown" untuk frontend. Dulu hidup sebagai const
+   lokal `isMarkdown` di IdeScreen; kini dipakai IDE, Git Graph, dan Review sekaligus. */
+export const isMarkdownPath = (p: string): boolean => /\.md$/i.test(p);
+
 export function hnDocHtml(text: string, name: string) {
   const md = /\.md$/.test(name) ? (text || "") : ("```" + hnLang(name) + "\n" + (text || "") + "\n```");
   return hnRender(md);
