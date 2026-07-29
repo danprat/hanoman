@@ -3,17 +3,34 @@ import { prisma } from "../db";
 import { nextSpecId } from "./id";
 import { resolveRepoDir } from "./local-binding";
 import { notifySynced } from "./sync-notify";
-import { uploadDir } from "./uploads";
+import { uploadDir, readUploadOrFetch } from "./uploads";
 import type { Spec, Ticket, TicketAttachment } from "@prisma/client";
+
+// SPEC-382 · di instance CLIENT byte lampiran baru mendarat di disk saat seseorang membukanya di UI
+// triase (fetch-through hub, ADR-0068). Eskalasi tanpa membuka gambar — termasuk auto-accept
+// scheduler source-checker triase (SPEC-297, tanpa manusia sama sekali) — menghasilkan direktif yang
+// menunjuk path kosong, jadi agen kehilangan konteks visual persis seperti sebelum SPEC-286.
+// Tarik byte-nya lebih dulu (best-effort: hub tak terjangkau tak boleh menggagalkan eskalasi).
+async function materializeAttachments(atts: TicketAttachment[]): Promise<Set<string>> {
+  const ready = new Set<string>();
+  for (const a of atts) {
+    try { await readUploadOrFetch(a.storageKey); ready.add(a.id); }
+    catch { /* byte tak terjangkau — ditandai di direktif, bukan dipura-purakan ada */ }
+  }
+  return ready;
+}
 
 // SPEC-286 · saat accept tiket → backlog, ubah lampiran dari catatan pasif jadi DIREKTIF aktif: agen
 // wajib memeriksa isinya (biasanya screenshot bug) sebelum bekerja, dengan nama asli + jalur konkret.
 // Dipindah dari routes/tickets.ts agar dipakai ulang scheduler source-checker triase (JALUR sama).
-const attachmentInstruction = (t: Ticket, atts: TicketAttachment[]): string => {
+const attachmentInstruction = (t: Ticket, atts: TicketAttachment[], ready: Set<string>): string => {
   if (atts.length === 0) return "Tanpa lampiran.";
-  const list = atts
-    .map((a) => `- ${a.filename} (${a.mimeType}) → ${join(uploadDir(), a.storageKey)}`)
-    .join("\n");
+  // SPEC-382 · bedakan berkas yang SUDAH ada di disk dari yang gagal ditarik — agen tak boleh
+  // menebak: yang siap dibaca langsung, yang tidak diarahkan ke API.
+  const list = atts.map((a) => ready.has(a.id)
+    ? `- ${a.filename} (${a.mimeType}) → ${join(uploadDir(), a.storageKey)}`
+    : `- ${a.filename} (${a.mimeType}) → BELUM TERUNDUH, ambil via GET /api/tickets/${t.id}/attachments/${a.id}`,
+  ).join("\n");
   return `LAMPIRAN (${atts.length}) dari pelapor — biasanya screenshot yang menunjukkan masalah. `
     + `PERIKSA setiap lampiran untuk memahami konteks keluhan sebelum bekerja; jangan berasumsi `
     + `dari teks saja. Berkas ada di direktori upload server (baca langsung dengan tool Read):\n${list}\n`
@@ -41,8 +58,9 @@ export async function acceptTicket(
   const backlink = `Dari tiket Help Center #${t.number} (projek ${t.projectId}).`;
   // SPEC-291 · eskalasi mengikuti kategori keluhan, bukan selalu feature.
   const source = SOURCE_BY_CATEGORY[t.category] ?? "brief";
+  const ready = await materializeAttachments(t.attachments);
   const detail = `${t.detail}\n\nKategori: ${t.category}\nPelapor: ${t.reporterEmail}\n${backlink}\n\n`
-    + attachmentInstruction(t, t.attachments);
+    + attachmentInstruction(t, t.attachments, ready);
   // Bentuk payload harus cocok dengan source (dto superRefine: qa ⇒ QaPayload). Untuk qa keluhan
   // pelapor + direktif lampiran masuk ke `actual`; selebihnya ke `context` brief.
   const payload = source === "qa"

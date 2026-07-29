@@ -59,10 +59,13 @@ export default async function (app: FastifyInstance) {
   // SPEC-268 · ADR-0066 · pemicu sync manual (tombol UI). Cookie-authed lewat gate global (path ini
   // DIKECUALIKAN dari bypass /api/sync di app.ts); agent token → 403 (sync cookie-only). Bukan
   // client (hub) → not-configured. Menjalankan satu siklus syncOnce (pull-before-push).
-  app.post("/sync/now", async () => {
-    const stats = await syncNow();
+  // SPEC-382 · body opsional `{ full: true }` → tarik ulang feed dari kursor 0 (pemulihan baris
+  // yang terlanjur dilompati). Absen/false = perilaku lama, satu siklus.
+  app.post("/sync/now", async (req) => {
+    const full = (req.body as { full?: boolean } | undefined)?.full === true;
+    const stats = await syncNow({ full });
     if (!stats) return { ok: false as const, reason: "not-configured" as const };
-    return { ok: true as const, ...stats };
+    return { ok: true as const, full, ...stats };
   });
 
   // SPEC-270 · ADR-0067 · antrean konflik rekonsil (cookie-authed; dikecualikan dari gate agent-token).

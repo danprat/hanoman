@@ -140,7 +140,10 @@ export const api = {
   putConfig: (key: string, value: string) => j<ConfigEntryView>(paths.config, { method: "PUT", ...body({ key, value }) }),
   deleteConfig: (key: string) => j<void>(paths.configKey(key), { method: "DELETE" }),
   // SPEC-268 · ADR-0066 · pemicu sync manual (tombol Backlog/Errors/Triase)
-  syncNow: () => j<{ ok: boolean; reason?: string; pulled?: number; pushed?: number; conflicts?: number }>(paths.syncNow, { method: "POST" }),
+  // SPEC-382 · opts.full → tarik ulang feed dari awal (pemulihan baris yang terlewat kursor)
+  syncNow: (opts?: { full?: boolean }) =>
+    j<{ ok: boolean; reason?: string; full?: boolean; pulled?: number; pushed?: number; conflicts?: number }>(
+      paths.syncNow, { method: "POST", ...body({ full: opts?.full === true }) }),
   // SPEC-270 · ADR-0067 · rekonsil konflik
   listConflicts: () => j<{ conflicts: SyncConflictView[] }>(paths.syncConflicts),
   resolveConflict: (entity: string, recordId: string, choice: "local" | "server") =>

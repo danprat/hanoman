@@ -340,9 +340,14 @@ DELETE /agent-tokens/:id             # 204 · revoke (set revokedAt); 404 tak ad
 > **KECUALI `POST /api/sync/now`**
 > (SPEC-268 · ADR-0066) — pemicu **manual** dari tombol UI (Backlog/Errors/Triase): **cookie-authed**
 > (dikecualikan dari bypass di `app.ts`), tetap **non-delegatable** ke agent (`/sync` cookie-only → 403).
-> Menjalankan satu siklus `syncOnce` (pull-before-push) → `200 { ok:true, pulled, pushed, conflicts }`;
+> Menjalankan satu siklus `syncOnce` (pull-before-push) → `200 { ok:true, full:false, pulled, pushed, conflicts }`;
 > instance non-client (hub) → `200 { ok:false, reason:"not-configured" }`. Tombol muncul hanya di client
 > (`GET /config`.`sync.running`).
+> **Tarik ulang penuh** (SPEC-382 · ADR-0082): body opsional `{ full: true }` → kursor `SyncState`
+> dikembalikan ke `0` lalu feed di-drain halaman demi halaman (`pull` ber-`limit` 500) →
+> `200 { ok:true, full:true, pulled, pushed, conflicts }`. Satu-satunya jalan pulang bagi baris feed
+> yang terlanjur **dilompati** kursor sebelum kontrak apply ADR-0082; aman diulang karena pull
+> server-authoritative & `upsertLocal` idempoten. Body absen/`{ full:false }` = perilaku lama.
 
 > **Rekonsil konflik** (SPEC-270 · ADR-0067) — **cookie-only** (dikecualikan dari bypass `/api/sync`,
 > non-delegatable ke agent):

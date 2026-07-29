@@ -28,6 +28,28 @@ export async function applyRemote(entity: string, recordId: string, version: num
   await upsertLocal(entity, recordId, version, data);
 }
 
+// SPEC-382 · feed memuat record BERELASI (`ticketAttachment.ticketId` → `Ticket.id`, FK) yang bisa
+// tiba sebelum induknya. Sebuah record yang belum bisa diterapkan harus DITUNDA, bukan dibuang dan
+// bukan pula dibiarkan meledak ke luar siklus. `feedHole` menandai "ada record yang belum masuk":
+// selama menyala, frame WS tak boleh memajukan kursor melewatinya — kalau maju, baris itu tertinggal
+// di belakang kursor dan tak akan pernah ditarik lagi (akar hilangnya lampiran, audit SPEC-382).
+let feedHole = false;
+
+// Terapkan satu frame changefeed WS. `false` = belum bisa diterapkan (kursor ditahan, tunggu pull).
+export async function applyFeedFrame(msg: {
+  entity?: string; recordId?: string; version?: number; data?: Record<string, unknown>; seq?: string | number;
+}): Promise<boolean> {
+  if (!msg.entity || !msg.recordId) return true; // bukan frame record — tak ada yang bisa hilang
+  try {
+    await applyRemote(msg.entity, msg.recordId, Number(msg.version ?? 0), msg.data ?? {});
+  } catch {
+    feedHole = true;
+    return false;
+  }
+  if (msg.seq && !feedHole) await setCursor(String(msg.seq));
+  return true;
+}
+
 export type SyncStats = { pulled: number; pushed: number; conflicts: number };
 
 // Satu siklus sync: pull (skip record yang punya edit lokal pending agar tak menimpanya),
@@ -49,6 +71,10 @@ export async function syncOnce(transport: Transport): Promise<SyncStats> {
 
   const pullRes = await transport("GET", `/api/sync/pull?since=${cursor}`);
   const records: { entity: string; recordId: string; version: number; data: Record<string, unknown> }[] = pullRes.body?.records ?? [];
+  // SPEC-382 · record yang gagal diterapkan (umumnya anak mendahului induknya → FK) ditunda, bukan
+  // dilempar. Dulu satu record bermasalah membatalkan SELURUH siklus: `setCursor` di bawah tak
+  // pernah tercapai, jadi client mandek di kursor itu selamanya (bukan cuma lampiran yang hilang).
+  const deferred: typeof records = [];
   for (const rec of records) {
     if (!isEntity(rec.entity)) continue;
     if (pending.has(`${rec.entity}:${rec.recordId}`)) {
@@ -61,10 +87,31 @@ export async function syncOnce(transport: Transport): Promise<SyncStats> {
       }
       continue;
     }
-    await applyRemote(rec.entity, rec.recordId, rec.version, rec.data);
-    pulled++;
+    try { await applyRemote(rec.entity, rec.recordId, rec.version, rec.data); pulled++; }
+    catch { deferred.push(rec); }
+  }
+  // Pass ulang selama masih ada kemajuan: induk yang menyusul di batch yang sama membuka anaknya
+  // (rantai berapa pun dalam). Berhenti saat satu putaran penuh tak menerapkan apa pun.
+  let rest = deferred;
+  while (rest.length) {
+    const still: typeof rest = [];
+    for (const rec of rest) {
+      try { await applyRemote(rec.entity, rec.recordId, rec.version, rec.data); pulled++; }
+      catch { still.push(rec); }
+    }
+    if (still.length === rest.length) {
+      // Betul-betul yatim (induknya sudah dihapus di hub — feed append-only tanpa tombstone,
+      // ADR-0068). Dilewati dengan jejak, bukan didiamkan: menahan kursor di sini = livelock.
+      for (const rec of still) {
+        console.warn(`sync: record ${rec.entity}:${rec.recordId} tak bisa diterapkan (induk absen?) — dilewati`);
+      }
+      break;
+    }
+    rest = still;
   }
   if (pullRes.body?.cursor) await setCursor(String(pullRes.body.cursor));
+  // Pull sudah melewati rentang yang menahan kursor WS → lubangnya tertambal (atau sengaja dilewati).
+  feedHole = false;
 
   for (const item of outbox) {
     // SPEC-255 · ADR-0064 · operasi rename project: recordId = "<oldId> <newId>". Push satu record
@@ -126,11 +173,28 @@ export function fetchTransport(base: string, token: string): Transport {
 
 // SPEC-268 · ADR-0066 · pemicu manual (tombol UI): satu siklus syncOnce memakai config efektif.
 // null bila instance bukan client (tak ada hub tujuan) → endpoint/tombol melapor "not-configured".
-export async function syncNow(): Promise<SyncStats | null> {
+// SPEC-382 · `full` → tarik ulang feed dari awal: kursor balik ke 0 lalu drain halaman demi halaman
+// (pull ber-`limit`, jadi satu siklus saja tak cukup). Ini satu-satunya jalan pulang bagi baris yang
+// terlanjur dilompati kursor sebelum kontrak apply diperbaiki; aman karena pull server-authoritative
+// dan upsert idempoten. Batas putaran = jaring pengaman, bukan kuota.
+const FULL_PULL_MAX_PAGES = 200;
+export async function syncNow(opts?: { full?: boolean }): Promise<SyncStats | null> {
   const base = effectiveStr("SYNC_SERVER_URL");
   const token = effectiveStr("SYNC_DEVICE_TOKEN");
   if (!base || !token) return null;
-  return syncOnce(fetchTransport(base, token));
+  const transport = fetchTransport(base, token);
+  if (!opts?.full) return syncOnce(transport);
+  await setCursor("0");
+  const total: SyncStats = { pulled: 0, pushed: 0, conflicts: 0 };
+  let seen = "0";
+  for (let page = 0; page < FULL_PULL_MAX_PAGES; page++) {
+    const s = await syncOnce(transport);
+    total.pulled += s.pulled; total.pushed += s.pushed; total.conflicts += s.conflicts;
+    const now = await getCursor();
+    if (now === seen) break; // kursor berhenti bergerak → feed habis
+    seen = now;
+  }
+  return total;
 }
 
 let timer: NodeJS.Timeout | undefined;
@@ -158,10 +222,10 @@ export async function startSyncClient(base: string, token: string, tickMs?: numb
     ws.on("message", async (raw: Buffer) => {
       try {
         const msg = JSON.parse(raw.toString());
-        if (msg.t === "sync" && msg.entity && msg.recordId) {
-          await applyRemote(msg.entity, msg.recordId, msg.version, msg.data);
-          if (msg.seq) await setCursor(String(msg.seq));
-        }
+        if (msg.t !== "sync") return;
+        // SPEC-382 · frame yang belum bisa diterapkan menahan kursor lalu ditambal lewat pull —
+        // dulu kegagalan ditelan diam-diam dan frame berikutnya memajukan kursor melewatinya.
+        if (!(await applyFeedFrame(msg))) void tick();
       } catch { /* frame rusak — abaikan */ }
     });
     const reconnect = () => { setTimeout(() => { void connectWs(); }, 3000); };

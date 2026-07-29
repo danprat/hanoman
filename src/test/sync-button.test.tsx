@@ -26,6 +26,17 @@ describe("SyncButton (SPEC-268)", () => {
     expect(onToast).toHaveBeenCalledWith(expect.stringContaining("↓2 ↑1"), "ok", expect.anything());
   });
 
+  // SPEC-382 · baris feed yang terlanjur dilompati kursor hanya bisa dipulihkan dengan menarik
+  // ulang feed dari awal — tak ada siklus normal yang bisa mundur.
+  it("tombol Tarik ulang memicu syncNow({ full: true })", async () => {
+    const onToast = vi.fn();
+    syncNow.mockResolvedValue({ ok: true, full: true, pulled: 7, pushed: 0, conflicts: 0 } as never);
+    render(<SyncButton onDone={vi.fn()} onToast={onToast} />);
+    fireEvent.click(await screen.findByText("Tarik ulang"));
+    await waitFor(() => expect(syncNow).toHaveBeenCalledWith({ full: true }));
+    await waitFor(() => expect(onToast).toHaveBeenCalledWith(expect.stringContaining("↓7"), "ok", expect.anything()));
+  });
+
   it("tak render saat hub (sync.running=false)", async () => {
     getConfig.mockResolvedValue({ entries: [], sync: { running: false, connected: false } } as never);
     const { container } = render(<SyncButton onDone={vi.fn()} onToast={vi.fn()} />);

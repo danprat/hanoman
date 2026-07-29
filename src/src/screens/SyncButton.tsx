@@ -24,13 +24,13 @@ export function useSyncActive(): boolean {
 export function SyncButton({ onDone, onToast }:
   { onDone: () => void; onToast: (msg: string, kind?: string, icon?: string) => void }) {
   const active = useSyncActive();
-  const [busy, setBusy] = React.useState(false);
+  const [busy, setBusy] = React.useState<"" | "once" | "full">("");
   const [showModal, setShowModal] = React.useState(false);
   if (!active) return null;
-  async function run() {
-    setBusy(true);
+  async function run(full: boolean) {
+    setBusy(full ? "full" : "once");
     try {
-      const r = await api.syncNow();
+      const r = full ? await api.syncNow({ full: true }) : await api.syncNow();
       if (!r.ok) onToast("Instance ini hub — tak ada sync manual", "info", "info");
       else onToast(
         `Sinkron: ↓${r.pulled ?? 0} ↑${r.pushed ?? 0}${r.conflicts ? ` · ${r.conflicts} konflik` : ""}`,
@@ -39,12 +39,18 @@ export function SyncButton({ onDone, onToast }:
       if (r.ok && r.conflicts) setShowModal(true);
       onDone();
     } catch { onToast("Gagal sync", "err", "x-circle"); }
-    finally { setBusy(false); }
+    finally { setBusy(""); }
   }
   return (
     <>
-      <Button size="sm" variant="secondary" leftIcon="rotate-ccw" onClick={run} disabled={busy}>
-        {busy ? "Menyinkron…" : "Sync"}
+      <Button size="sm" variant="secondary" leftIcon="rotate-ccw" onClick={() => run(false)} disabled={busy !== ""}>
+        {busy === "once" ? "Menyinkron…" : "Sync"}
+      </Button>
+      {/* SPEC-382 · baris feed yang terlanjur dilompati kursor tak bisa ditarik siklus normal —
+          hanya tarik ulang dari awal yang memulihkannya (mis. lampiran tiket yang hilang). */}
+      <Button size="sm" variant="ghost" leftIcon="history" onClick={() => run(true)} disabled={busy !== ""}
+        title="Tarik ulang seluruh feed dari awal — untuk data lama yang tak ikut tersinkron">
+        {busy === "full" ? "Menarik ulang…" : "Tarik ulang"}
       </Button>
       <ReconcileModal open={showModal} onClose={() => setShowModal(false)} onResolved={onDone} />
     </>
