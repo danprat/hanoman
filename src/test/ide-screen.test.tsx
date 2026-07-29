@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import { IdeScreen } from "../src/screens/IdeScreen";
 import { api, ApiError } from "../src/api/client";
 
@@ -194,5 +194,57 @@ describe("IdeScreen tab Branches (SPEC-360)", () => {
     // jadi query WAJIB role "tab" — bukan "button".
     fireEvent.click(await screen.findByRole("tab", { name: /branches/i }));
     expect(await screen.findByText("hanoman/spec-9")).toBeInTheDocument();
+  });
+});
+
+// SPEC-385 · aksi Preview membuka .md di ruang baca lebar — di mode file (di samping toggle
+// SPEC-240 yang tetap ada, karena itu labelnya "Preview lebar") DAN di pane diff, yang dulu
+// hanya punya <pre> mentah.
+describe("IdeScreen preview .md (SPEC-385)", () => {
+  // Mode file SUDAH punya preview inline (SPEC-240) + tombol unduh toolbar (SPEC-361), jadi
+  // assertion di-scope ke panel modal — kalau tidak, "found multiple elements" bisa terbaca
+  // sebagai lulus/gagal karena alasan yang salah.
+  it("mode file: Preview lebar membuka modal berisi markdown terender + unduh berkas itu", async () => {
+    render(<IdeScreen projects={projects} projectId="p1" onProject={() => {}} />);
+    fireEvent.click(await screen.findByText("README.md"));
+    fireEvent.click(await screen.findByRole("button", { name: /preview lebar/i }));
+    const modal = within(await screen.findByTestId("modal-panel"));
+    expect(modal.getByRole("heading", { name: "hi" })).toBeInTheDocument();
+    expect(modal.getByRole("link", { name: /unduh \.md/i }))
+      .toHaveAttribute("href", "/api/projects/p1/file?path=README.md&download=md");
+  });
+
+  it("toggle inline Preview|Source SPEC-240 tetap ada", async () => {
+    render(<IdeScreen projects={projects} projectId="p1" onProject={() => {}} />);
+    fireEvent.click(await screen.findByText("README.md"));
+    expect(await screen.findByText("Source")).toBeInTheDocument();
+    expect(screen.getByText("Preview")).toBeInTheDocument();
+  });
+
+  it("pane diff: Preview lebar merender isi sesudah perubahan + unduh dari endpoint file-diff", async () => {
+    vi.spyOn(api, "ideWorkingStatus").mockResolvedValue({
+      branch: "main", staged: [],
+      unstaged: [{ path: "docs/a.md", add: 2, del: 0, status: "M", binary: false }],
+    });
+    vi.spyOn(api, "ideFileDiff").mockResolvedValue({
+      path: "docs/a.md", status: "M", binary: false, truncated: false,
+      diff: "@@ -1 +1 @@\n+# Sesudah", content: "# Sesudah\n\nteks",
+    });
+    render(<IdeScreen projects={projects} projectId="p1" onProject={() => {}} />);
+    fireEvent.click(await screen.findByText("docs/a.md"));
+    await waitFor(() => expect(api.ideFileDiff).toHaveBeenCalledWith("p1", "docs/a.md", false));
+    fireEvent.click(await screen.findByRole("button", { name: /preview lebar/i }));
+    expect(await screen.findByRole("heading", { name: "Sesudah" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /unduh \.pdf/i }))
+      .toHaveAttribute("href", "/api/projects/p1/file-diff?path=docs%2Fa.md&download=pdf");
+  });
+
+  it("berkas non-.md tak menawarkan Preview lebar di mode file", async () => {
+    vi.spyOn(api, "ideFile").mockResolvedValue({ path: "src/a.ts", content: "const x = 1", binary: false, truncated: false });
+    render(<IdeScreen projects={projects} projectId="p1" onProject={() => {}} />);
+    fireEvent.click(await screen.findByText("src/"));
+    fireEvent.click(await screen.findByText("a.ts"));
+    await waitFor(() => expect(api.ideFile).toHaveBeenCalledWith("p1", "src/a.ts", ""));
+    expect(screen.queryByRole("button", { name: /preview lebar/i })).toBeNull();
   });
 });
