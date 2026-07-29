@@ -95,10 +95,14 @@ menyentuh endpoint, sekali di akhir.
   Ini **fitur, bukan kegagalan**: `--changed` menghitung blast radius yang sebenarnya alih-alih
   menebaknya, jadi ia menyempit saat memang aman menyempit dan melebar saat memang harus melebar.
   Jangan "memperbaiki"-nya dengan menyaring path secara manual.
-- **Test sensitif-waktu bisa gagal karena BEBAN, bukan karena regresi.** Di run 217-berkas itu
-  `server/test/sync-ws.test.ts` melewati timeout 5000 ms, lalu lulus dalam **186 ms** saat
-  dijalankan sendirian. Sebelum menyalahkan perubahan, jalankan ulang berkas itu terisolasi —
-  dan catat bahwa gejala ini sendiri adalah argumen untuk ADR ini.
+- **Run ber-scope yang lebih besar memunculkan flake yang sudah ada, dan itu mudah disalahartikan
+  sebagai regresi.** Saat mengerjakan SPEC-376, `server/test/sync-ws.test.ts` melewati timeout
+  5000 ms di dua run campur-project, tetapi: lulus **186 ms** sendirian, lulus bersama tetangga
+  server (`session-launch`+`terminal.route`+`cross-audit`), lulus bersama 25 berkas `src`, dan
+  **lulus saat set 15-berkas yang persis sama dijalankan ulang** (185/185). Jadi ia
+  **non-deterministik**, bukan akibat perubahan mana pun — penyebab pastinya belum ditemukan dan
+  di luar scope ADR ini. Aturannya: sebelum menyalahkan perubahanmu, jalankan ulang berkas itu
+  terisolasi DAN ulangi set yang sama; satu kegagalan tunggal di run besar bukan bukti regresi.
 
 ## Alternatif yang ditolak
 

@@ -146,9 +146,10 @@ Pakai skill lebih sempit saat task cocok:
   tak pernah tercetak `/bin/echo` — buktinya harus dibaca dari DALAM proses (`fake-agent-env.sh`);
   dan untuk perubahan di modul INTI `--changed` memang mendekati suite penuh (terukur di SPEC-376
   sendiri: menyentuh `shared/src/{enums,entities,dto}.ts` → 217 berkas / 1589 test / 177 dtk) —
-  itu blast radius yang sebenarnya, penghematan datang dari perubahan berdaun. Test sensitif-waktu
-  (`sync-ws.test.ts`) bisa gagal karena BEBAN run besar; jalankan ulang terisolasi sebelum
-  menyalahkan perubahan.
+  itu blast radius yang sebenarnya, penghematan datang dari perubahan berdaun. `sync-ws.test.ts`
+  terbukti **non-deterministik** (gagal 2× di run campur-project, lulus sendirian, lulus bersama
+  tetangga server, lulus saat set yang sama diulang) — jalankan ulang terisolasi DAN ulangi
+  set yang sama sebelum menyalahkan perubahanmu.
 - Stage bergerak **maju** hanya lewat fase yang dilaporkan sesi; **mundur** hanya lewat aksi human eksplisit `PATCH /specs/:id { stage }` (backward-only, ADR-0027). `executing` **tertahan** (tak jadi `done`) selama plan `docs/superpowers/plans/**` masih punya `- [ ]` (ADR-0029).
 - Biaya bersifat **estimasi dan tidak menggerakkan apa pun** (ADR-0012): tak ada `dailyBudget`/budget flag. Indikator limit dibaca dari OAuth usage API Anthropic (`services/limits.ts`), bukan parsing output terminal.
 - **Jangan pernah menjalankan run/sesi di working tree utama** — selalu worktree terpisah. Jangan menyentuh worktree sesi lain.

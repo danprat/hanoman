@@ -967,9 +967,16 @@ Dua temuan yang layak dicatat, keduanya sudah masuk ADR-0080 & SKILL.md:
    `shared/src/{enums,entities,dto}.ts` yang diimpor hampir semua modul. Itu blast radius yang
    sebenarnya, bukan kegagalan alat; penghematan datang dari perubahan berdaun. Klaim "hemat RAM &
    CPU" karena itu tidak universal, dan docs tak boleh menjanjikannya seolah-olah universal.
-2. **Satu kegagalan bukan regresi:** `server/test/sync-ws.test.ts` melewati timeout 5000 ms di
-   tengah run 217-berkas, lalu lulus dalam **186 ms** saat dijalankan sendirian. Perubahan spec ini
-   tak punya jalur ke sync. Gejalanya sendiri adalah argumen untuk ADR-0080.
+2. **Satu kegagalan bukan regresi — `server/test/sync-ws.test.ts` non-deterministik.** Ia melewati
+   timeout 5000 ms di dua run campur-project, lalu: lulus **186 ms** sendirian; lulus bersama
+   tetangga server (`session-launch` + `terminal.route` + `cross-audit`, 73/73); lulus bersama 25
+   berkas `src` (126/126); dan **lulus saat set 15-berkas yang persis sama diulang** (185/185).
+   Dugaan awal "gagal karena beban" TIDAK terkonfirmasi oleh reproduksi tersempit — yang terbukti
+   hanyalah bahwa ia flaky. Perubahan spec ini tak punya jalur ke sync (ia menyentuh
+   settings/session-launch/terminal-route/prompt/enum bersama; `sync-ws` menguji device token +
+   siaran `SyncLog`). Penyebab flake-nya belum ditemukan dan di luar scope SPEC-376.
+
+Verifikasi akhir berkas yang tersentuh (run bersih terakhir): **185/185 lulus, 15 berkas, 26 dtk.**
 
 Typecheck: `shared`, `runner`, `server`, `src` exit 0. `cli` & `sdk` ikut di-typecheck (exit 0)
 justru karena spec ini mengubah **tipe bersama** — persis kasus "perluas scope" yang diperintahkan
