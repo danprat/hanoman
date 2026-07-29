@@ -1,13 +1,13 @@
 import { prisma } from "../db";
 import type { Spec } from "@prisma/client";
-import { realGit, startPrompt, continuePrompt, startCrossAuditPrompt, resolveGoalCondition, type Flow, type Autonomy, type VerifyScope } from "@hanoman/runner";
+import { realGit, startPrompt, continuePrompt, resumePrompt, startCrossAuditPrompt, resolveGoalCondition, type Flow, type Autonomy, type VerifyScope, type ResumeCtx } from "@hanoman/runner";
 import type { Agent } from "@hanoman/shared";
 import { buildCrossAuditCtx, crossAuditSessionOpts } from "./cross-audit";
 import { resolveRepoDir } from "./local-binding";
 import { getSetting } from "./settings";
 import { ensureCodexTrust } from "./codex-trust";
 import { createSession, getSession, killSession, sessionIdForSpec } from "./pty";
-import { phaseFilePath, decisionFilePath } from "./session-phases";
+import { phaseFilePath, decisionFilePath, readPhases } from "./session-phases";
 
 // Re-ekspor supaya pemanggil (governor, test) punya satu titik impor jalur peluncuran.
 export { sessionIdForSpec } from "./pty";
@@ -18,7 +18,26 @@ export { sessionIdForSpec } from "./pty";
 export class LaunchError extends Error {
   constructor(message: string, readonly kind: "needs-bind" | "worktree") { super(message); }
 }
-export type StartSpecResult = { id: string; reused?: boolean };
+export type StartSpecResult = { id: string; reused?: boolean; resumed?: boolean };
+
+// SPEC-394 · ADR-0084 — keadaan KETIGA sebuah peluncuran, di antara "re-attach" dan "sesi baru".
+// Resume hanya sah bila artefaknya benar-benar masih ada (syarat yang ditulis ADR-0017): worktree
+// yang masih sah, atau tip branch sesi yang bisa di-checkout. `baseSha` null = spec ini belum
+// pernah punya worktree, jadi apa pun isi disk bukan miliknya.
+type Resume = { worktreeKept: boolean; base?: string };
+function resumeState(
+  repoDir: string, worktree: string, branchTo: string, headSha: string | null,
+): Resume | null {
+  if (realGit.worktreeAlive(worktree)) return { worktreeKept: true };
+  // Urutan mengikat: `origin/<branchTo>` lebih dulu karena ITULAH ref yang push berikutnya harus
+  // fast-forward — worktree yang lahir dari basis lain membuat `git push` di akhir sesi ditolak
+  // non-fast-forward (ADR-0017). `headSha` (SPEC-176) jadi jaring terakhir untuk commit yang tak
+  // sempat di-push; ia bisa sudah tak terjangkau, jadi resolve-nya lunak.
+  const base = realGit.revParse(repoDir, `origin/${branchTo}`)
+    ?? realGit.revParse(repoDir, branchTo)
+    ?? (headSha ? realGit.revParse(repoDir, headSha) : null);
+  return base ? { worktreeKept: false, base } : null;
+}
 
 export async function startSpecSession(
   spec: Spec,
@@ -62,10 +81,18 @@ export async function startSpecSession(
   const model = opts.model ?? agentDefaults.model;
   const effort = opts.effort ?? agentDefaults.effort;
   const isContinue = spec.stage === "done";
+  const worktree = `${repoDir}/.worktrees/${id}`;
+  const branchTo = `hanoman/${id}`;
+  // SPEC-394 · ADR-0084 · keadaan ketiga: melanjutkan. `done` tetap milik SPEC-172 — kerjanya
+  // umumnya sudah ter-merge ke branchFrom, jadi worktree barunya memang harus lahir dari sana
+  // dan bukan dari tip branch sesi yang sudah usang.
+  const resume = !isContinue && spec.baseSha
+    ? resumeState(repoDir, worktree, branchTo, spec.headSha)
+    : null;
   // SPEC-332 · ADR-0073 · kondisi goal: override sesi → template global → default DoD bawaan.
   const goal = (opts.goal ?? setting.goal.enabled)
     ? resolveGoalCondition(
-        { flow: opts.flow, specId: spec.id, branchTo: `hanoman/${id}` },
+        { flow: opts.flow, specId: spec.id, branchTo },
         opts.goalCondition, setting.goal.condition)
     : undefined;
   // SPEC-376 · ADR-0080 · scope verifikasi: override sesi → Setting global → "changed".
@@ -78,12 +105,24 @@ export async function startSpecSession(
   if (agent === "codex") ensureCodexTrust(repoDir);
 
   let baseSha: string;
-  try {
-    baseSha = realGit.addWorktree(repoDir, `${repoDir}/.worktrees/${id}`, spec.branchFrom ?? "HEAD");
-  } catch (e) {
-    throw new LaunchError(`gagal membuat worktree: ${(e as Error).message}`, "worktree");
+  if (resume?.worktreeKept) {
+    // SPEC-394 · satu-satunya jalur yang TIDAK memanggil addWorktree: helper itu selalu merebut
+    // path lebih dulu (`worktree remove --force` + `rmSync`), dan di sini path itu berisi persis
+    // pekerjaan yang mau dilanjutkan. baseSha dijamin non-null oleh gerbang resume di atas.
+    baseSha = spec.baseSha!;
+  } else {
+    try {
+      const born = realGit.addWorktree(repoDir, worktree, resume?.base ?? spec.branchFrom ?? "HEAD");
+      // Resume: rentang review tetap diukur dari basis ASLI (ADR-0030) — yang berubah hanya titik
+      // checkout-nya. Fresh: basis barulah yang dicatat.
+      baseSha = resume ? spec.baseSha! : born;
+    } catch (e) {
+      throw new LaunchError(`gagal membuat worktree: ${(e as Error).message}`, "worktree");
+    }
+    // Menulis ulang baseSha saat resume akan memotong rentang review jadi "sejak dilanjutkan";
+    // headSha yang di-null-kan menghapus ujung yang sudah tercatat sesi sebelumnya.
+    if (!resume) await prisma.spec.update({ where: { id: spec.id }, data: { baseSha, headSha: null } });
   }
-  await prisma.spec.update({ where: { id: spec.id }, data: { baseSha, headSha: null } });
 
   const brief = {
     id: spec.id, title: spec.title, source: spec.source,
@@ -91,9 +130,23 @@ export async function startSpecSession(
   };
   // SPEC-337 · ADR-0075 · flow cross-audit: prompt ber-peta project + kunci baca log seumur sesi.
   // Flow lain tak tersentuh (prompt & opsi persis seperti sebelumnya).
-  let prompt = isContinue
-    ? continuePrompt(opts.flow, brief, `hanoman/${id}`, opts.autonomy, verifyScope)
-    : startPrompt(opts.flow, brief, `hanoman/${id}`, opts.autonomy, verifyScope);
+  let prompt: string;
+  if (isContinue) {
+    prompt = continuePrompt(opts.flow, brief, branchTo, opts.autonomy, verifyScope);
+  } else if (resume) {
+    // SPEC-394 · fase yang sudah tercatat hidup DI LUAR worktree (session-phases.ts) dan tak ikut
+    // ter-checkout, jadi agen tak punya cara lain mengetahuinya selain diberi tahu di prompt.
+    const phases = readPhases(phaseFilePath(repoDir, id), opts.flow);
+    const ctx: ResumeCtx = {
+      recorded: phases.filter((p) => p.state === "done" || p.state === "skipped")
+        .map((p) => `${p.name} ${p.state}`),
+      next: phases.find((p) => p.state === "active")?.name,
+      worktreeKept: resume.worktreeKept,
+    };
+    prompt = resumePrompt(opts.flow, brief, branchTo, ctx, opts.autonomy, verifyScope);
+  } else {
+    prompt = startPrompt(opts.flow, brief, branchTo, opts.autonomy, verifyScope);
+  }
   // SPEC-376 · ADR-0080 · env sesi. baseSha SUDAH dihitung di addWorktree di atas — tanpa
   // meneruskannya, klausa "berkas yang berubah" tak bisa dieksekusi tanpa menebak: worktree
   // lahir `--detach`, jadi `main` belum tentu ada dan `HEAD~1` salah.
@@ -103,12 +156,11 @@ export async function startSpecSession(
     const built = await buildCrossAuditCtx(spec.projectId);
     if (built) {
       prompt = startCrossAuditPrompt(
-        { ...built.ctx, worktree: `${repoDir}/.worktrees/${id}`, spec: brief, branchTo: `hanoman/${id}` },
-        "backlog");
+        { ...built.ctx, worktree, spec: brief, branchTo }, "backlog");
       extra = crossAuditSessionOpts(built.scope);
     }
   }
-  const s = createSession(spec.projectId, `${repoDir}/.worktrees/${id}`, {
+  const s = createSession(spec.projectId, worktree, {
     specId: spec.id, flow: opts.flow, model, effort, goal, agent,
     phaseFile: phaseFilePath(repoDir, id),
     decisionFile: decisionFilePath(repoDir, id),
@@ -117,5 +169,5 @@ export async function startSpecSession(
     // Digabung SESUDAH `extra` supaya env audit lintas (SPEC-337) tak terhapus dan sebaliknya.
     env: { ...scopeEnv, ...(extra.env ?? {}) },
   });
-  return { id: s.id };
+  return resume ? { id: s.id, resumed: true } : { id: s.id };
 }

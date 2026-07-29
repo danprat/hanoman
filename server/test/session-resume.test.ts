@@ -76,3 +76,50 @@ describe("SPEC-394 · pane mati bukan sesi hidup", () => {
     killSession(r2.id);
   });
 });
+
+describe("SPEC-394 · resume dengan worktree utuh", () => {
+  it("tak menghapus worktree, tak menulis ulang baseSha, dan mengirim prompt lanjutan", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = ALIVE;
+    const { dir, spec } = await seed("SPEC-L3");
+    const r1 = await startSpecSession(spec, { flow: "qa" });
+    const wt = join(dir, ".worktrees", r1.id);
+    const baseAwal = (await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-L3" } })).baseSha;
+
+    // kerja setengah jalan: plan berkotak + berkas belum di-commit + fase tercatat
+    mkdirSync(join(wt, "docs", "superpowers", "plans"), { recursive: true });
+    writeFileSync(join(wt, "docs", "superpowers", "plans", "spec-l3-plan.md"), "- [x] satu\n- [ ] dua\n");
+    writeFileSync(join(wt, "belum-commit.txt"), "jangan hilang");
+    writeFileSync(join(dir, ".worktrees", ".phases", r1.id), "Audit done\nSpec skipped\n");
+    killSession(r1.id);   // pane hilang, worktree tetap (mis. mesin restart)
+
+    const fresh = await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-L3" } });
+    const r2 = await startSpecSession(fresh, { flow: "qa" });
+    expect(r2.resumed).toBe(true);
+    expect(existsSync(join(wt, "belum-commit.txt"))).toBe(true);
+    expect(existsSync(join(wt, "docs", "superpowers", "plans", "spec-l3-plan.md"))).toBe(true);
+
+    const after = await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-L3" } });
+    expect(after.baseSha).toBe(baseAwal);
+
+    const prompt = readFileSync(promptFilePath(r2.id), "utf8");
+    expect(prompt).toContain("MELANJUTKAN");
+    expect(prompt).toContain("Audit done");
+    expect(prompt).toContain("Spec skipped");
+    expect(prompt).toContain("Lanjutkan dari fase: Plan.");
+    expect(prompt).toContain("belum di-commit");
+    killSession(r2.id);
+  });
+
+  it("berkas fase tidak pernah ditulis server", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = ALIVE;
+    const { dir, spec } = await seed("SPEC-L4");
+    const r1 = await startSpecSession(spec, { flow: "qa" });
+    const phaseFile = join(dir, ".worktrees", ".phases", r1.id);
+    writeFileSync(phaseFile, "Audit done\n");
+    killSession(r1.id);
+    const fresh = await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-L4" } });
+    const r2 = await startSpecSession(fresh, { flow: "qa" });
+    expect(readFileSync(phaseFile, "utf8")).toBe("Audit done\n");
+    killSession(r2.id);
+  });
+});
