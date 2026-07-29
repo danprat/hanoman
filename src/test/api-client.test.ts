@@ -79,3 +79,28 @@ describe("api client · scheduler (SPEC-299)", () => {
       method: "PATCH", body: JSON.stringify({ schedulerOptIn: true }) }));
   });
 });
+
+// SPEC-385 · URL unduh untuk pratinjau di Review & pane diff IDE (ADR-0078: query di endpoint
+// yang sudah ada, bukan endpoint ekspor baru).
+describe("URL unduh pratinjau review & diff (SPEC-385)", () => {
+  it("review backlog & review sesi", () => {
+    expect(api.specReviewFileDownloadUrl("SPEC-385", "docs/a.md", "md"))
+      .toBe("/api/specs/SPEC-385/review/docs/a.md?download=md");
+    expect(api.sessionReviewFileDownloadUrl("sess1", "docs/a.md", "pdf"))
+      .toBe("/api/terminal/sessions/sess1/review/docs/a.md?download=pdf");
+  });
+
+  it("diff working tree: query download digabung dengan query yang sudah ada", () => {
+    expect(api.ideFileDiffDownloadUrl("p1", "docs/a.md", false, "md"))
+      .toBe("/api/projects/p1/file-diff?path=docs%2Fa.md&download=md");
+    expect(api.ideFileDiffDownloadUrl("p1", "docs/a.md", true, "pdf"))
+      .toBe("/api/projects/p1/file-diff?path=docs%2Fa.md&staged=1&download=pdf");
+  });
+
+  it("berkas commit & compare di Git Graph", () => {
+    expect(api.ideCommitFileDownloadUrl("p1", "abc1234", "docs/a.md", "md"))
+      .toBe("/api/projects/p1/commit/abc1234/file?path=docs%2Fa.md&download=md");
+    expect(api.ideCompareFileDownloadUrl("p1", "aaa", "bbb", "docs/a.md", "pdf"))
+      .toBe("/api/projects/p1/compare/file?from=aaa&to=bbb&path=docs%2Fa.md&download=pdf");
+  });
+});
