@@ -123,3 +123,65 @@ describe("SPEC-394 · resume dengan worktree utuh", () => {
     killSession(r2.id);
   });
 });
+
+describe("SPEC-394 · resume tanpa worktree, fresh, dan stage done", () => {
+  it("worktree hilang tapi branch sesi ada → lahir di tip branch itu", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = ALIVE;
+    const { dir, spec } = await seed("SPEC-L5");
+    const r1 = await startSpecSession(spec, { flow: "qa" });
+    const wt = join(dir, ".worktrees", r1.id);
+    const baseAwal = (await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-L5" } })).baseSha;
+
+    writeFileSync(join(wt, "hasil.txt"), "commit sesi 1");
+    g(wt, "add", "-A"); g(wt, "commit", "-qm", "kerja sesi 1");
+    const tip = g(wt, "rev-parse", "HEAD").trim();
+    g(wt, "push", "-q", "origin", `HEAD:refs/heads/hanoman/${r1.id}`);
+    killSession(r1.id);
+    realGit.removeWorktree(dir, wt);            // operator menutup sesi (SPEC-362)
+    expect(existsSync(wt)).toBe(false);
+
+    const fresh = await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-L5" } });
+    const r2 = await startSpecSession(fresh, { flow: "qa" });
+    expect(r2.resumed).toBe(true);
+    expect(realGit.headSha(wt)).toBe(tip);       // bukan `main`
+    expect(existsSync(join(wt, "hasil.txt"))).toBe(true);
+    expect((await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-L5" } })).baseSha).toBe(baseAwal);
+
+    const prompt = readFileSync(promptFilePath(r2.id), "utf8");
+    expect(prompt).toContain("DIBANGUN ULANG");
+    expect(prompt).toContain("TIDAK ada");
+    killSession(r2.id);
+  });
+
+  it("tanpa worktree & tanpa branch sesi → perilaku lama persis (startPrompt, baseSha ditulis)", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = ALIVE;
+    const { spec } = await seed("SPEC-L6");
+    const r = await startSpecSession(spec, { flow: "qa" });
+    expect(r.resumed).toBeUndefined();
+    const row = await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-L6" } });
+    expect(row.baseSha).toMatch(/^[0-9a-f]{40}$/);
+    expect(row.headSha).toBeNull();
+    const prompt = readFileSync(promptFilePath(r.id), "utf8");
+    expect(prompt).not.toContain("MELANJUTKAN");
+    expect(prompt).toContain("Kerjakan fase berurutan: Audit → Spec → Plan → Execute.");
+    killSession(r.id);
+  });
+
+  it("stage done tetap jalur SPEC-172: continuePrompt, worktree dari branchFrom", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = ALIVE;
+    const { dir, spec } = await seed("SPEC-L7", "done");
+    const r1 = await startSpecSession(spec, { flow: "qa" });
+    const wt = join(dir, ".worktrees", r1.id);
+    writeFileSync(join(wt, "sisa.txt"), "artefak sesi lama");
+    killSession(r1.id);
+
+    const fresh = await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-L7" } });
+    const r2 = await startSpecSession(fresh, { flow: "qa" });
+    expect(r2.resumed).toBeUndefined();
+    expect(existsSync(join(wt, "sisa.txt"))).toBe(false);   // worktree memang dibangun ulang
+    const prompt = readFileSync(promptFilePath(r2.id), "utf8");
+    expect(prompt).toContain("sebelumnya ditandai selesai");
+    expect(prompt).not.toContain("Sesi ini MELANJUTKAN pekerjaan sesi sebelumnya");
+    killSession(r2.id);
+  });
+});
