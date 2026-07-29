@@ -41,7 +41,7 @@
 - Consumes: `linkedSetFrom(indexRel, docs, read)` dari `shared/src/coverage.ts` — BFS graf link, mengembalikan `Set<string>` doc yang reachable.
 - Produces: perintah `node <scratchpad>/check-docs.ts` yang dipakai **setiap task berikutnya** sebagai gerbang; exit 0 = 0 link rusak + 0 doc yatim + semua ADR reachable.
 
-- [ ] **Step 1: Tulis harness verifikasi**
+- [x] **Step 1: Tulis harness verifikasi**
 
 Simpan sebagai `<scratchpad>/check-docs.ts` (ganti `<REPO>` dengan path absolut worktree):
 
@@ -81,7 +81,7 @@ process.exit(broken.length + orphans.length === 0 && adr.every((a) => linked.has
 
 Catatan: `git ls-files` hanya melihat berkas **ter-track**. Berkas baru (`adr/README.md`, `adr/0083-*.md`) harus di-`git add` dulu agar ikut terperiksa — itu disengaja, supaya yang diverifikasi adalah yang akan ter-commit.
 
-- [ ] **Step 2: Jalankan — harus MERAH**
+- [x] **Step 2: Jalankan — harus MERAH**
 
 ```bash
 node <scratchpad>/check-docs.ts; echo "exit=$?"
@@ -97,7 +97,7 @@ ADR reachable: 82/82
 exit=1
 ```
 
-- [ ] **Step 3: Perbaiki linknya**
+- [x] **Step 3: Perbaiki linknya**
 
 Di `internal/docs/architecture/stack.md`, link itu ditulis dari dalam `architecture/` sehingga `adr/…` resolve ke `internal/docs/architecture/adr/…`. Tambahkan `../`:
 
@@ -109,7 +109,7 @@ menjadi
 (../adr/0072-scheduler-fondasi-engine-antrean-durable-cap.md)
 ```
 
-- [ ] **Step 4: Jalankan lagi — harus HIJAU**
+- [x] **Step 4: Jalankan lagi — harus HIJAU**
 
 ```bash
 node <scratchpad>/check-docs.ts; echo "exit=$?"
@@ -117,7 +117,7 @@ node <scratchpad>/check-docs.ts; echo "exit=$?"
 
 Expected: `link rusak   : 0`, `doc yatim    : 0`, `ADR reachable: 82/82`, `exit=0`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/docs/architecture/stack.md
@@ -138,7 +138,7 @@ git commit -m "docs(spec-386): perbaiki link relatif stack.md ke ADR-0072"
 
 **Kenapa ini aman:** `cli/src/docs-model.ts:16-18` sudah menyebut pola ini secara harfiah — *"README ikut korpus: `linkedSetFrom` hanya menelusuri link yang targetnya ada di korpus, jadi sub-index (`adr/README.md`) harus ada di sini agar bisa ditelusuri."* Dan `cli/test/index-link.cmd.test.ts` menjaga perilaku `--fix` untuk doc yang sudah reachable lewat sub-index.
 
-- [ ] **Step 1: Buat `internal/docs/adr/README.md`**
+- [x] **Step 1: Buat `internal/docs/adr/README.md`**
 
 Pindahkan **verbatim** seluruh isi seksi `## adr` dari `internal/docs/README.md` (blockquote pembuka + 82 entri + sisipan `> Diperluas SPEC-385`), dengan **dua penyesuaian path** karena berkas ini hidup di `internal/docs/adr/`:
 
@@ -160,7 +160,7 @@ gotcha yang harus diingat. Nomor unik & imutable — ADR usang tidak dihapus, ha
 
 lalu 82 entri, urut turun 0082 → 0001, apa adanya.
 
-- [ ] **Step 2: Ringkas seksi `## adr` di index utama**
+- [x] **Step 2: Ringkas seksi `## adr` di index utama**
 
 Ganti seluruh seksi `## adr` di `internal/docs/README.md` dengan:
 
@@ -178,7 +178,7 @@ Ganti seluruh seksi `## adr` di `internal/docs/README.md` dengan:
 
 Aturan menulis tiap baris: `- [NNNN — <judul ADR apa adanya>](adr/<slug>.md)` + **hanya** penanda status untuk ADR usang (`— *superseded by NNNN*`, `— *de-facto obsolete (NNNN)*`, `— *historis per NNNN*`, `— *mekanisme superseded by NNNN*`). Semua prosa lain dibuang dari sini — ia sudah pindah ke sub-index.
 
-- [ ] **Step 3: Verifikasi reachability lewat sub-index**
+- [x] **Step 3: Verifikasi reachability lewat sub-index**
 
 ```bash
 git add internal/docs/adr/README.md internal/docs/README.md
@@ -189,7 +189,7 @@ Expected: `korpus : 141 berkas`, `link rusak : 0`, `doc yatim : 0`, `ADR reachab
 
 Ini bukti yang penting: 82 ADR tetap reachable **padahal index utama tak lagi memuat narasinya** — berarti BFS memang menembus sub-index.
 
-- [ ] **Step 4: Verifikasi dengan CLI resmi**
+- [x] **Step 4: Verifikasi dengan CLI resmi**
 
 ```bash
 pnpm --filter ./cli exec tsx src/hanoman.ts docs index --check
@@ -197,7 +197,7 @@ pnpm --filter ./cli exec tsx src/hanoman.ts docs index --check
 
 Expected: `index ok`
 
-- [ ] **Step 5: Ukur hasilnya**
+- [x] **Step 5: Ukur hasilnya**
 
 ```bash
 wc -c internal/docs/README.md internal/docs/adr/README.md
@@ -205,7 +205,7 @@ wc -c internal/docs/README.md internal/docs/adr/README.md
 
 Expected: `README.md` turun dari 46 620 B ke kisaran **25–28 KB** (seksi `research` masih utuh di tahap ini), `adr/README.md` di kisaran **24 KB**.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/docs/README.md internal/docs/adr/README.md
@@ -226,7 +226,7 @@ git commit -m "docs(spec-386): narasi 82 ADR pindah ke sub-index adr/README.md"
 
 **Kenapa penghapusan tak memecahkan apa pun:** `services/spec-docs.ts:19` mengklasifikasi audit lewat **pola path** (`p.includes("/research/audit-")`), dan `services/audit-escalation.ts` mencari dokumennya lewat `listSpecDocs` saat request — tak ada daftar berkas ter-hardcode di kode maupun test. Yang berubah: `GET /api/specs/:id/escalation` membalas `null` dan preview "doc audit" kosong untuk 27 spec lama; semuanya sudah closed.
 
-- [ ] **Step 1: Catat ledger sebelum menghapus**
+- [x] **Step 1: Catat ledger sebelum menghapus**
 
 Untuk tiap dari 27 dokumen, catat **jejak permanennya** (ADR yang lahir darinya, atau doc SoT/kode yang memuat perbaikannya) dari entri index yang ada sekarang. Ledger ini masuk ke ADR-0083 di Task 4 — itulah yang membuat penghapusan bisa diaudit belakangan. Salin dulu ke berkas kerja:
 
@@ -235,14 +235,14 @@ sed -n '/^## research/,/^## architecture/p' internal/docs/README.md > <scratchpa
 wc -l <scratchpad>/research-section.md
 ```
 
-- [ ] **Step 2: Hapus berkasnya**
+- [x] **Step 2: Hapus berkasnya**
 
 ```bash
 git rm internal/docs/research/audit-spec-*.md
 git status --porcelain | grep -c '^D ' # Expected: 27
 ```
 
-- [ ] **Step 3: Rapikan seksi `## research` di index**
+- [x] **Step 3: Rapikan seksi `## research` di index**
 
 Ganti seluruh seksi dengan:
 
@@ -258,7 +258,7 @@ Ganti seluruh seksi dengan:
 
 (Link ke `adr/0083-…` sengaja ditulis sekarang; ia akan **rusak sampai Task 4 membuat berkasnya** — itu wajar dan akan tertangkap harness. Bila kamu memilih menjalankan harness di akhir Step 4 saja, catat alasannya.)
 
-- [ ] **Step 4: Verifikasi — link ke ADR-0083 masih MERAH, sisanya bersih**
+- [x] **Step 4: Verifikasi — link ke ADR-0083 masih MERAH, sisanya bersih**
 
 ```bash
 git add -A internal/docs
@@ -269,7 +269,7 @@ Expected: `korpus : 114 berkas`, `link rusak : 1` (hanya `README.md -> adr/0083-
 
 Ini MERAH yang disengaja — ia jadi test yang menuntun Task 4.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A internal/docs
@@ -292,7 +292,7 @@ git commit -m "docs(spec-386): hapus 27 dokumen audit yang spec-nya sudah tuntas
 - Consumes: seksi `## research` Task 3 yang sudah menaut `adr/0083-retensi-dokumen-audit.md` — nama berkas ini **wajib persis** itu.
 - Produces: aturan retensi yang dirujuk index, ADR-0057, workflow doc, dan skill project.
 
-- [ ] **Step 1: Tulis ADR-0083**
+- [x] **Step 1: Tulis ADR-0083**
 
 `internal/docs/adr/0083-retensi-dokumen-audit.md`, mengikuti format ADR repo ini (lihat ADR-0082 sebagai contoh bentuk):
 
@@ -337,7 +337,7 @@ tanpa aturan ini seksi research tumbuh selamanya karena flow audit terus memprod
 
 Bagian dalam `[…]` adalah instruksi isi, bukan teks literal — tulis prosanya.
 
-- [ ] **Step 2: Tautkan di kedua index**
+- [x] **Step 2: Tautkan di kedua index**
 
 Di `internal/docs/README.md`, baris pertama daftar seksi `## adr`:
 ```markdown
@@ -346,7 +346,7 @@ Di `internal/docs/README.md`, baris pertama daftar seksi `## adr`:
 
 Di `internal/docs/adr/README.md`, entri narasi di puncak daftar (paragraf gaya sama dengan entri 0082/0081), menaut `(0083-retensi-dokumen-audit.md)`.
 
-- [ ] **Step 3: Catatan amandemen di ADR-0057**
+- [x] **Step 3: Catatan amandemen di ADR-0057**
 
 Tambahkan di bawah baris Status `internal/docs/adr/0057-audit-only-source-flow.md`:
 ```markdown
@@ -355,11 +355,11 @@ Tambahkan di bawah baris Status `internal/docs/adr/0057-audit-only-source-flow.m
 > temuannya sudah meninggalkan jejak permanen. Flow, pipeline, dan deliverable-nya tak berubah.
 ```
 
-- [ ] **Step 4: Aturan retensi di workflow doc**
+- [x] **Step 4: Aturan retensi di workflow doc**
 
 Di `internal/docs/operations/agent-documentation-workflow.md`, pada butir **Audit-only**, tambahkan kalimat penutup yang menyebut ADR-0083 + syarat jejak permanen + kewajiban ikut menghapus entri index.
 
-- [ ] **Step 5: Aturan retensi di skill project**
+- [x] **Step 5: Aturan retensi di skill project**
 
 Di `internal/skills/hanoman/SKILL.md`, bagian **Aturan Dokumentasi & Alur**, tambahkan butir baru sesudah butir "Nomor SPEC & ADR unik & imutable":
 
@@ -372,7 +372,7 @@ Di `internal/skills/hanoman/SKILL.md`, bagian **Aturan Dokumentasi & Alur**, tam
   `internal/docs/adr/README.md`; index utama hanya satu baris per ADR — ia dibaca setiap sesi.
 ```
 
-- [ ] **Step 6: Verifikasi — harus HIJAU lagi**
+- [x] **Step 6: Verifikasi — harus HIJAU lagi**
 
 ```bash
 git add -A internal/docs internal/skills
@@ -382,7 +382,7 @@ pnpm --filter ./cli exec tsx src/hanoman.ts docs index --check
 
 Expected: `korpus : 115 berkas`, `link rusak : 0`, `doc yatim : 0`, `ADR reachable: 83/83`, `exit=0`, lalu `index ok`.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add -A internal/docs internal/skills
@@ -419,27 +419,27 @@ git commit -m "docs(spec-386): ADR-0083 retensi dokumen audit + amandemen ADR-00
 | versi = git SHA, update read-only tanpa self-mutation | ADR-0048 |
 | deploy single-host di belakang reverse proxy TLS | `internal/docs/operations/deploy-vps.md` |
 
-- [ ] **Step 1: `research/market-sizing.md`**
+- [x] **Step 1: `research/market-sizing.md`**
 
 Ganti isinya. Judul tetap `# Market sizing`. Isi: sizing hanoman adalah **kapasitas satu mesin**, bukan ukuran pasar — targetnya berapa project aktif & backlog, berapa sesi agen konkuren yang muat (cap default 2, `SCHEDULER_DEFAULTS.maxConcurrent`), apa yang sebenarnya jadi batas (RAM/CPU saat beberapa sesi berbagi mesin — alasan `verifyScope=changed` ADR-0080 dengan angka suite penuhnya), dan batas mana yang belum diukur. Tutup dengan satu baris "yang belum divalidasi".
 
-- [ ] **Step 2: `research/competitor-analysis.md`**
+- [x] **Step 2: `research/competitor-analysis.md`**
 
 Ganti isinya. Pembanding nyata: (a) menjalankan `claude`/`codex` CLI manual per repo, (b) CI generik, (c) orkestrator agen lain. Untuk tiap pembanding tulis apa yang ia sudah berikan dan apa yang tidak. Celah yang hanoman isi: SoT sebagai konvensi yang terukur (coverage), isolasi worktree per backlog, sesi hidup lintas restart di tmux, satu panel lintas project, dan agnostik agen (claude ↔ codex, ADR-0074).
 
-- [ ] **Step 3: `research/moat.md`**
+- [x] **Step 3: `research/moat.md`**
 
 Ganti isinya. Keunggulan bertahan = **kombinasinya**, bukan satu fitur: SoT + isolasi worktree + sesi persisten + sinkron hub↔client + error monitoring/Help Center yang menyuapi backlog. Sebutkan juga apa yang **bukan** moat (UI, wrapper CLI) supaya doc ini jujur.
 
-- [ ] **Step 4: `business/pricing-rationale.md`**
+- [x] **Step 4: `business/pricing-rationale.md`**
 
 Ganti isinya. Internal, tanpa harga jual. "Biaya" = token model dan bersifat **estimasi** (ADR-0012) — tak ada `dailyBudget`, tak ada gerbang anggaran. Kendali nyata yang tersedia: pilihan model & effort per sesi saat Start (katalog claude & codex dengan slug persis), default global di Settings, default terpisah untuk sesi konflik (ADR-0081), dan `verifyScope` (ADR-0080) yang memangkas token verifikasi. Pemantauan: dua indikator limit terpisah dengan kesegaran berbeda (claude live 30 dtk vs codex snapshot, `stale` >12 jam) — sengaja tak digabung.
 
-- [ ] **Step 5: `operations/gtm.md`**
+- [x] **Step 5: `operations/gtm.md`**
 
 Ganti isinya. "Peluncuran" = adopsi internal nafanesia.id, dengan kriteria sukses terukur (semua project baru lewat hanoman; docs tersentuh diperbarui di commit yang sama; backlog bergerak lewat sesi, bukan manual). Tambahkan jalur distribusi yang memang sudah ada: repo publik/open-source, `hanoman-sdk` di npm (ADR-0063), dan panduan integrasi AI agent — plus batasnya (satu workspace dulu, multi-tenant pasca-MVP).
 
-- [ ] **Step 6: Verifikasi**
+- [x] **Step 6: Verifikasi**
 
 ```bash
 node <scratchpad>/check-docs.ts; echo "exit=$?"
@@ -450,7 +450,7 @@ wc -l internal/docs/research/market-sizing.md internal/docs/research/competitor-
 
 Expected: `exit=0`; tiap berkas **> 3 baris** (bukti stub-nya benar-benar terisi).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add internal/docs/research internal/docs/business internal/docs/operations
@@ -469,7 +469,7 @@ git commit -m "docs(spec-386): isi lima stub scaffold jadi doc bersumber"
 - Consumes: format EARS dari `internal/docs/requirements/acceptance-criteria-ears-standard.md`.
 - Produces: dua doc detail kanonik; `entrypoints/frd.md` & `entrypoints/rd.md` **tidak** diubah (di luar scope).
 
-- [ ] **Step 1: Tulis `requirements/frd.md`**
+- [x] **Step 1: Tulis `requirements/frd.md`**
 
 Sekarang isinya 3 baris yang menunjuk balik ke entrypoint — terbalik dari standar repo ("docs detail adalah kanonik"). Tulis FRD per modul memakai pola EARS (`THE SYSTEM SHALL` · `WHEN … THE SYSTEM SHALL` · `WHILE … THE SYSTEM SHALL` · `WHERE … THE SYSTEM SHALL` · `IF … THEN THE SYSTEM SHALL`).
 
@@ -493,7 +493,7 @@ Overview · Projects · PRD · Backlog · Terminal · Review & Integrate · Docs
 
 Jangan mengarang perilaku. Bila sebuah klausa tak bisa kamu tunjuk sumbernya di kode/ADR, jangan tulis.
 
-- [ ] **Step 2: Tulis `requirements/rd.md`**
+- [x] **Step 2: Tulis `requirements/rd.md`**
 
 Ganti isi. Judul tetap `# Requirements — rekap`? **Tidak** — berkas ini adalah *release doc* detail (padanan `entrypoints/rd.md`); beri judul `# Release doc (detail) — hanoman`. Isi:
 
@@ -504,7 +504,7 @@ Ganti isi. Judul tetap `# Requirements — rekap`? **Tidak** — berkas ini adal
 - **Kriteria rilis** — test yang tersentuh hijau + suite penuh dijalankan manusia sebelum merge (ADR-0080), docs tersentuh terbarui & ter-link, migration additif untuk hub produksi.
 - **Rollback** — checkout SHA sebelumnya + rebuild + restart; migration **additif** sehingga rollback kode tak menuntut rollback skema.
 
-- [ ] **Step 3: Verifikasi**
+- [x] **Step 3: Verifikasi**
 
 ```bash
 node <scratchpad>/check-docs.ts; echo "exit=$?"
@@ -513,7 +513,7 @@ wc -l internal/docs/requirements/frd.md internal/docs/requirements/rd.md
 
 Expected: `exit=0`; kedua berkas jauh di atas 3 baris.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add internal/docs/requirements
@@ -531,21 +531,21 @@ git commit -m "docs(spec-386): isi requirements/frd.md & rd.md jadi doc detail k
 - Consumes: seluruh task sebelumnya.
 - Produces: bukti tertulis bahwa cleanup tak merusak apa pun.
 
-- [ ] **Step 1: Harness integritas**
+- [x] **Step 1: Harness integritas**
 
 ```bash
 node <scratchpad>/check-docs.ts; echo "exit=$?"
 ```
 Expected: `link rusak : 0`, `doc yatim : 0`, `ADR reachable: 83/83`, `exit=0`.
 
-- [ ] **Step 2: CLI resmi**
+- [x] **Step 2: CLI resmi**
 
 ```bash
 pnpm --filter ./cli exec tsx src/hanoman.ts docs index --check
 ```
 Expected: `index ok`
 
-- [ ] **Step 3: Test mesin index/coverage**
+- [x] **Step 3: Test mesin index/coverage**
 
 Perubahan spec ini bersandar pada perilaku sub-index milik modul-modul ini, jadi test-nya dijalankan meski kodenya tak berubah:
 
@@ -556,14 +556,14 @@ env -u NODE_ENV -u DATABASE_URL pnpm vitest run --no-file-parallelism \
 ```
 Expected: seluruhnya PASS, dan **jumlah test > 0** — bila muncul "no test files", perbaiki path, jangan terima sebagai hijau.
 
-- [ ] **Step 4: Scope test resmi sesi**
+- [x] **Step 4: Scope test resmi sesi**
 
 ```bash
 env -u NODE_ENV -u DATABASE_URL pnpm vitest --run --changed "$HANOMAN_BASE_SHA"
 ```
 Expected: **nol berkas test** — perubahan spec ini murni `.md`. Ini **bukan** bukti kehijauan (gotcha `passWithNoTests`, ADR-0080); catat apa adanya di laporan dan sandarkan bukti pada Step 1–3.
 
-- [ ] **Step 5: Ukur hasil akhir**
+- [x] **Step 5: Ukur hasil akhir**
 
 ```bash
 echo "berkas: $(git ls-files internal/docs | wc -l)"
@@ -572,11 +572,11 @@ wc -c internal/docs/README.md internal/docs/adr/README.md
 ```
 Expected: berkas 140 → **115**; `README.md` 46 620 B → **≤ 10 KB**.
 
-- [ ] **Step 6: Centang seluruh checklist plan ini**
+- [x] **Step 6: Centang seluruh checklist plan ini**
 
 Semua `- [ ]` di berkas ini menjadi `- [x]`. hanoman menahan backlog di `executing` selama masih ada yang kosong (ADR-0029).
 
-- [ ] **Step 7: Commit akhir & push**
+- [x] **Step 7: Commit akhir & push**
 
 ```bash
 git add -A
