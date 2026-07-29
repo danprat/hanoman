@@ -7,6 +7,11 @@
 [ADR-0029](0029-execute-done-butuh-plan-terceklist.md) (Execute butuh plan terceklist),
 [ADR-0021](0021-nomor-spec-diklaim-docs-bukan-hanya-database.md) (nomor diklaim lintas branch)
 
+> **Dibatasi [ADR-0083](0083-retensi-dokumen-audit.md)** (SPEC-386): dokumen audit yang dihasilkan flow
+> ini **berumur** — ia boleh dihapus setelah eskalasinya diputuskan dan spec turunannya tuntas, asalkan
+> temuannya sudah meninggalkan jejak permanen dan rujukan masuknya ikut dibereskan. Flow, pipeline,
+> deliverable, dan jalur promosi ke Finding QA di bawah ini **tak berubah**.
+
 ## Konteks
 
 Dua source backlog yang ada keduanya berakhir menulis kode:

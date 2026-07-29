@@ -38,6 +38,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 > **Narasi tiap keputusan — apa yang diperluas/dicabut/diamandemen, berikut gotcha-nya — ada di
 > [adr/README.md](adr/README.md).** Daftar di bawah sengaja satu baris per ADR: index ini dibaca
 > setiap sesi agen, sub-index hanya saat butuh riwayatnya (SPEC-386).
+- [0083 — Retensi dokumen audit: artefak diagnosis berumur, bukan SoT abadi](adr/0083-retensi-dokumen-audit.md)
 - [0082 — Kontrak apply changefeed: record tertunda, kursor tak melompat, tarik ulang penuh](adr/0082-kontrak-apply-changefeed-record-tertunda.md)
 - [0081 — Default sesi konflik: blok `Setting.conflict` opt-in yang mewarisi saat mati](adr/0081-default-sesi-konflik-opt-in.md)
 - [0080 — Scope verifikasi per sesi: klausa prompt + env, bukan hook deny](adr/0080-scope-verifikasi-per-sesi.md)
