@@ -15,7 +15,7 @@
 Tidak ada message queue, Redis, worker terpisah, cron eksternal, maupun webhook GitHub — semuanya
 dicabut saat pindah ke sesi interaktif (ADR-0024). Pekerjaan latar belakang berjalan **in-process**
 lewat `setInterval` yang di-`start` dari `server.ts` saja (`app.ts` bebas-timer): monitor VPS (health
-5 mnt, audit 24 jam) dan — sejak SPEC-294/[ADR-0072](adr/0072-scheduler-fondasi-engine-antrean-durable-cap.md) —
+5 mnt, audit 24 jam) dan — sejak SPEC-294/[ADR-0072](../adr/0072-scheduler-fondasi-engine-antrean-durable-cap.md) —
 **engine scheduler otonom** (tick governor: checker source enable+cadence → antrean durable
 `SchedulerQueueItem` → drain di bawah cap). Scheduler **membalik sebagian ADR-0024** (menghidupkan kembali
 antrean durable + cap concurrency), tetap **tanpa** broker eksternal: "antrean durable" = tabel DB hanoman.
