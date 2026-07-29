@@ -73,6 +73,17 @@ Test kontrak `src/test/scroll-chain.test.tsx` menaiki rantai leluhur tiap pane d
 setiap mata rantai meneruskan tinggi; rinciannya di
 [audit SPEC-393](../research/audit-spec-393-ide-docs-tak-bisa-scroll.md).
 
+Aturan ini berlaku untuk **kartu ber-tinggi terbatas** — entah batasnya datang dari rantai flex
+layar (Docs/IDE) atau dari `maxHeight` kartunya sendiri (modal berkas Git Graph, `86vh`). Kartu
+yang tingginya mengikuti isi tak perlu `fill`: pane di dalamnya memakai `maxHeight` sendiri
+(`ReviewScreen` 640, `BranchesPanel` 620) sehingga tak bergantung pada rantai apa pun.
+
+**Gotcha: `fill` di overlay flex ber-arah baris.** `fill` ikut menyetel `flex: 1 1 auto`. Di
+kartu yang jadi **grid item** (Docs/IDE) itu tak berpengaruh, tapi di modal yang dipusatkan
+overlay `display: flex` (arah **baris**) `flex-grow: 1` bekerja pada **lebar** — panel modal
+Git Graph terukur melar 900 → 1464 px. Kembalikan defaultnya lewat `style` (di-spread sesudah
+`fill` di `Card`): `flex: "0 1 auto"`.
+
 **Kecuali untuk pane yang harus setinggi viewport** (pratinjau dokumen, SPEC-363):
 `LIST_SCREEN_STYLE` ber-`flex-basis: auto`, dan karena `<main>` memakai `min-height: 100%`
 (bukan `height` — lihat alinea di atas), item ber-basis `auto` memakai tinggi **isi**-nya lalu

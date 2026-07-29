@@ -230,7 +230,14 @@ Pakai skill lebih sempit saat task cocok:
   menuntut tiap mata rantai meneruskan tinggi (`display` flex/grid + `minHeight: 0`); jsdom tak
   melayout, jadi hanya kontrak itu yang bisa dijaga di test. Kontrol kerjanya sejak 2026-07-10:
   `ProjectsScreen.tsx` `<Card padding={0} fill>`; `DocPreviewModal` aman karena rantainya
-  `Modal fillHeight` → `modal-body`, tanpa `Card`.
+  `Modal fillHeight` → `modal-body`, tanpa `Card`. **Sweep dua lapis** (54 `Card` dienumerasi →
+  9 kandidat → 4 tanpa `fill`, lalu detektor gejala "terpotong & tak terjangkau" di Chrome)
+  menemukan korban keempat yang **tak dikeluhkan**: modal berkas Git Graph (kartu ber-`maxHeight:
+  86vh`), 11 162 px hilang. `ReviewScreen`/`BranchesPanel` aman **justru karena** pane-nya masih
+  ber-`maxHeight` tetap — pane berbatas sendiri tak bergantung pada rantai. **Gotcha kedua:**
+  `fill` juga menyetel `flex: 1 1 auto`, jadi di modal yang dipusatkan overlay flex ber-arah
+  **baris** ia melebarkan panel (terukur 900 → 1464 px) — kembalikan `flex: "0 1 auto"` lewat
+  `style` (di-spread sesudah `fill`); kartu grid item (Docs/IDE) tak kena.
 - **Aksi preview `.md` di IDE & Review** (SPEC-385, tanpa ADR — memperluas ADR-0078 + preseden
   SPEC-240/363): empat permukaan yang dulu menampilkan `.md` sebagai `<pre>` mentah kini punya aksi
   preview — pane **diff** Explorer, modal berkas **Git Graph**, dan **Review** (backlog *dan* sesi

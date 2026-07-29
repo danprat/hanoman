@@ -23,28 +23,53 @@ vi.mock("../src/api/client", () => ({
     ideFile: vi.fn(async () => ({ path: "README.md", content: "# hi", binary: false, truncated: false })),
     ideWorkingStatus: vi.fn(async () => ({ branch: "main", staged: [], unstaged: [] })),
     ideFileDownloadUrl: () => "#",
+    // Git Graph — cukup untuk membuka satu commit lalu satu berkas .md di modalnya.
+    getConfig: vi.fn(async () => ({ entries: [] })),
+    ideGraph: vi.fn(async () => ({ current: "main", commits: [
+      { sha: "aaaa111", parents: [], author: "t", at: "2026-01-02T00:00:00Z", subject: "kedua", refs: ["main"], tags: [] },
+    ] })),
+    ideStatus: vi.fn(async () => ({ branch: "main", clean: true, ahead: 0, behind: 0,
+      staged: [], unstaged: [], untracked: [] })),
+    ideStashes: vi.fn(async () => []),
+    ideCommit: vi.fn(async () => ({ sha: "aaaa111", parents: [], author: "t", at: "", subject: "kedua",
+      body: "", changed: [{ path: "docs/a.md", add: 1, del: 0, status: "M", binary: false }],
+      signed: false, committer: "t", committedAt: "", authorEmail: "t@t" })),
+    ideCommitFile: vi.fn(async () => ({ path: "docs/a.md", status: "M", binary: false, truncated: false,
+      diff: "@@ -1 +1 @@\n+# Judul", content: "# Judul\n\nisi" })),
+    ideCommitFileDownloadUrl: () => "#",
+    ideCompareFileDownloadUrl: () => "#",
   },
   ApiError: class extends Error {},
 }));
 
 import { DocsWorkspace } from "../src/screens/DocsWorkspace";
 import { IdeScreen } from "../src/screens/IdeScreen";
+import { GitGraph } from "../src/screens/GitGraph";
 
 beforeEach(() => vi.clearAllMocks());
 
+/* "Kerangka" = leluhur yang tingginya sudah PASTI dengan sendirinya: panel ber-`maxHeight`/
+   `height`, atau overlay `position: fixed`. Ia sumber batas tinggi, jadi ia sendiri tak perlu
+   bisa menyusut — cukup meneruskan (kolom flex). */
+const isFrame = (n: HTMLElement) => n.style.position === "fixed" || !!n.style.height || !!n.style.maxHeight;
+
 /* Sebuah pane `overflow: auto` hanya bisa menggulir kalau tingginya dibatasi dari atas. Setiap
-   leluhur antara pane dan root layar karena itu harus MENERUSKAN tinggi: menjadi container
-   flex/grid (supaya `flex` anaknya berlaku) DAN boleh menyusut di bawah tinggi isinya
-   (`min-height: 0`). Satu mata rantai `display: block` sudah cukup memutus semuanya. */
+   leluhur antara pane dan kerangka (atau root layar) karena itu harus MENERUSKAN tinggi: menjadi
+   container flex/grid (supaya `flex` anaknya berlaku) DAN boleh menyusut di bawah tinggi isinya
+   (`min-height: 0`). Satu mata rantai `display: block` sudah cukup memutus semuanya — persis yang
+   dilakukan pembungkus anak `Card` tanpa prop `fill`. */
 function brokenLinks(pane: HTMLElement, root: HTMLElement): string[] {
   const broken: string[] = [];
   for (let n = pane.parentElement; n; n = n.parentElement) {
+    const frame = isFrame(n);
     const display = n.style.display;
     const why: string[] = [];
     if (display !== "flex" && display !== "grid") why.push(`display "${display || "block"}"`);
-    if (n.style.minHeight !== "0" && n.style.minHeight !== "0px") why.push(`min-height "${n.style.minHeight || "auto"}"`);
+    if (!frame && n.style.minHeight !== "0" && n.style.minHeight !== "0px") {
+      why.push(`min-height "${n.style.minHeight || "auto"}"`);
+    }
     if (why.length) broken.push(`<div style="${n.getAttribute("style") ?? ""}"> → ${why.join(" + ")}`);
-    if (n === root) break;
+    if (frame || n === root) break;
   }
   return broken;
 }
@@ -71,5 +96,18 @@ describe("rantai gulir pane tak boleh putus (SPEC-393)", () => {
       projectId="p1" onProject={() => {}} />);
     await waitFor(() => expect(screen.getByTestId("ide-tree-scroll")).toBeInTheDocument());
     expect(brokenLinks(screen.getByTestId("ide-tree-scroll"), rootOf(container))).toEqual([]);
+  });
+
+  /* Modal berkas Git Graph kena bug yang sama: kartunya ber-`maxHeight: 86vh` (kerangka) tapi
+     badannya menggantung di pembungkus anak `Card` yang `display: block`. Terukur di Chrome:
+     11 162 px hilang dari isi 11 859 px, tanpa satu pun scroller. */
+  it("IDE · Git Graph — pane badan modal berkas", async () => {
+    const { container } = render(<GitGraph projectId="p1" onRunGit={async () => ({} as never)}
+      onMerge={async () => {}} onRebase={async () => {}} onPull={async () => {}} onDrop={async () => {}}
+      onOpenFile={() => {}} />);
+    fireEvent.click(await screen.findByText("kedua"));
+    fireEvent.click(await screen.findByText("docs/a.md"));
+    await waitFor(() => expect(screen.getByTestId("gitgraph-file-scroll")).toBeInTheDocument());
+    expect(brokenLinks(screen.getByTestId("gitgraph-file-scroll"), rootOf(container))).toEqual([]);
   });
 });

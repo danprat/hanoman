@@ -576,8 +576,14 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
       {fileDiff && (
         <div onClick={() => setFileDiff(null)} style={{ position: "fixed", inset: 0, zIndex: 160, background: "rgba(0,0,0,.35)",
           display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-          <Card padding={0} onClick={(e: React.MouseEvent) => e.stopPropagation()} style={{ width: "min(900px, 92vw)", maxHeight: "86vh", display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderBottom: "1px solid var(--border-hair)" }}>
+          {/* SPEC-393 · `fill` meneruskan rantai flex ke pembungkus anak `Card` juga; dengan
+              `style` saja pembungkus itu tetap `display: block` dan badan modal menggantung
+              setinggi isinya lalu terpotong `maxHeight: 86vh` + `overflow: hidden`.
+              `flex: 0 1 auto` mengembalikan default yang ditimpa `fill`: overlay ini flex
+              ber-arah BARIS, jadi `flex-grow: 1` bawaan `fill` melebarkan panel mengisi layar
+              (terukur 900 → 1464 px). Di Docs/IDE hal ini tak terjadi — kartunya grid item. */}
+          <Card padding={0} fill onClick={(e: React.MouseEvent) => e.stopPropagation()} style={{ width: "min(900px, 92vw)", maxHeight: "86vh", flex: "0 1 auto" }}>
+            <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderBottom: "1px solid var(--border-hair)" }}>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 12.5, color: "var(--text-strong)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {fileDiff.path} <span style={{ color: "var(--text-subtle)" }}>@ {fileDiff.sha.slice(0, 8)}</span>
               </span>
@@ -600,7 +606,7 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
               )}
               <Button size="sm" variant="ghost" leftIcon="x" onClick={() => setFileDiff(null)}>Tutup</Button>
             </div>
-            <div style={{ overflow: "auto", padding: "10px 0" }}>
+            <div data-testid="gitgraph-file-scroll" style={{ flex: "1 1 auto", minHeight: 0, overflow: "auto", padding: "10px 0" }}>
               {!fileDiff.data ? <StateBlock kind="loading" title="Memuat diff…" hint={fileDiff.path} />
                 : fileDiff.data.binary ? <StateBlock kind="empty" icon="file" title="Berkas biner" />
                 : fileDiff.tab === "diff" ? <DiffView diff={fileDiff.data.diff ?? ""} emptyHint="File tak berubah di commit ini." />

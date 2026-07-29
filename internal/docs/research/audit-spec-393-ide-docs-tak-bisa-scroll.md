@@ -38,10 +38,48 @@ Tiga call site, semuanya dari SPEC-363:
 | `src/src/screens/DocsWorkspace.tsx` | 225 | pane dokumen Docs (preview **dan** editor) |
 | `src/src/screens/IdeScreen.tsx` | 249 | pohon berkas Explorer + Staged/Changed |
 | `src/src/screens/IdeScreen.tsx` | 273 | pane berkas: preview `.md`, **source**, diff |
+| `src/src/screens/GitGraph.tsx` | 579 | badan modal berkas commit (diff · source · preview) — ditemukan lewat sweep di bawah, bukan dari keluhan |
 
-Kartu di luar SPEC-363 tak terdampak: yang butuh rantai flex sudah memakai `fill` sejak
-2026-07-10 (`1f19021`) — contoh kerjanya `ProjectsScreen.tsx:120` `<Card padding={0} fill>`.
-`DocPreviewModal` (SPEC-385) juga aman: rantainya `Modal fillHeight` → `modal-body`, tanpa `Card`.
+Prop `fill` sudah ada sejak 2026-07-10 (`1f19021`) dan contoh kerjanya `ProjectsScreen.tsx:120`
+`<Card padding={0} fill>`; SPEC-363 hanya tak memakainya. `DocPreviewModal` (SPEC-385) aman:
+rantainya `Modal fillHeight` → `modal-body`, tanpa `Card`.
+
+## Sweep: layar lain kena?
+
+Pertanyaan lanjutan setelah temuan pertama. Disapu **dua lapis**, bukan dengan menalar.
+
+**Lapis 1 — statis, menyeluruh.** Semua `<Card>` di `src/src` dienumerasi (parser JSX sadar-nesting),
+lalu disaring yang subtree-nya memuat pane bergulir / rantai tinggi / `display:flex` di tag-nya:
+**54 `Card` total → 9 kandidat → 4 tanpa `fill`.**
+
+**Lapis 2 — dinamis, generik.** Detektor mencari **gejala**, bukan `Card`: setiap elemen yang
+`scrollHeight > clientHeight` sementara `overflow-y: hidden` **dan** tak punya leluhur bergulir
+yang bisa menampakkan sisanya. Dijalankan atas DOM yang dirender komponen aslinya.
+
+| Kandidat | Bentuk | Hasil ukur | Putusan |
+| --- | --- | --- | --- |
+| `GitGraph.tsx:579` modal berkas | `maxHeight: 86vh` + flex lewat `style` | **11 162 px hilang** (kotak 697, isi 11 859), **0 scroller** | **BUG — sama persis** |
+| `ReviewScreen.tsx:66` pohon | pane ber-`maxHeight: 640` | 640 / 11 286, menggulir | aman |
+| `ReviewScreen.tsx:79` viewer | pane ber-`maxHeight: 640` | 640 / 8 020, menggulir | aman |
+| `BranchesPanel.tsx:83` daftar | pane ber-`maxHeight: 620` | 620 / 5 677, menggulir | aman |
+| `ProjectDetailScreen.tsx:49` | `display:flex` ada di prop `actions` | tak punya pane bergulir | positif palsu |
+
+Yang menyelamatkan tiga kartu terakhir adalah **tinggi tetap** yang justru dicabut SPEC-363:
+`maxHeight` pada pane membuat pane itu sendiri terbatas, jadi ia tak pernah bergantung pada
+rantai yang putus. Karena itu bug ini hanya mengenai permukaan yang **sudah pindah** ke rantai
+flex — dan Git Graph pindah lebih dulu lewat `maxHeight: 86vh` di kartunya (bukan di pane-nya).
+
+Sisa pane bergulir di app (Backlog, PRD, Triage, Errors, Terminal, SpecDocsModal, NotificationBell,
+SessionHistoryModal, IntegrationGuideModal, ReconcileModal) **tak berada di dalam `Card`**, jadi
+tak ada pembungkus yang memutus rantai maupun `overflow: hidden` yang memotong.
+
+### Gotcha `fill` di overlay ber-arah baris
+
+Memakai `fill` di modal Git Graph **melebarkan panelnya 900 → 1464 px** (terukur). Sebabnya
+`fill` ikut menyetel `flex: 1 1 auto`, sementara overlay modal itu flex ber-arah **baris** —
+jadi `flex-grow: 1` bekerja pada **lebar**, bukan tinggi. Kartu Docs/IDE tak kena karena keduanya
+**grid item**. Perbaikannya mengembalikan default lewat `style` (yang di-spread sesudah `fill`
+di `Card`): `flex: "0 1 auto"` → panel kembali **900 × 699 px** dengan gulir tetap hidup.
 
 ## Pengukuran
 
@@ -92,9 +130,12 @@ menjadi doc-of-record.
 ## Perbaikan
 
 `<Card padding={0} style={{ display:"flex", flexDirection:"column", minHeight:0 }}>` →
-`<Card padding={0} fill>` di tiga call site di atas. `fill` menyetel properti yang sama pada div
-terluar **dan** pembungkus anak, jadi tak ada perubahan visual selain isinya kini bisa digulir.
-Pane pohon berkas Explorer diberi `data-testid="ide-tree-scroll"` supaya rantainya bisa diuji.
+`<Card padding={0} fill>` di tiga call site pertama, dan `<Card padding={0} fill … style={{ width,
+maxHeight, flex:"0 1 auto" }}>` di modal Git Graph (lihat gotcha overlay baris di bawah).
+`fill` menyetel properti yang sama pada div terluar **dan** pembungkus anak, jadi tak ada
+perubahan visual selain isinya kini bisa digulir. Pane pohon berkas Explorer diberi
+`data-testid="ide-tree-scroll"` dan badan modal Git Graph `data-testid="gitgraph-file-scroll"`
+supaya rantainya bisa diuji.
 
 **Sesudah perbaikan**, diukur ulang di Chrome dengan berkas, kerangka, dan viewport yang sama:
 
@@ -103,6 +144,7 @@ Pane pohon berkas Explorer diberi `data-testid="ide-tree-scroll"` supaya rantain
 | Docs · dokumen | 11 830 / 11 830 / **tidak** | 644 / 11 830 / **ya** |
 | IDE · berkas (preview, source, diff) | 11 820 / 11 820 / **tidak** | 593 / 11 820 / **ya** |
 | IDE · pohon Explorer | 5 776 / 5 776 / **tidak** | 593 / 5 776 / **ya** |
+| Git Graph · badan modal berkas | terpotong 11 162 px, **0 scroller** | 646 / 11 808 / **ya** (panel tetap 900 × 699) |
 
 Sebelumnya `clientHeight === scrollHeight` di ketiganya — pane tak punya apa pun untuk digulir
 karena ia justru tumbuh setinggi isinya. Sesudahnya tingginya dibatasi induk dan `scrollHeight`
