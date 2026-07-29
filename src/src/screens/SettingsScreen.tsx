@@ -3,25 +3,16 @@
 import React from "react";
 import { Card, Switch, Select, Button, Input, Field, HnTextarea, Icon, StateBlock } from "../ds";
 import { api, ApiError } from "../api/client";
-import { CAPABILITY_DOMAINS, SCHEDULER_DEFAULTS, GOAL_DEFAULTS, CODEX_DEFAULTS, CODEX_MODELS, codexEfforts, coerceCodexEffort, codexModel, codexClientTooOld } from "@hanoman/shared";
+import { CAPABILITY_DOMAINS, SCHEDULER_DEFAULTS, GOAL_DEFAULTS, CODEX_DEFAULTS, CONFLICT_DEFAULTS, CODEX_MODELS, MODELS, EFFORTS, codexEfforts, coerceCodexEffort, codexModel, codexClientTooOld } from "@hanoman/shared";
 import type { Setting, UserView, DeviceTokenView, SessionResultView, ConfigResponse, ConfigEntryView, AgentTokenView, CapabilityInfo } from "@hanoman/shared";
 import type { ShowToast } from "../ds";
 import { playNotifySound, type NotifySound } from "../notifications/sound";
 
-// Valid Claude model ids, diteruskan apa adanya ke `claude --model`. Keep in
-// sync with the server default in services/settings.ts.
-const S_MODELS = [
-  { value: "claude-opus-5", label: "Opus 5" },
-  { value: "claude-sonnet-5", label: "Sonnet 5" },
-  { value: "claude-haiku-4-5", label: "Haiku 4.5" },
-  { value: "claude-fable-5", label: "Fable 5" },      // SPEC-238
-];
-// Effort keys diteruskan apa adanya ke `claude --effort`.
-const S_EFFORT = [
-  { value: "xhigh", label: "x-high" }, { value: "high", label: "high" },
-  { value: "medium", label: "medium" }, { value: "low", label: "low" },
-  { value: "max", label: "max" }, { value: "ultracode", label: "ultracode" }, // SPEC-238
-];
+// SPEC-383 · katalog claude dibaca dari @hanoman/shared — sumber yang SAMA dengan picker Start
+// (App.tsx). Sebelumnya tab ini menyalinnya (`S_MODELS`/`S_EFFORT` + komentar "keep in sync"),
+// jadi Settings dan Start bisa menampilkan daftar model claude yang berbeda.
+const S_MODELS = MODELS.map((m) => ({ value: m.id, label: m.label }));
+const S_EFFORT = EFFORTS.map((v) => ({ value: v, label: v === "xhigh" ? "x-high" : v }));
 // SPEC-252 · ADR-0061 · matrix model/effort per fase (SPEC-238) dicabut — model/effort kini per SESI,
 // dipilih saat Start (StartSessionModal). Yang tersisa di sini hanya default global.
 // SPEC-180 · nada notifikasi backlog selesai (durasi bervariasi). "off" = senyap (toast+daftar tetap jalan).
@@ -45,7 +36,29 @@ const S_DEFAULTS: Setting = {
   agent: "claude",                 // SPEC-338 · ADR-0074 · mesin sesi default
   codex: CODEX_DEFAULTS,           // SPEC-338 · ADR-0074 · model/effort codex
   verifyScope: "changed",          // SPEC-376 · ADR-0080 · uji hanya yang berubah
+  conflict: CONFLICT_DEFAULTS,     // SPEC-383 · ADR-0081 · default sesi konflik (opt-in, mati)
 };
+
+// SPEC-383 · label agen dipakai di judul grup model DAN di baris warisan kartu konflik — satu
+// sumber supaya "Codex CLI" di dua tempat tak bisa berbeda.
+const AGENT_LABEL: Record<"claude" | "codex", string> = { claude: "Claude Code", codex: "Codex CLI" };
+
+// SPEC-383 · penanda blok mana yang benar-benar dipakai sesi baru. Tanpa ini judul kartu
+// ("default global") terbaca sebagai klaim atas KEDUA blok, padahal `sessionAgentDefaults()`
+// hanya membaca blok milik `Setting.agent`.
+function AgentGroupHeader({ id, label, active }: { id: "claude" | "codex"; label: string; active: boolean }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, paddingTop: 4 }}>
+      <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text-strong)" }}>{label}</div>
+      <span data-testid={`agent-badge-${id}`} style={{
+        fontSize: 11, fontFamily: "var(--font-mono)", padding: "2px 7px", borderRadius: 999,
+        background: active ? "var(--brass-100)" : "transparent",
+        color: active ? "var(--brass-700)" : "var(--text-subtle)",
+        border: active ? "none" : "1px solid var(--border-hair)",
+      }}>{active ? "dipakai sesi baru" : "tidak dipakai sekarang"}</span>
+    </div>
+  );
+}
 
 function SettingRow({ title, desc, children, last }: { title: string; desc?: string; children?: React.ReactNode; last?: boolean }) {
   return (
@@ -520,80 +533,158 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
         </div>
       </>
     );
-    if (tab === "model") return (
+    if (tab === "model") {
+      // SPEC-339 · catatan LUNAK versi codex CLI. Seluruh aturannya di codexClientTooOld (shared) —
+      // Settings dan picker Start memakai fungsi yang sama, jadi keduanya tak bisa berbeda pendapat.
+      const codexNote = (model: string) => {
+        const have = codexVer?.version ?? null;
+        if (!codexClientTooOld(model, have)) return null;
+        return (
+          <div data-testid="codex-version-note" style={{
+            fontSize: 12, lineHeight: 1.5, marginBottom: 10, padding: "8px 10px",
+            borderRadius: 8, background: "var(--warn-bg, #fdf6e3)", color: "var(--text-muted)",
+          }}>
+            Codex CLI terpasang <b>{have}</b>, sedangkan <b>{model}</b> butuh <b>{codexModel(model)?.minClient}</b>.
+            Sesi tetap boleh dijalankan, tapi modelnya belum tentu dikenali CLI ini.
+            Perbarui dengan <code>npm i -g @openai/codex@latest</code>.
+          </div>
+        );
+      };
+      // SPEC-339 · nilai di luar katalog (mis. dari PUT ber-AgentToken) ditambahkan apa adanya
+      // supaya picker tak tampil kosong. Effort-nya pun tak dikoersi — konsisten dengan aturan
+      // "model tak dikenal → apa adanya" di coerceCodexEffort.
+      const codexOptions = (model: string) => (CODEX_MODELS.some((m) => m.id === model)
+        ? CODEX_MODELS.map((m) => ({ value: m.id, label: m.label }))
+        : [{ value: model, label: model }, ...CODEX_MODELS.map((m) => ({ value: m.id, label: m.label }))]);
+      // SPEC-383 · ADR-0081 · blok konflik. `?? CONFLICT_DEFAULTS` karena respons GET /settings yang
+      // ter-cache dari sebelum SPEC-383 belum punya kunci ini — layar tak boleh mati `undefined.enabled`.
+      const conflict = s.conflict ?? CONFLICT_DEFAULTS;
+      const saveConflict = (patch: Partial<Setting["conflict"]>, msg: string) =>
+        save({ conflict: { ...conflict, ...patch } }, msg);
+      // Warisan yang berlaku saat override mati — persis yang dihitung `sessionAgentDefaults()`.
+      const inherited = agent === "codex"
+        ? { agent: "codex" as const, model: codex.model, effort: codex.effort }
+        : { agent: "claude" as const, model: s.model, effort: s.effort };
+      return (
       <>
       {/* SPEC-338 · ADR-0074 · mesin sesi default. Berlaku untuk SEMUA sesi yang men-spawn agen
           (backlog, reverse, prd, scaffold, breakdown, terminal); backlog masih bisa di-override
-          saat Start. Model/effort claude tetap di kartunya sendiri di bawah. */}
+          saat Start. SPEC-383 · katalog model/effort kedua agen pindah ke kartu di bawah, supaya
+          kartu ini menjawab satu pertanyaan saja: agen mana yang dipakai. */}
       <Card eyebrow="agen" title="Agen sesi">
         <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.5 }}>
           Mesin yang menjalankan sesi baru. Perilaku sesi identik — worktree terisolasi, fase, stage,
           review, integrate. Yang berbeda hanya CLI-nya, dan karenanya katalog model/effort-nya.
           Indikator limit hanya membaca kuota Anthropic, jadi sesi codex tak muncul di sana.
         </div>
-        <SettingRow title="Agen default" desc="Sesi backlog masih bisa memilih agen lain saat Start.">
+        <SettingRow title="Agen default" last desc="Sesi backlog masih bisa memilih agen lain saat Start.">
           <Select size="sm" aria-label="Agen default" value={agent} style={{ width: 190 }}
-            options={[{ value: "claude", label: "Claude Code" }, { value: "codex", label: "Codex CLI" }]}
+            options={[{ value: "claude", label: AGENT_LABEL.claude }, { value: "codex", label: AGENT_LABEL.codex }]}
             onChange={(e) => save({ agent: e.target.value as Setting["agent"] }, "Agen → " + e.target.value)} />
-        </SettingRow>
-        {(() => {
-          // SPEC-339 · seluruh aturannya ada di codexClientTooOld (shared) — Settings dan picker
-          // Start memakai fungsi yang sama, jadi keduanya tak bisa berbeda pendapat.
-          const have = codexVer?.version ?? null;
-          if (!codexClientTooOld(codex.model, have)) return null;
-          const need = codexModel(codex.model)?.minClient;
-          return (
-            <div data-testid="codex-version-note" style={{
-              fontSize: 12, lineHeight: 1.5, marginBottom: 10, padding: "8px 10px",
-              borderRadius: 8, background: "var(--warn-bg, #fdf6e3)", color: "var(--text-muted)",
-            }}>
-              Codex CLI terpasang <b>{have}</b>, sedangkan <b>{codex.model}</b> butuh <b>{need}</b>.
-              Sesi tetap boleh dijalankan, tapi modelnya belum tentu dikenali CLI ini.
-              Perbarui dengan <code>npm i -g @openai/codex@latest</code>.
-            </div>
-          );
-        })()}
-        <SettingRow title="Model codex" desc="Diteruskan apa adanya ke `codex -m`.">
-          <Select size="sm" aria-label="Model codex" value={codex.model} style={{ width: 190 }}
-            options={(CODEX_MODELS.some((m) => m.id === codex.model)
-              ? CODEX_MODELS.map((m) => ({ value: m.id, label: m.label }))
-              // SPEC-339 · nilai di luar katalog (mis. dari PUT ber-AgentToken) ditambahkan apa
-              // adanya supaya picker tak tampil kosong. Effort-nya pun tak dikoersi — konsisten
-              // dengan aturan "model tak dikenal → apa adanya" di coerceCodexEffort.
-              : [{ value: codex.model, label: codex.model },
-                 ...CODEX_MODELS.map((m) => ({ value: m.id, label: m.label }))])}
-            onChange={(e) => {
-              // SPEC-339 · effort ikut dikoreksi: memilih Luna saat effort `ultra` harus menyimpan
-              // pasangan yang sah, bukan pasangan yang nanti ditolak codex saat sesi lahir.
-              const model = e.target.value;
-              save({ codex: { model, effort: coerceCodexEffort(model, codex.effort) } }, "Model codex → " + model);
-            }} />
-        </SettingRow>
-        <SettingRow title="Effort codex" last desc="Diteruskan ke `codex -c model_reasoning_effort`.">
-          <Select size="sm" aria-label="Effort codex" value={codex.effort} style={{ width: 130 }}
-            options={codexEfforts(codex.model).map((v) => ({ value: v, label: v }))}
-            onChange={(e) => save({ codex: { ...codex, effort: e.target.value } }, "Effort codex → " + e.target.value)} />
         </SettingRow>
       </Card>
       {/* SPEC-252 · ADR-0061 · default global saja. Model & effort dipilih PER SESI saat Start
           (picker StartSessionModal); matrix per-fase (SPEC-238) dicabut. Manusia tetap bebas mengetik
-          `/model`/`/effort` di dalam terminal — itu justru gunanya interaktif. */}
+          `/model`/`/effort` di dalam terminal — itu justru gunanya interaktif.
+          SPEC-383 · dua agen berdampingan, MASING-MASING berjudul namanya dan bertanda mana yang
+          sedang dipakai — dulu blok claude hanya berbunyi "Model"/"Effort" tanpa menyebut agennya,
+          sementara judul "default global" tetap terpampang meski agen aktifnya codex. */}
       <Card eyebrow="model" title="Model sesi — default global">
         <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.5 }}>
           Default untuk sesi baru; bisa di-override per sesi saat <b>Start</b>. Di terminal, <code>/model</code>
-          mengubahnya kapan saja. Sesi = satu proses, satu model seumur hidup.
+          mengubahnya kapan saja. Sesi = satu proses, satu model seumur hidup. Yang benar-benar dipakai
+          adalah blok milik agen terpilih di atas — yang satunya tersimpan, menunggu giliran.
         </div>
-        <SettingRow title="Model">
-          <Select size="sm" aria-label="Model claude" value={s.model} options={S_MODELS} style={{ width: 190 }}
-            onChange={(e) => save({ model: e.target.value }, "Model → " + e.target.value)} />
+        <div data-testid="agent-group-claude">
+          <AgentGroupHeader id="claude" label={AGENT_LABEL.claude} active={agent === "claude"} />
+          <SettingRow title="Model" desc="Diteruskan apa adanya ke `claude --model`.">
+            <Select size="sm" aria-label="Model claude" value={s.model} options={S_MODELS} style={{ width: 190 }}
+              onChange={(e) => save({ model: e.target.value }, "Model claude → " + e.target.value)} />
+          </SettingRow>
+          <SettingRow title="Effort" last desc="Anggaran berpikir per giliran (`claude --effort`).">
+            <Select size="sm" aria-label="Effort claude" value={s.effort} options={S_EFFORT} style={{ width: 130 }}
+              onChange={(e) => save({ effort: e.target.value }, "Effort claude → " + e.target.value)} />
+          </SettingRow>
+        </div>
+        <div data-testid="agent-group-codex" style={{ borderTop: "1px solid var(--border-hair)", marginTop: 6 }}>
+          <AgentGroupHeader id="codex" label={AGENT_LABEL.codex} active={agent === "codex"} />
+          {codexNote(codex.model)}
+          <SettingRow title="Model" desc="Diteruskan apa adanya ke `codex -m`.">
+            <Select size="sm" aria-label="Model codex" value={codex.model} style={{ width: 190 }}
+              options={codexOptions(codex.model)}
+              onChange={(e) => {
+                // SPEC-339 · effort ikut dikoreksi: memilih Luna saat effort `ultra` harus menyimpan
+                // pasangan yang sah, bukan pasangan yang nanti ditolak codex saat sesi lahir.
+                const model = e.target.value;
+                save({ codex: { model, effort: coerceCodexEffort(model, codex.effort) } }, "Model codex → " + model);
+              }} />
+          </SettingRow>
+          <SettingRow title="Effort" last desc="Diteruskan ke `codex -c model_reasoning_effort`.">
+            <Select size="sm" aria-label="Effort codex" value={codex.effort} style={{ width: 130 }}
+              options={codexEfforts(codex.model).map((v) => ({ value: v, label: v }))}
+              onChange={(e) => save({ codex: { ...codex, effort: e.target.value } }, "Effort codex → " + e.target.value)} />
+          </SettingRow>
+        </div>
+      </Card>
+      {/* SPEC-383 · ADR-0081 · sesi penyelesai konflik rebase/merge boleh punya default sendiri.
+          Opt-in: mati = mewarisi blok di atas, persis perilaku sebelum SPEC-383. */}
+      <Card eyebrow="konflik" title="Konflik rebase & merge">
+        <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.5 }}>
+          Saat rebase/merge berkonflik, hanoman menyerahkan worktree-nya ke satu sesi agen untuk
+          dibereskan. Pekerjaannya sempit dan tak berfase, jadi ia boleh memakai model & effort yang
+          berbeda dari sesi kerja. Berlaku untuk ketiga pintu integrasi: backlog, git graph, dan PRD.
+        </div>
+        <SettingRow title="Pakai setelan sendiri"
+          desc="Mati = ikut default global di atas. Hidup = sesi konflik memakai pilihan di bawah.">
+          <Switch aria-label="Override agen konflik" checked={conflict.enabled}
+            onChange={(v: boolean) => saveConflict({ enabled: v },
+              "Setelan konflik" + (v ? " · aktif" : " · ikut default global"))} />
         </SettingRow>
-        <SettingRow title="Effort" last desc="Anggaran berpikir per giliran.">
-          <Select size="sm" aria-label="Effort claude" value={s.effort} options={S_EFFORT} style={{ width: 130 }}
-            onChange={(e) => save({ effort: e.target.value }, "Effort → " + e.target.value)} />
-        </SettingRow>
+        {!conflict.enabled ? (
+          <div data-testid="conflict-inherited" style={{ fontSize: 12.5, color: "var(--text-muted)", padding: "12px 0 2px", lineHeight: 1.5 }}>
+            Sesi konflik memakai default global: <b>{AGENT_LABEL[inherited.agent]}</b> ·{" "}
+            <code>{inherited.model}</code> · <code>{inherited.effort}</code>.
+          </div>
+        ) : (
+          <>
+            <SettingRow title="Agen" desc="Mesin yang membereskan konflik. Bisa beda dari agen sesi kerja.">
+              <Select size="sm" aria-label="Agen konflik" value={conflict.agent} style={{ width: 190 }}
+                options={[{ value: "claude", label: AGENT_LABEL.claude }, { value: "codex", label: AGENT_LABEL.codex }]}
+                onChange={(e) => {
+                  // Cermin `pickAgent` di StartSessionModal: menukar agen HARUS menukar model+effort
+                  // sekalian ke default agen itu — kalau tidak sesi lahir `codex -m claude-opus-5`.
+                  const a = e.target.value as "claude" | "codex";
+                  const d = a === "codex" ? codex : { model: s.model, effort: s.effort };
+                  saveConflict({ agent: a, model: d.model, effort: a === "codex" ? coerceCodexEffort(d.model, d.effort) : d.effort },
+                    "Agen konflik → " + a);
+                }} />
+            </SettingRow>
+            {conflict.agent === "codex" && codexNote(conflict.model)}
+            <SettingRow title="Model">
+              <Select size="sm" aria-label="Model konflik" value={conflict.model} style={{ width: 190 }}
+                options={conflict.agent === "codex" ? codexOptions(conflict.model) : S_MODELS}
+                onChange={(e) => {
+                  const model = e.target.value;
+                  saveConflict({ model, ...(conflict.agent === "codex"
+                    ? { effort: coerceCodexEffort(model, conflict.effort) } : {}) },
+                    "Model konflik → " + model);
+                }} />
+            </SettingRow>
+            <SettingRow title="Effort" last desc="Konflik biasanya mekanis — effort rendah sering cukup.">
+              {/* Label effort claude mengikuti kartu di atas (`x-high`), bukan slug mentah —
+                  dua tempat yang menampilkan katalog yang sama harus terbaca sama. */}
+              <Select size="sm" aria-label="Effort konflik" value={conflict.effort} style={{ width: 130 }}
+                options={conflict.agent === "codex"
+                  ? codexEfforts(conflict.model).map((v) => ({ value: v, label: v }))
+                  : S_EFFORT}
+                onChange={(e) => saveConflict({ effort: e.target.value }, "Effort konflik → " + e.target.value)} />
+            </SettingRow>
+          </>
+        )}
       </Card>
       </>
-    );
+      );
+    }
     return ( // sesi
       <>
       <Card eyebrow="sesi" title="Sesi & notifikasi">

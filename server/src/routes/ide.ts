@@ -6,7 +6,7 @@ import { downloadFormat, sendDocDownload } from "../services/doc-export";
 import { prisma } from "../db";
 import { resolveRepoDir } from "../services/local-binding";
 import { listSessions, createSession } from "../services/pty";
-import { sessionAgentDefaults } from "../services/settings";
+import { conflictSessionDefaults } from "../services/settings";
 import { ensureCodexTrust } from "../services/codex-trust";
 import { mergeIntoCurrent, rebaseOntoCurrent, pullIntoCurrent, dropCommit, sourceBranch, type GraphMergeResult } from "../services/integrate";
 import { listUnusedBranches, deleteBranches, type BranchScope } from "../services/branch-cleanup";
@@ -344,12 +344,14 @@ export default async function (app: FastifyInstance) {
 // clean → { status, detail }; conflict → spawn sesi agen di worktree yang tertinggal → sessionId.
 // SPEC-377 · ADR-0074 · agen/model/effort dari Setting (cermin POST /terminal/sessions/:id/integrate).
 // `repoDir` diteruskan pemanggil — keempatnya sudah me-resolve-nya untuk menjalankan operasi git.
+// SPEC-383 · ADR-0081 · `conflictSessionDefaults()` mendahulukan blok `Setting.conflict` bila
+// dinyalakan; bila mati ia mendelegasikan ke default global — perilaku SPEC-377 tak berubah.
 async function finishGraphOp(
   reply: import("fastify").FastifyReply, id: string, repoDir: string, r: GraphMergeResult, verb: string,
 ) {
   if (r.status === "error") return reply.code(r.code).send({ error: r.error });
   if (r.status === "clean") return { status: "clean", detail: r.detail };
-  const { agent, model, effort } = await sessionAgentDefaults();
+  const { agent, model, effort } = await conflictSessionDefaults();
   // Gerbang trust codex dibuka untuk ROOT REPO; worktree `.worktrees/merge-*` mewarisinya.
   if (agent === "codex") ensureCodexTrust(repoDir);
   const prompt = [

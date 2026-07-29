@@ -24,7 +24,9 @@ describe("SettingsScreen sidebar", () => {
     // pindah ke Model sesi → kartu model muncul, form password hilang
     fireEvent.click(screen.getByText("Model sesi"));
     await waitFor(() => expect(screen.queryByText("Ganti password")).toBeNull());
-    expect(screen.getByText("Effort")).toBeInTheDocument();
+    // SPEC-383 · tab ini kini punya baris "Effort" untuk claude MAUPUN codex (dua grup berlabel
+    // agen), jadi identifikasi lewat label yang memang unik — bukan judul barisnya.
+    expect(screen.getByLabelText("Effort claude")).toBeInTheDocument();
     // pindah ke Umum → toggle full-auto
     fireEvent.click(screen.getByText("Umum"));
     expect(await screen.findByText("Full-auto sebagai default")).toBeInTheDocument();

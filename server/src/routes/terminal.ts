@@ -7,7 +7,7 @@ import { buildCrossAuditCtx, crossAuditSessionOpts } from "../services/cross-aud
 import { phaseFilePath, decisionFilePath, readPhases, stageForRun } from "../services/session-phases";
 import { specReview, reviewFile } from "../services/spec-review";
 import { integrateBranch } from "../services/integrate";
-import { sessionAgentDefaults } from "../services/settings";
+import { sessionAgentDefaults, conflictSessionDefaults } from "../services/settings";
 import { ensureCodexTrust } from "../services/codex-trust";
 import { startSpecSession, LaunchError } from "../services/session-launch";
 import { resolveRepoDir } from "../services/local-binding";
@@ -334,8 +334,9 @@ export default async function (app: FastifyInstance) {
     if (r.status === "error") return reply.code(r.code).send({ error: r.error });
     if (r.status === "clean") return { status: "clean", detail: r.detail };
     // conflict → sesi agen interaktif di worktree yang tertinggal (tanpa flow → tak menggerakkan stage).
-    // SPEC-338 · ADR-0074 · ikut agen default global, seperti sesi project-level lainnya.
-    const { agent, model, effort } = await sessionAgentDefaults();
+    // SPEC-338 · ADR-0074 · ikut agen dari Settings, seperti sesi project-level lainnya.
+    // SPEC-383 · ADR-0081 · blok `Setting.conflict` bila dinyalakan; mati = default global.
+    const { agent, model, effort } = await conflictSessionDefaults();
     if (agent === "codex") ensureCodexTrust(repoDir);
     const prompt = [
       `hanoman · selesaikan konflik ${r.op} branch \`${s.branch}\` ${r.op === "merge" ? "ke" : "di atas"} \`${r.target}\`.`,

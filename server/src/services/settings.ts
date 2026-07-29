@@ -1,7 +1,7 @@
 import { prisma } from "../db";
 import {
-  zSetting, SCHEDULER_DEFAULTS, GOAL_DEFAULTS, CODEX_DEFAULTS, RETIRED_CODEX_MODELS,
-  coerceCodexEffort, type Setting, type Agent, type Codex,
+  zSetting, SCHEDULER_DEFAULTS, GOAL_DEFAULTS, CODEX_DEFAULTS, CONFLICT_DEFAULTS,
+  RETIRED_CODEX_MODELS, coerceCodexEffort, type Setting, type Agent, type Codex,
 } from "@hanoman/shared";
 
 // Model id + effort yang diteruskan apa adanya ke `claude --model` / `--effort`.
@@ -19,6 +19,7 @@ export const DEFAULT_SETTING: Setting = {
   agent: "claude",                 // SPEC-338 · ADR-0074 · mesin sesi default
   codex: CODEX_DEFAULTS,           // SPEC-338 · ADR-0074 · model/effort codex
   verifyScope: "changed",          // SPEC-376 · ADR-0080 · uji hanya yang berubah
+  conflict: CONFLICT_DEFAULTS,     // SPEC-383 · ADR-0081 · default sesi konflik (opt-in, mati)
 };
 
 // Baris Setting adalah `Json` bebas bentuk, dan baris yang ditulis SEBELUM SPEC-162 masih
@@ -67,7 +68,31 @@ export async function sessionModel(): Promise<{ model: string; effort: string }>
  */
 export async function sessionAgentDefaults(): Promise<{ agent: Agent; model: string; effort: string }> {
   const s = await getSetting();
+  return agentDefaultsOf(s);
+}
+
+function agentDefaultsOf(s: Setting): { agent: Agent; model: string; effort: string } {
   return s.agent === "codex"
     ? { agent: "codex", model: s.codex.model, effort: s.codex.effort }
     : { agent: "claude", model: s.model, effort: s.effort };
+}
+
+/**
+ * SPEC-383 · ADR-0081 · default untuk sesi penyelesai konflik rebase/merge (tiga pintu:
+ * `POST /specs/:id/integrate`, `finishGraphOp` di `routes/ide.ts`, dan
+ * `POST /terminal/sessions/:id/integrate`). OPT-IN: selama `conflict.enabled` mati, ia
+ * mendelegasikan penuh ke `sessionAgentDefaults()` — perilaku pra-SPEC-383, tanpa kejutan.
+ *
+ * Effort codex dikoersi di sini seperti blok codex global (`normalizeCodex`), supaya blok konflik
+ * tak bisa menyimpan pasangan model+effort yang nanti ditolak codex saat sesi lahir (SPEC-339).
+ * Pemanggil WAJIB menurunkan `ensureCodexTrust` dari `agent` HASIL fungsi ini, bukan dari
+ * `Setting.agent` — override codex di atas default claude akan mengulang bug SPEC-377.
+ */
+export async function conflictSessionDefaults(): Promise<{ agent: Agent; model: string; effort: string }> {
+  const s = await getSetting();
+  const c = s.conflict ?? CONFLICT_DEFAULTS;
+  if (!c.enabled) return agentDefaultsOf(s);
+  return c.agent === "codex"
+    ? { agent: "codex", model: c.model, effort: coerceCodexEffort(c.model, c.effort) }
+    : { agent: "claude", model: c.model, effort: c.effort };
 }

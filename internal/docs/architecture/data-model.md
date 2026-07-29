@@ -126,6 +126,22 @@ Singleton `id = 1`, kolom `data` (Json) berbentuk `zSetting`:
   keystroke `/goal` best-effort ke pane untuk visibilitas TUI. Bisa di-override per sesi lewat
   `goal`/`goalCondition` di `POST /terminal/sessions`; sesi scheduler mengikuti default global ini.
   Ditambahkan sebagai `.default(GOAL_DEFAULTS)` → baris Setting lama tetap parse, **tanpa migration**.
+- `agent` (`claude|codex`, default `claude`) + `codex` (`{ model, effort }`, default
+  `gpt-5.6-sol`/`xhigh`) — SPEC-338/[ADR-0074](../adr/0074-codex-sebagai-mesin-sesi.md): mesin sesi
+  default untuk SEMUA sesi yang men-spawn agen. `model`/`effort` di akar **tetap milik claude**;
+  `sessionAgentDefaults()` memilih blok mengikuti `agent`. Blok codex dinormalkan saat **dibaca**
+  (model pensiun → `gpt-5.5`, lalu effort dikoersi ke yang didukung model itu — SPEC-339).
+- `verifyScope` (`changed|full`, default `changed`) — SPEC-376/[ADR-0080](../adr/0080-scope-verifikasi-per-sesi.md):
+  scope verifikasi default sesi backlog, di-override per sesi saat Start.
+- `conflict` (SPEC-383/[ADR-0081](../adr/0081-default-sesi-konflik-opt-in.md), `zConflict`,
+  **default MATI**) — default **khusus sesi penyelesai konflik** rebase/merge:
+  `{ enabled:false, agent:"claude", model:"claude-opus-5", effort:"xhigh" }`. Dibaca
+  `conflictSessionDefaults()` dan dipakai **ketiga** pintu konflik (`POST /specs/:id/integrate`,
+  `finishGraphOp` di `routes/ide.ts`, `POST /terminal/sessions/:id/integrate`). **Opt-in**: selama
+  `enabled` mati helper mendelegasikan penuh ke `sessionAgentDefaults()` — perilaku pra-SPEC-383.
+  **Satu triple**, bukan blok per-agen seperti akar: menukar `agent` menukar model/effort sekalian.
+  Tak ada override per-request. Ditambahkan sebagai `.default(CONFLICT_DEFAULTS)` → baris Setting
+  lama tetap parse, **tanpa migration**.
 
 ## User / Session (auth — SPEC-169, [ADR-0028](../adr/0028-auth-sesi-opaque-di-db.md))
 - **User**: `id` (cuid), `email` (unique), `passwordHash` (`scrypt` "saltHex:hashHex"), `createdAt`.

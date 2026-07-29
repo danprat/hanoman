@@ -23,6 +23,14 @@ describe("IntegrateDialog", () => {
     await waitFor(() => expect(onIntegrate).toHaveBeenCalledWith("merge", "origin:main"));
   });
 
+  // SPEC-383 · dialog ini menunjuk operator ke Settings untuk mengatur sesi penyelesai konflik;
+  // sejak ADR-0081 tempatnya konkret (kartu "Konflik rebase & merge"), bukan "Settings" umum.
+  it("menyebut kartu Settings tempat agen/model sesi konflik disetel", async () => {
+    render(<IntegrateDialog projectId="p" ownBranch="hanoman/spec-1" eyebrow="SPEC-1"
+      onClose={() => {}} onIntegrate={() => {}} />);
+    expect(await screen.findByText(/Konflik rebase & merge/i)).toBeInTheDocument();
+  });
+
   it("ownBranch sesi PRD (prd/<slug>) dikecualikan dari target", async () => {
     const onIntegrate = vi.fn();
     render(<IntegrateDialog projectId="p" ownBranch="prd/jadwal-invoice" eyebrow="prd-jadwal-invoice"
