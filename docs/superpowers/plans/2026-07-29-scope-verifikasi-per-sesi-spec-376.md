@@ -164,7 +164,7 @@ git commit -m "feat(spec-376): kosakata verifyScope + knob Setting & override se
   - `startPrompt(flow, spec, branchTo, autonomy?, verifyScope?)` — parameter kelima baru, opsional
   - `continuePrompt(flow, spec, branchTo, autonomy?, verifyScope?)` — idem
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `runner/test/verify-scope.test.ts`:
 
@@ -245,12 +245,12 @@ Tambahkan ke `runner/test/prompt.test.ts` (di dalam `describe("startPrompt", …
   });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run runner/test/verify-scope.test.ts runner/test/prompt.test.ts`
 Expected: FAIL — `Cannot find module '../src/verify-scope'`.
 
-- [ ] **Step 3: Tambah tipe `VerifyScope`** (`runner/src/types.ts`, sesudah `Agent` di baris 10)
+- [x] **Step 3: Tambah tipe `VerifyScope`** (`runner/src/types.ts`, sesudah `Agent` di baris 10)
 
 ```ts
 // SPEC-376 · ADR-0080 · scope verifikasi sesi. Cermin `zVerifyScope` di @hanoman/shared (pola
@@ -258,7 +258,7 @@ Expected: FAIL — `Cannot find module '../src/verify-scope'`.
 export type VerifyScope = "changed" | "full";
 ```
 
-- [ ] **Step 4: Tulis `runner/src/verify-scope.ts`**
+- [x] **Step 4: Tulis `runner/src/verify-scope.ts`**
 
 ```ts
 import type { VerifyScope } from "./types";
@@ -308,7 +308,7 @@ const CHANGED = [
 export const verifyScopeClause = (scope: VerifyScope): string => scope === "changed" ? CHANGED : "";
 ```
 
-- [ ] **Step 5: Sisipkan ke prompt** (`runner/src/prompt.ts`)
+- [x] **Step 5: Sisipkan ke prompt** (`runner/src/prompt.ts`)
 
 Tambahkan impor di baris teratas:
 
@@ -360,23 +360,23 @@ dan sesudah `autonomyClause(autonomy),`:
 
 `.filter(Boolean)` yang sudah ada di kedua fungsi membuang string kosong, jadi tak ada baris kosong ekstra saat `full`.
 
-- [ ] **Step 6: Ekspor modul baru** (`runner/src/index.ts`)
+- [x] **Step 6: Ekspor modul baru** (`runner/src/index.ts`)
 
 ```ts
 export * from "./verify-scope";
 ```
 
-- [ ] **Step 7: Jalankan test, pastikan LULUS**
+- [x] **Step 7: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run runner/test/verify-scope.test.ts runner/test/prompt.test.ts`
 Expected: PASS — 6 test baru di verify-scope + seluruh test prompt lama tetap hijau (kompatibilitas mundur: pemanggil tanpa parameter kelima).
 
-- [ ] **Step 8: Typecheck paket yang tersentuh**
+- [x] **Step 8: Typecheck paket yang tersentuh**
 
 Run: `pnpm --filter ./runner typecheck`
 Expected: exit 0.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add runner/src/verify-scope.ts runner/src/types.ts runner/src/prompt.ts runner/src/index.ts runner/test/verify-scope.test.ts runner/test/prompt.test.ts

@@ -1,0 +1,40 @@
+import { describe, it, expect } from "vitest";
+import { verifyScopeClause } from "../src/verify-scope";
+
+describe("verifyScopeClause", () => {
+  it("full tak menghasilkan klausa apa pun (perilaku lama utuh)", () => {
+    expect(verifyScopeClause("full")).toBe("");
+  });
+
+  it("changed memberi perintah yang bisa langsung dijalankan, berbasis baseSha", () => {
+    const c = verifyScopeClause("changed");
+    expect(c).toContain("$HANOMAN_BASE_SHA");
+    expect(c).toContain("git diff --name-only");
+    expect(c).toContain("--changed");
+    expect(c).toContain("vitest related");
+  });
+
+  it("changed melarang perintah suite penuh secara eksplisit", () => {
+    const c = verifyScopeClause("changed");
+    expect(c).toContain("pnpm test");        // disebut sebagai yang DILARANG
+    expect(c).toContain("pnpm -r typecheck");
+    expect(c.toUpperCase()).toContain("JANGAN");
+  });
+
+  // Keempat sumbu yang diminta operator (SPEC-376): test, typecheck, lint, build, smoke API.
+  it("changed menutup typecheck, lint, build, dan smoke server", () => {
+    const c = verifyScopeClause("changed").toLowerCase();
+    for (const kata of ["typecheck", "lint", "build", "curl"]) expect(c).toContain(kata);
+  });
+
+  // `--changed` menyalakan passWithNoTests di vitest → "0 test" terlihat hijau. Klausa harus
+  // menyebutnya, kalau tidak scope sempit justru memproduksi kepercayaan palsu.
+  it("changed memperingatkan jebakan passWithNoTests", () => {
+    expect(verifyScopeClause("changed")).toContain("passWithNoTests");
+  });
+
+  // Scope sempit tak boleh jadi alasan melewatkan verifikasi perubahan berdampak luas.
+  it("changed memberi jalan keluar eksplisit untuk perubahan berdampak luas", () => {
+    expect(verifyScopeClause("changed").toLowerCase()).toContain("perluas scope");
+  });
+});
