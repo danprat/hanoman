@@ -1144,3 +1144,223 @@ Expected: langkah 3 tanpa `resumed`, langkah 4 dengan `resumed: true`, langkah 5
 git status --porcelain          # kosong
 git push origin HEAD:refs/heads/hanoman/spec-394
 ```
+
+---
+
+### Task 9: Cacat pane-mati yang kembar di sesi project-level
+
+**Konteks tambahan (diminta operator setelah Task 1-8 selesai & ter-push).** Task 3 memperbaiki
+gerbang pane-mati **hanya** di `startSpecSession`. Cacat yang sama persis ada di:
+
+- **`createSession()` sendiri** (`pty.ts:233`) — `if (existing) return existing` mengembalikan pane
+  mati. Ini titik cekik SEMUA kelahiran sesi, jadi ia menutup sekaligus sesi konflik
+  (`merge-<spec>` di `routes/specs.ts`, `basename(worktree)` di `finishGraphOp`) dan konsol VPS
+  (`vpsc-<id>`), yang tak punya gerbang sendiri.
+- **Lima gerbang route project-level** di `routes/terminal.ts` — reverse (`:121`), scaffold
+  (`:149`), prd (`:187`), breakdown (`:228`), cross-audit (`:258`) — semuanya
+  `const live = getSession(id); if (live) return 201`.
+
+**Bahaya yang WAJIB ditangani berbarengan, bukan sesudahnya.** Kelima route itu memanggil
+`realGit.addWorktree` **setelah** gerbangnya. `addWorktree` selalu merebut path (`worktree remove
+--force` + `rmSync`). Jadi memperbaiki gerbangnya SAJA mengubah gejala "tombol diam" (yang tak
+merusak apa pun) menjadi "worktree dokumen yang belum di-commit terhapus" — regresi yang lebih
+buruk daripada bugnya. Karena itu Task 9 memuat **dua** perubahan yang tak boleh dipisah:
+gerbangnya diperbaiki **dan** worktree yang masih sah tak dibangun ulang.
+
+**Yang TETAP di luar skop:** prompt lanjutan sadar-fase (`resumePrompt`) untuk flow dokumen.
+Deliverable-nya dokumen, bukan plan berkotak; "melanjutkan" di sana pertanyaan desain tersendiri.
+Sebagai gantinya prompt cukup diberi **satu catatan** bahwa worktree-nya tak kosong.
+
+**Files:**
+- Modify: `server/src/services/pty.ts` (gerbang `createSession`)
+- Modify: `runner/src/prompt.ts` (konstanta `RESUMED_WORKTREE_NOTE`)
+- Modify: `server/src/routes/terminal.ts` (5 gerbang + helper `ensureWorktree`)
+- Test: `server/test/session-resume.test.ts`, `server/test/terminal.route.test.ts`
+- Modify: `internal/docs/adr/0084-melanjutkan-sesi-backlog.md` (bagian "Ditolak" harus dikoreksi —
+  ia kini menyatakan seluruh sesi project-level ditolak), `internal/docs/README.md`,
+  `internal/skills/hanoman/SKILL.md`, `internal/docs/architecture/api-contract.md`
+
+**Interfaces:**
+- Consumes: `realGit.worktreeAlive` (Task 1), `killSession` (`pty.ts`).
+- Produces:
+  - `createSession` mengembalikan pane hanya bila `!exited`; pane mati dibunuh lalu di-spawn ulang.
+  - `RESUMED_WORKTREE_NOTE: string` diekspor `@hanoman/runner`.
+  - `ensureWorktree(repoDir, wt, branchFrom): boolean` (lokal `routes/terminal.ts`) — `true` bila
+    worktree lama dipakai ulang.
+
+- [x] **Step 1: Tulis test yang gagal — titik cekik `createSession`**
+
+Tambahkan `describe` di `server/test/session-resume.test.ts`:
+
+```ts
+describe("SPEC-394 · pane mati di titik cekik createSession", () => {
+  it("pane HIDUP dikembalikan apa adanya; pane MATI dibunuh lalu di-spawn ulang", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = ALIVE;
+    const a = createSession("p-cekik", process.cwd(), { id: "cekik-1" });
+    expect(createSession("p-cekik", process.cwd(), { id: "cekik-1" }).id).toBe(a.id);
+    expect(getSession("cekik-1")?.exited).toBe(false);
+    killSession("cekik-1");
+
+    process.env.HANOMAN_CLAUDE_BIN = DIES;
+    const b = createSession("p-cekik", process.cwd(), { id: "cekik-2" });
+    for (let i = 0; i < 200 && !getSession(b.id)?.exited; i++) await new Promise((r) => setTimeout(r, 20));
+    expect(getSession("cekik-2")?.exited).toBe(true);
+
+    process.env.HANOMAN_CLAUDE_BIN = ALIVE;
+    const c = createSession("p-cekik", process.cwd(), { id: "cekik-2" });
+    expect(c.id).toBe("cekik-2");
+    expect(getSession("cekik-2")?.exited).toBe(false);   // pane mati tak bisa jadi hidup tanpa spawn
+    killSession("cekik-2");
+  });
+});
+```
+
+Import `createSession` dari `../src/services/pty` di kepala berkas.
+
+- [x] **Step 2: Jalankan — pastikan GAGAL**
+
+Run:
+```bash
+env -u NODE_ENV -u DATABASE_URL -u HANOMAN_TMUX_SOCKET \
+  TEST_DATABASE_URL="postgresql://hanoman:hanoman@localhost:5432/hanoman394_test" \
+  pnpm --filter ./server exec vitest run test/session-resume.test.ts -t "titik cekik" --no-file-parallelism
+```
+Expected: FAIL — `exited` masih `true` sesudah createSession ketiga.
+
+- [x] **Step 3: Perbaiki gerbang di `server/src/services/pty.ts`**
+
+```ts
+  // SPEC-394 · ADR-0084 · pane HIDUP = sesinya (ADR-0015): Start kedua menyambung. Pane MATI hanya
+  // layar terakhir yang ditahan `remain-on-exit` — mengembalikannya sebagai "sesi" membuat setiap
+  // tombol Start/Console/Mulai-lagi DIAM. Ini titik cekik semua kelahiran sesi, jadi satu gerbang
+  // di sini menutup sesi konflik (merge-<spec>, finishGraphOp) dan konsol VPS sekaligus.
+  // `attach()` pada pane mati TETAP sah — itu cara membaca layar terakhir sesi yang sudah selesai.
+  const existing = getSession(id);
+  if (existing && !existing.exited) return existing;
+  if (existing) killSession(id);
+```
+
+- [x] **Step 4: Jalankan — pastikan LULUS**
+
+Run perintah Step 2. Expected: PASS.
+
+- [x] **Step 5: Tulis test route yang gagal (reverse & prd)**
+
+Tambahkan di `server/test/terminal.route.test.ts`:
+
+```ts
+  // SPEC-394 · ADR-0084 · cacat pane-mati yang kembar. Bahaya utamanya BUKAN gerbangnya melainkan
+  // `addWorktree` di belakangnya: ia selalu merebut path, jadi respawn tanpa penjaga akan menghapus
+  // dokumen yang belum di-commit. Kedua sifat diuji bersama, karena memisahkannya = regresi.
+  it("sesi project-level: pane mati dilahirkan ulang TANPA menghapus worktree-nya", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const born = await app.inject({ method: "POST", url: "/api/terminal/sessions",
+      payload: { project: "p1", flow: "reverse" } });
+    expect(born.statusCode).toBe(201);
+    const id = born.json().id as string;
+    const wt = join(repoDir, ".worktrees", id);
+    writeFileSync(join(wt, "draft-docs.md"), "dokumen setengah jadi");
+
+    killSession(id);                       // pane hilang, worktree tetap
+    const again = await app.inject({ method: "POST", url: "/api/terminal/sessions",
+      payload: { project: "p1", flow: "reverse" } });
+    expect(again.statusCode).toBe(201);
+    expect(again.json().id).toBe(id);
+    expect(existsSync(join(wt, "draft-docs.md"))).toBe(true);        // TIDAK terhapus
+    expect(listSessions().filter((s) => s.id === id && !s.exited)).toHaveLength(1);
+    expect(readFileSync(promptFilePath(id), "utf8")).toContain("BUKAN kosong");
+    killSession(id);
+  });
+
+  it("sesi project-level yang benar-benar baru tetap lahir di worktree bersih", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const r = await app.inject({ method: "POST", url: "/api/terminal/sessions",
+      payload: { project: "p1", flow: "prd", brief: { title: "Bersih 394", context: "c", outcome: "o" } } });
+    expect(r.statusCode).toBe(201);
+    const id = r.json().id as string;
+    expect(readFileSync(promptFilePath(id), "utf8")).not.toContain("BUKAN kosong");
+    killSession(id);
+  });
+```
+
+Tambahkan `promptFilePath` ke import `../src/services/pty` di berkas itu.
+
+- [x] **Step 6: Jalankan — pastikan GAGAL**
+
+Run:
+```bash
+env -u NODE_ENV -u DATABASE_URL -u HANOMAN_TMUX_SOCKET \
+  TEST_DATABASE_URL="postgresql://hanoman:hanoman@localhost:5432/hanoman394_test" \
+  pnpm --filter ./server exec vitest run test/terminal.route.test.ts -t "project-level" --no-file-parallelism
+```
+Expected: FAIL — `draft-docs.md` sudah terhapus `addWorktree`.
+
+- [x] **Step 7: Konstanta catatan di `runner/src/prompt.ts`**
+
+```ts
+// SPEC-394 · ADR-0084 · sesi project-level (reverse/scaffold/prd/breakdown/cross-audit) yang
+// dilahirkan ulang di atas worktree sesi sebelumnya. Flow dokumen sengaja TIDAK memakai
+// resumePrompt — deliverable-nya dokumen, bukan plan berkotak — tapi agen tetap harus tahu
+// worktree-nya tak kosong, kalau tidak ia menulis ulang dari nol di atas pekerjaan yang ada.
+export const RESUMED_WORKTREE_NOTE =
+  "Catatan: worktree ini BUKAN kosong — ia berisi pekerjaan sesi sebelumnya untuk tugas yang "
+  + "sama (sesi itu berhenti sebelum selesai). Baca `git log --oneline` dan `git status` lebih "
+  + "dulu, lalu lanjutkan dari sana alih-alih menulis ulang semuanya dari awal.";
+```
+
+- [x] **Step 8: Helper + lima gerbang di `server/src/routes/terminal.ts`**
+
+Import `RESUMED_WORKTREE_NOTE` dari `@hanoman/runner`, lalu tambahkan helper di dalam handler
+(atau modul-level, di atas `export default`):
+
+```ts
+// SPEC-394 · ADR-0084 · worktree yang masih sah TIDAK dibangun ulang. `addWorktree` selalu merebut
+// path (`worktree remove --force` + `rmSync`), jadi memanggilnya saat sesi dilahirkan ulang di atas
+// pane mati akan menghapus dokumen yang belum sempat di-commit. `true` = worktree lama dipakai ulang.
+const ensureWorktree = (repoDir: string, wt: string, branchFrom: string): boolean => {
+  if (realGit.worktreeAlive(wt)) return true;
+  realGit.addWorktree(repoDir, wt, branchFrom);
+  return false;
+};
+const resumeNote = (reused: boolean) => (reused ? `\n\n${RESUMED_WORKTREE_NOTE}` : "");
+```
+
+Di kelima flow, ubah gerbangnya jadi `if (live && !live.exited)`, ganti `realGit.addWorktree(...)`
+dengan `reused = ensureWorktree(repoDir, wt, <branchFrom flow itu>)`, dan tempelkan
+`resumeNote(reused)` ke `prompt`. `realGit.initRepo(repoDir)` di scaffold TETAP dipanggil lebih
+dulu (idempoten, dan repoDir bisa belum ada).
+
+- [x] **Step 9: Jalankan test route — pastikan LULUS**
+
+Run perintah Step 6, lalu seluruh berkasnya:
+```bash
+env -u NODE_ENV -u DATABASE_URL -u HANOMAN_TMUX_SOCKET \
+  TEST_DATABASE_URL="postgresql://hanoman:hanoman@localhost:5432/hanoman394_test" \
+  pnpm --filter ./server exec vitest run test/terminal.route.test.ts test/session-resume.test.ts \
+  test/pty.test.ts test/session-launch.test.ts --no-file-parallelism
+```
+Expected: semua PASS. `pty.test.ts` ikut karena gerbang `createSession` adalah miliknya.
+
+- [x] **Step 10: Typecheck**
+
+Run: `pnpm --filter ./runner typecheck && pnpm --filter ./server typecheck`
+Expected: exit 0 keduanya.
+
+- [x] **Step 11: Koreksi Source of Truth**
+
+ADR-0084 bagian **Ditolak** saat ini menolak "resume untuk sesi project-level" seluruhnya — itu kini
+**tidak akurat**. Pecah jadi: yang DIKERJAKAN (gerbang pane-mati + worktree tak dibangun ulang +
+catatan prompt) vs yang tetap ditolak (`resumePrompt` sadar-fase untuk flow dokumen). Rambatkan ke
+`internal/docs/README.md` (baris ADR-0084), `internal/skills/hanoman/SKILL.md`, dan
+`internal/docs/architecture/api-contract.md` (blok `POST /terminal/sessions` untuk flow project-level).
+
+- [x] **Step 12: Commit**
+
+```bash
+git add server/src/services/pty.ts server/src/routes/terminal.ts runner/src/prompt.ts \
+        server/test/session-resume.test.ts server/test/terminal.route.test.ts \
+        internal/docs/adr/0084-melanjutkan-sesi-backlog.md internal/docs/README.md \
+        internal/skills/hanoman/SKILL.md internal/docs/architecture/api-contract.md \
+        docs/superpowers/plans/2026-07-29-lanjutkan-sesi-backlog-spec-394.md
+git commit -m "fix(spec-394): pane mati di titik cekik createSession & 5 flow project-level"
+```

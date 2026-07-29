@@ -230,8 +230,16 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
   const id = opts.id ?? idFor(opts.specId);
   // Sesi sebuah backlog item itu tunggal: menekan Start lagi harus menyambung ke `claude`
   // yang sudah jalan, bukan menyalakan yang kedua di atas worktree yang sama (ADR-0015).
+  // SPEC-394 · ADR-0084 · tapi hanya pane HIDUP yang berarti "sudah jalan". Pane MATI ditahan
+  // `remain-on-exit` semata agar layar terakhirnya masih terbaca; mengembalikannya sebagai sesi
+  // membuat setiap tombol yang melahirkannya kembali (Start backlog, Console VPS, sesi konflik,
+  // "Mulai lagi") DIAM. Ini titik cekik semua kelahiran sesi, jadi satu gerbang di sini menutup
+  // juga jalur yang tak punya gerbang sendiri: `merge-<spec>` (routes/specs), `finishGraphOp`
+  // (routes/ide), `vpsc-<id>` (routes/vps). `attach()` pada pane mati TETAP sah — itu justru cara
+  // membaca layar terakhir sesi yang sudah selesai.
   const existing = getSession(id);
-  if (existing) return existing;
+  if (existing && !existing.exited) return existing;
+  if (existing) killSession(id);
 
   // `--dangerously-skip-permissions` melewati prompt izin, bukan sistem hook. Sejak ADR-0037
   // tak ada lagi hook deny — `--settings` di sini hanya memasang marker keputusan (SPEC-184),

@@ -287,6 +287,16 @@ export function resumePrompt(
   ].filter(Boolean).join("\n\n");
 }
 
+// SPEC-394 · ADR-0084 · sesi project-level (reverse/scaffold/prd/breakdown/cross-audit) yang
+// dilahirkan ulang di atas worktree sesi sebelumnya. Flow dokumen sengaja TIDAK memakai
+// `resumePrompt` — deliverable-nya dokumen, bukan plan berkotak, jadi tak ada fase yang bisa
+// "dilanjutkan" secara bermakna — tapi agen tetap harus tahu worktree-nya tak kosong. Tanpa ini
+// ia menulis ulang dari nol di atas pekerjaan yang masih ada, dan itu tak terlihat olehnya.
+export const RESUMED_WORKTREE_NOTE =
+  "Catatan: worktree ini BUKAN kosong — ia berisi pekerjaan sesi sebelumnya untuk tugas yang "
+  + "sama (sesi itu berhenti sebelum selesai). Baca `git log --oneline` dan `git status` lebih "
+  + "dulu, lalu lanjutkan dari sana alih-alih menulis ulang semuanya dari awal.";
+
 // Panduan per fase reverse (SPEC-166). Wawancara adalah fase interaktif: manusia menonton
 // sesi ini lewat terminal dashboard dan menjawab di sana — karena itu SATU pertanyaan per
 // giliran, bukan borongan.

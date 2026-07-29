@@ -6,7 +6,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { prisma } from "../src/db";
 import { startSpecSession } from "../src/services/session-launch";
-import { killAll, killSession, getSession, promptFilePath } from "../src/services/pty";
+import { killAll, killSession, getSession, createSession, promptFilePath } from "../src/services/pty";
 import { realGit } from "@hanoman/runner";
 
 // SPEC-394 · ADR-0084 — "Lanjutkan" harus MELANJUTKAN. Alat ukur test ini adalah perbedaan dua
@@ -183,5 +183,30 @@ describe("SPEC-394 · resume tanpa worktree, fresh, dan stage done", () => {
     expect(prompt).toContain("sebelumnya ditandai selesai");
     expect(prompt).not.toContain("Sesi ini MELANJUTKAN pekerjaan sesi sebelumnya");
     killSession(r2.id);
+  });
+});
+
+// SPEC-394 · ADR-0084 · titik cekik. `startSpecSession` sudah dijaga di atas, tapi `createSession`
+// adalah pintu yang dilewati SEMUA kelahiran sesi — termasuk yang tak punya gerbang sendiri
+// (sesi konflik `merge-<spec>` & `finishGraphOp`, konsol VPS `vpsc-<id>`). Satu gerbang di sini
+// menutup semuanya.
+describe("SPEC-394 · pane mati di titik cekik createSession", () => {
+  it("pane HIDUP dikembalikan apa adanya; pane MATI dibunuh lalu di-spawn ulang", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = ALIVE;
+    const a = createSession("p-cekik", process.cwd(), { id: "cekik-1" });
+    expect(createSession("p-cekik", process.cwd(), { id: "cekik-1" }).id).toBe(a.id);
+    expect(getSession("cekik-1")?.exited).toBe(false);
+    killSession("cekik-1");
+
+    process.env.HANOMAN_CLAUDE_BIN = DIES;
+    const b = createSession("p-cekik", process.cwd(), { id: "cekik-2" });
+    for (let i = 0; i < 200 && !getSession(b.id)?.exited; i++) await new Promise((r) => setTimeout(r, 20));
+    expect(getSession("cekik-2")?.exited).toBe(true);
+
+    process.env.HANOMAN_CLAUDE_BIN = ALIVE;
+    const c = createSession("p-cekik", process.cwd(), { id: "cekik-2" });
+    expect(c.id).toBe("cekik-2");
+    expect(getSession("cekik-2")?.exited).toBe(false);   // pane mati tak bisa jadi hidup tanpa spawn
+    killSession("cekik-2");
   });
 });

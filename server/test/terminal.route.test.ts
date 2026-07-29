@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import type { AddressInfo } from "node:net";
 import { buildApp } from "../src/app";
 import { prisma } from "../src/db";
-import { killAll, killSession, listSessions, createSession as createSessionSvc } from "../src/services/pty";
+import { killAll, killSession, listSessions, promptFilePath, createSession as createSessionSvc } from "../src/services/pty";
 import { phaseFilePath } from "../src/services/session-phases";
 import { resetDb, makeProject, makeSpec } from "./factory";
 
@@ -517,6 +517,38 @@ describe("terminal routes · sesi reverse", () => {
 
   it("project tanpa repoDir + flow → 422 (bukan 400)", async () => {
     expect((await start("p2")).statusCode).toBe(422);
+  });
+
+  // SPEC-394 · ADR-0084 · cacat pane-mati yang kembar dengan sesi backlog. Bahaya utamanya BUKAN
+  // gerbangnya melainkan `addWorktree` di belakangnya: ia selalu merebut path, jadi respawn tanpa
+  // penjaga akan menghapus dokumen yang belum di-commit. Kedua sifat diuji BERSAMA, karena
+  // memperbaiki gerbangnya sendirian justru menukar "tombol diam" dengan kehilangan data.
+  it("sesi project-level: pane mati dilahirkan ulang TANPA menghapus worktree-nya", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const born = await start("p1");
+    expect(born.statusCode).toBe(201);
+    const id = born.json().id as string;
+    const wt = join(repoDir, ".worktrees", id);
+    writeFileSync(join(wt, "draft-docs.md"), "dokumen setengah jadi");
+
+    killSession(id);                       // pane hilang, worktree tetap
+    const again = await start("p1");
+    expect(again.statusCode).toBe(201);
+    expect(again.json().id).toBe(id);
+    expect(existsSync(join(wt, "draft-docs.md"))).toBe(true);        // TIDAK terhapus
+    expect(listSessions().filter((s) => s.id === id && !s.exited)).toHaveLength(1);
+    expect(readFileSync(promptFilePath(id), "utf8")).toContain("BUKAN kosong");
+    killSession(id);
+  });
+
+  it("sesi project-level yang benar-benar baru tetap lahir tanpa catatan worktree", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const r = await app.inject({ method: "POST", url: "/api/terminal/sessions",
+      payload: { project: "p1", flow: "prd", brief: { title: "Bersih 394", context: "c", outcome: "o" } } });
+    expect(r.statusCode).toBe(201);
+    const id = r.json().id as string;
+    expect(readFileSync(promptFilePath(id), "utf8")).not.toContain("BUKAN kosong");
+    killSession(id);
   });
 
   it("GET phases memakai pipeline reverse baru", async () => {

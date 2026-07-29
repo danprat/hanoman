@@ -56,7 +56,21 @@ keadaan yang membuatnya perlu tidak pernah hilang.
 3. **fresh** — selain itu → persis perilaku sebelum SPEC-394. Respons `{ id }`.
 
 **Pane mati bukan sesi.** Ia dibunuh lebih dulu — `killSession` menutup baris `SessionHistory` dan
-menyimpan transkrip pane (ADR-0079) — lalu sesi dilahirkan ulang.
+menyimpan transkrip pane (ADR-0079) — lalu sesi dilahirkan ulang. Gerbang ini dipasang di **titik
+cekik `createSession()`**, bukan hanya di `startSpecSession`, sehingga ia menutup juga jalur yang tak
+punya gerbang sendiri: sesi konflik `merge-<spec>` (`routes/specs.ts`) dan `finishGraphOp`
+(`routes/ide.ts`), serta konsol VPS `vpsc-<id>` (`routes/vps.ts`). Kelima route sesi **project-level**
+(reverse · scaffold · prd · breakdown · cross-audit) punya gerbang `getSession` sendiri di depan
+`createSession`, jadi masing-masing ikut disempitkan ke `!exited`. `attach()` pada pane mati **tetap
+sah** — itu justru cara membaca layar terakhir sesi yang sudah selesai.
+
+**Sesi project-level: worktree yang masih sah tidak dibangun ulang.** Kelima route itu memanggil
+`realGit.addWorktree` **setelah** gerbangnya, jadi memperbaiki gerbangnya sendirian akan menukar
+gejala "tombol diam" (yang tak merusak apa pun) dengan **kehilangan dokumen yang belum di-commit** —
+regresi yang lebih buruk daripada bugnya. Karena itu keduanya satu paket: helper `ensureWorktree()`
+melewati `addWorktree` bila `worktreeAlive(wt)`, dan prompt flow itu diberi satu kalimat
+`RESUMED_WORKTREE_NOTE` bahwa worktree-nya tak kosong. Flow dokumen **tidak** memakai `resumePrompt`
+(lihat Ditolak).
 
 **Dua bentuk resume**, dipilih dari apa yang benar-benar selamat:
 
@@ -105,8 +119,12 @@ semua flow lain; yang berubah adalah *kapan* ia dipanggil.
 - (−) Resume mempercayai artefak di disk. Karena itu "masih sah?" dijawab **git**
   (`rev-parse --is-inside-work-tree` + toplevel = path itu sendiri), bukan `existsSync`: direktori
   telanjang di dalam repo pun "ada", dan worktree yang gitdir-nya dipangkas menyisakan direktori.
-- (−) Satu jalur (worktree utuh) kini melewati `addWorktree`. Konsekuensinya disengaja: itu membuat
-  satu-satunya baris yang bisa menghapus worktree tetap mudah diaudit.
+- (+) Tombol yang dulu diam kini bekerja di **semua** permukaan: Start backlog, Console VPS, sesi
+  penyelesai konflik, "Mulai lagi" dari riwayat, dan kelima flow project-level.
+- (−) Satu jalur (worktree utuh) kini melewati `addWorktree`, dan sesi project-level melewatinya
+  lewat `ensureWorktree`. Konsekuensinya disengaja: itu membuat baris yang bisa menghapus worktree
+  tetap sedikit dan mudah diaudit — tapi berarti "mulai benar-benar dari nol" untuk flow dokumen
+  kini menuntut operator menutup sesinya dulu (yang memang menghapus worktree, SPEC-362).
 - (0) Tanpa perubahan skema, migration, atau endpoint baru. `resumed` aditif.
 
 ## Ditolak
@@ -120,6 +138,10 @@ semua flow lain; yang berubah adalah *kapan* ia dipanggil.
   yang jujur karena agen sendiri yang menulisnya.
 - **Parameter `reuse` pada `addWorktree`** (bentuk ADR-0017). Pemanggil sudah tahu path-nya;
   menaruh keputusan di pemanggil membuat helper penghapus worktree tetap punya satu semantik.
-- **Resume untuk sesi project-level** (reverse/prd/scaffold/breakdown/cross-audit) — cacat pane-mati
-  kembarnya ada di sana, tapi artefaknya dokumen, bukan plan berkotak, jadi "melanjutkan" di sana
-  adalah pertanyaan yang berbeda. Dicatat sebagai kandidat tindak lanjut.
+- **`resumePrompt` sadar-fase untuk sesi project-level** (reverse/prd/scaffold/breakdown/cross-audit).
+  Cacat pane-mati kembarnya **sudah diperbaiki** di sini (lihat Keputusan) berikut penjaga
+  worktree-nya, tetapi prompt lanjutan yang menyebut "fase yang sudah tercatat" tidak: deliverable
+  flow itu **dokumen**, bukan plan berkotak, dan fasenya (`Scan`/`Docs teknis`/`Wawancara`, `PRD`,
+  `Breakdown`) tak punya artefak per-fase yang bisa diperiksa seperti `- [ ]` di plan. Yang diberikan
+  hanyalah satu kalimat bahwa worktree-nya tak kosong. Prompt lanjutan yang benar untuk flow dokumen
+  adalah pertanyaan desain tersendiri.

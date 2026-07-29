@@ -444,6 +444,14 @@ POST   /terminal/sessions  {project, flow?} # 201 { id } · 404 project · 400 t
 #     kedua = re-attach). Sama-sama memegang kunci audit. 422 bila repoDir kosong/worktree gagal.
 #   SPEC-172: bila Spec.stage === "done", sesi baru dibuka dengan prompt LANJUTAN (fase Execute
 #     saja, continuePrompt) alih-alih pipeline penuh — reopen backlog yang keburu selesai.
+#   SPEC-394/ADR-0084 · SEMUA sesi ber-id deterministik (project-level reverse|scaffold|prd|
+#     breakdown|cross-audit, sesi konflik merge-<spec> & finishGraphOp, konsol VPS vpsc-<id>):
+#     pane tmux yang MATI bukan sesi — ia dibunuh lalu sesi dilahirkan ulang; hanya pane HIDUP yang
+#     di-re-attach (ADR-0015). Gerbangnya di titik cekik createSession() + di kelima gerbang route
+#     project-level. Untuk kelima flow project-level itu, worktree .worktrees/<id> yang MASIH SAH
+#     tidak dibangun ulang (ensureWorktree melewati addWorktree yang selalu `remove --force`), dan
+#     prompt-nya diberi satu kalimat RESUMED_WORKTREE_NOTE. Flow dokumen TIDAK memakai resumePrompt.
+#     GET /terminal/sessions/:id/ws pada pane mati tetap sah (membaca layar terakhir).
 #   flow "reverse" (SPEC-166, ADR-0026): sesi project-level di worktree .worktrees/reverse-<project>
 #   dengan prompt standar docs; 422 bila repoDir kosong atau worktree gagal dibuat
 #   flow "scaffold" (SPEC-222, ADR-0052): sesi project-level di worktree .worktrees/scaffold-<project>,

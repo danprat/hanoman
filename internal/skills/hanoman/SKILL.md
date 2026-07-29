@@ -160,7 +160,22 @@ Pakai skill lebih sempit saat task cocok:
   (`continuePrompt`, worktree dari `branchFrom`) — kerjanya umumnya sudah ter-merge. `worktreeAlive`
   bertanya ke **git** (`rev-parse --is-inside-work-tree` + toplevel = path itu sendiri), bukan
   `existsSync`: direktori telanjang di dalam repo pun "ada". Berlaku juga untuk governor scheduler
-  (jalur peluncuran sama), dan **belum** untuk sesi project-level (reverse/prd/scaffold/cross-audit).
+  (jalur peluncuran sama).
+- **Gerbang pane-mati hidup di titik cekik `createSession`** (SPEC-394/ADR-0084), bukan hanya di
+  `startSpecSession` — jadi ia menutup sekaligus jalur yang **tak punya gerbang sendiri**: sesi
+  konflik `merge-<spec>` (`routes/specs.ts`) & `finishGraphOp` (`routes/ide.ts`), dan konsol VPS
+  `vpsc-<id>` (`routes/vps.ts`). Kelima route **project-level** (reverse · scaffold · prd ·
+  breakdown · cross-audit) punya gerbang `getSession` sendiri di depan `createSession`, jadi
+  masing-masing ikut disempitkan ke `!exited`. **`attach()` pada pane mati TETAP sah** — itu justru
+  cara membaca layar terakhir sesi yang sudah selesai; jangan ikut dipagari. **Pasangan wajib untuk
+  flow project-level:** kelimanya memanggil `realGit.addWorktree` **setelah** gerbangnya, jadi
+  memperbaiki gerbangnya SENDIRIAN menukar gejala "tombol diam" (tak merusak apa pun) dengan
+  **kehilangan dokumen yang belum di-commit** — regresi yang lebih buruk daripada bugnya. Helper
+  `ensureWorktree()` di `routes/terminal.ts` melewati `addWorktree` bila `worktreeAlive(wt)`, dan
+  prompt-nya diberi satu kalimat `RESUMED_WORKTREE_NOTE`. Flow dokumen sengaja **tidak** memakai
+  `resumePrompt`: deliverable-nya dokumen, dan fasenya tak punya artefak berkotak seperti `- [ ]`
+  di plan. Konsekuensi yang diterima sadar: "mulai benar-benar dari nol" untuk flow dokumen kini
+  menuntut operator menutup sesinya dulu (Tutup memang menghapus worktree, SPEC-362).
 - Sesi berjalan di worktree sendiri di `<repoDir>/.worktrees/<id>`, dibuat `--detach` dari `branchFrom` (default `main`); `baseSha` dicatat untuk rentang review (ADR-0030). Jenis sesi: **spec-flow** (feature/qa/audit), **reverse** (project-level), **prd**, **plain terminal** (claude di repoDir; atau shell mentah non-claude via `{shell:true}`, SPEC-236/ADR-0056), **integrate-conflict** (merge-<id>), **vps**. Flow **audit** (SPEC-237/ADR-0057) = audit-only: pipeline `Audit → Laporan`, hanya dokumen SoT (`research/audit-<id>-<slug>.md`), tanpa Execute; bisa dinaikkan jadi Finding QA.
 - **Fase bukan proses melainkan giliran** dalam satu sesi: `runner/src/prompt.ts` `PIPELINES` mendefinisikan nama fase per flow; prompt menyuruh agen `echo "<Fase> done" >> $HANOMAN_PHASE_FILE`. Server membaca file append-only itu (`services/session-phases.ts`) untuk menurunkan fase aktif → `Stage`. Konteks terbawa antar fase karena semuanya satu sesi.
 - **Kontrak otonomi** (ADR-0035): agen menembus batas antar-fase tanpa berhenti — checkpoint "review" milik skill superpowers **bukan** titik berhenti — dan hanya berhenti untuk bertanya di terminal saat butuh keputusan manusia sejati. Waspada: subagent async bisa bikin agen `end_turn` dan runner mengira fase selesai (fase jadi dangkal).
