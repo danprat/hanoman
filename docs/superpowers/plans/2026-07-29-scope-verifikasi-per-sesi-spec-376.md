@@ -567,7 +567,7 @@ git commit -m "feat(spec-376): server meneruskan verifyScope ke prompt + env ses
 - Consumes: `Setting["verifyScope"]`, `VerifyScope` dari `@hanoman/shared` (Task 1); `api.startSession({ …, verifyScope })`.
 - Produces: `POST /terminal/sessions` dari UI membawa `verifyScope`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/test/start-session-verify-scope.test.tsx`:
 
@@ -623,12 +623,12 @@ describe("StartSessionModal · scope verifikasi", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run src/test/start-session-verify-scope.test.tsx`
 Expected: FAIL — `Unable to find a label with the text of: Scope verifikasi`.
 
-- [ ] **Step 3: Tambah state + picker di `StartSessionModal`** (`src/src/App.tsx`)
+- [x] **Step 3: Tambah state + picker di `StartSessionModal`** (`src/src/App.tsx`)
 
 Impor tipe di daftar impor `@hanoman/shared` yang sudah ada di berkas itu: tambahkan `type VerifyScope`.
 
@@ -672,7 +672,7 @@ Tambahkan `Field` sesudah `Field` "Mode goal" (sebelum `</Modal>`, baris 161):
       </Field>
 ```
 
-- [ ] **Step 4: Perluas signature `api.startSession`** (`src/src/api/client.ts:214-216`)
+- [x] **Step 4: Perluas signature `api.startSession`** (`src/src/api/client.ts:214-216`)
 
 ```ts
   startSession: (b: { spec: string; flow: Flow; model?: string; effort?: string; goal?: boolean; goalCondition?: string;
@@ -683,7 +683,7 @@ Tambahkan `Field` sesudah `Field` "Mode goal" (sebelum `</Modal>`, baris 161):
 
 Tambahkan `type VerifyScope` ke impor `@hanoman/shared` di berkas itu.
 
-- [ ] **Step 5: Tambah kartu di Settings** (`src/src/screens/SettingsScreen.tsx`)
+- [x] **Step 5: Tambah kartu di Settings** (`src/src/screens/SettingsScreen.tsx`)
 
 Tambahkan ke `S_DEFAULTS` (baris 37-47):
 
@@ -718,17 +718,17 @@ Tambahkan kartu di tab `sesi`, sesudah kartu "Mode goal" (sesudah baris 649, seb
       </Card>
 ```
 
-- [ ] **Step 6: Jalankan test, pastikan LULUS**
+- [x] **Step 6: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run src/test/start-session-verify-scope.test.tsx src/test/start-session-goal.test.tsx src/test/start-session-agent.test.tsx src/test/start-session-model.test.tsx`
 Expected: PASS — 3 test baru + seluruh test picker Start yang lama tetap hijau.
 
-- [ ] **Step 7: Typecheck paket yang tersentuh**
+- [x] **Step 7: Typecheck paket yang tersentuh**
 
 Run: `pnpm --filter ./src typecheck`
 Expected: exit 0.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/src/App.tsx src/src/api/client.ts src/src/screens/SettingsScreen.tsx src/test/start-session-verify-scope.test.tsx

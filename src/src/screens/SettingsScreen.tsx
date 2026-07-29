@@ -44,6 +44,7 @@ const S_DEFAULTS: Setting = {
   goal: GOAL_DEFAULTS,             // SPEC-332 · ADR-0073 · mode goal (default mati)
   agent: "claude",                 // SPEC-338 · ADR-0074 · mesin sesi default
   codex: CODEX_DEFAULTS,           // SPEC-338 · ADR-0074 · model/effort codex
+  verifyScope: "changed",          // SPEC-376 · ADR-0080 · uji hanya yang berubah
 };
 
 function SettingRow({ title, desc, children, last }: { title: string; desc?: string; children?: React.ReactNode; last?: boolean }) {
@@ -645,6 +646,27 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
               placeholder="Kosong = kondisi bawaan hanoman"
               onChange={(e) => persist({ ...s, goal: { ...s.goal, condition: e.target.value } })} />
           </div>
+        </SettingRow>
+      </Card>
+      {/* SPEC-376 · ADR-0080 · scope verifikasi: default global untuk sesi backlog; tiap Start
+          masih bisa meng-override. Bukan gerbang — sesi diarahkan lewat klausa prompt, tak ada
+          hook yang menolak perintah (ADR-0037 utuh). */}
+      <Card eyebrow="verifikasi" title="Scope verifikasi — sesi backlog">
+        <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.5 }}>
+          Beberapa sesi berjalan bersamaan di mesin ini. <b>Hanya yang berubah</b> menyuruh sesi menguji
+          berkas yang benar-benar ia sentuh (<code>vitest --changed</code>, typecheck per paket, lint per
+          berkas) alih-alih seluruh project — RAM & CPU tetap tersisa untuk sesi lain. Suite penuh, lint
+          penuh, dan build penuh tetap dijalankan manusia sebelum merge.
+        </div>
+        <SettingRow title="Scope default" last
+          desc="Sesi backlog baru lahir dengan scope ini. Masih bisa diubah per sesi saat Start.">
+          <Select size="sm" aria-label="Scope verifikasi default" value={s.verifyScope ?? "changed"} style={{ width: 220 }}
+            options={[
+              { value: "changed", label: "Hanya yang berubah" },
+              { value: "full", label: "Seluruh project" },
+            ]}
+            onChange={(e) => save({ verifyScope: e.target.value as Setting["verifyScope"] },
+              "Scope verifikasi → " + e.target.value)} />
         </SettingRow>
       </Card>
       </>

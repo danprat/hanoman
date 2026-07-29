@@ -8,7 +8,7 @@ import { Shell, Modal, Field, HnTextarea, Button, StatusPill, Select, Input, Swi
 import { api, ApiError, type TerminalSession } from "./api/client";
 import { subscribe } from "./api/events";
 import type { ProjectView, Spec, AuthStatus, UserView, Notification, BreakdownItem } from "@hanoman/shared";
-import { flowForSource, MODELS, EFFORTS, CODEX_MODELS, codexEfforts, coerceCodexEffort, codexModel, codexClientTooOld, CODEX_DEFAULTS, type Agent } from "@hanoman/shared";
+import { flowForSource, MODELS, EFFORTS, CODEX_MODELS, codexEfforts, coerceCodexEffort, codexModel, codexClientTooOld, CODEX_DEFAULTS, type Agent, type VerifyScope } from "@hanoman/shared";
 import { AuthScreen } from "./screens/AuthScreen";
 import { AuthProvider } from "./auth/AuthContext";
 import type { ProjectVM } from "./screens/types";
@@ -60,6 +60,9 @@ export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
   // sebagai undefined supaya server yang memilih template global lalu default DoD bawaan.
   const [goalOn, setGoalOn] = React.useState(false);
   const [goalCond, setGoalCond] = React.useState("");
+  // SPEC-376 · ADR-0080 · scope verifikasi per sesi. Prefill dari default global; `?? "changed"`
+  // karena respons GET /settings yang ter-cache sebelum SPEC-376 belum punya kunci ini.
+  const [verifyScope, setVerifyScope] = React.useState<VerifyScope>("changed");
   const [busy, setBusy] = React.useState(false);
   // SPEC-339 · versi codex CLI terpasang; null = tak terdeteksi (dan itu tak memicu peringatan).
   const [codexVer, setCodexVer] = React.useState<string | null>(null);
@@ -75,6 +78,7 @@ export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
       const a: Agent = s.agent === "codex" ? "codex" : "claude";
       setDefs(d); setAgent(a); setModel(d[a].model); setEffort(d[a].effort);
       setGoalOn(s.goal.enabled); setGoalCond(s.goal.condition);
+      setVerifyScope(s.verifyScope ?? "changed");
     }).catch(() => {});
     // SPEC-339 · versi codex CLI untuk catatan lunak. Gagal-diam: modal harus tetap bisa dipakai.
     api.getCodexVersion().then((v) => setCodexVer(v.version)).catch(() => {});
@@ -103,6 +107,7 @@ export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
       const { id } = await api.startSession({
         spec: s.id, flow, model, effort, agent,
         goal: goalOn, goalCondition: goalOn && goalCond.trim() ? goalCond.trim() : undefined,
+        verifyScope,
       });
       onStarted(id); onClose();
     }
@@ -158,6 +163,17 @@ export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
         {goalOn && <HnTextarea value={goalCond} rows={4} mono
           placeholder="Kosong = kondisi bawaan hanoman"
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setGoalCond(e.target.value)} />}
+      </Field>
+      {/* SPEC-376 · ADR-0080 · scope verifikasi: sesi menguji berkas yang berubah saja supaya
+          RAM & CPU tetap tersisa untuk sesi lain di mesin yang sama. */}
+      <Field label="Scope verifikasi"
+        hint="Hanya yang berubah = test/typecheck/lint hanya menyentuh berkas yang disentuh sesi ini. Suite penuh tetap dijalankan manusia sebelum merge.">
+        <Select aria-label="Scope verifikasi" value={verifyScope} style={{ width: "100%" }}
+          options={[
+            { value: "changed", label: "Hanya yang berubah — hemat RAM & CPU" },
+            { value: "full", label: "Seluruh project" },
+          ]}
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setVerifyScope(e.target.value as VerifyScope)} />
       </Field>
     </Modal>
   );
