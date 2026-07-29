@@ -397,7 +397,7 @@ git commit -m "feat(spec-376): klausa scope verifikasi di prompt sesi ber-Execut
 - Consumes: `verifyScopeClause`/`startPrompt`/`continuePrompt` (Task 2), `zVerifyScope`/`Setting["verifyScope"]` (Task 1), `CreateOpts.env` (`server/src/services/pty.ts:222`, sudah ada).
 - Produces: `startSpecSession(spec, opts)` menerima `verifyScope?: VerifyScope`; sesi lahir dengan env `HANOMAN_BASE_SHA=<baseSha>` dan `HANOMAN_VERIFY_SCOPE=<changed|full>`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan ke `server/test/session-launch.test.ts` (di dalam `describe("session-launch", …)`, sesudah blok SPEC-338):
 
@@ -453,12 +453,12 @@ Tambahkan ke `server/test/terminal.route.test.ts` (di dalam describe utamanya):
 
 > Catatan implementer: `authHeaders` / cara autentikasi di `terminal.route.test.ts` sudah ada di berkas itu — pakai persis pola test tetangga di berkas yang sama, jangan mengarang helper baru. Bila spec `SPEC-1` belum di-seed di test itu, seed lewat helper yang sudah dipakai test lain di berkas tersebut; 400 harus datang dari validasi body, jadi ia terjadi **sebelum** lookup spec.
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run server/test/session-launch.test.ts --no-file-parallelism`
 Expected: FAIL — argv tak memuat "Scope verifikasi" (klausa belum diteruskan) dan/atau `verifyScope` bukan properti `opts` yang sah.
 
-- [ ] **Step 3: Tambah default ke `DEFAULT_SETTING`** (`server/src/services/settings.ts:11-21`)
+- [x] **Step 3: Tambah default ke `DEFAULT_SETTING`** (`server/src/services/settings.ts:11-21`)
 
 ```ts
   agent: "claude",                 // SPEC-338 · ADR-0074 · mesin sesi default
@@ -466,7 +466,7 @@ Expected: FAIL — argv tak memuat "Scope verifikasi" (klausa belum diteruskan) 
   verifyScope: "changed",          // SPEC-376 · ADR-0080 · uji hanya yang berubah
 ```
 
-- [ ] **Step 4: Resolusi scope + env di `session-launch.ts`**
+- [x] **Step 4: Resolusi scope + env di `session-launch.ts`**
 
 Perluas impor tipe di baris 3-4:
 
@@ -525,7 +525,7 @@ Ganti perakitan `extra` + `createSession` (baris 87-103) menjadi:
   });
 ```
 
-- [ ] **Step 5: Teruskan body di route** (`server/src/routes/terminal.ts:71-75`)
+- [x] **Step 5: Teruskan body di route** (`server/src/routes/terminal.ts:71-75`)
 
 ```ts
         const r = await startSpecSession(spec, {
@@ -536,17 +536,17 @@ Ganti perakitan `extra` + `createSession` (baris 87-103) menjadi:
         });
 ```
 
-- [ ] **Step 6: Jalankan test, pastikan LULUS**
+- [x] **Step 6: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV -u DATABASE_URL pnpm vitest run server/test/session-launch.test.ts server/test/terminal.route.test.ts --no-file-parallelism`
 Expected: PASS — termasuk seluruh test lama di kedua berkas (mode goal SPEC-332, agen SPEC-338).
 
-- [ ] **Step 7: Typecheck paket yang tersentuh**
+- [x] **Step 7: Typecheck paket yang tersentuh**
 
 Run: `pnpm --filter ./server typecheck`
 Expected: exit 0.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/src/services/settings.ts server/src/services/session-launch.ts server/src/routes/terminal.ts server/test/session-launch.test.ts server/test/terminal.route.test.ts

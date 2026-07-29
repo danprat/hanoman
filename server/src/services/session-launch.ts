@@ -1,6 +1,6 @@
 import { prisma } from "../db";
 import type { Spec } from "@prisma/client";
-import { realGit, startPrompt, continuePrompt, startCrossAuditPrompt, resolveGoalCondition, type Flow, type Autonomy } from "@hanoman/runner";
+import { realGit, startPrompt, continuePrompt, startCrossAuditPrompt, resolveGoalCondition, type Flow, type Autonomy, type VerifyScope } from "@hanoman/runner";
 import type { Agent } from "@hanoman/shared";
 import { buildCrossAuditCtx, crossAuditSessionOpts } from "./cross-audit";
 import { resolveRepoDir } from "./local-binding";
@@ -30,6 +30,9 @@ export async function startSpecSession(
     // SPEC-338 · ADR-0074 · mesin sesi. undefined → ikut Setting.agent. Governor scheduler tak
     // memasoknya → ikut default global, seperti model/effort.
     agent?: Agent;
+    // SPEC-376 · ADR-0080 · scope verifikasi. undefined → ikut Setting.verifyScope (default
+    // "changed"). Governor scheduler tak memasoknya → ikut default global, seperti model/effort.
+    verifyScope?: VerifyScope;
   },
 ): Promise<StartSpecResult> {
   // SPEC-213 · binding lokal per-device menang atas Project.repoDir (AC-8). Tanpa checkout lokal →
@@ -60,6 +63,8 @@ export async function startSpecSession(
         { flow: opts.flow, specId: spec.id, branchTo: `hanoman/${id}` },
         opts.goalCondition, setting.goal.condition)
     : undefined;
+  // SPEC-376 · ADR-0080 · scope verifikasi: override sesi → Setting global → "changed".
+  const verifyScope: VerifyScope = opts.verifyScope ?? setting.verifyScope;
 
   // Worktree lahir `--detach` di commit branchFrom (fallback HEAD, SPEC-197): sesi tak pernah jalan
   // di working tree utama. baseSha disimpan agar review men-diff baseSha..headSha (SPEC-176/ADR-0030).
@@ -82,8 +87,12 @@ export async function startSpecSession(
   // SPEC-337 · ADR-0075 · flow cross-audit: prompt ber-peta project + kunci baca log seumur sesi.
   // Flow lain tak tersentuh (prompt & opsi persis seperti sebelumnya).
   let prompt = isContinue
-    ? continuePrompt(opts.flow, brief, `hanoman/${id}`, opts.autonomy)
-    : startPrompt(opts.flow, brief, `hanoman/${id}`, opts.autonomy);
+    ? continuePrompt(opts.flow, brief, `hanoman/${id}`, opts.autonomy, verifyScope)
+    : startPrompt(opts.flow, brief, `hanoman/${id}`, opts.autonomy, verifyScope);
+  // SPEC-376 · ADR-0080 · env sesi. baseSha SUDAH dihitung di addWorktree di atas — tanpa
+  // meneruskannya, klausa "berkas yang berubah" tak bisa dieksekusi tanpa menebak: worktree
+  // lahir `--detach`, jadi `main` belum tentu ada dan `HEAD~1` salah.
+  const scopeEnv: Record<string, string> = { HANOMAN_BASE_SHA: baseSha, HANOMAN_VERIFY_SCOPE: verifyScope };
   let extra: { audit?: { key: string; projects: string[] }; env?: Record<string, string> } = {};
   if (opts.flow === "cross-audit") {
     const built = await buildCrossAuditCtx(spec.projectId);
@@ -100,6 +109,8 @@ export async function startSpecSession(
     decisionFile: decisionFilePath(repoDir, id),
     prompt,
     ...extra,
+    // Digabung SESUDAH `extra` supaya env audit lintas (SPEC-337) tak terhapus dan sebaliknya.
+    env: { ...scopeEnv, ...(extra.env ?? {}) },
   });
   return { id: s.id };
 }

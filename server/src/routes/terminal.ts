@@ -72,6 +72,7 @@ export default async function (app: FastifyInstance) {
           flow: parsed.data.flow, model: parsed.data.model, effort: parsed.data.effort,
           goal: parsed.data.goal, goalCondition: parsed.data.goalCondition,   // SPEC-332 · ADR-0073
           agent: parsed.data.agent,                                           // SPEC-338 · ADR-0074
+          verifyScope: parsed.data.verifyScope,                               // SPEC-376 · ADR-0080
         });
         return reply.code(201).send({ id: r.id });
       } catch (e) {
