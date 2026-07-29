@@ -87,6 +87,18 @@ menyentuh endpoint, sekali di akhir.
   fake-agent-env.sh` mencetak nilainya (pola SPEC-337).
 - **Penggabungan env harus aditif.** `session-launch` menggabung `{...scopeEnv, ...extra.env}`; kalau
   salah satunya menimpa yang lain, sesi cross-audit kehilangan kunci `HANOMAN_AUDIT_KEY`-nya.
+- **Untuk perubahan di modul INTI, `--changed` memang mendekati suite penuh — dan itu benar.**
+  Terukur saat mengerjakan SPEC-376 ini sendiri: karena ia menyentuh `shared/src/enums.ts`,
+  `entities.ts`, dan `dto.ts` (diimpor hampir semua modul), `pnpm vitest --run --changed <baseSha>`
+  menjalankan **217 berkas / 1589 test dalam 177 dtk** — praktis seluruh repo. Penghematan datang
+  dari perubahan berdaun (route, komponen, satu service), bukan dari perubahan kontrak bersama.
+  Ini **fitur, bukan kegagalan**: `--changed` menghitung blast radius yang sebenarnya alih-alih
+  menebaknya, jadi ia menyempit saat memang aman menyempit dan melebar saat memang harus melebar.
+  Jangan "memperbaiki"-nya dengan menyaring path secara manual.
+- **Test sensitif-waktu bisa gagal karena BEBAN, bukan karena regresi.** Di run 217-berkas itu
+  `server/test/sync-ws.test.ts` melewati timeout 5000 ms, lalu lulus dalam **186 ms** saat
+  dijalankan sendirian. Sebelum menyalahkan perubahan, jalankan ulang berkas itu terisolasi —
+  dan catat bahwa gejala ini sendiri adalah argumen untuk ADR ini.
 
 ## Alternatif yang ditolak
 

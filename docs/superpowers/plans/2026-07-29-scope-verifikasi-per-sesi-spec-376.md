@@ -866,7 +866,7 @@ Task ini menyentuh dua endpoint (`POST /terminal/sessions`, `PUT/GET /settings`)
 - Consumes: seluruh Task 1-5.
 - Produces: bukti bahwa knob & override benar-benar bekerja lewat HTTP.
 
-- [ ] **Step 1: Siapkan DB sekali-pakai untuk smoke**
+- [x] **Step 1: Siapkan DB sekali-pakai untuk smoke**
 
 Jangan pakai `hanoman_test` (run vitest tetangga men-truncate di tengah smoke) maupun `hanoman`/`hanoman_prod`.
 
@@ -877,14 +877,14 @@ env -u NODE_ENV DATABASE_URL="$SMOKE_URL" pnpm --filter ./server exec prisma mig
 ```
 Expected: `migrate deploy` selesai tanpa error.
 
-- [ ] **Step 2: Boot server di port non-8787**
+- [x] **Step 2: Boot server di port non-8787**
 
 ```bash
 env -u NODE_ENV DATABASE_URL="$SMOKE_URL" PORT=8791 pnpm --filter ./server dev
 ```
 Jalankan di background; tunggu sampai `curl -s localhost:8791/api/health` membalas.
 
-- [ ] **Step 3: Bootstrap akun & login**
+- [x] **Step 3: Bootstrap akun & login**
 
 ```bash
 curl -s -X POST localhost:8791/api/auth/setup -H 'content-type: application/json' \
@@ -892,14 +892,14 @@ curl -s -X POST localhost:8791/api/auth/setup -H 'content-type: application/json
 ```
 Expected: 200/201 (akun pertama). Cookie tersimpan di jar.
 
-- [ ] **Step 4: Buktikan default `verifyScope` = `changed`**
+- [x] **Step 4: Buktikan default `verifyScope` = `changed`**
 
 ```bash
 curl -s -b /tmp/hnm376.jar localhost:8791/api/settings | python3 -m json.tool | grep -i verifyscope
 ```
 Expected: `"verifyScope": "changed"` — datang dari `.default()` zod tanpa baris `Setting` apa pun di DB.
 
-- [ ] **Step 5: Buktikan knob tersimpan lewat PUT**
+- [x] **Step 5: Buktikan knob tersimpan lewat PUT**
 
 ```bash
 curl -s -b /tmp/hnm376.jar localhost:8791/api/settings > /tmp/s376.json
@@ -909,7 +909,7 @@ curl -s -b /tmp/hnm376.jar localhost:8791/api/settings | grep -o '"verifyScope":
 ```
 Expected: `"verifyScope":"full"` bertahan sesudah PUT.
 
-- [ ] **Step 6: Buktikan body sesi memvalidasi `verifyScope`**
+- [x] **Step 6: Buktikan body sesi memvalidasi `verifyScope`**
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' -X POST -b /tmp/hnm376.jar localhost:8791/api/terminal/sessions \
@@ -920,7 +920,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST -b /tmp/hnm376.jar localhost:87
 Expected: `400` (nilai tak dikenal, ditolak zod **sebelum** lookup spec) lalu `404` (bentuk body sah, spec-nya yang tak ada).
 JANGAN mengirim `spec` yang benar-benar ada — itu men-spawn sesi `claude` sungguhan.
 
-- [ ] **Step 7: Bereskan**
+- [x] **Step 7: Bereskan**
 
 ```bash
 # hentikan proses server background
@@ -928,7 +928,7 @@ docker exec hanoman-db-1 psql -U hanoman -d postgres -c 'DROP DATABASE hanoman37
 rm -f /tmp/hnm376.jar /tmp/s376.json /tmp/s376b.json
 ```
 
-- [ ] **Step 8: Catat hasil smoke di plan ini**
+- [x] **Step 8: Catat hasil smoke di plan ini**
 
 Tambahkan bagian "## Hasil smoke" di akhir berkas plan ini berisi kode status & nilai yang benar-benar diamati (bukan yang diharapkan), lalu commit:
 
@@ -938,6 +938,42 @@ git commit -m "docs(spec-376): catat hasil smoke endpoint settings & terminal/se
 ```
 
 ---
+
+## Hasil smoke
+
+Dijalankan 2026-07-29 di DB sekali-pakai `hanoman376_smoke` (di-`DROP` sesudahnya), server
+`PORT=8791`, socket tmux terpisah `hanoman-smoke-376`. Nilai di bawah **yang benar-benar diamati**:
+
+| Yang diuji | Perintah | Hasil |
+| --- | --- | --- |
+| Bootstrap akun | `POST /api/auth/setup` | `200` (`smoke@local` ditolak `400 Invalid email` — zod menuntut TLD, jadi dipakai `smoke@local.test`) |
+| Default tanpa baris `Setting` | `GET /api/settings` | `verifyScope = 'changed'` dengan `select count(*) from "Setting"` = **0** → jalur `DEFAULT_SETTING`/`.default()` terbukti, bukan nilai tersimpan |
+| Knob tersimpan | `PUT /api/settings` (`verifyScope:"full"`) | `200`; `GET` berikutnya `'full'`; `data->>'verifyScope'` di Postgres = `full` |
+| Knob menolak nilai asing | `PUT /api/settings` (`verifyScope:"sebagian"`) | `400` |
+| Body sesi menolak nilai asing | `POST /api/terminal/sessions` `{spec:"SPEC-TIDAKADA",flow:"feature",verifyScope:"sebagian"}` | `400` — ditolak zod **sebelum** lookup spec |
+| Body sesi menerima nilai sah | idem, `verifyScope:"changed"` / `"full"` | `404` (bentuk body sah; spec-nya yang tak ada) |
+| Kompatibel mundur | idem, tanpa `verifyScope` | `404` (bukan `400`) |
+
+Sengaja memakai `spec` yang tak ada: mengirim spec sungguhan akan men-spawn sesi `claude` nyata.
+
+### Verifikasi ber-scope (dogfood perintah yang klausa ini rekomendasikan)
+
+`env … pnpm vitest --run --changed 3d2908a --no-file-parallelism` → **1588 lulus, 1 gagal dari 1589
+test di 217 berkas, 177 dtk**.
+
+Dua temuan yang layak dicatat, keduanya sudah masuk ADR-0080 & SKILL.md:
+
+1. **Untuk spec INI, `--changed` mendekati suite penuh** — karena ia menyentuh
+   `shared/src/{enums,entities,dto}.ts` yang diimpor hampir semua modul. Itu blast radius yang
+   sebenarnya, bukan kegagalan alat; penghematan datang dari perubahan berdaun. Klaim "hemat RAM &
+   CPU" karena itu tidak universal, dan docs tak boleh menjanjikannya seolah-olah universal.
+2. **Satu kegagalan bukan regresi:** `server/test/sync-ws.test.ts` melewati timeout 5000 ms di
+   tengah run 217-berkas, lalu lulus dalam **186 ms** saat dijalankan sendirian. Perubahan spec ini
+   tak punya jalur ke sync. Gejalanya sendiri adalah argumen untuk ADR-0080.
+
+Typecheck: `shared`, `runner`, `server`, `src` exit 0. `cli` & `sdk` ikut di-typecheck (exit 0)
+justru karena spec ini mengubah **tipe bersama** — persis kasus "perluas scope" yang diperintahkan
+klausanya sendiri.
 
 ## Self-review
 
