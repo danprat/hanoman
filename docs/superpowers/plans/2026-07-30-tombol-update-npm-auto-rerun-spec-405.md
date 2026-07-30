@@ -334,7 +334,7 @@ git commit -m "feat(405): supervised() + canApply + requestRestartForUpdate di s
 | belum `confirm` | 409 | `{ error: "confirm-required", liveSessions, from, to }` |
 | `confirm: true` | 202 | `{ accepted: true, from, to, liveSessions }` |
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan ke `server/test/update.route.test.ts` (import diperluas dulu):
 
@@ -430,12 +430,12 @@ Perbarui juga assertion `GET /api/update` yang sudah ada agar menyebut field bar
     expect(b).toMatchObject({ updateAvailable: false, command: "", latestVersion: null, canApply: false });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan GAGAL**
+- [x] **Step 2: Jalankan, pastikan GAGAL**
 
 Run: `pnpm vitest --run --no-file-parallelism server/test/update.route.test.ts`
 Expected: FAIL — route `POST /api/update/apply` 404.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Ganti isi `server/src/routes/update.ts`:
 
@@ -478,12 +478,12 @@ export default async function update(app: FastifyInstance) {
 }
 ```
 
-- [ ] **Step 4: Jalankan, pastikan LULUS**
+- [x] **Step 4: Jalankan, pastikan LULUS**
 
 Run: `pnpm vitest --run --no-file-parallelism server/test/update.route.test.ts`
 Expected: PASS 8/8.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/routes/update.ts server/test/update.route.test.ts
