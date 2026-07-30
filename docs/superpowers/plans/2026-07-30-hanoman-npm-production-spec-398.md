@@ -1619,7 +1619,7 @@ git commit -m "feat(spec-398): rakit paket npm hanoman (hanoman __pack + pnpm re
 - Consumes: `resolveLayout`, `resolveDbUrl`, `dbFilePath`
 - Produces: `PG_ORDER: readonly string[]` · `chunk<T>(xs: T[], n: number): T[][]` · `parseMigrateArgs(argv): MigrateOpts`
 
-- [ ] **Step 1: Tulis test yang gagal — urutan FK dijaga DMMF, bukan komentar**
+- [x] **Step 1: Tulis test yang gagal — urutan FK dijaga DMMF, bukan komentar**
 
 Create `cli/test/migrate-pg.test.ts`:
 
@@ -1674,19 +1674,19 @@ describe("parseMigrateArgs", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — harus gagal**
+- [x] **Step 2: Jalankan — harus gagal**
 
 Run: `pnpm vitest --run cli/test/migrate-pg.test.ts`
 Expected: FAIL — modul belum ada.
 
-- [ ] **Step 3: Tambah dependency `pg`**
+- [x] **Step 3: Tambah dependency `pg`**
 
 `cli/package.json`: tambahkan `"pg": "^8.13.1"` ke `dependencies` dan `"@types/pg": "^8.11.10"` ke `devDependencies`.
 
 Run: `pnpm install`
 Expected: exit 0.
 
-- [ ] **Step 4: Implementasi `cli/src/commands/migrate-pg.ts`**
+- [x] **Step 4: Implementasi `cli/src/commands/migrate-pg.ts`**
 
 ```ts
 // SPEC-398 · ADR-0086 · pindah sekali-jalan Postgres → SQLite. Dibutuhkan karena instance hanoman
@@ -1802,13 +1802,13 @@ export default async function migratePg(argv: string[], ctx: Ctx): Promise<numbe
   if (group === "migrate-from-postgres") return (await import("./commands/migrate-pg")).default(argv.slice(1), ctx);
 ```
 
-- [ ] **Step 5: Jalankan test — harus lulus**
+- [x] **Step 5: Jalankan test — harus lulus**
 
 Run: `pnpm vitest --run cli/test/migrate-pg.test.ts`
 Expected: PASS. Bila test urutan FK merah, ia mencetak pasangan `Anak.field → Induk` yang salah
 urut — pindahkan model itu ke posisi sesudah induknya di `PG_ORDER`, jangan melemahkan test-nya.
 
-- [ ] **Step 6: Perbarui `RUNTIME_DEPS`/help & typecheck**
+- [x] **Step 6: Perbarui `RUNTIME_DEPS`/help & typecheck**
 
 `pg` sudah ada di `RUNTIME_DEPS` (Task 5) dan `migrate-from-postgres` sudah ada di `HELP` (Task 3).
 Tambahkan `--external:pg` ke build cli bila belum (Task 3 step 10 sudah memasukkannya).
@@ -1816,7 +1816,7 @@ Tambahkan `--external:pg` ke build cli bila belum (Task 3 step 10 sudah memasukk
 Run: `pnpm --filter ./cli typecheck && pnpm vitest --run cli/test --no-file-parallelism`
 Expected: hijau.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add -A

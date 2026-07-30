@@ -30,6 +30,10 @@ describe("route", () => {
     expect(route(["docs", "index", "--check"])).toEqual({ cmd: "docs:index", args: ["--check"] });
     expect(route(["docs", "link", "a.md"])).toEqual({ cmd: "docs:link", args: ["a.md"] });
   });
+  it("migrate-from-postgres meneruskan flag-nya", () => {
+    expect(route(["migrate-from-postgres", "--from", "postgres://x/db", "--dry-run"]))
+      .toEqual({ cmd: "migrate-pg", args: ["--from", "postgres://x/db", "--dry-run"] });
+  });
   it("__pack tersembunyi tapi ter-route (perintah rilis dev)", () => {
     expect(route(["__pack", "--out", "tmp"])).toEqual({ cmd: "__pack", args: ["--out", "tmp"] });
   });
