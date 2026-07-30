@@ -4,7 +4,9 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { tmpdir } from "node:os";
-import { goalOneLine, agentFlags, codexGoalScript, type Flow, type Agent } from "@hanoman/runner";
+import {
+  goalOneLine, goalChunks, agentFlags, codexGoalScript, type Flow, type Agent,
+} from "@hanoman/runner";
 import { coerceCodexEffort, type SessionKind } from "@hanoman/shared";
 import { readPhases, type Phase } from "./session-phases";
 import { effectiveStr } from "../config";
@@ -344,9 +346,10 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
   }
   // SPEC-332 · fire-and-forget: respons HTTP tak boleh menunggu TUI siap. Gagal = diam, karena
   // jaminan mode goal sudah dipegang hook Stop di argv di atas.
-  // SPEC-338 · khusus claude: `/goal` adalah perintah Claude Code; codex tak punya padanan
-  // terverifikasi — jaminannya di sana adalah gate hook deterministik.
-  if (opts.goal && !opts.command && agent === "claude") void armGoalInTui(id, opts.goal).catch(() => { /* best-effort */ });
+  // SPEC-397 · ADR-0085 · kedua agen: codex-cli ≥ 0.146 punya mode goal native yang di-arm lewat
+  // `/goal` yang sama. Tak ada gerbang versi CLI — pada codex lama `/goal` cuma jadi pesan chat yang
+  // tak dipahami, verifikasi melaporkan gagal, dan gate sh tetap memegang jaminannya.
+  if (opts.goal && !opts.command) void armGoalInTui(id, opts.goal, { agent }).catch(() => { /* best-effort */ });
   // SPEC-362 · sesi benar-benar BARU (cabang `existing` di atas sudah return lebih dulu — re-attach
   // ADR-0015 bukan sesi baru dan tak boleh melahirkan baris riwayat kedua).
   emitBirth({
@@ -357,27 +360,63 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
   return { id, projectId, specId: opts.specId, flow: opts.flow, cwd, branch: opts.branch, exited: false, decision: false, agent };
 }
 
-// SPEC-332 · ADR-0073 — jalur KEDUA mode goal. Hook Stop di `--settings` adalah jaminannya; ini
-// murni untuk VISIBILITAS: mengetik `/goal <kondisi>` membuat Claude Code men-set `activeGoal`
-// miliknya, jadi `/goal` menampilkan status dan goal ikut dipulihkan saat sesi di-resume.
-// Keduanya tak saling menghapus: sumber yang dibaca `/goal` saat mencari goal lama hanya
-// session hooks registry, sementara hook kita hidup di settings. Konsekuensi yang diterima sadar —
-// saat keduanya terpasang, satu percobaan stop dievaluasi dua kali.
-// SEKALI kirim (bukan kirim-ulang tiap percobaan): mengetik dua kali akan melahirkan dua pesan.
-export type GoalArmOpts = { pollMs?: number; readyTries?: number; settleMs?: number; verifyTries?: number };
+// SPEC-332 · ADR-0073 — jalur KEDUA mode goal. Hook Stop (claude: `--settings`; codex: gate sh di
+// `-c hooks.Stop`) adalah JAMINANNYA; ini jalur yang memasang mekanisme goal milik agen sendiri.
+//
+// claude: mengetik `/goal <kondisi>` membuat Claude Code men-set `activeGoal` miliknya, jadi `/goal`
+// menampilkan status dan goal ikut dipulihkan saat sesi di-resume. Keduanya tak saling menghapus:
+// sumber yang dibaca `/goal` saat mencari goal lama hanya session hooks registry, sementara hook
+// kita hidup di settings.
+//
+// SPEC-397 · ADR-0085 — codex JUGA lewat sini. codex-cli 0.146.0 punya mode goal native (feature
+// `goals`, tabel `thread_goals`, status line `Pursuing goal`/`Goal achieved`) yang MELANJUTKAN
+// SENDIRI sesudah turn berakhir sampai objektif tercapai. Premis ADR-0074 ("codex tak punya padanan
+// terverifikasi") benar di 0.142.5, salah di 0.146.0. Gate sh tetap terpasang — ia satu-satunya yang
+// benar-benar membaca berkas fase & kotak `- [ ]`; konsekuensinya satu percobaan berhenti dievaluasi
+// dua kali, dan itu diterima sadar (sudah begitu di claude sejak ADR-0073).
+export type GoalArmOpts = {
+  pollMs?: number; readyTries?: number; settleMs?: number; verifyTries?: number;
+  // SPEC-397 · agen sesi: menentukan penanda apa yang dihitung sebagai "goal terpasang".
+  agent?: Agent;
+  // SPEC-397 · jeda antar potongan keystroke, dan berapa kali arming diulang bila tak terverifikasi.
+  chunkMs?: number; sendTries?: number;
+};
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const paneText = (id: string): string => {
   try { return tmux("capture-pane", "-p", "-t", name(id)); } catch { return ""; }
 };
 
+// SPEC-397 · penanda "goal BENAR-BENAR terpasang", per agen.
+//
+// codex TIDAK boleh diverifikasi dengan substring `/goal`: saat kondisi terkirim sebagai burst
+// ≥ 1024 karakter, TUI mengubahnya jadi `[Pasted Content N chars]`, slash-dispatch tak jalan, dan
+// kondisinya masuk sebagai PESAN CHAT — yang pane-nya tetap menampilkan sebagai `/goal …`. Assertion
+// substring karena itu lulus palsu persis untuk kegagalan yang paling mungkin terjadi. Penanda di
+// bawah adalah teks yang hanya dipancarkan runtime goal codex sendiri.
+//
+// claude sengaja tetap memakai penanda lamanya: tak ada bukti terukur soal penanda mana yang
+// dipancarkan Claude Code saat goal terpasang, dan menggantinya dengan tebakan hanya memindahkan
+// risiko ke agen yang hari ini bekerja.
+const GOAL_ARMED_MARKERS: Record<Agent, string[]> = {
+  claude: ["/goal"],
+  codex: ["Goal active", "Pursuing goal", "Goal achieved"],
+};
+
+const goalArmed = (id: string, agent: Agent): boolean => {
+  const text = paneText(id);
+  return GOAL_ARMED_MARKERS[agent].some((m) => text.includes(m));
+};
+
 export async function armGoalInTui(id: string, condition: string, o: GoalArmOpts = {}): Promise<boolean> {
   const pollMs = o.pollMs ?? 500, readyTries = o.readyTries ?? 20;
   const settleMs = o.settleMs ?? 1200, verifyTries = o.verifyTries ?? 12;
+  const chunkMs = o.chunkMs ?? 50, sendTries = o.sendTries ?? 3;
+  const agent: Agent = o.agent ?? "claude";
   const line = goalOneLine(condition);
   if (!line) return false;
   // Tunggu pane menggambar sesuatu (TUI sudah hidup). Habis percobaan → kirim saja: yang hilang
-  // hanyalah visibilitas, sementara jaminan sudah dipegang hook settings.
+  // hanyalah jalur kedua, sementara jaminan sudah dipegang hook Stop.
   for (let i = 0; i < readyTries; i++) {
     const p = getSession(id);
     if (!p || p.exited) return false;
@@ -385,16 +424,27 @@ export async function armGoalInTui(id: string, condition: string, o: GoalArmOpts
     await sleep(pollMs);
   }
   await sleep(settleMs);
-  const p = getSession(id);
-  if (!p || p.exited) return false;
-  try {
-    // `-l` = literal: tmux tak menafsirkan isi kondisi sebagai nama tombol.
-    tmux("send-keys", "-t", name(id), "-l", `/goal ${line}`);
-    tmux("send-keys", "-t", name(id), "Enter");
-  } catch { return false; }   // sesi lenyap di tengah jalan
-  for (let i = 0; i < verifyTries; i++) {
-    if (paneText(id).includes("/goal")) return true;
-    await sleep(pollMs);
+  // SPEC-397 · kirim → verifikasi → kirim ulang. Aman JUSTRU karena verifikasinya akurat: retry
+  // hanya terjadi bila tak ada goal yang terpasang, jadi ia tak pernah menimpa goal yang hidup.
+  // (Larangan "SEKALI kirim" yang lama lahir dari verifikasi yang tak bisa membedakan berhasil dari
+  // gagal — dengan penanda per-agen, larangan itu tak lagi diperlukan.)
+  for (let attempt = 0; attempt < sendTries; attempt++) {
+    const p = getSession(id);
+    if (!p || p.exited) return false;
+    try {
+      // `-l` = literal: tmux tak menafsirkan isi kondisi sebagai nama tombol. Dikirim TERPOTONG
+      // ber-jeda karena deteksi paste codex bekerja per-burst PTY (ADR-0085).
+      tmux("send-keys", "-t", name(id), "-l", "/goal ");
+      for (const chunk of goalChunks(line)) {
+        tmux("send-keys", "-t", name(id), "-l", chunk);
+        await sleep(chunkMs);
+      }
+      tmux("send-keys", "-t", name(id), "Enter");
+    } catch { return false; }   // sesi lenyap di tengah jalan
+    for (let i = 0; i < verifyTries; i++) {
+      if (goalArmed(id, agent)) return true;
+      await sleep(pollMs);
+    }
   }
   return false;
 }

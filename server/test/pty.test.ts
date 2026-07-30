@@ -15,6 +15,11 @@ import { phaseFilePath, type Phase } from "../src/services/session-phases";
 // harus menoleransi flag itu. /bin/cat tidak: ia mati seketika dengan "illegal option".
 const FAKE_CLAUDE = fileURLToPath(new URL("./fixtures/fake-claude.sh", import.meta.url));
 
+// SPEC-397 · berdiri sebagai `codex`: memantulkan stdin DAN memancarkan penanda runtime goal codex
+// begitu menerima `/goal …`. fake-claude.sh dipakai sebagai kontrol negatif (ia memantulkan `/goal`
+// tapi tak pernah memancarkan penanda goal).
+const FAKE_CODEX_GOAL = fileURLToPath(new URL("./fixtures/fake-codex-goal.sh", import.meta.url));
+
 // Klien palsu yang merekam frame — cukup untuk menguji kontrak broadcast.
 function fakeClient() {
   const frames: { t: string; d?: string; code?: number; phases?: Phase[] }[] = [];
@@ -152,6 +157,71 @@ describe("pty service", () => {
     expect(await armGoalInTui("tidak-ada", "kondisi", { pollMs: 5, readyTries: 2, settleMs: 5, verifyTries: 2 }))
       .toBe(false);
   });
+
+  // SPEC-397 · ADR-0085 · sesi codex ikut memasang goal NATIVE codex lewat `/goal`.
+  it("armGoalInTui memasang goal di sesi codex dan mengenalinya dari penanda runtime goal", async () => {
+    process.env.HANOMAN_CODEX_BIN = FAKE_CODEX_GOAL;
+    const s = createSession("goal-cx1", process.cwd(), { agent: "codex" });
+    const ok = await armGoalInTui(s.id, "kondisi codex", {
+      agent: "codex", pollMs: 40, readyTries: 30, settleMs: 40, verifyTries: 40, chunkMs: 1,
+    });
+    expect(ok).toBe(true);
+    expect(tmuxCapture(s.id) ?? "").toContain("Pursuing goal");
+  });
+
+  // Jebakan yang dijaga: pane yang HANYA memuat teks `/goal` — persis yang terjadi saat kondisi
+  // ter-degradasi jadi `[Pasted Content …]` dan slash-dispatch tak jalan — TIDAK boleh dihitung
+  // sebagai goal terpasang untuk codex. Verifikasi lama `includes("/goal")` lulus palsu di sini.
+  it("armGoalInTui TIDAK menganggap sesi codex ter-arm hanya karena pane memuat /goal", async () => {
+    process.env.HANOMAN_CODEX_BIN = FAKE_CLAUDE;
+    const s = createSession("goal-cx2", process.cwd(), { agent: "codex" });
+    const ok = await armGoalInTui(s.id, "kondisi codex", {
+      agent: "codex", pollMs: 10, readyTries: 30, settleMs: 40, verifyTries: 3, chunkMs: 1, sendTries: 1,
+    });
+    expect(ok).toBe(false);
+    expect(tmuxCapture(s.id) ?? "").toContain("/goal kondisi codex");
+  });
+
+  // Kondisi multi-potongan dikirim sebagai BANYAK `send-keys` (ADR-0085: satu burst ≥ 1024 karakter
+  // diubah TUI codex jadi `[Pasted Content N chars]` dan `/goal` mati diam). Yang dijaga di sini
+  // adalah properti yang bisa diamati dari luar: pemotongan tak boleh MENGUBAH apa yang sampai —
+  // tak ada potongan hilang, terduplikasi, atau tertukar urutan sepanjang jalur tmux.
+  //
+  // 900 karakter = 2 potongan (500 + 400), dan angkanya SENGAJA di bawah ~1,2 KB. Fixture ini adalah
+  // `sh read` di tty mode KANONIKAL, dan antrean masukan tty punya batas yang bergantung timing
+  // pengurasan echo: terukur di mesin ini 900–1200 selalu sampai, sementara 1300–1500 kadang sampai
+  // kadang tidak (1500 lolos dengan potongan 500, gagal dengan potongan 400). Itu batasan FIXTURE,
+  // bukan hanoman maupun codex — codex sungguhan membaca tty-nya di mode raw dengan buffer sendiri,
+  // dan objektif 4000 karakter terbukti diterimanya. Jangan "memperbaiki" test ini dengan menaikkan
+  // panjangnya: yang didapat cuma flake.
+  //
+  // Batas "tak ada potongan ≥ 1024" sendiri dijaga unit test `goalChunks` di runner — di sana ia
+  // deterministik, di sini tidak.
+  it("kondisi multi-potongan tiba utuh & berurutan di pane", async () => {
+    process.env.HANOMAN_CODEX_BIN = FAKE_CODEX_GOAL;
+    const cond = "z".repeat(900);
+    const s = createSession("goal-cx3", process.cwd(), { agent: "codex" });
+    const ok = await armGoalInTui(s.id, cond, {
+      agent: "codex", pollMs: 40, readyTries: 30, settleMs: 40, verifyTries: 40, chunkMs: 5,
+    });
+    expect(ok).toBe(true);
+    // capture-pane melipat baris; buang pembungkusnya sebelum mencocokkan isi.
+    expect((tmuxCapture(s.id) ?? "").replace(/\s+/g, "")).toContain("/goal" + cond);
+  }, 15000);
+
+  // SPEC-397 · gerbang `agent === "claude"` di createSession dicabut: sesi codex ber-goal ikut
+  // menerima keystroke, bukan hanya gate sh.
+  it("createSession codex ber-goal ikut mengetik /goal ke pane", async () => {
+    process.env.HANOMAN_CODEX_BIN = FAKE_CODEX_GOAL;
+    const phaseFile = phaseFilePath(repoDir, "goal-cx4");
+    const s = createSession("goal-cx4", process.cwd(), {
+      agent: "codex", flow: "feature", specId: "SPEC-397", phaseFile, goal: "KONDISI-397",
+    });
+    await waitFor(() => (tmuxCapture(s.id) ?? "").includes("Pursuing goal"), 20000);
+    expect((tmuxCapture(s.id) ?? "").replace(/\s+/g, " ")).toContain("KONDISI-397");
+    // 25 dtk: arming di jalur ini memakai timing DEFAULT `armGoalInTui` (settleMs 1200 + poll 500 ms)
+    // karena createSession memanggilnya tanpa opsi — di atas testTimeout bawaan vitest 5 dtk.
+  }, 25000);
 
   // SPEC-211 · Open Console memasok argv sendiri (mis. `ssh -t …`) — shell mentah, bukan claude.
   it("command opt menjalankan perintah non-claude, tanpa flag claude", async () => {
