@@ -508,7 +508,7 @@ git commit -m "feat(405): POST /api/update/apply — dry-run lalu exit sentinel,
 > (Task 3) berarti **setiap agent token — capability apa pun — bisa me-restart instance operator.**
 > Task 3 tidak boleh berdiri sendiri tanpa task ini.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambah ke `server/test/agent-capabilities.test.ts`:
 
@@ -539,12 +539,12 @@ Kalau berkas itu belum mengimpor `checkAgentCapability`, tambahkan ke import bar
 import { capabilityForRoute, checkAgentCapability } from "../src/services/agent-capabilities";
 ```
 
-- [ ] **Step 2: Jalankan, pastikan GAGAL**
+- [x] **Step 2: Jalankan, pastikan GAGAL**
 
 Run: `pnpm vitest --run --no-file-parallelism server/test/agent-capabilities.test.ts`
 Expected: FAIL — `POST /api/update/apply` masih `"GLOBAL_READ"`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Di `server/src/services/agent-capabilities.ts`, ganti baris 20–21:
 
@@ -556,12 +556,12 @@ Di `server/src/services/agent-capabilities.ts`, ganti baris 20–21:
     return read ? "GLOBAL_READ" : "COOKIE_ONLY";
 ```
 
-- [ ] **Step 4: Jalankan, pastikan LULUS**
+- [x] **Step 4: Jalankan, pastikan LULUS**
 
 Run: `pnpm vitest --run --no-file-parallelism server/test/agent-capabilities.test.ts server/test/agent-gate.test.ts`
 Expected: PASS keduanya.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/agent-capabilities.ts server/test/agent-capabilities.test.ts

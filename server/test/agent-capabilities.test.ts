@@ -68,3 +68,22 @@ describe("checkAgentCapability", () => {
     expect(checkAgentCapability(["projects:read"], "GET", "/api/limits")).toEqual({ ok: true });
   });
 });
+
+describe("status global read-only tak boleh tembus lewat method tulis (SPEC-405 · ADR-0088)", () => {
+  it("GET /api/update tetap lolos tanpa capability apa pun", () => {
+    expect(capabilityForRoute("GET", "/api/update")).toBe("GLOBAL_READ");
+    expect(checkAgentCapability([], "GET", "/api/update")).toEqual({ ok: true });
+  });
+  it("POST /api/update/apply DITOLAK — bahkan untuk token ber-capability penuh", () => {
+    expect(capabilityForRoute("POST", "/api/update/apply")).toBe("COOKIE_ONLY");
+    const caps = ["backlog:write", "sessions:write", "settings:write", "projects:write"];
+    expect(checkAgentCapability(caps, "POST", "/api/update/apply")).toMatchObject({ ok: false, status: 403 });
+  });
+  it("prefix status lain ikut: POST /api/limits & /api/health ditolak", () => {
+    expect(capabilityForRoute("POST", "/api/limits")).toBe("COOKIE_ONLY");
+    expect(capabilityForRoute("POST", "/api/health")).toBe("COOKIE_ONLY");
+  });
+  it("HEAD dianggap baca", () => {
+    expect(capabilityForRoute("HEAD", "/api/update")).toBe("GLOBAL_READ");
+  });
+});
