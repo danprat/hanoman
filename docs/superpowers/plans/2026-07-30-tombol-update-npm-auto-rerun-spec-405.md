@@ -1159,7 +1159,7 @@ git commit -m "feat(405): tombol Pasang & mulai ulang di UpdateBadge — dua lan
 - Consumes: keputusan Task 1–6 (nama endpoint, env, exit code — kutip persis).
 - Produces: ADR-0088 sebagai rujukan permanen; entri index di **dua** tempat (index utama + sub-index — SPEC-386 menuntut keduanya).
 
-- [ ] **Step 1: Tulis ADR-0088**
+- [x] **Step 1: Tulis ADR-0088**
 
 Buat `internal/docs/adr/0088-tombol-update-npm-restart-tersupervisi.md` dengan isi berikut:
 
@@ -1270,7 +1270,7 @@ proses lain, yang memang hidup justru untuk itu.
   lebih buruk daripada tak ada angka.
 ```
 
-- [ ] **Step 2: Taut di KEDUA index (SPEC-386)**
+- [x] **Step 2: Taut di KEDUA index (SPEC-386)**
 
 Di `internal/docs/README.md`, sisipkan sebagai baris pertama daftar `## adr` (di atas 0087):
 
@@ -1284,7 +1284,7 @@ Di `internal/docs/adr/README.md`, sisipkan sebagai entri pertama daftar (di atas
 - [0088 — Tombol update dari dashboard: server keluar, supervisor memasang](0088-tombol-update-npm-restart-tersupervisi.md) — **mengamandemen 0048** (memenuhi syarat yang ADR itu sendiri tetapkan: "butuh ADR baru + supervisor") dan **membalik satu alternatif yang ditolak 0087**, bersandar pada **0016**, mempersempit permukaan **0065** (SPEC-405): `POST /api/update/apply` sah, tapi **server tetap tak memasang apa pun** — ia hanya keluar dengan `UPDATE_RESTART_EXIT = 75`, dan CLI parent `hanoman start` (yang sejak 0087 memang sudah men-spawn server sebagai proses ANAK) yang menjalankan `npm i -g hanoman@latest` → `prisma generate` → `migrate deploy` → spawn lagi dari path yang sama (isinya sudah tertimpa `npm i -g` di tempat). **Supervised-only**: digerbangi `process.env.HANOMAN_SUPERVISOR === "1"` yang HANYA disuntik `serverEnv()` di `cli/src/commands/start.ts`, diekspor sebagai `UpdateStatus.canApply` — dibaca dari `process.env` LANGSUNG, bukan `effectiveBool()` (yang membaca cache config DB lebih dulu, sehingga siapa pun yang bisa menulis config bisa mengaku disupervisi). **Dua langkah, satu endpoint**: tanpa `confirm` ia dry-run `409 confirm-required` + jumlah sesi hidup yang dihitung SAAT ITU (bukan dari frame siar `update` yang di-recompute tiap 300 tick — angka basi pada dialog risiko lebih buruk daripada tak ada angka); sesi hidup tak memblokir apa pun di server. Premis penolakan 0087 ("akan memutus sesi tmux") **tidak akurat**: `pty.ts` memakai `tmux new-session -d`, tmux adalah daemon — yang putus hanya jembatan `tmux attach` + WebSocket, dan klien sudah reconnect ber-backoff. **Install gagal tidak fatal** (respawn versi lama + cetak alasan); **migrasi gagal fatal** (bundle baru di atas skema lama = menukar downtime dengan kesalahan data); jatah `MAX_UPDATE_RESTARTS = 5` dengan alasan **dicetak** saat habis. **Lubang capability ditutup bersamaan**: `capabilityForRoute` dulu memetakan `update`/`limits`/`events`/`fs`/`health` ke `GLOBAL_READ` **tanpa melihat method**, jadi `POST /update/apply` akan lolos untuk **setiap** agent token — kini `GLOBAL_READ` hanya untuk method baca, selain itu `COOKIE_ONLY` → 403. **Gotcha:** `prisma generate` dijalankan **tanpa cek dulu** karena `@prisma/client` sudah ter-cache di proses supervisor sejak boot (pemeriksaan kedua menjawab "siap" memakai modul LAMA — kelas jebakan `existsSync` di 0087); listener sinyal wajib `process.off` tiap putaran; `confirm` wajib **boolean** (`"ya"` truthy = kehilangan langkah konfirmasi tanpa sadar). Konsekuensi yang diterima sadar: proses CLI supervisor sendiri tetap kode lama sampai `hanoman` dijalankan ulang manusia. Tanpa skema/migration/knob baru
 ```
 
-- [ ] **Step 3: Perbaiki `api-contract.md`**
+- [x] **Step 3: Perbaiki `api-contract.md`**
 
 Entri `/update` di sana **masih berbentuk SHA milik SPEC-214** (`currentSha`, `checkoutSha`,
 `behind`, `newCommits`) — usang sejak ADR-0087. Ganti empat baris itu:
@@ -1304,7 +1304,7 @@ POST     /update/apply                  # { confirm?: boolean } — SPEC-405 · 
 #   agent token DITOLAK (403): prefix status hanya GLOBAL_READ untuk method baca
 ```
 
-- [ ] **Step 4: Perbarui runbook & skill**
+- [x] **Step 4: Perbarui runbook & skill**
 
 `internal/docs/operations/npm-readme.md` — ganti seluruh bagian `## Update` (baris 38–46):
 
@@ -1365,7 +1365,7 @@ butir "**Distribusi = paket npm global**":
   berarti setiap agent token bisa me-restart instance — kini `GLOBAL_READ` hanya untuk method baca.
 ```
 
-- [ ] **Step 5: Verifikasi index & commit**
+- [x] **Step 5: Verifikasi index & commit**
 
 ```bash
 node cli/dist/hanoman.js docs index --check 2>/dev/null || pnpm --filter ./cli build && node cli/dist/hanoman.js docs index --check

@@ -58,6 +58,27 @@ Pakai skill lebih sempit saat task cocok:
 
 - Dashboard: **React + TypeScript + Vite**. Server: **Node.js + TypeScript (Fastify)**. DB: **SQLite via Prisma 6** — satu berkas di `$HANOMAN_HOME` (default `~/.hanoman/hanoman.db`), **tanpa Docker/Postgres/Redis** (SPEC-398/ADR-0086). Lokasi data ditentukan tiga fungsi murni di `runner/src/paths.ts` (`resolveHome`/`resolveDbUrl`/`dbFilePath`), dipakai server **dan** CLI; `DATABASE_URL` non-`file:` **melempar** dan menunjuk `hanoman migrate-from-postgres`.
 - **Distribusi = paket npm global** (SPEC-398/ADR-0087): `npm i -g hanoman` → `hanoman`. `hanoman` telanjang = `start` (migrate deploy → **spawn** `node dist/server.js` sebagai proses anak dengan `NODE_ENV=production`); `doctor` melaporkan prasyarat non-npm (node ≥ 20 · git · tmux · `claude`/`codex` · izin tulis home · aset web) dengan exit code; `update [--check]` membandingkan semver vs registry npm lalu menjalankan `npm i -g hanoman@latest`; `migrate-from-postgres` memindahkan instance lama. `resolveLayout()` mengenali **dua** layout (paket npm vs checkout repo), aset dashboard dipilih `pickWebDir()`. Deteksi update tetap **read-only** di server (ADR-0048 utuh) — yang memasang adalah CLI, karena server yang me-`npm i` dirinya sendiri lalu keluar akan memutus sesi tmux. Staging rilis `dist-npm/` dirakit `hanoman __pack` (`pnpm release`); **`npm publish` tindakan manusia**.
+- **Update sekali klik, tapi server tetap tak memasang apa pun** (SPEC-405/ADR-0088, mengamandemen
+  ADR-0048 & membalik satu alternatif yang ditolak ADR-0087): `POST /api/update/apply` hanya membuat
+  proses server **keluar dengan `UPDATE_RESTART_EXIT = 75`**; yang menjalankan `npm i -g hanoman@latest`
+  → `prisma generate` → `migrate deploy` → spawn lagi adalah **CLI parent `hanoman start`**, yang sejak
+  ADR-0087 memang sudah men-spawn server sebagai proses ANAK. **Supervised-only**: digerbangi
+  `process.env.HANOMAN_SUPERVISOR === "1"` yang HANYA disuntik `serverEnv()` di
+  `cli/src/commands/start.ts` dan diekspor sebagai `UpdateStatus.canApply` — **dibaca dari
+  `process.env` langsung, bukan `effectiveBool()`**, karena helper itu membaca cache config DB lebih
+  dulu sehingga siapa pun yang bisa menulis config bisa mengaku disupervisi. Endpoint punya **dua
+  langkah**: tanpa `confirm` ia dry-run `409 confirm-required` + jumlah sesi hidup yang dihitung saat
+  itu juga (jumlah itu sengaja **tidak** masuk `UpdateStatus` — grup siar `update` di-recompute tiap
+  300 tick); sesi hidup **tak memblokir** apa pun di server. Premis "restart memutus sesi tmux"
+  **tidak akurat**: `pty.ts` memakai `tmux new-session -d`, tmux daemon terpisah — yang putus hanya
+  jembatan `tmux attach` + WebSocket, dan klien sudah reconnect ber-backoff (ADR-0016). **Install
+  gagal tak fatal** (respawn versi lama + cetak alasan), **migrasi gagal fatal**, jatah
+  `MAX_UPDATE_RESTARTS = 5` dengan alasan dicetak saat habis. **Dua gotcha wajib:** `prisma generate`
+  dijalankan **tanpa cek dulu** karena `@prisma/client` sudah ter-cache di proses supervisor sejak
+  boot (`ensurePrismaClient` akan menjawab "siap" memakai modul LAMA — kelas jebakan `existsSync` di
+  ADR-0087); dan `capabilityForRoute` dulu memetakan prefix status (`update`/`limits`/`events`/`fs`/
+  `health`) ke `GLOBAL_READ` **tanpa melihat method**, jadi menambah endpoint tulis di bawahnya
+  berarti setiap agent token bisa me-restart instance — kini `GLOBAL_READ` hanya untuk method baca.
 - Realtime: **WebSocket hanya untuk terminal PTY**; sisanya **HTTP polling** (projects, backlog, notifications, limits, vps). Jaga UI responsif — log sesi streaming, jangan blok main thread.
 - Terminal server: **node-pty + tmux** (socket `-L hanoman`, `remain-on-exit on`); terminal web: **xterm.js** merender TUI Claude Code apa adanya. tmux menahan sesi hidup lintas restart API (ADR-0016).
 - **Tidak ada** message queue, Redis, worker terpisah, scheduler cron, maupun webhook GitHub — semua dicabut saat pindah ke sesi interaktif (ADR-0024). Satu-satunya kerja latar = dua `setInterval` di `server.ts` untuk monitor VPS (health 5 mnt, audit 24 jam).
