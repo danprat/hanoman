@@ -85,6 +85,16 @@ ada di runner, jadi ia akan exit 1 karena alasan yang tak relevan dengan kesehat
   npm tak mengenalinya sebagai kredensial registry, dan pesannya terbaca seperti "token
   salah/kedaluwarsa" padahal tokennya sehat. Periksa bentuknya tanpa membocorkan nilainya:
   `sed 's/\(_authToken=\).*/\1<DISENSOR>/' ~/.npmrc`.
+- **Paket terbit kehilangan dependency** (`0.1.3` terbit tanpa `prisma` → mati saat start dengan
+  "`prisma generate` gagal"; sudah di-`npm deprecate`). Yang membuatnya lolos: **tarball yang
+  di-smoke-test sehat, yang dikirim tidak.** `npm i -g --prefix <dir> <tarball>` yang dijalankan
+  dengan **cwd di dalam `dist-npm/`** menulis ulang `dist-npm/package.json` — membuang `prisma`,
+  menaikkan `@prisma/client`. Jadi smoke test itu sendiri yang mencemari paket, sesudah artefak
+  sehat dirakit. **Smoke test tarball selalu dari cwd LAIN.** Sejak `0.1.4` ada gerbang
+  `prepublishOnly` → `hanoman __verify` (`verifyPackedDeps`, dipagari test) yang membatalkan publish
+  bila dependency wajib hilang — diletakkan di situ, bukan di `__pack`, karena mutasinya terjadi
+  **sesudah** pack. Kalau ia menyala: jangan sunting `dist-npm/package.json`, rakit ulang
+  (`pnpm release`).
 - **`E404 Not Found - PUT https://registry.npmjs.org/hanoman` dari workflow** = trusted publisher
   belum/tak cocok dikonfigurasi, **bukan** paket hilang dan bukan bug paket. Saat handshake OIDC tak
   cocok, registry memperlakukan klien sebagai **anonim**, dan anonim tak boleh `PUT` → 404, bukan
