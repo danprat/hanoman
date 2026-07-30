@@ -135,7 +135,9 @@ export async function applyPush(
 export type PulledRecord = { entity: string; recordId: string; version: number; data: unknown };
 
 export async function pull(sinceCursor: string, limit = 500): Promise<{ cursor: string; records: PulledRecord[] }> {
-  const since = BigInt(sinceCursor || "0");
+  // SPEC-398 · ADR-0086 · `SyncLog.seq` kini `Int` (SQLite hanya meng-auto-isi alias rowid ber-tipe
+  // deklarasi tepat `INTEGER`). Kursor tetap STRING di wire — jangan ubah bentuk itu.
+  const since = Number(sinceCursor || "0");
   const rows = await prisma.syncLog.findMany({
     where: { seq: { gt: since } }, orderBy: { seq: "asc" }, take: limit,
   });

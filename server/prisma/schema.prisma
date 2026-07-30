@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -239,7 +239,13 @@ model SessionHistory {
 
 // SPEC-213 · ADR-0045 · change-feed server-authoritative. seq = kursor global sync.
 model SyncLog {
-  seq       BigInt   @id @default(autoincrement())
+  // SPEC-398 · ADR-0086 · `Int`, BUKAN `BigInt`. Di SQLite sebuah kolom hanya jadi alias rowid
+  // (yang auto-terisi) bila tipe deklarasinya **tepat** `INTEGER`; `BigInt` membuat Prisma
+  // memancarkan `BIGINT NOT NULL PRIMARY KEY` — valid SQL, **tanpa** AUTOINCREMENT, tanpa
+  // peringatan dari `migrate diff` — sehingga setiap insert changefeed gagal
+  // "Null constraint violation on the fields: (`seq`)". Kursor tetap string di wire
+  // (`String(log.seq)`), jadi kontrak API tak berubah; 2^31 baris changefeed jauh lebih dari cukup.
+  seq       Int      @id @default(autoincrement())
   entity    String
   recordId  String
   version   Int

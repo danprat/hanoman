@@ -65,11 +65,13 @@ export async function listHistory(q: {
     ...(q.kind ? { kind: q.kind } : {}),
     ...(term
       ? {
+        // SPEC-398 · ADR-0086 · SQLite tak punya `mode: "insensitive"`; `LIKE`-nya sudah
+        // case-insensitive untuk ASCII, jadi pencarian ini tetap berperilaku sama.
         OR: [
-          { sessionId: { contains: term, mode: "insensitive" as const } },
-          { specId: { contains: term, mode: "insensitive" as const } },
-          { title: { contains: term, mode: "insensitive" as const } },
-          { branch: { contains: term, mode: "insensitive" as const } },
+          { sessionId: { contains: term } },
+          { specId: { contains: term } },
+          { title: { contains: term } },
+          { branch: { contains: term } },
         ],
       }
       : {}),

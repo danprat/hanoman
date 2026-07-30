@@ -1,15 +1,15 @@
 {
   "name": "hanoman",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "engines": { "node": ">=20" },
   "scripts": {
-    "predev": "docker compose up -d --wait",
     "dev": "pnpm run \"/^dev:/\"",
     "dev:api": "pnpm --filter ./server dev",
     "dev:web": "pnpm --filter ./src dev",
-    "prod:db": "docker compose up -d --wait && (docker compose exec -T db psql -U hanoman -d postgres -c 'CREATE DATABASE hanoman_prod' 2>/dev/null || true)",
-    "prod:setup": "pnpm prod:db && set -a && . ./.env.production && set +a && pnpm --filter ./server exec prisma migrate deploy && pnpm --filter ./server exec prisma generate && pnpm build",
+    "db:migrate": "set -a && . ./.env && set +a && pnpm --filter ./server exec prisma migrate deploy",
+    "prod:setup": "set -a && . ./.env.production && set +a && pnpm --filter ./server exec prisma migrate deploy && pnpm --filter ./server exec prisma generate && pnpm build",
     "prod:api": "set -a && . ./.env.production && set +a && node server/dist/server.js",
     "prod": "pnpm prod:setup && pnpm prod:api",
     "build": "pnpm --filter ./src build && pnpm --filter ./server build && node scripts/stamp-build.mjs",

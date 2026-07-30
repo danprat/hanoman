@@ -14,3 +14,8 @@ docker-compose.override.yaml
 # HANOMAN_UPLOAD_DIR default — lampiran tiket Help Center + source-map (runtime, server-local, tak disync)
 server/data/
 /data/
+
+# SPEC-398 · ADR-0086 · DB SQLite lokal & staging paket npm
+*.db
+*.db-journal
+dist-npm/

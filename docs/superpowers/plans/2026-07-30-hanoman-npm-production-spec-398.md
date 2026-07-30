@@ -45,7 +45,7 @@
 - Produces: `resolveHome(env?): string` · `resolveDbUrl(env, schemaDir): string` · `dbFilePath(url): string` — semuanya dari `@hanoman/runner`.
 - Consumes: tidak ada.
 
-- [ ] **Step 1: Tulis test yang gagal untuk resolusi path**
+- [x] **Step 1: Tulis test yang gagal untuk resolusi path**
 
 Create `runner/test/paths.test.ts`:
 
@@ -97,12 +97,12 @@ describe("dbFilePath", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — harus gagal**
+- [x] **Step 2: Jalankan test — harus gagal**
 
 Run: `pnpm vitest --run runner/test/paths.test.ts`
 Expected: FAIL — `Failed to resolve import "../src/paths"`.
 
-- [ ] **Step 3: Implementasi `runner/src/paths.ts`**
+- [x] **Step 3: Implementasi `runner/src/paths.ts`**
 
 ```ts
 // SPEC-398 · ADR-0086 · resolusi lokasi data hanoman. Dipakai server (db.ts, vitest.config)
@@ -153,12 +153,12 @@ Tambahkan ke `runner/src/index.ts`:
 export * from "./paths";
 ```
 
-- [ ] **Step 4: Jalankan test — harus lulus**
+- [x] **Step 4: Jalankan test — harus lulus**
 
 Run: `pnpm vitest --run runner/test/paths.test.ts`
 Expected: PASS (11 test).
 
-- [ ] **Step 5: Naikkan Prisma dan tukar provider**
+- [x] **Step 5: Naikkan Prisma dan tukar provider**
 
 `server/package.json`: `"@prisma/client": "^6.19.0"` (dependencies) dan `"prisma": "^6.19.0"` (devDependencies).
 
@@ -174,7 +174,7 @@ datasource db {
 Run: `pnpm install`
 Expected: exit 0.
 
-- [ ] **Step 6: Ganti riwayat migrasi PG dengan satu init SQLite**
+- [x] **Step 6: Ganti riwayat migrasi PG dengan satu init SQLite**
 
 ```bash
 cd server
@@ -189,7 +189,7 @@ pnpm exec prisma generate
 Expected: `migration.sql` memuat `CREATE TABLE "Project"` dst dan **tak** memuat tipe khas PG (`JSONB`, `SERIAL`); `prisma generate` exit 0.
 Verifikasi: `grep -c 'CREATE TABLE' prisma/migrations/20260730000000_init_sqlite/migration.sql` → 26.
 
-- [ ] **Step 7: Buang `mode: "insensitive"` (tak didukung SQLite)**
+- [x] **Step 7: Buang `mode: "insensitive"` (tak didukung SQLite)**
 
 `server/src/services/session-history.ts:68-73` — hapus `, mode: "insensitive" as const` dari empat klausa `contains`, dan tambahkan komentar:
 
@@ -204,7 +204,7 @@ Verifikasi: `grep -c 'CREATE TABLE' prisma/migrations/20260730000000_init_sqlite
       ],
 ```
 
-- [ ] **Step 8: Sambungkan `db.ts` ke resolver**
+- [x] **Step 8: Sambungkan `db.ts` ke resolver**
 
 `server/src/db.ts`:
 
@@ -227,7 +227,7 @@ mkdirSync(dirname(dbFilePath(url)), { recursive: true }); // SQLite tak membuat 
 export const prisma = new PrismaClient();
 ```
 
-- [ ] **Step 9: Test DB jadi berkas per checkout + migrasi otomatis**
+- [x] **Step 9: Test DB jadi berkas per checkout + migrasi otomatis**
 
 `server/vitest.config.ts` — ganti blok derivasi DB (baris 15-25):
 
@@ -273,7 +273,7 @@ export default function setup(): void {
 }
 ```
 
-- [ ] **Step 10: Cabut Docker & rapikan env**
+- [x] **Step 10: Cabut Docker & rapikan env**
 
 `package.json` root: hapus baris `predev` dan `prod:db`; ubah `prod:setup` menjadi
 
@@ -327,7 +327,7 @@ Tambahkan juga knob baru di bagian opsional:
 
 `.env.production.example`: ganti `DATABASE_URL` menjadi `DATABASE_URL=file:../../hanoman-prod.db` dan hapus penyebutan `hanoman_prod`/Postgres di komentarnya.
 
-- [ ] **Step 11: Buat DB dev lalu jalankan test yang tersentuh**
+- [x] **Step 11: Buat DB dev lalu jalankan test yang tersentuh**
 
 ```bash
 pnpm --filter ./server exec prisma migrate deploy
@@ -336,12 +336,12 @@ pnpm vitest --run --changed "$HANOMAN_BASE_SHA" --no-file-parallelism
 
 Expected: `migrate deploy` exit 0 (`1 migration applied`); vitest hijau. `--no-file-parallelism` **wajib** — test server berbagi satu berkas DB.
 
-- [ ] **Step 12: Typecheck paket yang tersentuh**
+- [x] **Step 12: Typecheck paket yang tersentuh**
 
 Run: `pnpm --filter ./server typecheck && pnpm --filter ./runner typecheck`
 Expected: exit 0, tanpa output.
 
-- [ ] **Step 13: Commit**
+- [x] **Step 13: Commit**
 
 ```bash
 git add -A

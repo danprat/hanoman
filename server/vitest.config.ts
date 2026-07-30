@@ -1,9 +1,13 @@
 import { defineConfig, configDefaults } from "vitest/config";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+// Import berkasnya LANGSUNG, bukan lewat barrel `@hanoman/runner`: pemuat config Vite
+// mem-bundle berkas ini dengan esbuild dan barrel runner me-re-export modul TS tanpa ekstensi,
+// yang gagal di-resolve loader ESM node (ERR_MODULE_NOT_FOUND).
+import { resolveDbUrl } from "../runner/src/paths";
 
 // PrismaClient reads DATABASE_URL from process.env at runtime (only the CLI
-// auto-loads .env). Load the root .env so server tests can hit Postgres.
+// auto-loads .env). Load the root .env so server tests have one.
 try {
   for (const line of readFileSync(resolve(import.meta.dirname, "../.env"), "utf8").split("\n")) {
     const m = line.match(/^\s*([A-Z_]+)\s*=\s*(.+?)\s*$/);
@@ -11,16 +15,16 @@ try {
   }
 } catch { /* .env optional in CI where env is already set */ }
 
-// Tests seed with a wipe-then-load; point them at an ISOLATED throwaway DB so
-// they can never wipe the real hanoman DB. Prefer TEST_DATABASE_URL; else derive
-// a `_test` database from DATABASE_URL. Refuse to run if it would equal the real
-// DB — a missing/misconfigured test DB must fail loudly, not nuke real data.
+// SPEC-398 · ADR-0086 · DB test kini BERKAS di sebelah DB nyata (`….test.db`), bukan database
+// Postgres bersama. Dua kelas gagal palsu ikut hilang: worktree tetangga tak bisa lagi men-truncate
+// DB test sesi lain, dan tak ada lagi DB test yang harus di-`migrate deploy` manual (global-setup
+// yang mengerjakannya). Tetap menolak jalan bila berkasnya sama dengan DB nyata.
 {
-  const real = process.env.DATABASE_URL;
+  const schemaDir = resolve(import.meta.dirname, "prisma");
+  const real = resolveDbUrl(process.env, schemaDir);
   const test = process.env.TEST_DATABASE_URL
-    ?? real?.replace(/\/([^/?]+)(\?|$)/, "/$1_test$2");
-  if (!test) throw new Error("vitest: no DATABASE_URL/TEST_DATABASE_URL to derive a test database");
-  if (test === real) throw new Error("vitest: refusing to run — test DB would equal the real DATABASE_URL");
+    ?? (real.endsWith(".db") ? `${real.slice(0, -3)}.test.db` : `${real}.test.db`);
+  if (test === real) throw new Error("vitest: menolak jalan — DB test sama dengan DATABASE_URL nyata");
   process.env.DATABASE_URL = test;
 }
 
@@ -34,7 +38,9 @@ process.env.HANOMAN_UPDATE_FETCH = "0";
 export default defineConfig({
   test: {
     environment: "node",
-    // Every server test file re-seeds the same Postgres DB in beforeAll; running
+    // SPEC-398 · terapkan migrasi ke berkas DB test sebelum test pertama menyentuhnya.
+    globalSetup: ["./test/global-setup.ts"],
+    // Every server test file re-seeds the same SQLite DB file in beforeAll; running
     // files in parallel would race on deleteMany/createMany. Force sequential.
     fileParallelism: false,
     // `.worktrees/**` holds transient/orphaned hanoman checkouts — full repo
