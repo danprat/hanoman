@@ -806,7 +806,7 @@ git commit -m "feat(405): loop supervisor di hanoman start — exit 75 → npm i
   - `applyConfirmMessage(liveSessions: number): string`
   - `applyErrorMessage(code: string): string`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambah ke `src/test/update.test.ts` (perluas import baris 2):
 
@@ -952,14 +952,14 @@ describe("UpdateBadge", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan GAGAL**
+- [x] **Step 2: Jalankan, pastikan GAGAL**
 
 Run: `env -u NODE_ENV pnpm vitest --run src/test/update.test.ts src/test/update-indicator.test.tsx`
 Expected: FAIL — `applyConfirmMessage`/`applyErrorMessage`/tombol belum ada.
 
 > `env -u NODE_ENV` wajib: `NODE_ENV=production` di shell membuat RTL `act` gagal (memory repo).
 
-- [ ] **Step 3a: `src/src/api/update.ts`**
+- [x] **Step 3a: `src/src/api/update.ts`**
 
 Perbarui literal default dan tambahkan blok apply di akhir berkas:
 
@@ -1025,7 +1025,7 @@ export function applyConfirmMessage(liveSessions: number): string {
 }
 ```
 
-- [ ] **Step 3b: `src/src/screens/UpdateIndicator.tsx`**
+- [x] **Step 3b: `src/src/screens/UpdateIndicator.tsx`**
 
 Perluas import baris 3 dan sisipkan mesin keadaan. Ganti seluruh isi berkas:
 
@@ -1135,12 +1135,12 @@ export function UpdateBadge() {
 }
 ```
 
-- [ ] **Step 4: Jalankan, pastikan LULUS**
+- [x] **Step 4: Jalankan, pastikan LULUS**
 
 Run: `env -u NODE_ENV pnpm vitest --run src/test/update.test.ts src/test/update-indicator.test.tsx && pnpm --filter ./src typecheck`
 Expected: PASS semua; typecheck exit 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/api/update.ts src/src/screens/UpdateIndicator.tsx src/test/update.test.ts src/test/update-indicator.test.tsx
