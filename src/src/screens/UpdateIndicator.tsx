@@ -1,18 +1,48 @@
 import React from "react";
 import { Icon } from "../ds/icon";
-import { useUpdate, updateHeadline, updateBadgeLabel, updateVersionLine } from "../api/update";
+import {
+  useUpdate, updateHeadline, updateBadgeLabel, updateVersionLine,
+  applyUpdate, applyConfirmMessage, type ApplyOutcome,
+} from "../api/update";
 
 // Badge topbar — muncul HANYA saat updateAvailable (up-to-date: tanpa noise). Klik → popover berisi
-// versi baru + perintah update (Salin). Server tak mengeksekusi apa pun (SPEC-214, ADR-0048);
-// SPEC-398 · ADR-0087 · perintahnya `npm i -g hanoman@latest`, dijalankan manusia atau `hanoman update`.
+// versi baru + perintah update (Salin).
+// SPEC-405 · ADR-0088 · bila proses server ini punya supervisor (`canApply`), popover juga membawa
+// tombol "Pasang & mulai ulang": dua langkah, karena klik pertama hanya MEMINTA laporan berapa sesi
+// yang sedang berjalan. Perintah salin tetap ada di semua keadaan — ia satu-satunya jalan saat
+// `canApply` false (mis. `pnpm dev` atau bundle server telanjang).
+type Phase =
+  | { t: "idle" }
+  | { t: "asking" }
+  | { t: "confirming"; message: string }
+  | { t: "applying" }
+  | { t: "failed"; message: string };
+
+const btn: React.CSSProperties = {
+  padding: "5px 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-hair)",
+  background: "var(--bone-100)", cursor: "pointer", fontSize: 11,
+};
+const btnPrimary: React.CSSProperties = {
+  ...btn, background: "var(--brass-100)", color: "var(--brass-700)",
+  border: "1px solid var(--brass-300, var(--border-hair))",
+};
+
 export function UpdateBadge() {
   const u = useUpdate();
   const [open, setOpen] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
+  const [phase, setPhase] = React.useState<Phase>({ t: "idle" });
   if (!u.updateAvailable) return null;
   const copy = () => {
     try { void navigator.clipboard?.writeText(u.command); setCopied(true); setTimeout(() => setCopied(false), 1500); }
     catch { /* clipboard tak tersedia */ }
+  };
+  const send = async (confirm: boolean) => {
+    setPhase({ t: confirm ? "applying" : "asking" });
+    const r: ApplyOutcome = await applyUpdate(confirm);
+    if (r.kind === "confirm") setPhase({ t: "confirming", message: applyConfirmMessage(r.liveSessions) });
+    else if (r.kind === "accepted") setPhase({ t: "applying" });
+    else setPhase({ t: "failed", message: r.message });
   };
   return (
     <div style={{ position: "relative" }}>
@@ -33,10 +63,38 @@ export function UpdateBadge() {
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
             <code style={{ flex: 1, fontFamily: "var(--font-mono)", fontSize: 11, background: "var(--bone-100)",
               padding: "6px 8px", borderRadius: "var(--radius-sm)", overflowX: "auto", whiteSpace: "nowrap" }}>{u.command}</code>
-            <button onClick={copy} title="Salin perintah"
-              style={{ padding: "5px 8px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-hair)",
-                background: "var(--bone-100)", cursor: "pointer", fontSize: 11 }}>{copied ? "Tersalin" : "Salin"}</button>
+            <button onClick={copy} title="Salin perintah" style={btn}>{copied ? "Tersalin" : "Salin"}</button>
           </div>
+          {u.canApply && (
+            <div style={{ marginBottom: 8 }}>
+              {phase.t === "idle" && (
+                <button onClick={() => void send(false)} style={btnPrimary}>Pasang &amp; mulai ulang</button>
+              )}
+              {phase.t === "asking" && (
+                <div style={{ fontSize: 11, color: "var(--text-subtle)" }}>Memeriksa sesi yang berjalan…</div>
+              )}
+              {phase.t === "confirming" && (
+                <>
+                  <div style={{ fontSize: 11, color: "var(--text-body)", marginBottom: 8 }}>{phase.message}</div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => void send(true)} style={btnPrimary}>Ya, pasang</button>
+                    <button onClick={() => setPhase({ t: "idle" })} style={btn}>Batal</button>
+                  </div>
+                </>
+              )}
+              {phase.t === "applying" && (
+                <div style={{ fontSize: 11, color: "var(--text-body)" }}>
+                  Memasang dari npm lalu menjalankan ulang — dashboard tersambung lagi sendiri.
+                </div>
+              )}
+              {phase.t === "failed" && (
+                <>
+                  <div style={{ fontSize: 11, color: "var(--status-err-text, var(--text-body))", marginBottom: 8 }}>{phase.message}</div>
+                  <button onClick={() => setPhase({ t: "idle" })} style={btn}>Coba lagi</button>
+                </>
+              )}
+            </div>
+          )}
           <div style={{ fontSize: 11, color: "var(--text-subtle)" }}>{updateVersionLine(u)}</div>
         </div>
       )}

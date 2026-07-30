@@ -327,10 +327,19 @@ GET      /notifications                 # { items:Notification[] (≤50 terbaru 
 POST     /notifications/read            # 204; tandai semua unread jadi terbaca
 DELETE   /notifications                 # 204; clear semua
 GET      /limits                        # { …usage } dari OAuth usage API Anthropic (cache 30s, stale/unavailable fallback) — SPEC-181/ADR-0024
-GET      /update                        # UpdateStatus — status auto-update; read-only (server TAK pull/build/restart, ADR-0048). SPEC-214
-#   UpdateStatus = { currentSha, checkoutSha, branch|null, local:{stale}, remote:{status:"ok"|"unavailable",behind,fetchedAt},
-#                    updateAvailable, reason:"local"|"remote"|"both"|null, command, newCommits:{sha,subject}[] }
-#   updateAvailable = build ter-stamp ≠ checkout HEAD (local) ATAU origin di depan (remote, setelah git fetch ter-gate HANOMAN_UPDATE_FETCH=1)
+GET      /update                        # UpdateStatus — status update dari registry npm. SPEC-214/398/405
+#   UpdateStatus = { currentVersion, latestVersion|null, registry:{status:"ok"|"unavailable",checkedAt},
+#                    updateAvailable, command, canApply }
+#   updateAvailable = compareSemver(latest, current) > 0, sesudah GET <registry>/hanoman/latest (ter-gate HANOMAN_UPDATE_FETCH=1, TTL 5 mnt)
+#   canApply        = proses server ini anak dari `hanoman start` (env HANOMAN_SUPERVISOR=1) — SPEC-405/ADR-0088
+POST     /update/apply                  # { confirm?: boolean } — SPEC-405 · ADR-0088. Server TAK memasang apa pun:
+#   ia keluar dengan UPDATE_RESTART_EXIT=75 dan supervisor `hanoman start` yang `npm i -g` lalu menjalankan ulang.
+#   400 { error:"bad-body" }                                 — confirm bukan boolean
+#   409 { error:"unsupervised" }                             — canApply false
+#   409 { error:"up-to-date", current }                      — tak ada versi lebih baru
+#   409 { error:"confirm-required", liveSessions, from, to }  — dry-run; sesi hidup dihitung SAAT ITU, tak memblokir
+#   202 { accepted:true, from, to, liveSessions }             — lalu proses keluar
+#   agent token DITOLAK (403): prefix status hanya GLOBAL_READ untuk method baca
 GET      /fs/browse?path=               # directory picker sisi server (untuk memilih repoDir project)
 GET      /health                        # publik; liveness
 ```

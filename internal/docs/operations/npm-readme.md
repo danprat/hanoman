@@ -37,13 +37,21 @@ hanoman docs scan | index | link   operasi index Source of Truth
 
 ## Update
 
+Dari dashboard: badge **Update** di kanan atas → **Pasang & mulai ulang** → konfirmasi. hanoman
+memasang versi baru dari npm lalu menjalankan dirinya lagi; sesi agen yang sedang berjalan tetap
+hidup di tmux dan terminalnya tersambung lagi sendiri (SPEC-405 · ADR-0088).
+
+Tombol itu hanya muncul bila instance dijalankan lewat `hanoman` / `hanoman start` — proses itulah
+yang memasang dan menghidupkannya kembali. Dijalankan dengan cara lain (mis. `node dist/server.js`
+langsung), panel tetap hanya menampilkan perintah untuk disalin.
+
+Dari terminal:
+
 ```bash
 hanoman update            # npm i -g hanoman@latest
 ```
 
-Instance yang berjalan perlu di-restart sesudahnya (mis. `systemctl restart hanoman`). Dashboard
-menampilkan badge saat versi baru terbit; ia **tidak** memasang apa pun sendiri — sesi agen yang
-sedang berjalan tak boleh diputus oleh update yang tak diminta.
+Sesudah `hanoman update`, instance yang berjalan perlu di-restart (mis. `systemctl restart hanoman`).
 
 ## Konfigurasi
 

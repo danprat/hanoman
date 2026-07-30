@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { compareSemver, type UpdateStatus, type UpdateRegistryStatus } from "@hanoman/shared";
-import { effectiveStr, effectiveBool } from "../config";
+import { compareSemver, UPDATE_RESTART_EXIT, type UpdateStatus, type UpdateRegistryStatus } from "@hanoman/shared";
+import { effectiveStr, effectiveBool, effectiveInt } from "../config";
 
 // SPEC-398 · ADR-0087 · hanoman didistribusikan sebagai paket npm global, jadi "ada update?" adalah
 // perbandingan SEMVER dengan registry — bukan lagi `git fetch` + hitung commit (SPEC-214), yang tak
@@ -17,6 +17,7 @@ export type UpdateInputs = {
   latestVersion: string | null;
   registryStatus: UpdateRegistryStatus;
   checkedAt: string | null;
+  canApply: boolean;
 };
 
 // Murni & deterministik: seluruh keputusan "update tersedia?" ada di sini, terpisah dari jaringan.
@@ -29,6 +30,10 @@ export function composeUpdate(x: UpdateInputs): UpdateStatus {
     registry: { status: x.registryStatus, checkedAt: x.checkedAt },
     updateAvailable: available,
     command: available ? UPDATE_COMMAND : "",
+    // Diwariskan apa adanya. Ia fakta tentang cara proses ini dilahirkan, bukan kesimpulan
+    // tentang ada-tidaknya update — menurunkannya dari `available` akan menyembunyikan
+    // instalasi tak-tersupervisi tepat saat tombolnya paling ingin ditekan.
+    canApply: x.canApply,
   };
 }
 
@@ -54,6 +59,36 @@ export function runningVersion(): string {
   return "0.0.0";
 }
 
+/**
+ * SPEC-405 · ADR-0088 · apakah proses server ini punya yang akan menghidupkannya lagi?
+ *
+ * Dibaca LANGSUNG dari `process.env`, BUKAN lewat `effectiveBool()`: ini fakta tentang cara
+ * proses ini dilahirkan, bukan setelan. `effectiveBool` membaca cache config DB lebih dulu, jadi
+ * memakainya berarti siapa pun yang bisa menulis config bisa mengaku disupervisi — dan tombolnya
+ * lalu mematikan instance yang tak akan pernah hidup lagi.
+ */
+export function supervised(): boolean {
+  const v = process.env.HANOMAN_SUPERVISOR;
+  return v === "1" || v === "true";
+}
+
+let exiter: ((code: number) => void) | null = null;
+
+/** Test-only: ganti (atau `null` untuk mengembalikan) cara proses ini keluar. */
+export function __setExiter(fn: ((code: number) => void) | null): void { exiter = fn; }
+
+/**
+ * Menjadwalkan keluarnya proses dengan kode sentinel. Jeda kecil supaya respons `202` benar-benar
+ * ter-flush sebelum prosesnya hilang.
+ *
+ * Ini BUKAN graceful shutdown, dan tak perlu: proses ini memang sedang menunggu ditimpa di disk,
+ * dan tmux (ADR-0016) adalah daemon terpisah — pane beserta agen di dalamnya tak tersentuh.
+ */
+export function requestRestartForUpdate(): void {
+  const delay = effectiveInt("HANOMAN_UPDATE_RESTART_DELAY_MS") ?? 250;
+  setTimeout(() => (exiter ?? ((c: number) => process.exit(c)))(UPDATE_RESTART_EXIT), delay);
+}
+
 // Jaringan HANYA di sini, dan hanya bila opt-in (knob HANOMAN_UPDATE_FETCH; test memaksa "0").
 async function maybeFetch(): Promise<void> {
   if (!effectiveBool("HANOMAN_UPDATE_FETCH")) return;
@@ -77,6 +112,7 @@ export async function getUpdateStatus(): Promise<UpdateStatus> {
     latestVersion: lastLatest,
     registryStatus: lastStatus,
     checkedAt: lastFetchAt ? new Date(lastFetchAt).toISOString() : null,
+    canApply: supervised(),
   });
   cached = { at: Date.now(), value };
   return value;
@@ -84,4 +120,9 @@ export async function getUpdateStatus(): Promise<UpdateStatus> {
 
 export function _resetUpdateCache(): void {
   cached = null; lastFetchAt = 0; lastLatest = null; lastStatus = "unavailable";
+}
+
+/** Test-only: pasang snapshot registry tanpa jaringan (fetch tetap ter-gate & tak ditembak). */
+export function __setRegistrySnapshot(latest: string | null, status: UpdateRegistryStatus): void {
+  lastLatest = latest; lastStatus = status; lastFetchAt = Date.now(); cached = null;
 }

@@ -126,6 +126,12 @@ Tak ada lagi `Requires=docker.service` maupun `WorkingDirectory`: `hanoman` mene
 dan aset dashboard dari dalam direktori paketnya sendiri (`resolveLayout`). Migrasi diterapkan setiap
 start, jadi update tak butuh langkah `migrate deploy` terpisah.
 
+`ExecStart=/usr/bin/env hanoman` berarti **supervisornya CLI hanoman itu sendiri**. Tombol
+"Pasang & mulai ulang" di dashboard (SPEC-405 · ADR-0088) karena itu bekerja apa adanya di unit ini:
+server keluar dengan kode 75, CLI memasang versi baru dari npm lalu men-spawn server lagi — systemd
+tak pernah melihat restart itu dan tak perlu diubah. `Restart=on-failure` tetap jadi jaring pengaman
+untuk kegagalan yang sebenarnya.
+
 ## 5 · Reverse proxy + TLS
 
 Contoh block Caddy (auto-HTTPS Let's Encrypt; `reverse_proxy` meneruskan upgrade WebSocket

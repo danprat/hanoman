@@ -1,10 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { updateHeadline, updateBadgeLabel, updateVersionLine } from "../src/api/update";
+import {
+  updateHeadline, updateBadgeLabel, updateVersionLine,
+  applyConfirmMessage, applyErrorMessage,
+} from "../src/api/update";
 import type { UpdateStatus } from "@hanoman/shared";
 
 const mk = (o: Partial<UpdateStatus>): UpdateStatus => ({
   currentVersion: "0.1.0", latestVersion: "0.1.0",
-  registry: { status: "ok", checkedAt: null }, updateAvailable: false, command: "", ...o,
+  registry: { status: "ok", checkedAt: null }, updateAvailable: false, command: "", canApply: false, ...o,
 });
 
 describe("updateHeadline", () => {
@@ -27,4 +30,31 @@ describe("updateVersionLine", () => {
   it("versi kosong jadi '?', bukan string kosong yang membingungkan", () =>
     expect(updateVersionLine(mk({ currentVersion: "", latestVersion: null })))
       .toBe("terpasang ? · tersedia ?"));
+});
+
+describe("applyConfirmMessage (SPEC-405 · ADR-0088)", () => {
+  it("tanpa sesi hidup: menyebut tak ada yang berjalan", () => {
+    expect(applyConfirmMessage(0)).toMatch(/tak ada sesi/i);
+  });
+  it("ada sesi: menyebut jumlahnya DAN bahwa sesi selamat", () => {
+    const s = applyConfirmMessage(3);
+    expect(s).toContain("3");
+    expect(s).toMatch(/tetap hidup/i);
+    expect(s).toMatch(/tmux/i);
+  });
+  it("satu sesi tetap menyebut angkanya", () => {
+    expect(applyConfirmMessage(1)).toContain("1");
+  });
+});
+
+describe("applyErrorMessage (SPEC-405 · ADR-0088)", () => {
+  it("unsupervised menjelaskan sebabnya, bukan kode mentah", () => {
+    expect(applyErrorMessage("unsupervised")).toMatch(/hanoman start/);
+  });
+  it("up-to-date terbaca manusia", () => {
+    expect(applyErrorMessage("up-to-date")).toMatch(/terkini/i);
+  });
+  it("kode tak dikenal tetap tampil, jangan ditelan", () => {
+    expect(applyErrorMessage("bad-body")).toContain("bad-body");
+  });
 });

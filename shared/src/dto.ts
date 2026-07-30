@@ -372,8 +372,10 @@ export type CodexLimitsDTO = {
   plan: string | null;       // `plan_type` codex (mis. "pro"); null bila tak dilaporkan
 };
 
-// SPEC-398 · ADR-0087 · versi hanoman = semver paket npm (dulu SHA git, SPEC-214). Panel tetap
-// READ-ONLY: `command` adalah panduan untuk disalin, bukan aksi yang server jalankan (ADR-0048).
+// SPEC-398 · ADR-0087 · versi hanoman = semver paket npm (dulu SHA git, SPEC-214).
+// SPEC-405 · ADR-0088 · panel tak lagi murni read-only: bila proses server ini anak dari
+// `hanoman start`, ia boleh MEMINTA dipasang ulang. `command` tetap ada — ia satu-satunya
+// jalan saat tak ada supervisor.
 export type UpdateRegistryStatus = "ok" | "unavailable";  // unavailable = offline / opt-out / paket belum terbit
 export type UpdateStatus = {
   currentVersion: string;                 // versi yang sedang berjalan (build-info.json → package.json)
@@ -381,7 +383,20 @@ export type UpdateStatus = {
   registry: { status: UpdateRegistryStatus; checkedAt: string | null };
   updateAvailable: boolean;               // compareSemver(latest, current) > 0
   command: string;                        // "npm i -g hanoman@latest"; "" bila sudah terkini
+  // SPEC-405 · ADR-0088 · true HANYA bila env HANOMAN_SUPERVISOR=1 (disuntik `hanoman start`).
+  // Konstan seumur proses, jadi aman ikut frame siar `update` yang di-recompute tiap 300 dtk.
+  canApply: boolean;
 };
+
+// SPEC-405 · ADR-0088 · kode keluar sentinel: "aku minta dipasang ulang". Server yang keluar,
+// supervisor `hanoman start` yang membacanya lalu memasang + menjalankan ulang. 75 = EX_TEMPFAIL —
+// non-zero, jadi `Restart=on-failure` di unit systemd yang didokumentasikan tetap masuk akal.
+export const UPDATE_RESTART_EXIT = 75;
+
+// Dua langkah sengaja: tanpa `confirm` endpoint hanya melapor (dry-run), dengan `confirm` ia
+// benar-benar keluar. Nilai non-boolean DITOLAK — "ya"/1 tak boleh terbaca sebagai persetujuan.
+export const zUpdateApplyBody = z.object({ confirm: z.boolean().optional() });
+export type UpdateApplyBody = z.infer<typeof zUpdateApplyBody>;
 
 // SPEC-199 · bentuk sesi di wire (cermin services/pty.ts SessionInfo & client TerminalSession).
 export type SessionDTO = {

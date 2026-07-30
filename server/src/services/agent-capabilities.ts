@@ -17,8 +17,11 @@ export function capabilityForRoute(method: string, path: string): Resolved {
 
   // tak-boleh-didelegasikan
   if (top === "auth" || top === "agent-tokens" || top === "device-tokens" || top === "sync") return "COOKIE_ONLY";
-  // read-only global (status)
-  if (top === "limits" || top === "update" || top === "events" || top === "fs" || top === "health") return "GLOBAL_READ";
+  // read-only global (status). SPEC-405 · ADR-0088 · `GLOBAL_READ` HANYA untuk method baca:
+  // `POST /update/apply` me-restart instance, dan itu tak pernah boleh lolos hanya karena
+  // prefix-nya kebetulan sama dengan endpoint status. Cookie = akses penuh, seperti sebelumnya.
+  if (top === "limits" || top === "update" || top === "events" || top === "fs" || top === "health")
+    return read ? "GLOBAL_READ" : "COOKIE_ONLY";
   if (top === "scheduler") return rw("settings");   // SPEC-294 · scheduler = setelan instance
   if (top === "settings" || top === "config") return rw("settings");
   if (top === "specs") return rw("backlog");

@@ -8,8 +8,10 @@ import { existsSync, mkdirSync, readdirSync, statSync, chmodSync } from "node:fs
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveHome, resolveDbUrl, dbFilePath, prismaCliPath, dbUrlNotice } from "@hanoman/runner";
+import { UPDATE_RESTART_EXIT } from "@hanoman/shared";
 import type { Ctx } from "../router";
 import { resolveLayout } from "../layout";
+import { INSTALL_ARGS } from "./update";
 
 export type StartOpts = { port: number | null; host: string | null; db: string | null; migrate: boolean };
 
@@ -184,6 +186,76 @@ export function repairSpawnHelper(ctx: Ctx): void {
   if (fixed.length) ctx.stdout("hanoman · memperbaiki izin `spawn-helper` node-pty (sekali per instalasi)\n");
 }
 
+/**
+ * SPEC-405 · ADR-0088 · `hanoman start` adalah SUPERVISOR-nya, bukan sekadar peluncur.
+ *
+ * Server tak pernah memanggil `npm`; ia hanya keluar dengan kode sentinel saat operator menekan
+ * "Pasang & mulai ulang" di dashboard. Yang memasang lalu menjalankan ulang adalah proses ini —
+ * itulah kenapa ADR-0048 tetap benar di intinya: server tak memasang perangkat lunak apa pun.
+ */
+export const MAX_UPDATE_RESTARTS = 5;
+
+export type SupervisorStep = { action: "exit"; code: number } | { action: "update" };
+
+/**
+ * Murni. HANYA kode sentinel yang berarti "pasang lalu jalankan lagi" — kode lain diteruskan apa
+ * adanya, jadi `hanoman start` yang tak pernah diminta update berperilaku byte-identik dengan
+ * sebelum SPEC-405.
+ *
+ * Jatah `MAX_UPDATE_RESTARTS` adalah pagar terhadap rilis yang meminta restart berulang: aksinya
+ * dipicu manusia, jadi loop tak berujung bukan mode kegagalan otomatis — tapi batasnya murah dan
+ * pemanggil WAJIB mencetak alasannya saat jatah habis (jangan pernah membatasi diam-diam).
+ */
+export function planSupervisorStep(code: number, restartsUsed: number): SupervisorStep {
+  if (code !== UPDATE_RESTART_EXIT) return { action: "exit", code };
+  if (restartsUsed >= MAX_UPDATE_RESTARTS) return { action: "exit", code };
+  return { action: "update" };
+}
+
+export type ServerEnvInput = {
+  dbUrl: string; port: number; host: string; home: string; web: string | null;
+};
+
+/**
+ * Env proses anak. `HANOMAN_SUPERVISOR=1` disuntik DI SINI dan hanya di sini — ia satu-satunya
+ * bukti bahwa ada yang akan menghidupkan server lagi, dan server memakainya untuk memutuskan
+ * apakah tombol update boleh ada.
+ */
+export function serverEnv(o: ServerEnvInput): Record<string, string> {
+  return {
+    NODE_ENV: "production",
+    DATABASE_URL: o.dbUrl,
+    PORT: String(o.port),
+    HOST: o.host,
+    HANOMAN_HOME: o.home,
+    HANOMAN_SUPERVISOR: "1",
+    ...(o.web ? { HANOMAN_WEB_DIR: o.web } : {}),
+  };
+}
+
+export type InstallOutcome = { ok: true } | { ok: false; reason: string };
+
+/** `npm i -g hanoman@latest`. Tak pernah melempar — kegagalannya data, bukan crash. */
+export function installLatest(): InstallOutcome {
+  try { execFileSync("npm", [...INSTALL_ARGS], { stdio: "inherit" }); return { ok: true }; }
+  catch (e) { return { ok: false, reason: (e as Error).message || "npm i -g gagal" }; }
+}
+
+/**
+ * Satu putaran hidup server anak. Listener sinyal DIPASANG DAN DILEPAS per putaran: di dalam loop
+ * supervisor, memasangnya tanpa melepas akan menumpuk listener tiap restart sampai node
+ * memperingatkan kebocoran.
+ */
+function runServer(serverJs: string, env: Record<string, string>): Promise<number> {
+  const child = spawn(process.execPath, [serverJs], { stdio: "inherit", env: { ...process.env, ...env } });
+  const handlers = (["SIGINT", "SIGTERM"] as const).map((sig) => [sig, () => child.kill(sig)] as const);
+  for (const [sig, h] of handlers) process.on(sig, h);
+  return new Promise<number>((res) => child.on("exit", (code) => {
+    for (const [sig, h] of handlers) process.off(sig, h);
+    res(code ?? 0);
+  }));
+}
+
 export default async function start(argv: string[], ctx: Ctx): Promise<number> {
   let opts: StartOpts;
   try { opts = parseStartArgs(argv); } catch (e) { ctx.stderr(`${(e as Error).message}\n`); return 2; }
@@ -223,14 +295,49 @@ export default async function start(argv: string[], ctx: Ctx): Promise<number> {
   const host = opts.host ?? ctx.env.HOST ?? "127.0.0.1";
   ctx.stdout(`hanoman · http://${host === "0.0.0.0" ? "127.0.0.1" : host}:${port}\n`);
 
-  const child = spawn(process.execPath, [layout.server], {
-    stdio: "inherit",
-    env: {
-      ...process.env, NODE_ENV: "production", DATABASE_URL: dbUrl,
-      PORT: String(port), HOST: host, HANOMAN_HOME: home,
-      ...(layout.web ? { HANOMAN_WEB_DIR: layout.web } : {}),
-    },
-  });
-  for (const sig of ["SIGINT", "SIGTERM"] as const) process.on(sig, () => child.kill(sig));
-  return await new Promise<number>((res) => child.on("exit", (code) => res(code ?? 0)));
+  const env = serverEnv({ dbUrl, port, host, home, web: layout.web ?? null });
+
+  // SPEC-405 · ADR-0088 · loop supervisor. Tanpa permintaan update dari dashboard, ia berputar
+  // tepat sekali dan berperilaku identik dengan sebelum SPEC-405.
+  let restartsUsed = 0;
+  for (;;) {
+    const code = await runServer(layout.server, env);
+    const step = planSupervisorStep(code, restartsUsed);
+    if (step.action === "exit") {
+      if (code === UPDATE_RESTART_EXIT) {
+        ctx.stderr(`hanoman: jatah update-restart (${MAX_UPDATE_RESTARTS}) habis — keluar tanpa memasang\n`);
+      }
+      return step.code;
+    }
+
+    restartsUsed++;
+    ctx.stdout(`hanoman · memasang versi terbaru dari npm (${restartsUsed}/${MAX_UPDATE_RESTARTS})\n`);
+    const res = installLatest();
+    if (!res.ok) {
+      // Instance tak boleh mati permanen gara-gara registry down atau izin `sudo`: kembalikan
+      // versi yang sudah ada dan katakan kenapa.
+      ctx.stderr(`hanoman: update gagal — ${res.reason}\n`);
+      ctx.stdout("hanoman · menjalankan ulang versi yang ada\n");
+      continue;
+    }
+
+    // `prisma generate` TANPA cek dulu. `ensurePrismaClient` memeriksa dengan
+    // `await import("@prisma/client")`, dan modul itu sudah ter-cache di proses ini sejak boot —
+    // pemeriksaan kedua akan menjawab "siap" memakai modul LAMA sekalipun paketnya baru saja
+    // diganti di disk. Kelas jebakan yang sama dengan `existsSync` di ADR-0087.
+    try { runPrisma(["generate", "--schema", layout.schema], dbUrl); }
+    catch { ctx.stderr("hanoman: `prisma generate` sesudah update gagal — lanjut; server anak yang akan mengeluh\n"); }
+
+    if (opts.migrate) {
+      // Migrasi gagal DITANGGAPI KERAS (beda dari install gagal): menjalankan bundle baru di atas
+      // skema lama menukar downtime dengan kesalahan data, dan itu pertukaran yang buruk.
+      try { applyMigrations(layout.schema, dbUrl); }
+      catch (e) {
+        const hint = migrateFailureHint(String((e as { output?: string }).output ?? ""), dbFilePath(dbUrl));
+        ctx.stderr(hint ? `\n${hint}\n` : "hanoman: migrasi sesudah update gagal — lihat keluaran di atas\n");
+        return 1;
+      }
+    }
+    ctx.stdout("hanoman · terpasang; menjalankan ulang\n");
+  }
 }
