@@ -23,6 +23,12 @@ importers:
       '@hanoman/shared':
         specifier: workspace:*
         version: link:../shared
+      '@prisma/client':
+        specifier: ^6.19.0
+        version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
+      prisma:
+        specifier: ^6.19.0
+        version: 6.19.3(typescript@5.9.3)
       zod:
         specifier: ^3.23.0
         version: 3.25.76

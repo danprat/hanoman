@@ -474,7 +474,7 @@ git commit -m "feat(spec-398): pickWebDir — SPA di-serve dari paket npm atau c
 - Consumes: `resolveHome`, `resolveDbUrl`, `dbFilePath` dari `@hanoman/runner`.
 - Produces: `resolveLayout(distDir, exists): Layout` dengan `Layout = { root, schema, server, web }` · `parseStartArgs(argv): StartOpts` dengan `StartOpts = { port: number | null, host: string | null, db: string | null, migrate: boolean }` · `doctorReport(probes): { lines: string[], ok: boolean }`
 
-- [ ] **Step 1: Tulis test yang gagal untuk layout & argumen**
+- [x] **Step 1: Tulis test yang gagal untuk layout & argumen**
 
 Create `cli/test/layout.test.ts`:
 
@@ -534,12 +534,12 @@ describe("parseStartArgs", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — harus gagal**
+- [x] **Step 2: Jalankan — harus gagal**
 
 Run: `pnpm vitest --run cli/test/layout.test.ts cli/test/start-args.test.ts`
 Expected: FAIL — modul belum ada.
 
-- [ ] **Step 3: Implementasi `cli/src/layout.ts`**
+- [x] **Step 3: Implementasi `cli/src/layout.ts`**
 
 ```ts
 // SPEC-398 · ADR-0087 · `hanoman` hidup di dua layout: paket npm global (dist/, prisma/, web/
@@ -572,7 +572,7 @@ export function resolveLayout(distDir: string, exists: (p: string) => boolean): 
 }
 ```
 
-- [ ] **Step 4: Implementasi `cli/src/commands/start.ts`**
+- [x] **Step 4: Implementasi `cli/src/commands/start.ts`**
 
 ```ts
 // SPEC-398 · ADR-0087 · `hanoman` (tanpa argumen) = perintah tunggal yang menjalankan hanoman:
@@ -666,12 +666,12 @@ export default async function start(argv: string[], ctx: Ctx): Promise<number> {
 }
 ```
 
-- [ ] **Step 5: Jalankan test layout & args — harus lulus**
+- [x] **Step 5: Jalankan test layout & args — harus lulus**
 
 Run: `pnpm vitest --run cli/test/layout.test.ts cli/test/start-args.test.ts`
 Expected: PASS (9 test).
 
-- [ ] **Step 6: Tulis test doctor yang gagal**
+- [x] **Step 6: Tulis test doctor yang gagal**
 
 Create `cli/test/doctor.test.ts`:
 
@@ -713,12 +713,12 @@ describe("doctorReport", () => {
 });
 ```
 
-- [ ] **Step 7: Jalankan — harus gagal**
+- [x] **Step 7: Jalankan — harus gagal**
 
 Run: `pnpm vitest --run cli/test/doctor.test.ts`
 Expected: FAIL — modul belum ada.
 
-- [ ] **Step 8: Implementasi `cli/src/commands/doctor.ts`**
+- [x] **Step 8: Implementasi `cli/src/commands/doctor.ts`**
 
 ```ts
 // SPEC-398 · ADR-0087 · `hanoman doctor` melaporkan prasyarat yang TIDAK bisa dibawa npm: git,
@@ -781,12 +781,12 @@ export default async function doctor(_argv: string[], ctx: Ctx): Promise<number>
 }
 ```
 
-- [ ] **Step 9: Jalankan test doctor — harus lulus**
+- [x] **Step 9: Jalankan test doctor — harus lulus**
 
 Run: `pnpm vitest --run cli/test/doctor.test.ts`
 Expected: PASS (7 test).
 
-- [ ] **Step 10: Sambungkan router + versi dari package.json**
+- [x] **Step 10: Sambungkan router + versi dari package.json**
 
 `cli/src/router.ts` — ganti `VERSION`, `HELP`, dan dispatch:
 
@@ -844,7 +844,7 @@ Catatan: `run(argv)` untuk `--version` HARUS tetap mendahului dispatch, dan `arg
 Run: `pnpm install`
 Expected: exit 0.
 
-- [ ] **Step 11: Bukti nyata — CLI benar-benar mem-boot hanoman**
+- [x] **Step 11: Bukti nyata — CLI benar-benar mem-boot hanoman**
 
 ```bash
 pnpm --filter ./cli build && pnpm --filter ./src build && pnpm --filter ./server build
@@ -857,12 +857,12 @@ curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8899/
 Expected: `doctor` mencetak daftar ✓; `/health` → `200`; `/` → `200` (index.html dari `src/dist`);
 `/tmp/hn398/hanoman.db` ada.
 
-- [ ] **Step 12: Test yang tersentuh + typecheck**
+- [x] **Step 12: Test yang tersentuh + typecheck**
 
 Run: `pnpm vitest --run --changed "$HANOMAN_BASE_SHA" --no-file-parallelism && pnpm --filter ./cli typecheck`
 Expected: hijau.
 
-- [ ] **Step 13: Commit**
+- [x] **Step 13: Commit**
 
 ```bash
 git add -A
