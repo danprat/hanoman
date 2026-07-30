@@ -41,8 +41,11 @@ hanoman --version | --help
 
 ## Definition of done
 
-- **Test yang tersentuh** hijau — `pnpm vitest --run --changed "$HANOMAN_BASE_SHA"` (atau sebut path
-  test-nya langsung) dan typecheck paket yang tersentuh (`pnpm --filter ./server typecheck`). Sesi
+- **Test yang tersentuh** hijau — `pnpm vitest --run --changed "$HANOMAN_BASE_SHA" --no-file-parallelism`
+  (atau sebut path test-nya langsung) dan typecheck paket yang tersentuh (`pnpm --filter ./server typecheck`).
+  **`--no-file-parallelism` wajib** bila set-nya menyentuh test server: run tingkat-root tak
+  menghormati `fileParallelism: false` milik project server dan test server berbagi satu Postgres —
+  terukur di SPEC-397, set yang sama memberi **181 gagal palsu** paralel vs **736 lulus** serial. Sesi
   hanoman default `verifyScope=changed` (SPEC-376, ADR-0080): jangan menjalankan suite penuh,
   `pnpm -r typecheck`, atau build penuh sebagai rutinitas — mesin ini menjalankan beberapa sesi
   sekaligus. Perluas scope hanya bila perubahannya memang berdampak luas, dan katakan alasannya.

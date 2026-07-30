@@ -32,9 +32,17 @@
   `DATABASE_URL`/`TEST_DATABASE_URL` — dan karena root memuat config **semua** project, runner pun
   gagal start. Basis DB spec-unik (`hanoman397`) dipakai supaya vitest sesi tetangga tak men-truncate
   DB yang sama di tengah run.
-- **Nama project vitest = nama paket, bukan nama direktori:** `--project @hanoman/runner` dan
-  `--project @hanoman/server`. `--project runner` diterima tanpa error tapi mengembalikan
-  **"No test files found"** — hijau palsu yang mudah terlewat.
+- **Nama project vitest = nama paket, bukan nama direktori:** `@hanoman/runner`, `@hanoman/server`,
+  dan — tak terduga — **`@hanoman/app`** untuk direktori `src/`. `--project runner` diterima tanpa
+  error tapi mengembalikan **"No test files found", exit 0** — hijau palsu yang mudah terlewat, sama
+  jebakan dengan `passWithNoTests`.
+- **`vitest --changed` di tingkat root WAJIB `--no-file-parallelism`.** Run root **tidak** menghormati
+  `fileParallelism: false` milik `server/vitest.config.ts`, dan seluruh test server berbagi satu
+  Postgres yang di-seed ulang tiap berkas. Terukur atas set yang **sama persis** (90 berkas — blast
+  radius menyentuh `runner/src/goal.ts` + `server/src/services/pty.ts`): **181 gagal / 736 test**
+  paralel, **736 lulus / 0 gagal** serial (191 dtk). Kegagalannya menyesatkan —
+  `expected undefined to be truthy` pada baris outbox, seolah regresi sync, padahal berkasnya
+  **lulus saat diisolasi**.
 - Prasyarat sekali di awal (worktree baru tak punya `node_modules`): `pnpm install`,
   `pnpm --filter ./server exec prisma generate`, lalu buat & migrasikan DB test spec ini:
 
@@ -602,7 +610,7 @@ Expected: `git status --porcelain` **kosong** — skrip probe tak boleh ikut ter
 - Consumes: keputusan ADR-0085.
 - Produces: tak ada.
 
-- [ ] **Step 1: Pastikan ADR ter-link di KEDUA index**
+- [x] **Step 1: Pastikan ADR ter-link di KEDUA index**
 
 ```bash
 grep -c "0085-mode-goal-codex-native.md" internal/docs/README.md internal/docs/adr/README.md
@@ -611,7 +619,7 @@ grep -c "0085-mode-goal-codex-native.md" internal/docs/README.md internal/docs/a
 Expected: `internal/docs/README.md:1` dan `internal/docs/adr/README.md:1`. (SPEC-386: ADR baru wajib
 ditaut di keduanya — index utama satu baris, sub-index narasinya.)
 
-- [ ] **Step 2: Pastikan tak ada klaim usang yang tertinggal di skill**
+- [x] **Step 2: Pastikan tak ada klaim usang yang tertinggal di skill**
 
 ```bash
 grep -rn "khusus claude" internal/skills/hanoman/SKILL.md
@@ -621,21 +629,32 @@ Expected: satu-satunya kecocokan adalah kalimat yang menyatakan `armGoalInTui` *
 claude. Tak boleh ada lagi kalimat yang mengklaimnya sebagai perilaku sekarang. (ADR-0074 sendiri
 **tidak** diedit — ADR imutable; ADR-0085 yang mengamandemennya.)
 
-- [ ] **Step 3: Jalankan test yang tersentuh, gabungan, dan pastikan bukan nol**
+- [x] **Step 3: Jalankan test yang tersentuh, gabungan, dan pastikan bukan nol**
 
-Run: `env -u NODE_ENV DATABASE_URL="postgresql://hanoman:hanoman@localhost:5432/hanoman397" TEST_DATABASE_URL="postgresql://hanoman:hanoman@localhost:5432/hanoman397_test" pnpm vitest run --project @hanoman/runner --project @hanoman/server runner/test/goal.test.ts server/test/pty.test.ts`
-Expected: PASS, dengan jumlah test yang berjalan **bukan nol**. (`--changed` menyalakan
-`passWithNoTests`, jadi "no test files" TERLIHAT hijau; path disebut eksplisit di sini supaya jebakan
-itu tak mungkin.)
+Tiga perintah, semuanya dengan prefiks env di Global Constraints:
 
-- [ ] **Step 4: Commit docs**
+1. Berkas yang tersentuh langsung, path eksplisit supaya `passWithNoTests` tak bisa menipu:
+   `pnpm vitest run --project @hanoman/runner --project @hanoman/server runner/test/goal.test.ts server/test/pty.test.ts`
+   → **46 lulus** (11 runner + 35 server).
+2. Blast radius sesungguhnya, **serial**:
+   `pnpm vitest run --changed "$HANOMAN_BASE_SHA" --no-file-parallelism`
+   → **90 berkas / 736 test lulus**. Tanpa `--no-file-parallelism` set yang sama memberi 181 gagal
+   palsu (lihat Global Constraints).
+3. Test frontend yang tersentuh komentar `SettingsScreen.tsx`:
+   `pnpm vitest run --project @hanoman/app src/test/settings-*.test.tsx`
+   → **6 berkas / 25 test lulus**.
+
+Plus typecheck kedua paket: `pnpm --filter ./runner typecheck` dan `pnpm --filter ./server typecheck`,
+keduanya exit 0.
+
+- [x] **Step 4: Commit docs**
 
 ```bash
 git add internal/docs docs/superpowers
 git commit -m "docs(spec-397): ADR-0085 mode goal codex native + desain, plan & skill"
 ```
 
-- [ ] **Step 5: Centang seluruh kotak plan ini, lalu commit pembaruannya**
+- [x] **Step 5: Centang seluruh kotak plan ini, lalu commit pembaruannya**
 
 hanoman menahan backlog di `executing` selama plan masih punya `- [ ]` (ADR-0029), jadi ini bagian
 dari pekerjaan, bukan formalitas.
@@ -648,7 +667,7 @@ git commit -m "docs(spec-397): centang seluruh task plan"
 
 Expected: `grep -c` mengembalikan `0`.
 
-- [ ] **Step 6: Push**
+- [x] **Step 6: Push**
 
 ```bash
 git push origin HEAD:refs/heads/hanoman/spec-397

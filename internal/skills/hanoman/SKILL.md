@@ -79,7 +79,7 @@ Pakai skill lebih sempit saat task cocok:
 ## Aturan Sesi & Eksekusi
 
 - Mesin eksekusi nyata = **`server/src/services/pty.ts`**: `createSession()` men-spawn agen (`<prompt>` + flag agen) di window tmux; node-pty `tmux attach` menjembatani ke WebSocket, poll 500 ms mengawasi exit + perubahan phase-file lalu broadcast frame. **tmux adalah satu-satunya sumber kebenaran pekerjaan berjalan — tidak ada baris `Run` di DB.**
-- **Dua agen** (SPEC-338/ADR-0074): `Agent = "claude" | "codex"`. `Setting.agent` = default global untuk SEMUA sesi yang men-spawn agen (backlog, reverse, prd, scaffold, breakdown, terminal-agen, konflik-integrasi); sesi backlog bisa override lewat `agent` di `POST /terminal/sessions`. Argv dirakit `runner/src/agent-cli.ts` (`agentFlags()`, murni & bertest), agen sesi disimpan di tmux `@hanoman_agent`. Padanan flag: `--model`→`-m`, `--effort`→`-c model_reasoning_effort`, `--dangerously-skip-permissions`→`--dangerously-bypass-approvals-and-sandbox`, `--settings`→`-c hooks.<Event>=<toml>` (+`--dangerously-bypass-hook-trust`, wajib — tanpa itu TUI mentok di "Hooks need review"). Model codex di `Setting.codex`; `HANOMAN_CODEX_BIN` cermin `HANOMAN_CLAUDE_BIN`. **Tanpa migration** (`Setting` kolom `Json`). Tiga perbedaan sadar: codex **tak punya event `Notification`** (marker keputusan pakai `Stop`+`UserPromptSubmit` → marker juga menyala saat sesi selesai wajar); codex **mendiamkan hook `type:"prompt"`** (mode goal jadi gate sh deterministik: phase file lengkap + plan tanpa `- [ ]`, exit 2 = continuation prompt), berpagar `GOAL_MAX_BLOCKS=25`; `armGoalInTui` (`/goal`) tetap khusus claude. **Gotcha wajib:** codex menolak jalan di direktori belum-dipercaya dan `-c projects."…".trust_level` TAK membukanya — `services/codex-trust.ts` menulis satu entri `[projects."<repoDir>"]` per project (worktree mewarisi trust root). Limit langganan punya DUA sumber terpisah: `services/limits.ts` (claude, panggilan API live 30 dtk) dan `services/codex-limits.ts` (codex, SNAPSHOT `rate_limits` dari rollout `$CODEX_HOME/sessions/**` — nol jaringan, nol sentuhan token; >12 jam → `stale`). Dua badge & dua grup siar (`limits` + `codexLimits`), sengaja tak digabung karena kesegarannya beda. Gotcha: label window WAJIB dari `window_minutes` (`primary` bisa 5-jam ATAU mingguan), `resets_at` codex = epoch DETIK.
+- **Dua agen** (SPEC-338/ADR-0074): `Agent = "claude" | "codex"`. `Setting.agent` = default global untuk SEMUA sesi yang men-spawn agen (backlog, reverse, prd, scaffold, breakdown, terminal-agen, konflik-integrasi); sesi backlog bisa override lewat `agent` di `POST /terminal/sessions`. Argv dirakit `runner/src/agent-cli.ts` (`agentFlags()`, murni & bertest), agen sesi disimpan di tmux `@hanoman_agent`. Padanan flag: `--model`→`-m`, `--effort`→`-c model_reasoning_effort`, `--dangerously-skip-permissions`→`--dangerously-bypass-approvals-and-sandbox`, `--settings`→`-c hooks.<Event>=<toml>` (+`--dangerously-bypass-hook-trust`, wajib — tanpa itu TUI mentok di "Hooks need review"). Model codex di `Setting.codex`; `HANOMAN_CODEX_BIN` cermin `HANOMAN_CLAUDE_BIN`. **Tanpa migration** (`Setting` kolom `Json`). Tiga perbedaan sadar: codex **tak punya event `Notification`** (marker keputusan pakai `Stop`+`UserPromptSubmit` → marker juga menyala saat sesi selesai wajar); codex **mendiamkan hook `type:"prompt"`** (mode goal jadi gate sh deterministik: phase file lengkap + plan tanpa `- [ ]`, exit 2 = continuation prompt), berpagar `GOAL_MAX_BLOCKS=25`. **`armGoalInTui` tak lagi khusus claude** sejak SPEC-397/ADR-0085 — lihat butir mode goal di bawah. **Gotcha wajib:** codex menolak jalan di direktori belum-dipercaya dan `-c projects."…".trust_level` TAK membukanya — `services/codex-trust.ts` menulis satu entri `[projects."<repoDir>"]` per project (worktree mewarisi trust root). Limit langganan punya DUA sumber terpisah: `services/limits.ts` (claude, panggilan API live 30 dtk) dan `services/codex-limits.ts` (codex, SNAPSHOT `rate_limits` dari rollout `$CODEX_HOME/sessions/**` — nol jaringan, nol sentuhan token; >12 jam → `stale`). Dua badge & dua grup siar (`limits` + `codexLimits`), sengaja tak digabung karena kesegarannya beda. Gotcha: label window WAJIB dari `window_minutes` (`primary` bisa 5-jam ATAU mingguan), `resets_at` codex = epoch DETIK.
 - **Sesi penyelesai konflik ikut `Setting.agent`** (SPEC-377, tanpa ADR — memulihkan ADR-0074 di dua call
   site yang terlewat): rebase/merge jalan deterministik di worktree isolasi; yang **konflik** menyerahkan
   worktree itu ke sesi agen, dan sesi itu lahir dari **`sessionAgentDefaults()`**, bukan `sessionModel()`.
@@ -203,6 +203,27 @@ Pakai skill lebih sempit saat task cocok:
   `startPrdPrompt`); tanpa keduanya perilaku PRD lama utuh.
 - **Model & effort per SESI** (SPEC-252/ADR-0061, mengamandemen ADR-0058): dipilih saat **Start** backlog lewat picker `StartSessionModal` (default = setelan global `model`/`effort`, `claude-opus-5` / `xhigh`), dikirim sebagai body opsional `model`/`effort` di `POST /terminal/sessions`, jadi argv `--model`/`--effort` saat sesi lahir → **andal penuh** (tak bergantung agen). Sesi tetap **satu proses, satu model seumur hidup**. Matrix per-fase lama (`phaseModels`, ADR-0058) **dicabut**: tak andal karena bergantung agen mengetik `/model`+`/effort` di batas fase, padahal agen menembus batas fase tanpa berhenti. Manusia tetap bisa `/model` manual di terminal. `steps` headless (ADR-0003) tetap usang.
 - **Mode goal per sesi backlog** (SPEC-332/ADR-0073): sesi bisa lahir membawa gate `Stop` — `guardSettings` menyisipkan `hooks.Stop=[{type:"prompt",prompt:<kondisi>}]` ke `--settings` (mesin yang sama dipasang `/goal` Claude Code, tapi deterministik saat sesi lahir), plus keystroke `/goal` best-effort ke pane untuk visibilitas TUI. Kondisi default = DoD hanoman (semua fase tercatat di phase file, plan tak menyisakan `- [ ]`, push sukses) dan menuntut **bukti segar** karena evaluator hook `prompt` tak punya tool dan hanya membaca transkrip (yang bisa terpotong). Knob `Setting.goal` (default mati) + override `goal`/`goalCondition` saat Start; sesi scheduler mengikuti default global. **Bukan** guardrail deny — ADR-0037 tetap berlaku; interrupt manusia (`Esc`) bukan event Stop, jadi kendali tetap ada.
+- **Mode goal codex memakai goal NATIVE codex** (SPEC-397/ADR-0085, mengamandemen ADR-0074 butir (b)):
+  `armGoalInTui` **tak lagi khusus claude** — codex-cli **0.146.0** punya mode goal native
+  (`codex features list` → `goals stable true`; `thread_goals` di `$CODEX_HOME/goals_1.sqlite`;
+  status line `Pursuing goal` · `Goal achieved` · `Goal unmet`) dan codex **melanjutkan sendiri
+  sesudah turn berakhir** sampai objektif tercapai. Premis ADR-0074 ("tak ada padanan terverifikasi")
+  benar di 0.142.5, salah di 0.146.0. Gate sh **tetap terpasang** (masih menembak di 0.146): ia
+  satu-satunya yang benar-benar **membaca** berkas fase & kotak `- [ ]` (cermin ADR-0029), sementara
+  goal native menilai dengan prosa — jadi kondisi prosa bebas kini benar-benar dievaluasi di codex,
+  batasan ADR-0074 itu dicabut. Harga yang diterima sadar: satu percobaan berhenti dievaluasi **dua
+  kali**, keduanya berpagar (`GOAL_MAX_BLOCKS=25` / akunting budget codex). **Gotcha wajib:** TUI
+  codex mengubah masukan yang datang dalam **satu burst ≥ 1024 karakter** jadi
+  `[Pasted Content N chars]`, dan begitu itu terjadi slash-dispatch **tak jalan** — `/goal` terkirim
+  sebagai **pesan chat biasa tanpa error, tanpa goal**. Deteksinya **per-burst PTY, bukan
+  per-invokasi `send-keys`** (terukur: 4×500 char TANPA jeda → `[Pasted Content 1500 chars]`), jadi
+  memotong keystroke tanpa jeda tak menyelesaikan apa pun → `goalChunks()` (runner, murni) mengirim
+  potongan **500** ber-jeda 50 ms, dipakai **kedua** agen karena jebakan yang sama laten di claude
+  (`GOAL_MAX` mengizinkan 4000 karakter). **Jebakan test:** verifikasi lama
+  `paneText.includes("/goal")` **lulus palsu** persis untuk degradasi paste itu — pane memang memuat
+  `/goal …`, sebagai pesan chat — jadi codex diverifikasi lewat penanda runtime goal-nya sendiri dan
+  arming yang gagal boleh dikirim ulang (maks 3); verifikasi claude sengaja **tak disentuh**.
+  Tanpa skema/migration/endpoint/knob baru.
 - **Scope verifikasi per sesi** (SPEC-376/ADR-0080): `verifyScope` (`changed` default | `full`) —
   knob `Setting.verifyScope` (kolom `Json`, **tanpa migration**) + override saat Start. Sesi
   `changed` menguji **berkas yang berubah saja**: `pnpm vitest --run --changed "$HANOMAN_BASE_SHA"`
@@ -214,8 +235,12 @@ Pakai skill lebih sempit saat task cocok:
   — flow dokumen tak punya test) + **env** `HANOMAN_BASE_SHA`/`HANOMAN_VERIFY_SCOPE`; `baseSha`
   wajib lewat env karena worktree lahir `--detach` (tak ada `main`, `HEAD~1` salah). **Bukan**
   guardrail deny — ADR-0037 tetap utuh, dan agen boleh memperluas scope untuk perubahan berdampak
-  luas asal menyebut alasannya. **Tiga gotcha:** `--changed` menyalakan `passWithNoTests` sehingga
-  nol test **terlihat hijau**; env sesi dipasang sebagai **prefix shell** di depan argv sehingga
+  luas asal menyebut alasannya. **Empat gotcha:** `--changed` menyalakan `passWithNoTests` sehingga
+  nol test **terlihat hijau**; `--changed` di tingkat root WAJIB disertai **`--no-file-parallelism`**
+  bila set-nya menyentuh test server — run root tak menghormati `fileParallelism: false` milik project
+  server dan test server berbagi satu Postgres, terukur di SPEC-397 set yang SAMA memberi **181 gagal
+  palsu** paralel vs **736 lulus** serial, dengan bentuk kegagalan yang menyesatkan seperti regresi
+  sync; env sesi dipasang sebagai **prefix shell** di depan argv sehingga
   tak pernah tercetak `/bin/echo` — buktinya harus dibaca dari DALAM proses (`fake-agent-env.sh`);
   dan untuk perubahan di modul INTI `--changed` memang mendekati suite penuh (terukur di SPEC-376
   sendiri: menyentuh `shared/src/{enums,entities,dto}.ts` → 217 berkas / 1589 test / 177 dtk) —

@@ -716,8 +716,10 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
           <Switch checked={s.notifyFail} onChange={sw("notifyFail", "Notifikasi gagal")} />
         </SettingRow>
       </Card>
-      {/* SPEC-332 · ADR-0073 · mode goal: Claude Code menolak berhenti sampai kondisi terbukti.
-          Ini default global untuk sesi backlog; setiap Start masih bisa meng-override. */}
+      {/* SPEC-332 · ADR-0073 · mode goal: sesi menolak berhenti sampai kondisi terbukti. Ini default
+          global untuk sesi backlog; setiap Start masih bisa meng-override. Berlaku untuk KEDUA agen
+          sejak SPEC-397/ADR-0085 — claude lewat Stop hook prosa + `/goal`, codex lewat gate sh
+          deterministik + goal native codex — jadi teksnya sengaja netral-agen. */}
       <Card eyebrow="goal" title="Mode goal — sesi backlog">
         <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.5 }}>
           Sesi backlog lahir dengan gate <code>Stop</code>: ia menolak berhenti sampai kondisinya terbukti

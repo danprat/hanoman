@@ -133,7 +133,16 @@ diterimanya. Karena itu test end-to-end memakai 900 karakter (2 potongan) dan ha
 "tiba utuh & berurutan"; properti "tak ada potongan ≥ 1024" dijaga unit test `goalChunks` di runner,
 di mana ia deterministik.
 
-**(2) vitest tidak menjalankan typecheck, dan `-t` menyaring nama test.** Menambah field ke
+**(2) `vitest --changed` di tingkat root WAJIB disertai `--no-file-parallelism`.** Run tingkat-root
+**tidak** menghormati `fileParallelism: false` yang dipasang `server/vitest.config.ts` untuk
+project-nya sendiri, dan seluruh test server berbagi satu Postgres yang di-seed ulang tiap berkas.
+Terukur atas set `--changed` yang **sama persis** (90 berkas — blast radius menyentuh
+`runner/src/goal.ts` + `server/src/services/pty.ts`): **181 gagal / 736 test** saat paralel,
+**736 lulus / 0 gagal** saat serial (191 dtk). Kegagalannya menyesatkan — bentuknya
+`expected undefined to be truthy` pada baris outbox, seolah regresi sync, padahal berkasnya lulus
+saat diisolasi. Perintah di `CLAUDE.md`/`AGENTS.md` diperbarui ikut ADR ini.
+
+**(3) vitest tidak menjalankan typecheck, dan `-t` menyaring nama test.** Menambah field ke
 `GoalArmOpts` **tidak** memunculkan error TS di run vitest — field yang belum dikenal diam-diam
 diabaikan saat runtime, jadi kegagalan TDD yang diharapkan bersifat perilaku, bukan tipe; error
 tipenya baru muncul di `pnpm --filter ./server typecheck`. Dan menyaring dengan id sesi
