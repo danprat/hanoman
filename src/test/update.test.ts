@@ -1,23 +1,30 @@
 import { describe, it, expect } from "vitest";
-import { updateHeadline, updateBadgeLabel } from "../src/api/update";
+import { updateHeadline, updateBadgeLabel, updateVersionLine } from "../src/api/update";
 import type { UpdateStatus } from "@hanoman/shared";
 
 const mk = (o: Partial<UpdateStatus>): UpdateStatus => ({
-  currentSha: "a", checkoutSha: "a", branch: "main", local: { stale: false },
-  remote: { status: "ok", behind: 0, fetchedAt: null }, updateAvailable: false,
-  reason: null, command: "", newCommits: [], ...o,
+  currentVersion: "0.1.0", latestVersion: "0.1.0",
+  registry: { status: "ok", checkedAt: null }, updateAvailable: false, command: "", ...o,
 });
 
 describe("updateHeadline", () => {
   it("up-to-date", () => expect(updateHeadline(mk({}))).toMatch(/terbaru/));
-  it("local", () => expect(updateHeadline(mk({ updateAvailable: true, reason: "local", local: { stale: true } }))).toMatch(/rebuild/i));
-  it("remote menyebut jumlah commit", () =>
-    expect(updateHeadline(mk({ updateAvailable: true, reason: "remote", remote: { status: "ok", behind: 4, fetchedAt: null } }))).toMatch(/4 commit/));
-  it("both", () =>
-    expect(updateHeadline(mk({ updateAvailable: true, reason: "both", local: { stale: true }, remote: { status: "ok", behind: 2, fetchedAt: null } }))).toMatch(/\+ 2/));
+  it("ada update → menyebut versi terbaru & restart", () =>
+    expect(updateHeadline(mk({ updateAvailable: true, latestVersion: "0.4.2" }))).toMatch(/0\.4\.2.*restart/));
 });
+
 describe("updateBadgeLabel", () => {
-  it("tanpa remote behind → 'Update'", () => expect(updateBadgeLabel(mk({ updateAvailable: true, reason: "local" }))).toBe("Update"));
-  it("dengan remote behind → 'Update · N'", () =>
-    expect(updateBadgeLabel(mk({ updateAvailable: true, reason: "remote", remote: { status: "ok", behind: 3, fetchedAt: null } }))).toBe("Update · 3"));
+  it("menyebut versi terbaru", () =>
+    expect(updateBadgeLabel(mk({ updateAvailable: true, latestVersion: "0.4.2" }))).toBe("Update · 0.4.2"));
+  it("versi terbaru tak terbaca → 'Update' saja", () =>
+    expect(updateBadgeLabel(mk({ updateAvailable: true, latestVersion: null }))).toBe("Update"));
+});
+
+describe("updateVersionLine", () => {
+  it("terpasang → tersedia", () =>
+    expect(updateVersionLine(mk({ currentVersion: "0.1.0", latestVersion: "0.2.0" })))
+      .toBe("terpasang 0.1.0 · tersedia 0.2.0"));
+  it("versi kosong jadi '?', bukan string kosong yang membingungkan", () =>
+    expect(updateVersionLine(mk({ currentVersion: "", latestVersion: null })))
+      .toBe("terpasang ? · tersedia ?"));
 });

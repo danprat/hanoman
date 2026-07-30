@@ -21,6 +21,7 @@ const HELP = `hanoman <command>
   (tanpa argumen) | start                   jalankan hanoman (migrasi + server + dashboard)
     --port <n> --host <h> --db <file> --no-migrate
   doctor                                    periksa prasyarat: node, git, tmux, CLI agen, data dir
+  update [--check]                          bandingkan versi dengan registry npm; pasang yang terbaru
   docs scan [--json]                        coverage + laporan per-kategori
   docs index --check | --fix                integritas index
   docs link <path> [--category c]           tambahkan doc ke index
@@ -38,7 +39,7 @@ export function route(argv: string[]): { cmd: string; args: string[] } {
   if (argv.includes("--help")) return { cmd: "help", args: [] };
   const [group, sub, ...rest] = argv;
   if (group === undefined || group.startsWith("--")) return { cmd: "start", args: argv };
-  if (group === "start" || group === "doctor") return { cmd: group, args: argv.slice(1) };
+  if (group === "start" || group === "doctor" || group === "update") return { cmd: group, args: argv.slice(1) };
   if (group === "docs" && (sub === "scan" || sub === "index" || sub === "link")) {
     return { cmd: `docs:${sub}`, args: rest };
   }
@@ -51,6 +52,7 @@ export async function run(argv: string[], ctx: Ctx): Promise<number> {
   if (cmd === "help") { ctx.stdout(HELP + "\n"); return 0; }
   if (cmd === "start")  return (await import("./commands/start")).default(args, ctx);
   if (cmd === "doctor") return (await import("./commands/doctor")).default(args, ctx);
+  if (cmd === "update") return (await import("./commands/update")).default(args, ctx);
   if (cmd === "docs:scan")  return (await import("./commands/docs-scan")).default(args, ctx);
   if (cmd === "docs:index") return (await import("./commands/docs-index")).default(args, ctx);
   if (cmd === "docs:link")  return (await import("./commands/docs-link")).default(args, ctx);

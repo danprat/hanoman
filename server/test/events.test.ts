@@ -20,14 +20,13 @@ beforeEach(async () => {
   // getLimits() jangan menyentuh keychain/jaringan di test: CLAUDE_CONFIG_DIR kosong → token null
   // → fallback "unavailable" seketika (tanpa prompt, tanpa fetch 5s).
   process.env.CLAUDE_CONFIG_DIR = mkdtempSync(join(tmpdir(), "hanoman-cfg-"));
-  process.env.HANOMAN_REPO_ROOT = process.env.CLAUDE_CONFIG_DIR;  // non-repo → getUpdateStatus fail-safe, tanpa jaringan
   _resetLimitsCache();
   _resetUpdateCache();
   killAll();
   await resetDb();
   __reset();
 });
-afterEach(() => { __reset(); delete process.env.HANOMAN_REPO_ROOT; _resetUpdateCache(); });
+afterEach(() => { __reset(); _resetUpdateCache(); });
 
 describe("events hub", () => {
   it("mengirim snapshot semua grup ke klien saat attach", async () => {

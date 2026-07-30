@@ -9,3 +9,4 @@ export * from "./ticket-status";
 export * from "./session-kind";
 export * from "./config";
 export * from "./config-registry";
+export * from "./semver";

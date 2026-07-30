@@ -1,36 +1,30 @@
 import { describe, it, expect } from "vitest";
-import { composeUpdate } from "../src/services/update";
+import { composeUpdate, UPDATE_COMMAND } from "../src/services/update";
 
-const base = {
-  runningBuildSha: "aaaaaaa", checkoutSha: "aaaaaaa", branch: "main",
-  remoteStatus: "ok" as const, behind: 0, fetchedAt: "2026-07-14T00:00:00Z", newCommits: [],
-};
+const base = { currentVersion: "0.1.0", latestVersion: null, registryStatus: "unavailable" as const, checkedAt: null };
+
 describe("composeUpdate", () => {
-  it("up-to-date → updateAvailable false, reason null, tanpa command", () => {
+  it("registry tak terjangkau → tak ada update, tanpa perintah", () => {
     const u = composeUpdate(base);
-    expect(u.updateAvailable).toBe(false); expect(u.reason).toBeNull(); expect(u.command).toBe("");
+    expect(u.updateAvailable).toBe(false);
+    expect(u.command).toBe("");
   });
-  it("build lama dari checkout → local, command build+prod", () => {
-    const u = composeUpdate({ ...base, runningBuildSha: "old1234", checkoutSha: "new5678" });
-    expect(u.reason).toBe("local"); expect(u.local.stale).toBe(true);
-    expect(u.command).toBe("pnpm build && pnpm prod");
+  it("versi terbaru lebih tinggi → ada update + perintah npm", () => {
+    const u = composeUpdate({ ...base, latestVersion: "0.2.0", registryStatus: "ok", checkedAt: "2026-07-30T00:00:00Z" });
+    expect(u.updateAvailable).toBe(true);
+    expect(u.command).toBe(UPDATE_COMMAND);
+    expect(u.registry).toEqual({ status: "ok", checkedAt: "2026-07-30T00:00:00Z" });
   });
-  it("origin di depan → remote, command pull, newCommits diteruskan", () => {
-    const u = composeUpdate({ ...base, behind: 3, newCommits: [{ sha: "c1", subject: "x" }] });
-    expect(u.reason).toBe("remote"); expect(u.remote.behind).toBe(3); expect(u.newCommits).toHaveLength(1);
-    expect(u.command).toBe("git pull --ff-only && pnpm build && pnpm prod");
+  it("versi sama → tak ada update", () => {
+    expect(composeUpdate({ ...base, latestVersion: "0.1.0", registryStatus: "ok" }).updateAvailable).toBe(false);
   });
-  it("lokal stale + origin ahead → both", () => {
-    const u = composeUpdate({ ...base, runningBuildSha: "old", checkoutSha: "new", behind: 2 });
-    expect(u.reason).toBe("both");
-    expect(u.command).toBe("git pull --ff-only && pnpm build && pnpm prod");
+  it("registry lebih tua dari yang jalan (dev di depan rilis) → tak ada update", () => {
+    expect(composeUpdate({ ...base, currentVersion: "0.3.0", latestVersion: "0.2.0", registryStatus: "ok" }).updateAvailable).toBe(false);
   });
-  it("remote unavailable → behind diabaikan, newCommits dibuang", () => {
-    const u = composeUpdate({ ...base, remoteStatus: "unavailable", behind: 5, newCommits: [{ sha: "c", subject: "s" }] });
-    expect(u.remote.behind).toBe(0); expect(u.updateAvailable).toBe(false); expect(u.newCommits).toEqual([]);
+  it("latestVersion ada tapi status unavailable → tetap tak ada update (status yang menentukan)", () => {
+    expect(composeUpdate({ ...base, latestVersion: "9.9.9" }).updateAvailable).toBe(false);
   });
-  it("dev tanpa build-info (runningBuildSha null) → tak pernah stale, currentSha = checkout", () => {
-    const u = composeUpdate({ ...base, runningBuildSha: null, checkoutSha: "zzz" });
-    expect(u.local.stale).toBe(false); expect(u.currentSha).toBe("zzz");
+  it("perintahnya memasang paket global bernama hanoman", () => {
+    expect(UPDATE_COMMAND).toBe("npm i -g hanoman@latest");
   });
 });

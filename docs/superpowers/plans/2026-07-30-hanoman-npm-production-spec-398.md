@@ -887,7 +887,7 @@ git commit -m "feat(spec-398): hanoman start + doctor — satu perintah untuk me
 - Consumes: —
 - Produces: `compareSemver(a, b): -1 | 0 | 1` (shared) · `UpdateStatus = { currentVersion, latestVersion, registry: { status, checkedAt }, updateAvailable, command }` · `composeUpdate(x): UpdateStatus` · `UPDATE_COMMAND = "npm i -g hanoman@latest"`
 
-- [ ] **Step 1: Tulis test semver yang gagal**
+- [x] **Step 1: Tulis test semver yang gagal**
 
 Create `shared/test/semver.test.ts`:
 
@@ -917,12 +917,12 @@ describe("compareSemver", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — harus gagal**
+- [x] **Step 2: Jalankan — harus gagal**
 
 Run: `pnpm vitest --run shared/test/semver.test.ts`
 Expected: FAIL — modul belum ada.
 
-- [ ] **Step 3: Implementasi `shared/src/semver.ts`**
+- [x] **Step 3: Implementasi `shared/src/semver.ts`**
 
 ```ts
 // SPEC-398 · ADR-0087 · identitas versi hanoman pindah dari SHA git ke semver npm, jadi
@@ -954,12 +954,12 @@ export function compareSemver(a: string, b: string): -1 | 0 | 1 {
 
 Tambahkan `export * from "./semver";` ke `shared/src/index.ts`.
 
-- [ ] **Step 4: Jalankan — harus lulus**
+- [x] **Step 4: Jalankan — harus lulus**
 
 Run: `pnpm vitest --run shared/test/semver.test.ts`
 Expected: PASS (4 test / 10 assertion).
 
-- [ ] **Step 5: Ganti bentuk `UpdateStatus`**
+- [x] **Step 5: Ganti bentuk `UpdateStatus`**
 
 `shared/src/dto.ts` — ganti blok SPEC-214 (baris ~375-390):
 
@@ -978,7 +978,7 @@ export type UpdateStatus = {
 
 Hapus `UpdateReason`, `UpdateRemoteStatus`, dan `UpdateCommit` — tak ada lagi konsumennya sesudah task ini. Jalankan `grep -rn "UpdateReason\|UpdateRemoteStatus\|UpdateCommit" shared server src cli --include="*.ts" --include="*.tsx"` untuk memastikan nol sisa.
 
-- [ ] **Step 6: Tulis ulang `services/update.ts`**
+- [x] **Step 6: Tulis ulang `services/update.ts`**
 
 ```ts
 import { readFileSync } from "node:fs";
@@ -1062,7 +1062,7 @@ export function _resetUpdateCache(): void {
 }
 ```
 
-- [ ] **Step 7: Perbarui test server untuk update**
+- [x] **Step 7: Perbarui test server untuk update**
 
 `server/test/update.test.ts` — ganti isinya:
 
@@ -1148,12 +1148,12 @@ describe("UpdateStatus DTO", () => {
 
 Hapus assertion apa pun yang menyebut `currentSha`/`newCommits`/`reason` di ketiga berkas itu.
 
-- [ ] **Step 8: Jalankan test server & shared yang tersentuh**
+- [x] **Step 8: Jalankan test server & shared yang tersentuh**
 
 Run: `pnpm vitest --run shared/test/semver.test.ts shared/test/update-dto.test.ts server/test/update.test.ts server/test/update.service.test.ts --no-file-parallelism`
 Expected: PASS.
 
-- [ ] **Step 9: Perbarui UI `UpdateIndicator.tsx`**
+- [x] **Step 9: Perbarui UI `UpdateIndicator.tsx`**
 
 Baca `src/src/screens/UpdateIndicator.tsx` dan `src/src/api/update.ts` lalu ganti setiap referensi
 field lama dengan yang baru: `currentSha`→`currentVersion`, `remote.behind`/`newCommits`→
@@ -1162,7 +1162,7 @@ terkini; `v<currentVersion> → v<latestVersion>` bila ada update, dengan `comma
 `<code>` untuk disalin. Sesuaikan `src/test/update.test.ts` dan
 `src/test/update-indicator.test.tsx` ke bentuk & teks baru (fixture memakai `currentVersion` dst).
 
-- [ ] **Step 10: Implementasi `hanoman update`**
+- [x] **Step 10: Implementasi `hanoman update`**
 
 Create `cli/src/commands/update.ts`:
 
@@ -1224,7 +1224,7 @@ export default async function update(argv: string[], ctx: Ctx): Promise<number> 
   if (group === "update") return (await import("./commands/update")).default(argv.slice(1), ctx);
 ```
 
-- [ ] **Step 11: Test `hanoman update` (murni)**
+- [x] **Step 11: Test `hanoman update` (murni)**
 
 Create `cli/test/update-cmd.test.ts`:
 
@@ -1254,7 +1254,7 @@ describe("planUpdate", () => {
 Run: `pnpm vitest --run cli/test/update-cmd.test.ts`
 Expected: PASS (5 test).
 
-- [ ] **Step 12: Tanam versi ke build-info.json**
+- [x] **Step 12: Tanam versi ke build-info.json**
 
 `scripts/stamp-build.mjs` — tambahkan versi dari root `package.json`:
 
@@ -1267,12 +1267,12 @@ console.log(`stamped build-info.json · v${version} · ${sha}`);
 
 (Tambahkan `readFileSync` ke import `node:fs` yang sudah ada.)
 
-- [ ] **Step 13: Test yang tersentuh + typecheck**
+- [x] **Step 13: Test yang tersentuh + typecheck**
 
 Run: `pnpm vitest --run --changed "$HANOMAN_BASE_SHA" --no-file-parallelism && pnpm --filter ./server typecheck && pnpm --filter ./cli typecheck && pnpm --filter ./src typecheck`
 Expected: hijau.
 
-- [ ] **Step 14: Commit**
+- [x] **Step 14: Commit**
 
 ```bash
 git add -A

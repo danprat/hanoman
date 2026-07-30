@@ -11,9 +11,8 @@ vi.mock("../src/api/update", async (orig) => ({
 import { UpdateBadge } from "../src/screens/UpdateIndicator";
 
 const mk = (o: Partial<UpdateStatus>): UpdateStatus => ({
-  currentSha: "abc1234", checkoutSha: "def5678", branch: "main", local: { stale: false },
-  remote: { status: "ok", behind: 0, fetchedAt: null }, updateAvailable: false,
-  reason: null, command: "", newCommits: [], ...o,
+  currentVersion: "0.1.0", latestVersion: "0.1.0",
+  registry: { status: "ok", checkedAt: null }, updateAvailable: false, command: "", ...o,
 });
 
 describe("UpdateBadge", () => {
@@ -22,16 +21,14 @@ describe("UpdateBadge", () => {
     const { container } = render(<UpdateBadge />);
     expect(container.firstChild).toBeNull();
   });
-  it("render pill + popover + perintah saat remote behind", () => {
-    hook = mk({ updateAvailable: true, reason: "remote", remote: { status: "ok", behind: 2, fetchedAt: null },
-      command: "git pull --ff-only && pnpm build && pnpm prod",
-      newCommits: [{ sha: "c1", subject: "fix A" }, { sha: "c2", subject: "feat B" }] });
+  it("render pill + popover + perintah npm saat versi baru terbit", () => {
+    hook = mk({ updateAvailable: true, latestVersion: "0.2.0", command: "npm i -g hanoman@latest" });
     render(<UpdateBadge />);
     const btn = screen.getByTitle("Update tersedia");
-    expect(btn.textContent).toContain("Update · 2");
+    expect(btn.textContent).toContain("Update · 0.2.0");
     fireEvent.click(btn);
-    expect(screen.getByText(/2 commit baru di origin/)).toBeTruthy();
-    expect(screen.getByText(/git pull --ff-only/)).toBeTruthy();
-    expect(screen.getByText(/fix A/)).toBeTruthy();
+    expect(screen.getByText(/hanoman 0\.2\.0 tersedia/)).toBeTruthy();
+    expect(screen.getByText(/npm i -g hanoman@latest/)).toBeTruthy();
+    expect(screen.getByText(/terpasang 0\.1\.0 · tersedia 0\.2\.0/)).toBeTruthy();
   });
 });

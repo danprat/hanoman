@@ -22,6 +22,9 @@ describe("route", () => {
   it("doctor", () => {
     expect(route(["doctor"])).toEqual({ cmd: "doctor", args: [] });
   });
+  it("update meneruskan --check", () => {
+    expect(route(["update", "--check"])).toEqual({ cmd: "update", args: ["--check"] });
+  });
   it("docs bertingkat dua kata", () => {
     expect(route(["docs", "scan", "--json"])).toEqual({ cmd: "docs:scan", args: ["--json"] });
     expect(route(["docs", "index", "--check"])).toEqual({ cmd: "docs:index", args: ["--check"] });

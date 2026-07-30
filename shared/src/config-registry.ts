@@ -33,7 +33,10 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
   // runtime
   { key: "HANOMAN_EVENTS_TICK_MS", group: "runtime", label: "Interval events (ms)", kind: "int", apply: "live", category: "knob", default: "1000", min: 100 },
   { key: "HANOMAN_UPDATE_FETCH", group: "runtime", label: "Deteksi update saat boot", kind: "bool", apply: "live", category: "knob", default: "1" },
-  { key: "HANOMAN_REPO_ROOT", group: "runtime", label: "Root repo hanoman", kind: "path", apply: "restart", category: "knob", help: "Default cwd proses server." },
+  // SPEC-398 · ADR-0087 · deteksi update kini membandingkan semver dengan registry npm, bukan
+  // menghitung commit di repo git (HANOMAN_REPO_ROOT dicabut bersama jalur git itu).
+  { key: "HANOMAN_NPM_REGISTRY", group: "runtime", label: "Registry npm", kind: "string", apply: "live", category: "knob",
+    default: "https://registry.npmjs.org", help: "Sumber versi terbaru paket `hanoman`." },
   { key: "HANOMAN_TMUX_SOCKET", group: "runtime", label: "Socket tmux", kind: "string", apply: "restart", category: "knob", default: "hanoman",
     help: "Mengubah ini TIDAK memindahkan sesi tmux yang sudah hidup — berlaku setelah restart." },
   // gitGraph (SPEC-233 · preferensi tampilan git graph; semua live, dikonsumsi client)
@@ -58,6 +61,9 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
   { key: "PORT", group: "bootstrap", label: "PORT", kind: "int", apply: "restart", category: "bootstrap", default: "8787" },
   { key: "HOST", group: "bootstrap", label: "HOST", kind: "string", apply: "restart", category: "bootstrap", default: "127.0.0.1" },
   { key: "NODE_ENV", group: "bootstrap", label: "NODE_ENV", kind: "string", apply: "restart", category: "bootstrap" },
+  // SPEC-398 · ADR-0086/0087 · lokasi data & aset, dibaca sekali saat boot (CLI yang menyetelnya).
+  { key: "HANOMAN_HOME", group: "bootstrap", label: "HANOMAN_HOME", kind: "path", apply: "restart", category: "bootstrap" },
+  { key: "HANOMAN_WEB_DIR", group: "bootstrap", label: "HANOMAN_WEB_DIR", kind: "path", apply: "restart", category: "bootstrap" },
 ];
 
 const BY_KEY = new Map(CONFIG_REGISTRY.map((e) => [e.key, e]));

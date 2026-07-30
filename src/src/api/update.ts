@@ -3,12 +3,13 @@ import type { UpdateStatus } from "@hanoman/shared";
 import { subscribe as subscribeEvents } from "./events";
 
 // SPEC-214 · status auto-update didorong lewat WS siar (grup "update"), pola api/limits.ts.
+// SPEC-398 · ADR-0087 · isinya kini semver paket npm, bukan SHA git.
 // Store singleton ref-count: badge topbar berlangganan satu feed. Default = up-to-date sampai
 // frame pertama tiba (server kirim snapshot penuh saat connect).
 const UP_TO_DATE: UpdateStatus = {
-  currentSha: "", checkoutSha: "", branch: null,
-  local: { stale: false }, remote: { status: "unavailable", behind: 0, fetchedAt: null },
-  updateAvailable: false, reason: null, command: "", newCommits: [],
+  currentVersion: "", latestVersion: null,
+  registry: { status: "unavailable", checkedAt: null },
+  updateAvailable: false, command: "",
 };
 let state: UpdateStatus = UP_TO_DATE;
 let unsub: (() => void) | undefined;
@@ -24,13 +25,15 @@ function subscribe(cb: () => void): () => void {
 
 export function useUpdate(): UpdateStatus { return useSyncExternalStore(subscribe, () => state, () => state); }
 
-// Helper murni (di-uji unit): heading popover + label pill, per reason.
+// Helper murni (di-uji unit): heading popover + label pill.
 export function updateHeadline(u: UpdateStatus): string {
   if (!u.updateAvailable) return "Versi terpasang sudah terbaru";
-  if (u.reason === "both") return `Kode baru di disk + ${u.remote.behind} commit di origin`;
-  if (u.reason === "local") return "Kode baru di disk — rebuild & restart untuk menerapkan";
-  return `${u.remote.behind} commit baru di origin — pull untuk update`;
+  return `hanoman ${u.latestVersion} tersedia — pasang lalu restart instance ini`;
 }
 export function updateBadgeLabel(u: UpdateStatus): string {
-  return u.remote.behind > 0 ? `Update · ${u.remote.behind}` : "Update";
+  return u.latestVersion ? `Update · ${u.latestVersion}` : "Update";
+}
+// Baris kaki popover: versi jalan → versi terbaru. Versi kosong (dev/belum ter-stamp) → "?".
+export function updateVersionLine(u: UpdateStatus): string {
+  return `terpasang ${u.currentVersion || "?"} · tersedia ${u.latestVersion ?? "?"}`;
 }

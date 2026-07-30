@@ -372,20 +372,15 @@ export type CodexLimitsDTO = {
   plan: string | null;       // `plan_type` codex (mis. "pro"); null bila tak dilaporkan
 };
 
-// SPEC-214 · status auto-update. "version" hanoman = git commit SHA (tak ada field version).
-export type UpdateReason = "local" | "remote" | "both" | null;
-export type UpdateRemoteStatus = "ok" | "unavailable";  // unavailable = tanpa upstream / fetch gagal / bukan repo git
-export type UpdateCommit = { sha: string; subject: string };
+// SPEC-398 · ADR-0087 · versi hanoman = semver paket npm (dulu SHA git, SPEC-214). Panel tetap
+// READ-ONLY: `command` adalah panduan untuk disalin, bukan aksi yang server jalankan (ADR-0048).
+export type UpdateRegistryStatus = "ok" | "unavailable";  // unavailable = offline / opt-out / paket belum terbit
 export type UpdateStatus = {
-  currentSha: string;         // short SHA build yang jalan (fallback checkoutSha bila belum ter-stamp / dev)
-  checkoutSha: string;        // short SHA HEAD working tree sekarang
-  branch: string | null;      // branch aktif; null bila detached HEAD
-  local: { stale: boolean };  // runningBuildSha ≠ checkoutSha → perlu rebuild/restart
-  remote: { status: UpdateRemoteStatus; behind: number; fetchedAt: string | null };
-  updateAvailable: boolean;   // local.stale || remote.behind > 0
-  reason: UpdateReason;
-  command: string;            // panduan operator; "" bila up-to-date
-  newCommits: UpdateCommit[]; // commit origin-ahead (≤ 20)
+  currentVersion: string;                 // versi yang sedang berjalan (build-info.json → package.json)
+  latestVersion: string | null;           // versi terbaru di registry; null bila tak terbaca
+  registry: { status: UpdateRegistryStatus; checkedAt: string | null };
+  updateAvailable: boolean;               // compareSemver(latest, current) > 0
+  command: string;                        // "npm i -g hanoman@latest"; "" bila sudah terkini
 };
 
 // SPEC-199 · bentuk sesi di wire (cermin services/pty.ts SessionInfo & client TerminalSession).
