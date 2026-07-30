@@ -133,7 +133,7 @@ git commit -m "feat(405): kontrak update apply — canApply, sentinel exit 75, z
   - `__setExiter(fn: (code: number) => void): void` (test-only)
   - `__setRegistrySnapshot(latest: string | null, status: UpdateRegistryStatus): void` (test-only)
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan ke `server/test/update.test.ts` — `base` sekarang butuh `canApply`:
 
@@ -207,12 +207,12 @@ describe("requestRestartForUpdate()", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan GAGAL**
+- [x] **Step 2: Jalankan, pastikan GAGAL**
 
 Run: `pnpm vitest --run --no-file-parallelism server/test/update.test.ts server/test/update-restart.test.ts`
 Expected: FAIL — `supervised`/`requestRestartForUpdate`/`__setExiter` tak ada.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Di `server/src/services/update.ts`:
 
@@ -302,12 +302,12 @@ export function __setRegistrySnapshot(latest: string | null, status: UpdateRegis
   });
 ```
 
-- [ ] **Step 4: Jalankan, pastikan LULUS**
+- [x] **Step 4: Jalankan, pastikan LULUS**
 
 Run: `pnpm vitest --run --no-file-parallelism server/test/update.test.ts server/test/update-restart.test.ts`
 Expected: PASS (6 lama + 2 baru di `update.test.ts`, 4 di `update-restart.test.ts`).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/update.ts server/test/update.test.ts server/test/update-restart.test.ts
