@@ -34,7 +34,7 @@
   - `type UpdateStatus` + field baru `canApply: boolean`
   - `zUpdateApplyBody` → `{ confirm?: boolean }`, `type UpdateApplyBody`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `shared/test/update-contract.test.ts`:
 
@@ -62,12 +62,12 @@ describe("kontrak update apply (SPEC-405 · ADR-0088)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan GAGAL**
+- [x] **Step 2: Jalankan, pastikan GAGAL**
 
 Run: `pnpm vitest --run shared/test/update-contract.test.ts`
 Expected: FAIL — `UPDATE_RESTART_EXIT`/`zUpdateApplyBody` tak ada (`does not provide an export named`).
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Di `shared/src/dto.ts`, ganti blok `UpdateStatus` menjadi:
 
@@ -99,12 +99,12 @@ export const zUpdateApplyBody = z.object({ confirm: z.boolean().optional() });
 export type UpdateApplyBody = z.infer<typeof zUpdateApplyBody>;
 ```
 
-- [ ] **Step 4: Jalankan, pastikan LULUS**
+- [x] **Step 4: Jalankan, pastikan LULUS**
 
 Run: `pnpm vitest --run shared/test/update-contract.test.ts`
 Expected: PASS 5/5.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add shared/src/dto.ts shared/test/update-contract.test.ts
