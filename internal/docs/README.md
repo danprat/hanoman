@@ -40,6 +40,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 > **Narasi tiap keputusan — apa yang diperluas/dicabut/diamandemen, berikut gotcha-nya — ada di
 > [adr/README.md](adr/README.md).** Daftar di bawah sengaja satu baris per ADR: index ini dibaca
 > setiap sesi agen, sub-index hanya saat butuh riwayatnya (SPEC-386).
+- [0085 — Mode goal codex memakai goal native codex, berdampingan dengan gate sh](adr/0085-mode-goal-codex-native.md)
 - [0084 — Sesi backlog dilanjutkan, bukan diulang dari nol](adr/0084-melanjutkan-sesi-backlog.md)
 - [0083 — Retensi dokumen audit: artefak diagnosis berumur, bukan SoT abadi](adr/0083-retensi-dokumen-audit.md)
 - [0082 — Kontrak apply changefeed: record tertunda, kursor tak melompat, tarik ulang penuh](adr/0082-kontrak-apply-changefeed-record-tertunda.md)
