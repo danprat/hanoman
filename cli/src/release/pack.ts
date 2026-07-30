@@ -6,6 +6,12 @@ import { join } from "node:path";
 
 export const PKG_NAME = "hanoman";
 
+// Trusted publishing (OIDC) memverifikasi bahwa yang mem-publish memang repo INI, dan
+// provenance menyematkan asal-build. Keduanya membandingkan `repository.url` dengan repo
+// pembangun **persis**, jadi nilai ini bukan metadata kosmetik: salah satu huruf → publish
+// dari workflow rilis ditolak. Dipagari test karena kegagalannya hanya muncul di CI.
+export const REPO_URL = "git+https://github.com/denameidina/hanoman.git";
+
 // Wajib = seluruh `--external:` di build server, plus CLI prisma (`migrate deploy` di `hanoman
 // start`) dan `pg` (`migrate-from-postgres`). Apa pun di luar daftar ini ikut dibundel esbuild.
 export const RUNTIME_DEPS = [
@@ -24,6 +30,7 @@ export function packageJsonFor(version: string, deps: Record<string, string>): o
     version,
     description: "Orchestrator + dashboard workflow docs-driven untuk sesi Claude Code / Codex",
     type: "module",
+    repository: { type: "git", url: REPO_URL },
     bin: { hanoman: "bin/hanoman.mjs" },
     // `@prisma/client` dari npm adalah STUB sampai di-generate — tanpa langkah ini server mati
     // seketika dengan "@prisma/client did not initialize yet" (terukur di `npm i -g` nyata).

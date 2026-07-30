@@ -1,0 +1,93 @@
+# SPEC-398 · ADR-0087 · Menerbitkan paket npm `hanoman` dari tag, lewat trusted publishing (OIDC).
+#
+# Kenapa lewat CI dan bukan dari mesin dev: satu-satunya alternatif non-interaktif adalah
+# Granular Access Token ber-"bypass 2FA", yang berarti kredensial penerbit tersimpan di berkas
+# yang bisa dibaca proses mana pun di mesin itu — termasuk sesi agen. OIDC tak menyimpan rahasia
+# apa pun; npm memverifikasi bahwa yang meminta publish memang workflow INI di repo INI.
+#
+# PRASYARAT SEKALI DI AWAL (tak bisa dari sini, dan tak bisa sebelum paketnya ada):
+#   1. `0.1.0` diterbitkan sekali secara berautentikasi (interaktif `npm login` + OTP).
+#      Trusted publisher dikonfigurasi PER PAKET, jadi tak ada halaman setelan sebelum ada paket.
+#   2. npmjs.com → paket `hanoman` → Trusted publisher → GitHub Actions:
+#      organization/user `denameidina`, repository `hanoman`, workflow `release.yml`.
+#   3. Opsional tapi disarankan: Settings → Environments → `release` → Required reviewers.
+#      Itu memulihkan gerbang manusia yang diminta ADR-0087 tanpa melepas OIDC.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+# Tanpa `id-token: write` tak ada OIDC token yang bisa dicetak → publish ditolak.
+permissions:
+  id-token: write
+  contents: read
+
+# Dua tag yang didorong berbarengan tak boleh saling mendahului ke registry.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # Gerbang manusia opsional: beri environment ini "Required reviewers" di setelan repo.
+    environment: release
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          # Root package.json tak punya field `packageManager`, jadi versinya dipatok di sini.
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          # Sengaja TANPA `cache:` — artefak yang diterbitkan harus lahir dari nol.
+
+      # Trusted publishing menuntut npm yang cukup baru; runner bisa membawa yang lebih tua.
+      - name: npm terbaru (dukungan OIDC)
+        run: npm i -g npm@latest && npm --version
+
+      # Gagal cepat: tag `v0.2.0` yang tak cocok dengan package.json akan menerbitkan versi
+      # yang salah dan nomor itu tak bisa dipakai ulang. Versi punya SATU sumber (root
+      # package.json) yang ditanam ke build-info.json oleh scripts/stamp-build.mjs.
+      - name: Tag harus cocok dengan versi paket
+        run: |
+          VER="$(node -p "require('./package.json').version")"
+          TAG="${GITHUB_REF_NAME#v}"
+          echo "package.json=$VER  tag=$TAG"
+          if [ "$VER" != "$TAG" ]; then
+            echo "::error::tag v$TAG tidak cocok dengan package.json $VER — bump versinya dulu"
+            exit 1
+          fi
+          echo "VER=$VER" >> "$GITHUB_ENV"
+
+      - run: pnpm install --frozen-lockfile
+
+      # `pnpm release` = build SPA + server + cli → `hanoman __pack` merakit staging `dist-npm/`
+      # → `npm pack --dry-run`. Yang diterbitkan adalah dist-npm/, BUKAN akar workspace.
+      - run: pnpm release
+
+      # Uji artefaknya sungguhan sebelum ia jadi permanen: pasang tarball hasil rakitan lalu
+      # jalankan binernya. `hanoman doctor` TIDAK dipakai di sini — ia menuntut tmux & CLI agen
+      # yang memang tak ada di runner, jadi ia akan exit 1 karena alasan yang tak relevan.
+      - name: Paket hasil rakitan benar-benar jalan
+        run: |
+          cd dist-npm && npm pack
+          npm i -g --prefix "$RUNNER_TEMP/g" "./hanoman-$VER.tgz"
+          OUT="$("$RUNNER_TEMP/g/bin/hanoman" --version)"
+          echo "hanoman --version → $OUT"
+          if [ "$OUT" != "$VER" ]; then
+            echo "::error::biner hasil rakitan melaporkan '$OUT', bukan '$VER'"
+            exit 1
+          fi
+
+      # Tanpa token: OIDC yang membuktikan identitas. `--provenance` menyematkan atestasi
+      # asal-build, dan ia menuntut `repository.url` di package.json cocok PERSIS dengan repo
+      # ini — nilainya dijaga test di cli/test/pack.test.ts.
+      - name: Publish ke npm
+        run: cd dist-npm && npm publish --provenance --access public

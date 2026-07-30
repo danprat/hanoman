@@ -22,6 +22,16 @@ describe("packageJsonFor", () => {
   it("files memuat seluruh artefak runtime", () => {
     for (const f of ["bin", "dist", "web", "prisma"]) expect(pkg.files).toContain(f);
   });
+  // Regresi: trusted publishing (OIDC) MENUNTUT `repository.url` cocok PERSIS dengan repo
+  // GitHub yang membangun, dan provenance menuntut `repository` publik. Tanpa field ini
+  // `npm publish` dari workflow rilis gagal — dan kegagalannya hanya muncul di CI, jauh dari
+  // sini. Angka ajaib satu-satunya di paket ini, jadi ia dipagari test.
+  it("membawa repository publik — wajib untuk trusted publishing & provenance", () => {
+    expect(pkg.repository).toEqual({
+      type: "git",
+      url: "git+https://github.com/denameidina/hanoman.git",
+    });
+  });
   // Regresi: tanpa ini `npm i -g` sukses tapi server mati seketika dengan
   // "@prisma/client did not initialize yet" — client Prisma adalah kode ter-generate.
   it("postinstall men-generate Prisma client, non-fatal bila script dilewati", () => {

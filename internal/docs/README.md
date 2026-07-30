@@ -134,6 +134,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 - [production](operations/production.md) — menjalankan instance prod di samping dev (`HANOMAN_HOME` + port terpisah)
 - [deploy-vps](operations/deploy-vps.md) — deploy single-host ke VPS publik di belakang reverse proxy TLS
 - [npm-readme](operations/npm-readme.md) — README yang terbit bersama paket npm `hanoman` (pasang, prasyarat, update, pindah dari Postgres) — SPEC-398 · ADR-0087
+- [release-npm](operations/release-npm.md) — merilis paket npm `hanoman`: setup trusted publishing (OIDC) sekali di awal, prosedur tiap rilis lewat tag `v*`, dan pagar-pagarnya — ADR-0087 (amandemen 2026-07-30)
 
 ## security
 - [security-standard](security/security-standard.md)

@@ -35,6 +35,7 @@ hanoman sudah **live di VPS** di `https://hanoman.<domain>` sebagai **hub multi-
 - Deploy VPS single-host: `internal/docs/operations/deploy-vps.md`
 - Prod di samping dev: `internal/docs/operations/production.md`
 - README paket npm (pasang, prasyarat, konfigurasi, pindah dari Postgres): `internal/docs/operations/npm-readme.md`
+- **Merilis paket npm** (trusted publishing OIDC, tag `v*`, pagar-pagarnya): `internal/docs/operations/release-npm.md`
 - SQLite satu-satunya provider: [ADR-0086](../../docs/adr/0086-sqlite-satu-satunya-provider.md) · distribusi npm global: [ADR-0087](../../docs/adr/0087-distribusi-npm-global-satu-perintah.md) (SPEC-398)
 - Auth & bind 127.0.0.1: `internal/docs/security/security-standard.md` · [ADR-0028](../../docs/adr/0028-auth-sesi-opaque-di-db.md)
 - Update deteksi read-only: [ADR-0048](../../docs/adr/0048-auto-update-deteksi-read-only.md) (mekanisme diganti SPEC-398, keputusannya utuh)
@@ -78,6 +79,17 @@ systemctl restart hanoman
 
 Migrasi diterapkan otomatis saat start, jadi tak ada langkah `migrate deploy` terpisah. `migrate deploy` idempotent; akun & Session tak tersentuh. Restart aman untuk sesi agen — mereka hidup di tmux server sendiri (ADR-0016) dan selamat dari restart proses API; yang perlu re-attach hanya klien WebSocket.
 
+## Merilis paket npm (ADR-0087, amandemen 2026-07-30)
+
+Publish dijalankan `.github/workflows/release.yml` pada tag `v*` lewat **trusted publishing (OIDC)** — **tak ada token penerbit di mesin mana pun**. Tiap rilis: bump `version` di **root `package.json`** (satu sumber, ditanam ke `dist/build-info.json`) → merge → `git tag v0.2.0 && git push origin v0.2.0`. Runbook lengkap: `internal/docs/operations/release-npm.md`.
+
+- **`pnpm release` TIDAK menerbitkan apa pun** — ia hanya build + rakit staging `dist-npm/` + `npm pack --dry-run`. Tak ada jalur publish dari mesin dev, dan itu disengaja.
+- **Jangan pernah membuat Granular Access Token ber-"bypass 2FA"** untuk ini. Ia adalah kredensial penerbit di `~/.npmrc` — bisa dibaca proses apa pun di mesin itu, **termasuk sesi agen**, dan bisa menerbitkan paket apa pun milik akun itu. Docs npm menyarankan menghapusnya dan memakai trust relationship.
+- **Gerbang manusia yang sebenarnya = GitHub Environment `release` + Required reviewers.** Mendorong tag saja bukan gerbang: agen yang punya akses push bisa membuat tag.
+- **`repository.url` wajib cocok PERSIS** dengan repo pembangun (`REPO_URL` di `cli/src/release/pack.ts`, dijaga `cli/test/pack.test.ts`) — trusted publishing & `--provenance` membandingkannya, dan gagalnya hanya muncul di CI.
+- **Versi terbit tak bisa dipakai ulang.** npm menolak menimpa; unpublish hanya ≤72 jam dan tetap memblokir nama+versi selamanya. Karena itu workflow **menggagalkan run** bila tag ≠ `version` root, dan **memasang lalu menjalankan** tarballnya (`hanoman --version`) sebelum publish.
+- `hanoman doctor` sengaja **tak** dipakai di CI — ia menuntut tmux & CLI agen yang tak ada di runner.
+
 ## Rollout sync hub/client (SPEC-213 / ADR-0043)
 
 Peran ditentukan **env**, bukan binari berbeda — prod single-host tanpa `SYNC_SERVER_URL` = **hub murni** (perilaku lama, tanpa perubahan). Kolom/tabel baru semua additive → cukup `migrate deploy` (dijalankan `hanoman start` sendiri).
@@ -109,3 +121,4 @@ Ketiga knob juga bisa diatur runtime dari **Settings → Konfigurasi** (override
 - Jangan matikan/hapus Postgres lama sebelum hasil `migrate-from-postgres` **diverifikasi** lewat login dashboard.
 - Jangan menjalankan `migrate-from-postgres` tanpa `pg_dump` lebih dulu, dan jangan lewati `--dry-run`.
 - Jangan menganggap server akan update sendiri — ia deteksi saja (ADR-0048); operator yang menjalankan `hanoman update` + restart.
+- Jangan membuat Granular Access Token npm ber-"bypass 2FA", dan jangan menambahkan `npm publish` ke script apa pun — rilis lewat workflow ber-OIDC pada tag `v*` (ADR-0087).

@@ -11,6 +11,44 @@
   [0028](0028-auth-sesi-opaque-di-db.md) (bind `127.0.0.1` + proxy TLS), maupun
   [0037](0037-cabut-guardrail-safety.md).
 
+> ## Amandemen 2026-07-30 — publish pindah ke CI lewat trusted publishing (OIDC)
+>
+> Butir 6 di bawah berbunyi "**`npm publish` tetap tindakan manusia** — tak ada script yang
+> memanggilnya". Butir itu **diamandemen, bukan dicabut**: publish kini dijalankan
+> `.github/workflows/release.yml` saat tag `v*` didorong, memakai **trusted publishing** npm
+> (OIDC) sehingga tak ada kredensial penerbit yang pernah ada di mesin mana pun.
+>
+> **Kenapa CI, bukan token di mesin dev.** Satu-satunya cara lain untuk publish non-interaktif
+> adalah Granular Access Token ber-"bypass 2FA" (`npm publish` tanpa itu tetap meminta OTP). Token
+> semacam itu hidup di `~/.npmrc` — berkas yang **bisa dibaca proses mana pun di mesin itu,
+> termasuk sesi agen**, dan yang bisa menerbitkan paket apa pun milik akun itu. Docs npm sendiri
+> menyarankan menghapus GAT-bypass dan pindah ke trust relationship. OIDC tak menyimpan rahasia:
+> npm memverifikasi bahwa yang meminta publish memang workflow itu di repo itu.
+>
+> **Di mana gerbang manusianya sekarang, dengan jujur.** Ia pindah dari "manusia mengetik
+> `npm publish`" menjadi "manusia mendorong tag `v*`". Itu **bukan** jaminan yang sama kuat: agen
+> yang punya akses push juga bisa membuat tag. Yang benar-benar menggerbangi adalah
+> **GitHub Environment `release`** yang dirujuk workflow itu — beri ia *Required reviewers* dan
+> publish menunggu persetujuan manusia. Tanpa reviewer, environment itu tak memagari apa pun, dan
+> ADR ini tak berpura-pura sebaliknya.
+>
+> **Tiga pagar yang tak bergantung penilaian siapa pun:** (a) workflow hanya menembak pada tag
+> `v*`; (b) tag yang tak cocok dengan `version` di root `package.json` **menggagalkan** run sebelum
+> menyentuh registry — nomor versi yang salah terbit tak bisa dipakai ulang; (c) tarball hasil
+> rakitan **dipasang dan dijalankan** (`hanoman --version` harus sama dengan versi tag) sebelum
+> publish. `hanoman doctor` sengaja tak dipakai di CI: ia menuntut tmux & CLI agen yang memang tak
+> ada di runner, jadi ia akan gagal karena alasan yang tak relevan.
+>
+> **Konsekuensi berantai yang wajib:** `packageJsonFor()` sekarang menyertakan
+> `repository.url`. Trusted publishing **dan** `--provenance` membandingkan nilai itu dengan repo
+> pembangun **persis**; tanpa ia, publish dari workflow ditolak. Kegagalannya hanya muncul di CI,
+> jauh dari tempat nilainya ditulis, jadi ia dipagari test di `cli/test/pack.test.ts`.
+>
+> **Urutan yang tak bisa dibalik:** trusted publisher dikonfigurasi **per paket** di npmjs.com,
+> dan GAT hanya bisa di-scope ke paket yang **sudah ada**. Karena itu `0.1.0` tetap harus
+> diterbitkan sekali secara interaktif (`npm login` + OTP); baru sesudah nama terklaim, workflow
+> ini bisa dipercaya. Runbook: [operations/release-npm](../operations/release-npm.md).
+
 ## Konteks
 
 Sampai SPEC-398, satu-satunya cara menjalankan hanoman adalah checkout git: `pnpm install` →
@@ -54,7 +92,9 @@ menjalankan hanoman. Update adalah perintah CLI, bukan tombol di dashboard.**
    global. Itu harga ±40 MB, diterima sadar sebagai ganti mengarang runner migrasi sendiri.
 6. **Staging rilis terpisah: `dist-npm/`, dirakit `hanoman __pack`.** Workspace tidak dipublikasikan.
    `pnpm release` = build + pack + `npm pack --dry-run`; **`npm publish` tetap tindakan manusia** —
-   tak ada script yang memanggilnya.
+   tak ada script yang memanggilnya. → **Diamandemen 2026-07-30** (lihat blok di atas): publish
+   dijalankan workflow rilis pada tag `v*` lewat OIDC. `pnpm release` sendiri **tetap** tak pernah
+   memanggil `npm publish`, jadi tak ada jalur publish dari mesin dev.
 7. **Identitas versi pindah dari SHA git ke semver**, satu sumber: `version` di root `package.json`,
    ditanam ke `dist/build-info.json` oleh `scripts/stamp-build.mjs`. `services/update.ts` membaca
    `GET <registry>/hanoman/latest` dan membandingkan dengan `compareSemver()`.
