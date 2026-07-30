@@ -75,6 +75,10 @@ ada di runner, jadi ia akan exit 1 karena alasan yang tak relevan dengan kesehat
   `sed 's/\(_authToken=\).*/\1<DISENSOR>/' ~/.npmrc`.
 - **`404` / `npm view` gagal tepat sesudah publish sukses** — itu propagasi replika-baca registry,
   bukan publish yang gagal. Terukur ±5 detik. Tunggu, jangan publish ulang.
+- **`P3005 — The database schema is not empty` saat `hanoman` boot** = berkas DB tujuan sudah punya
+  tabel tanpa riwayat migrasi (terjadi nyata: `~/.hanoman/hanoman.db` sisa prototipe hanoman lama,
+  tabel `runs`/`meta`, nol baris). Sejak `0.1.2` hanoman menerjemahkannya jadi petunjuk yang bisa
+  dikerjakan (`migrateFailureHint`, dipagari test); isi berkas lama tak pernah diubah.
 - **`npm token create` tak bisa membuat GAT di npm 11.6.2** (hanya token klasik
   `--read-only`/`--cidr`), dan `npm i -g npm@latest` menolak jalan di node `v24.11.1` (menuntut
   `^24.15.0`). Sampai node dinaikkan, GAT harus dibuat dari npmjs.com.

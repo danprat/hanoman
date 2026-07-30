@@ -43,11 +43,48 @@ export function distDir(): string {
   return dirname(fileURLToPath(import.meta.url));
 }
 
-function runPrisma(args: string[], dbUrl: string): void {
+/**
+ * Menjalankan CLI prisma. Keluarannya di-BUFFER lalu diteruskan, bukan `stdio: "inherit"`, supaya
+ * pemanggil bisa mengenali kode error Prisma dan menggantinya dengan pesan yang bisa
+ * ditindaklanjuti (lihat `migrateFailureHint`). Error yang dilempar membawa `output`.
+ */
+function runPrisma(args: string[], dbUrl: string): string {
   const prismaCli = prismaCliPath(createRequire(import.meta.url).resolve);
-  execFileSync(process.execPath, [prismaCli, ...args], {
-    env: { ...process.env, DATABASE_URL: dbUrl }, stdio: "inherit",
-  });
+  try {
+    const out = execFileSync(process.execPath, [prismaCli, ...args], {
+      env: { ...process.env, DATABASE_URL: dbUrl }, encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    process.stdout.write(out);
+    return out;
+  } catch (e) {
+    const err = e as { stdout?: string; stderr?: string };
+    const output = `${err.stdout ?? ""}${err.stderr ?? ""}`;
+    process.stderr.write(output);
+    throw Object.assign(new Error("prisma gagal"), { output });
+  }
+}
+
+/**
+ * Menerjemahkan kegagalan `migrate deploy` yang PUNYA sebab spesifik menjadi petunjuk yang bisa
+ * dikerjakan; `null` untuk kegagalan lain — jangan mengarang penjelasan.
+ *
+ * P3005 = berkas DB sudah punya tabel tapi tak punya tabel riwayat `_prisma_migrations`. Ini
+ * TERJADI di pemakaian nyata: `~/.hanoman/hanoman.db` milik prototipe hanoman lama (tabel
+ * `runs`/`meta`, nol baris) menyerobot nama berkas yang dipakai versi Prisma. Pesan asli Prisma
+ * menyuruh operator "baseline an existing production database" — jargon yang tak berarti apa pun
+ * bagi orang yang baru `npm i -g hanoman`, dan menyesatkan karena DB-nya bukan miliknya.
+ */
+export function migrateFailureHint(output: string, dbFile: string): string | null {
+  if (!output.includes("P3005")) return null;
+  return (
+    `hanoman: berkas DB ${dbFile} sudah berisi tabel, tapi tak punya riwayat migrasi hanoman.\n` +
+    `Biasanya ia bukan DB hanoman versi ini — mis. sisa prototipe lama atau berkas tool lain.\n` +
+    `Pilih salah satu:\n` +
+    `  • Pindahkan berkas itu, lalu jalankan ulang:  mv "${dbFile}" "${dbFile}.lama"\n` +
+    `  • Pakai berkas lain:  hanoman --db /path/baru.db  (atau HANOMAN_DATABASE_URL=file:/path/baru.db)\n` +
+    `Isi berkas lama tidak diubah oleh hanoman — periksa dulu sebelum menghapusnya.`
+  );
 }
 
 /** `prisma migrate deploy` lewat CLI prisma yang ikut terpasang sebagai dependency paket. */
@@ -113,7 +150,11 @@ export default async function start(argv: string[], ctx: Ctx): Promise<number> {
   if (opts.migrate) {
     ctx.stdout(`hanoman · menerapkan migrasi ke ${dbFilePath(dbUrl)}\n`);
     try { applyMigrations(layout.schema, dbUrl); }
-    catch { ctx.stderr("hanoman: `prisma migrate deploy` gagal — lihat keluaran di atas\n"); return 1; }
+    catch (e) {
+      const hint = migrateFailureHint(String((e as { output?: string }).output ?? ""), dbFilePath(dbUrl));
+      ctx.stderr(hint ? `\n${hint}\n` : "hanoman: `prisma migrate deploy` gagal — lihat keluaran di atas\n");
+      return 1;
+    }
   }
 
   const port = opts.port ?? Number(ctx.env.PORT ?? 8787);

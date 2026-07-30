@@ -78,6 +78,13 @@ ditolak kecuali `--force`.
 > berkas DB tertentu tanpa menyentuh var itu, pakai `HANOMAN_DATABASE_URL=file:/path/hanoman.db`
 > atau `hanoman --db /path/hanoman.db`.
 
+## Kalau `hanoman` gagal menerapkan migrasi
+
+**`P3005 — The database schema is not empty`** berarti berkas DB itu sudah punya tabel tapi tak
+punya riwayat migrasi hanoman — biasanya bukan DB hanoman versi ini (sisa prototipe lama, atau
+berkas tool lain yang kebetulan bernama sama). hanoman **tidak** mengubah isinya. Pindahkan berkas
+itu lalu jalankan ulang, atau tunjuk berkas lain dengan `hanoman --db /path/baru.db`.
+
 ## Lisensi
 
 MIT — lihat `LICENSE`.
