@@ -21,11 +21,20 @@ setelan paket. Jadi versi pertama tak bisa diotomasi.
    ```
    `npm publish` **ditolak 403** bila 2FA akun `disabled` **dan** tak ada GAT ber-bypass — npm
    menuntut salah satunya. Cek modenya dengan `npm profile get` (baris `two-factor auth`).
-2. **Daftarkan trusted publisher** di npmjs.com → paket `hanoman` → *Trusted publisher* → GitHub
-   Actions: organization/user `denameidina`, repository `hanoman`, workflow `release.yml`.
-3. **Pasang gerbang manusianya** — ini langkah yang benar-benar menggantikan "manusia mengetik
-   `npm publish`": repo Settings → Environments → `release` → **Required reviewers**. Tanpa ini,
-   siapa pun (termasuk agen) yang bisa mendorong tag bisa menerbitkan rilis.
+2. **Daftarkan trusted publisher** — **BELUM DILAKUKAN per 2026-07-30**, dan inilah yang membuat
+   tag `v0.1.3` gagal publish (lihat "Kalau publish gagal"). Butuh akun ber-2FA: `npm trust`
+   **menolak** GAT bypass-2FA, jadi login dulu (`npm login`) lalu:
+   ```sh
+   npx npm@11.15.0 trust github hanoman --repo denameidina/hanoman \
+     --file release.yml --env release --allow-publish
+   ```
+   `npm trust` baru ada di npm ≥ 11.15.0 (`npx` menghindari upgrade npm global). Alternatif web:
+   npmjs.com → paket `hanoman` → Settings → *Trusted publishing* → GitHub Actions dengan nilai yang
+   sama. Registry hanya menerima **satu** konfigurasi per paket.
+3. ~~**Pasang gerbang manusianya**~~ — **SUDAH: 2026-07-30**, environment `release` punya
+   `required_reviewers` (`denameidina`). Ini langkah yang benar-benar menggantikan "manusia mengetik
+   `npm publish`": tanpa ini, siapa pun (termasuk agen) yang bisa mendorong tag bisa menerbitkan
+   rilis — terbukti pada `v0.1.3`, yang langsung lari ke `npm publish` tanpa berhenti sekali pun.
 
 ## Tiap rilis
 
@@ -73,6 +82,14 @@ ada di runner, jadi ia akan exit 1 karena alasan yang tak relevan dengan kesehat
   npm tak mengenalinya sebagai kredensial registry, dan pesannya terbaca seperti "token
   salah/kedaluwarsa" padahal tokennya sehat. Periksa bentuknya tanpa membocorkan nilainya:
   `sed 's/\(_authToken=\).*/\1<DISENSOR>/' ~/.npmrc`.
+- **`E404 Not Found - PUT https://registry.npmjs.org/hanoman` dari workflow** = trusted publisher
+  belum/tak cocok dikonfigurasi, **bukan** paket hilang dan bukan bug paket. Saat handshake OIDC tak
+  cocok, registry memperlakukan klien sebagai **anonim**, dan anonim tak boleh `PUT` → 404, bukan
+  403 (npm/cli#9088). Sangat menyesatkan: seluruh langkah sebelumnya hijau, provenance bahkan sudah
+  **ditandatangani dan masuk transparency log** — bukti OIDC token BERHASIL dicetak, jadi sisi
+  GitHub-nya sehat dan yang kurang selalu di sisi npm. Terjadi pada `v0.1.3`, tag pertama repo ini
+  (0.1.0–0.1.2 terbit manual lewat GAT, jadi jalur OIDC belum pernah teruji). Perbaikannya = langkah
+  2 di atas; tag tak perlu dibuat ulang, cukup `gh run rerun <id> --failed`.
 - **`404` / `npm view` gagal tepat sesudah publish sukses** — itu propagasi replika-baca registry,
   bukan publish yang gagal. Terukur ±5 detik. Tunggu, jangan publish ulang.
 - **`P3005 — The database schema is not empty` saat `hanoman` boot** = berkas DB tujuan sudah punya
