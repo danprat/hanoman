@@ -30,6 +30,9 @@ describe("route", () => {
     expect(route(["docs", "index", "--check"])).toEqual({ cmd: "docs:index", args: ["--check"] });
     expect(route(["docs", "link", "a.md"])).toEqual({ cmd: "docs:link", args: ["a.md"] });
   });
+  it("__pack tersembunyi tapi ter-route (perintah rilis dev)", () => {
+    expect(route(["__pack", "--out", "tmp"])).toEqual({ cmd: "__pack", args: ["--out", "tmp"] });
+  });
   it("perintah tak dikenal", () => {
     expect(route(["wat"])).toEqual({ cmd: "unknown", args: ["wat"] });
     expect(route(["docs", "wat"])).toEqual({ cmd: "unknown", args: ["docs", "wat"] });

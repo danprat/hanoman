@@ -1,0 +1,55 @@
+// SPEC-398 · ADR-0087 · rakit paket npm `hanoman` ke staging `dist-npm/`. Workspace TIDAK
+// dipublikasikan: yang diterbitkan adalah satu paket self-contained berisi dua bundle esbuild,
+// aset dashboard, dan skema+migrasi Prisma. Bagian yang bisa salah tanpa suara (daftar dependency,
+// daftar berkas) dipisah ke fungsi murni supaya dijaga test.
+import { join } from "node:path";
+
+export const PKG_NAME = "hanoman";
+
+// Wajib = seluruh `--external:` di build server, plus CLI prisma (`migrate deploy` di `hanoman
+// start`) dan `pg` (`migrate-from-postgres`). Apa pun di luar daftar ini ikut dibundel esbuild.
+export const RUNTIME_DEPS = [
+  "fastify", "@fastify/static", "@fastify/websocket", "@fastify/cookie",
+  "@prisma/client", "node-pty", "pdfkit", "prisma", "pg",
+] as const;
+
+export const REQUIRED_ARTIFACTS = [
+  "package.json", "bin/hanoman.mjs", "dist/cli.js", "dist/server.js",
+  "prisma/schema.prisma", "web/index.html", "README.md",
+] as const;
+
+export function packageJsonFor(version: string, deps: Record<string, string>): object {
+  return {
+    name: PKG_NAME,
+    version,
+    description: "Orchestrator + dashboard workflow docs-driven untuk sesi Claude Code / Codex",
+    type: "module",
+    bin: { hanoman: "bin/hanoman.mjs" },
+    // `@prisma/client` dari npm adalah STUB sampai di-generate — tanpa langkah ini server mati
+    // seketika dengan "@prisma/client did not initialize yet" (terukur di `npm i -g` nyata).
+    // Non-fatal (`|| true`): bila npm melewati script (mis. --ignore-scripts), `hanoman start`
+    // mendeteksi & menggenerate sendiri (ensurePrismaClient).
+    scripts: { postinstall: "prisma generate --schema prisma/schema.prisma || true" },
+    engines: { node: ">=20" },
+    files: ["bin", "dist", "web", "prisma", "README.md"],
+    dependencies: deps,
+    license: "UNLICENSED",
+  };
+}
+
+export function copyPlan(repo: string): Array<{ from: string; to: string; dir?: boolean }> {
+  return [
+    { from: join(repo, "server/dist/server.js"), to: "dist/server.js" },
+    { from: join(repo, "server/dist/build-info.json"), to: "dist/build-info.json" },
+    { from: join(repo, "cli/dist/hanoman.js"), to: "dist/cli.js" },
+    { from: join(repo, "src/dist"), to: "web", dir: true },
+    { from: join(repo, "server/prisma/schema.prisma"), to: "prisma/schema.prisma" },
+    { from: join(repo, "server/prisma/migrations"), to: "prisma/migrations", dir: true },
+    { from: join(repo, "internal/docs/operations/npm-readme.md"), to: "README.md" },
+  ];
+}
+
+export const BIN_SHIM = `#!/usr/bin/env node
+// SPEC-398 · shim tipis: seluruh logika ada di dist/cli.js (bundle esbuild).
+import "../dist/cli.js";
+`;

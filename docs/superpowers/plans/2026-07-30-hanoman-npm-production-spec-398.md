@@ -1295,7 +1295,7 @@ git commit -m "feat(spec-398): deteksi update dari registry npm + hanoman update
 - Consumes: `resolveLayout` (Task 3)
 - Produces: `RUNTIME_DEPS: readonly string[]` · `packageJsonFor(version, deps): object` · `copyPlan(repo: string): Array<{ from: string; to: string; dir?: boolean }>` · `REQUIRED_ARTIFACTS: readonly string[]`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Create `cli/test/pack.test.ts`:
 
@@ -1366,12 +1366,12 @@ describe("REQUIRED_ARTIFACTS", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — harus gagal**
+- [x] **Step 2: Jalankan — harus gagal**
 
 Run: `pnpm vitest --run cli/test/pack.test.ts`
 Expected: FAIL — modul belum ada.
 
-- [ ] **Step 3: Implementasi `cli/src/release/pack.ts`**
+- [x] **Step 3: Implementasi `cli/src/release/pack.ts`**
 
 ```ts
 // SPEC-398 · ADR-0087 · rakit paket npm `hanoman` ke staging `dist-npm/`. Workspace TIDAK
@@ -1426,12 +1426,12 @@ import "../dist/cli.js";
 `;
 ```
 
-- [ ] **Step 4: Jalankan — harus lulus**
+- [x] **Step 4: Jalankan — harus lulus**
 
 Run: `pnpm vitest --run cli/test/pack.test.ts`
 Expected: PASS (11 test).
 
-- [ ] **Step 5: Implementasi perintah `__pack`**
+- [x] **Step 5: Implementasi perintah `__pack`**
 
 Create `cli/src/commands/pack.ts`:
 
@@ -1493,7 +1493,7 @@ export default async function pack(argv: string[], ctx: Ctx): Promise<number> {
   if (group === "__pack") return (await import("./commands/pack")).default(argv.slice(1), ctx);
 ```
 
-- [ ] **Step 6: Tulis README paket**
+- [x] **Step 6: Tulis README paket**
 
 Create `internal/docs/operations/npm-readme.md` — README yang ikut terbit di npm:
 
@@ -1558,7 +1558,7 @@ hanoman migrate-from-postgres --from "postgresql://user:pass@host:5432/hanoman"
 ```
 ```
 
-- [ ] **Step 7: Sambungkan script rilis**
+- [x] **Step 7: Sambungkan script rilis**
 
 `package.json` root — tambahkan:
 
@@ -1567,7 +1567,7 @@ hanoman migrate-from-postgres --from "postgresql://user:pass@host:5432/hanoman"
     "release": "pnpm build && pnpm build:cli && node cli/dist/hanoman.js __pack && (cd dist-npm && npm pack --dry-run)",
 ```
 
-- [ ] **Step 8: Bukti nyata — rakit paketnya**
+- [x] **Step 8: Bukti nyata — rakit paketnya**
 
 ```bash
 pnpm release 2>&1 | tail -25
@@ -1578,7 +1578,7 @@ node -e "const p=require('./dist-npm/package.json');console.log(p.name,p.version
 Expected: `pack · …/dist-npm · hanoman@0.1.0 · 7 artefak wajib ada`; `npm pack --dry-run` mencetak
 daftar berkas tanpa error; `hanoman 0.1.0 9`.
 
-- [ ] **Step 9: Bukti nyata — paket hasil rakitan benar-benar jalan**
+- [x] **Step 9: Bukti nyata — paket hasil rakitan benar-benar jalan**
 
 ```bash
 cd /tmp && rm -rf hn-pack && mkdir hn-pack && cd hn-pack
@@ -1594,12 +1594,12 @@ npm rm -g hanoman
 Expected: `health=200`, `spa=200`, `/tmp/hn-pack/data/hanoman.db` ada. Ini bukti utama objective
 SPEC-398 — `npm i -g hanoman` lalu `hanoman` jalan tanpa Docker.
 
-- [ ] **Step 10: Test yang tersentuh + typecheck**
+- [x] **Step 10: Test yang tersentuh + typecheck**
 
 Run: `pnpm vitest --run cli/test --no-file-parallelism && pnpm --filter ./cli typecheck`
 Expected: hijau.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add -A

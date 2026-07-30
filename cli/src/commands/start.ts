@@ -43,12 +43,47 @@ export function distDir(): string {
   return dirname(fileURLToPath(import.meta.url));
 }
 
-/** `prisma migrate deploy` lewat CLI prisma yang ikut terpasang sebagai dependency paket. */
-export function applyMigrations(schema: string, dbUrl: string): void {
+function runPrisma(args: string[], dbUrl: string): void {
   const prismaCli = prismaCliPath(createRequire(import.meta.url).resolve);
-  execFileSync(process.execPath, [prismaCli, "migrate", "deploy", "--schema", schema], {
+  execFileSync(process.execPath, [prismaCli, ...args], {
     env: { ...process.env, DATABASE_URL: dbUrl }, stdio: "inherit",
   });
+}
+
+/** `prisma migrate deploy` lewat CLI prisma yang ikut terpasang sebagai dependency paket. */
+export function applyMigrations(schema: string, dbUrl: string): void {
+  runPrisma(["migrate", "deploy", "--schema", schema], dbUrl);
+}
+
+/**
+ * `@prisma/client` yang datang dari npm adalah STUB: kodenya baru ada setelah `prisma generate`.
+ *
+ * GOTCHA terukur di instalasi `npm i -g` nyata: migrasi berhasil, server lalu mati seketika dengan
+ * "@prisma/client did not initialize yet". `npm install` sendiri tidak pernah menghasilkan client —
+ * paket terbit karena itu punya `postinstall`, TAPI postinstall bisa dilewati (`--ignore-scripts`,
+ * beberapa CI, sebagian setup npm global), jadi pemeriksaannya diulang di sini saat start.
+ *
+ * Pemeriksaannya LANGSUNG — mencoba mengonstruksi client dan menangkap kegagalannya — bukan menebak
+ * dari keberadaan berkas: berkas stub `default.js` memang ADA justru saat client belum di-generate,
+ * jadi `existsSync` akan selalu berkata "sudah siap".
+ */
+export async function prismaClientUsable(): Promise<boolean> {
+  try {
+    const { PrismaClient } = await import("@prisma/client");
+    new PrismaClient();     // konstruksi saja; Prisma menyambung DB secara lazy
+    return true;
+  } catch { return false; }
+}
+
+export async function ensurePrismaClient(schema: string, dbUrl: string, ctx: Ctx): Promise<boolean> {
+  if (await prismaClientUsable()) return true;
+  ctx.stdout("hanoman · menyiapkan Prisma client (sekali per instalasi)\n");
+  try { runPrisma(["generate", "--schema", schema], dbUrl); return true; }
+  catch {
+    ctx.stderr("hanoman: `prisma generate` gagal — jalankan manual di direktori paket, " +
+      "atau pasang ulang tanpa --ignore-scripts\n");
+    return false;
+  }
 }
 
 export default async function start(argv: string[], ctx: Ctx): Promise<number> {
@@ -70,6 +105,7 @@ export default async function start(argv: string[], ctx: Ctx): Promise<number> {
     ctx.stderr(`hanoman: bundle server tak ada di ${layout.server} — jalankan \`pnpm build\` dulu\n`);
     return 1;
   }
+  if (!await ensurePrismaClient(layout.schema, dbUrl, ctx)) return 1;
   if (opts.migrate) {
     ctx.stdout(`hanoman · menerapkan migrasi ke ${dbFilePath(dbUrl)}\n`);
     try { applyMigrations(layout.schema, dbUrl); }

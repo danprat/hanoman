@@ -6,6 +6,6 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
-  "dependencies": { "@hanoman/shared": "workspace:*", "@hanoman/runner": "workspace:*", "@prisma/client": "^6.19.0", "prisma": "^6.19.0", "zod": "^3.23.0" },
-  "devDependencies": { "@types/node": "^20.14.0", "esbuild": "^0.23.0", "vitest": "^2.0.0", "tsx": "^4.16.0", "typescript": "^5.5.0" }
+  "dependencies": { "@hanoman/shared": "workspace:*", "@hanoman/runner": "workspace:*", "@prisma/client": "^6.19.0", "pg": "^8.13.1", "prisma": "^6.19.0", "zod": "^3.23.0" },
+  "devDependencies": { "@types/node": "^20.14.0", "@types/pg": "^8.11.10", "esbuild": "^0.23.0", "vitest": "^2.0.0", "tsx": "^4.16.0", "typescript": "^5.5.0" }
 }

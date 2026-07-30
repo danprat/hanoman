@@ -13,6 +13,8 @@
     "prod:api": "set -a && . ./.env.production && set +a && node server/dist/server.js",
     "prod": "pnpm prod:setup && pnpm prod:api",
     "build": "pnpm --filter ./src build && pnpm --filter ./server build && node scripts/stamp-build.mjs",
+    "build:cli": "pnpm --filter ./cli build",
+    "release": "pnpm build && pnpm build:cli && node cli/dist/hanoman.js __pack && (cd dist-npm && npm pack --dry-run)",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run --no-file-parallelism"
   },

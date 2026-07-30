@@ -43,6 +43,8 @@ export function route(argv: string[]): { cmd: string; args: string[] } {
   if (group === "docs" && (sub === "scan" || sub === "index" || sub === "link")) {
     return { cmd: `docs:${sub}`, args: rest };
   }
+  // SPEC-398 · perintah rilis, sengaja TAK muncul di --help (hanya berguna di checkout repo).
+  if (group === "__pack") return { cmd: "__pack", args: argv.slice(1) };
   return { cmd: "unknown", args: argv };
 }
 
@@ -56,6 +58,7 @@ export async function run(argv: string[], ctx: Ctx): Promise<number> {
   if (cmd === "docs:scan")  return (await import("./commands/docs-scan")).default(args, ctx);
   if (cmd === "docs:index") return (await import("./commands/docs-index")).default(args, ctx);
   if (cmd === "docs:link")  return (await import("./commands/docs-link")).default(args, ctx);
+  if (cmd === "__pack")     return (await import("./commands/pack")).default(args, ctx);
   ctx.stderr(`unknown command: ${argv.join(" ")}\n\n${HELP}\n`);
   return 1;
 }
