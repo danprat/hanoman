@@ -36,7 +36,15 @@ export function packageJsonFor(version: string, deps: Record<string, string>): o
     // seketika dengan "@prisma/client did not initialize yet" (terukur di `npm i -g` nyata).
     // Non-fatal (`|| true`): bila npm melewati script (mis. --ignore-scripts), `hanoman start`
     // mendeteksi & menggenerate sendiri (ensurePrismaClient).
-    scripts: { postinstall: "prisma generate --schema prisma/schema.prisma || true" },
+    scripts: {
+      postinstall: "prisma generate --schema prisma/schema.prisma || true",
+      // SPEC-403 · gerbang terakhir sebelum byte meninggalkan mesin. `hanoman@0.1.3` terbit tanpa
+      // `prisma` karena `dist-npm/package.json` DIMUTASI sesudah dirakit — `npm i -g --prefix <dir>
+      // <tarball>` dengan cwd di `dist-npm` menulis ulang berkas itu (terukur, bisa diulang), dan
+      // smoke test itulah yang merusaknya. npm menjalankan `prepublishOnly` tepat sebelum publish,
+      // jadi inilah satu-satunya lapis yang melihat isi berkas SEBENARNYA yang akan dikirim.
+      prepublishOnly: "node dist/cli.js __verify",
+    },
     engines: { node: ">=20" },
     files: ["bin", "dist", "web", "prisma", "README.md", "LICENSE"],
     dependencies: deps,
@@ -44,6 +52,18 @@ export function packageJsonFor(version: string, deps: Record<string, string>): o
     // izin pakai" — 0.1.0 terbit dengan kontradiksi itu, dan versi terbit tak bisa diperbaiki.
     license: "MIT",
   };
+}
+
+/**
+ * Memeriksa `package.json` paket hasil rakitan tepat sebelum publish. Mengembalikan daftar keluhan
+ * (kosong = sehat). Hanya memeriksa yang HILANG: dependency ekstra tak pernah membuat paket mati,
+ * sedangkan yang hilang membuatnya tak bisa start sama sekali — persis nasib `0.1.3` tanpa `prisma`.
+ */
+export function verifyPackedDeps(pkg: unknown): string[] {
+  const deps = (pkg as { dependencies?: Record<string, string> })?.dependencies ?? {};
+  return RUNTIME_DEPS.filter((d) => !deps[d]).map(
+    (d) => `dependency wajib hilang dari package.json paket: ${d}`,
+  );
 }
 
 export function copyPlan(repo: string): Array<{ from: string; to: string; dir?: boolean }> {

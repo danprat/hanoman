@@ -48,6 +48,7 @@ export function route(argv: string[]): { cmd: string; args: string[] } {
   }
   // SPEC-398 · perintah rilis, sengaja TAK muncul di --help (hanya berguna di checkout repo).
   if (group === "__pack") return { cmd: "__pack", args: argv.slice(1) };
+  if (group === "__verify") return { cmd: "__verify", args: argv.slice(1) };
   return { cmd: "unknown", args: argv };
 }
 
@@ -63,6 +64,7 @@ export async function run(argv: string[], ctx: Ctx): Promise<number> {
   if (cmd === "docs:index") return (await import("./commands/docs-index")).default(args, ctx);
   if (cmd === "docs:link")  return (await import("./commands/docs-link")).default(args, ctx);
   if (cmd === "__pack")     return (await import("./commands/pack")).default(args, ctx);
+  if (cmd === "__verify")   return (await import("./commands/verify-packed")).default(args, ctx);
   ctx.stderr(`unknown command: ${argv.join(" ")}\n\n${HELP}\n`);
   return 1;
 }
