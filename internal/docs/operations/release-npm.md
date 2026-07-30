@@ -22,8 +22,11 @@ setelan paket. Jadi versi pertama tak bisa diotomasi.
    `npm publish` **ditolak 403** bila 2FA akun `disabled` **dan** tak ada GAT ber-bypass — npm
    menuntut salah satunya. Cek modenya dengan `npm profile get` (baris `two-factor auth`).
 2. **Daftarkan trusted publisher** — **BELUM DILAKUKAN per 2026-07-30**, dan inilah yang membuat
-   tag `v0.1.3` gagal publish (lihat "Kalau publish gagal"). Butuh akun ber-2FA: `npm trust`
-   **menolak** GAT bypass-2FA, jadi login dulu (`npm login`) lalu:
+   tag `v0.1.3` gagal publish (lihat "Kalau publish gagal"); `0.1.3` akhirnya terbit **manual**
+   dari mesin dev, jadi tag `v0.1.3` tetap merah. Butuh akun ber-2FA: GAT bypass-2FA ditolak
+   `npm trust` bahkan untuk **membaca** konfigurasinya (`403 GET /-/package/hanoman/trust`) — npm
+   sengaja tak mengizinkan kredensial statis memasang penggantinya sendiri. Login dulu
+   (`npm login`) lalu:
    ```sh
    npx npm@11.15.0 trust github hanoman --repo denameidina/hanoman \
      --file release.yml --env release --allow-publish
