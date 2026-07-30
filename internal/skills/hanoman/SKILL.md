@@ -136,6 +136,37 @@ Pakai skill lebih sempit saat task cocok:
   sendiri terhapus. `realGit.removeWorktree` juga **melempar** bila diminta menghapus repo itu sendiri:
   `git worktree remove` di dalamnya gagal-diam (`tryGit`), jadi `rmSync` terakhir tetap jalan meski
   git menolak.
+- **`pkill -f` satu sesi membunuh agen sesi LAIN** (SPEC-402, tanpa ADR — QA): prompt sesi
+  diserahkan sebagai **argumen positional** agen (`claude "$(cat <promptfile>)"`, SPEC-223 — dan itu
+  tak bisa dihindari: `claude`/`codex` tak punya opsi prompt-dari-berkas, stdin dipakai TUI), jadi
+  **seluruh prompt hidup di ARGV** proses agen. Karena klausa scope verifikasi (ADR-0080) memuat
+  `vitest` (5×), `tsc`, `node server/dist/server.js`, setiap sesi ber-`verifyScope=changed` **cocok**
+  dengan `pkill -f vitest` / `pkill -f tsc`. BSD `pkill` **mengecualikan leluhurnya sendiri**
+  (`man pkill`: "-a … by default the current pgrep or pkill process and all of its ancestors are
+  excluded"), jadi pola itu berperilaku sebagai "bunuh semua sesi lain, sisakan sesi saya" — dan
+  itulah "intermitten"-nya: yang mati selalu sesi tetangga. Terukur 29 Jul: `pkill -f "tsc" ;
+  pkill -f "vitest"` di sesi `spec-389` pukul 15:36:04.4Z → pane `spec-319` & `spec-390` mati
+  **status 143** pukul 15:36:08 & 15:36:10, sementara `spec-389` sendiri selamat. Mitigasinya
+  **klausa kontrak** di `runner/src/verify-scope.ts` (bunuh per-PID/port, atau sempitkan pola ke path
+  worktree sendiri), bukan hook deny — ADR-0037 tetap utuh.
+- **Pane mati ≠ pekerjaan selesai** (SPEC-402): `SessionInfo.exitCode` (`#{pane_dead_status}`, hanya
+  saat `exited`) mengalir ke `SessionDTO`/klien, dan pane berkode ≠ 0 diberi pil **"Gagal · exit
+  <n>"** (`--status-err-tint`), bukan pil hijau "Selesai". `markExited` **menyimpan** kode dari frame
+  `exit` (dulu dibuang), jadi sesi yang mati di depan mata operator langsung terbaca gagal; nilai
+  yang sama datang lagi dari daftar sesi sehingga labelnya selamat dari refresh. Sesudah itu tombol
+  "Lanjutkan" (ADR-0084) baru punya makna — sebelumnya sesi terputus tampak tuntas.
+- **Kegagalan `tmux` BUKAN "tak ada sesi"** (SPEC-402): `listPanes()` mengembalikan `[]` hanya untuk
+  `no server running`/`error connecting to` (`TmuxError.noServer`); kegagalan lain **dilempar**.
+  Dulu `catch { return []; }` menelan semuanya, dan loop poll 500 ms membacanya sebagai "semua sesi
+  dibunuh dari luar" → `end(id, 0)` = **"— sesi berakhir (exit 0) —"** untuk SETIAP terminal yang
+  terbuka, pada agen yang masih bekerja. Dua pemberat: dedup siaran `services/events.ts` tak pernah
+  mengirim ulang kebenaran (`exited:false`) sehingga pil palsu itu **lengket**, dan `getSession()`
+  yang bersumber sama menggerbangi kelahiran sesi — `undefined` palsu membuat `startSpecSession`
+  memanggil `realGit.addWorktree` yang merebut path dengan `remove --force` + `rmSync` **atas
+  worktree sesi yang sedang berjalan**. Loop poll melewatkan tick yang gagal, `events.ts` melewatkan
+  siaran grup (mekanisme lama), `server.ts` melewatkan `reconcileHistory` (daftar kosong palsu akan
+  menutup baris riwayat sesi yang masih hidup). Satu pengecualian sadar: `sessionPhasesBySpec()`
+  tetap **lunak** (peta kosong) karena overlay stage forward-only.
 - **Satu backlog = satu sesi** (ADR-0015): id sesi diturunkan deterministik dari id spec — menekan Start dua kali = **re-attach**, bukan spawn kedua.
 - **Sesi backlog DILANJUTKAN, bukan diulang** (SPEC-394/ADR-0084, memulihkan substansi ADR-0017 yang
   ikut tercabut bersama ADR-0024 atas premis "sesi tmux tak pernah terputus" — benar untuk restart

@@ -5,8 +5,15 @@ import { TerminalScreen, PhaseStrip } from "../src/screens/TerminalScreen";
 
 // TerminalPane membuka WebSocket + xterm (butuh canvas). jsdom tak punya keduanya; yang
 // diuji di sini adalah komposisi grid, bukan rendering terminalnya.
+// SPEC-402 · tombol `exit …` memancarkan frame exit pty apa adanya (dengan kode keluarnya) —
+// jalur yang dipakai saat operator sedang menonton pane yang panenya mati.
 vi.mock("../src/screens/TerminalPane", () => ({
-  TerminalPane: ({ sessionId }: { sessionId: string }) => <div data-testid="pane">{sessionId}</div>,
+  TerminalPane: ({ sessionId, onExit }: { sessionId: string; onExit?: (c: number) => void }) => (
+    <div data-testid="pane">
+      {sessionId}
+      <button aria-label={`exit ${sessionId}`} onClick={() => onExit?.(143)} />
+    </div>
+  ),
 }));
 const listTerminals = vi.fn();
 const createTerminal = vi.fn();
@@ -151,6 +158,50 @@ describe("TerminalScreen (grid)", () => {
     render(<TerminalScreen projects={projects} />);
     await screen.findByTestId("pane");
     expect(screen.queryByText("Selesai")).toBeNull();
+  });
+
+  // SPEC-402 · pane mati berkode ≠ 0 = agen dihentikan di tengah kerja (mis. di-SIGTERM oleh
+  // `pkill -f` sesi tetangga → status 143). Melabelinya "Selesai" hijau adalah kebohongan yang
+  // justru menjadi keluhan: operator percaya pekerjaan tuntas padahal terputus.
+  it("sesi yang mati dengan kode ≠ 0 menampilkan Gagal, bukan Selesai", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["fail1111"] }));
+    listTerminals.mockResolvedValue([
+      { id: "fail1111", projectId: "p1", cwd: "/repo", exited: true, exitCode: 143 }]);
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByTestId("pane");
+    expect(screen.getByText(/Gagal/)).toBeInTheDocument();
+    expect(screen.queryByText("Selesai")).toBeNull();
+  });
+
+  it("kode keluarnya ikut terbaca di pill Gagal", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["fail2222"] }));
+    listTerminals.mockResolvedValue([
+      { id: "fail2222", projectId: "p1", cwd: "/repo", exited: true, exitCode: 143 }]);
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByTestId("pane");
+    expect(screen.getByText(/Gagal · exit 143/)).toBeInTheDocument();
+  });
+
+  // Frame exit pty sudah membawa kode keluarnya; sebelum SPEC-402 `markExited` membuangnya, jadi
+  // sesi yang mati DI DEPAN MATA operator pun berubah jadi "Selesai" hijau.
+  it("frame exit ≠ 0 dari pane hidup langsung menjadi Gagal", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["kill1111"] }));
+    listTerminals.mockResolvedValue([{ id: "kill1111", projectId: "p1", cwd: "/repo", exited: false }]);
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByTestId("pane");
+    fireEvent.click(screen.getByLabelText("exit kill1111"));
+    expect(await screen.findByText(/Gagal · exit 143/)).toBeInTheDocument();
+    expect(screen.queryByText("Selesai")).toBeNull();
+  });
+
+  it("kode keluar 0 tetap Selesai", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["done3333"] }));
+    listTerminals.mockResolvedValue([
+      { id: "done3333", projectId: "p1", cwd: "/repo", exited: true, exitCode: 0 }]);
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByTestId("pane");
+    expect(screen.getByText("Selesai")).toBeInTheDocument();
+    expect(screen.queryByText(/Gagal/)).toBeNull();
   });
 
   it("sesi menunggu keputusan menampilkan pill Menunggu keputusan (SPEC-196)", async () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from "vitest";
 import { fileURLToPath } from "node:url";
-import { appendFileSync, mkdtempSync, readFileSync } from "node:fs";
+import { appendFileSync, chmodSync, copyFileSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -19,6 +19,21 @@ const FAKE_CLAUDE = fileURLToPath(new URL("./fixtures/fake-claude.sh", import.me
 // begitu menerima `/goal …`. fake-claude.sh dipakai sebagai kontrol negatif (ia memantulkan `/goal`
 // tapi tak pernah memancarkan penanda goal).
 const FAKE_CODEX_GOAL = fileURLToPath(new URL("./fixtures/fake-codex-goal.sh", import.meta.url));
+
+// SPEC-402 · `tmux` yang gagal karena sebab SELAIN "tak ada server". Ditaruh di PATH sebagai satu
+// berkas bernama `tmux` — pty.ts memanggil `execFileSync("tmux", …)` tanpa path absolut, jadi ini
+// cara paling dekat dengan kegagalan sungguhan (fork gagal saat mesin penuh proses).
+const FAKE_TMUX_FAIL = fileURLToPath(new URL("./fixtures/fake-tmux-fail.sh", import.meta.url));
+const withFailingTmux = async (fn: () => void | Promise<void>): Promise<void> => {
+  const real = process.env.PATH;
+  const dir = mkdtempSync(join(tmpdir(), "hanoman-tmuxfail-"));
+  copyFileSync(FAKE_TMUX_FAIL, join(dir, "tmux"));
+  chmodSync(join(dir, "tmux"), 0o755);
+  process.env.PATH = dir;
+  // finally menunggu fn selesai (termasuk yang async): memulihkan PATH lebih awal akan membuat
+  // tick poll berikutnya kembali melihat tmux asli dan menguji keadaan yang salah.
+  try { await fn(); } finally { process.env.PATH = real; }
+};
 
 // Klien palsu yang merekam frame — cukup untuk menguji kontrak broadcast.
 function fakeClient() {
@@ -441,6 +456,60 @@ describe("pty service", () => {
     const c = fakeClient();
     attach(s.id, c);
     expect(allData(c).replace(/\s+/g, "")).toContain("--effortultracode");
+  });
+});
+
+// SPEC-402 · "sesi selesai padahal belum selesai". Dua sumber kebohongan, keduanya di sini:
+// kode keluar pane yang tak pernah menyeberang ke SessionInfo, dan kegagalan invokasi tmux
+// yang dibaca sebagai "tak ada sesi sama sekali".
+describe("kejujuran akhir sesi (SPEC-402)", () => {
+  // Pane mati status ≠ 0 = pekerjaan TERPUTUS, bukan tuntas. Tanpa kode keluar di SessionInfo,
+  // UI hanya punya `exited` dan melabeli agen yang di-SIGTERM sebagai "Selesai" (hijau).
+  it("exitCode pane mati ikut ke listSessions", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = "/usr/bin/false";
+    const s = createSession("p402a", process.cwd());
+    await waitFor(() => exited(s.id));
+    // `.find` alih-alih mencocokkan seluruh array: socket `hanoman-test` dibagi antar worktree,
+    // jadi daftarnya bisa memuat sesi milik run tetangga (gagal palsu yang menyesatkan).
+    expect(listSessions().find((x) => x.id === s.id))
+      .toMatchObject({ id: s.id, exited: true, exitCode: 1 });
+  });
+
+  it("sesi hidup tak punya exitCode", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const s = createSession("p402b", process.cwd());
+    const live = listSessions().find((x) => x.id === s.id)!;
+    expect(live.exited).toBe(false);
+    expect(live.exitCode).toBeUndefined();
+  });
+
+  // Socket tanpa tmux server memang berarti "belum ada sesi sama sekali" — kontrol positif
+  // supaya perbaikan di bawah tidak berlebihan dan melempar untuk keadaan normal ini.
+  it("socket tanpa tmux server tetap daftar kosong", () => {
+    const real = process.env.HANOMAN_TMUX_SOCKET;
+    process.env.HANOMAN_TMUX_SOCKET = "hanoman-test-402-tak-pernah-ada";
+    try { expect(listSessions()).toEqual([]); }
+    finally { process.env.HANOMAN_TMUX_SOCKET = real; }
+  });
+
+  it("kegagalan invokasi tmux melempar, bukan menyamar sebagai daftar kosong", async () => {
+    await withFailingTmux(() => { expect(() => listSessions()).toThrow(); });
+  });
+
+  // Inti keluhannya: satu tick poll yang gagal bertanya ke tmux tidak boleh memberi tahu setiap
+  // terminal terbuka bahwa sesinya berakhir sukses. Keadaan tak diketahui bukan bukti kematian.
+  it("tmux yang gagal TIDAK menyiarkan exit ke klien yang sedang menonton", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const s = createSession("p402c", process.cwd());
+    const c = fakeClient();
+    attach(s.id, c);
+    await waitFor(() => allData(c).includes("args:"));
+    // Lebih panjang dari beberapa tick poll 500 ms — cukup untuk tick gagal berkali-kali.
+    await withFailingTmux(async () => { await new Promise((r) => setTimeout(r, 1700)); });
+    expect(c.frames.filter((f) => f.t === "exit")).toEqual([]);
+    expect(c.wasClosed()).toBe(false);
+    // Dan sesinya memang tak pernah mati: tmux yang sebenarnya masih memegangnya.
+    expect(listSessions().find((x) => x.id === s.id)).toMatchObject({ id: s.id, exited: false });
   });
 });
 

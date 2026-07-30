@@ -25,6 +25,7 @@ Jangan mulai implementasi dari ingatan atau konteks chat saja kalau doc/skill pr
 3. **Alur fitur:** spec → plan → execute. **Alur QA:** audit → keputusan → (spec → plan)? → execute — temuan kecil langsung execute, Spec & Plan ditandai `skipped` (ADR-0020/0040).
 4. **Setiap sesi terisolasi di git worktree sendiri** (`.worktrees/<id>`, ADR-0002). Pull dari branch mana pun; integrasi (rebase/merge) ke target dipicu manual dari dashboard (ADR-0031). Jangan menyentuh worktree sesi lain; jangan pernah jalankan sesi di working tree utama.
 5. **Guardrail perintah berbahaya dicabut** (SPEC-197, ADR-0037): sesi jalan `--dangerously-skip-permissions`, agen dipercaya penuh; isolasi worktree adalah satu-satunya batas keamanan. Jangan hidupkan kembali tanpa ADR baru.
+6. **Jangan membunuh proses lewat pola** (SPEC-402): `pkill -f <pola>` / `killall` **mematikan agen sesi lain** — prompt tiap sesi hidup di ARGV proses agennya dan memuat `vitest`/`tsc`/`node`, sementara `pkill` mengecualikan leluhurnya sendiri sehingga korbannya selalu sesi tetangga. Bunuh per-PID (`ps` / `lsof -ti:<port>` → `kill <pid>`) atau sempitkan pola sampai memuat path worktree-mu.
 
 ## Eksekusi & Perintah
 

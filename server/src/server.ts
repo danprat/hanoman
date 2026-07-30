@@ -38,9 +38,17 @@ app.listen({ port, host }).then(() => {
   // SPEC-362 · ADR-0079 · pasang hook riwayat SEBELUM apa pun bisa melahirkan sesi, lalu tutup
   // baris "berjalan" yang panenya sudah lenyap (tmux mati di luar hanoman: kill-server, reboot).
   installSessionHistory();
-  void reconcileHistory(listSessions().map((s) => s.id))
-    .then((n) => { if (n) console.log(`riwayat sesi: ${n} baris berjalan direkonsiliasi`); })
-    .catch((e) => console.error("rekonsiliasi riwayat sesi:", e));
+  // SPEC-402 · `listSessions()` boleh MELEMPAR (kegagalan tmux ≠ tak ada sesi). Rekonsiliasi yang
+  // berjalan atas daftar kosong palsu akan menutup baris riwayat sesi yang justru masih berjalan —
+  // "selesai padahal belum" versi tabel. Lewati saja: barisnya tetap terbuka sampai boot berikutnya.
+  try {
+    const liveIds = listSessions().map((s) => s.id);
+    void reconcileHistory(liveIds)
+      .then((n) => { if (n) console.log(`riwayat sesi: ${n} baris berjalan direkonsiliasi`); })
+      .catch((e) => console.error("rekonsiliasi riwayat sesi:", e));
+  } catch (e) {
+    console.error("rekonsiliasi riwayat sesi dilewati — tmux tak terbaca:", e);
+  }
   startVpsMonitor(); // healthcheck 5 menit + audit harian (SPEC-164)
   registerBacklogSource(); // SPEC-295 · daftarkan checker backlog sebelum engine tick pertama
   registerErrorsSource(); // SPEC-296 · daftarkan checker errors sebelum engine tick pertama
