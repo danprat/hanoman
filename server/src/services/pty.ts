@@ -43,6 +43,10 @@ export type Client = { send(msg: string): void; close(): void };
 
 export type SessionInfo = {
   id: string; projectId: string; specId?: string; flow?: Flow; cwd: string; exited: boolean;
+  // SPEC-402 · kode keluar pane MATI (`#{pane_dead_status}`); undefined selama pane hidup. Tanpa ini
+  // UI cuma punya `exited` dan melabeli agen yang dihentikan di tengah kerja (mis. di-SIGTERM
+  // `pkill -f` sesi tetangga → 143) sebagai "Selesai" hijau — persis keluhan SPEC-402.
+  exitCode?: number;
   branch?: string; decision: boolean;
   // SPEC-338 · ADR-0074 · mesin sesi. Sesi lama (tanpa opsi tmux ini) dibaca sebagai "claude".
   agent: Agent;
@@ -81,6 +85,17 @@ export const goalGatePath = (id: string): string => `${tmpdir()}/hanoman-goal-ga
 // Berkas penghitung penolakan gate (pagar anti-loop) — bersebelahan dengan skripnya.
 const goalStatePath = (id: string): string => `${tmpdir()}/hanoman-goal-gates/${id}.count`;
 
+// SPEC-402 · "tmux gagal" BUKAN "tak ada sesi". Hanya dua sinyal di bawah yang benar-benar berarti
+// belum/tak ada tmux server di socket ini; sisanya (fork gagal saat mesin penuh proses, socket knob
+// salah, server kedip) adalah keadaan TAK DIKETAHUI. Membacanya sebagai daftar kosong sama dengan
+// memberi tahu setiap terminal yang terbuka bahwa sesinya berakhir `exit 0` — padahal agennya masih
+// bekerja. Pola sengaja sempit: `error connecting to …` sudah mencakup socket yang tak ada, jadi
+// "no such file or directory" telanjang tak perlu ikut (dan bisa datang dari kegagalan lain).
+const NO_SERVER = /no server running|error connecting to/i;
+export class TmuxError extends Error {
+  constructor(message: string, readonly noServer: boolean) { super(message); }
+}
+
 function tmux(...args: string[]): string {
   try {
     // stderr di-pipe, bukan diwariskan: `list-panes` pada tmux server yang belum jalan
@@ -90,10 +105,13 @@ function tmux(...args: string[]): string {
     });
   } catch (e) {
     const err = e as NodeJS.ErrnoException & { stderr?: string };
+    // tmux hilang dari PATH adalah salah-konfigurasi, bukan "belum ada sesi" — jangan pernah
+    // ditelan sebagai daftar kosong.
     if (err.code === "ENOENT") {
-      throw new Error("tmux tidak ada di PATH — sesi terminal hanoman hidup di dalam tmux (ADR-0016). Pasang: brew install tmux");
+      throw new TmuxError("tmux tidak ada di PATH — sesi terminal hanoman hidup di dalam tmux (ADR-0016). Pasang: brew install tmux", false);
     }
-    throw new Error(`tmux ${args[0]} gagal: ${(err.stderr ?? err.message).trim()}`);
+    const detail = (err.stderr ?? err.message).trim();
+    throw new TmuxError(`tmux ${args[0]} gagal: ${detail}`, NO_SERVER.test(detail));
   }
 }
 
@@ -124,7 +142,12 @@ const FMT = [
 function listPanes(): Pane[] {
   let out: string;
   try { out = tmux("list-panes", "-a", "-F", FMT); }
-  catch { return []; } // tmux server belum jalan — belum ada sesi sama sekali
+  catch (e) {
+    // tmux server belum jalan — belum ada sesi sama sekali. SPEC-402 · kegagalan LAIN dilempar:
+    // pemanggilnya harus memutuskan sendiri, dan "tak diketahui" tak boleh menjadi "semua berakhir".
+    if (e instanceof TmuxError && e.noServer) return [];
+    throw e;
+  }
   return out.split("\n").filter(Boolean).flatMap((line) => {
     const [n, projectId, specId, flow, phaseFile, cwd, dead, code, decisionFile, branch, agent,
       auditKey, auditProjects] = line.split("\t");
@@ -149,8 +172,11 @@ function listPanes(): Pane[] {
 }
 
 export const listSessions = (): SessionInfo[] =>
-  listPanes().map(({ id, projectId, specId, flow, cwd, exited, branch, decision, agent }) => ({
+  listPanes().map(({ id, projectId, specId, flow, cwd, exited, code, branch, decision, agent }) => ({
     id, projectId, specId, flow, cwd, exited, branch, decision, agent,
+    // Hanya untuk pane mati: `pane_dead_status` kosong pada pane hidup, dan `exitCode: 0` di sana
+    // akan terbaca sebagai "sudah berakhir sukses".
+    ...(exited ? { exitCode: code } : {}),
   }));
 
 // SPEC-184 · sesi hidup yang punya marker keputusan — masukan scanDecisions().
@@ -463,7 +489,12 @@ export function sessionPhases(id: string): Phase[] | null {
 // pemanggil (stageFor + guard STAGES.indexOf) menjaga tak ada stage yang mundur.
 export function sessionPhasesBySpec(): Map<string, { phases: Phase[]; cwd: string }> {
   const out = new Map<string, { phases: Phase[]; cwd: string }>();
-  for (const p of listPanes()) {
+  // SPEC-402 · sengaja LUNAK di sini (peta kosong saat tmux tak bisa dibaca): overlay stage
+  // forward-only (stageFor + guard STAGES.indexOf), jadi satu bacaan tanpa overlay hanya berarti
+  // "stage DB apa adanya" — tak ada stage yang mundur dan tak ada sesi yang dinyatakan berakhir.
+  let panes: Pane[];
+  try { panes = listPanes(); } catch { return out; }
+  for (const p of panes) {
     if (!p.specId || !p.flow || !p.phaseFile) continue;
     // cwd = worktree run-nya: GET /specs menggerbang `done` dengan plan di dalamnya (SPEC-173).
     out.set(p.specId, { phases: readPhases(p.phaseFile, p.flow), cwd: p.cwd });
@@ -530,7 +561,14 @@ let poll: NodeJS.Timeout | undefined;
 function startPoll(): void {
   if (poll) return;
   poll = setInterval(() => {
-    const live = new Map(listPanes().map((p) => [p.id, p]));
+    // SPEC-402 · tick yang tak bisa bertanya ke tmux DILEWATI. Sebelumnya kegagalan invokasi
+    // dibaca sebagai daftar kosong → `end(id, 0)` untuk setiap sesi yang sedang ditonton, yaitu
+    // "— sesi berakhir (exit 0) —" pada agen yang masih bekerja. Diperparah dedup siaran di
+    // services/events.ts: kebenaran (`exited:false`) tak pernah dikirim ulang, jadi pil "Selesai"
+    // palsu itu LENGKET. Keadaan tak diketahui bukan bukti kematian.
+    let panes: Pane[];
+    try { panes = listPanes(); } catch { return; }
+    const live = new Map(panes.map((p) => [p.id, p]));
     for (const id of [...attached.keys()]) {
       const p = live.get(id);
       if (!p) end(id, 0);            // sesinya dibunuh dari luar

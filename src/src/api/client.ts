@@ -7,6 +7,8 @@ export type Phase = { name: string; state: "done" | "skipped" | "active" | "pend
 export type TerminalSession = {
   id: string; projectId: string; specId?: string; flow?: Flow; cwd: string; exited: boolean;
   branch?: string; decision?: boolean;   // SPEC-230 · branch integrasi sesi (PRD: prd/<slug>)
+  // SPEC-402 · kode keluar pane mati (undefined selama hidup) — pembeda "Selesai" vs "Gagal".
+  exitCode?: number;
 };
 // SPEC-167 · respons dry-run PATCH /specs/:id saat revert akan menghapus artefak.
 export type RevertPending = { pending: true; stage: string; wouldDelete: string[] };

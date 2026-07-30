@@ -35,7 +35,11 @@ export async function tick(now: number, deps: GovernorDeps, end: EndOfSession = 
   try { await end.reconcile(); } catch { /* rekonsil gagal tak menghentikan tick */ }
   try { await end.scanDecisions(); } catch { /* notif decision best-effort */ }
   if (cfg.paused) return;                          // rem darurat: tak ada drain → tak ada peluncuran baru
-  await drain(cfg, deps);
+  // SPEC-402 · `prodDeps` membaca tmux, dan bacaan tmux yang GAGAL sekarang melempar — sengaja:
+  // dulu ia mengembalikan daftar kosong, jadi `liveCount()` jatuh ke 0 dan governor bisa meluncurkan
+  // DI ATAS cap sementara `isLive()` gagal melihat sesi yang sedang berjalan. Tick yang tak bisa
+  // membaca tmux karena itu dilewati (10 s lagi dicoba ulang), dengan jejak di log.
+  try { await drain(cfg, deps); } catch (e) { console.error("scheduler drain:", e); }
 }
 
 // Deps produksi: cap dihitung dari sesi tmux hidup; launch lewat jalur bersama startSpecSession.

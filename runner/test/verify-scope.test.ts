@@ -37,4 +37,20 @@ describe("verifyScopeClause", () => {
   it("changed memberi jalan keluar eksplisit untuk perubahan berdampak luas", () => {
     expect(verifyScopeClause("changed").toLowerCase()).toContain("perluas scope");
   });
+
+  // SPEC-402 · klausa ini sendiri adalah muatan yang kena `pkill -f`: ia memuat `vitest` & `tsc`,
+  // dan prompt sesi hidup di argv agen, jadi `pkill -f vitest` milik satu sesi meng-SIGTERM agen
+  // sesi lain (BSD pkill mengecualikan leluhurnya sendiri → korbannya selalu sesi tetangga).
+  it("changed melarang pembunuhan proses lewat pola", () => {
+    const c = verifyScopeClause("changed");
+    expect(c).toContain("pkill -f");
+    expect(c).toContain("killall");
+    expect(c.toUpperCase()).toContain("JANGAN");
+  });
+
+  it("changed menyebutkan alasannya (prompt sesi lain ada di argv) dan gantinya (PID/port)", () => {
+    const c = verifyScopeClause("changed").toLowerCase();
+    expect(c).toContain("argv");
+    expect(c).toContain("pid");
+  });
 });

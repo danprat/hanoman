@@ -388,10 +388,16 @@ DELETE /agent-tokens/:id             # 204 · revoke (set revokedAt); 404 tak ad
 
 ## Terminal
 ```
-GET    /terminal/sessions            # [{ id, projectId, specId?, flow?, cwd, branch?, exited, decision, agent }]
+GET    /terminal/sessions            # [{ id, projectId, specId?, flow?, cwd, branch?, exited, exitCode?, decision, agent }]
 #   branch? (SPEC-230): branch integrasi sesi project-level (PRD = prd/<slug>) — menyalakan review+merge di sel
 #   agent (SPEC-338/ADR-0074): "claude" | "codex" — mesin sesi, dibaca dari opsi tmux @hanoman_agent.
 #     Sesi yang lahir sebelum ADR-0074 (tanpa opsi itu) dilaporkan sebagai "claude".
+#   exitCode? (SPEC-402): kode keluar pane MATI (#{pane_dead_status}); ABSEN selama pane hidup.
+#     ≠ 0 = pekerjaan TERPUTUS (mis. 143 = agen di-SIGTERM), bukan tuntas → UI memberi pil
+#     "Gagal · exit <n>", bukan "Selesai". Endpoint ini & frame siar `sessions` membawa nilai yang sama.
+#   CATATAN: kegagalan invokasi tmux TIDAK lagi dilaporkan sebagai daftar kosong (SPEC-402) —
+#     hanya "no server running"/"error connecting to" berarti nol sesi; kegagalan lain → 500,
+#     karena daftar kosong palsu membuat setiap terminal terbuka mengumumkan `exit 0`.
 POST   /terminal/sessions  {project, flow?} # 201 { id } · 404 project · 400 tanpa repoDir
 #   {project, shell:true} (SPEC-236, ADR-0056): terminal biasa NON-agen — shell mentah
 #     (HANOMAN_SHELL ?? $SHELL ?? /bin/bash) di repoDir project, tanpa flow (tak menggerakkan stage,

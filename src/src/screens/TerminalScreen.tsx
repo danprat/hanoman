@@ -143,8 +143,11 @@ export function TerminalScreen({ projects, backlog = [], focusSession, onOpenRev
     setSessions((s) => s.filter((x) => x.id !== id));
   }
 
-  const markExited = React.useCallback((id: string) => {
-    setSessions((s) => s.map((x) => (x.id === id ? { ...x, exited: true } : x)));
+  // SPEC-402 · kode keluar dari frame `exit` DISIMPAN, tak lagi dibuang: pane yang mati dengan
+  // status ≠ 0 (mis. 143 karena di-SIGTERM `pkill -f` sesi tetangga) harus terbaca sebagai gagal,
+  // bukan "Selesai". Daftar sesi dari server juga membawanya, jadi labelnya selamat dari refresh.
+  const markExited = React.useCallback((id: string, code?: number) => {
+    setSessions((s) => s.map((x) => (x.id === id ? { ...x, exited: true, exitCode: code } : x)));
   }, []);
 
   const place = (idx: number, id: string) => setWs((w) => W.placeInActive(w, idx, id));
@@ -258,7 +261,7 @@ export function TerminalScreen({ projects, backlog = [], focusSession, onOpenRev
                   }}>
                     {s
                       ? <Cell session={s} nameOf={nameOf} onClose={() => void close(s.id)}
-                          onDetach={() => detach(s.id)} onExit={() => markExited(s.id)} onReview={onOpenReview}
+                          onDetach={() => detach(s.id)} onExit={(code) => markExited(s.id, code)} onReview={onOpenReview}
                           onSessionReview={onOpenSessionReview}
                           titleOf={titleOf} onIntegrate={onIntegrate} onIntegrateSession={onIntegrateSession} specOf={specOf}
                           fullscreen={fullId === s.id} onFullscreen={() => setFullId(s.id)} />
@@ -509,18 +512,26 @@ function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, onSessionR
   // SPEC-196 · sesi yang berhenti menunggu keputusan manusia (marker) belum `exited` — beri
   // pembeda sendiri. `exited` menang bila keduanya benar (proses sudah beku).
   const awaiting = !session.exited && !!session.decision;
+  // SPEC-402 · pane mati berkode ≠ 0 = pekerjaan TERPUTUS (agen di-SIGTERM/crash), bukan tuntas.
+  // `!!exitCode` sengaja: 0 dan undefined (sesi lama / daftar tanpa kode) tetap "Selesai".
+  const failed = session.exited && !!session.exitCode;
   return (
     <>
       <div style={{
         display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", flex: "0 0 auto",
-        background: session.exited ? "var(--status-ok-tint)" : awaiting ? "var(--status-warn-tint)" : "var(--bone-200)",
+        background: failed ? "var(--status-err-tint)"
+          : session.exited ? "var(--status-ok-tint)" : awaiting ? "var(--status-warn-tint)" : "var(--bone-200)",
         borderBottom: "1px solid var(--border-hair)",
         fontFamily: "var(--font-mono)", fontSize: 11, color: session.exited ? "var(--text-muted)" : "var(--text-body)",
       }}>
         <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {label} · {session.id.slice(0, 6)}
         </span>
-        {session.exited && <StatusPill status="done" size="sm">Selesai</StatusPill>}
+        {/* SPEC-402 · kode keluar ikut tercetak: "Gagal" tanpa angka menyisakan pertanyaan
+            "gagal kenapa", dan angkanya (143 = SIGTERM) itulah petunjuknya. */}
+        {session.exited && (failed
+          ? <StatusPill status="failed" size="sm">{`Gagal · exit ${session.exitCode}`}</StatusPill>
+          : <StatusPill status="done" size="sm">Selesai</StatusPill>)}
         {awaiting && <StatusPill status="awaiting" size="sm" />}
         {session.specId && (
           <span onClick={() => setDocs(true)} title="Lihat dokumen (audit/spec/plan)"

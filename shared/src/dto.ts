@@ -392,6 +392,9 @@ export type UpdateStatus = {
 export type SessionDTO = {
   id: string; projectId: string; specId?: string; flow?: string; cwd: string;
   branch?: string; exited: boolean; decision: boolean;   // SPEC-230 · branch integrasi sesi (PRD: prd/<slug>)
+  // SPEC-402 · kode keluar pane MATI; undefined selama pane hidup. `exited` sendirian tak bisa
+  // membedakan sesi yang tuntas dari agen yang dihentikan di tengah kerja.
+  exitCode?: number;
 };
 
 // SPEC-199 · frame siar dashboard (server → klien), lewat GET /events/ws (ADR-0039). Read-only
