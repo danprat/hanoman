@@ -46,8 +46,36 @@
 >
 > **Urutan yang tak bisa dibalik:** trusted publisher dikonfigurasi **per paket** di npmjs.com,
 > dan GAT hanya bisa di-scope ke paket yang **sudah ada**. Karena itu `0.1.0` tetap harus
-> diterbitkan sekali secara interaktif (`npm login` + OTP); baru sesudah nama terklaim, workflow
-> ini bisa dipercaya. Runbook: [operations/release-npm](../operations/release-npm.md).
+> diterbitkan sekali secara berautentikasi; baru sesudah nama terklaim, workflow ini bisa
+> dipercaya. Runbook: [operations/release-npm](../operations/release-npm.md).
+>
+> ### Keadaan nyata 2026-07-30: `0.1.0` terbit lewat GAT ber-bypass-2FA
+>
+> `hanoman@0.1.0` **sudah terbit** (26 berkas, 1,1 MB, `build-info.sha` `6d1867f`), diverifikasi
+> lewat install bersih dari registry → `hanoman --version` `0.1.0` → `doctor` 7/7 → boot penuh
+> (`/api/health` ok, dashboard + bundle HTTP 200, migrasi diterapkan otomatis).
+>
+> Jalannya **bukan** yang direkomendasikan ADR ini, dan itu dicatat apa adanya: 2FA akun dalam
+> keadaan `disabled`, sementara npm menuntut "2FA enabled **atau** GAT ber-bypass-2FA" untuk
+> publish — jadi publish interaktif pun ditolak `403`. Operator memilih sadar untuk **membuat GAT
+> ber-bypass-2FA permanen di mesin dev**, sesudah paparannya disampaikan: token itu bisa
+> menerbitkan **paket apa pun** milik akun itu, dan ia hidup di `~/.npmrc` — terbaca proses apa pun
+> di mesin yang **juga menjalankan sesi agen**. Alternatif yang ditolak: `npm profile enable-2fa
+> auth-only`, yang memberi hasil praktis sama (publish tanpa OTP, karena `auth-only` hanya menuntut
+> OTP untuk login & perubahan setelan akun) **tanpa** kredensial penerbit di disk.
+>
+> Konsekuensinya: paparan itu **masih terbuka** sampai dua langkah ini dikerjakan — (a) daftarkan
+> trusted publisher supaya rilis berikutnya lewat OIDC tanpa token, (b) rotasi token ini ke yang
+> ber-scope hanya paket `hanoman` (kini mungkin, karena paketnya sudah ada). Sampai itu terjadi,
+> anggap kredensial penerbit npm sebagai **ter-ekspos ke setiap sesi agen di mesin itu**.
+>
+> **Gotcha yang memakan waktu dan tak berbunyi seperti penyebabnya:** baris token di `~/.npmrc`
+> **wajib** berawalan `//` (`//registry.npmjs.org/:_authToken=…`). Tanpa `//`, npm tak mengenalinya
+> sebagai kredensial registry dan membalas `ENEEDAUTH — This command requires you to be logged in`,
+> yang terbaca seperti "token salah/kedaluwarsa" padahal tokennya sehat. Juga: `npm token create`
+> di npm **11.6.2 tak bisa** membuat GAT (hanya token klasik `--read-only`/`--cidr`), dan
+> `npm i -g npm@latest` menolak jalan di node `v24.11.1` karena menuntut `^24.15.0` — jadi GAT harus
+> dibuat dari web sampai node dinaikkan.
 
 ## Konteks
 

@@ -1,4 +1,4 @@
-packages: [ "shared", "server", "src", "cli", "runner", "sdk" ]
+packages: [ "shared", "server", "src", "cli", "runner", "sdk", "!dist-npm" ]   # dist-npm = staging rilis, BUKAN anggota workspace (ADR-0087)
 allowBuilds:
   '@prisma/client': true
   '@prisma/engines': true

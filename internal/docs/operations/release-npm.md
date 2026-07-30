@@ -11,12 +11,16 @@ Dua mekanisme non-interaktif npm sama-sama mengandaikan paketnya **sudah ada**: 
 di-scope ke paket yang sudah terbit, dan trusted publisher dikonfigurasi **per paket** di halaman
 setelan paket. Jadi versi pertama tak bisa diotomasi.
 
-1. **Terbitkan `0.1.0` sekali secara interaktif** dari mesin yang sudah login:
+1. ~~**Terbitkan `0.1.0` sekali secara berautentikasi**~~ — **SUDAH DILAKUKAN 2026-07-30.**
+   `hanoman@0.1.0` terbit dari `build-info.sha` `6d1867f`. Publish memerlukan salah satu dari:
    ```sh
-   npm login                       # 2FA; token di ~/.npmrc bisa kedaluwarsa — cek `npm whoami`
-   pnpm release                    # build + rakit dist-npm/ + npm pack --dry-run
-   cd dist-npm && npm publish      # OTP diminta bila 2FA "auth and writes"
+   npm profile enable-2fa auth-only   # OTP hanya untuk login/setelan akun, BUKAN untuk publish
+   # ATAU: Granular Access Token ber-"bypass 2FA" (kredensial di disk — lihat ADR-0087)
+   npm whoami                         # harus membalas nama akun sebelum publish
+   pnpm release && cd dist-npm && npm publish --access public
    ```
+   `npm publish` **ditolak 403** bila 2FA akun `disabled` **dan** tak ada GAT ber-bypass — npm
+   menuntut salah satunya. Cek modenya dengan `npm profile get` (baris `two-factor auth`).
 2. **Daftarkan trusted publisher** di npmjs.com → paket `hanoman` → *Trusted publisher* → GitHub
    Actions: organization/user `denameidina`, repository `hanoman`, workflow `release.yml`.
 3. **Pasang gerbang manusianya** — ini langkah yang benar-benar menggantikan "manusia mengetik
@@ -64,6 +68,16 @@ ada di runner, jadi ia akan exit 1 karena alasan yang tak relevan dengan kesehat
   ini; trusted publishing menuntut npm yang cukup baru.
 - **Versi sudah terbit** — npm menolak menimpa. Bump ke versi berikutnya; jangan mencoba
   `--force`. Unpublish hanya mungkin dalam 72 jam dan **tetap** memblokir nama+versi itu selamanya.
+- **`ENEEDAUTH — This command requires you to be logged in`** padahal token baru saja dipasang:
+  baris di `~/.npmrc` **wajib** berawalan `//` → `//registry.npmjs.org/:_authToken=…`. Tanpa `//`
+  npm tak mengenalinya sebagai kredensial registry, dan pesannya terbaca seperti "token
+  salah/kedaluwarsa" padahal tokennya sehat. Periksa bentuknya tanpa membocorkan nilainya:
+  `sed 's/\(_authToken=\).*/\1<DISENSOR>/' ~/.npmrc`.
+- **`404` / `npm view` gagal tepat sesudah publish sukses** — itu propagasi replika-baca registry,
+  bukan publish yang gagal. Terukur ±5 detik. Tunggu, jangan publish ulang.
+- **`npm token create` tak bisa membuat GAT di npm 11.6.2** (hanya token klasik
+  `--read-only`/`--cidr`), dan `npm i -g npm@latest` menolak jalan di node `v24.11.1` (menuntut
+  `^24.15.0`). Sampai node dinaikkan, GAT harus dibuat dari npmjs.com.
 
 ## Yang sengaja TIDAK dilakukan
 
