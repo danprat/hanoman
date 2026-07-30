@@ -584,7 +584,7 @@ git commit -m "fix(405): GLOBAL_READ hanya untuk method baca — agent token tak
   - `serverEnv(o: ServerEnvInput): Record<string, string>`
   - `installLatest(): InstallOutcome`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambah ke `cli/test/start-args.test.ts` (perluas import baris 2):
 
@@ -632,12 +632,12 @@ describe("serverEnv (SPEC-405 · ADR-0088)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan GAGAL**
+- [x] **Step 2: Jalankan, pastikan GAGAL**
 
 Run: `pnpm vitest --run cli/test/start-args.test.ts`
 Expected: FAIL — `planSupervisorStep`/`serverEnv`/`MAX_UPDATE_RESTARTS` tak ada.
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 Di `cli/src/commands/start.ts`:
 
@@ -778,12 +778,12 @@ function runServer(serverJs: string, env: Record<string, string>): Promise<numbe
 > **di tempat**, jadi path yang sama kini menunjuk bundle baru. Batas yang diterima sadar: proses
 > CLI ini sendiri tetap kode lama sampai `hanoman` dijalankan ulang manusia — lihat ADR-0088.
 
-- [ ] **Step 4: Jalankan, pastikan LULUS**
+- [x] **Step 4: Jalankan, pastikan LULUS**
 
 Run: `pnpm vitest --run cli/test/start-args.test.ts && pnpm --filter ./cli typecheck`
 Expected: PASS semua; typecheck exit 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add cli/src/commands/start.ts cli/test/start-args.test.ts
