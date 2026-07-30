@@ -4,7 +4,7 @@
 import { execFileSync } from "node:child_process";
 import { accessSync, constants, existsSync } from "node:fs";
 import { dirname } from "node:path";
-import { resolveHome, resolveDbUrl, dbFilePath } from "@hanoman/runner";
+import { resolveHome, resolveDbUrl, dbFilePath, dbUrlNotice } from "@hanoman/runner";
 import type { Ctx } from "../router";
 import { resolveLayout } from "../layout";
 import { distDir } from "./start";
@@ -60,6 +60,10 @@ export default async function doctor(_argv: string[], ctx: Ctx): Promise<number>
     homeWritable, web: layout.web !== null, db,
   });
   ctx.stdout(`hanoman doctor\n${r.lines.join("\n")}\n`);
+  // Justru di doctor ini paling berguna: ia menjelaskan kenapa `db …` menunjuk berkas default
+  // padahal env punya DATABASE_URL yang lain.
+  const notice = dbUrlNotice(ctx.env);
+  if (notice) ctx.stdout(`\n${notice}\n`);
   if (!r.ok) ctx.stderr("\nada prasyarat yang belum terpenuhi — hanoman tak akan bisa menjalankan sesi\n");
   return r.ok ? 0 : 1;
 }

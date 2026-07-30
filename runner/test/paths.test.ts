@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { createRequire } from "node:module";
 import { existsSync } from "node:fs";
-import { resolveHome, resolveDbUrl, dbFilePath, prismaCliPath } from "../src/paths";
+import { resolveHome, resolveDbUrl, dbFilePath, prismaCliPath, dbUrlNotice } from "../src/paths";
 
 const SCHEMA = "/repo/server/prisma";
 
@@ -31,9 +31,48 @@ describe("resolveDbUrl", () => {
   it(":memory: dilewatkan apa adanya", () => {
     expect(resolveDbUrl({ DATABASE_URL: "file::memory:" }, SCHEMA)).toBe("file::memory:");
   });
-  it("URL Postgres melempar dan menyebut tool migrasi", () => {
-    expect(() => resolveDbUrl({ DATABASE_URL: "postgresql://u:p@h:5432/hanoman" }, SCHEMA))
+  // `hanoman` dipasang GLOBAL dan mewarisi shell apa pun. `DATABASE_URL` adalah nama env var
+  // paling umum yang ada (Rails/Django/Heroku/Prisma), jadi nilai non-`file:` di lingkungan
+  // hampir selalu milik project ORANG LAIN — bukan Postgres hanoman yang minta dimigrasi.
+  // Mematikan CLI karenanya membuat hanoman tak bisa dipakai di mesin mana pun yang punya var itu.
+  it("DATABASE_URL Postgres dari lingkungan DIABAIKAN, bukan mematikan hanoman", () => {
+    expect(resolveDbUrl({ DATABASE_URL: "postgresql://u:p@h:5432/other_app", HANOMAN_HOME: "/srv/hn" }, SCHEMA))
+      .toBe("file:/srv/hn/hanoman.db");
+  });
+  it("HANOMAN_DATABASE_URL menang atas DATABASE_URL", () => {
+    expect(resolveDbUrl({ HANOMAN_DATABASE_URL: "file:/data/a.db", DATABASE_URL: "file:/data/b.db" }, SCHEMA))
+      .toBe("file:/data/a.db");
+  });
+  // Di knob milik hanoman sendiri, niatnya EKSPLISIT — di situ diam-diam jatuh ke default
+  // memang berbahaya (semangat ADR-0086), jadi hard-fail dipertahankan justru di sini.
+  it("HANOMAN_DATABASE_URL non-file: MELEMPAR dan menyebut tool migrasi", () => {
+    expect(() => resolveDbUrl({ HANOMAN_DATABASE_URL: "postgresql://u:p@h:5432/hanoman" }, SCHEMA))
       .toThrow(/migrate-from-postgres/);
+  });
+});
+
+describe("dbUrlNotice", () => {
+  it("senyap saat tak ada yang diabaikan", () => {
+    expect(dbUrlNotice({ HANOMAN_HOME: "/srv/hn" })).toBeNull();
+    expect(dbUrlNotice({ DATABASE_URL: "file:/data/a.db" })).toBeNull();
+    expect(dbUrlNotice({ HANOMAN_DATABASE_URL: "file:/data/a.db" })).toBeNull();
+  });
+  // Semangat ADR-0086 dijaga di sini: pengabaian tak boleh SENYAP, dan peringatannya harus
+  // membawa jalan keluar untuk kedua kemungkinan (punya data PG / var milik project lain).
+  it("memperingatkan saat DATABASE_URL non-file: diabaikan, menyebut jalan keluarnya", () => {
+    const n = dbUrlNotice({ DATABASE_URL: "postgresql://u:p@h:5432/other_app" });
+    expect(n).toMatch(/DATABASE_URL/);
+    expect(n).toMatch(/diabaikan/i);
+    expect(n).toMatch(/migrate-from-postgres/);
+    expect(n).toMatch(/HANOMAN_DATABASE_URL/);
+  });
+  it("tak membocorkan kredensial di dalam URL", () => {
+    const n = dbUrlNotice({ DATABASE_URL: "postgresql://user:s3cret@h:5432/db" });
+    expect(n).not.toMatch(/s3cret/);
+    expect(n).not.toMatch(/user/);
+  });
+  it("senyap bila HANOMAN_DATABASE_URL diisi — DATABASE_URL memang kalah, bukan diabaikan diam-diam", () => {
+    expect(dbUrlNotice({ HANOMAN_DATABASE_URL: "file:/a.db", DATABASE_URL: "postgresql://x" })).toBeNull();
   });
 });
 

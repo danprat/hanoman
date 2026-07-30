@@ -7,7 +7,7 @@ import { createRequire } from "node:module";
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
-import { resolveHome, resolveDbUrl, dbFilePath, prismaCliPath } from "@hanoman/runner";
+import { resolveHome, resolveDbUrl, dbFilePath, prismaCliPath, dbUrlNotice } from "@hanoman/runner";
 import type { Ctx } from "../router";
 import { resolveLayout } from "../layout";
 
@@ -96,6 +96,10 @@ export default async function start(argv: string[], ctx: Ctx): Promise<number> {
     layout = resolveLayout(distDir(), existsSync);
     dbUrl = opts.db ? `file:${resolvePath(opts.db)}` : resolveDbUrl(ctx.env, dirname(layout.schema));
   } catch (e) { ctx.stderr(`${(e as Error).message}\n`); return 1; }
+
+  // `DATABASE_URL` asing diabaikan, tapi TIDAK diam-diam — lihat amandemen ADR-0086.
+  const notice = dbUrlNotice(ctx.env);
+  if (notice) ctx.stderr(`${notice}\n`);
 
   const home = resolveHome(ctx.env);
   mkdirSync(home, { recursive: true });

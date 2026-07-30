@@ -13,24 +13,65 @@ export function resolveHome(env: EnvLike = process.env, home: string = homedir()
   return v ? v : join(home, ".hanoman");
 }
 
+/** Skema dari URL, tanpa membawa kredensial yang mungkin ada di dalamnya. */
+function schemeOf(raw: string): string {
+  return raw.split("://")[0] ?? "?";
+}
+
 /**
  * URL SQLite absolut untuk Prisma. `schemaDir` = direktori `schema.prisma`, karena Prisma
  * me-resolve path relatif di `file:` URL relatif terhadap situ — BUKAN cwd. Menyamakan aturannya
  * di sini mencegah kelas bug paling mahal di setup ini: CLI dan runtime menunjuk dua berkas beda.
+ *
+ * Presedensi: `HANOMAN_DATABASE_URL` → `DATABASE_URL` → `<home>/hanoman.db`.
+ *
+ * `HANOMAN_DATABASE_URL` ada karena `hanoman` dipasang **global** dan mewarisi shell apa pun,
+ * sementara `DATABASE_URL` adalah nama env var paling umum yang ada. Nilai non-`file:` di
+ * `DATABASE_URL` karena itu hampir selalu milik project LAIN dan **diabaikan** (dengan peringatan
+ * dari `dbUrlNotice`, bukan senyap); di knob milik hanoman sendiri niatnya eksplisit, jadi di situ
+ * nilai non-`file:` tetap **melempar** — lihat amandemen ADR-0086.
  */
 export function resolveDbUrl(env: EnvLike, schemaDir: string): string {
-  const raw = env.DATABASE_URL?.trim();
-  if (!raw) return `file:${join(resolveHome(env), "hanoman.db")}`;
-  if (!raw.startsWith("file:")) {
-    const scheme = raw.split("://")[0] ?? raw;
-    throw new Error(
-      `DATABASE_URL harus URL SQLite \`file:…\` sejak ADR-0086 (dapat \`${scheme}\`). ` +
-      `Masih punya data Postgres? Pindahkan sekali: hanoman migrate-from-postgres --from "${raw}"`,
-    );
+  const own = env.HANOMAN_DATABASE_URL?.trim();
+  if (own) {
+    if (!own.startsWith("file:")) {
+      throw new Error(
+        `HANOMAN_DATABASE_URL harus URL SQLite \`file:…\` sejak ADR-0086 (dapat \`${schemeOf(own)}\`). ` +
+        `Masih punya data Postgres? Pindahkan sekali: hanoman migrate-from-postgres --from "<url-postgres>"`,
+      );
+    }
+    return absoluteFileUrl(own, schemaDir);
   }
+  const raw = env.DATABASE_URL?.trim();
+  // Non-`file:` diabaikan, bukan fatal: var itu milik project lain, bukan konfigurasi hanoman.
+  if (!raw || !raw.startsWith("file:")) return `file:${join(resolveHome(env), "hanoman.db")}`;
+  return absoluteFileUrl(raw, schemaDir);
+}
+
+function absoluteFileUrl(raw: string, schemaDir: string): string {
   const p = raw.slice("file:".length);
   if (p.startsWith(":")) return raw;              // file::memory: & kawan-kawan
   return `file:${isAbsolute(p) ? p : resolve(schemaDir, p)}`;
+}
+
+/**
+ * Peringatan yang HARUS dicetak saat `DATABASE_URL` diabaikan — `null` bila tak ada yang
+ * diabaikan. Terpisah dari `resolveDbUrl` supaya fungsi itu tetap murni & bebas I/O.
+ *
+ * Ini yang menjaga semangat ADR-0086: pengabaian tak boleh senyap, karena instance hanoman lama
+ * yang benar-benar memakai Postgres akan tampak "kehilangan data" bila diam-diam boot ke DB kosong.
+ * Nilai URL-nya TIDAK dicetak — hanya skemanya — karena ia biasanya memuat kredensial.
+ */
+export function dbUrlNotice(env: EnvLike): string | null {
+  if (env.HANOMAN_DATABASE_URL?.trim()) return null;
+  const raw = env.DATABASE_URL?.trim();
+  if (!raw || raw.startsWith("file:")) return null;
+  return (
+    `hanoman: DATABASE_URL bertipe \`${schemeOf(raw)}\` DIABAIKAN — hanoman memakai SQLite ` +
+    `(ADR-0086), dan var itu biasanya milik project lain.\n` +
+    `  • Punya data Postgres hanoman? Pindahkan sekali: hanoman migrate-from-postgres --from "<url>"\n` +
+    `  • Mau menunjuk berkas DB tertentu? Pakai HANOMAN_DATABASE_URL=file:/path/hanoman.db (atau --db)`
+  );
 }
 
 /** Path berkas dari URL SQLite. Melempar untuk URL non-`file:` — jangan pernah menebak. */

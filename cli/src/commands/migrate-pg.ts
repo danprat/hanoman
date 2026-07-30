@@ -79,8 +79,9 @@ export default async function migratePg(argv: string[], ctx: Ctx): Promise<numbe
   let dbUrl: string;
   try {
     layout = resolveLayout(distDir(), existsSync);
-    // resolveDbUrl akan MELEMPAR bila DATABASE_URL masih menunjuk Postgres — pakai `--to` atau
-    // kosongkan var itu. Sengaja tidak diam-diam diabaikan.
+    // Sejak amandemen ADR-0086, `DATABASE_URL` non-`file:` DIABAIKAN (bukan melempar), jadi
+    // tanpa `--to` target jatuh ke `<home>/hanoman.db` — itu tujuan yang benar untuk perintah ini.
+    // Yang masih melempar: `HANOMAN_DATABASE_URL` non-`file:`, karena di situ niatnya eksplisit.
     dbUrl = opts.to ? `file:${resolvePath(opts.to)}` : resolveDbUrl(ctx.env, dirname(layout.schema));
   } catch (e) { ctx.stderr(`${(e as Error).message}\n`); return 1; }
 

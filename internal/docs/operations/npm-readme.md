@@ -50,7 +50,8 @@ sedang berjalan tak boleh diputus oleh update yang tak diminta.
 | Env | Default | Untuk apa |
 |---|---|---|
 | `HANOMAN_HOME` | `~/.hanoman` | DB SQLite, key SSH, transkrip sesi |
-| `DATABASE_URL` | `file:$HANOMAN_HOME/hanoman.db` | hanya URL `file:` (SQLite) |
+| `HANOMAN_DATABASE_URL` | — | berkas DB khusus hanoman; hanya URL `file:` (nilai lain **melempar**) |
+| `DATABASE_URL` | `file:$HANOMAN_HOME/hanoman.db` | dipakai bila ber-`file:`; nilai lain **diabaikan** dengan peringatan |
 | `PORT` / `HOST` | `8787` / `127.0.0.1` | alamat bind |
 | `HANOMAN_CLAUDE_BIN` / `HANOMAN_CODEX_BIN` | `claude` / `codex` | biner agen |
 | `HANOMAN_TMUX_SOCKET` | `hanoman` | socket tmux terpisah dari milikmu |
@@ -71,3 +72,12 @@ hanoman migrate-from-postgres --from "postgresql://user:pass@host:5432/hanoman"
 
 `--dry-run` hanya menghitung baris per tabel tanpa menulis apa pun. Target yang sudah berisi data
 ditolak kecuali `--force`.
+
+> **Punya `DATABASE_URL` untuk project lain?** Tidak masalah — hanoman mengabaikan nilai non-`file:`
+> dan tetap memakai `$HANOMAN_HOME/hanoman.db`, sambil mencetak peringatan sekali. Untuk menunjuk
+> berkas DB tertentu tanpa menyentuh var itu, pakai `HANOMAN_DATABASE_URL=file:/path/hanoman.db`
+> atau `hanoman --db /path/hanoman.db`.
+
+## Lisensi
+
+MIT — lihat `LICENSE`.

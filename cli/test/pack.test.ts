@@ -22,6 +22,12 @@ describe("packageJsonFor", () => {
   it("files memuat seluruh artefak runtime", () => {
     for (const f of ["bin", "dist", "web", "prisma"]) expect(pkg.files).toContain(f);
   });
+  // Paket ini didistribusikan publik supaya orang `npm i -g` — "UNLICENSED" berarti "tak ada izin
+  // pakai", yang bertentangan dengan maksudnya. 0.1.0 terbit dengan kesalahan itu; dipagari agar
+  // tak terulang.
+  it("berlisensi MIT, bukan UNLICENSED", () => {
+    expect(pkg.license).toBe("MIT");
+  });
   // Regresi: trusted publishing (OIDC) MENUNTUT `repository.url` cocok PERSIS dengan repo
   // GitHub yang membangun, dan provenance menuntut `repository` publik. Tanpa field ini
   // `npm publish` dari workflow rilis gagal — dan kegagalannya hanya muncul di CI, jauh dari
@@ -52,6 +58,11 @@ describe("copyPlan", () => {
     expect(to).toContain("prisma/schema.prisma");
     expect(to).toContain("prisma/migrations");
   });
+  // Berkas lisensinya harus benar-benar ikut, bukan cuma field `license` di package.json.
+  it("menyalin LICENSE dari akar repo", () => {
+    expect(to).toContain("LICENSE");
+    expect(plan.find((p) => p.to === "LICENSE")?.from).toBe("/repo/LICENSE");
+  });
   it("sumbernya di dalam repo yang diberikan", () => {
     for (const p of plan) expect(p.from.startsWith("/repo/")).toBe(true);
   });
@@ -81,5 +92,8 @@ describe("REQUIRED_ARTIFACTS", () => {
     expect(REQUIRED_ARTIFACTS).toContain("bin/hanoman.mjs");
     expect(REQUIRED_ARTIFACTS).toContain("web/index.html");
     expect(REQUIRED_ARTIFACTS).toContain("prisma/schema.prisma");
+  });
+  it("menuntut LICENSE ada — paket publik tanpa berkas lisensi tak boleh terbit lagi", () => {
+    expect(REQUIRED_ARTIFACTS).toContain("LICENSE");
   });
 });

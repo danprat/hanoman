@@ -10,6 +10,40 @@
   menyentuh** [0011](0011-docs-realtime-filesystem.md)/[0018](0018-coverage-nilai-turunan.md)/[0021](0021-nomor-spec-diklaim-docs-bukan-hanya-database.md)
   (docs & coverage tetap dibaca dari filesystem, bukan DB — justru makin konsisten dengan DB berkas).
 
+> ## Amandemen 2026-07-30 — `DATABASE_URL` asing diabaikan, hard-fail pindah ke `HANOMAN_DATABASE_URL`
+>
+> Butir 5 di bawah memutuskan `DATABASE_URL` non-`file:` **MELEMPAR**. Alasannya sah untuk instance
+> hanoman yang di-upgrade di tempat, tetapi **salah untuk instalasi npm global**, dan itu terbukti
+> di pemakaian nyata: `hanoman@0.1.0` menolak boot di mesin yang punya
+> `DATABASE_URL=postgresql://…` untuk **project lain**, sambil menyuruh operator menjalankan
+> `migrate-from-postgres` atas DB yang bukan miliknya.
+>
+> Akarnya kategori, bukan konfigurasi: `DATABASE_URL` adalah salah satu nama env var paling umum
+> yang ada (Rails, Django, Heroku, Prisma), dan `hanoman` dipasang **global** sehingga mewarisi
+> shell apa pun. Sebuah CLI global tak boleh mengklaim nama generik itu sebagai konfigurasinya
+> sendiri, lalu mati saat menemukan nilai milik orang lain.
+>
+> **Presedensi baru:** `HANOMAN_DATABASE_URL` → `DATABASE_URL` → `<home>/hanoman.db`.
+>
+> - **`HANOMAN_DATABASE_URL` non-`file:` tetap MELEMPAR.** Di knob milik hanoman sendiri niatnya
+>   eksplisit, jadi di situlah hard-fail butir 5 benar-benar berguna.
+> - **`DATABASE_URL` non-`file:` DIABAIKAN** dan hanoman jatuh ke DB default.
+>
+> **Semangat butir 5 tetap dijaga:** pengabaian itu **tidak senyap**. `dbUrlNotice()` — murni,
+> terpisah dari `resolveDbUrl` agar fungsi itu tetap bebas I/O — mengembalikan peringatan yang
+> dicetak `hanoman start`, `hanoman doctor`, dan boot server langsung. Peringatannya membawa **kedua**
+> jalan keluar: `migrate-from-postgres` bila kau memang punya data Postgres hanoman, dan
+> `HANOMAN_DATABASE_URL=file:…` bila kau ingin menunjuk berkas tertentu. Ia mencetak **hanya
+> skemanya**, bukan URL-nya, karena URL DB biasanya memuat kredensial.
+>
+> Pertukaran yang diterima sadar: operator yang meng-upgrade hanoman-on-Postgres di tempat dan
+> **melewatkan peringatan** akan melihat instance boot dengan DB kosong, yang tampak seperti
+> kehilangan data. Itu dipilih karena asimetri kemungkinan & kerugian: instalasi npm baru yang mati
+> total karena `DATABASE_URL` milik project lain **sangat mungkin** terjadi dan membuat produk tak
+> bisa dipakai sejak perintah pertama, sedangkan skenario upgrade-in-place hanya berlaku bagi
+> instance yang jumlahnya bisa dihitung, datanya **masih utuh di Postgres**, dan jalan pulihnya satu
+> perintah. Perbaikan ini terbit di `0.1.1`.
+
 ## Konteks
 
 Postgres ada di hanoman karena ADR-0005 membutuhkan antrean durable + worker terpisah. ADR-0024
@@ -66,7 +100,9 @@ menjalankan hanoman.**
 5. **`DATABASE_URL` non-`file:` MELEMPAR**, dengan pesan yang menyebut perintah migrasinya. Ia tidak
    diam-diam diabaikan dan tidak diam-diam jatuh ke default: instance lama yang boot dengan
    `postgresql://` di env-nya harus gagal berisik, bukan menyajikan DB kosong yang tampak seperti
-   kehilangan data.
+   kehilangan data. → **Diamandemen 2026-07-30** (lihat blok di atas): hard-fail pindah ke
+   `HANOMAN_DATABASE_URL`; `DATABASE_URL` asing diabaikan **dengan peringatan**, karena CLI global
+   mewarisi env var generik milik project lain.
 6. **DB test menjadi berkas per checkout**, diturunkan dari `DATABASE_URL` (`<db>.test.db`) dan
    dimigrasi otomatis oleh `server/test/global-setup.ts` (hapus berkas → `migrate deploy`).
 
