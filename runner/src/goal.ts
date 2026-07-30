@@ -50,3 +50,23 @@ export function resolveGoalCondition(
 // tmux `send-keys`: satu Enter = submit. Kondisi multi-baris harus diratakan sebelum diketik ke
 // TUI, kalau tidak ia terkirim separuh dan sisanya jadi pesan liar.
 export const goalOneLine = (cond: string): string => cond.replace(/\s+/g, " ").trim();
+
+// SPEC-397 · ADR-0085 — TUI codex mengubah masukan yang datang dalam SATU burst ≥ 1024 karakter
+// menjadi lampiran `[Pasted Content N chars]`. Begitu itu terjadi isi composer bukan lagi teks yang
+// dimulai `/goal`, jadi slash-dispatch TAK jalan: kondisinya terkirim sebagai pesan chat biasa —
+// tanpa error, tanpa goal, tanpa jejak kegagalan. Terukur di codex-cli 0.146.0: 1023 masih literal,
+// 1024 sudah paste.
+export const GOAL_TUI_PASTE_LIMIT = 1024;
+
+// Deteksi paste itu PER-BURST PTY, bukan per-invokasi `send-keys`: potongan yang dikirim tanpa jeda
+// digabung ulang oleh satu `read()` dan tetap kena (terukur: 4×500 tanpa jeda → paste 1500 char).
+// Karena itu 500, bukan 1023 — bila jeda gagal sekali dan dua potongan menyatu, 2×500 = 1000 MASIH
+// di bawah batas. Potongan 1023 tak punya margin sama sekali.
+export const GOAL_CHUNK = 500;
+
+/** Potong kondisi satu-baris jadi potongan yang aman dikirim sebagai keystroke tmux. */
+export function goalChunks(line: string, size = GOAL_CHUNK): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < line.length; i += size) out.push(line.slice(i, i + size));
+  return out;
+}

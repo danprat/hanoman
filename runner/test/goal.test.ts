@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { GOAL_MAX, defaultGoalCondition, resolveGoalCondition, goalOneLine } from "../src/goal";
+import {
+  GOAL_MAX, GOAL_CHUNK, GOAL_TUI_PASTE_LIMIT,
+  defaultGoalCondition, resolveGoalCondition, goalOneLine, goalChunks,
+} from "../src/goal";
 
 const args = { flow: "feature" as const, specId: "SPEC-332", branchTo: "hanoman/spec-332" };
 
@@ -34,5 +37,45 @@ describe("goal condition", () => {
 
   it("goalOneLine meratakan baris (Enter di tmux = submit)", () => {
     expect(goalOneLine("baris satu\n  baris dua\n\nbaris tiga ")).toBe("baris satu baris dua baris tiga");
+  });
+});
+
+// SPEC-397 · ADR-0085 — TUI codex mengubah masukan yang datang dalam SATU burst ≥ 1024 karakter
+// menjadi lampiran `[Pasted Content N chars]`, dan begitu itu terjadi slash-dispatch tak jalan:
+// `/goal` terkirim sebagai pesan chat biasa, tanpa error dan tanpa goal.
+describe("goalChunks", () => {
+  it("merekonstruksi kondisi utuh tanpa kehilangan atau menambah karakter", () => {
+    const line = goalOneLine(defaultGoalCondition(args));
+    expect(goalChunks(line).join("")).toBe(line);
+  });
+
+  it("tak ada potongan yang mencapai batas paste, bahkan untuk kondisi GOAL_MAX", () => {
+    const chunks = goalChunks("x".repeat(GOAL_MAX));
+    expect(chunks.length).toBeGreaterThan(1);
+    for (const c of chunks) expect(c.length).toBeLessThan(GOAL_TUI_PASTE_LIMIT);
+  });
+
+  it("dua potongan bersebelahan yang menyatu pun masih di bawah batas (margin sengaja)", () => {
+    // Ditulis dengan kursor `prev`, bukan indeks: `chunks[i - 1]` bertipe `string | undefined` di
+    // bawah TS strict, dan menutupinya dengan `?? ""` justru akan menyembunyikan potongan kosong.
+    let prev: string | undefined;
+    for (const cur of goalChunks("y".repeat(GOAL_MAX))) {
+      if (prev !== undefined) {
+        expect(prev.length + cur.length).toBeLessThan(GOAL_TUI_PASTE_LIMIT);
+      }
+      prev = cur;
+    }
+  });
+
+  it("kondisi pendek tetap satu potongan (tak ada invokasi send-keys sia-sia)", () => {
+    expect(goalChunks("kondisi pendek")).toEqual(["kondisi pendek"]);
+  });
+
+  it("string kosong tak menghasilkan potongan", () => {
+    expect(goalChunks("")).toEqual([]);
+  });
+
+  it("GOAL_CHUNK punya margin terhadap batas paste", () => {
+    expect(GOAL_CHUNK * 2).toBeLessThan(GOAL_TUI_PASTE_LIMIT);
   });
 });
