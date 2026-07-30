@@ -85,6 +85,17 @@ punya riwayat migrasi hanoman — biasanya bukan DB hanoman versi ini (sisa prot
 berkas tool lain yang kebetulan bernama sama). hanoman **tidak** mengubah isinya. Pindahkan berkas
 itu lalu jalankan ulang, atau tunjuk berkas lain dengan `hanoman --db /path/baru.db`.
 
+## Kalau terminal sesi terbuka tapi kosong
+
+Sesi hanoman hidup di dalam **tmux**; layarnya dialirkan ke browser lewat node-pty. Dua sebab:
+
+- **tmux belum terpasang** — `brew install tmux` (macOS) atau paket distro Anda.
+- **`spawn-helper` node-pty tak executable** — node-pty menerbitkan biner pendampingnya dengan mode
+  `0644`, jadi `posix_spawnp` gagal dan tak satu byte pun mengalir ke terminal walau sesinya hidup.
+  Sejak `0.1.3` `hanoman` memperbaikinya sendiri saat start (sekali per instalasi). Bila instalasi
+  global itu milik root dan hanoman dijalankan sebagai pengguna biasa, chmod-nya ditolak — perbaiki
+  manual: `sudo chmod +x "$(npm root -g)"/hanoman/node_modules/node-pty/prebuilds/*/spawn-helper`.
+
 ## Lisensi
 
 MIT — lihat `LICENSE`.

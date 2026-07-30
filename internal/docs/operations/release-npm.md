@@ -79,6 +79,13 @@ ada di runner, jadi ia akan exit 1 karena alasan yang tak relevan dengan kesehat
   tabel tanpa riwayat migrasi (terjadi nyata: `~/.hanoman/hanoman.db` sisa prototipe hanoman lama,
   tabel `runs`/`meta`, nol baris). Sejak `0.1.2` hanoman menerjemahkannya jadi petunjuk yang bisa
   dikerjakan (`migrateFailureHint`, dipagari test); isi berkas lama tak pernah diubah.
+- **Terminal sesi BLANK padahal pane tmux hidup dan terisi** = `spawn-helper` node-pty terpasang
+  tanpa bit exec. Bukan bug kita: tarball `node-pty@1.1.0` mengirim SEMUA `prebuilds/*/spawn-helper`
+  dengan mode `0644` (`tar tvf` → `-rw-r--r--`), lalu `posix_spawnp` gagal EACCES. **pnpm memulihkan
+  bit itu, npm tidak** — jadi bug ini tak pernah terlihat di `pnpm dev` dan hanya menghantam
+  instalasi npm. Kegagalannya senyap total: WebSocket tersambung, pane hidup, nol byte mengalir.
+  Sejak `0.1.3` diperbaiki saat start (`repairSpawnHelper`, dipagari test). Bila node-pty naik versi,
+  **periksa ulang mode di tarballnya** sebelum menganggap pagar ini usang.
 - **`npm token create` tak bisa membuat GAT di npm 11.6.2** (hanya token klasik
   `--read-only`/`--cidr`), dan `npm i -g npm@latest` menolak jalan di node `v24.11.1` (menuntut
   `^24.15.0`). Sampai node dinaikkan, GAT harus dibuat dari npmjs.com.
