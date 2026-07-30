@@ -1,51 +1,63 @@
 # Menjalankan hanoman production di samping dev
 
-Satu checkout, dua instance. Prod dan dev berbagi kode, `node_modules`, dan repo project — yang
-dipisah hanya **state**: database dan port. Tidak ada Redis, worker, maupun namespace run id — antrean
-dan runner headless sudah dicabut (ADR-0024); eksekusi kini sesi `claude` interaktif di tmux.
+Dua instance di satu mesin. Yang dipisah hanya **state**: direktori data (`HANOMAN_HOME`) dan port.
+Tidak ada Docker, Postgres, Redis, worker, maupun namespace run id — DB adalah satu berkas SQLite
+([ADR-0086](../adr/0086-sqlite-satu-satunya-provider.md)), antrean & runner headless sudah dicabut
+(ADR-0024), dan eksekusi adalah sesi `claude`/`codex` interaktif di tmux.
 
-| | dev | prod |
+| | dev (checkout) | prod (paket npm) |
 |---|---|---|
-| database | `hanoman` | `hanoman_prod` |
+| data | `HANOMAN_HOME` default `~/.hanoman` · DB `file:../../hanoman-dev.db` dari `.env` | `HANOMAN_HOME=/srv/hanoman-prod` → `…/hanoman.db` |
 | port | `8787` | `8788` |
-| dashboard | vite dev server (`:5173`) | disajikan proses api dari `src/dist` |
+| dashboard | vite dev server (`:5173`) | `web/` di dalam paket npm, disajikan proses api |
 
-## Sekali di awal
-
-```sh
-cp .env.production.example .env.production
-```
-
-`.env.production` gitignored. Ia di-*source* **sebelum** node boot (`set -a && . ./.env.production`),
-dan `env.ts` tidak pernah menimpa var yang sudah ada — jadi nilainya menang atas `.env`. Kunci yang
-tidak disebut di sana tetap jatuh ke `.env`: mis. `CLAUDE_CODE_OAUTH_TOKEN` dipakai bersama kecuali
-prod diberi token sendiri. Setel `PORT=8788` dan `DATABASE_URL` prod di sana.
-
-## Menjalankan
+## Cara yang didokumentasikan: paket npm
 
 ```sh
-pnpm prod
+npm i -g hanoman
+hanoman doctor                                        # periksa git · tmux · CLI agen
+HANOMAN_HOME=/srv/hanoman-prod hanoman --port 8788
 ```
 
-Satu perintah, dari keadaan mati total. `prod` menjalankan `prod:setup` lebih dulu (rantai eksplisit
-`prod:setup && prod:api`, **bukan** hook `preprod` — pnpm v7+ mematikan script `pre`/`post` secara
-default, jadi mengandalkan `preprod` diam-diam melewati migrasi dan bikin fitur baru 500) —
-`docker compose up -d --wait` (Postgres), bikin `hanoman_prod` kalau belum ada (`prod:db`),
-`prisma migrate deploy`, `prisma generate` (regen client untuk model baru), lalu `pnpm build` — baru
-`prod:api` naik: `node server/dist/server.js` yang menyajikan SPA dari `src/dist` sekaligus API. Tak
-ada proses worker terpisah.
+Satu perintah, dari keadaan mati total: `hanoman` me-resolve home & DB, memastikan Prisma client ada,
+menjalankan `prisma migrate deploy`, lalu men-spawn bundle server dengan `NODE_ENV=production`
+sehingga ia menyajikan dashboard dari `web/` di dalam paket sekaligus API
+([ADR-0087](../adr/0087-distribusi-npm-global-satu-perintah.md)). Tak ada proses worker terpisah.
+
+`--no-migrate` melewati langkah migrasi; `--db <file>` menunjuk berkas DB langsung (menang atas
+`DATABASE_URL`); `--host` mengubah bind. Untuk instance yang harus selamat reboot, jalankan di bawah
+systemd — lihat [deploy-vps](deploy-vps.md).
 
 Dashboard di <http://127.0.0.1:8788>. Server bind `127.0.0.1`; `/api/terminal` menyerahkan PTY
 sungguhan (RCE by design, ADR-0014), jadi jangan setel `HOST=0.0.0.0` tanpa reverse proxy TLS + auth
 di depannya.
 
+## Prod dari checkout (jalur pengembangan)
+
+Masih didukung — `resolveLayout` mengenali layout repo — tetapi bukan lagi jalur default:
+
+```sh
+cp .env.production.example .env.production      # gitignored; setel PORT=8788 + DATABASE_URL prod
+pnpm prod
+```
+
+`.env.production` di-*source* **sebelum** node boot (`set -a && . ./.env.production`), dan `env.ts`
+tidak pernah menimpa var yang sudah ada — jadi nilainya menang atas `.env`. Kunci yang tidak disebut
+di sana tetap jatuh ke `.env`: mis. `CLAUDE_CODE_OAUTH_TOKEN` dipakai bersama kecuali prod diberi
+token sendiri. `prod` menjalankan `prod:setup` lebih dulu (rantai eksplisit `prod:setup && prod:api`,
+**bukan** hook `preprod` — pnpm v7+ mematikan script `pre`/`post` secara default, jadi mengandalkan
+`preprod` diam-diam melewati migrasi dan bikin fitur baru 500): `prisma migrate deploy`,
+`prisma generate`, `pnpm build`, baru `node server/dist/server.js`.
+
 ## Yang masih berbagi — hati-hati
 
-- **`pnpm build` saat prod jalan** menimpa `server/dist/*` dan `src/dist/*` yang sedang disajikan prod.
-  `prod:setup` ikut membangun, jadi `pnpm prod` kedua me-rebuild di bawah instance yang sedang melayani —
-  matikan yang lama dulu.
-- **`docker compose stop db` mematikan dev juga.** Postgres-nya satu instance; `hanoman` dan
-  `hanoman_prod` cuma dua database di dalamnya.
+- **`pnpm build` saat prod-dari-checkout jalan** menimpa `server/dist/*` dan `src/dist/*` yang sedang
+  disajikan. `prod:setup` ikut membangun, jadi `pnpm prod` kedua me-rebuild di bawah instance yang
+  sedang melayani — matikan yang lama dulu. Instalasi npm tidak punya masalah ini: `hanoman update`
+  menimpa direktori paket, dan instance lama tetap memakai kode yang sudah ter-`import` sampai
+  di-restart.
+- **`HANOMAN_HOME` yang sama = DB yang sama.** Dua instance yang lupa memisahkannya menulis ke satu
+  berkas SQLite; pisahkan `HANOMAN_HOME` (atau `--db`) **dan** `HANOMAN_TMUX_SOCKET`.
 - **`repoDir` yang sama** berarti sesi prod meng-commit ke repo yang sedang Anda edit. Isolasinya cuma
   per-worktree. Nomor SPEC diklaim dari nama berkas docs, bukan env, jadi dua instance yang berbagi
   `repoDir` tetap perlu waspada tabrakan nomor — lihat [ADR-0021](../adr/0021-nomor-spec-diklaim-docs-bukan-hanya-database.md).
@@ -53,8 +65,8 @@ di depannya.
 ## Memeriksa isolasi
 
 ```sh
-curl -s localhost:8788/api/health                                        # {"ok":true}
-docker compose exec -T db psql -U hanoman -d hanoman_prod -tAc 'select count(*) from "Spec"'
+curl -s localhost:8788/api/health                                   # {"ok":true}
+sqlite3 /srv/hanoman-prod/hanoman.db 'select count(*) from "Spec"'  # opsional; sqlite3 bukan prasyarat
 ```
 
 ## Rollout hub + client (SPEC-213, ADR-0043)
@@ -89,10 +101,20 @@ Langkah pairing device client:
 Kehilangan device = cabut satu token di hub (`DELETE /api/device-tokens/:id`); device lain tak
 terpengaruh. TLS via reverse proxy (ADR-0028) wajib untuk melindungi token dari internet publik.
 
-## Update (SPEC-214)
+## Update (SPEC-398, mengganti mekanisme SPEC-214)
 
-`pnpm build` menanam `server/dist/build-info.json` (SHA commit). Server membandingkannya dengan checkout
-HEAD dan `origin/<branch>` (fetch ter-gate `HANOMAN_UPDATE_FETCH=1`, otomatis menyala di boot server),
-lalu menampilkan **badge "Update"** di topbar saat ada versi baru — dengan perintah
-`git pull --ff-only && pnpm build && pnpm prod` untuk disalin. Deteksi saja: server tak pull/build/
-restart sendiri (ADR-0048). Terapkan update dengan menjalankan perintah itu (matikan instance lama dulu).
+Identitas versi adalah **semver**, bukan SHA git: `pnpm build` menanam `version` root `package.json`
+ke `dist/build-info.json`, dan server membandingkannya dengan `GET <registry>/hanoman/latest` (fetch
+ter-gate `HANOMAN_UPDATE_FETCH`, registry bisa diarahkan `HANOMAN_NPM_REGISTRY`, TTL 5 menit, gagal →
+`unavailable` tanpa melempar). Badge "Update" di topbar menampilkan versi jalan vs terbaru + perintah
+untuk disalin. Terapkan:
+
+```sh
+hanoman update              # npm i -g hanoman@latest
+systemctl restart hanoman   # atau matikan & jalankan ulang `hanoman`
+```
+
+Deteksi saja — server tak pernah memasang apa pun sendiri
+([ADR-0048](../adr/0048-auto-update-deteksi-read-only.md) utuh): instance yang me-`npm i` dirinya
+sendiri lalu keluar akan memutus sesi tmux yang sedang berjalan tanpa peringatan. `hanoman update
+--check` hanya melaporkan, exit 0.

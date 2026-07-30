@@ -40,6 +40,8 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 > **Narasi tiap keputusan — apa yang diperluas/dicabut/diamandemen, berikut gotcha-nya — ada di
 > [adr/README.md](adr/README.md).** Daftar di bawah sengaja satu baris per ADR: index ini dibaca
 > setiap sesi agen, sub-index hanya saat butuh riwayatnya (SPEC-386).
+- [0087 — Distribusi hanoman sebagai paket npm global: satu perintah `hanoman`, update dari registry](adr/0087-distribusi-npm-global-satu-perintah.md)
+- [0086 — SQLite satu-satunya provider: DB embedded di `~/.hanoman`, Docker dicabut](adr/0086-sqlite-satu-satunya-provider.md)
 - [0085 — Mode goal codex memakai goal native codex, berdampingan dengan gate sh](adr/0085-mode-goal-codex-native.md)
 - [0084 — Sesi backlog dilanjutkan, bukan diulang dari nol](adr/0084-melanjutkan-sesi-backlog.md)
 - [0083 — Retensi dokumen audit: artefak diagnosis berumur, bukan SoT abadi](adr/0083-retensi-dokumen-audit.md)
@@ -128,8 +130,9 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 
 ## operations
 - [roadmap](operations/roadmap.md) · [gtm](operations/gtm.md) · [agent-documentation-workflow](operations/agent-documentation-workflow.md)
-- [production](operations/production.md) — menjalankan instance prod di samping dev (database + port terpisah)
+- [production](operations/production.md) — menjalankan instance prod di samping dev (`HANOMAN_HOME` + port terpisah)
 - [deploy-vps](operations/deploy-vps.md) — deploy single-host ke VPS publik di belakang reverse proxy TLS
+- [npm-readme](operations/npm-readme.md) — README yang terbit bersama paket npm `hanoman` (pasang, prasyarat, update, pindah dari Postgres) — SPEC-398 · ADR-0087
 
 ## security
 - [security-standard](security/security-standard.md)

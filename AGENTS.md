@@ -30,9 +30,15 @@ Jangan mulai implementasi dari ingatan atau konteks chat saja kalau doc/skill pr
 
 Pekerjaan dimulai dari **dashboard** sebagai **sesi `claude` interaktif** di tmux (`server/src/services/pty.ts`), bukan CLI headless — flow CLI lama (`spec/plan/execute/scaffold/reverse`) dan Agent SDK sudah dicabut (SPEC-162/ADR-0010/ADR-0024). Satu backlog = satu sesi (ADR-0015); fase = giliran dalam sesi (`echo "<Fase> done" >> $HANOMAN_PHASE_FILE`).
 
-CLI `hanoman` kini menyisakan operasi docs saja:
+CLI `hanoman` adalah **biner produk** (paket npm global, SPEC-398/ADR-0087) — bukan lagi hanya operasi
+docs. Ia tidak menjalankan flow agen apa pun:
 
 ```bash
+hanoman [start]                         # jalankan hanoman: migrate deploy → server + dashboard
+                                        #   --port <n> --host <h> --db <file> --no-migrate
+hanoman doctor                          # prasyarat non-npm: node/git/tmux/CLI agen/izin tulis/aset web
+hanoman update [--check]                # banding versi vs registry npm; `npm i -g hanoman@latest`
+hanoman migrate-from-postgres --from <url> [--to <file>] [--dry-run] [--force]
 hanoman docs scan [--json]              # laporan coverage + per-kategori (read-only)
 hanoman docs index --check | --fix      # integritas index
 hanoman docs link <path> [--category c] # tambahkan doc ke index
@@ -44,8 +50,11 @@ hanoman --version | --help
 - **Test yang tersentuh** hijau — `pnpm vitest --run --changed "$HANOMAN_BASE_SHA" --no-file-parallelism`
   (atau sebut path test-nya langsung) dan typecheck paket yang tersentuh (`pnpm --filter ./server typecheck`).
   **`--no-file-parallelism` wajib** bila set-nya menyentuh test server: run tingkat-root tak
-  menghormati `fileParallelism: false` milik project server dan test server berbagi satu Postgres —
-  terukur di SPEC-397, set yang sama memberi **181 gagal palsu** paralel vs **736 lulus** serial. Sesi
+  menghormati `fileParallelism: false` milik project server dan test server berbagi **satu berkas DB**
+  (`<db>.test.db` per checkout sejak SPEC-398/ADR-0086 — berkasnya tak lagi bisa di-*truncate* worktree
+  tetangga dan dimigrasi otomatis `server/test/global-setup.ts`, tapi berkas test dalam paket yang sama
+  masih men-seed ulang DB yang sama) — terukur di SPEC-397, set yang sama memberi **181 gagal palsu**
+  paralel vs **736 lulus** serial. Sesi
   hanoman default `verifyScope=changed` (SPEC-376, ADR-0080): jangan menjalankan suite penuh,
   `pnpm -r typecheck`, atau build penuh sebagai rutinitas — mesin ini menjalankan beberapa sesi
   sekaligus. Perluas scope hanya bila perubahannya memang berdampak luas, dan katakan alasannya.

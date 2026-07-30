@@ -1,6 +1,8 @@
 # Data model
 
-Entitas inti (Postgres via Prisma). **Tujuh model inti**: Project, Spec, Setting, Notification, User,
+Entitas inti (**SQLite via Prisma 6** — SPEC-398/[ADR-0086](../adr/0086-sqlite-satu-satunya-provider.md);
+satu berkas di `$HANOMAN_HOME`, default `~/.hanoman/hanoman.db`, tanpa Docker/Postgres).
+**Tujuh model inti**: Project, Spec, Setting, Notification, User,
 Session, Vps — plus model pendukung (VpsAuditSnapshot/VpsItemState, DeviceToken, **AgentToken**, SessionResult, SyncLog,
 LocalBinding, SyncOutbox, SyncState, SyncConflict, RuntimeConfig), **model error monitoring** (`ErrorGroup`,
 `ErrorEvent`, SPEC-249/[ADR-0060](../adr/0060-error-monitoring-ingest-ber-dsn.md)), **model Help
@@ -9,6 +11,23 @@ dan **relasi antar project** (`ProjectLink`, SPEC-337/[ADR-0075](../adr/0075-aud
 Tidak ada model `Run` maupun `Trigger` — keduanya di-drop saat pindah ke sesi interaktif (ADR-0024; migrasi
 `drop_run_trigger_github`). Enum stage/source/priority/error-status/ticket-status/ticket-category disimpan
 sebagai `String` dan divalidasi zod di `@hanoman/shared` (`enums.ts`), bukan enum Prisma.
+
+**Provider & migrasi.** Riwayat 32 migrasi Postgres diganti satu init SQLite
+(`20260730000000_init_sqlite`) — migrasi lama tak bisa di-*replay* di SQLite, dan jalan pindah bagi
+data lama bukan riwayat migrasi melainkan `hanoman migrate-from-postgres --from <pg-url>` (26 model
+dalam urutan FK yang diverifikasi terhadap DMMF Prisma; `--dry-run` menghitung tanpa menyentuh
+target). Skema **tak memakai `@map`** sama sekali, jadi nama kolom DB = nama field Prisma — properti
+itulah yang membuat baris `SELECT *` dari Postgres langsung cocok sebagai data `createMany`. Yang
+tidak didukung SQLite dan karena itu **tidak boleh masuk** skema ini: scalar list (`String[]` non-relasi),
+tipe native `@db.*`, `Decimal`, `Bytes`, dan `mode: "insensitive"` pada filter (`LIKE` SQLite sudah
+case-insensitive untuk ASCII).
+
+**DB test adalah berkas per checkout**, bukan database bersama: `<db>.test.db` diturunkan dari
+`DATABASE_URL` dan dimigrasi **otomatis** oleh `server/test/global-setup.ts` (hapus berkas →
+`migrate deploy`) — tak ada lagi `migrate deploy` manual untuk DB test yang bisa dilupakan, dan
+worktree tetangga tak bisa lagi men-*truncate* DB test milik run lain. `--no-file-parallelism` tetap
+**wajib**: berkas test dalam satu paket server masih berbagi **satu** berkas DB yang di-seed ulang
+tiap berkas.
 
 ## Project
 - `id` (slug) — **renameable lewat operasi khusus** `POST /projects/:id/rename { newId }` (SPEC-255/ADR-0064,
@@ -178,7 +197,7 @@ dan `decision` (sesi Claude menunggu keputusan manusia, dibuat `scanDecisions()`
   Longgar String → tanpa migration kolom).
 - `key` **@unique** nullable — dedup selesai `"done:<specId>"` / gagal `"fail:<specId>"` (SPEC-298; insert
   kedua kena P2002, diabaikan); `null` untuk decision (di-dedup di sisi scan via `Set` episode; NULL berulang
-  diizinkan Postgres).
+  diizinkan di kolom `@unique` — berlaku di Postgres maupun SQLite, jadi cutover ADR-0086 tak menyentuhnya).
 - `specId` (nullable — sesi reverse tak punya spec), `sessionId` (target redirect terminal),
   `title` (snapshot), `projectId` (opsional), `createdAt`.
 - `readAt` (nullable) — `null` = belum dibaca. Read-state **global** (bukan per-user).

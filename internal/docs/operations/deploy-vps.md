@@ -2,73 +2,87 @@
 
 Menjalankan satu instance hanoman publik di sebuah VPS Linux, di belakang reverse proxy
 (Caddy/nginx) yang menerminasi TLS. Melengkapi [production.md](production.md) — yang membahas
-prod **di samping dev pada satu checkout mesin dev**; dokumen ini membahas VPS terpisah yang
+prod **di samping dev pada satu mesin dev**; dokumen ini membahas VPS terpisah yang
 menyajikan hanoman ke internet.
 
+Sejak SPEC-398 hanoman dipasang sebagai **paket npm global** dan DB-nya satu berkas SQLite
+([ADR-0086](../adr/0086-sqlite-satu-satunya-provider.md) ·
+[ADR-0087](../adr/0087-distribusi-npm-global-satu-perintah.md)): tidak ada Docker, tidak ada
+Postgres, tidak ada clone repo di VPS. Instance yang **sudah hidup** dengan Postgres wajib dimigrasi
+sekali — lihat §2.
+
 > **Repo ini publik/open-source.** Jangan pernah menaruh nilai sensitif (host VPS, token,
-> kredensial DB) di file ter-track. Semua rahasia hidup di `.env.production` (gitignored) di VPS.
-> `.gitignore` mengabaikan seluruh `.env*` kecuali `*.example`. Placeholder di bawah
-> (`<VPS_HOST>`, `hanoman.<domain>`, dst.) diisi operator di mesin/VPS, bukan di commit.
+> kredensial DB) di file ter-track. Rahasia hidup di berkas env di VPS (mode `600`), bukan di commit.
+> Placeholder di bawah (`<VPS_HOST>`, `hanoman.<domain>`, dst.) diisi operator di VPS.
 
 ## Arsitektur
 
 ```
-Internet ──TLS──> reverse proxy (Caddy) ──127.0.0.1:8788──> node server/dist/server.js
-                                                                    │
-                                                            127.0.0.1:<db-port> ──> Postgres (Docker)
+Internet ──TLS──> reverse proxy (Caddy) ──127.0.0.1:8788──> hanoman  (npm -g)
+                                                                │
+                                                        $HANOMAN_HOME/hanoman.db  (SQLite, in-process)
 ```
 
 Server bind `127.0.0.1` (ADR-0028): `/api/terminal` menyerahkan PTY sungguhan (RCE by design,
 ADR-0014), jadi ia **hanya** boleh dijangkau lewat proxy TLS + auth SPEC-169 — jangan set
-`HOST=0.0.0.0`. Firewall cukup buka `22/80/443`; port app & DB tetap lokal.
+`HOST=0.0.0.0`. Firewall cukup buka `22/80/443`; port app tetap lokal. Tak ada port DB sama sekali.
 
 ## Prasyarat di VPS
 
-Node ≥ 20 · pnpm (via corepack) · tmux · Docker · git · toolchain build (untuk kompilasi native
-`node-pty`) · Claude Code CLI.
+Node ≥ 20 · git · tmux · toolchain build (untuk kompilasi native `node-pty`) · CLI agen
+(`claude` dan/atau `codex`). **Docker tidak lagi dibutuhkan.**
 
 ```sh
-corepack enable && corepack prepare pnpm@9 --activate
-apt-get install -y build-essential python3        # node-pty dikompilasi dari source di Linux
-npm i -g @anthropic-ai/claude-code                # `claude` headless per sesi terminal
+apt-get install -y build-essential python3 git tmux   # node-pty dikompilasi dari source di Linux
+npm i -g @anthropic-ai/claude-code                    # `claude` per sesi terminal
 ```
 
-## 1 · Kode
+## 1 · Pasang
 
 ```sh
-git clone https://github.com/denameidina/hanoman.git /root/hanoman
-cd /root/hanoman
-pnpm install                                      # membangun node-pty + prisma engines
+npm i -g hanoman
+hanoman doctor            # exit ≠ 0 bila ada prasyarat wajib yang absen
 ```
 
-## 2 · Postgres (Docker)
+`doctor` memeriksa node ≥ 20, `git`, `tmux`, `claude`/`codex` (minimal satu), izin tulis direktori
+data, dan keberadaan aset dashboard. Jalankan ini **sebelum** menyalakan systemd — kegagalan
+prasyarat yang lewat akan muncul jauh nanti, di dalam pane tmux yang tak dibaca siapa pun.
 
-`docker-compose.yml` memetakan `5432:5432`. Bila host sudah memakai `5432` (mis. container
-project lain), petakan ke port lain lewat **`docker-compose.override.yml`** (gitignored). Gunakan
-tag `!override` — tanpa itu Compose meng-*append* list `ports` dan tetap mencoba `5432`:
+## 2 · Migrasi dari Postgres (hanya untuk instance yang sudah hidup)
 
-```yaml
-# docker-compose.override.yml
-services:
-  db:
-    restart: unless-stopped          # hidup lagi setelah reboot VPS
-    ports: !override
-      - "127.0.0.1:<db-port>:5432"   # mis. 5433 bila 5432 terpakai
-```
+> **Backup dulu, tanpa pengecualian.** DB produksi memuat akun rekan & tiket nyata.
 
 ```sh
-docker compose up -d --wait
-docker compose exec -T db psql -U hanoman -d postgres -c 'CREATE DATABASE hanoman_prod'
+pg_dump "$OLD_PG_URL" > /root/hanoman-pg-$(date +%F).sql
+
+# 1) lihat-lihat dulu — dry-run tidak menyentuh target sama sekali
+hanoman migrate-from-postgres --from "$OLD_PG_URL" --dry-run
+
+# 2) baru pindahkan
+hanoman migrate-from-postgres --from "$OLD_PG_URL"
 ```
 
-## 3 · Konfigurasi rahasia (`.env.production`, gitignored)
+Tool ini memindahkan 26 model dalam urutan FK (`createMany` per 200 baris), `--dry-run` hanya
+menghitung baris per tabel. Target yang sudah berisi data **ditolak** kecuali `--force` (yang
+mengosongkannya dulu dalam urutan terbalik).
+
+Dua hal yang mudah menjebak:
+
+- **`DATABASE_URL` di environment masih menunjuk Postgres → perintahnya melempar.** Itu disengaja
+  (ADR-0086): ia tak pernah diam-diam jatuh ke default. Kosongkan var itu atau sebut target
+  eksplisit dengan `--to /srv/hanoman-prod/hanoman.db`.
+- **Postgres lama dimatikan HANYA sesudah migrasi diverifikasi** — login ke dashboard, cek jumlah
+  spec/tiket/akun, baru `docker compose down` (atau `systemctl disable --now postgresql`) dan hapus
+  volume-nya. Sebelum itu ia adalah satu-satunya salinan hidup selain dump.
+
+## 3 · Konfigurasi (`/etc/hanoman.env`, mode 600)
 
 ```sh
-umask 077 && cp .env.production.example .env.production   # lalu isi:
+umask 077 && install -m 600 /dev/null /etc/hanoman.env
 ```
 
 ```ini
-DATABASE_URL=postgresql://hanoman:hanoman@localhost:<db-port>/hanoman_prod
+HANOMAN_HOME=/srv/hanoman-prod
 PORT=8788
 HOST=127.0.0.1
 NODE_ENV=production
@@ -77,39 +91,25 @@ HANOMAN_TMUX_SOCKET=hanoman-prod
 CLAUDE_CODE_OAUTH_TOKEN=<token-oauth>       # atau ANTHROPIC_API_KEY=<key>
 ```
 
-`chmod 600 .env.production`. File ini **tak pernah** ter-commit.
+`DATABASE_URL` **tidak perlu diisi**: tanpa ia, DB adalah `$HANOMAN_HOME/hanoman.db`. Kalau diisi, ia
+wajib URL `file:` — nilai `postgresql://` melempar saat boot.
 
-## 4 · Generate · migrate · build
+## 4 · systemd (auto-start, selamat reboot)
 
-```sh
-set -a && . ./.env.production && set +a
-pnpm --filter ./server exec prisma generate    # WAJIB di clone fresh (lihat catatan)
-pnpm --filter ./server exec prisma migrate deploy
-pnpm build
-```
-
-> **Catatan:** `pnpm prod:setup` melewatkan `prisma generate` karena di mesin dev `node_modules`
-> dev/prod di-share (client sudah ter-generate oleh alur dev). Di clone VPS yang fresh, `prisma
-> generate` **wajib** dijalankan manual — tanpa itu `@prisma/client` gagal init saat runtime.
-
-## 5 · systemd (auto-start, selamat reboot)
-
-`/etc/systemd/system/hanoman.service` — meng-*source* `.env.production` lalu `exec node`, persis
-semantik `pnpm prod:api` tanpa pnpm:
+`/etc/systemd/system/hanoman.service`:
 
 ```ini
 [Unit]
 Description=hanoman orchestrator + dashboard
-After=network-online.target docker.service
+After=network-online.target
 Wants=network-online.target
-Requires=docker.service
 
 [Service]
 Type=simple
 User=root
 Environment=HOME=/root
-WorkingDirectory=/root/hanoman
-ExecStart=/bin/bash -lc 'set -a && . /root/hanoman/.env.production && set +a && exec node /root/hanoman/server/dist/server.js'
+EnvironmentFile=/etc/hanoman.env
+ExecStart=/usr/bin/env hanoman
 Restart=on-failure
 RestartSec=3
 
@@ -122,7 +122,11 @@ systemctl daemon-reload && systemctl enable --now hanoman
 systemctl status hanoman ; journalctl -u hanoman -f
 ```
 
-## 6 · Reverse proxy + TLS
+Tak ada lagi `Requires=docker.service` maupun `WorkingDirectory`: `hanoman` menemukan skema, migrasi,
+dan aset dashboard dari dalam direktori paketnya sendiri (`resolveLayout`). Migrasi diterapkan setiap
+start, jadi update tak butuh langkah `migrate deploy` terpisah.
+
+## 5 · Reverse proxy + TLS
 
 Contoh block Caddy (auto-HTTPS Let's Encrypt; `reverse_proxy` meneruskan upgrade WebSocket
 `/api/terminal` otomatis):
@@ -142,24 +146,35 @@ hanoman.<domain> {
 Prasyarat cert: A record `hanoman.<domain>` → IP VPS **sebelum** reload, agar tantangan ACME
 HTTP-01 lolos. `caddy validate` lalu `systemctl reload caddy`.
 
-## 7 · Verifikasi
+## 6 · Verifikasi
 
 ```sh
 curl -fsS https://hanoman.<domain>/api/health          # {"ok":true}
 curl -s  https://hanoman.<domain>/api/auth/status      # {"needsSetup":true} saat 0 user
 ```
 
-Buka `https://hanoman.<domain>`, selesaikan layar **Setup** untuk membuat akun pertama.
+Buka `https://hanoman.<domain>`. Instalasi baru: selesaikan layar **Setup** untuk membuat akun
+pertama. Instalasi hasil migrasi §2: login dengan akun yang sudah ada — `needsSetup` yang berbalik
+`true` sesudah migrasi berarti tabel `User` kosong, jadi migrasinya belum benar-benar jalan.
 
-## Update (SPEC-214)
-
-Badge "Update" muncul di topbar saat `origin/<branch>` lebih baru. Terapkan:
+## Update
 
 ```sh
-cd /root/hanoman && git pull --ff-only
-set -a && . ./.env.production && set +a
-pnpm install && pnpm --filter ./server exec prisma migrate deploy && pnpm build
+hanoman update              # npm i -g hanoman@latest
 systemctl restart hanoman
 ```
 
-Server hanya mendeteksi update, tak pernah pull/build/restart sendiri (ADR-0048).
+Badge "Update" di topbar muncul saat versi di registry npm lebih baru dari versi yang jalan
+(perbandingan semver, bukan SHA git). Server hanya **mendeteksi** — ia tak pernah memasang atau
+me-restart dirinya sendiri ([ADR-0048](../adr/0048-auto-update-deteksi-read-only.md)), karena itu
+akan memutus sesi tmux yang sedang berjalan. `hanoman update --check` melaporkan tanpa memasang.
+
+Restart aman untuk sesi: sesi agen hidup di tmux server sendiri (ADR-0016) dan selamat dari restart
+proses API. Yang perlu diperhatikan hanya klien WebSocket yang harus re-attach.
+
+## Deploy dari checkout (jalur lama)
+
+Masih mungkin — `resolveLayout` mengenali layout repo, jadi `node cli/dist/hanoman.js` di dalam
+clone berperilaku sama seperti biner global. Tetapi ia bukan lagi jalur yang didokumentasikan:
+`git clone` + `pnpm install` + `pnpm build` menuntut toolchain penuh di VPS demi hasil yang identik
+dengan satu `npm i -g`.

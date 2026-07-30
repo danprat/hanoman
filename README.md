@@ -62,38 +62,53 @@ utuh dari awal sampai selesai.
 - **From-scratch atau existing.** Project baru di-scaffold dari nol; codebase yang sudah ada
   di-*reverse-engineer* docs-nya lebih dulu.
 
-## Mulai
+## Pasang sebagai paket npm
 
-**Prasyarat:** [Docker](https://www.docker.com/) (untuk Postgres) · Node.js ≥ 20 ·
-[pnpm](https://pnpm.io/) · [tmux](https://github.com/tmux/tmux) ·
+```bash
+npm i -g hanoman
+hanoman doctor     # periksa prasyarat
+hanoman            # jalan di http://127.0.0.1:8787
+```
+
+Buka URL-nya, buat akun pertama, selesai. Datanya di `~/.hanoman/` — SQLite embedded, **tanpa Docker,
+tanpa Postgres, tanpa Redis** ([ADR-0086](internal/docs/adr/0086-sqlite-satu-satunya-provider.md) ·
+[ADR-0087](internal/docs/adr/0087-distribusi-npm-global-satu-perintah.md)). Update: `hanoman update`.
+
+Yang npm **tidak** bisa bawa, karena itu inti produknya: `git` (worktree per sesi), `tmux` (sesi agen
+selamat dari restart API, [ADR-0016](internal/docs/adr/0016-sesi-terminal-hidup-di-tmux.md)), dan CLI
+agen `claude` dan/atau `codex` yang sudah login. `hanoman doctor` melaporkan mana yang belum ada.
+Detail perintah & konfigurasi: [operations/npm-readme](internal/docs/operations/npm-readme.md).
+
+## Mulai (dari checkout, untuk mengembangkan hanoman)
+
+**Prasyarat:** Node.js ≥ 20 · [pnpm](https://pnpm.io/) · [tmux](https://github.com/tmux/tmux) ·
 [Claude Code CLI](https://claude.com/claude-code) yang sudah login.
 
 ```bash
 pnpm install
-pnpm dev        # docker compose up (Postgres) → API (:8787) + dashboard (:5173)
+pnpm dev        # API (:8787) + dashboard (:5173)
 ```
 
 Lalu buka **http://localhost:5173**, buat akun pada layar setup pertama, dan tambahkan project.
 
-> `pnpm dev` menjalankan `docker compose up -d --wait` dulu, jadi Docker harus hidup.
-> Sesi Claude berjalan di dalam **tmux** agar selamat dari restart API
-> ([ADR-0016](internal/docs/adr/0016-sesi-terminal-hidup-di-tmux.md)) — pasang dengan `brew install tmux`.
-> Sesi memakai kredensial `claude` yang sudah login di terminalmu.
+> DB dev adalah berkas SQLite (`DATABASE_URL=file:../../hanoman-dev.db` di `.env` — lihat
+> `.env.example`), dimigrasi dengan `pnpm db:migrate`. Sesi memakai kredensial `claude`/`codex` yang
+> sudah login di terminalmu. Merakit paket npm-nya: `pnpm release`.
 
 ## Struktur repo
 
 ```
 src/            dashboard (React + TypeScript + Vite, xterm.js)
-server/         orchestrator: Fastify · Prisma/Postgres · node-pty + tmux
-runner/         library git-worktree + pembangun prompt + guardrail (bukan proses)
-cli/            perintah docs (scan/index/link) + hook PreToolUse
+server/         orchestrator: Fastify · Prisma/SQLite · node-pty + tmux
+runner/         library git-worktree + pembangun prompt + resolusi path data (bukan proses)
+cli/            biner `hanoman`: start · doctor · update · migrate-from-postgres · docs · hook
 shared/         tipe & DTO dipakai bersama server ↔ web
 internal/docs/  SOURCE OF TRUTH — baca ini lebih dulu
 docs/           spec & plan kerja (superpowers) + aset README
 .claude/        konfigurasi & hooks Claude Code
 ```
 
-Stack: React + Vite · **Fastify** · PostgreSQL (**Prisma**) · **node-pty + tmux** · xterm.js.
+Stack: React + Vite · **Fastify** · SQLite (**Prisma 6**) · **node-pty + tmux** · xterm.js.
 Eksekusi adalah sesi `claude` interaktif per backlog di git worktree — tanpa message queue,
 worker, cron, maupun webhook (semuanya dicabut di
 [ADR-0024](internal/docs/adr/0024-sesi-interaktif-menggantikan-run.md)).

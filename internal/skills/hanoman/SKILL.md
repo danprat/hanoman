@@ -3,10 +3,11 @@ name: hanoman
 description: >-
   Pakai saat mengerjakan project hanoman: orchestrator + dashboard workflow
   docs-driven untuk nafanesia.id — perencanaan produk, arsitektur (Fastify +
-  Postgres/Prisma + node-pty/tmux + git worktree), sesi Claude Code interaktif,
-  fase spec/plan/execute, backlog & PRD, terminal realtime, modul VPS/sync,
-  auth, keamanan, design system, docs Source of Truth, atau operasi agent di
-  dalam repo hanoman.
+  SQLite/Prisma + node-pty/tmux + git worktree), distribusi paket npm global
+  (`hanoman start|doctor|update|migrate-from-postgres`), sesi Claude Code
+  interaktif, fase spec/plan/execute, backlog & PRD, terminal realtime, modul
+  VPS/sync, auth, keamanan, design system, docs Source of Truth, atau operasi
+  agent di dalam repo hanoman.
 ---
 
 # hanoman
@@ -34,15 +35,15 @@ Saat memulai kerja hanoman, baca hanya doc yang dibutuhkan task:
 - Design system (editorial, bone paper, brass accent): `internal/docs/design-system/design-system.md`
 - Implementasi frontend: `internal/docs/frontend/frontend-implementation.md`
 - Roadmap & GTM: `internal/docs/operations/{roadmap,gtm}.md`
-- Deploy: `internal/docs/operations/deploy-vps.md` (single-host VPS) · `production.md` (prod di samping dev)
-- ADR (nomor unik & imutable): daftar lengkap di `internal/docs/README.md`; yang paling sering diacu — 0024 (sesi interaktif menggantikan run), 0023 (guardrail SoT dicabut), 0037 (guardrail safety dicabut), 0002 (isolasi worktree), 0015 (satu backlog satu sesi), 0016 (sesi tmux), 0028 (auth sesi opaque), 0011/0018 (docs & coverage live/derived), 0035 (sesi tembus batas fase), 0041 (PRD sebagai dokumen), 0043–0048 (sync/device-token/auto-update).
+- Deploy: `internal/docs/operations/deploy-vps.md` (single-host VPS, npm + systemd) · `production.md` (prod di samping dev) · `npm-readme.md` (README yang terbit bersama paket npm)
+- ADR (nomor unik & imutable): daftar lengkap di `internal/docs/README.md`, narasinya di `internal/docs/adr/README.md`; yang paling sering diacu — 0086 (SQLite satu-satunya provider) & 0087 (distribusi npm global), 0024 (sesi interaktif menggantikan run), 0023 (guardrail SoT dicabut), 0037 (guardrail safety dicabut), 0002 (isolasi worktree), 0015 (satu backlog satu sesi), 0016 (sesi tmux), 0028 (auth sesi opaque), 0011/0018 (docs & coverage live/derived), 0035 (sesi tembus batas fase), 0041 (PRD sebagai dokumen), 0043–0048 (sync/device-token/auto-update).
 - Kontrak agent repo: `AGENTS.md` · `CLAUDE.md` (root repo).
 
 ## Sub-Skill
 
 Pakai skill lebih sempit saat task cocok:
 
-- `hanoman-devops` (`internal/skills/hanoman-devops/SKILL.md`) — deploy & operasikan aplikasi hanoman di server: VPS single-host di belakang reverse proxy TLS, prod di samping dev, systemd, Postgres Docker, prisma generate/migrate, update in-place (SPEC-214), rollout sync hub/client (SPEC-213), dan verifikasi/troubleshoot.
+- `hanoman-devops` (`internal/skills/hanoman-devops/SKILL.md`) — deploy & operasikan aplikasi hanoman di server: instalasi paket npm global + systemd, VPS single-host di belakang reverse proxy TLS, prod di samping dev lewat `HANOMAN_HOME`, migrasi sekali-jalan dari Postgres, `hanoman update` (SPEC-398), rollout sync hub/client (SPEC-213), dan verifikasi/troubleshoot.
 
 ## Aturan Produk
 
@@ -55,7 +56,8 @@ Pakai skill lebih sempit saat task cocok:
 
 ## Aturan Arsitektur
 
-- Dashboard: **React + TypeScript + Vite**. Server: **Node.js + TypeScript (Fastify)**. DB: **PostgreSQL via Prisma**.
+- Dashboard: **React + TypeScript + Vite**. Server: **Node.js + TypeScript (Fastify)**. DB: **SQLite via Prisma 6** — satu berkas di `$HANOMAN_HOME` (default `~/.hanoman/hanoman.db`), **tanpa Docker/Postgres/Redis** (SPEC-398/ADR-0086). Lokasi data ditentukan tiga fungsi murni di `runner/src/paths.ts` (`resolveHome`/`resolveDbUrl`/`dbFilePath`), dipakai server **dan** CLI; `DATABASE_URL` non-`file:` **melempar** dan menunjuk `hanoman migrate-from-postgres`.
+- **Distribusi = paket npm global** (SPEC-398/ADR-0087): `npm i -g hanoman` → `hanoman`. `hanoman` telanjang = `start` (migrate deploy → **spawn** `node dist/server.js` sebagai proses anak dengan `NODE_ENV=production`); `doctor` melaporkan prasyarat non-npm (node ≥ 20 · git · tmux · `claude`/`codex` · izin tulis home · aset web) dengan exit code; `update [--check]` membandingkan semver vs registry npm lalu menjalankan `npm i -g hanoman@latest`; `migrate-from-postgres` memindahkan instance lama. `resolveLayout()` mengenali **dua** layout (paket npm vs checkout repo), aset dashboard dipilih `pickWebDir()`. Deteksi update tetap **read-only** di server (ADR-0048 utuh) — yang memasang adalah CLI, karena server yang me-`npm i` dirinya sendiri lalu keluar akan memutus sesi tmux. Staging rilis `dist-npm/` dirakit `hanoman __pack` (`pnpm release`); **`npm publish` tindakan manusia**.
 - Realtime: **WebSocket hanya untuk terminal PTY**; sisanya **HTTP polling** (projects, backlog, notifications, limits, vps). Jaga UI responsif — log sesi streaming, jangan blok main thread.
 - Terminal server: **node-pty + tmux** (socket `-L hanoman`, `remain-on-exit on`); terminal web: **xterm.js** merender TUI Claude Code apa adanya. tmux menahan sesi hidup lintas restart API (ADR-0016).
 - **Tidak ada** message queue, Redis, worker terpisah, scheduler cron, maupun webhook GitHub — semua dicabut saat pindah ke sesi interaktif (ADR-0024). Satu-satunya kerja latar = dua `setInterval` di `server.ts` untuk monitor VPS (health 5 mnt, audit 24 jam).
@@ -238,7 +240,9 @@ Pakai skill lebih sempit saat task cocok:
   luas asal menyebut alasannya. **Empat gotcha:** `--changed` menyalakan `passWithNoTests` sehingga
   nol test **terlihat hijau**; `--changed` di tingkat root WAJIB disertai **`--no-file-parallelism`**
   bila set-nya menyentuh test server — run root tak menghormati `fileParallelism: false` milik project
-  server dan test server berbagi satu Postgres, terukur di SPEC-397 set yang SAMA memberi **181 gagal
+  server dan test server berbagi **satu berkas DB** (`<db>.test.db` per checkout sejak ADR-0086 —
+  aman dari worktree tetangga, tapi tetap satu berkas untuk semua berkas test di paket itu), terukur
+  di SPEC-397 set yang SAMA memberi **181 gagal
   palsu** paralel vs **736 lulus** serial, dengan bentuk kegagalan yang menyesatkan seperti regresi
   sync; env sesi dipasang sebagai **prefix shell** di depan argv sehingga
   tak pernah tercetak `/bin/echo` — buktinya harus dibaca dari DALAM proses (`fake-agent-env.sh`);
@@ -264,12 +268,13 @@ Pakai skill lebih sempit saat task cocok:
 
 ## Aturan Data & Skema
 
-- **Tujuh model** (Postgres via Prisma): `Project`, `Spec`, `Setting`, `Notification`, `User`, `Session`, `Vps`. Tidak ada `Run` maupun `Trigger` — di-drop saat pindah ke sesi interaktif (ADR-0024). Model pendukung mencakup `DeviceToken`, **`AgentToken`** (kredensial AI agent + capability, SPEC-257/ADR-0065, server-local), `SessionResult`, sync (`SyncLog`/`SyncOutbox`/`SyncState`/`LocalBinding`/`RuntimeConfig`), error monitoring (`ErrorGroup`/`ErrorEvent`), Help Center (`Ticket`/`TicketAttachment`), VPS compliance (`VpsAuditSnapshot`/`VpsItemState`).
+- **Tujuh model inti** (SQLite via Prisma 6, ADR-0086): `Project`, `Spec`, `Setting`, `Notification`, `User`, `Session`, `Vps`. Tidak ada `Run` maupun `Trigger` — di-drop saat pindah ke sesi interaktif (ADR-0024). Model pendukung mencakup `DeviceToken`, **`AgentToken`** (kredensial AI agent + capability, SPEC-257/ADR-0065, server-local), `SessionResult`, sync (`SyncLog`/`SyncOutbox`/`SyncState`/`LocalBinding`/`RuntimeConfig`), error monitoring (`ErrorGroup`/`ErrorEvent`), Help Center (`Ticket`/`TicketAttachment`), VPS compliance (`VpsAuditSnapshot`/`VpsItemState`).
 - Enum stage/source/priority disimpan sebagai **`String` + divalidasi zod** di `@hanoman/shared` (`enums.ts`), bukan enum Prisma.
 - `Project.id` (slug) **kekal**, tak ada endpoint rename; `repoDir` OPSIONAL & tak disync. **`LocalBinding`** (`projectId → repoDir`, per-mesin, LOCAL-ONLY) meng-override path; `resolveRepoDir = binding ?? Project.repoDir` dipakai **seluruh** jalur baca (spawn/IDE/coverage/branches/specs/docs).
 - `docStatus`/`coverage`/**Docs**/**PRD** **bukan kolom & tidak dipersist** — docs live dari disk via `git ls-files`, coverage diturunkan tiap `toProjectView` (ADR-0018), PRD = dokumen `docs/prd/<slug>.md` (ADR-0041). Tabel `DocFile` sudah di-drop (ADR-0011).
-- **Jangan ubah skema tanpa migration + ADR.** Menambah model: hand-write `migration.sql` + `migrate deploy` per DB dengan env override (bukan `migrate dev` yang reset saat ada drift worktree). DB test `hanoman_test` butuh `migrate deploy` sendiri; jalankan `prisma generate` sesudah merge yang membawa model baru.
-- DB dev berjalan di Docker; DB dijaga kosong untuk pemakaian nyata (tanpa demo seed). Test pakai `hanoman_test`, bukan `hanoman`/`hanoman_prod`.
+- **Jangan ubah skema tanpa migration + ADR.** Menambah model: hand-write `migration.sql` + `migrate deploy` (bukan `migrate dev` yang me-reset). Jalankan `prisma generate` sesudah merge yang membawa model baru. **DB test tak perlu disiapkan manual** sejak ADR-0086 — `server/test/global-setup.ts` menghapus `<db>.test.db` lalu `migrate deploy` tiap run. Model baru **wajib** ikut `PG_ORDER` di `cli/src/commands/migrate-pg.ts`; test DMMF akan merah kalau lupa.
+- **Fitur yang tak didukung SQLite dan karena itu tak boleh masuk skema:** scalar list (`String[]` non-relasi), tipe native `@db.*`, `Decimal`, `Bytes`, `mode: "insensitive"` pada filter (`LIKE` SQLite sudah case-insensitive ASCII). Skema juga **tak memakai `@map`** sama sekali — properti itu yang membuat tool migrasi Postgres bisa memakai baris `SELECT *` langsung sebagai data `createMany`; jangan merusaknya.
+- DB dijaga kosong untuk pemakaian nyata (tanpa demo seed). Test memakai berkas `<db>.test.db`, bukan `DATABASE_URL` dev — vitest **menolak jalan** bila keduanya sama.
 
 ## Aturan Dokumentasi & Alur
 

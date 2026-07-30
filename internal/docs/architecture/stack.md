@@ -5,7 +5,8 @@
 | Dashboard | React + TypeScript + Vite | UI cepat, tim familiar |
 | Realtime | WebSocket (terminal) + HTTP polling | terminal butuh stream dua arah; sisanya cukup poll |
 | Server | Node.js + TypeScript (Fastify) | satu bahasa lintas stack; `@fastify/websocket`, `cookie`, `static` |
-| DB | PostgreSQL (Prisma) | state project/spec/setting/notification/user/session/vps |
+| DB | **SQLite (Prisma 6)** | embedded, nol proses eksternal; berkas di `~/.hanoman/hanoman.db` ([ADR-0086](../adr/0086-sqlite-satu-satunya-provider.md)) |
+| Distribusi | **paket npm global `hanoman`** | `npm i -g hanoman` → `hanoman`; update `hanoman update` ([ADR-0087](../adr/0087-distribusi-npm-global-satu-perintah.md)) |
 | Terminal (server) | node-pty + **tmux** | sesi `claude` interaktif butuh TTY sungguhan; tmux menahannya hidup lintas restart API (ADR-0016) |
 | Terminal (web) | xterm.js | render TUI Claude Code apa adanya |
 | VCS | git + **git worktree** | isolasi sesi per backlog/branch (ADR-0002) |
@@ -31,8 +32,20 @@ Server (Fastify, bind 127.0.0.1:8787)
    ├─ VPS monitor (setInterval: health 5 mnt · audit 24 jam)
    ├─ Scheduler engine (setInterval tick: source enable+cadence → antrean durable → rekonsil akhir sesi + scanDecisions → drain di bawah cap · SPEC-294/ADR-0072; checker konkret: backlog SPEC-295, errors SPEC-296 — grup produksi berulang → escalate → antrean, satu grup = satu backlog, triase SPEC-297 — tiket bug/fitur eligible → accept → antrean, satu tiket = satu backlog; SPEC-298 — klausa autonomy per mode saat launch [full-control tembus sampai done / butuh-keputusan berhenti→notif decision, slot tetap] + akhir sesi: done→ringkasan `SessionResult`+notif done tanpa auto-merge, gagal/limit→notif fail tanpa retry)
    ├─ Docs SoT scan (live dari Project.repoDir tiap request — ADR-0011/0018)
-   └─ Postgres (Prisma): Project · Spec · Setting · Notification · User · Session · Vps
+   ├─ @fastify/static → web/  (aset dashboard di dalam paket npm; HANOMAN_WEB_DIR)
+   └─ SQLite (Prisma): Project · Spec · Setting · Notification · User · Session · Vps
 ```
+
+**Nol proses eksternal, dan itu termasuk DB-nya.** Sejak SPEC-398/ADR-0086 provider Prisma adalah
+`sqlite`: satu berkas di `$HANOMAN_HOME` (default `~/.hanoman/hanoman.db`), tanpa Docker, tanpa
+Postgres, tanpa Redis. Lokasinya ditentukan tiga fungsi murni di `runner/src/paths.ts`
+(`resolveHome`/`resolveDbUrl`/`dbFilePath`) yang dipakai server **dan** CLI; `DATABASE_URL` yang
+bukan `file:` **melempar** dan menunjuk `hanoman migrate-from-postgres`.
+
+Yang tidak bisa dibawa npm justru inti produknya: **`git`** (worktree per sesi, ADR-0002), **`tmux`**
+(sesi agen, ADR-0016), dan **CLI agen** `claude`/`codex`. `hanoman doctor` melaporkan keberadaannya
+berikut exit code alih-alih memasangnya diam-diam atau menyembunyikan absennya sampai muncul di dalam
+pane tmux yang tak dibaca siapa pun (ADR-0087).
 
 ## Eksekusi
 `runner/src/*` adalah **library**, bukan proses: operasi git worktree (`git.ts`), pembangun prompt +

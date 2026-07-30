@@ -1839,7 +1839,7 @@ git commit -m "feat(spec-398): hanoman migrate-from-postgres — pindahkan data 
 
 **Interfaces:** —
 
-- [ ] **Step 1: Tulis ADR-0086 (SQLite satu-satunya provider)**
+- [x] **Step 1: Tulis ADR-0086 (SQLite satu-satunya provider)**
 
 Isi wajib: konteks (Docker satu-satunya alasan Postgres ada; objective SPEC-398), keputusan
 (provider `sqlite`, Prisma 6.19, DB di `~/.hanoman/hanoman.db`, `DATABASE_URL` non-`file:` melempar),
@@ -1850,7 +1850,7 @@ case-insensitive ASCII; DB test jadi berkas per checkout sehingga dua kelas gaga
 Sebutkan angka kelayakan terukur: nol raw SQL, nol `@db.`, nol scalar list, 14 kolom `Json`,
 4 `mode:"insensitive"`.
 
-- [ ] **Step 2: Tulis ADR-0087 (distribusi npm global, satu perintah, update dari registry)**
+- [x] **Step 2: Tulis ADR-0087 (distribusi npm global, satu perintah, update dari registry)**
 
 Isi wajib: keputusan (paket `hanoman` di npm publik; `hanoman` telanjang = `start`; staging
 `dist-npm/` dirakit `hanoman __pack`, publish tetap manual; `prisma` CLI ikut jadi dependency
@@ -1861,7 +1861,7 @@ ADR-0048 utuh; `hanoman doctor` melaporkan prasyarat non-npm: git, tmux, CLI age
 alternatif ditolak (`POST /api/update/apply` yang mematikan dirinya sendiri di tengah sesi tmux;
 self-update git-checkout).
 
-- [ ] **Step 3: Tautkan di kedua index**
+- [x] **Step 3: Tautkan di kedua index**
 
 `internal/docs/README.md` — di bagian `## adr`, tambahkan **di atas** baris 0085:
 
@@ -1879,7 +1879,7 @@ Di bagian `## operations`, tambahkan:
 `internal/docs/adr/README.md` — tambahkan narasi kedua ADR di posisi paling atas daftarnya,
 sesuai gaya entri 0085 yang sudah ada (apa yang diperluas/dicabut + gotcha terukur).
 
-- [ ] **Step 4: Perbarui stack.md & data-model.md**
+- [x] **Step 4: Perbarui stack.md & data-model.md**
 
 `internal/docs/architecture/stack.md`:
 - Baris tabel DB: `| DB | **SQLite (Prisma 6)** | embedded, nol proses eksternal; berkas di `~/.hanoman/hanoman.db` (ADR-0086) |`
@@ -1892,7 +1892,7 @@ sesuai gaya entri 0085 yang sudah ada (apa yang diperluas/dicabut + gotcha teruk
 menjadi SQLite + berkas `.test.db` yang dimigrasi otomatis `server/test/global-setup.ts`, dan
 sebutkan `hanoman migrate-from-postgres` sebagai jalan pindah sekali-jalan.
 
-- [ ] **Step 5: Perbarui runbook operasi**
+- [x] **Step 5: Perbarui runbook operasi**
 
 `internal/docs/operations/production.md` — cara menjalankan instance prod jadi: `npm i -g hanoman`
 + `HANOMAN_HOME=/srv/hanoman-prod hanoman --port 8788` (DB & port terpisah lewat `HANOMAN_HOME`,
@@ -1904,7 +1904,7 @@ tanpa `--dry-run` → `systemctl restart hanoman`, dengan unit systemd yang men-
 dan menjalankan `hanoman`. Sertakan peringatan: `pg_dump` dulu sebelum migrasi, dan Postgres Docker
 lama boleh dimatikan HANYA sesudah migrasi diverifikasi.
 
-- [ ] **Step 6: Perbarui README + kontrak agent + skill**
+- [x] **Step 6: Perbarui README + kontrak agent + skill**
 
 `README.md` (root): tambahkan bagian "Pasang sebagai paket npm" di paling atas (tiga baris perintah),
 dan ubah instruksi dev supaya tak menyebut `docker compose`.
@@ -1917,18 +1917,31 @@ test server masih berbagi satu berkas DB.
 & Skema" (SQLite, distribusi npm, `hanoman start|doctor|update|migrate-from-postgres`, ADR-0086/0087).
 `internal/skills/hanoman-devops/SKILL.md`: ganti langkah deploy Postgres/Docker menjadi alur npm.
 
-- [ ] **Step 7: Verifikasi integritas index**
+- [x] **Step 7: Verifikasi integritas index**
 
 Run: `node cli/dist/hanoman.js docs index --check`
 Expected: exit 0, tanpa laporan doc tak ter-link.
 
-- [ ] **Step 8: Test yang tersentuh (terakhir, penuh untuk set berubah)**
+- [x] **Step 8: Test yang tersentuh (terakhir, penuh untuk set berubah)**
 
 Run: `pnpm vitest --run --changed "$HANOMAN_BASE_SHA" --no-file-parallelism`
 Expected: hijau. Bila `sync-ws.test.ts` merah, ulangi terisolasi dulu — ia terbukti
 non-deterministik (SPEC-376), bukan indikasi regresi.
 
-- [ ] **Step 9: Commit**
+**Hasil nyata:** `env -u NODE_ENV -u DATABASE_URL pnpm vitest --run --changed "$HANOMAN_BASE_SHA"
+--no-file-parallelism` → **1667 lulus / 9 gagal / 236 berkas** (540 dtk). Kesembilannya di **tiga**
+berkas yang men-spawn tmux nyata (`cross-audit-session` · `integrate-conflict-agent` ·
+`session-launch`), dan ketiganya **33/33 lulus** saat dijalankan terisolasi (21 dtk). Bentuk
+kegagalannya cocok dengan interferensi tmux: satu timeout 5 dtk (pane tak pernah muncul) dan satu
+`auditSessionScope` yang membalas `['web']` alih-alih `['api','sdk','web']` (opsi tmux hilang).
+Socket `hanoman-test` **hardcode** di `server/vitest.config.ts` dan karena itu dibagi **8 worktree**
+di mesin ini, sementara `killAll()` membunuh tmux server seluruhnya — kelas gagal palsu yang sudah
+terdokumentasi. Perubahan Task 7 murni markdown, jadi tak ada jalur kode yang bisa menyebabkannya.
+Catatan untuk manusia sebelum merge: **`env -u NODE_ENV -u DATABASE_URL` wajib** di shell ini —
+env sesi menunjuk `postgresql://…/hanoman_prod`, dan sejak ADR-0086 `resolveDbUrl` **melempar**
+untuk URL non-`file:` (worktree juga butuh `pnpm install` + `prisma generate` + `.env` lokal).
+
+- [x] **Step 9: Commit**
 
 ```bash
 git add -A
