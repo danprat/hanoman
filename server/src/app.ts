@@ -3,7 +3,9 @@ import fastifyStatic from "@fastify/static";
 import websocket from "@fastify/websocket";
 import cookie from "@fastify/cookie";
 import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
+import { dirname } from "node:path";
+import { existsSync } from "node:fs";
+import { pickWebDir } from "./web-dir";
 import health from "./routes/health";
 import projects from "./routes/projects";
 import specs from "./routes/specs";
@@ -152,11 +154,15 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
 
   // Prod: serve the built dashboard from one process; SPA-fallback to
   // index.html for non-/api routes (api 404s stay JSON, never a fake page).
+  // SPEC-398 · ADR-0087 · direktorinya dipilih pickWebDir (paket npm `web/` atau checkout
+  // `src/dist`); absen → server tetap jalan sebagai API saja, bukan crash.
   if (process.env.NODE_ENV === "production") {
-    const dist = resolve(dirname(fileURLToPath(import.meta.url)), "../../src/dist");
-    app.register(fastifyStatic, { root: dist });
-    app.setNotFoundHandler((req, reply) =>
-      req.url.startsWith("/api") ? reply.code(404).send({ error: "not found" }) : reply.sendFile("index.html"));
+    const dist = pickWebDir(dirname(fileURLToPath(import.meta.url)), process.env, existsSync);
+    if (dist) {
+      app.register(fastifyStatic, { root: dist });
+      app.setNotFoundHandler((req, reply) =>
+        req.url.startsWith("/api") ? reply.code(404).send({ error: "not found" }) : reply.sendFile("index.html"));
+    }
   }
   return app;
 }

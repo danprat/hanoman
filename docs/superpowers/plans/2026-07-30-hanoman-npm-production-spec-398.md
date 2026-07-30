@@ -361,7 +361,7 @@ git commit -m "feat(spec-398): cutover SQLite — Prisma 6, provider sqlite, DB 
 - Consumes: —
 - Produces: `pickWebDir(distDir: string, env: EnvLike, exists: (p: string) => boolean): string | null`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Create `server/test/web-dir.test.ts`:
 
@@ -390,12 +390,12 @@ describe("pickWebDir", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — harus gagal**
+- [x] **Step 2: Jalankan test — harus gagal**
 
 Run: `pnpm vitest --run server/test/web-dir.test.ts`
 Expected: FAIL — modul `../src/web-dir` tak ada.
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 Create `server/src/web-dir.ts`:
 
@@ -420,12 +420,12 @@ export function pickWebDir(distDir: string, env: EnvLike, exists: (p: string) =>
 }
 ```
 
-- [ ] **Step 4: Jalankan test — harus lulus**
+- [x] **Step 4: Jalankan test — harus lulus**
 
 Run: `pnpm vitest --run server/test/web-dir.test.ts`
 Expected: PASS (5 test).
 
-- [ ] **Step 5: Sambungkan `app.ts`**
+- [x] **Step 5: Sambungkan `app.ts`**
 
 `server/src/app.ts` — ganti blok static:
 
@@ -446,12 +446,12 @@ Expected: PASS (5 test).
 
 Tambahkan import `existsSync` dari `node:fs` dan `pickWebDir` dari `./web-dir`; hapus import `resolve` bila jadi tak terpakai (cek dulu — `resolve` mungkin masih dipakai baris lain).
 
-- [ ] **Step 6: Jalankan test yang tersentuh + typecheck**
+- [x] **Step 6: Jalankan test yang tersentuh + typecheck**
 
 Run: `pnpm vitest --run server/test/web-dir.test.ts server/test/app.test.ts --no-file-parallelism && pnpm --filter ./server typecheck`
 Expected: hijau. (Bila `server/test/app.test.ts` tak ada, cukup `web-dir.test.ts`.)
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add -A
