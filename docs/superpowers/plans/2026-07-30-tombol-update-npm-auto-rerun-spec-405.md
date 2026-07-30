@@ -1390,7 +1390,7 @@ Expected: `docs index --check` exit 0 (semua doc ter-link).
 > menyentuh test server, `--no-file-parallelism` **wajib** (SPEC-397: set yang sama memberi 181 gagal
 > palsu paralel vs 736 lulus serial).
 
-- [ ] **Step 1: Test yang tersentuh, SERIAL**
+- [x] **Step 1: Test yang tersentuh, SERIAL**
 
 Run:
 ```bash
@@ -1401,7 +1401,7 @@ Expected: PASS. **Jangan menerima "no test files" sebagai bukti** — `--changed
 `update.route.test.ts`, `update-restart.test.ts`, `start-args.test.ts`, `update-indicator.test.tsx`,
 `agent-capabilities.test.ts`.
 
-- [ ] **Step 2: Typecheck paket yang tersentuh (berurutan, bukan `-r`)**
+- [x] **Step 2: Typecheck paket yang tersentuh (berurutan, bukan `-r`)**
 
 Run:
 ```bash
@@ -1409,7 +1409,7 @@ pnpm --filter ./shared typecheck && pnpm --filter ./server typecheck && pnpm --f
 ```
 Expected: keempatnya exit 0.
 
-- [ ] **Step 3: Smoke endpoint nyata — keempat balasan**
+- [x] **Step 3: Smoke endpoint nyata — keempat balasan**
 
 Task ini menyentuh endpoint, jadi uji sungguhan sekali di akhir. Boot server dari worktree ini
 dengan DB & port khusus supaya tak menabrak instance atau sesi tetangga:
@@ -1452,14 +1452,14 @@ Expected: `"canApply":false` dan `{"error":"unsupervised"}`.
 > tetangga di mesin ini dan `pkill` mengecualikan leluhurnya sendiri, jadi yang mati selalu sesi
 > orang lain. Bunuh per-PID lewat `lsof -ti:<port>`.
 
-- [ ] **Step 4: Pastikan diff bersih & tak ada artefak smoke tertinggal**
+- [x] **Step 4: Pastikan diff bersih & tak ada artefak smoke tertinggal**
 
 ```bash
 git status --porcelain
 ```
 Expected: kosong (semua sudah ter-commit; `.smoke-405*` sudah dihapus di Step 3).
 
-- [ ] **Step 5: Push**
+- [x] **Step 5: Push**
 
 ```bash
 git push origin HEAD:refs/heads/hanoman/spec-405

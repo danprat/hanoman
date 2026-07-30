@@ -41,12 +41,12 @@ describe("POST /api/update/apply (SPEC-405 · ADR-0088)", () => {
   });
   afterEach(() => { __setExiter(null); restoreEnv(); _resetUpdateCache(); });
 
-  const post = async (body: unknown, supervised: boolean, latest: string | null) => {
+  const post = async (body: Record<string, unknown>, supervised: boolean, latest: string | null) => {
     if (supervised) process.env.HANOMAN_SUPERVISOR = "1"; else delete process.env.HANOMAN_SUPERVISOR;
     _resetUpdateCache();
     __setRegistrySnapshot(latest, latest ? "ok" : "unavailable");
     const app = buildApp({ requireAuth: false });
-    return app.inject({ method: "POST", url: "/api/update/apply", payload: body });
+    return await app.inject({ method: "POST", url: "/api/update/apply", payload: body });
   };
   const settle = () => new Promise((r) => setTimeout(r, 20));
 
