@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { prisma } from "../src/db";
-import { LEAD_DEFAULTS, type Lead } from "@hanoman/shared";
+import { LEAD_DEFAULTS, SCHEDULER_DEFAULTS, type Lead } from "@hanoman/shared";
 import { pulse, findCollisions, __resetPulse, type PulseDeps, type WorkArea } from "../src/services/lead/pulse";
 import { recordDecision } from "../src/services/lead/trail";
 
@@ -74,6 +74,7 @@ function harness(over: Partial<PulseDeps> = {}, conf: Lead = cfg()) {
     notify: async () => { /* diam */ },
     optIn: async () => ["demo"],
     cfg: async () => conf,
+    scheduler: async () => ({ ...SCHEDULER_DEFAULTS, enabled: true }),
     ...over,
   };
   return { deps, asked, applied, enqueued };
@@ -134,6 +135,29 @@ describe("pulse · mutu hasil (AC-16/17)", () => {
     await pulse(h.deps);
     expect(h.asked).toHaveLength(1);
   });
+  // SPEC-432 · `decide()` MENULIS ULANG `kind` jadi "refusal" saat tindakan usulan lead di luar
+  // allowlist (`kind = allowed ? req.kind : "refusal"`). Gerbang idempotensi yang mencari `kind`
+  // aslinya karena itu tak pernah cocok, dan sesi mati yang sama ditanyakan ulang TIAP denyut —
+  // selamanya, karena pane mati bertahan berhari-hari (`remain-on-exit on`). Ia belum terpicu di
+  // lapangan hanya karena semua keputusan gagal lebih dulu; ia terpicu justru saat itu diperbaiki.
+  it("does not re-decide a session whose verdict was recorded as a refusal", async () => {
+    const h = harness({
+      sessions: () => failedSession,
+      decide: (async (req: { projectId: string; specId?: string | null; sessionId?: string | null; kind: string; question: string }) => {
+        h.asked.push({ question: req.question, kind: req.kind });
+        return recordDecision({
+          projectId: req.projectId, specId: req.specId, sessionId: req.sessionId,
+          gate: "pulse", kind: "refusal", question: req.question,
+          answer: "hapus worktree-nya lalu mulai bersih", reason: "DITOLAK: menghapus worktree …",
+          refs: [], confidence: "tinggi", action: "none", weighty: true,
+        });
+      }) as unknown as PulseDeps["decide"],
+    });
+    await pulse(h.deps); __resetPulse();
+    await pulse(h.deps);
+    expect(h.asked).toHaveLength(1);
+  });
+
   it("executes the follow-up action lead chose", async () => {
     const h = harness({
       sessions: () => failedSession,
@@ -150,6 +174,10 @@ describe("pulse · mutu hasil (AC-16/17)", () => {
 
 describe("pulse · urutan kerja (AC-13)", () => {
   beforeEach(async () => {
+    // SPEC-432 · penataan hanya berarti bila antrean memang bisa dikuras: scheduler menyala &
+    // tak dijeda, dan project-nya opt-in scheduler. Dunia default di sini sengaja AKTIONABEL —
+    // ketidak-aktionabelan diuji satu per satu di blok "gerbang aktionabilitas" di bawah.
+    await prisma.project.update({ where: { id: "demo" }, data: { schedulerOptIn: true } });
     for (const id of ["spec-1", "spec-2"]) {
       await prisma.spec.create({ data: {
         id, projectId: "demo", title: id, source: "brief", stage: "backlog",
@@ -195,7 +223,7 @@ describe("pulse · urutan kerja (AC-13)", () => {
   // backlog project lain ke dalam pertanyaan yang diberi label project pertama — dan tanda tangan
   // "sudah ditata" jadi gabungan, sehingga project yang diam menahan project yang bergerak.
   it("orders each project separately, never in one mixed turn", async () => {
-    await prisma.project.create({ data: { id: "lain", name: "Lain", desc: "", kind: "web", leadOptIn: true } });
+    await prisma.project.create({ data: { id: "lain", name: "Lain", desc: "", kind: "web", leadOptIn: true, schedulerOptIn: true } });
     for (const id of ["lain-1", "lain-2"]) {
       await prisma.spec.create({ data: {
         id, projectId: "lain", title: id, source: "brief", stage: "backlog",
@@ -207,6 +235,79 @@ describe("pulse · urutan kerja (AC-13)", () => {
     const orders = h.asked.filter((a) => a.kind === "order");
     expect(orders).toHaveLength(2);
     for (const o of orders) expect(o.question).toContain("Ada 2 backlog");
+  });
+});
+
+// SPEC-432 · audit `research/audit-spec-432-lead-tak-memutuskan-denyut-spam.md`.
+//
+// Enam dari tujuh panggilan lead di mesin operator adalah `pulse|order`, dan ketiga-tiganya per
+// denyut TERBUKTI tak bisa mengubah apa pun: `scheduler.paused=true` (antrean tak pernah dikuras),
+// 8/8 & 20/20 backlog siap-kerja SUDAH ada di antrean (`enqueue` = `upsert(update:{})` → penataan
+// ulang no-op total), dan project ketiga `leadOptIn=1` tapi `schedulerOptIn=0`. Itulah "heartbeat
+// spam tanpa ada hal yang bisa dilakukan": bukan lead yang terlalu rajin, melainkan lead yang
+// membakar giliran agen untuk pekerjaan yang mustahil berdampak.
+describe("pulse · gerbang aktionabilitas penataan (audit SPEC-432)", () => {
+  beforeEach(async () => {
+    await prisma.project.update({ where: { id: "demo" }, data: { schedulerOptIn: true } });
+    for (const id of ["spec-1", "spec-2"]) {
+      await prisma.spec.create({ data: {
+        id, projectId: "demo", title: id, source: "brief", stage: "backlog",
+        priority: "sedang", author: "t", objective: `objective ${id}`,
+      } });
+    }
+  });
+
+  it("spends no lead turn while the scheduler subsystem is off", async () => {
+    const h = harness({ scheduler: async () => ({ ...SCHEDULER_DEFAULTS, enabled: false }) });
+    expect((await pulse(h.deps)).ordered).toBe(0);
+    expect(h.asked).toEqual([]);
+  });
+
+  it("spends no lead turn while the scheduler is paused — nothing drains the queue", async () => {
+    const h = harness({ scheduler: async () => ({ ...SCHEDULER_DEFAULTS, enabled: true, paused: true }) });
+    expect((await pulse(h.deps)).ordered).toBe(0);
+    expect(h.asked).toEqual([]);
+  });
+
+  it("spends no lead turn on a project the scheduler may never launch", async () => {
+    await prisma.project.update({ where: { id: "demo" }, data: { schedulerOptIn: false } });
+    const h = harness();
+    expect((await pulse(h.deps)).ordered).toBe(0);
+    expect(h.asked).toEqual([]);
+  });
+
+  // `enqueue` adalah `upsert(..., update: {})`: spec yang sudah punya baris antrean tak berubah
+  // sama sekali, termasuk `enqueuedAt` yang jadi tiebreak FIFO-nya. Menata ulang himpunan yang
+  // seluruhnya sudah antre karena itu no-op — dan no-op tak boleh berharga satu panggilan agen.
+  it("spends no lead turn when every ready item is already queued", async () => {
+    for (const specId of ["spec-1", "spec-2"]) {
+      await prisma.schedulerQueueItem.create({ data: { specId, projectId: "demo", source: "backlog", priority: "sedang" } });
+    }
+    const h = harness();
+    expect((await pulse(h.deps)).ordered).toBe(0);
+    expect(h.asked).toEqual([]);
+  });
+
+  it("still orders when at least two ready items are genuinely un-queued", async () => {
+    const h = harness();
+    expect((await pulse(h.deps)).ordered).toBe(2);
+    expect(h.asked.filter((a) => a.kind === "order")).toHaveLength(1);
+  });
+
+  // Tanda tangannya harus dihitung atas himpunan BELUM-ANTRE, bukan seluruh himpunan siap-kerja:
+  // kalau tidak, satu item yang masuk antrean lewat jalur lain menggeser tanda tangan dan membeli
+  // satu giliran agen lagi untuk penataan yang sisanya sudah no-op.
+  it("does not re-decide when the only change is an item that just got queued", async () => {
+    const h = harness();
+    await pulse(h.deps);
+    expect(h.asked.filter((a) => a.kind === "order")).toHaveLength(1);
+    await prisma.spec.create({ data: {
+      id: "spec-3", projectId: "demo", title: "spec-3", source: "brief", stage: "backlog",
+      priority: "sedang", author: "t", objective: "objective spec-3",
+    } });
+    await prisma.schedulerQueueItem.create({ data: { specId: "spec-3", projectId: "demo", source: "backlog", priority: "sedang" } });
+    await pulse(h.deps);
+    expect(h.asked.filter((a) => a.kind === "order")).toHaveLength(1);
   });
 });
 
@@ -226,6 +327,26 @@ describe("pulse · tabrakan (AC-14)", () => {
     await pulse(h.deps);
     expect(h.asked.filter((a) => a.kind === "collision")).toHaveLength(1);
   });
+  // SPEC-432 · cermin cacat yang sama di pintu tabrakan.
+  it("does not re-decide a pair whose verdict was recorded as a refusal", async () => {
+    const h = harness({
+      sessions: () => two,
+      areas: async () => ["server/src/x.ts"],
+      decide: (async (req: { projectId: string; specId?: string | null; sessionId?: string | null; kind: string; question: string }) => {
+        h.asked.push({ question: req.question, kind: req.kind });
+        return recordDecision({
+          projectId: req.projectId, specId: req.specId, sessionId: req.sessionId,
+          gate: "pulse", kind: "refusal", question: req.question,
+          answer: "hapus branch salah satunya", reason: "DITOLAK: menghapus branch …",
+          refs: [], confidence: "tinggi", action: "none", weighty: true,
+        });
+      }) as unknown as PulseDeps["decide"],
+    });
+    await pulse(h.deps); __resetPulse();
+    await pulse(h.deps);
+    expect(h.asked).toHaveLength(1);
+  });
+
   it("says nothing when the two sessions work apart", async () => {
     const h = harness({
       sessions: () => two,

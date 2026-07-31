@@ -122,7 +122,7 @@ ADR ini.
 | OQ | Ditutup dengan |
 |----|----------------|
 | OQ-1 agen & ongkos lead | Blok `Setting.lead.engine` opt-in; mati = warisi `sessionAgentDefaults()`. Kuota menumpang langganan yang sama, terlihat di badge limit; tanpa akunting terpisah. |
-| OQ-2 frekuensi & anggaran denyut | `everyMin` default 5. Idle benar-benar murah: penataan urutan hanya lahir saat **himpunan backlog siap-kerja berubah** (signature), tindak lanjut mutu hanya sekali per sesi (idempoten lewat jejak), tabrakan hanya sekali per pasangan. Nol pekerjaan → nol panggilan agen. |
+| OQ-2 frekuensi & anggaran denyut | `everyMin` default 5. Idle benar-benar murah: penataan urutan hanya lahir saat **himpunan backlog siap-kerja berubah** (signature), tindak lanjut mutu hanya sekali per sesi (idempoten lewat jejak), tabrakan hanya sekali per pasangan. Nol pekerjaan → nol panggilan agen. **Diperketat SPEC-432** (audit [`research/audit-spec-432-…`](../research/audit-spec-432-lead-tak-memutuskan-denyut-spam.md)): "berubah" saja ternyata tak cukup — himpunan itu bergeser tiap sesi lahir (`baseSha` ditulis) dan tiap backlog masuk, sementara penataannya bisa nihil sejak awal. Syaratnya kini **aktionabilitas**: scheduler menyala & tak dijeda, project `schedulerOptIn`, dan ≥ 2 backlog siap yang **belum ada di antrean** (`enqueue` = `upsert(update:{})` → yang sudah antre tak bisa dipindah); tanda tangannya dihitung atas himpunan belum-antre itu. |
 | OQ-3 syarat sebelum integrasi ke `main` | Tetap ada syarat **objektif**, dan diperiksa server dari berkas & tmux — bukan penilaian prosa lead: plan tak menyisakan `- [ ]` (ADR-0029). Knob `requireGreenBeforeIntegrate` default **menyala**; operator boleh mematikannya. Buktinya ditempel ke baris jejak yang bersangkutan (AC-19). |
 | OQ-4 migration oleh lead | Lead **tidak** menulis ADR sendiri di versi ini, dan `run-migration` ada di allowlist tapi **dieksekusi operator** — dicatat sebagai keputusan, tidak dijalankan lead. |
 | OQ-5 "putusan berbobot" | `isWeightyDecision()`: keraguan, tabrakan, penolakan tindakan terkunci, atau tindakan yang sulit dibatalkan (`integrate-main`/`run-migration`/`stop-session`/`restart-session`). |
@@ -191,3 +191,27 @@ ADR ini.
    degradasinya SENYAP (ADR-0085). Jawaban lead gampang melewati batas itu.
 6. **Rujukan disaring terhadap repo.** Path absolut & `..` ditolak — rujukan adalah alamat DI DALAM
    repo, dan jejak keputusan dibaca operator sebagai bukti.
+
+**Ditambahkan SPEC-432** — tiga lagi, semuanya terukur di jejak operator (7/7 baris `gagal`;
+lihat [audit SPEC-432](../research/audit-spec-432-lead-tak-memutuskan-denyut-spam.md)):
+
+7. **Prompt WAJIB menyebut anggaran waktunya, dan angkanya harus yang benar-benar berlaku.**
+   Perintah "kumpulkan bukti dulu: SoT, ADR, plan, kode, riwayat git" tak punya dasar berhenti,
+   sementara `brain.think()` meng-SIGTERM agennya di detik ke-`timeoutSec`. Tanpa memberi tahu
+   agen bahwa jam berdetak, keduanya bertabrakan **setiap kali** — bukan kadang-kadang. Terukur
+   pada agen & harness yang sama: prompt tanpa anggaran **306 236 ms**, prompt yang sama plus satu
+   paragraf anggaran **101 136 ms dengan blok json sah**. `timeoutSec` default karena itu naik
+   120 → 600, dan `decide()` meneruskan `cfg.timeoutSec` yang sama ke `leadPrompt`: dua sumber
+   angka akan berselisih diam-diam begitu operator menggeser knob-nya, dan agen yang dianggarkan
+   salah gagal persis seperti agen yang tak dianggarkan.
+8. **Dua irama §5 butuh dua penjaga re-entrancy.** Satu flag `busy` untuk keduanya membuat denyut
+   proaktif yang lambat (jumlah project × `timeoutSec`) memulangkan setiap tick 5 detik tanpa
+   menjalankan pintu deteksi — pintu yang justru satu-satunya penjawab sesi mandek, dan M1
+   (median ≤ 2 menit) mustahil di bawahnya. Jatuh tempo denyut juga dihitung dari saat denyut
+   **selesai**, bukan mulai: menstempel di awal membuat denyut yang lebih lama dari `everyMin`
+   langsung jatuh tempo lagi begitu ia selesai.
+9. **Kunci idempotensi denyut TIDAK BOLEH memakai `kind`.** `decide()` menulis ulang `kind` jadi
+   `"refusal"` saat tindakan usulan lead di luar allowlist (gotcha #4 di atas adalah alasan
+   perilaku itu ada), jadi gerbang `seen` ber-`kind` meleset persis pada baris yang sudah ditulis
+   — dan sesi mati yang sama ditanyakan ulang tiap denyut, selamanya. Yang stabil adalah penanda
+   di dalam `question` (awalan `Sesi <id> untuk backlog <specId>`, kunci pasangan `[a|b]`).

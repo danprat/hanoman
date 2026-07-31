@@ -191,7 +191,11 @@ Singleton `id = 1`, kolom `data` (Json) berbentuk `zSetting`:
   **semua default MATI**) — knob hanoman-lead: `enabled` (master switch — selama mati hanoman
   berperilaku persis seperti sebelum ADR-0091), `paused` (rem darurat global), `pausedProjects`
   (rem per project), `everyMin` (denyut proaktif, default 5), `timeoutSec` (batas satu putusan,
-  default 120), `maxAutoAnswers` (jawaban otomatis berturut-turut per sesi sebelum lead berhenti,
+  default **600** — SPEC-432 menaikkannya dari 120 karena satu keputusan `order` nyata terukur
+  **306 dtk** pada claude-opus-5 · xhigh, sehingga 7/7 baris jejak operator berstatus `gagal`;
+  angka ini juga disebut ke agennya lewat paragraf anggaran waktu di `leadPrompt`, dan **harus
+  berasal dari cfg yang sama** yang dipakai `brain.think()` — anggaran yang berbohong menggeser
+  pembacaan lead ke arah yang salah), `maxAutoAnswers` (jawaban otomatis berturut-turut per sesi sebelum lead berhenti,
   default 3), `requireGreenBeforeIntegrate` (syarat objektif sebelum integrasi ke `main`, default
   **menyala**), dan blok `engine` `{enabled,agent,model,effort}` = agen yang menjalankan lead —
   **opt-in seperti `conflict`**: selama `engine.enabled` mati, `leadAgentDefaults()` mendelegasikan

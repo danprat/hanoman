@@ -230,7 +230,12 @@ export const zLead = z.object({
   paused: z.boolean().default(false),             // rem darurat global (AC-27)
   pausedProjects: z.array(z.string()).default([]),// rem per project (AC-15/US-4)
   everyMin: z.number().int().min(1).max(1440).default(5),   // denyut proaktif (OQ-2)
-  timeoutSec: z.number().int().min(10).max(900).default(120), // batas waktu satu putusan (AC-4/35)
+  // SPEC-432 · batas waktu satu putusan (AC-4/35). Default 120 dtk MELAWAN prompt lead sendiri
+  // ("kumpulkan bukti dulu: SoT, ADR, plan, kode, riwayat git") dan kalah: satu keputusan `order`
+  // nyata terukur 306 dtk pada claude-opus-5 · xhigh, jadi 7/7 baris jejak operator berstatus
+  // `gagal`. 600 dtk memberi kelonggaran di atas ongkos terukur itu; yang memangkas ongkosnya
+  // sendiri adalah paragraf anggaran waktu di `leadPrompt` (306 dtk → 101 dtk).
+  timeoutSec: z.number().int().min(10).max(900).default(600),
   // AC-11 / OQ-10 · berapa jawaban otomatis berturut-turut untuk SATU sesi sebelum lead berhenti.
   maxAutoAnswers: z.number().int().min(1).max(20).default(3),
   // OQ-3 · syarat objektif sebelum lead boleh mengintegrasikan ke branch utama. Default MENYALA:

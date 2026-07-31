@@ -87,6 +87,10 @@ export async function decide(req: DecideRequest, deps: DecideDeps = prodDecideDe
     projectId: req.projectId,
     projectName: project?.name ?? req.projectId,
     repoDir,
+    // SPEC-432 · anggaran yang disebut prompt WAJIB berasal dari cfg yang sama yang dipakai
+    // `think()` di bawah. Dua sumber angka akan berselisih diam-diam begitu operator menggeser
+    // knob-nya, dan agen yang dianggarkan salah gagal persis seperti agen yang tak dianggarkan.
+    timeoutSec: cfg.timeoutSec,
     spec,
     liveSessions: deps.liveSessions()
       .filter((s) => !s.exited && s.projectId === req.projectId && s.id !== req.sessionId)
@@ -151,15 +155,28 @@ export function takeReply(decisionId: string): string {
 /**
  * AC-4 · permintaan yang tak terjawab dalam batas waktu (atau keluarannya tak terbaca) dicatat
  * sebagai baris `gagal` + notifikasi, dan peminta kembali ke perilaku hari ini: menunggu manusia.
+ *
+ * SPEC-432 · barisnya SELALU ditulis — "tak ada baris" tak bisa dibedakan dari "tak pernah
+ * diminta", dan itulah seluruh alasan status `gagal` ada. Yang dijaga adalah notifikasinya:
+ * kegagalan yang beruntun di pintu & jenis yang sama bukan kabar baru, ia hanya mengubur
+ * notifikasi lain. Di panel operator, KETUJUH notifikasi lead yang pernah terbit berbunyi
+ * "Lead gagal memutuskan" — satu keadaan rusak dilaporkan tujuh kali. Begitu satu keputusan
+ * berhasil di antaranya, lead terbukti pulih dan kegagalan berikutnya jadi kabar lagi.
  */
 async function fail(req: DecideRequest, deps: DecideDeps, reason: string): Promise<LeadDecision> {
+  const prev = await prisma.leadDecision.findFirst({
+    where: { projectId: req.projectId, gate: req.gate, kind: req.kind },
+    orderBy: { createdAt: "desc" }, select: { status: true },
+  });
   const row = await recordDecision({
     projectId: req.projectId, specId: req.specId, sessionId: req.sessionId,
     gate: req.gate, kind: req.kind, question: req.question,
     answer: "", reason, refs: [], confidence: "ragu", action: "none",
     status: "gagal", weighty: true,
   });
-  await deps.notify(row.id, `Lead gagal memutuskan: ${req.question.replace(/\s+/g, " ").slice(0, 90)}`,
-    req.projectId, req.specId ?? null, req.sessionId ?? null);
+  if (prev?.status !== "gagal") {
+    await deps.notify(row.id, `Lead gagal memutuskan: ${req.question.replace(/\s+/g, " ").slice(0, 90)}`,
+      req.projectId, req.specId ?? null, req.sessionId ?? null);
+  }
   return row;
 }

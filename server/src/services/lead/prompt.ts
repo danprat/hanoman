@@ -7,6 +7,13 @@ export type LeadContext = {
   projectId: string;
   projectName: string;
   repoDir: string | null;
+  /**
+   * SPEC-432 · anggaran waktu yang BENAR-BENAR berlaku (`Setting.lead.timeoutSec`), diteruskan
+   * `decide()` dari cfg yang sama yang dipakai `brain.think()` untuk meng-SIGTERM agennya. Angka
+   * ini tak boleh berupa konstanta terpisah: anggaran yang berbohong menggeser pembacaan lead ke
+   * arah yang salah, dan itu lebih buruk daripada tak punya anggaran sama sekali.
+   */
+  timeoutSec: number;
   /** Backlog item peminta, bila ada. */
   spec?: { id: string; title: string; objective: string; stage: string; priority: string } | null;
   /** Sesi yang sedang berjalan di project ini — konteks yang tak dimiliki sesi manapun (E). */
@@ -28,6 +35,14 @@ const bullet = (s: string) => `- ${s}`;
 /**
  * AC-20/21/22 · tiga hal yang WAJIB ada di prompt ini, dan alasannya:
  *
+ * 0. SPEC-432 · ANGGARAN WAKTU. Perintah nomor 1 di bawah ("baca SoT, ADR, plan, kode, riwayat
+ *    git") tak punya dasar berhenti, sementara `brain.think()` meng-SIGTERM agennya di detik
+ *    ke-`timeoutSec`. Tanpa memberi tahu agen bahwa jam berdetak, keduanya bertabrakan setiap kali:
+ *    di DB operator, TUJUH dari tujuh baris jejak berstatus `gagal` dengan alasan identik
+ *    "kehabisan waktu 120000 ms" — nol keputusan pernah lahir. Terukur pada agen & harness yang
+ *    sama, prompt yang sama plus paragraf anggaran ini selesai 3× lebih cepat (306 236 ms →
+ *    101 136 ms) DAN mengembalikan blok json yang sah. Anggaran ini karena itu bukan sopan santun
+ *    prompt; ia adalah yang membuat lead bisa memutuskan sama sekali.
  * 1. Perintah mengumpulkan bukti DULU (docs SoT, ADR, plan, kode, riwayat git) — lead yang menebak
  *    lebih buruk daripada operator yang absen.
  * 2. Larangan mengembalikan "tidak tahu": setelah bukti dikumpulkan ia tetap harus memutuskan,
@@ -70,8 +85,12 @@ export function leadPrompt(q: LeadQuestion, c: LeadContext): string {
     for (const [i, o] of q.options.entries()) lines.push(`${i + 1}. ${o}`);
   }
   lines.push("");
+  lines.push("## Batas waktu (BACA INI DULU)");
+  lines.push(`Kamu punya **${c.timeoutSec} detik** sejak sekarang. Lewat dari itu prosesmu dihentikan paksa, keluaranmu DIBUANG, dan permintaan ini dicatat sebagai kegagalan — peminta kembali mandek menunggu manusia. Jadi keputusan tepat waktu di atas bukti secukupnya jauh lebih berguna daripada pembacaan lengkap yang tak pernah sampai.`);
+  lines.push(`Anggarkan begini: pakai paling banyak separuh waktu untuk mengumpulkan bukti, lalu **berhenti membaca** dan tulis jawabannya dengan apa yang sudah kamu punya. Kalau buktinya jadi tipis karena itu, turunkan \`confidence\`-nya — jangan menambah waktu baca.`);
+  lines.push("");
   lines.push("## Cara kerja");
-  lines.push("1. KUMPULKAN BUKTI DULU sebelum memutuskan: `internal/docs/**` (Source of Truth) dan index-nya, ADR yang relevan, plan `docs/superpowers/plans/**`, kode yang bersangkutan, dan riwayat git. Baca, jangan mengingat.");
+  lines.push("1. KUMPULKAN BUKTI DULU sebelum memutuskan, DI DALAM anggaran waktu di atas: `internal/docs/**` (Source of Truth) dan index-nya, ADR yang relevan, plan `docs/superpowers/plans/**`, kode yang bersangkutan, dan riwayat git. Baca, jangan mengingat — tapi baca seperlunya, bukan sehabisnya.");
   lines.push("2. Putuskan. Kalau setelah membaca kamu masih ragu, TETAP putuskan: pilih opsi yang PALING MUDAH DIBATALKAN, lalu tandai `confidence: \"ragu\"`. Jangan pernah menjawab \"tidak tahu\" atau meminta manusia memutuskan — itu persis keadaan yang kamu ada untuk menghapusnya.");
   lines.push("3. Rujuk bukti yang BENAR-BENAR kamu baca. Rujukan berupa path berkas relatif terhadap checkout, nomor ADR (`ADR-0091`), atau sha commit. Rujukan yang tak ada di repo akan dibuang server dan membuat jawabanmu tampak tanpa dasar.");
   lines.push("4. JANGAN membaca atau mengutip kredensial (isi `.env*`, token, kunci privat). Jejak keputusan disimpan di basis data; rahasia tak boleh mendarat di sana.");
