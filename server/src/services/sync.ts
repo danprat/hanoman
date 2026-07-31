@@ -28,7 +28,9 @@ const DELEGATE: Record<Entity, Delegate> = {
 // SPEC-270 · ADR-0067 · `updatedAt` ikut menyeberang sebagai jam LWW (default modal rekonsil).
 const FIELDS: Record<Entity, string[]> = {
   project: ["name", "desc", "kind", "stack", "gitRemote", "updatedAt"],
-  spec: ["projectId", "title", "source", "stage", "priority", "author", "objective", "payload", "branchFrom", "baseSha", "headSha", "updatedAt"],
+  // SPEC-408 · ADR-0090 · createdAt/startedAt ikut menyeberang — sejajar baseSha/headSha. Tanpa
+  // ini spec asal-hub mendapat createdAt lokal palsu di tiap client (kolom NOT NULL ber-default).
+  spec: ["projectId", "title", "source", "stage", "priority", "author", "objective", "payload", "branchFrom", "baseSha", "headSha", "createdAt", "startedAt", "updatedAt"],
   vps: ["name", "host", "port", "user", "health", "audit", "hardened", "lastSeenAt", "lastAuditAt", "updatedAt"],
   sessionResult: ["projectId", "specId", "oldStage", "newStage", "commitSha", "branch", "prUrl", "status", "deviceId", "author", "createdAt", "updatedAt"],
   // SPEC-268 · ADR-0066 · agregat grup error (ErrorEvent mentah tak disync).
@@ -41,7 +43,7 @@ const FIELDS: Record<Entity, string[]> = {
 };
 // Field yang JSONB-nya string ISO tapi kolomnya DateTime — dikonversi balik saat menulis.
 const DATE_FIELDS: Record<Entity, string[]> = {
-  project: ["updatedAt"], spec: ["updatedAt"], vps: ["lastSeenAt", "lastAuditAt", "updatedAt"],
+  project: ["updatedAt"], spec: ["createdAt", "startedAt", "updatedAt"], vps: ["lastSeenAt", "lastAuditAt", "updatedAt"],
   sessionResult: ["createdAt", "updatedAt"],
   errorGroup: ["firstSeenAt", "lastSeenAt", "updatedAt"], ticket: ["createdAt", "updatedAt"],
   ticketAttachment: ["createdAt", "updatedAt"],
