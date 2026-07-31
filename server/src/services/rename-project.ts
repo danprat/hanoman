@@ -1,4 +1,4 @@
-// SPEC-255 · ADR-0064 · rename Project.id secara transaksional. FK Spec/ErrorGroup/Ticket sudah
+// SPEC-255 · ADR-0064 · rename Project.id secara transaksional. FK Spec/Ticket sudah
 // ON UPDATE CASCADE (bawaan Prisma) → ikut otomatis saat UPDATE Project.id. Referensi longgar
 // (tanpa FK) + LocalBinding (@id, LOCAL-only) di-update manual. `renameProjectCore` = helper murni:
 // TANPA validasi slug / cek konflik / cek sesi (itu di `renameProject` & applyPush) dan TANPA
