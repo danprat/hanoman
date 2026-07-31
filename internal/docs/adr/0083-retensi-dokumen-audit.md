@@ -14,7 +14,7 @@ diputuskan") · [ADR-0011](0011-docs-realtime-filesystem.md)/[0018](0018-coverag
 [ADR-0057](0057-audit-only-source-flow.md) menetapkan flow audit menghasilkan satu dokumen
 `internal/docs/research/audit-<spec-id>-<slug>.md` sebagai deliverable — dan berhenti di situ. Ia tak
 pernah menetapkan kapan dokumen itu berhenti relevan. Karena flow audit terus dipakai (dua pintu sejak
-[ADR-0075](0075-audit-lintas-project-projectlink-kunci-sesi.md), tiga tindak lanjut sejak ADR-0076),
+**ADR-0075** (dicabut, [ADR-0092](0092-cabut-error-monitoring-sdk-cross-audit.md)), tiga tindak lanjut sejak ADR-0076),
 dokumennya menumpuk tanpa batas.
 
 Terukur saat SPEC-386 dikerjakan:
@@ -104,7 +104,7 @@ hidup sekarang.
 | SPEC-265 | tak ada panduan integrasi AI agent & tak ditaut dari UI | `docs/agent-integration.md` + link di Settings ([ADR-0065](0065-ai-agent-capability-agent-token.md)) |
 | SPEC-267 | advance stage write-through tak pernah `enqueueOutbox` | `notifySynced("spec", …)` di `services/live-specs.ts:40` |
 | SPEC-271 | tautan backlog↔triase satu-kali-jalan, tak bisa dilepas | `POST /errors\|tickets/:id/unlink` (`routes/errors.ts`, `routes/tickets.ts`) |
-| SPEC-275 | stack trace tak cerminkan source code (parity source-map) | [ADR-0070](0070-symbolication-source-map-server-side.md) |
+| SPEC-275 | stack trace tak cerminkan source code (parity source-map) | **ADR-0070** (dicabut, [ADR-0092](0092-cabut-error-monitoring-sdk-cross-audit.md)) |
 | SPEC-286 | eskalasi triase tak memeriksa lampiran | direktif `PERIKSA` di `payload.context` (SKILL.md, `routes/tickets.ts`) |
 | SPEC-289 | teks terminal tak bisa di-copy — xterm merender seleksinya sendiri | `screens/terminal-clipboard.ts` (`clipboardIntent`) |
 | SPEC-291 | accept tiket hardcode `source:"help"` → semua jadi feature brief | peta `category→source` di `routes/tickets.ts` (SKILL.md) |

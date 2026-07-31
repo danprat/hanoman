@@ -184,7 +184,7 @@ Server yang memaginasi (`{items,total,page,pageSize}`); modal hanya menaikkan `p
 item, tak menggantinya. Klik baris → detail: metadata + transkrip read-only dalam `<pre>` teks polos,
 tombol **Salin transkrip** dan **Mulai lagi**. "Mulai lagi" tak pernah menghidupkan sesi lama (tmux
 sudah membunuhnya) — ia men-spawn sesi baru lewat endpoint yang sudah ada, dan hanya muncul untuk
-`restartableKind()` (`spec`/`terminal`/`shell`/`reverse`/`scaffold`/`cross-audit`).
+`restartableKind()` (`spec`/`terminal`/`shell`/`reverse`/`scaffold`).
 
 Grid-grid itu dikelompokkan ke **grup** bernama yang dipindah lewat tabbar (`+` menambah, `✎`
 mengganti nama, `×` menghapus; grup terakhir tak bisa dihapus). Tiap grup memegang `Layout`-nya
@@ -495,34 +495,6 @@ force (op menyentuh working tree) atau worktree isolasi + handoff sesi claude (o
   silent poll SPEC-245 ikut memakai `limit` berjalan sehingga jendela tak pernah menyusut tiap tick.
 - **Modal Remotes** (`IdeScreen`): list/add/hapus remote (`api.ideRemotes`/`ideAddRemote`/`ideDeleteRemote`); tombol **Fetch** (`--prune`).
 
-## Error monitoring — area Errors + DSN (SPEC-249 · ADR-0060)
-
-Area **Errors** (nav `triangle-alert`, `ds/shell.tsx` `HN_NAV` + cabang `section === "errors"` di `App.tsx`,
-pola VPS — screen mandiri, tak lewat `gate`). `screens/ErrorsScreen.tsx`:
-
-- **Self-fetch + silent poll** tiap 5 dtk (pola `GitGraph`: `!document.hidden`, poll senyap tak pernah
-  mem-blank data). Realtime lewat **HTTP polling**, bukan kanal WS baru (ADR-0039).
-- **Master → detail** (state seleksi lokal, pola `review`): daftar grup (`Badge` status + count, env,
-  last-seen relatif) → detail grup (message, `sampleStack` mono scroll, env, first/last seen, count).
-- **Filter** environment/project/status (`Select`), warna via token DS (`--status-err`/`--clay-*`/`--bone-*`).
-- **Eskalasi**: tombol "Eskalasi ke backlog" → `api.escalateError(id)` → `onEscalated(spec, already)` →
-  App `setProjectFilter(spec.projectId)` + `setSection("backlog")` + toast. Grup sudah escalated → tampil
-  `→ SPEC-N` (Badge) alih-alih tombol. "Tandai resolved" → `api.patchError(id, "resolved")`.
-
-**DSN mgmt** (`screens/ProjectDetailScreen.tsx` → `DsnCard`): kartu "DSN ingest" — bila aktif tampil prefix
-(mono) + **Rotate**/**Revoke**; bila belum **Generate DSN**. Generate/rotate → `api.rotateIngestKey` →
-tampilkan `dsnUrl` **sekali** di kotak `--brass-100` + tombol **Salin** (pola `DeviceTokensPanel`). Revoke →
-`window.confirm` → `api.revokeIngestKey`. `ProjectDetailScreen` menerima `onToast` dari App.
-
-**Notifikasi error** (reuse jalur existing): `zNotification.type` menerima `error`; `NotificationsContext.toastFor`
-→ tone `err` + icon `triangle-alert` + msg = `title`; `NotificationBell` per-tipe (icon/warna clay, label
-"error baru", aksi "Lihat error"); `notifTarget` → `{ section: "errors", projectFilter }`. Server hanya
-menotifikasi **grup produksi baru** (dedup `key`), tersiar lewat grup `notifications` WS existing.
-
-**SDK** = npm package publik **`hanoman-sdk`** (SPEC-254 · ADR-0063; `npm i hanoman-sdk` → `init`/`captureError`,
-Node + browser, DSN gaya Sentry, fire-and-forget). Source di `sdk/src/**`; panduan (`sdk/README.md`) disajikan
-apa adanya di web via modal `IntegrationGuideModal` (`GET /api/errors/integration-guide`).
-
 ## Help Center — halaman publik + Triase + kartu link (SPEC-253 · ADR-0062)
 
 **Rute publik pertama di SPA.** `main.tsx` men-mount `<PublicHelpApp/>` (`public/PublicHelpApp.tsx`) saat
@@ -536,15 +508,15 @@ sukses, karena honeypot menjawab `200 {ok:true}`) lalu
 menampilkan **nomor tiket + link status berkode** (Salin); `/help/:slug/status/:key` → **status publik**
 terpetakan otomatis. Layout minimal (bone paper, `Card`/`Button`/`Select`/`StateBlock` DS tanpa context auth).
 
-**Triase** (nav `triage` "Triase" `inbox` di `HN_NAV`; cabang `section === "triage"` di `App.tsx`, pola VPS/Errors
+**Triase** (nav `triage` "Triase" `inbox` di `HN_NAV`; cabang `section === "triage"` di `App.tsx`, pola VPS
 — screen mandiri, tak lewat `gate`). `screens/TriageScreen.tsx`: **self-fetch + silent poll 5s** (pola
-`ErrorsScreen`, `!document.hidden`). Master→detail: daftar tiket (Badge status + kategori, judul, email, waktu
+`GitGraph`, `!document.hidden`). Master→detail: daftar tiket (Badge status + kategori, judul, email, waktu
 relatif, badge **"belum ditinjau"** dari `unreviewed`) + filter project/status + cari; detail = isi penuh +
 **lampiran** (thumbnail via `GET /tickets/:id/attachments/:attId`, ber-auth same-origin) + email + tombol
 **Terima** (Select prioritas → `api.acceptTicket`) & **Tolak** (`window.confirm` → `api.rejectTicket`) + tautan
 `→ SPEC-N` bila sudah promoted. **Terima** → `onAccepted(spec)` → `setProjectFilter` + `setSection("backlog")` + toast.
 
-**Kartu Help Center** di `ProjectDetailScreen.tsx` (`HelpCenterCard`, cermin `DsnCard`): toggle
+**Kartu Help Center** di `ProjectDetailScreen.tsx` (`HelpCenterCard`): toggle
 Aktifkan/Nonaktifkan (`api.enableHelpCenter`/`disableHelpCenter`); saat aktif tampil **link publik**
 (`<base>/help/<slug>`, dari `api.getHelpCenter`) + tombol **Salin**.
 

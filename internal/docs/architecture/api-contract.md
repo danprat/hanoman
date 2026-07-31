@@ -39,10 +39,10 @@ GET  /projects/:id        # view memuat `repoDir` (default project) + `binding` 
 PATCH /projects/:id       { name?, desc?, gitRemote?, repoDir? }   # 200 view; 400 name kosong; 404 tak ada.
 #   `id` tak tersentuh oleh PATCH — rename lewat endpoint khusus di bawah (SPEC-255/ADR-0064).
 #   SPEC-217 · `repoDir` (path default/server) kini editable; `null` mengosongkan.
-POST /projects/:id/rename { newId }   # 200 { id, dsnUrl?, helpUrl?, affected } · rename slug (SPEC-255/ADR-0064).
-#   Transaksional: Project.id + cascade FK OTOMATIS (spec/errorGroup/ticket sudah ON UPDATE CASCADE) + update manual ref longgar
-#   (notification/sessionResult/errorEvent/ticketAttachment) + pindah LocalBinding + naikkan version. Merambat ke
-#   hub sync (penanda renamedFrom) → DSN /api/ingest/<id> & Help /help/<id> ikut ganti. `affected` = jumlah record
+POST /projects/:id/rename { newId }   # 200 { id, helpUrl?, affected } · rename slug (SPEC-255/ADR-0064).
+#   Transaksional: Project.id + cascade FK OTOMATIS (spec/ticket sudah ON UPDATE CASCADE) + update manual ref longgar
+#   (notification/sessionResult/ticketAttachment) + pindah LocalBinding + naikkan version. Merambat ke
+#   hub sync (penanda renamedFrom) → Help /help/<id> ikut ganti. `affected` = jumlah record
 #   tersentuh per tabel. 400 slug invalid (^[a-z0-9][a-z0-9-]*$); 404 project; 409 id terpakai / ada sesi aktif.
 GET  /projects/:id/branches  -> { branches: string[], remotes: string[] }   # dari path EFEKTIF (resolveRepoDir). [] bila tanpa repo. 404 project tak ada. remotes memasok target rebase/merge (SPEC-175).
 DELETE /projects/:id      # 409 bila ada sesi tmux aktif milik project; cascade ke spec.
@@ -54,25 +54,11 @@ PUT    /projects/:id/binding  { repoDir }   # 200 { repoDir }; set override; 400
 DELETE /projects/:id/binding  # 204 · kosongkan override → path efektif jatuh ke Project.repoDir (SPEC-217). 404 project.
 POST   /projects/:id/clone    { dir }   # 201 { repoDir } · git clone gitRemote→dir lalu set binding; 409 tanpa gitRemote / clone gagal.
 
-# SPEC-249 · ADR-0060 · DSN ingest error per project (hash-at-rest; plaintext hanya di POST, sekali).
-GET    /projects/:id/ingest-key   -> { enabled, prefix }   # tanpa plaintext. 404 project.
-POST   /projects/:id/ingest-key   -> 201 { enabled:true, prefix, key, dsnUrl }   # generate/rotate (ganti key lama; no grace). 404.
-DELETE /projects/:id/ingest-key   # 204 · revoke (kosongkan hash → monitoring off). 404.
-
 # SPEC-253 · ADR-0062 · Help Center per project (opt-in). Link publik terikat Project.id (slug).
 GET    /projects/:id/help-center  -> { enabled, publicUrl }   # 404 project.
 POST   /projects/:id/help-center  -> 200 { enabled:true, publicUrl }   # aktifkan. 404.
 DELETE /projects/:id/help-center  # 200-ish 204 · nonaktifkan (tak hapus tiket yang sudah ada). 404.
 
-# SPEC-337 · ADR-0075 · relasi integrasi/dependency antar project (ProjectLink, LOCAL-only).
-GET    /projects/:id/links  -> { links: LinkView[] }   # KEDUA arah milik project ini. 404 project.
-#   LinkView = { id, fromProjectId, toProjectId, kind, note, direction:"keluar"|"masuk", other:{id,name} }
-#   direction relatif :id — "keluar" = :id bergantung pada other; "masuk" = other bergantung pada :id.
-POST   /projects/:id/links  { to, kind, note? }  -> 201 LinkView
-#   kind ∈ api|sdk|data|event|lainnya (zLinkKind). 400 self-link/kind invalid; 404 project/target;
-#   409 pasangan (from,to) sudah ada. note = penjelasan bentuk integrasi, disalin ke prompt audit lintas.
-DELETE /projects/:id/links/:linkId  # 204 · 404 bila link tak ada ATAU tak menyentuh :id (kedua arah).
-#   Ubah = hapus + tambah (tanpa PATCH). Hapus/rename project merambat via cascade FK, bukan endpoint ini.
 ```
 
 > **Path efektif** project = `resolveRepoDir(projectId)` = **binding per-mesin ?? `Project.repoDir`** (null-safe).
@@ -101,7 +87,7 @@ POST /specs/batch         { project, items:[BreakdownItem], branchFrom?, prdPath
 #   SPEC-273 · ADR-0069 · materialize breakdown: N spec `source:"brief"` independen (id berurutan via
 #   nextSpecId+retry), provenance PRD di teks Konteks. 400 items kosong / branch tak dikenal; 404 project.
 #   BreakdownItem = { title, context, outcome, priority:"tinggi"|"sedang"|"rendah" }.
-#   source ∈ brief|qa|audit|cross-audit|help|goal (SPEC-237/337/253/407). audit = audit-only (payload
+#   source ∈ brief|qa|audit|help|goal (SPEC-237/253/407). audit = audit-only (payload
 #   brief-shaped, author `Audit ·`); qa payload ber-severity (superRefine mengikat source↔bentuk payload,
 #   TIGA-arah sejak SPEC-407). audit → flow `audit` (Audit → Laporan, dokumen SoT tanpa Execute; ADR-0057).
 #   SPEC-407 · ADR-0089 · source `goal` → flow `goal` (Goal → Verifikasi): payload bentuk KETIGA
@@ -441,7 +427,7 @@ POST   /terminal/sessions  {project, flow?} # 201 { id } · 404 project · 400 t
 #       (default "changed"). "changed" menyisipkan klausa scope ke prompt (uji berkas yang berubah
 #       saja: `vitest --changed "$HANOMAN_BASE_SHA"`/`vitest related`, typecheck per paket, lint per
 #       berkas, build & smoke server hanya bila relevan) dan HANYA untuk flow ber-fase Execute —
-#       flow dokumen (audit/cross-audit) tak menulis kode jadi tak membawanya. "full" = prompt
+#       flow dokumen (audit) tak menulis kode jadi tak membawanya. "full" = prompt
 #       persis seperti sebelum SPEC-376. Sesi juga lahir membawa env HANOMAN_BASE_SHA (= commit
 #       tempat worktree lahir, wajib karena worktree `--detach` tak punya `main`) dan
 #       HANOMAN_VERIFY_SCOPE. BUKAN gerbang: tak ada hook yang menolak perintah (ADR-0037 utuh).
@@ -462,7 +448,7 @@ POST   /terminal/sessions  {project, flow?} # 201 { id } · 404 project · 400 t
 #       DETERMINISTIK sebagai Stop hook `command` — cek phase file lengkap + plan tak menyisakan
 #       `- [ ]`; belum terpenuhi → exit 2 (stderr jadi continuation prompt, codex dipaksa lanjut).
 #       Kondisi prosa ikut sebagai teks alasan, bukan yang menggerbang. Pagar anti-loop: 25 penolakan.
-#     flow ∈ feature|qa|audit|cross-audit|goal (dari source; flowForSource).
+#     flow ∈ feature|qa|audit|goal (dari source; flowForSource).
 #     goal (SPEC-407/ADR-0089) = pipeline Goal → Verifikasi, tanpa fase perencanaan: prompt-nya
 #     startGoalPrompt (mengeja Goal/Selesai bila/Batasan dari payload, tanpa skill Brainstorm/Plan),
 #     stage Goal→executing & Verifikasi→done, dan mode goal DIPAKSA menyala — `goal:false` diabaikan,
@@ -470,15 +456,10 @@ POST   /terminal/sessions  {project, flow?} # 201 { id } · 404 project · 400 t
 #     per-request tetap menang. Klausa scope verifikasi ikut (flow ini menulis kode meski tanpa Execute).
 #     audit (SPEC-237/ADR-0057) = pipeline
 #     Audit → Laporan: investigasi + dokumen SoT (research/audit-<spec>-<slug>.md), TANPA Execute; stage done via Laporan.
-#     cross-audit (SPEC-337/ADR-0075) = pipeline & deliverable SAMA, tapi ber-scope project ini + tetangga
-#     ProjectLink-nya: prompt memuat path checkout tetangga (read-only) + sesi memegang kunci /api/audit/logs.
-#   {project, flow:"cross-audit"} (SPEC-337, ADR-0075): sesi audit lintas LEPAS (tanya-jawab) di worktree
-#     .worktrees/xaudit-<project>; TANPA Spec/fase/branch → tak menggerakkan stage. Id deterministik (Start
-#     kedua = re-attach). Sama-sama memegang kunci audit. 422 bila repoDir kosong/worktree gagal.
 #   SPEC-172: bila Spec.stage === "done", sesi baru dibuka dengan prompt LANJUTAN (fase Execute
 #     saja, continuePrompt) alih-alih pipeline penuh — reopen backlog yang keburu selesai.
 #   SPEC-394/ADR-0084 · SEMUA sesi ber-id deterministik (project-level reverse|scaffold|prd|
-#     breakdown|cross-audit, sesi konflik merge-<spec> & finishGraphOp, konsol VPS vpsc-<id>):
+#     breakdown, sesi konflik merge-<spec> & finishGraphOp, konsol VPS vpsc-<id>):
 #     pane tmux yang MATI bukan sesi — ia dibunuh lalu sesi dilahirkan ulang; hanya pane HIDUP yang
 #     di-re-attach (ADR-0015). Gerbangnya di titik cekik createSession() + di kelima gerbang route
 #     project-level. Untuk kelima flow project-level itu, worktree .worktrees/<id> yang MASIH SAH
@@ -593,81 +574,6 @@ POST   /vps/:id/remediate            # 200 { steps, audit, scoreTotal, scoreBySe
 > Password tak pernah disimpan, di-log, atau dikembalikan; ia diserahkan ke ssh lewat
 > SSH_ASKPASS (bukan argv) dan hidup beberapa detik di env proses anak (ADR-0025, SPEC-165).
 
-## Error monitoring (SPEC-249 · ADR-0060 · SPEC-276 · ADR-0070 symbolication)
-```
-# Ingest PUBLIK ber-DSN — pengecualian sah gate /api (bypass cookie, otentikasi DSN sendiri).
-POST    /api/ingest/:slug?key=<dsn>   { type, message, stack?, frames?, environment?, release?, context? }
-#   key via ?key= ATAU header x-hanoman-dsn. 202 { ok, groupId, new }.
-#   SPEC-276: frames? = StackFrame[] { function?, filename?, lineno?, colno?, in_app? } (opsional; kompatibel mundur).
-#   401 generik (project tak ada / DSN salah / revoked — tak enumerasi project). 400 payload invalid.
-#   413 body > 64 KB. 429 rate-limit per project (token-bucket in-memory, default 120/min).
-#   message ≤ 2 KB, stack ≤ 16 KB (di-truncate). PII disimpan apa adanya (scrub pasca-MVP).
-OPTIONS /api/ingest/:slug   # 204 + CORS (Access-Control-Allow-Origin: * ) untuk snippet browser.
-
-# SPEC-276 · ADR-0070 · upload source-map per release (symbolication). Auth DSN key sama.
-POST    /api/ingest/:slug/sourcemaps?key=<dsn>   { release, artifacts:[{ filename, map, debugId? }] }
-#   filename = basename artifact hasil-build (mis. index-4f3a2b.js) yang dipetakan map; map = isi .map (JSON string).
-#   202 { ok, stored }. 401 key salah. 400 payload invalid. 413 total > 30 MB. bodyLimit 30 MB (bukan 64 KB ingest).
-#   Byte map server-local (HANOMAN_UPLOAD_DIR), TAK disync. Retensi: keep-N-release terbaru per project.
-OPTIONS /api/ingest/:slug/sourcemaps   # 204 + CORS.
-
-# Area Error — di belakang gate cookie. Query selalu ber-scope projectId (isolasi antar-project).
-GET   /errors/integration-guide  -> { text }   # isi mentah sdk/README.md (markdown), utk ditampilkan di web
-#   (modal "Panduan integrasi" di area Errors + link kartu DSN). Static route > /errors/:id. 404 bila file hilang.
-GET   /errors?project=&environment=&status=&q=&page=&limit=  -> { items: ErrorGroupView[], total, page, pageSize }
-#   urut lastSeen desc; q atas type+message; paginasi response-layer (ADR-0038).
-GET   /errors/:id            -> ErrorGroupDetail { ...group, release, sampleStack, sampleFrames, events: ErrorEventView[] (≤50) } · 404
-#   SPEC-276: sampleFrames = SymbolicatedFrame[]|null — frame sample disymbolikasi LAZY pakai source-map yang
-#   tersedia saat ini (posisi .ts/.tsx + contextLine + in_app). Map absen → frame apa adanya (symbolicated:false).
-#   ErrorGroupView kini memuat `release` (release terakhir grup, korelasi build).
-POST  /errors/:id/escalate   # 201 { spec } — buat Spec qa prefilled (title/actual/fromErrorGroup) + tandai grup
-#   escalated + specId (tautan dua arah). Idempoten: sudah escalated → 200 { alreadyEscalated:true, spec }. 404.
-#   SPEC-296: inti eskalasi kini di services/error-escalate.ts (escalateErrorGroup) — dipakai route ini DAN
-#   scheduler source-checker `errors`; kontrak HTTP (201/200/404) tak berubah.
-POST  /errors/:id/unlink     # 200 { id, status:"new", specId:null } — lepas tautan backlog (kebalikan escalate).
-#   Non-destruktif: Spec dibiarkan (hapus manual). Reset status→new → bisa dieskalasi lagi (Spec baru). Idempoten. 404. (SPEC-271)
-PATCH /errors/:id            { status }   # 200 { id, status } — status ∈ new|escalated|resolved. 400 invalid. 404.
-DELETE /errors/:id           # 200 { ok:true } — hapus grup; ErrorEvent cascade (onDelete: Cascade). 404. (SPEC-269)
-```
-
-> **Grouping** deterministik: `fingerprint(type, normalizeMessage(message), topFrame(stack))`
-> (`server/src/services/error-fingerprint.ts`) → varian dari error yang sama jatuh ke satu grup.
-> **Notifikasi** grup PRODUKSI baru → `Notification { type:"error", key:"error:<groupId>" }` (dedup),
-> tersiar lewat grup `notifications` WS existing. **Retensi** opportunistic-on-write: cap event per grup
-> (default 50) + umur (default 30 hari) — tanpa scheduler global. **SDK** = npm package publik
-> `hanoman-sdk` (SPEC-254 · ADR-0063; source `sdk/src/**`, Node + browser, DSN gaya Sentry); `GET
-> /errors/integration-guide` tetap menyajikan `sdk/README.md` apa adanya. **Sync (SPEC-268/ADR-0066):**
-> agregat `ErrorGroup` kini **tersync** (kolom `version`, entitas `errorGroup` di `SYNCED`; publish
-> asal-hub pada grup baru + escalate/resolve); `ErrorEvent` mentah **tetap server-local**. Realtime
-> area Error = **HTTP polling** (silent poll, pola GitGraph), bukan kanal WS baru (ADR-0039).
-
-## Audit lintas project (SPEC-337 · ADR-0075)
-```
-# Dibaca SESI cross-audit (hanoman sendiri, bukan agen eksternal). Pengecualian sah gate /api:
-# prefix /api/audit/ lolos TANPA cookie bila header X-Hanoman-Audit-Key cocok dengan sesi tmux HIDUP
-# (kunci + daftar project ter-scope hidup di @hanoman_audit_key/@hanoman_audit_projects, ADR-0016).
-# Kunci mati bersama pane-nya; TAK PERNAH keluar lewat GET /terminal/sessions. Cookie sesi tetap boleh.
-GET /api/audit/logs?since=&until=&environment=&q=&projects=&limit=
-#   -> { window:{since,until}, scope:[{id,name}], groups: AuditGroupView[], timeline: AuditEventView[] }
-#   timeline = ErrorEvent SEMUA project ter-scope, TERCAMPUR & terurut waktu desc — bukti korelasi lintas project.
-#   AuditEventView = { at, projectId, groupId, type, message, environment, release }
-#   AuditGroupView = { id, projectId, type, message, environment, release, status, count, firstSeenAt, lastSeenAt, specId }
-#   since/until: "24h" | "7d" | ISO-8601 (default since=24h, until=now). q atas type+message. limit ≤1000 (default 200).
-#   projects= subset scope (koma). 400 since/until tak terparse; 401 kunci tak dikenal/sesi mati;
-#   403 memuat project di luar scope sesi.
-GET /api/audit/logs/:groupId
-#   -> { ...AuditGroupView, sampleStack, sampleFrames, events: AuditEventDetail[] (≤50) }
-#   sampleFrames disymbolikasi lazy (reuse SPEC-276/ADR-0070). events memuat stack + context.
-#   404 bila grup tak ada ATAU project-nya di luar scope (keberadaannya pun tak dibocorkan).
-```
-
-> Scope sebuah sesi = project utama **+ tetangga `ProjectLink` satu hop kedua arah** (ADR-0075).
-> Kunci sampai ke agen lewat **env sesi** (`HANOMAN_AUDIT_KEY`/`HANOMAN_AUDIT_URL`), jadi endpoint ini
-> dipakai sama persis oleh sesi **claude maupun codex** (ADR-0074) — tanpa percabangan per agen.
-> Kewenangan kunci **read-only** dan hanya atas `ErrorGroup`/`ErrorEvent` project ter-scope — tak ada
-> jalur tulis, tak ada akses ke domain lain. Bandingkan dengan agent token (ADR-0065) yang berlingkup
-> global & butuh master switch: kunci audit sengaja seumur-sesi dan tak dikelola manusia.
-
 ## Help Center (SPEC-253 · ADR-0062)
 ```
 # PUBLIK ber-scope-project — pengecualian sah gate /api (bypass cookie, otorisasi non-cookie sendiri).
@@ -721,12 +627,12 @@ DELETE /tickets/:id                       # 200 { ok:true } — hapus tiket; Tic
 > disajikan **hanya ber-auth** ke triase —
 > halaman status publik tak menampilkannya balik. **Halaman publik** `/help/*` di-mount SPA (routing baru,
 > `main.tsx`) tanpa auth; fallback `index.html` existing → nol perubahan server untuk menyajikan halaman.
-> Realtime area Triase = **HTTP polling** (pola ErrorsScreen), bukan kanal WS baru (ADR-0039).
+> Realtime area Triase = **HTTP polling** (pola GitGraph), bukan kanal WS baru (ADR-0039).
 
 ## Scheduler (SPEC-294 · ADR-0072) — LOCAL per-instance
 ```
 # Fondasi scheduler otonom (di belakang gate cookie; agent-token → domain `settings`). Semua default MATI.
-GET  /api/scheduler/config   -> Scheduler (zScheduler: enabled, paused, maxConcurrent, autonomy, sources.{backlog,errors,triase})
+GET  /api/scheduler/config   -> Scheduler (zScheduler: enabled, paused, maxConcurrent, autonomy, sources.{backlog,triase})
 PUT  /api/scheduler/config   { Scheduler }  -> Scheduler   # ganti blok penuh (pola PUT /settings). Pause = { paused:true }. 400 invalid.
 GET  /api/scheduler/state    -> { config, cap, liveCount, sources:[{id,enabled,everyMin,minCount?,lastRunAt,nextRunAt}],
 #                                  queue: SchedulerQueueItem[], sessions:[sesi live ber-item 'launched'] }
@@ -744,14 +650,7 @@ GET  /api/scheduler/state    -> { config, cap, liveCount, sources:[{id,enabled,e
 > (queue item `source:"backlog"`, idempoten via `specId @unique`). Project non-opt-in tak tersentuh.
 > Terdaftar di `server.ts` (`registerBacklogSource()`) sebelum `startScheduler()`.
 >
-> **Source-checker konkret kedua (SPEC-296):** `errors` — saat cadence errors jatuh-tempo, untuk tiap `ErrorGroup`
-> eligible (`status:"new"` ∧ `environment:"production"` ∧ `specId=null` ∧ `count ≥ sources.errors.minCount` ∧ project
-> `schedulerOptIn`) memakai ulang `escalateErrorGroup` (`services/error-escalate.ts`) → Spec `qa` prioritas `tinggi`,
-> lalu enqueue (queue item `source:"errors"`). Idempoten (grup escalated/resolved/ber-specId tersaring di query);
-> banyak grup satu window, satu grup = satu backlog (tanpa limit checker — cap ditegakkan governor). Terdaftar di
-> `server.ts` (`registerErrorsSource()`) sebelum `startScheduler()`.
->
-> **Source-checker konkret ketiga (SPEC-297):** `triase` — saat cadence triase jatuh-tempo, untuk tiap `Ticket`
+> **Source-checker konkret kedua (SPEC-297):** `triase` — saat cadence triase jatuh-tempo, untuk tiap `Ticket`
 > eligible (`status:"new"` ∧ `category ∈ {bug,fitur}` ∧ `specId=null` ∧ project `schedulerOptIn`) memakai ulang
 > `acceptTicket` (`services/ticket-accept.ts`, pemetaan kategori→source SPEC-291: bug→`qa`, fitur→`brief`) → Spec
 > prioritas `sedang`, lalu enqueue (queue item `source:"triase"`). Kategori `pertanyaan`/`lainnya` **tak pernah**
@@ -770,7 +669,7 @@ GET  /api/scheduler/state    -> { config, cap, liveCount, sources:[{id,enabled,e
 >
 > **Panel Scheduler (SPEC-299, daun #6):** screen mandiri `SchedulerScreen.tsx` + nav item `ds/shell.tsx`
 > (`key:"scheduler"`), **murni konsumen read-only** — tak menambah endpoint/skema/ADR. Self-poll `GET
-> /api/scheduler/state` (5 dtk, pola ErrorsScreen) merender: status per source (enable/last-run/next-run),
+> /api/scheduler/state` (5 dtk, pola GitGraph) merender: status per source (enable/last-run/next-run),
 > antrean (`status:"queued"`), sesi berjalan (`state.sessions`, indikator `decision`=menunggu keputusan),
 > selesai (`status:"done"`, tombol **Buka review** deep-link `#spec=<id>` → diff/ringkasan di Review yang ada),
 > gagal (`status:"failed"` + `note` alasan). Panel setelan menulis semua knob via `PUT /api/scheduler/config`

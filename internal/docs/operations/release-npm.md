@@ -129,3 +129,25 @@ ada di runner, jadi ia akan exit 1 karena alasan yang tak relevan dengan kesehat
 - Tak ada Granular Access Token ber-bypass-2FA di mesin mana pun: ia adalah kredensial penerbit di
   berkas yang bisa dibaca proses apa pun di mesin itu, termasuk sesi agen.
 - Tak ada publish dari branch — hanya dari tag.
+
+## Mencabut `hanoman-sdk` dari npm (SPEC-384 · [ADR-0092](../adr/0092-cabut-error-monitoring-sdk-cross-audit.md))
+
+Paket `hanoman-sdk` dicabut bersama error monitoring. Menghapus `sdk/` dari repo **tidak**
+mencabutnya dari registry — selama masih terbit, siapa pun bisa `npm i hanoman-sdk` dan mendapat SDK
+yang tak punya server tujuan. Ini **tindakan manusia** (akun ber-2FA butuh `--otp`), bukan bagian
+dari sesi agen:
+
+```bash
+# 1. Coba unpublish. npm hanya mengizinkannya dalam 72 jam sejak publish; `hanoman-sdk@0.1.0`
+#    terbit 2026-07-21, jadi ini kemungkinan besar DITOLAK. Jalankan tetap — kalau berhasil, selesai.
+npm unpublish hanoman-sdk --force --otp=<kode>
+
+# 2. Ditolak karena lewat jendela → deprecate. Inilah jalur yang sebenarnya diharapkan.
+npm deprecate hanoman-sdk \
+  "Dicabut (SPEC-384). Pemantauan error hanoman pindah ke Uptrace; paket ini tak punya server tujuan lagi." \
+  --otp=<kode>
+```
+
+Verifikasi: `npm view hanoman-sdk` — field `deprecated` terisi, atau paket 404 bila unpublish berhasil.
+
+> Ini **tidak** menyentuh paket `hanoman` itu sendiri, yang tetap terbit dan didukung.

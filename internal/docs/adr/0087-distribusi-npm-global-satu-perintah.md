@@ -6,7 +6,7 @@
 - Terkait: **bergantung pada [0086](0086-sqlite-satu-satunya-provider.md)** (paket npm tak bisa
   membawa Postgres); **mengubah mekanisme [0048](0048-auto-update-deteksi-read-only.md) tanpa
   membalik keputusannya** — deteksi update pindah dari `git fetch` ke registry npm dan tetap
-  **read-only**; memakai pola paket publik [0063](0063-hanoman-sdk-npm-package.md); **tidak
+  **read-only**; memakai pola paket publik **0063** (dicabut, [ADR-0092](0092-cabut-error-monitoring-sdk-cross-audit.md)); **tidak
   menyentuh** [0016](0016-sesi-terminal-hidup-di-tmux.md) (sesi tetap di tmux),
   [0028](0028-auth-sesi-opaque-di-db.md) (bind `127.0.0.1` + proxy TLS), maupun
   [0037](0037-cabut-guardrail-safety.md).

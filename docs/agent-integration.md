@@ -47,7 +47,7 @@ Capability berformat `"<domain>:<access>"`, `access ∈ {read, write}`, dan **wr
 | `ide` | `/api/projects/:id/{tree,file,file-diff,working-status,graph,commit,git,status,stashes,remotes,compare,archive,pr-url}*` | tree/file working tree, operasi git |
 | `vps` | `/api/vps*` | kelola VPS, audit, harden, konsol — **high-risk (remote exec)** |
 | `settings` | `/api/settings*`, `/api/config*` | setelan & config runtime |
-| `support` | `/api/errors*`, `/api/tickets*` | error monitoring & tiket Help Center |
+| `support` | `/api/tickets*` | tiket Help Center (triase) |
 | `notifications` | `/api/notifications*` | notifikasi |
 | `lead` | `/api/lead*` | minta putusan ke hanoman-lead & baca jejak keputusan — **`lead:write` bisa menggerakkan sesi** (SPEC-409 · ADR-0091) |
 
@@ -74,7 +74,7 @@ Untuk mencegah privilege-escalation, endpoint berikut **hanya** untuk sesi cooki
 - `/api/agent-tokens*` — agen tak boleh mencetak/menaikkan token sendiri
 - `/api/device-tokens*`, `/api/sync*` — identitas mesin & sync hub
 
-Route yang tak dikenal peta juga default cookie-only (aman). Endpoint `/api/ingest*` (error SDK) dan `/api/help*` (Help Center publik) memiliki otorisasi sendiri (DSN/kunci tiket) dan tak memakai agent token.
+Route yang tak dikenal peta juga default cookie-only (aman). Endpoint `/api/help*` (Help Center publik) memiliki otorisasi sendiri (kunci tiket) dan tak memakai agent token.
 
 ## 6. Contoh alur end-to-end
 

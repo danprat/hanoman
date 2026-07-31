@@ -18,7 +18,7 @@ ulang** dan karena itu layak dijaga.
 4. **Fase sebagai giliran, bukan proses.** Satu backlog = satu sesi
    ([ADR-0015](../adr/0015-one-session-per-backlog.md)); fase dilaporkan lewat phase-file append-only.
    Konteks terbawa antar fase karena memang tak pernah berpindah proses.
-5. **Jalur masuk yang lengkap.** Help Center dan error monitoring menyuapi backlog; audit bisa naik jadi
+5. **Jalur masuk yang lengkap.** Help Center menyuapi backlog; audit bisa naik jadi
    QA, brief, atau PRD ([ADR-0076](../adr/0076-eskalasi-audit-dinamis-manifest-rekomendasi.md)). Bagian
    yang paling melelahkan — memindahkan keluhan jadi pekerjaan — sudah otomatis.
 6. **Sinkronisasi hub ↔ client yang menyembuhkan diri.** LWW + change-feed + rekonsiliasi manual

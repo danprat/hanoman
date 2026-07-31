@@ -33,7 +33,6 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 - [vps-compliance](architecture/vps-compliance.md) — kerangka kepatuhan checklist 232 item (SPEC-220 · ADR-0050)
 
 ## integrasi (untuk project yang memakai hanoman)
-- [SDK error monitoring — npm `hanoman-sdk`](../../sdk/README.md) — cara project lain mengirim error ke hanoman: `npm i hanoman-sdk` → `init({ dsn })` + `captureError()` (Node/browser) atau POST JSON generik langsung → grouping & eskalasi ke backlog (SPEC-249/254 · ADR-0060/0063)
 - [Integrasi AI agent — agent token + capability](../../docs/agent-integration.md) — panduan berhadapan-agen: nyalakan akses di Settings → buat token `hnm_agt_…` → `Authorization: Bearer` ke seluruh `/api`, digerbang capability per-domain; ditaut dari panel "Akses AI Agent" di UI (SPEC-257/265 · ADR-0065)
 
 ## adr
@@ -41,6 +40,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 > **Narasi tiap keputusan — apa yang diperluas/dicabut/diamandemen, berikut gotcha-nya — ada di
 > [adr/README.md](adr/README.md).** Daftar di bawah sengaja satu baris per ADR: index ini dibaca
 > setiap sesi agen, sub-index hanya saat butuh riwayatnya (SPEC-386).
+- [0092 — Cabut error monitoring, `hanoman-sdk`, dan cross-audit (pemantauan pindah ke Uptrace)](adr/0092-cabut-error-monitoring-sdk-cross-audit.md)
 - [0091 — hanoman-lead: agen pemimpin di atas agen; manusia jadi pembatal, bukan gerbang](adr/0091-hanoman-lead-agen-pemimpin.md)
 - [0090 — Stempel waktu backlog: `Spec.createdAt` & `startedAt` sebagai kolom, bukan turunan](adr/0090-stempel-waktu-backlog-created-started.md)
 - [0089 — Backlog goal: source & flow `goal` dua fase, mode goal dipaksa dengan kondisi dari item](adr/0089-backlog-goal-flow-dua-fase.md)
@@ -57,22 +57,18 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 - [0078 — Unduh dokumen: query `?download=` di endpoint dokumen + render PDF server-side](adr/0078-unduh-dokumen-md-pdf.md)
 - [0077 — Hapus branch tak terpakai: daftar ter-merge turunan + pagar proteksi per-branch](adr/0077-hapus-branch-tak-terpakai-pagar-per-branch.md)
 - [0076 — Eskalasi audit dinamis: manifest rekomendasi di dokumen audit + tiga pintu (QA · brief · PRD)](adr/0076-eskalasi-audit-dinamis-manifest-rekomendasi.md)
-- [0075 — Audit lintas project: relasi `ProjectLink` + flow `cross-audit` + kunci log ber-scope sesi](adr/0075-audit-lintas-project-projectlink-kunci-sesi.md)
 - [0074 — Codex sebagai mesin sesi: `Agent` per sesi, hook lewat `-c`, mode goal deterministik](adr/0074-codex-sebagai-mesin-sesi.md)
 - [0073 — Mode goal sesi backlog: Stop hook bertipe `prompt` saat sesi lahir + keystroke `/goal`](adr/0073-mode-goal-stop-hook-per-sesi.md)
 - [0072 — Fondasi scheduler otonom: engine in-process, antrean durable, cap concurrency](adr/0072-scheduler-fondasi-engine-antrean-durable-cap.md)
 - [0071 — Link ticket triase: deep-link backlog (hash SPA) + token bagikan status publik](adr/0071-link-ticket-triase-deeplink-sharetoken.md)
-- [0070 — Symbolication source-map server-side (parity Sentry)](adr/0070-symbolication-source-map-server-side.md)
 - [0069 — Breakdown PRD → backlog paralel-independen (sesi breakdown + manifest + materialize)](adr/0069-breakdown-prd-ke-backlog-paralel.md)
 - [0068 — Lampiran tiket masuk record-sync (metadata di feed, byte lazy-fetch)](adr/0068-lampiran-tiket-masuk-record-sync.md)
 - [0067 — Sync self-healing: backfill feed + rekonsil konflik manual (LWW-default)](adr/0067-sync-lww-reconciliation-manual.md)
-- [0066 — Errors & tickets masuk record-sync (publish asal-hub) + pemicu sync manual](adr/0066-errors-tickets-masuk-record-sync-plus-pemicu-manual.md)
+- [0066 — Ticket masuk record-sync (publish asal-hub) + pemicu sync manual](adr/0066-errors-tickets-masuk-record-sync-plus-pemicu-manual.md) — *bagian errors dicabut oleh 0092*
 - [0065 — AI agent capability: agent token + capability scope per-domain gating `/api`](adr/0065-ai-agent-capability-agent-token.md)
 - [0064 — `Project.id` renameable lewat operasi rename khusus (cascade + merambat sync)](adr/0064-project-id-renameable.md)
-- [0063 — hanoman-sdk sebagai npm package publik (extensible, errors dulu)](adr/0063-hanoman-sdk-npm-package.md)
 - [0062 — Help Center: model tiket + endpoint publik ber-scope-project + jembatan triase→backlog](adr/0062-help-center-tiket-publik-triase.md)
 - [0061 — Model & effort per sesi (picker saat Start), mencabut matrix per-fase](adr/0061-model-effort-per-sesi-picker-start.md)
-- [0060 — Error monitoring: model baru + ingest ber-DSN sebagai pengecualian auth](adr/0060-error-monitoring-ingest-ber-dsn.md)
 - [0059 — Kontinuitas branch take-to-backlog (PRD→brief, audit→QA) + skip-audit qa lanjutan audit](adr/0059-kontinuitas-branch-take-to-backlog-dan-skip-audit.md)
 - [0058 — Model & effort per fase, lewat `/model`+`/effort` in-session](adr/0058-model-effort-per-fase.md) — *mekanisme per-fase dicabut oleh 0061*
 - [0057 — Audit-only sebagai source + flow (dokumen, tanpa perbaikan)](adr/0057-audit-only-source-flow.md)

@@ -21,8 +21,8 @@ harga, funnel, maupun kampanye. Lihat [pricing-rationale](../business/pricing-ra
 1. Satu operator, satu project — buktikan siklus penuh brief → spec → plan → execute → review → merge.
 2. Tambah project existing lewat **Reverse docs**; SoT disusun dari kode yang sudah ada, bukan ditulis
    dari nol.
-3. Nyalakan Help Center & error monitoring per project — di sinilah nilainya paling terasa, karena
-   masukan datang tanpa diminta.
+3. Nyalakan Help Center per project — di sinilah nilainya paling terasa, karena masukan datang
+   tanpa diminta.
 4. Nyalakan scheduler (opt-in, default mati) hanya setelah tiga langkah di atas stabil
    ([ADR-0072](../adr/0072-scheduler-fondasi-engine-antrean-durable-cap.md)).
 
@@ -32,8 +32,8 @@ Meski hanoman tak dijual, sebagian permukaannya publik:
 
 - **Repo publik/open-source** — karena itu deploy-vps mewajibkan tak ada nilai sensitif (host, token,
   kunci) yang pernah masuk repo.
-- **`hanoman-sdk` di npm** ([ADR-0063](../adr/0063-hanoman-sdk-npm-package.md)) — project lain memasang
-  paketnya untuk mengirim error ke instance hanoman; lihat [sdk/README.md](../../../sdk/README.md).
+- **`hanoman` di npm** ([ADR-0087](../adr/0087-distribusi-npm-global-satu-perintah.md)) — satu perintah
+  `npm i -g hanoman`; lihat [npm-readme](npm-readme.md). (`hanoman-sdk` dicabut, [ADR-0092](../adr/0092-cabut-error-monitoring-sdk-cross-audit.md).)
 - **Panduan integrasi AI agent** ([ADR-0065](../adr/0065-ai-agent-capability-agent-token.md)) — agen
   eksternal memakai `/api` lewat agent token ber-capability; lihat
   [agent-integration](../../../docs/agent-integration.md).
