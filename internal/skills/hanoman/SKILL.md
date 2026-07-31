@@ -369,6 +369,31 @@ Pakai skill lebih sempit saat task cocok:
   `goalChunks` (burst ≥1024 char → `[Pasted Content]` SENYAP, ADR-0085); rujukan disaring terhadap
   repo (path absolut & `..` ditolak); dan marker sesi **codex** menyala juga saat selesai wajar
   (ADR-0074) → `services/lead/pane.ts` bias ke DIAM.
+- **`services/lead/brain.ts` adalah titik spawn agen KEDUA — satu-satunya di luar `pty.ts`**
+  (SPEC-448, tanpa ADR — QA; ADR-0091 ditegakkan, ADR-0037 utuh). Konsekuensinya mengikat: **setiap
+  pelajaran spawn yang sudah dibayar di `pty.ts` harus dibayar ulang di sini**, dan sampai spec ini
+  tak ada satu pun test yang menjalankannya (`lead-decide.test.ts` menyuntik `think` sebagai stub).
+  Dua kegagalan lahir di celah itu, keduanya membuat lead **tak pernah** memutuskan. **(A) `execFile`
+  tak pernah menutup stdin anak** — Node **tak meneruskan opsi `stdio`** untuk `execFile` (hanya
+  `cwd`/`env`/`uid`/`shell`/`signal` yang sampai ke `spawn`), jadi pipa selalu lahir dan menyetel
+  `stdio:["ignore",…]` di sana diam-diam tak berefek; satu-satunya jalan `child.stdin?.end()` lewat
+  handle yang dikembalikan. `claude -p` membaca stdin sebagai sumber prompt alternatif dan menunggu
+  **3 detik penuh**. Terukur (claude 2.1.220, prompt & anggaran 6 dtk sama, satu variabel): pipa
+  terbuka → 6551 ms **dibunuh, stdout KOSONG**; ditutup → 3554 ms **jawaban benar**. Peringatannya
+  mendarat di **stderr** — sumber yang sama yang dipakai `think()` menyusun pesan galat — sehingga
+  sebab sebenarnya terdorong ke baris kedua dan gejalanya terbaca salah. Prompt lead memang lewat
+  **argv** (`leadArgv`), bukan stdin, sama seperti sesi pekerja (SPEC-223). **(B) gerbang root claude
+  tak menyeberang**: `rootBypassEnv` (`IS_SANDBOX=1`, SPEC-403) hidup di `pty.ts` saja — kedua commit
+  lahir di worktree paralel di hari yang sama (`e5c73ac` **bukan** leluhur `a16465e`) — dan `brain.ts`
+  men-spawn tanpa opsi `env` sama sekali. Claude `exit(1)` **sebelum satu token diproses**
+  (`getuid()===0 && IS_SANDBOX!=="1" && !CLAUDE_CODE_BUBBLEWRAP`); tiga default resmi menjamin ini
+  kena 100% di produksi — `deploy-vps.md` `User=root`, agen default `claude`, dan sesi pekerja
+  **selamat** lewat `pty.ts` sehingga tak ada gejala lain yang menunjuk ke root. `leadEnv()`
+  **mengimpor** `rootBypassEnv`, tak menyalinnya: dua definisi yang tak sepakat justru penyebabnya.
+  Hanya untuk **claude** — codex 0.146.0 tak punya gerbang root maupun rujukan `IS_SANDBOX`. **Jebakan
+  fixture:** `fake-claude.sh` diakhiri `exec cat` karena ia mensimulasikan TUI di pane; memakainya
+  untuk agen one-shot membuat tiap test `think()` selalu "kehabisan waktu" — hijau & merah tak
+  terbedakan. Agen lead butuh fixture yang **keluar sendiri** (`fake-lead-agent.sh`).
 - **Scope verifikasi per sesi** (SPEC-376/ADR-0080): `verifyScope` (`changed` default | `full`) —
   knob `Setting.verifyScope` (kolom `Json`, **tanpa migration**) + override saat Start. Sesi
   `changed` menguji **berkas yang berubah saja**: `pnpm vitest --run --changed "$HANOMAN_BASE_SHA"`

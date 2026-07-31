@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import type { Agent } from "@hanoman/shared";
 import { effectiveStr } from "../../config";
+import { rootBypassEnv } from "../pty";
 
 // SPEC-409 · ADR-0091 · lead adalah AGEN, bukan aturan if/else: pertanyaan yang ia jawab berbentuk
 // prosa dan jawabannya menuntut membaca docs/kode/riwayat. Ia dipanggil SEKALI-JALAN dan
@@ -49,6 +50,27 @@ export function leadArgv(o: { agent: Agent; model: string; effort: string; promp
   ];
 }
 
+/**
+ * SPEC-448 (QA) · env proses lead. `brain.ts` adalah titik spawn agen KEDUA di hanoman — satu-satunya
+ * di luar `pty.ts` — dan gerbang root claude yang dibuka SPEC-403 tak pernah menyeberang ke sini:
+ * kedua commit lahir di worktree paralel di hari yang sama (`e5c73ac` bukan leluhur `a16465e`).
+ * Akibatnya, di instance yang servernya jalan sebagai root — yaitu `User=root` di deploy-vps.md,
+ * konfigurasi deploy RESMI — claude mencetak "--dangerously-skip-permissions cannot be used with
+ * root/sudo privileges" lalu `process.exit(1)` sebelum berpikir, dan lead tak pernah sekalipun
+ * menghasilkan keputusan.
+ *
+ * `rootBypassEnv` DIIMPOR dari `pty.ts`, bukan disalin: yang membuat bug ini ada adalah dua titik
+ * spawn yang tak sepakat, dan definisi kedua akan mengundangnya kembali. Hanya untuk **claude** —
+ * codex (0.146.0) tak punya gerbang root maupun rujukan ke `IS_SANDBOX`, cermin gerbang agen di
+ * `pty.ts:324`. Env pemanggil ditumpuk BELAKANGAN supaya `IS_SANDBOX` yang sudah disetel operator
+ * tetap menang, urutan yang sama dengan `envPairs` di sana.
+ */
+export const leadEnv = (
+  agent: Agent,
+  base: NodeJS.ProcessEnv = process.env,
+  uid = process.getuid?.(),
+): NodeJS.ProcessEnv => (agent === "claude" ? { ...rootBypassEnv(uid), ...base } : { ...base });
+
 export type ThinkOpts = {
   agent: Agent; model: string; effort: string;
   cwd?: string; timeoutMs: number;
@@ -65,9 +87,9 @@ export function think(prompt: string, o: ThinkOpts): Promise<string> {
   const bin = binFor(o.agent);
   const args = leadArgv({ agent: o.agent, model: o.model, effort: o.effort, prompt });
   return new Promise((resolve, reject) => {
-    execFile(bin, args, {
+    const child = execFile(bin, args, {
       cwd: o.cwd, timeout: o.timeoutMs, maxBuffer: 16 * 1024 * 1024,
-      encoding: "utf8", killSignal: "SIGTERM",
+      env: leadEnv(o.agent), encoding: "utf8", killSignal: "SIGTERM",
     }, (err, stdout, stderr) => {
       if (err) {
         const killed = (err as NodeJS.ErrnoException & { killed?: boolean }).killed;
@@ -76,5 +98,16 @@ export function think(prompt: string, o: ThinkOpts): Promise<string> {
       }
       resolve(stdout);
     });
+    // SPEC-448 (QA) · TUTUP stdin. `execFile` selalu melahirkan anak ber-`stdio:["pipe",…]` — opsi
+    // `stdio` TIDAK diteruskan Node untuk execFile (hanya cwd/env/uid/shell/signal yang sampai ke
+    // `spawn`), jadi menyetelnya di atas diam-diam tak berefek dan satu-satunya jalan adalah handle
+    // ini. Tanpa `end()` anak melihat pipa hidup-tapi-bisu yang tak pernah EOF, dan `claude -p`
+    // — yang membaca stdin sebagai sumber prompt alternatif — menunggunya 3 detik penuh sebelum
+    // memperingatkan. Prompt lead sendiri lewat argv (leadArgv), bukan stdin, jadi tak ada yang
+    // hilang dengan menutupnya. Terukur pada claude 2.1.220, prompt & anggaran 6 dtk yang sama:
+    // pipa terbuka → 6551 ms, dibunuh saat batas waktu, stdout KOSONG; ditutup → 3554 ms, jawaban
+    // benar. Tiga detik itu selisih antara ada jawaban dan tidak — kelas kegagalan SPEC-432, hanya
+    // saja anggarannya habis SEBELUM agen mulai berpikir.
+    child.stdin?.end();
   });
 }
