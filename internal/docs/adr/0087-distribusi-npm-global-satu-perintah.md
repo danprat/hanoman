@@ -32,6 +32,17 @@
 > publish menunggu persetujuan manusia. Tanpa reviewer, environment itu tak memagari apa pun, dan
 > ADR ini tak berpura-pura sebaliknya.
 >
+> **Amandemen 2026-07-31 — *Required reviewers* DICABUT (keputusan pemilik repo).** Sejak rilis
+> `0.1.7`, environment `release` tak lagi punya reviewer: mendorong tag `v*` langsung menerbitkan ke
+> npm tanpa henti. Konsekuensinya persis seperti yang ditulis paragraf di atas — **siapa pun yang
+> bisa mendorong tag ke repo ini, termasuk sesi agen, bisa menerbitkan rilis**. Yang tersisa hanya
+> ketiga pagar mekanis di bawah; tak ada lagi gerbang manusia di jalur publish. Alasannya kecepatan
+> rilis, bukan penilaian ulang atas risikonya. Environment `release` itu sendiri **tetap ada dan
+> tetap dirujuk workflow** — bukan karena memagari, tapi karena trusted publisher npm dikonfigurasi
+> dengan `--env release`; melepasnya dari workflow akan mengembalikan `E404 PUT` yang menghantam
+> `v0.1.3`/`v0.1.5`. Memulihkan gerbangnya = pasang kembali *Required reviewers*
+> (`gh api -X PUT repos/denameidina/hanoman/environments/release`).
+>
 > **Tiga pagar yang tak bergantung penilaian siapa pun:** (a) workflow hanya menembak pada tag
 > `v*`; (b) tag yang tak cocok dengan `version` di root `package.json` **menggagalkan** run sebelum
 > menyentuh registry — nomor versi yang salah terbit tak bisa dipakai ulang; (c) tarball hasil

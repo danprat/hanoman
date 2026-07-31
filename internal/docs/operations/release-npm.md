@@ -21,11 +21,13 @@ setelan paket. Jadi versi pertama tak bisa diotomasi.
    ```
    `npm publish` **ditolak 403** bila 2FA akun `disabled` **dan** tak ada GAT ber-bypass — npm
    menuntut salah satunya. Cek modenya dengan `npm profile get` (baris `two-factor auth`).
-2. **Daftarkan trusted publisher** — **BELUM DILAKUKAN per 2026-07-31**, dan inilah yang membuat
+2. ~~**Daftarkan trusted publisher**~~ — **SUDAH: terbukti jalan sejak `v0.1.6`, dikonfirmasi lagi
+   `v0.1.7` (run `30633124072`, publish OIDC hijau tanpa sentuhan manual).** Sebelum itu ia belum
+   terdaftar, dan itulah yang membuat
    tag `v0.1.3` gagal publish (lihat "Kalau publish gagal"); `0.1.3` akhirnya terbit **manual**
    dari mesin dev, jadi tag `v0.1.3` tetap merah. Terulang persis pada `v0.1.5`
    (run `30597896875`, `E404 PUT` sesudah provenance ditandatangani) — `0.1.5` juga terbit manual.
-   Selama langkah ini belum dikerjakan, **setiap** tag akan merah dan rilis tetap manual. Butuh akun ber-2FA: GAT bypass-2FA ditolak
+   Kalau konfigurasi ini hilang/berubah, **setiap** tag akan merah lagi dan rilis balik manual. Butuh akun ber-2FA: GAT bypass-2FA ditolak
    `npm trust` bahkan untuk **membaca** konfigurasinya (`403 GET /-/package/hanoman/trust`) — npm
    sengaja tak mengizinkan kredensial statis memasang penggantinya sendiri. Login dulu
    (`npm login`) lalu:
@@ -36,10 +38,17 @@ setelan paket. Jadi versi pertama tak bisa diotomasi.
    `npm trust` baru ada di npm ≥ 11.15.0 (`npx` menghindari upgrade npm global). Alternatif web:
    npmjs.com → paket `hanoman` → Settings → *Trusted publishing* → GitHub Actions dengan nilai yang
    sama. Registry hanya menerima **satu** konfigurasi per paket.
-3. ~~**Pasang gerbang manusianya**~~ — **SUDAH: 2026-07-30**, environment `release` punya
-   `required_reviewers` (`denameidina`). Ini langkah yang benar-benar menggantikan "manusia mengetik
-   `npm publish`": tanpa ini, siapa pun (termasuk agen) yang bisa mendorong tag bisa menerbitkan
-   rilis — terbukti pada `v0.1.3`, yang langsung lari ke `npm publish` tanpa berhenti sekali pun.
+3. **Gerbang manusianya — DICABUT 2026-07-31 atas keputusan pemilik repo.** Sempat terpasang
+   2026-07-30 (`required_reviewers` = `denameidina`), lalu dilepas supaya rilis jalan tanpa henti:
+   sejak `0.1.7`, **mendorong tag `v*` = menerbitkan ke npm, titik**. Artinya siapa pun yang bisa
+   mendorong tag ke repo ini — **termasuk sesi agen** — bisa menerbitkan rilis. Hanya ketiga pagar
+   mekanis di tabel bawah yang tersisa. Environment `release` **tetap ada dan tetap dirujuk
+   workflow**: ia bagian dari identitas OIDC yang didaftarkan langkah 2 (`--env release`), bukan
+   pagar. Memasangnya kembali:
+   ```sh
+   echo '{"wait_timer":0,"reviewers":[{"type":"User","id":20722334}]}' \
+     | gh api -X PUT repos/denameidina/hanoman/environments/release --input -
+   ```
 
 ## Tiap rilis
 
@@ -66,7 +75,7 @@ Versi hidup di root `package.json` dan ditanam ke `dist/build-info.json` oleh
 | Tag harus == `version` root | menerbitkan nomor versi salah — dan nomor terbit **tak bisa dipakai ulang** |
 | Tarball dipasang & `hanoman --version` diuji | menerbitkan paket yang tak bisa dijalankan |
 | `repository.url` dijaga `cli/test/pack.test.ts` | publish ditolak OIDC/provenance karena URL tak cocok |
-| Environment `release` + reviewer | rilis tanpa persetujuan manusia |
+| ~~Environment `release` + reviewer~~ | ~~rilis tanpa persetujuan manusia~~ — **dicabut 2026-07-31**, tak ada lagi gerbang manusia |
 
 `hanoman doctor` **tidak** dipakai di CI: ia menuntut `git`, `tmux`, dan CLI agen yang memang tak
 ada di runner, jadi ia akan exit 1 karena alasan yang tak relevan dengan kesehatan paket.
