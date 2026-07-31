@@ -52,7 +52,7 @@
 
 Worktree ini belum punya `node_modules` — tanpa langkah ini `@prisma/client` tak resolve dan setiap test gagal dengan error yang menyesatkan.
 
-- [ ] **Step 1: Install dependency**
+- [x] **Step 1: Install dependency**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-408
@@ -61,7 +61,7 @@ pnpm install
 
 Expected: selesai exit 0; `node_modules/` dan `server/node_modules/` ada.
 
-- [ ] **Step 2: Generate Prisma client (skema saat ini)**
+- [x] **Step 2: Generate Prisma client (skema saat ini)**
 
 ```bash
 pnpm --filter ./server exec prisma generate
@@ -69,7 +69,7 @@ pnpm --filter ./server exec prisma generate
 
 Expected: `✔ Generated Prisma Client`.
 
-- [ ] **Step 3: Buktikan baseline hijau sebelum menyentuh apa pun**
+- [x] **Step 3: Buktikan baseline hijau sebelum menyentuh apa pun**
 
 ```bash
 mkdir -p .tmp
@@ -90,7 +90,7 @@ Expected: PASS (semua test spesc route hijau). Kalau merah **sekarang**, itu buk
 **Interfaces:**
 - Produces: kolom `Spec.createdAt: DateTime` (NOT NULL, default now) dan `Spec.startedAt: DateTime?`. Dipakai Task 2 (tulis), Task 3 (sync), Task 5 (filter), Task 6 (DTO).
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `server/test/specs.route.test.ts`, di dalam `describe("specs routes", …)`:
 
@@ -110,7 +110,7 @@ Tambahkan di `server/test/specs.route.test.ts`, di dalam `describe("specs routes
   });
 ```
 
-- [ ] **Step 2: Jalankan — harus gagal**
+- [x] **Step 2: Jalankan — harus gagal**
 
 ```bash
 TEST_DATABASE_URL=file:$PWD/.tmp/spec408.test.db ./node_modules/.bin/vitest --run --no-file-parallelism server/test/specs.route.test.ts -t "stempel waktu"
@@ -118,7 +118,7 @@ TEST_DATABASE_URL=file:$PWD/.tmp/spec408.test.db ./node_modules/.bin/vitest --ru
 
 Expected: FAIL — TypeScript/Prisma tak mengenal `createdAt`/`startedAt` di `Spec` (`Property 'createdAt' does not exist`).
 
-- [ ] **Step 3: Tambah kolom di schema**
+- [x] **Step 3: Tambah kolom di schema**
 
 Di `server/prisma/schema.prisma`, model `Spec`, sisipkan tepat sebelum baris `updatedAt`:
 
@@ -132,7 +132,7 @@ Di `server/prisma/schema.prisma`, model `Spec`, sisipkan tepat sebelum baris `up
   startedAt  DateTime?
 ```
 
-- [ ] **Step 4: Tulis migration tangan (SQLite melarang ADD COLUMN ber-default non-konstan)**
+- [x] **Step 4: Tulis migration tangan (SQLite melarang ADD COLUMN ber-default non-konstan)**
 
 Buat `server/prisma/migrations/20260731000000_spec_created_started_at/migration.sql`:
 
@@ -182,7 +182,7 @@ PRAGMA foreign_keys=ON;
 PRAGMA defer_foreign_keys=OFF;
 ```
 
-- [ ] **Step 5: Regenerate client**
+- [x] **Step 5: Regenerate client**
 
 ```bash
 pnpm --filter ./server exec prisma generate
@@ -190,7 +190,7 @@ pnpm --filter ./server exec prisma generate
 
 Expected: `✔ Generated Prisma Client`.
 
-- [ ] **Step 6: Jalankan test — harus lulus**
+- [x] **Step 6: Jalankan test — harus lulus**
 
 ```bash
 TEST_DATABASE_URL=file:$PWD/.tmp/spec408.test.db ./node_modules/.bin/vitest --run --no-file-parallelism server/test/specs.route.test.ts
@@ -198,7 +198,7 @@ TEST_DATABASE_URL=file:$PWD/.tmp/spec408.test.db ./node_modules/.bin/vitest --ru
 
 Expected: PASS, termasuk test baru. (`global-setup.ts` menerapkan kedua migration ke berkas DB test dari nol — kalau migration SQL-nya salah sintaks, run ini gagal keras di setup, bukan diam-diam.)
 
-- [ ] **Step 7: Terapkan migration ke DB dev bersama (aditif, aman untuk sesi tetangga)**
+- [x] **Step 7: Terapkan migration ke DB dev bersama (aditif, aman untuk sesi tetangga)**
 
 ```bash
 pnpm --filter ./server exec prisma migrate deploy
@@ -206,7 +206,7 @@ pnpm --filter ./server exec prisma migrate deploy
 
 Expected: `1 migration found` → `Applied migration(s)`. Aditif: Prisma menulis daftar kolom eksplisit di setiap query, jadi server sesi tetangga yang masih memakai client lama tak terganggu.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/prisma/schema.prisma server/prisma/migrations server/test/specs.route.test.ts
@@ -225,7 +225,7 @@ git commit -m "feat(408): kolom Spec.createdAt & startedAt + migration backfill"
 - Consumes: kolom `Spec.startedAt` dari Task 1.
 - Produces: invariant "`startedAt` = waktu sesi pertama, tak pernah ditulis ulang" — diandalkan Task 5 (`dateField=started`).
 
-- [ ] **Step 1: Tulis test yang gagal — sesi fresh menulis `startedAt`**
+- [x] **Step 1: Tulis test yang gagal — sesi fresh menulis `startedAt`**
 
 Tambahkan di `server/test/session-launch.test.ts`, di dalam `describe("session-launch", …)`:
 
@@ -246,7 +246,7 @@ Tambahkan di `server/test/session-launch.test.ts`, di dalam `describe("session-l
   });
 ```
 
-- [ ] **Step 2: Jalankan — harus gagal**
+- [x] **Step 2: Jalankan — harus gagal**
 
 ```bash
 TEST_DATABASE_URL=file:$PWD/.tmp/spec408.test.db ./node_modules/.bin/vitest --run --no-file-parallelism server/test/session-launch.test.ts -t "startedAt"
@@ -254,7 +254,7 @@ TEST_DATABASE_URL=file:$PWD/.tmp/spec408.test.db ./node_modules/.bin/vitest --ru
 
 Expected: FAIL — `expected null to be an instance of Date`.
 
-- [ ] **Step 3: Tulis `startedAt` di jalur fresh saja**
+- [x] **Step 3: Tulis `startedAt` di jalur fresh saja**
 
 Di `server/src/services/session-launch.ts`, ganti baris 142-144:
 
@@ -268,7 +268,7 @@ Di `server/src/services/session-launch.ts`, ganti baris 142-144:
     });
 ```
 
-- [ ] **Step 4: Jalankan — harus lulus**
+- [x] **Step 4: Jalankan — harus lulus**
 
 ```bash
 TEST_DATABASE_URL=file:$PWD/.tmp/spec408.test.db ./node_modules/.bin/vitest --run --no-file-parallelism server/test/session-launch.test.ts
@@ -276,7 +276,7 @@ TEST_DATABASE_URL=file:$PWD/.tmp/spec408.test.db ./node_modules/.bin/vitest --ru
 
 Expected: PASS.
 
-- [ ] **Step 5: Tulis test yang gagal — resume TIDAK menimpa**
+- [x] **Step 5: Tulis test yang gagal — resume TIDAK menimpa**
 
 Tambahkan di `server/test/session-resume.test.ts`, di dalam `describe("SPEC-394 · pane mati bukan sesi hidup", …)`:
 
@@ -299,7 +299,7 @@ Tambahkan di `server/test/session-resume.test.ts`, di dalam `describe("SPEC-394 
   });
 ```
 
-- [ ] **Step 6: Jalankan — harus lulus tanpa perubahan kode**
+- [x] **Step 6: Jalankan — harus lulus tanpa perubahan kode**
 
 ```bash
 TEST_DATABASE_URL=file:$PWD/.tmp/spec408.test.db ./node_modules/.bin/vitest --run --no-file-parallelism server/test/session-resume.test.ts
@@ -307,7 +307,7 @@ TEST_DATABASE_URL=file:$PWD/.tmp/spec408.test.db ./node_modules/.bin/vitest --ru
 
 Expected: PASS. Test ini menjaga invariant yang sudah benar sejak Step 3 (`if (!resume)`); ia ada supaya siapa pun yang kelak "menyederhanakan" gerbang itu langsung merah.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/services/session-launch.ts server/test/session-launch.test.ts server/test/session-resume.test.ts
@@ -326,7 +326,7 @@ git commit -m "feat(408): tulis Spec.startedAt saat sesi pertama lahir, tak diti
 - Consumes: kolom dari Task 1.
 - Produces: `FIELDS.spec` & `DATE_FIELDS.spec` yang memuat `createdAt`/`startedAt`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `server/test/sync.service.test.ts`, di dalam `describe("sync service (SPEC-213 AC-9..15)", …)`:
 
@@ -353,7 +353,7 @@ Tambahkan di `server/test/sync.service.test.ts`, di dalam `describe("sync servic
   });
 ```
 
-- [ ] **Step 2: Jalankan — harus gagal**
+- [x] **Step 2: Jalankan — harus gagal**
 
 ```bash
 TEST_DATABASE_URL=file:$PWD/.tmp/spec408.test.db ./node_modules/.bin/vitest --run --no-file-parallelism server/test/sync.service.test.ts -t "SPEC-408"
@@ -361,7 +361,7 @@ TEST_DATABASE_URL=file:$PWD/.tmp/spec408.test.db ./node_modules/.bin/vitest --ru
 
 Expected: FAIL — `createdAt` bukan tanggal yang dikirim (baris memakai default `now()`), dan `snap.data` tak punya key-nya.
 
-- [ ] **Step 3: Masukkan ke whitelist**
+- [x] **Step 3: Masukkan ke whitelist**
 
 Di `server/src/services/sync.ts`, ganti baris 31:
 
@@ -377,7 +377,7 @@ dan baris 44 (`DATE_FIELDS`):
   project: ["updatedAt"], spec: ["createdAt", "startedAt", "updatedAt"], vps: ["lastSeenAt", "lastAuditAt", "updatedAt"],
 ```
 
-- [ ] **Step 4: Jalankan — harus lulus**
+- [x] **Step 4: Jalankan — harus lulus**
 
 ```bash
 TEST_DATABASE_URL=file:$PWD/.tmp/spec408.test.db ./node_modules/.bin/vitest --run --no-file-parallelism server/test/sync.service.test.ts server/test/sync-exclusions.test.ts
@@ -385,7 +385,7 @@ TEST_DATABASE_URL=file:$PWD/.tmp/spec408.test.db ./node_modules/.bin/vitest --ru
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/sync.ts server/test/sync.service.test.ts
@@ -407,7 +407,7 @@ git commit -m "feat(408): createdAt & startedAt menyeberang record-sync"
   - `inDayRange(at: Date | null | undefined, from: Date | null, to: Date | null): boolean` — inklusif; batas `null` = terbuka; `at` null → `false` kecuali kedua batas null.
   Dipakai Task 5.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/date-range.test.ts`:
 
@@ -466,7 +466,7 @@ describe("date-range (SPEC-408)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — harus gagal**
+- [x] **Step 2: Jalankan — harus gagal**
 
 ```bash
 TEST_DATABASE_URL=file:$PWD/.tmp/spec408.test.db ./node_modules/.bin/vitest --run --no-file-parallelism server/test/date-range.test.ts
@@ -474,7 +474,7 @@ TEST_DATABASE_URL=file:$PWD/.tmp/spec408.test.db ./node_modules/.bin/vitest --ru
 
 Expected: FAIL — `Failed to load ../src/services/date-range`.
 
-- [ ] **Step 3: Tulis implementasinya**
+- [x] **Step 3: Tulis implementasinya**
 
 Buat `server/src/services/date-range.ts`:
 
@@ -520,7 +520,7 @@ export function inDayRange(at: Date | null | undefined, from: Date | null, to: D
 }
 ```
 
-- [ ] **Step 4: Jalankan — harus lulus**
+- [x] **Step 4: Jalankan — harus lulus**
 
 ```bash
 TEST_DATABASE_URL=file:$PWD/.tmp/spec408.test.db ./node_modules/.bin/vitest --run --no-file-parallelism server/test/date-range.test.ts
@@ -528,7 +528,7 @@ TEST_DATABASE_URL=file:$PWD/.tmp/spec408.test.db ./node_modules/.bin/vitest --ru
 
 Expected: PASS (7 test).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/date-range.ts server/test/date-range.test.ts
@@ -547,7 +547,7 @@ git commit -m "feat(408): helper rentang tanggal lokal (murni + bertest)"
 - Consumes: `dayStart`/`dayEnd`/`inDayRange` (Task 4); kolom `createdAt`/`startedAt` (Task 1); invariant `startedAt` (Task 2).
 - Produces: query param `dateField` · `from` · `to` di `GET /specs`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `server/test/specs.route.test.ts`, sebagai `describe` baru di akhir berkas:
 
@@ -600,7 +600,7 @@ describe("filter rentang tanggal (SPEC-408)", () => {
 
 > Catatan implementasi test: `makeSpec` mem-forward `...over` ke `prisma.spec.create`, jadi `createdAt`/`startedAt` bisa di-set langsung tanpa mengubah factory. Tanggal ditulis dalam UTC agar deterministik, dan rentang yang diuji (`2026-07-01`..`2026-07-31`) berjarak jauh dari batas hari sehingga lulus di zona waktu mana pun mesin CI berada.
 
-- [ ] **Step 2: Jalankan — harus gagal**
+- [x] **Step 2: Jalankan — harus gagal**
 
 ```bash
 TEST_DATABASE_URL=file:$PWD/.tmp/spec408.test.db ./node_modules/.bin/vitest --run --no-file-parallelism server/test/specs.route.test.ts -t "SPEC-408"
@@ -608,7 +608,7 @@ TEST_DATABASE_URL=file:$PWD/.tmp/spec408.test.db ./node_modules/.bin/vitest --ru
 
 Expected: FAIL — semua tiga id dikembalikan (param diabaikan server).
 
-- [ ] **Step 3: Terapkan filter di `filterSpecs` + route**
+- [x] **Step 3: Terapkan filter di `filterSpecs` + route**
 
 Di `server/src/routes/specs.ts`, tambahkan import setelah baris 21:
 
@@ -661,7 +661,7 @@ Ganti isi handler `GET /specs` (baris 68-78) menjadi:
   });
 ```
 
-- [ ] **Step 4: Jalankan — harus lulus**
+- [x] **Step 4: Jalankan — harus lulus**
 
 ```bash
 TEST_DATABASE_URL=file:$PWD/.tmp/spec408.test.db ./node_modules/.bin/vitest --run --no-file-parallelism server/test/specs.route.test.ts
@@ -669,7 +669,7 @@ TEST_DATABASE_URL=file:$PWD/.tmp/spec408.test.db ./node_modules/.bin/vitest --ru
 
 Expected: PASS — seluruh berkas, termasuk 7 test SPEC-408 dan semua test filter lama.
 
-- [ ] **Step 5: Typecheck paket server**
+- [x] **Step 5: Typecheck paket server**
 
 ```bash
 pnpm --filter ./server typecheck
@@ -677,7 +677,7 @@ pnpm --filter ./server typecheck
 
 Expected: exit 0, tanpa output error.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/routes/specs.ts server/test/specs.route.test.ts
@@ -697,7 +697,7 @@ git commit -m "feat(408): filter dateField/from/to di GET /specs"
 - Produces: `SpecListParams` + `dateField?: "created" | "started"; from?: string; to?: string` — dipakai Task 7.
 - Produces: `Spec.createdAt: string`, `Spec.startedAt: string | null` di `@hanoman/shared`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `src/test/client.test.ts` (ikuti pola `describe` yang sudah ada di berkas itu):
 
@@ -731,7 +731,7 @@ describe("listSpecs — filter tanggal (SPEC-408)", () => {
 > };
 > ```
 
-- [ ] **Step 2: Jalankan — harus gagal**
+- [x] **Step 2: Jalankan — harus gagal**
 
 ```bash
 ./node_modules/.bin/vitest --run src/test/client.test.ts -t "SPEC-408"
@@ -739,7 +739,7 @@ describe("listSpecs — filter tanggal (SPEC-408)", () => {
 
 Expected: FAIL — TypeScript menolak `dateField` di `SpecListParams`.
 
-- [ ] **Step 3: Tumbuhkan `SpecListParams`**
+- [x] **Step 3: Tumbuhkan `SpecListParams`**
 
 Di `src/src/api/client.ts`, ganti baris 96-99:
 
@@ -753,7 +753,7 @@ export type SpecListParams = {
 };
 ```
 
-- [ ] **Step 4: Tumbuhkan `zSpec`**
+- [x] **Step 4: Tumbuhkan `zSpec`**
 
 Di `shared/src/entities.ts`, ganti blok `zSpec` (baris 37-43):
 
@@ -771,7 +771,7 @@ export const zSpec = z.object({
 });
 ```
 
-- [ ] **Step 5: Jalankan test + typecheck**
+- [x] **Step 5: Jalankan test + typecheck**
 
 ```bash
 ./node_modules/.bin/vitest --run src/test/client.test.ts
@@ -781,7 +781,7 @@ pnpm --filter ./src typecheck
 
 Expected: test PASS; kedua typecheck exit 0. Bila typecheck web mengeluh soal object literal `Spec` yang kurang field, tambahkan `createdAt`/`startedAt` di literal itu — jangan melonggarkan `zSpec` jadi optional.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add shared/src/entities.ts src/src/api/client.ts src/test/client.test.ts
@@ -800,7 +800,7 @@ git commit -m "feat(408): kontrak klien — zSpec createdAt/startedAt + SpecList
 - Consumes: `SpecListParams` dari Task 6.
 - Produces: tiga kontrol ber-`aria-label` `"Filter tanggal berdasarkan"`, `"Tanggal dari"`, `"Tanggal sampai"`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/test/backlog-date-filter.test.tsx`:
 
@@ -891,7 +891,7 @@ describe("filter rentang tanggal backlog (SPEC-408)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — harus gagal**
+- [x] **Step 2: Jalankan — harus gagal**
 
 ```bash
 ./node_modules/.bin/vitest --run src/test/backlog-date-filter.test.tsx
@@ -899,7 +899,7 @@ describe("filter rentang tanggal backlog (SPEC-408)", () => {
 
 Expected: FAIL — `Unable to find a label with the text of: Filter tanggal berdasarkan`.
 
-- [ ] **Step 3: Tambah state (setelah baris 614)**
+- [x] **Step 3: Tambah state (setelah baris 614)**
 
 Di `src/src/screens/BacklogScreen.tsx`, setelah `const [prioFilter, setPrioFilter] = React.useState("all");`:
 
@@ -912,7 +912,7 @@ Di `src/src/screens/BacklogScreen.tsx`, setelah `const [prioFilter, setPrioFilte
   const [to, setTo] = React.useState("");
 ```
 
-- [ ] **Step 4: Masukkan ke dua effect (baris 631 & 632-646)**
+- [x] **Step 4: Masukkan ke dua effect (baris 631 & 632-646)**
 
 Ganti effect reset-halaman:
 
@@ -937,7 +937,7 @@ Di effect fetch, tambahkan tiga param setelah `priority:` dan lengkapi deps:
   }, [tab, proj, stageFilter, prioFilter, dq, view, page, pageSize, dataVersion, syncNonce, dateField, from, to]);
 ```
 
-- [ ] **Step 5: Tambah tiga kontrol di baris penyaring (setelah Select prioritas, baris 671-675)**
+- [x] **Step 5: Tambah tiga kontrol di baris penyaring (setelah Select prioritas, baris 671-675)**
 
 ```tsx
           {/* SPEC-408 · ADR-0090 · rentang tanggal: satu sumbu + dua batas inklusif. DS `Input`
@@ -954,7 +954,7 @@ Di effect fetch, tambahkan tiga param setelah `priority:` dan lengkapi deps:
             style={{ flex: "0 0 auto" }} />
 ```
 
-- [ ] **Step 6: Ikutkan di Reset filter (baris 685)**
+- [x] **Step 6: Ikutkan di Reset filter (baris 685)**
 
 Ganti `action` pada `StateBlock kind="empty" icon="filter"`:
 
@@ -962,7 +962,7 @@ Ganti `action` pada `StateBlock kind="empty" icon="filter"`:
             action={() => { setTab("all"); setProj("all"); setQ(""); setStageFilter("all"); setPrioFilter("all"); setDateField("created"); setFrom(""); setTo(""); }} actionLabel="Reset filter" actionIcon="rotate-ccw" />
 ```
 
-- [ ] **Step 7: Jalankan test — harus lulus**
+- [x] **Step 7: Jalankan test — harus lulus**
 
 ```bash
 ./node_modules/.bin/vitest --run src/test/backlog-date-filter.test.tsx src/test/backlog-board.test.tsx src/test/backlog-goal.test.tsx src/test/backlog-deeplink.test.tsx
@@ -970,7 +970,7 @@ Ganti `action` pada `StateBlock kind="empty" icon="filter"`:
 
 Expected: PASS semua. `backlog-board.test.tsx` menjaga `toMatchObject({ page: 1, limit: 20 })` — masih lulus karena `dateField` tak dikirim saat rentang kosong.
 
-- [ ] **Step 8: Typecheck web**
+- [x] **Step 8: Typecheck web**
 
 ```bash
 pnpm --filter ./src typecheck
@@ -978,7 +978,7 @@ pnpm --filter ./src typecheck
 
 Expected: exit 0.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/src/screens/BacklogScreen.tsx src/test/backlog-date-filter.test.tsx
@@ -993,7 +993,7 @@ git commit -m "feat(408): kontrol filter rentang tanggal di BacklogScreen"
 - Create: `internal/docs/adr/0090-stempel-waktu-backlog-created-started.md`
 - Modify: `internal/docs/README.md`, `internal/docs/adr/README.md`, `internal/docs/architecture/data-model.md`, `internal/docs/architecture/api-contract.md`, `internal/skills/hanoman/SKILL.md`
 
-- [ ] **Step 1: Verifikasi nomor ADR masih bebas**
+- [x] **Step 1: Verifikasi nomor ADR masih bebas**
 
 ```bash
 for b in $(git branch -a --format='%(refname)'); do git ls-tree -r --name-only "$b" internal/docs/adr 2>/dev/null; done | grep -oE '[0-9]{4}' | sort -n | tail -3
@@ -1002,7 +1002,7 @@ git worktree list
 
 Expected: tertinggi `0089`. Bila sudah ada `0090` di branch lain, naikkan nomor di seluruh berkas plan ini sebelum lanjut.
 
-- [ ] **Step 2: Tulis ADR**
+- [x] **Step 2: Tulis ADR**
 
 Buat `internal/docs/adr/0090-stempel-waktu-backlog-created-started.md` dengan status `Accepted`, tanggal `2026-07-31`, dan isi yang merekam kelima keputusan berikut (ikuti format ADR tetangga, mis. `0089-backlog-goal-flow-dua-fase.md` — baca dulu satu berkas untuk menyalin strukturnya):
 
@@ -1015,7 +1015,7 @@ Buat `internal/docs/adr/0090-stempel-waktu-backlog-created-started.md` dengan st
 7. **Gotcha wajib.** (i) SQLite melarang `ALTER TABLE … ADD COLUMN … DEFAULT CURRENT_TIMESTAMP` → migration wajib redefinisi tabel, dan redefinisi itulah tempat backfill. (ii) `new Date("2026-07-31")` = tengah malam **UTC** — dipakai sebagai batas `to` ia membuang hampir seluruh hari itu di WIB; parsing karena itu komponen-per-komponen di zona lokal, dengan tolakan rollover (`2026-02-30` → `null`, bukan 2 Maret). (iii) `createdAt`/`startedAt` **wajib** masuk `FIELDS.spec` + `DATE_FIELDS.spec`, kalau tidak spec asal-hub mendapat `createdAt` lokal palsu di tiap client.
 8. **Konsekuensi.** Satu migration aditif; `zSpec` bertambah dua field (ISO string di wire); `dateField=started` **membuang** item yang belum pernah dikerjakan; item lama menampilkan tanggal aproksimasi selamanya.
 
-- [ ] **Step 3: Taut ADR di index & sub-index**
+- [x] **Step 3: Taut ADR di index & sub-index**
 
 Di `internal/docs/README.md`, tepat di atas baris `- [0089 — …]`:
 
@@ -1025,7 +1025,7 @@ Di `internal/docs/README.md`, tepat di atas baris `- [0089 — …]`:
 
 Di `internal/docs/adr/README.md`, tambahkan entri narasi 0090 di posisi yang sama dengan pola 0089 (baca berkas itu untuk menyalin bentuk paragrafnya): apa yang diperluas (filter backlog SPEC-198/ADR-0038), apa yang ditolak (`updatedAt` sebagai proksi), dan ketiga gotcha di atas.
 
-- [ ] **Step 4: Perbarui data-model**
+- [x] **Step 4: Perbarui data-model**
 
 Di `internal/docs/architecture/data-model.md` §`Spec (backlog item)`, setelah bullet `baseSha?`/`headSha?`:
 
@@ -1041,7 +1041,7 @@ Di `internal/docs/architecture/data-model.md` §`Spec (backlog item)`, setelah b
   `updatedAt` — aproksimasi yang disengaja.
 ```
 
-- [ ] **Step 5: Perbarui api-contract**
+- [x] **Step 5: Perbarui api-contract**
 
 Di `internal/docs/architecture/api-contract.md` §`Backlog / specs`, ganti baris query dan tambahkan catatan:
 
@@ -1061,7 +1061,7 @@ lalu setelah baris `#   Tanpa page/limit → seluruh item terfilter (page 1, pag
 #   tetap di layer response bersama yang lain, jadi `total` di envelope ikut menyusut.
 ```
 
-- [ ] **Step 6: Perbarui skill project**
+- [x] **Step 6: Perbarui skill project**
 
 Di `internal/skills/hanoman/SKILL.md` §"Aturan Arsitektur", tambahkan satu butir setelah butir SPEC-360 (hapus branch):
 
@@ -1081,7 +1081,7 @@ Di `internal/skills/hanoman/SKILL.md` §"Aturan Arsitektur", tambahkan satu buti
   mendapat `createdAt` lokal palsu di tiap client.
 ```
 
-- [ ] **Step 7: Cek integritas index**
+- [x] **Step 7: Cek integritas index**
 
 ```bash
 grep -c "0090" internal/docs/README.md internal/docs/adr/README.md
@@ -1089,7 +1089,7 @@ grep -c "0090" internal/docs/README.md internal/docs/adr/README.md
 
 Expected: masing-masing ≥ 1.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add internal/docs internal/skills
@@ -1102,7 +1102,7 @@ git commit -m "docs(408): ADR-0090 + index/sub-index + data-model/api-contract +
 
 **Files:** tak ada perubahan kode — ini gerbang bukti.
 
-- [ ] **Step 1: Jalankan seluruh test yang tersentuh perubahan**
+- [x] **Step 1: Jalankan seluruh test yang tersentuh perubahan**
 
 ```bash
 TEST_DATABASE_URL=file:$PWD/.tmp/spec408.test.db ./node_modules/.bin/vitest --run --no-file-parallelism \
@@ -1114,7 +1114,7 @@ TEST_DATABASE_URL=file:$PWD/.tmp/spec408.test.db ./node_modules/.bin/vitest --ru
 
 Expected: PASS semua. **Baca jumlah test yang benar-benar berjalan** — "no test files" bukan bukti (jebakan `passWithNoTests`, ADR-0080).
 
-- [ ] **Step 2: Typecheck tiga paket yang tersentuh (satu per satu, bukan `-r`)**
+- [x] **Step 2: Typecheck tiga paket yang tersentuh (satu per satu, bukan `-r`)**
 
 ```bash
 pnpm --filter ./shared typecheck && pnpm --filter ./server typecheck && pnpm --filter ./src typecheck
@@ -1122,7 +1122,7 @@ pnpm --filter ./shared typecheck && pnpm --filter ./server typecheck && pnpm --f
 
 Expected: exit 0, tanpa output.
 
-- [ ] **Step 3: Smoke endpoint nyata — boot server + curl**
+- [x] **Step 3: Smoke endpoint nyata — boot server + curl**
 
 Pakai `HANOMAN_HOME` khusus supaya tak menyentuh DB dev bersama (pelajaran "Live smoke: DB khusus"):
 
@@ -1164,14 +1164,14 @@ Expected: curl #1 → hanya `SPEC-S2`, `total: 1`. curl #2 → hanya `SPEC-S2`, 
 > Bila `/api` membalas 401, server menuntut login (ADR-0028). Buat akun sekali:
 > `curl -s -XPOST localhost:8791/api/auth/setup -H 'content-type: application/json' -d '{"email":"s@s.io","password":"smoke-pass-123"}' -c $PWD/.tmp/cj` lalu tambahkan `-b $PWD/.tmp/cj` di ketiga curl.
 
-- [ ] **Step 4: Matikan server smoke per-PID (JANGAN `pkill -f`)**
+- [x] **Step 4: Matikan server smoke per-PID (JANGAN `pkill -f`)**
 
 ```bash
 lsof -ti:8791 | xargs -r kill
 rm -rf "$SMOKE_HOME"
 ```
 
-- [ ] **Step 5: Pastikan diff bersih & artefak sementara tak ikut**
+- [x] **Step 5: Pastikan diff bersih & artefak sementara tak ikut**
 
 ```bash
 git status --porcelain
@@ -1179,7 +1179,7 @@ git status --porcelain
 
 Expected: kosong, atau hanya `.tmp/` — bila `.tmp/` muncul, hapus (`rm -rf .tmp`) sebelum commit terakhir. Jangan pernah `git add -A` di repo ini.
 
-- [ ] **Step 6: Centang plan & push**
+- [x] **Step 6: Centang plan & push**
 
 ```bash
 git add docs/superpowers
@@ -1196,3 +1196,39 @@ git push origin HEAD:refs/heads/hanoman/spec-408
 **Placeholder scan:** satu-satunya rujukan "baca berkas dulu" adalah nama helper mock di `src/test/client.test.ts` (Task 6 Step 1) — disertai implementasi lengkap sebagai fallback — dan bentuk paragraf ADR tetangga (Task 8), yang isinya sudah dieja butir-per-butir.
 
 **Type consistency:** `dayStart`/`dayEnd`/`inDayRange` dipakai dengan signature identik di Task 4 (definisi) dan Task 5 (konsumsi). `dateField` konsisten bertipe `"created" | "started"` di `SpecListParams` (Task 6) dan state UI (Task 7); di server ia `string` lenient dan dibandingkan `=== "started"` (Task 5) — sengaja, karena query string tak bertipe.
+
+---
+
+## Catatan eksekusi (2026-07-31) — penyimpangan dari rencana
+
+Empat hal yang berbeda dari plan saat dijalankan. Semua sudah tertangani; dicatat supaya siapa pun
+yang mengulang langkahnya tak mengira dirinya salah.
+
+1. **`env -u NODE_ENV` wajib untuk SEMUA test web.** Shell sesi ini punya `NODE_ENV=production`,
+   dan React produksi menolak `act(...)` → 48 test `terminal-screen.test.tsx` gagal palsu dengan
+   pesan "act(...) is not supported in production builds of React", bukan pesan yang menunjuk
+   penyebabnya. Perintah vitest untuk paket `src` karena itu diawali `env -u NODE_ENV`.
+2. **Task 6 tak bisa "gagal dulu" lewat vitest.** `qs()` menerima `Record<string, …>` dan vitest
+   tak menjalankan typecheck, jadi test param baru **lulus sejak awal**. Bukti kegagalannya diambil
+   dari `pnpm --filter ./src typecheck` (`TS2353: 'dateField' does not exist in type
+   'SpecListParams'`) — lapis yang memang menjaga kontraknya.
+3. **`zSpec` yang bertambah memecah satu berkas test lain.** `src/test/terminal-screen.test.tsx`
+   membangun `Spec[]` sebagai object literal **tanpa** cast `as Spec`, jadi dua field baru membuatnya
+   `TS2739`. Diperbaiki dengan melengkapi literalnya (bukan dengan melonggarkan `zSpec` jadi
+   optional) — persis pagar yang diinginkan Task 6 Step 5.
+4. **Smoke butuh `DATABASE_URL` eksplisit, bukan `HANOMAN_HOME`.** CLI prisma membaca
+   `DATABASE_URL` langsung dan tak tahu apa-apa soal `HANOMAN_HOME`, jadi `migrate deploy` untuk DB
+   smoke dijalankan dengan `DATABASE_URL="file:$SMOKE_HOME/hanoman.db"`. Seed-nya juga tak bisa
+   `node -e` dari root repo (`@prisma/client` hidup di `server/node_modules` — pnpm workspace);
+   dipakai skrip yang me-`require` path absolutnya.
+
+**Hasil smoke (server nyata di :8791, DB & home terpisah, 6 pemeriksaan):** `from`/`to` created →
+1 dari 2; `dateField=started` → 1 dari 2; `from=ngawur` → filter mati (2 dari 2); `started` rentang
+lebar → item ber-`startedAt` null tetap dibuang; `to=` sendirian → batas terbuka bekerja; wire
+memancarkan `createdAt`/`startedAt` sebagai ISO string / `null`. Pemeriksaan pertama sekaligus
+membuktikan gotcha (ii): `SPEC-S2` dibuat `2026-07-31T16:00:00Z` (= 23:00 WIB tanggal 31) dan
+**masuk** rentang `to=2026-07-31` — dengan batas UTC-tengah-malam ia akan terbuang.
+
+**Di luar scope, tidak di-commit:** `pnpm install` di worktree ini menghapus entri workspace
+`dist-npm` dari `pnpm-lock.yaml` (direktori staging rilis hanya ada di checkout utama). Perubahan itu
+dikembalikan (`git checkout -- pnpm-lock.yaml`) — ia tak ada hubungannya dengan SPEC-408.
