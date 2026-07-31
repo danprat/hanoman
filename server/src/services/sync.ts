@@ -4,8 +4,10 @@ import { renameProjectCore } from "./rename-project";
 // SPEC-213 · ADR-0045 · mesin sync record: version-stamp optimistic concurrency + change-feed
 // SyncLog (seq = kursor global). Isi file dokumen TIDAK lewat sini (git 3-way merge, ADR-0043).
 
-// SPEC-268 · ADR-0066 · errorGroup & ticket masuk record-sync (agregat grup / metadata tiket).
-export const SYNCED = ["project", "spec", "vps", "sessionResult", "errorGroup", "ticket", "ticketAttachment"] as const;
+// SPEC-268 · ADR-0066 · ticket masuk record-sync (metadata tiket). SPEC-384 · ADR-0092 ·
+// `errorGroup` dicabut bersama error monitoring — kind ini tak lagi dikenal `isEntity()`, jadi
+// push dari klien versi lama yang masih membawanya ditolak sebagai record tak dikenal.
+export const SYNCED = ["project", "spec", "vps", "sessionResult", "ticket", "ticketAttachment"] as const;
 export type Entity = (typeof SYNCED)[number];
 
 type Delegate = {
@@ -18,7 +20,6 @@ const DELEGATE: Record<Entity, Delegate> = {
   spec: prisma.spec as unknown as Delegate,
   vps: prisma.vps as unknown as Delegate,
   sessionResult: prisma.sessionResult as unknown as Delegate,
-  errorGroup: prisma.errorGroup as unknown as Delegate,
   ticket: prisma.ticket as unknown as Delegate,
   ticketAttachment: prisma.ticketAttachment as unknown as Delegate,
 };
@@ -33,8 +34,6 @@ const FIELDS: Record<Entity, string[]> = {
   spec: ["projectId", "title", "source", "stage", "priority", "author", "objective", "payload", "branchFrom", "baseSha", "headSha", "createdAt", "startedAt", "updatedAt"],
   vps: ["name", "host", "port", "user", "health", "audit", "hardened", "lastSeenAt", "lastAuditAt", "updatedAt"],
   sessionResult: ["projectId", "specId", "oldStage", "newStage", "commitSha", "branch", "prUrl", "status", "deviceId", "author", "createdAt", "updatedAt"],
-  // SPEC-268 · ADR-0066 · agregat grup error (ErrorEvent mentah tak disync).
-  errorGroup: ["projectId", "fingerprint", "type", "message", "sampleStack", "environment", "status", "count", "firstSeenAt", "lastSeenAt", "specId", "updatedAt"],
   // SPEC-268 · ADR-0066 · metadata tiket (lampiran biner tak disync). accessKeyHash wajib
   // (kolom required @unique tanpa default); kunci plaintext tak pernah menyeberang.
   ticket: ["projectId", "number", "category", "title", "detail", "reporterEmail", "status", "accessKeyHash", "specId", "createdAt", "updatedAt"],
@@ -45,7 +44,7 @@ const FIELDS: Record<Entity, string[]> = {
 const DATE_FIELDS: Record<Entity, string[]> = {
   project: ["updatedAt"], spec: ["createdAt", "startedAt", "updatedAt"], vps: ["lastSeenAt", "lastAuditAt", "updatedAt"],
   sessionResult: ["createdAt", "updatedAt"],
-  errorGroup: ["firstSeenAt", "lastSeenAt", "updatedAt"], ticket: ["createdAt", "updatedAt"],
+  ticket: ["createdAt", "updatedAt"],
   ticketAttachment: ["createdAt", "updatedAt"],
 };
 
@@ -151,7 +150,7 @@ export async function pull(sinceCursor: string, limit = 500): Promise<{ cursor: 
 }
 
 // SPEC-268 · ADR-0066 · publish write LOKAL-asal ke change-feed (SyncLog) + siar. Melengkapi
-// applyPush (yang menangani write asal client-push): membuat write asal-hub (ingest error, tiket
+// applyPush (yang menangani write asal client-push): membuat write asal-hub (tiket
 // Help) menjadi bagian feed yang bisa di-pull client. Menaikkan version → optimistic-concurrency
 // tetap konsisten. Dipakai lewat notifySynced() (peran hub).
 export async function publishLocal(entity: Entity, id: string): Promise<void> {

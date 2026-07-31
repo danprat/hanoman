@@ -5,7 +5,7 @@ import { applyPush, pull, snapshot, publishLocal, backfillFeed } from "../src/se
 const clean = async () => {
   await prisma.syncLog.deleteMany();
   await prisma.ticketAttachment.deleteMany();
-  await prisma.ticket.deleteMany(); await prisma.errorEvent.deleteMany(); await prisma.errorGroup.deleteMany();
+  await prisma.ticket.deleteMany();
   await prisma.spec.deleteMany(); await prisma.vps.deleteMany(); await prisma.project.deleteMany();
 };
 beforeEach(clean); afterAll(clean);
@@ -113,18 +113,6 @@ describe("sync service (SPEC-213 AC-9..15)", () => {
     expect(again).toMatchObject({ ok: true });
   });
 
-  it("errorGroup: snapshot berisi field bisnis, applyPush insert→v1 (SPEC-268)", async () => {
-    await project();
-    const r = await applyPush("errorGroup", "eg1", 0, {
-      projectId: "p1", fingerprint: "fp", type: "TypeError", message: "boom",
-      environment: "production", status: "new", count: 3,
-      firstSeenAt: new Date().toISOString(), lastSeenAt: new Date().toISOString(), specId: null,
-    });
-    expect(r).toMatchObject({ ok: true, version: 1 });
-    const snap = await snapshot("errorGroup", "eg1");
-    expect(snap?.data).toMatchObject({ type: "TypeError", status: "new", count: 3, fingerprint: "fp" });
-  });
-
   it("ticket: snapshot menyertakan accessKeyHash, TIDAK ada lampiran (SPEC-268)", async () => {
     await project();
     await applyPush("ticket", "tk1", 0, {
@@ -139,12 +127,14 @@ describe("sync service (SPEC-213 AC-9..15)", () => {
 
   it("publishLocal: append SyncLog + naikkan version + panggil hook (SPEC-268)", async () => {
     await project();
-    await prisma.errorGroup.create({ data: { id: "eg2", projectId: "p1", fingerprint: "fp2", type: "E", message: "m", environment: "production", count: 1 } });
-    await publishLocal("errorGroup", "eg2");
-    const log = await prisma.syncLog.findFirst({ where: { entity: "errorGroup", recordId: "eg2" }, orderBy: { seq: "desc" } });
+    // SPEC-384 · subjeknya dulu ErrorGroup; sesudah error monitoring dicabut, Ticket adalah
+    // record asal-hub tersisa dengan peran yang sama.
+    await prisma.ticket.create({ data: { id: "tk2", projectId: "p1", number: 2, category: "bug", title: "judul2", detail: "d", reporterEmail: "r@x.co", accessKeyHash: "hash-tk2" } });
+    await publishLocal("ticket", "tk2");
+    const log = await prisma.syncLog.findFirst({ where: { entity: "ticket", recordId: "tk2" }, orderBy: { seq: "desc" } });
     expect(log?.version).toBe(1);
-    expect((log?.data as Record<string, unknown>).type).toBe("E");
-    expect((await prisma.errorGroup.findUnique({ where: { id: "eg2" } }))?.version).toBe(1);
+    expect((log?.data as Record<string, unknown>).title).toBe("judul2");
+    expect((await prisma.ticket.findUnique({ where: { id: "tk2" } }))?.version).toBe(1);
   });
 
   it("SPEC-270: snapshot menyertakan updatedAt & applyPush menjaga updatedAt asal", async () => {
@@ -160,8 +150,9 @@ describe("sync service (SPEC-213 AC-9..15)", () => {
 
   it("SPEC-270: backfillFeed mempublish row yang belum ter-feed, idempoten", async () => {
     await project();
-    await prisma.errorGroup.create({ data: { id: "g1", projectId: "p1", fingerprint: "fp", type: "E",
-      message: "m", environment: "prod" } });
+    // SPEC-384 · dulu ErrorGroup; Ticket memenuhi peran yang sama (row asal-hub tanpa jejak feed).
+    await prisma.ticket.create({ data: { id: "g1", projectId: "p1", number: 9, category: "bug",
+      title: "t", detail: "d", reporterEmail: "r@x.co", accessKeyHash: "hash-g1" } });
     const n1 = await backfillFeed();
     expect(n1).toBeGreaterThanOrEqual(1);
     const feed1 = (await pull("0")).records.filter((r) => r.recordId === "g1");

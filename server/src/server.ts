@@ -4,7 +4,6 @@ import { startVpsMonitor } from "./services/vps-monitor";
 import { startScheduler } from "./services/scheduler/engine";
 import { startLead } from "./services/lead/engine";
 import { registerBacklogSource } from "./services/scheduler/sources/backlog";
-import { registerErrorsSource } from "./services/scheduler/sources/errors";
 import { registerTriaseSource } from "./services/scheduler/sources/triase";
 import { installSessionHistory, reconcileHistory } from "./services/session-history";
 import { listSessions } from "./services/pty";
@@ -52,7 +51,6 @@ app.listen({ port, host }).then(() => {
   }
   startVpsMonitor(); // healthcheck 5 menit + audit harian (SPEC-164)
   registerBacklogSource(); // SPEC-295 · daftarkan checker backlog sebelum engine tick pertama
-  registerErrorsSource(); // SPEC-296 · daftarkan checker errors sebelum engine tick pertama
   registerTriaseSource(); // SPEC-297 · daftarkan checker triase sebelum engine tick pertama
   startScheduler(); // SPEC-294 · ADR-0072 · engine scheduler in-process (timer .unref, app.ts bebas-timer)
   // SPEC-409 · ADR-0091 · denyut hanoman-lead (in-process, cermin scheduler). Master switch default

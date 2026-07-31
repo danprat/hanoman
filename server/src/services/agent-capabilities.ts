@@ -31,7 +31,7 @@ export function capabilityForRoute(method: string, path: string): Resolved {
   if (top === "settings" || top === "config") return rw("settings");
   if (top === "specs") return rw("backlog");
   if (top === "notifications") return rw("notifications");
-  if (top === "errors" || top === "tickets") return rw("support");
+  if (top === "tickets") return rw("support");   // SPEC-384 · `errors` dicabut (ADR-0092)
   if (top === "vps") return rw("vps");
   if (top === "prds") return rw("docs");
   if (top === "terminal") {

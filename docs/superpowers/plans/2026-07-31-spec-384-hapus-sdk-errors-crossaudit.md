@@ -64,20 +64,20 @@
 - Consumes: —
 - Produces: tak ada anggota workspace `sdk`. Task 2 menghapus satu-satunya pembacanya (`GET /api/errors/integration-guide` yang membaca `sdk/README.md`).
 
-- [ ] **Step 1: Konfirmasi tak ada import lintas-paket ke `sdk`**
+- [x] **Step 1: Konfirmasi tak ada import lintas-paket ke `sdk`**
 
 ```bash
 git grep -n "@hanoman/sdk\|hanoman-sdk" -- server src shared runner cli
 ```
 Expected: hanya kecocokan di `docs/**`, `internal/docs/**`, dan `server/test/project-links.service.test.ts` (string biasa, bukan import). Tak boleh ada `import … from` ke paket ini.
 
-- [ ] **Step 2: Hapus direktori paket**
+- [x] **Step 2: Hapus direktori paket**
 
 ```bash
 git rm -r -q sdk
 ```
 
-- [ ] **Step 3: Keluarkan dari workspace**
+- [x] **Step 3: Keluarkan dari workspace**
 
 `pnpm-workspace.yaml` — baris `packages:`:
 
@@ -87,21 +87,21 @@ packages: [ "shared", "server", "src", "cli", "runner", "!dist-npm" ]   # dist-n
 
 `vitest.workspace.ts` — buang entri `"sdk"` dari daftar project.
 
-- [ ] **Step 4: Regenerasi lockfile**
+- [x] **Step 4: Regenerasi lockfile**
 
 ```bash
 pnpm install --lockfile-only
 ```
 Expected: `pnpm-lock.yaml` berubah, tanpa error.
 
-- [ ] **Step 5: Verifikasi tak ada sisa**
+- [x] **Step 5: Verifikasi tak ada sisa**
 
 ```bash
 git grep -n "\"sdk\"\|'sdk'\|/sdk/" -- pnpm-workspace.yaml vitest.workspace.ts package.json
 ```
 Expected: nol keluaran.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A && git commit -m "chore(384): cabut paket hanoman-sdk dari workspace"

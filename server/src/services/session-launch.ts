@@ -1,8 +1,7 @@
 import { prisma } from "../db";
 import type { Spec } from "@prisma/client";
-import { realGit, startPrompt, continuePrompt, resumePrompt, startGoalPrompt, startCrossAuditPrompt, resolveGoalCondition, type Flow, type Autonomy, type VerifyScope, type ResumeCtx } from "@hanoman/runner";
+import { realGit, startPrompt, continuePrompt, resumePrompt, startGoalPrompt, resolveGoalCondition, type Flow, type Autonomy, type VerifyScope, type ResumeCtx } from "@hanoman/runner";
 import type { Agent } from "@hanoman/shared";
-import { buildCrossAuditCtx, crossAuditSessionOpts } from "./cross-audit";
 import { resolveRepoDir } from "./local-binding";
 import { getSetting } from "./settings";
 import { ensureCodexTrust } from "./codex-trust";
@@ -152,8 +151,6 @@ export async function startSpecSession(
     id: spec.id, title: spec.title, source: spec.source,
     priority: spec.priority, objective: spec.objective, payload: spec.payload ?? undefined,
   };
-  // SPEC-337 · ADR-0075 · flow cross-audit: prompt ber-peta project + kunci baca log seumur sesi.
-  // Flow lain tak tersentuh (prompt & opsi persis seperti sebelumnya).
   const resumeCtx = resume ? buildResumeCtx(repoDir, id, opts.flow, resume.worktreeKept) : undefined;
   let prompt: string;
   if (isGoalFlow) {
@@ -173,23 +170,12 @@ export async function startSpecSession(
   // meneruskannya, klausa "berkas yang berubah" tak bisa dieksekusi tanpa menebak: worktree
   // lahir `--detach`, jadi `main` belum tentu ada dan `HEAD~1` salah.
   const scopeEnv: Record<string, string> = { HANOMAN_BASE_SHA: baseSha, HANOMAN_VERIFY_SCOPE: verifyScope };
-  let extra: { audit?: { key: string; projects: string[] }; env?: Record<string, string> } = {};
-  if (opts.flow === "cross-audit") {
-    const built = await buildCrossAuditCtx(spec.projectId);
-    if (built) {
-      prompt = startCrossAuditPrompt(
-        { ...built.ctx, worktree, spec: brief, branchTo }, "backlog");
-      extra = crossAuditSessionOpts(built.scope);
-    }
-  }
   const s = createSession(spec.projectId, worktree, {
     specId: spec.id, flow: opts.flow, model, effort, goal, agent,
     phaseFile: phaseFilePath(repoDir, id),
     decisionFile: decisionFilePath(repoDir, id),
     prompt,
-    ...extra,
-    // Digabung SESUDAH `extra` supaya env audit lintas (SPEC-337) tak terhapus dan sebaliknya.
-    env: { ...scopeEnv, ...(extra.env ?? {}) },
+    env: scopeEnv,
   });
   return resume ? { id: s.id, resumed: true } : { id: s.id };
 }

@@ -2,8 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { existsSync } from "node:fs";
 import { prisma } from "../db";
 import { zTerminalSession, zIntegrate, type Stage } from "@hanoman/shared";
-import { realGit, startProjectPrompt, startPrdPrompt, startScaffoldPrompt, startBreakdownPrompt, startCrossAuditPrompt, RESUMED_WORKTREE_NOTE, type Flow } from "@hanoman/runner";
-import { buildCrossAuditCtx, crossAuditSessionOpts } from "../services/cross-audit";
+import { realGit, startProjectPrompt, startPrdPrompt, startScaffoldPrompt, startBreakdownPrompt, RESUMED_WORKTREE_NOTE, type Flow } from "@hanoman/runner";
 import { phaseFilePath, decisionFilePath, readPhases, stageForRun } from "../services/session-phases";
 import { specReview, reviewFile } from "../services/spec-review";
 import { downloadFormat, sendReviewDownload } from "../services/doc-export";
@@ -274,37 +273,6 @@ export default async function (app: FastifyInstance) {
         prompt: startBreakdownPrompt(
           { id: project.id, name: project.name, desc: project.desc, stack: project.stack },
           { title, path: prdPath, content }, `breakdown/${slug}`) + resumeNote(reused),
-      });
-      return reply.code(201).send({ id: s.id });
-    }
-
-    // SPEC-337 · ADR-0075 · sesi audit LINTAS project yang lepas (tanya-jawab): worktree sendiri,
-    // TANPA Spec/fase/branch → tak menggerakkan stage apa pun. Id deterministik dari project
-    // (Start kedua = re-attach, ADR-0015). Kunci baca log ikut lahir & mati bersama sesi.
-    if (parsed.data.flow === "cross-audit") {
-      const id = `xaudit-${project.id.toLowerCase().replace(/[^a-z0-9_-]/g, "_")}`;
-      // SPEC-394 · ADR-0084 · pane mati bukan sesi — lihat cabang reverse di atas.
-      const live = getSession(id);
-      if (live && !live.exited) return reply.code(201).send({ id: live.id });
-
-      const built = await buildCrossAuditCtx(project.id);
-      if (!built) return reply.code(404).send({ error: "project not found" });
-      // SPEC-338 · ADR-0074 · sesi project-level tak punya picker: ikut agen default global.
-      const { agent, model, effort } = await sessionAgentDefaults();
-      if (agent === "codex") ensureCodexTrust(repoDir);
-      const wt = `${repoDir}/.worktrees/${id}`;
-      let reused: boolean;
-      try {
-        // HEAD, bukan "main": repo target bukan milik hanoman — default branch-nya bebas.
-        reused = ensureWorktree(repoDir, wt, "HEAD");
-      } catch (e) {
-        return reply.code(422).send({ error: `gagal membuat worktree: ${(e as Error).message}` });
-      }
-      const s = createSession(project.id, wt, {
-        id, model, effort, agent,
-        decisionFile: decisionFilePath(repoDir, id),
-        prompt: startCrossAuditPrompt({ ...built.ctx, worktree: wt }, "live") + resumeNote(reused),
-        ...crossAuditSessionOpts(built.scope),
       });
       return reply.code(201).send({ id: s.id });
     }

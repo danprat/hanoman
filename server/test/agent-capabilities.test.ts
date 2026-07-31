@@ -32,8 +32,6 @@ describe("capabilityForRoute", () => {
     ["GET", "/api/settings", "settings:read"],
     ["PUT", "/api/settings", "settings:write"],
     ["GET", "/api/config", "settings:read"],
-    ["GET", "/api/errors", "support:read"],
-    ["POST", "/api/errors/e1/escalate", "support:write"],
     ["GET", "/api/tickets", "support:read"],
     ["POST", "/api/tickets/t1/accept", "support:write"],
     ["GET", "/api/notifications", "notifications:read"],

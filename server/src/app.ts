@@ -26,14 +26,10 @@ import sync from "./routes/sync";
 import sessionResults from "./routes/session-results";
 import sessionHistory from "./routes/session-history";
 import config from "./routes/config";
-import ingest from "./routes/ingest";
-import errors from "./routes/errors";
 import help from "./routes/help";
 import tickets from "./routes/tickets";
 import scheduler from "./routes/scheduler";
-import audit from "./routes/audit";
 import lead from "./routes/lead";
-import { auditScopeFromReq } from "./services/audit-scope";
 import fastifyMultipart from "@fastify/multipart";
 import authRoutes from "./routes/auth";
 import agentTokens from "./routes/agent-tokens";
@@ -94,16 +90,9 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
         // (dan agent-deny "cookie-only" untuk /sync), bukan device token.
         // SPEC-270 · KECUALI /api/sync/conflicts* — antrean rekonsil = aksi UI, cookie-only juga.
         if (path.startsWith("/api/sync") && path !== "/api/sync/now" && !path.startsWith("/api/sync/conflicts")) return;
-        // SPEC-249 · ADR-0060 · ingest error dipanggil project eksternal tanpa sesi login;
-        // route /api/ingest di-otorisasi DSN per-project sendiri (pengecualian sah gate).
-        if (path.startsWith("/api/ingest")) return;
         // SPEC-253 · ADR-0062 · halaman/submit/status Help Center dipanggil pengguna akhir tanpa sesi
         // login; route /api/help di-otorisasi helpEnabled + kunci opaque tiket sendiri (pengecualian sah).
         if (path.startsWith("/api/help")) return;
-        // SPEC-337 · ADR-0075 · sesi cross-audit milik hanoman sendiri memanggil /api/audit tanpa
-        // cookie; diotorisasi kunci per-sesi yang hidup di tmux (mati bersama pane). Read-only &
-        // ber-scope — cermin pengecualian /api/ingest. Kunci tak cocok → jatuh ke auth normal.
-        if (path.startsWith("/api/audit/") && auditScopeFromReq(req)) return;
         if (user) return; // cookie sesi = akses penuh (tak ada RBAC, konsisten model sekarang)
         // SPEC-257 · ADR-0065 · jalur auth kedua: agent token (Bearer / ?agent_token= untuk WS).
         const agentTok = agentTokenFromReq(req);
@@ -144,12 +133,9 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
     await api.register(sessionResults);
     await api.register(sessionHistory);  // SPEC-362 · riwayat sesi terminal (di belakang gate cookie)
     await api.register(config);
-    await api.register(ingest);   // SPEC-249 · ingest publik ber-DSN (gate di-bypass di atas)
-    await api.register(errors);   // SPEC-249 · area Error (di belakang gate cookie)
     await api.register(help);     // SPEC-253 · Help Center publik (gate di-bypass di atas)
     await api.register(tickets);  // SPEC-253 · triase (di belakang gate cookie)
     await api.register(scheduler);  // SPEC-294 · config/state scheduler (di belakang gate cookie)
-    await api.register(audit);      // SPEC-337 · log lintas project untuk sesi cross-audit
     await api.register(codex);      // SPEC-339 · versi codex CLI untuk peringatan model 5.6
     await api.register(lead);       // SPEC-409 · ADR-0091 · hanoman-lead (cookie + capability `lead`)
   }, { prefix: "/api" });

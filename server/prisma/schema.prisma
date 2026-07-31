@@ -327,7 +327,7 @@ model SchedulerQueueItem {
 //
 // LOCAL-ONLY (tak disync, cermin SessionHistory/SchedulerQueueItem): barisnya menunjuk sesi tmux &
 // worktree di MESIN INI — menyiarkannya ke hub akan mengirim rujukan yang tak ada di sana. Tanpa
-// `version`/notifySynced. Tak ada FK ke Project: sesi VPS/cross-audit memakai projectId sintetis
+// `version`/notifySynced. Tak ada FK ke Project: sesi VPS memakai projectId sintetis
 // (konvensi yang sama dipakai SessionResult & SessionHistory).
 model LeadDecision {
   id             String    @id @default(cuid())
