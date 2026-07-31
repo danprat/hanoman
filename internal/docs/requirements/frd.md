@@ -180,6 +180,12 @@ tanpa penopang tidak ditulis.
   ([ADR-0072](../adr/0072-scheduler-fondasi-engine-antrean-durable-cap.md)).
 - THE SYSTEM SHALL menolak men-drain antrean melewati cap `maxConcurrent` yang dihitung dari
   `pty.listSessions`.
+- THE SYSTEM SHALL memasukkan ke antrean **hanya** backlog yang `baseSha` **dan** `stage`-nya
+  menyatakan belum dikerjakan (`baseSha = null` ∧ `stage ≠ "done"`) — berlaku untuk checker `backlog`
+  maupun denyut hanoman-lead (SPEC-431).
+- IF sebuah item antrean menunjuk `Spec` ber-`stage = "done"` saat governor hendak meluncurkannya,
+  THEN THE SYSTEM SHALL menutup item itu (`status:"done"` + alasan) **tanpa** meluncurkan sesi dan
+  tanpa memakai slot concurrency.
 - THE SYSTEM SHALL mempertahankan default **mati** untuk `Setting.scheduler` dan
   `Project.schedulerOptIn`.
 

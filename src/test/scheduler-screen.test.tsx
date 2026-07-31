@@ -57,6 +57,20 @@ describe("SchedulerScreen observabilitas (SPEC-299)", () => {
     expect(screen.getByText(/sesi berakhir sebelum done/i)).toBeInTheDocument();
   });
 
+  // SPEC-431 · baris yang ditutup gerbang "spec sudah selesai" tak pernah punya `launchedAt`, dan
+  // dulu terbaca "selesai —" seolah scheduler-lah yang menyelesaikannya — salah baca yang persis
+  // searah dengan bug yang sedang diperbaiki.
+  it("baris done tanpa launchedAt menampilkan alasannya, bukan 'selesai —'", async () => {
+    getSchedulerState.mockResolvedValue({ ...STATE, queue: [
+      { id: "q4", specId: "SPEC-2", projectId: "a", source: "backlog", priority: "sedang", status: "done",
+        sessionId: null, note: "spec sudah selesai — tak diluncurkan",
+        enqueuedAt: "2026-07-22T00:00:00.000Z", launchedAt: null },
+    ] });
+    renderScreen();
+    expect(await screen.findByText(/spec sudah selesai — tak diluncurkan/)).toBeInTheDocument();
+    expect(screen.queryByText(/· selesai —/)).not.toBeInTheDocument();
+  });
+
   it("done item punya tombol Buka review deep-link #spec=", async () => {
     getSchedulerState.mockResolvedValue(STATE);
     const openSpy = vi.spyOn(window, "open").mockReturnValue(null);

@@ -14,9 +14,9 @@ afterAll(clean);
 
 const mkProject = (id: string, schedulerOptIn: boolean) =>
   prisma.project.create({ data: { id, name: id, desc: "", kind: "existing", schedulerOptIn } });
-const mkSpec = (id: string, projectId: string, priority: string, baseSha: string | null = null) =>
+const mkSpec = (id: string, projectId: string, priority: string, baseSha: string | null = null, stage = "brainstorming") =>
   prisma.spec.create({ data: {
-    id, projectId, title: id, source: "brief", stage: "brainstorming",
+    id, projectId, title: id, source: "brief", stage,
     priority, author: "test", objective: "o", baseSha,
   } });
 
@@ -49,6 +49,25 @@ describe("backlog source-checker", () => {
     await mkSpec("SPEC-fresh", "opt", "sedang");
     await checkBacklog();
     expect((await listQueue()).map((x) => x.specId)).toEqual(["SPEC-fresh"]);
+  });
+
+  // SPEC-431 · akar bug: `baseSha` menjawab "pernah punya worktree", BUKAN "masih perlu
+  // dikerjakan". Item yang selesai sebelum kolomnya ada (ADR-0030), ditandai selesai manual, atau
+  // dikerjakan di checkout lain permanen ber-`baseSha` null — dan checker meluncurkan ulang
+  // pekerjaan yang sudah tuntas. Terukur di DB produksi: 27 dari 29 baris antrean.
+  it("skips specs already done, even when baseSha is null", async () => {
+    await mkProject("opt", true);
+    await mkSpec("SPEC-done", "opt", "tinggi", null, "done");
+    await mkSpec("SPEC-open", "opt", "rendah", null, "brainstorming");
+    await checkBacklog();
+    expect((await listQueue()).map((x) => x.specId)).toEqual(["SPEC-open"]);
+  });
+
+  it("still enqueues in-progress stages that never got a session (stage moved by hand)", async () => {
+    await mkProject("opt", true);
+    await mkSpec("SPEC-planned", "opt", "sedang", null, "planned");
+    await checkBacklog();
+    expect((await listQueue()).map((x) => x.specId)).toEqual(["SPEC-planned"]);
   });
 
   it("is idempotent: double check → one row per spec; a launched item is not resurrected", async () => {
