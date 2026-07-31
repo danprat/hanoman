@@ -34,12 +34,15 @@ const SEVERITY =[{ value: "critical", label: "Critical" }, { value: "major", lab
 const PRIORITY = [{ value: "tinggi", label: "Tinggi" }, { value: "sedang", label: "Sedang" }, { value: "rendah", label: "Rendah" }];
 
 type SpecForm = { kind: string; project: string; title: string; context: string; outcome: string; constraints: string;
-  priority: string; severity: string; steps: string; expected: string; actual: string; env: string; branchFrom: string; fromAudit: string };
+  priority: string; severity: string; steps: string; expected: string; actual: string; env: string; branchFrom: string; fromAudit: string;
+  // SPEC-407 · ADR-0089 · backlog goal: goal yang dikejar + bukti berhentinya.
+  goal: string; done: string };
 // SPEC-210 (PRD take-to-backlog) + SPEC-237 (promosi audit → Finding QA) menyeed NewSpecModal.
 // Semua opsional → PrdPrefill (field wajib) tetap assignable ke sini.
 // SPEC-244 · branchFrom (teruskan branch PRD/audit) + fromAudit (sinyal skip-audit) juga di-seed.
 type SpecPrefill = { project?: string; title?: string; context?: string; outcome?: string; prdPath?: string;
-  kind?: string; steps?: string; actual?: string; severity?: string; branchFrom?: string; fromAudit?: string };
+  kind?: string; steps?: string; actual?: string; severity?: string; branchFrom?: string; fromAudit?: string;
+  goal?: string; done?: string };   // SPEC-407 · seed dari "Take ke backlog → sebagai goal"
 
 // SPEC-252 · ADR-0061 — picker model & effort PER SESI saat Start backlog. Default = setelan global
 // (GET /settings); nilai terpilih dikirim ke POST /terminal/sessions dan jadi argv `--model`/`--effort`
@@ -182,7 +185,7 @@ export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
   );
 }
 
-function NewSpecModal({ open, onClose, projects, defaultProject, onCreate, prefill }:
+export function NewSpecModal({ open, onClose, projects, defaultProject, onCreate, prefill }:
   { open: boolean; onClose: () => void; projects: ProjectVM[]; defaultProject: string; onCreate: (f: SpecForm) => void;
     // SPEC-210 · seed dari "Take ke backlog" PRD (kind brief). SPEC-237 · promosi audit → Finding QA
     // (kind qa) membawa `kind` + field qa. Semua opsional; PrdPrefill (semua wajib) tetap assignable.
@@ -190,7 +193,8 @@ function NewSpecModal({ open, onClose, projects, defaultProject, onCreate, prefi
   const blank: SpecForm = { kind: prefill?.kind ?? "brief", project: prefill?.project || defaultProject,
     title: prefill?.title ?? "", context: prefill?.context ?? "", outcome: prefill?.outcome ?? "", constraints: "",
     priority: "sedang", severity: prefill?.severity ?? "major", steps: prefill?.steps ?? "",
-    expected: "", actual: prefill?.actual ?? "", env: "", branchFrom: prefill?.branchFrom ?? "", fromAudit: prefill?.fromAudit ?? "" };
+    expected: "", actual: prefill?.actual ?? "", env: "", branchFrom: prefill?.branchFrom ?? "", fromAudit: prefill?.fromAudit ?? "",
+    goal: prefill?.goal ?? "", done: prefill?.done ?? "" };   // SPEC-407
   const [f, setF] = React.useState<SpecForm>(blank);
   React.useEffect(() => {
     if (open) setF({ ...blank, project: prefill?.project || defaultProject });
@@ -217,15 +221,18 @@ function NewSpecModal({ open, onClose, projects, defaultProject, onCreate, prefi
   const isQa = f.kind === "qa";
   const isAudit = f.kind === "audit";                       // SPEC-237 · audit-only (dokumen, tanpa perbaikan)
   const isCross = f.kind === "cross-audit";                 // SPEC-337 · audit lintas project (dokumen)
-  const submit = () => { if (!f.title.trim()) return; onCreate(f); };
+  const isGoal = f.kind === "goal";                         // SPEC-407 · backlog goal (Goal → Verifikasi)
+  // SPEC-407 · goal wajib: `Spec.objective` diturunkan darinya, dan item ber-objective kosong
+  // melahirkan sesi tanpa sasaran.
+  const submit = () => { if (!f.title.trim() || (isGoal && !f.goal.trim())) return; onCreate(f); };
   return (
-    <Modal open={open} onClose={onClose} icon={isQa ? "bug" : isCross ? "radar" : isAudit ? "search" : "lightbulb"} eyebrow="human → hanoman"
-      title={isQa ? "QA finding baru" : isCross ? "Audit lintas project baru" : isAudit ? "Audit baru" : "Feature brief baru"}
+    <Modal open={open} onClose={onClose} icon={isQa ? "bug" : isCross ? "radar" : isAudit ? "search" : isGoal ? "target" : "lightbulb"} eyebrow="human → hanoman"
+      title={isQa ? "QA finding baru" : isCross ? "Audit lintas project baru" : isAudit ? "Audit baru" : isGoal ? "Goal baru" : "Feature brief baru"}
       footer={<>
         <Button variant="ghost" size="sm" onClick={onClose}>Batal</Button>
-        <Button size="sm" leftIcon={isQa ? "radar" : isCross ? "radar" : isAudit ? "search" : "messages-square"} onClick={submit}>
+        <Button size="sm" leftIcon={isQa ? "radar" : isCross ? "radar" : isAudit ? "search" : isGoal ? "target" : "messages-square"} onClick={submit}>
           {isQa ? "Filekan finding → audit" : isCross ? "Buat audit lintas → investigasi"
-            : isAudit ? "Buat audit → investigasi" : "Buat brief → brainstorm"}
+            : isAudit ? "Buat audit → investigasi" : isGoal ? "Buat goal → sesi goal" : "Buat brief → brainstorm"}
         </Button>
       </>}>
       <div style={{ marginBottom: 16 }}>
@@ -234,9 +241,12 @@ function NewSpecModal({ open, onClose, projects, defaultProject, onCreate, prefi
           { value: "qa", label: "QA finding", icon: "bug" },
           { value: "audit", label: "Audit", icon: "search" },
           { value: "cross-audit", label: "Audit lintas", icon: "radar" },
+          // SPEC-407 · ADR-0089 · backlog goal: cukup goal-nya, tanpa ritual perencanaan.
+          { value: "goal", label: "Goal", icon: "target" },
         ]} />
         <div style={{ fontSize: 12, color: "var(--text-subtle)", marginTop: 8, lineHeight: 1.5 }}>
-          {isQa ? "Finding masuk lewat alur audit → spec → plan → execute. hanoman menelusuri akar masalah dulu."
+          {isGoal ? "Sesi goal langsung mengejar goal-nya — tanpa brainstorm, spec, atau plan (fase: Goal → Verifikasi). Sesi lahir dengan mode goal aktif dan menolak berhenti sampai buktinya ada di transkrip."
+            : isQa ? "Finding masuk lewat alur audit → spec → plan → execute. hanoman menelusuri akar masalah dulu."
             : isCross ? "Audit lintas melihat project ini BESERTA project yang berelasi dengannya (kartu Integrasi di detail project) — kode, docs, dan timeline error gabungan. Hasilnya dokumen audit, tanpa perbaikan kode."
             : isAudit ? "Audit HANYA menghasilkan dokumen (audit → laporan) — tanpa perbaikan kode. Bisa dinaikkan jadi Finding QA bila perlu diperbaiki."
             : "Brief masuk lewat alur brainstorm → objective → spec → plan → execute."}
@@ -251,11 +261,34 @@ function NewSpecModal({ open, onClose, projects, defaultProject, onCreate, prefi
           style={{ width: "100%" }} options={branchOptions(branches, remoteOnly)} />
       </Field>
       <Field label="Judul">
-        <Input value={f.title} onChange={set("title")}
-          placeholder={isQa ? "mis. Funnel double-count sesi lintas tengah malam" : "mis. Jadwal invoice berulang"}
+        <Input aria-label="Judul" value={f.title} onChange={set("title")}
+          placeholder={isQa ? "mis. Funnel double-count sesi lintas tengah malam"
+            : isGoal ? "mis. Latensi daftar backlog" : "mis. Jadwal invoice berulang"}
           style={{ width: "100%" }} />
       </Field>
-      {isQa ? (
+      {/* SPEC-407 · ADR-0089 · bentuk payload goal: goal + bukti berhenti + batasan. Sengaja
+          BUKAN konteks/outcome — server mengikat source ↔ bentuk payload di boundary. */}
+      {isGoal ? (
+        <>
+          <Field label="Goal" hint="Keadaan yang harus tercapai — inilah yang dikejar sesi sampai terbukti">
+            <HnTextarea aria-label="Goal" value={f.goal} onChange={set("goal")} rows={3}
+              placeholder="mis. p95 GET /api/specs di bawah 200 ms" />
+          </Field>
+          <Field label="Selesai bila" hint="Bukti yang harus muncul di transkrip; kosongkan bila goal-nya sudah jadi buktinya sendiri">
+            <HnTextarea aria-label="Selesai bila" value={f.done} onChange={set("done")} rows={2}
+              placeholder="mis. output benchmark menunjukkan < 200 ms" />
+          </Field>
+          <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 12 }}>
+            <Field label="Batasan" hint="opsional">
+              <Input aria-label="Batasan" value={f.constraints} onChange={set("constraints")}
+                placeholder="mis. tanpa cache eksternal" style={{ width: "100%" }} />
+            </Field>
+            <Field label="Prioritas">
+              <Select aria-label="Prioritas" value={f.priority} onChange={set("priority")} style={{ width: "100%" }} options={PRIORITY} />
+            </Field>
+          </div>
+        </>
+      ) : isQa ? (
         <>
           <Field label="Severity">
             <Select value={f.severity} onChange={set("severity")} style={{ width: "100%" }} options={SEVERITY} />
@@ -900,6 +933,7 @@ export default function App() {
 
   async function createSpec(f: SpecForm) {
     const isQa = f.kind === "qa";
+    const isGoal = f.kind === "goal";   // SPEC-407 · ADR-0089
     const payload = isQa
       // SPEC-244 · fromAudit (bila qa dinaikkan dari audit) → runner lewati fase Audit (ADR-0059).
       ? { severity: f.severity, steps: f.steps, expected: f.expected, actual: f.actual, env: f.env,
@@ -908,6 +942,10 @@ export default function App() {
       // payload terpisah — zBriefPayload strip key tak dikenal, dan tak ada yang mengonsumsinya.
       // SPEC-340 · ADR-0076 · brief yang dinaikkan dari audit membawa asal-usulnya ke prompt
       // (zBriefPayload kini menerima fromAudit; tanpa itu zod membuangnya di boundary).
+      // SPEC-407 · ADR-0089 · backlog goal punya bentuk payload sendiri (zGoalPayload); server
+      // mengikat source ↔ bentuk payload, jadi bentuk brief di sini akan ditolak 400.
+      : isGoal
+      ? { goal: f.goal.trim(), done: f.done, constraints: f.constraints, priority: f.priority }
       : { context: f.context, outcome: f.outcome, constraints: f.constraints, priority: f.priority,
           ...(f.fromAudit ? { fromAudit: f.fromAudit } : {}) };
     try {
@@ -916,8 +954,10 @@ export default function App() {
       setBacklog((b) => [created, ...b]);
       setModal(null); setSpecPrefill(null); setSection("backlog");
       const toastMsg = f.kind === "audit" ? " dibuat · audit-only (dokumen)"
+        : isGoal ? " dibuat · sesi goal (Goal → Verifikasi)"
         : isQa ? " difilekan · masuk audit" : " dibuat · masuk brainstorm";
-      showToast(created.id + toastMsg, "ok", f.kind === "audit" ? "search" : isQa ? "bug" : "lightbulb");
+      showToast(created.id + toastMsg, "ok",
+        f.kind === "audit" ? "search" : isGoal ? "target" : isQa ? "bug" : "lightbulb");
     } catch { showToast("Gagal membuat spec", "err", "x-circle"); }
   }
 

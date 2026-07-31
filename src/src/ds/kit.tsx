@@ -107,11 +107,15 @@ export function Field({ label, hint, children }: { label?: React.ReactNode; hint
   );
 }
 
-export function HnTextarea({ value, onChange, rows = 3, placeholder, mono = false }:
-  { value?: string; onChange?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void; rows?: number; placeholder?: string; mono?: boolean }) {
+// SPEC-407 · `...rest` diteruskan ke <textarea> supaya atribut aksesibilitas (`aria-label`,
+// `id`, `data-testid`) bisa dipasang dari call site — `Input` sudah lama begitu, dan tanpa ini
+// textarea di modal tak punya nama yang bisa dipegang pembaca layar maupun test.
+export function HnTextarea({ value, onChange, rows = 3, placeholder, mono = false, ...rest }:
+  { value?: string; onChange?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void; rows?: number; placeholder?: string; mono?: boolean }
+  & Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, "value" | "onChange" | "rows" | "placeholder" | "style">) {
   const [focus, setFocus] = React.useState(false);
   return (
-    <textarea value={value} onChange={onChange} rows={rows} placeholder={placeholder}
+    <textarea {...rest} value={value} onChange={onChange} rows={rows} placeholder={placeholder}
       onFocus={() => setFocus(true)} onBlur={() => setFocus(false)} style={{
         display: "block", width: "100%", boxSizing: "border-box", resize: "vertical",
         fontFamily: mono ? "var(--font-mono)" : "var(--font-ui)", fontSize: 13,

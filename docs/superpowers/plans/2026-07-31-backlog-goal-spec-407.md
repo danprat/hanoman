@@ -913,7 +913,7 @@ git commit -m "feat(407): POST/PATCH /specs menurunkan objective & author untuk 
 - Consumes: `zCreateSpec` tiga-arah (Task 1).
 - Produces: `NewSpecModal` ter-ekspor dari `src/src/App.tsx`; `SpecForm` bertambah `goal: string; done: string`; `SpecPrefill` bertambah `goal?: string; done?: string`; `api.createSpec` menerima `{ source: "goal", payload: { goal, done, constraints, priority } }`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/test/backlog-goal.test.tsx`:
 
@@ -965,12 +965,12 @@ describe("NewSpecModal · tab Goal (SPEC-407)", () => {
 
 Catatan implementasi untuk `getByLabelText`: `Field` di DS ini merender label sebagai teks, jadi pakai `aria-label` eksplisit pada `Input`/`HnTextarea` goal (`aria-label="Goal"`, `aria-label="Selesai bila"`, `aria-label="Judul"`) — pola yang sama sudah dipakai `StartSessionModal` (`aria-label="Model"`). Bila `Judul` yang sudah ada belum punya `aria-label`, tambahkan.
 
-- [ ] **Step 2: Jalankan, pastikan GAGAL**
+- [x] **Step 2: Jalankan, pastikan GAGAL**
 
 Run: `pnpm vitest --run src/test/backlog-goal.test.tsx`
 Expected: FAIL — `NewSpecModal` tak ter-ekspor.
 
-- [ ] **Step 3: Implementasi `src/src/App.tsx`**
+- [x] **Step 3: Implementasi `src/src/App.tsx`**
 
 Tipe (baris ~36):
 
@@ -1052,12 +1052,12 @@ dan toast:
         f.kind === "audit" ? "search" : isGoal ? "target" : isQa ? "bug" : "lightbulb");
 ```
 
-- [ ] **Step 4: Jalankan, pastikan LULUS**
+- [x] **Step 4: Jalankan, pastikan LULUS**
 
 Run: `pnpm vitest --run src/test/backlog-goal.test.tsx src/test/app-flows.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/App.tsx src/test/backlog-goal.test.tsx
