@@ -1,6 +1,6 @@
 import { prisma } from "../../db";
 import type { Lead, Scheduler } from "@hanoman/shared";
-import { listSessions } from "../pty";
+import { listSessions, sessionFinished } from "../pty";
 import { planComplete } from "../session-phases";
 import { resolveRepoDir } from "../local-binding";
 import { specReview } from "../spec-review";
@@ -58,6 +58,12 @@ export type PulseDeps = {
   sessions: () => { id: string; projectId: string; specId?: string; cwd: string; exited: boolean; exitCode?: number }[];
   areas: (s: { id: string; projectId: string; specId: string }) => Promise<string[]>;
   planDone: (cwd: string, specId: string) => boolean;
+  /**
+   * SPEC-451 · verdict "pekerjaan sesi ini sudah selesai" (SPEC-433) — fakta yang BERDIRI SENDIRI
+   * di sebelah `exited`. Ia yang menggerbangi pintu keberhasilan; `exited` menggerbangi pintu
+   * kegagalan. Memakai `exited` untuk keduanya adalah konflasi yang sama yang ditutup SPEC-402/433.
+   */
+  finished: (sessionId: string) => boolean;
   decide: typeof decide;
   decideDeps: DecideDeps;
   apply: typeof applyAction;
@@ -82,6 +88,7 @@ export const prodPulseDeps: PulseDeps = {
     } catch { return []; }   // worktree sudah lenyap / basis tak resolve → bukan area kerja
   },
   planDone: planComplete,
+  finished: (id) => { try { return sessionFinished(id); } catch { return false; } },
   decide,
   decideDeps: prodDecideDeps,
   apply: applyAction,
@@ -112,6 +119,7 @@ export async function pulse(deps: PulseDeps = prodPulseDeps): Promise<PulseResul
   if (!optIn.length) return res;
 
   try { res.quality = await followUpFinished(cfg, optIn, deps); } catch { /* satu bagian gagal tak menghentikan sisanya */ }
+  try { res.quality += await followUpComplete(optIn, deps); } catch { /* idem */ }
   try { res.collisions = await detectCollisions(optIn, deps); } catch { /* idem */ }
   try { res.ordered = await orderReadyWork(optIn, deps); } catch { /* idem */ }
   return res;
@@ -168,6 +176,80 @@ async function followUpFinished(cfg: Lead, optIn: string[], deps: PulseDeps): Pr
     // Lead memutuskan LALU melapor — tindak lanjutnya dijalankan di sini, bukan menunggu operator
     // menekan sesuatu. Kegagalan tindakan tak menghentikan denyut: barisnya sudah tercatat, dan
     // sesi tetap berada di keadaan yang sama seperti sebelum lead menyentuhnya.
+    if (row.status === "berlaku" && row.action !== "none") {
+      try { await deps.apply(row); } catch { /* tindakan gagal; jejaknya tetap ada */ }
+    }
+  }
+  return n;
+}
+
+// ── D · backlog yang sudah SELESAI (SPEC-451) ────────────────────────────────────────────────
+/**
+ * Pintu keberhasilan — pasangan `followUpFinished` di atas, yang hanya mengenal kegagalan.
+ *
+ * Kenapa ia harus ada sebagai pintu tersendiri: `followUpFinished` digerbangi `s.exited`, dan
+ * SPEC-433 sudah membuktikan bahwa **pane sesi sukses tak pernah mati** — agen adalah TUI
+ * interaktif yang kembali ke `❯` sesudah fase terakhir + push. Jadi keberhasilan bukan keadaan
+ * yang jarang diputuskan, melainkan keadaan yang **secara struktural tak punya pintu sama sekali**:
+ * `integrate-main` & `stop-session` sudah lengkap di `apply.ts` sejak ADR-0091 dan tak pernah
+ * ditawarkan satu pun dari lima call site `decide()` di server.
+ *
+ * Harganya nyata: pane yang selesai-tapi-hidup terus dihitung `liveCount()` governor
+ * (`scheduler/engine.ts`), jadi `maxConcurrent` sesi yang tuntas mengunci antrean selamanya.
+ * Terukur 2026-08-01 di mesin operator: SPEC-450 `stage=done`, fase 5/5, plan 0 kotak, pane
+ * `dead=0` menganggur di `❯` — 4 jam 24 menit memegang satu slot, nol baris keputusan.
+ *
+ * Gerbangnya SALING EKSKLUSIF dengan pintu kegagalan secara konstruksi: `finished` sudah memuat
+ * `planComplete` (⇒ `!unfinished`) dan pintu ini menolak `exitCode ≠ 0`, jadi tak ada sesi yang
+ * menerima dua pertanyaan — dua giliran agen — untuk satu keadaan.
+ *
+ * TIDAK digerbangi `Setting.scheduler` (beda dari `orderReadyWork`, yang penataannya memang tak
+ * punya pembaca saat antrean tak dikuras): mengintegrasikan pekerjaan yang sudah selesai berharga
+ * baik scheduler menyala maupun tidak.
+ *
+ * Marker keputusan (`decision`, SPEC-196) sengaja TIDAK dikonsultasi — `SessionInfo` yang dilihat
+ * pintu ini bahkan tak membawanya. Itu mewarisi aturan SPEC-433 apa adanya: **`complete` menang
+ * atas `awaiting`**, karena marker sesi codex menyala juga saat sesi selesai wajar (ADR-0074) dan
+ * membiarkan `awaiting` menang akan mengulang bug ini untuk separuh agen. Pintu deteksi (#2) tetap
+ * menjawab markernya lewat iramanya sendiri; keduanya tak saling menunggu.
+ */
+async function followUpComplete(optIn: string[], deps: PulseDeps): Promise<number> {
+  let n = 0;
+  const opt = new Set(optIn);
+  for (const s of deps.sessions()) {
+    if (!s.specId || !opt.has(s.projectId)) continue;
+    if ((s.exitCode ?? 0) !== 0) continue;        // yang gagal tetap milik pintu kegagalan
+    if (!deps.finished(s.id)) continue;           // BUKAN `s.exited` — itulah seluruh temuannya
+    // Idempoten lewat JEJAK, bukan Set memori (pane hidup bertahan berhari-hari, dan Set justru
+    // kosong sesudah restart). Awalannya deterministik per sesi dan TAK dimiliki pintu lain:
+    // pintu kegagalan memulai dengan "Sesi …", pintu tabrakan dengan "Dua pekerjaan menyentuh …".
+    // Kuncinya sengaja bukan `kind` — `decide()` menulis ulang `kind` jadi "refusal" untuk
+    // tindakan di luar allowlist, jadi kunci ber-`kind` meleset persis pada baris yang sudah
+    // ditulis dan sesi yang sama ditanyakan ulang tiap denyut, selamanya (SPEC-432).
+    const mark = `Backlog ${s.specId} sudah selesai di sesi ${s.id}`;
+    const seen = await prisma.leadDecision.findFirst({
+      where: { sessionId: s.id, gate: "pulse", question: { startsWith: mark } },
+    });
+    if (seen) continue;
+    const row = await deps.decide({
+      projectId: s.projectId, specId: s.specId, sessionId: s.id,
+      gate: "pulse", kind: "quality",
+      question: `${mark}: seluruh fasenya tercatat dan plan-nya tak menyisakan kotak \`- [ ]\`. Selama sesinya belum dilepas, ia memegang satu slot concurrency scheduler sehingga backlog lain tak bisa mulai. Integrasikan hasilnya ke main, hentikan sesinya saja, atau biarkan?`,
+      options: [
+        "integrate-main — merge branch sesi ini ke main; panenya ikut dilepas, worktree tetap utuh",
+        "stop-session — lepas panenya tanpa mengintegrasikan (worktree tetap utuh, ADR-0084 masih bisa melanjutkan)",
+        "none — biarkan sesinya berdiri, sertakan alasan kenapa slot itu layak ditahan",
+      ],
+      notes: [
+        `Worktree sesi: ${s.cwd}`,
+        // Rebase sengaja tak ditawarkan: `LEAD_ACTIONS` adalah konstanta tertutup (AC-31), dan
+        // merge adalah yang PALING MUDAH DIBATALKAN dari keduanya — kriteria yang diperintahkan
+        // prompt lead sendiri. Rebase tetap tindakan operator lewat POST /specs/:id/integrate.
+        "Rebase tidak tersedia untukmu; bila hasilnya menuntut rebase, pilih `none` dan katakan begitu.",
+      ],
+    }, deps.decideDeps);
+    if (!row) continue;
+    n++;
     if (row.status === "berlaku" && row.action !== "none") {
       try { await deps.apply(row); } catch { /* tindakan gagal; jejaknya tetap ada */ }
     }

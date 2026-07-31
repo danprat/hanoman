@@ -51,7 +51,7 @@ describe("findCollisions (AC-14, OQ-9)", () => {
   });
 });
 
-type Rec = { question: string; kind: string };
+type Rec = { question: string; kind: string; options?: string[] };
 function harness(over: Partial<PulseDeps> = {}, conf: Lead = cfg()) {
   const asked: Rec[] = [];
   const applied: string[] = [];
@@ -60,8 +60,11 @@ function harness(over: Partial<PulseDeps> = {}, conf: Lead = cfg()) {
     sessions: () => [],
     areas: async () => [],
     planDone: () => true,
-    decide: (async (req: { projectId: string; specId?: string | null; sessionId?: string | null; kind: string; question: string }) => {
-      asked.push({ question: req.question, kind: req.kind });
+    // SPEC-451 · default `false`: sebagian besar test di berkas ini bicara soal sesi yang GAGAL,
+    // dan pintu keberhasilan tak boleh ikut menyalak di sana.
+    finished: () => false,
+    decide: (async (req: { projectId: string; specId?: string | null; sessionId?: string | null; kind: string; question: string; options?: string[] }) => {
+      asked.push({ question: req.question, kind: req.kind, options: req.options });
       return recordDecision({
         projectId: req.projectId, specId: req.specId, sessionId: req.sessionId,
         gate: "pulse", kind: req.kind as "quality", question: req.question,
@@ -118,7 +121,11 @@ describe("pulse · mutu hasil (AC-16/17)", () => {
     expect((await pulse(h.deps)).quality).toBe(1);
     expect(h.asked[0]!.question).toContain("`- [ ]`");
   });
-  it("leaves a clean, finished session alone", async () => {
+  // SPEC-451 · pintu KEGAGALAN memang tak punya urusan dengan sesi yang bersih — tapi sampai spec
+  // ini, "pintu kegagalan diam" berarti "tak ada yang menyentuhnya sama sekali", dan itulah bugnya.
+  // Yang menyentuhnya sekarang pintu keberhasilan di blok bawah, digerbangi `finished` (SPEC-433),
+  // bukan `exited`.
+  it("leaves an exited session alone when the failure door has nothing to say", async () => {
     const h = harness({ sessions: () => [{ ...failedSession[0]!, exitCode: 0 }] });
     expect((await pulse(h.deps)).quality).toBe(0);
   });
@@ -169,6 +176,100 @@ describe("pulse · mutu hasil (AC-16/17)", () => {
     });
     await pulse(h.deps);
     expect(h.applied).toEqual(["resume-session"]);
+  });
+});
+
+// SPEC-451 · pintu KEBERHASILAN. `followUpFinished` di atas hanya mengenal kegagalan (exit ≠ 0,
+// plan bersisa kotak) dan gerbangnya menuntut pane MATI — padahal di jalur sukses pane tak pernah
+// mati sendiri (SPEC-433: agen adalah TUI yang kembali ke `❯` sesudah fase terakhir + push).
+// Backlog yang SELESAI karena itu tak pernah diputuskan sama sekali, dan panenya terus terhitung
+// `liveCount()` governor sehingga antrean scheduler tak pernah dapat ruang.
+describe("pulse · backlog selesai (SPEC-451)", () => {
+  const liveDone = [{ id: "s1", projectId: "demo", specId: "spec-1", cwd: "/wt", exited: false }];
+
+  // Inti temuannya: gerbangnya `finished`, BUKAN `exited`. Sesi di bawah ini panenya masih hidup —
+  // keadaan yang di kode lama tersaring di baris pertama loop dan tak pernah sampai ke lead.
+  it("asks what to do with finished work whose pane is still alive", async () => {
+    const h = harness({ sessions: () => liveDone, finished: () => true });
+    expect((await pulse(h.deps)).quality).toBe(1);
+    expect(h.asked[0]!.kind).toBe("quality");
+    expect(h.asked[0]!.question).toContain("sudah selesai");
+  });
+
+  // Kedua tindakan ini sudah terimplementasi penuh di apply.ts sejak ADR-0091 dan tak pernah
+  // ditawarkan satu pintu pun — mesin tanpa pengemudi.
+  it("offers integrating the work and stopping the session", async () => {
+    const h = harness({ sessions: () => liveDone, finished: () => true });
+    await pulse(h.deps);
+    const opts = h.asked[0]!.options!.join(" ");
+    expect(opts).toContain("integrate-main");
+    expect(opts).toContain("stop-session");
+  });
+
+  it("leaves a session that is still working alone", async () => {
+    const h = harness({ sessions: () => liveDone, finished: () => false });
+    expect((await pulse(h.deps)).quality).toBe(0);
+    expect(h.asked).toEqual([]);
+  });
+
+  // Pane hidup bertahan berhari-hari dan denyut jalan tiap 5 menit; idempotensi lewat JEJAK, bukan
+  // Set memori yang justru kosong sesudah restart (pelajaran ADR-0091 / SPEC-432).
+  it("decides once per finished session, even across restarts", async () => {
+    const h = harness({ sessions: () => liveDone, finished: () => true });
+    await pulse(h.deps); __resetPulse();
+    await pulse(h.deps);
+    expect(h.asked).toHaveLength(1);
+  });
+
+  // Gerbang kedua pintu saling eksklusif secara konstruksi: `finished` sudah memuat `planComplete`,
+  // jadi sesi selesai tak pernah `unfinished`. Tanpa itu satu sesi menerima DUA pertanyaan dalam
+  // satu denyut — dua giliran agen untuk satu keadaan.
+  it("never asks twice about a session both doors could see", async () => {
+    const h = harness({
+      sessions: () => [{ ...liveDone[0]!, exited: true, exitCode: 0 }],
+      finished: () => true,
+    });
+    await pulse(h.deps);
+    expect(h.asked).toHaveLength(1);
+  });
+
+  // Sesi yang gagal tetap milik pintu kegagalan: menawarkan "integrasikan" pada exit ≠ 0 adalah
+  // persis kesalahan yang gerbang bukti objektif OQ-3 ada untuk mencegahnya.
+  it("leaves a failed session to the failure door even when its phases are all recorded", async () => {
+    const h = harness({
+      sessions: () => [{ ...liveDone[0]!, exited: true, exitCode: 143 }],
+      finished: () => true,
+    });
+    await pulse(h.deps);
+    expect(h.asked).toHaveLength(1);
+    expect(h.asked[0]!.question).toContain("kode keluar 143");
+  });
+
+  // Lead memutuskan LALU melapor: yang mengembalikan slot ke governor adalah tindakannya, bukan
+  // barisnya di jejak.
+  it("executes the action lead chose", async () => {
+    const h = harness({
+      sessions: () => liveDone,
+      finished: () => true,
+      decide: (async (req: { projectId: string; specId?: string | null; sessionId?: string | null; question: string }) => recordDecision({
+        projectId: req.projectId, specId: req.specId, sessionId: req.sessionId,
+        gate: "pulse", kind: "quality", question: req.question,
+        answer: "integrasikan", reason: "r", refs: [], confidence: "tinggi", action: "integrate-main",
+      })) as unknown as PulseDeps["decide"],
+    });
+    await pulse(h.deps);
+    expect(h.applied).toEqual(["integrate-main"]);
+  });
+
+  // Berbeda dari `orderReadyWork`: penataan antrean tak punya pembaca saat scheduler mati, tapi
+  // mengintegrasikan pekerjaan yang sudah selesai berharga baik antreannya dikuras maupun tidak.
+  it("still runs while the scheduler is off", async () => {
+    const h = harness({
+      sessions: () => liveDone,
+      finished: () => true,
+      scheduler: async () => ({ ...SCHEDULER_DEFAULTS, enabled: false }),
+    });
+    expect((await pulse(h.deps)).quality).toBe(1);
   });
 });
 

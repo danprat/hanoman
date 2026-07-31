@@ -143,6 +143,47 @@ describe("applyAction · integrasi ke main (AC-19, OQ-3)", () => {
   });
 });
 
+// SPEC-451 · integrasi bersih MELEPAS panenya. Tanpa ini jawaban "integrate-main" hanya
+// menyelesaikan separuh keluhan — hasilnya masuk main, tapi pane sesi yang sudah selesai tetap
+// terhitung `liveCount()` governor (scheduler/engine.ts) sehingga antrean tak pernah dapat ruang,
+// dan itulah kalimat terakhir SPEC-451: "memberikan ruang untuk backlog lain".
+describe("applyAction · integrasi melepas panenya (SPEC-451)", () => {
+  it("kills the pane after a clean integration, leaving the worktree intact", async () => {
+    const h = harness();
+    const r = await applyAction(await row("integrate-main"), h.deps);
+    expect(r.ok).toBe(true);
+    // `sessionIdForSpec`, bukan `row.sessionId`: yang memegang slot adalah pane SPEC-nya.
+    expect(h.t.killed).toEqual(["spec-1"]);
+    expect(r.detail).toContain("pane");
+  });
+
+  it("keeps the pane when the merge is not clean — konflik masih butuh sesinya", async () => {
+    const h = harness({
+      integrate: (async () => ({ status: "conflict" })) as unknown as ApplyDeps["integrate"],
+    });
+    await applyAction(await row("integrate-main"), h.deps);
+    expect(h.t.killed).toEqual([]);
+  });
+
+  // Gerbang pelepasan pane sengaja `planDone`, BUKAN `requireGreenBeforeIntegrate`: knob itu boleh
+  // dimatikan operator untuk mengizinkan integrasi lebih awal, dan itu bukan izin membunuh pane
+  // yang plan-nya masih menyisakan pekerjaan.
+  it("keeps the pane when the plan is unfinished, even with the objective gate off", async () => {
+    await setLead({ ...LEAD_DEFAULTS, enabled: true, requireGreenBeforeIntegrate: false });
+    const h = harness({ planDone: () => false });
+    expect((await applyAction(await row("integrate-main"), h.deps)).ok).toBe(true);
+    expect(h.t.integrated).toEqual(["spec-1"]);
+    expect(h.t.killed).toEqual([]);
+  });
+
+  it("says so plainly when there was no pane left to release", async () => {
+    const h = harness({ sessionExists: () => false });
+    const r = await applyAction(await row("integrate-main"), h.deps);
+    expect(r.ok).toBe(true);
+    expect(h.t.killed).toEqual([]);
+  });
+});
+
 describe("applyAction · tindakan yang wujudnya hanya jejak", () => {
   it("does nothing for none/answer-session/order-queue", async () => {
     const h = harness();

@@ -633,11 +633,33 @@ function end(id: string, code: number): void {
 // services/events.ts yang membuat pil palsu SPEC-402 tak bisa dikoreksi.
 const phaseKey = (phases: Phase[], complete: boolean): string => JSON.stringify({ phases, complete });
 
+// SPEC-433 · verdict "pekerjaan sesi ini sudah selesai", diturunkan dari sebuah Pane yang sudah di
+// tangan. `sessionComplete` menyentuh disk hanya sesudah cek fase murni lolos — biayanya di ekor
+// sesi, bukan sepanjang hidupnya.
+const paneComplete = (p: Pane): boolean =>
+  !!p.flow && !!p.phaseFile && sessionComplete(readPhases(p.phaseFile, p.flow), p.cwd, p.specId);
+
+/**
+ * SPEC-451 · verdict yang sama untuk pembaca DI LUAR jembatan WebSocket — denyut hanoman-lead
+ * memutuskan nasib backlog yang sudah selesai dan tak punya klien terpasang. Sengaja satu fungsi
+ * bersama `pollPhases`/`attach`: predikat yang disalin ke pemakai kedua adalah kelas bug SPEC-431
+ * (`baseSha IS NULL`) dan SPEC-448 (`rootBypassEnv` yang tak menyeberang ke titik spawn kedua).
+ *
+ * `exited` sengaja TIDAK ikut ditanya: itulah seluruh isi SPEC-433 — di jalur sukses pane tak
+ * pernah mati sendiri, jadi keduanya adalah fakta yang berdiri sendiri-sendiri.
+ *
+ * Ia BUKAN field di `SessionInfo`: `listSessions()` dipanggil governor tiap 10 dtk dan oleh siaran
+ * events, dan verdict ini akan membayar `readdir` + `readFile` sepanjang hidup setiap sesi.
+ */
+export const sessionFinished = (id: string): boolean => {
+  const p = getSession(id);
+  return !!p && paneComplete(p);
+};
+
 function pollPhases(p: Pane, a: Attachment): void {
   if (!p.flow || !p.phaseFile) return;
   const phases = readPhases(p.phaseFile, p.flow);
-  // `sessionComplete` menyentuh disk hanya sesudah cek fase murni lolos — biayanya di ekor sesi.
-  const complete = sessionComplete(phases, p.cwd, p.specId);
+  const complete = paneComplete(p);
   const json = phaseKey(phases, complete);
   if (json === a.lastPhases) return;
   a.lastPhases = json;
@@ -694,7 +716,7 @@ export function attach(id: string, c: Client): void {
   // verdict-nya, tak perlu menunggu berkas fase berubah lagi (yang takkan pernah terjadi).
   if (p.flow && p.phaseFile) {
     const phases = readPhases(p.phaseFile, p.flow);
-    const complete = sessionComplete(phases, p.cwd, p.specId);
+    const complete = paneComplete(p);
     a.lastPhases = phaseKey(phases, complete);
     c.send(frame({ t: "phase", phases, complete }));
   }
