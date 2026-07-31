@@ -44,6 +44,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 > **Narasi tiap keputusan — apa yang diperluas/dicabut/diamandemen, berikut gotcha-nya — ada di
 > [adr/README.md](adr/README.md).** Daftar di bawah sengaja satu baris per ADR: index ini dibaca
 > setiap sesi agen, sub-index hanya saat butuh riwayatnya (SPEC-386).
+- [0094 — Custom agent: katalog di DB, materialisasi native per agen, anti-loop berlapis](adr/0094-custom-agent-katalog-materialisasi-native.md)
 - [0093 — Dependency antar-backlog: kolom `dependsOn` + gerbang "selesai & ter-merge" di dua titik](adr/0093-dependency-antar-backlog.md)
 - [0092 — Cabut error monitoring, `hanoman-sdk`, dan cross-audit (pemantauan pindah ke Uptrace)](adr/0092-cabut-error-monitoring-sdk-cross-audit.md)
 - [0091 — hanoman-lead: agen pemimpin di atas agen; manusia jadi pembatal, bukan gerbang](adr/0091-hanoman-lead-agen-pemimpin.md)
