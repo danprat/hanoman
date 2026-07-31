@@ -6,6 +6,7 @@ import { startLead } from "./services/lead/engine";
 import { registerBacklogSource } from "./services/scheduler/sources/backlog";
 import { registerTriaseSource } from "./services/scheduler/sources/triase";
 import { installSessionHistory, reconcileHistory } from "./services/session-history";
+import { installCustomAgents } from "./services/custom-agents";
 import { listSessions } from "./services/pty";
 
 // SPEC-215 · deteksi update default ON (registry HANOMAN_UPDATE_FETCH="1"), dibaca via resolver
@@ -33,8 +34,13 @@ async function shutdown(sig: string): Promise<void> {
 process.on("SIGTERM", () => void shutdown("SIGTERM"));
 process.on("SIGINT", () => void shutdown("SIGINT"));
 
-app.listen({ port, host }).then(() => {
+app.listen({ port, host }).then(async () => {
   console.log(`hanoman api ${host}:${port}`);
+  // SPEC-450 · ADR-0094 · muat katalog custom agent & daftarkan sumbernya SEBELUM sesi pertama
+  // bisa lahir — governor scheduler & denyut lead sama-sama bisa meluncurkan sesi pada tick
+  // pertama. Ditunggu (bukan fire-and-forget): sesi yang lahir sebelum cache terisi akan lahir
+  // TANPA custom agent, dan itu gejala senyap — argv-nya sah, agennya cuma tak ada.
+  await installCustomAgents();
   // SPEC-362 · ADR-0079 · pasang hook riwayat SEBELUM apa pun bisa melahirkan sesi, lalu tutup
   // baris "berjalan" yang panenya sudah lenyap (tmux mati di luar hanoman: kill-server, reboot).
   installSessionHistory();
