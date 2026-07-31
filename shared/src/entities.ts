@@ -27,11 +27,17 @@ export const zQaPayload = z.object({
   expected: z.string(), actual: z.string(), env: z.string(),
   fromAudit: z.string().optional(),      // SPEC-244 · qa dinaikkan dari audit → sinyal skip fase Audit (ADR-0059)
   fromErrorGroup: z.string().optional() });   // SPEC-249 · qa dari eskalasi error → tautan grup (ADR-0060)
+// SPEC-407 · ADR-0089 · bentuk payload KETIGA: backlog goal. Sesi mengejar SATU goal tanpa fase
+// perencanaan, jadi yang disimpan bukan konteks+outcome melainkan goal itu sendiri. `goal` wajib —
+// `Spec.objective` diturunkan darinya (deriveSpecFields) DAN ia jadi inti kondisi Stop hook
+// (ADR-0073). `done` = bukti berhenti yang dituntut; kosong berarti "goal itu sendiri buktinya".
+export const zGoalPayload = z.object({
+  goal: z.string(), done: z.string(), constraints: z.string(), priority: zPriority });
 
 export const zSpec = z.object({
   id: z.string(), projectId: z.string(), title: z.string(), source: zSpecSource,
   stage: zStage, priority: zPriority, author: z.string(), objective: z.string(),
-  payload: z.union([zBriefPayload, zQaPayload]).nullable(),
+  payload: z.union([zBriefPayload, zQaPayload, zGoalPayload]).nullable(),   // SPEC-407 · +goal
   branchFrom: z.string().nullable(),                   // SPEC-143 · null = default project (main)
   baseSha: z.string().nullable(),                      // SPEC-186 · null = belum pernah ada sesi (belum dimulai)
 });

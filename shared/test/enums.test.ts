@@ -57,3 +57,17 @@ describe("SPEC-162 · kontrak sesi interaktif", () => {
   it("paths.terminalPhases", () =>
     expect(paths.terminalPhases("spec-1")).toBe("/api/terminal/sessions/spec-1/phases"));
 });
+
+// SPEC-407 · source `goal`: backlog yang langsung dikejar sesi mode goal, tanpa fase perencanaan.
+describe("SPEC-407 · source goal", () => {
+  it("zSpecSource menerima goal", () => {
+    expect(zSpecSource.safeParse("goal").success).toBe(true);
+  });
+  it("flowForSource(goal) = goal, source lain tak bergeser", () => {
+    expect(flowForSource("goal")).toBe("goal");
+    expect(flowForSource("brief")).toBe("feature");
+    expect(flowForSource("qa")).toBe("qa");
+    expect(flowForSource("audit")).toBe("audit");
+    expect(flowForSource("cross-audit")).toBe("cross-audit");
+  });
+});

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { zProject, zBriefPayload, zQaPayload, zSpec, zScheduler, zAgent } from "./entities";
+import { zProject, zBriefPayload, zQaPayload, zGoalPayload, zSpec, zScheduler, zAgent } from "./entities";
 import type { Spec, Notification } from "./entities";
 import { zProjectKind, zSpecSource, zPriority, zStage, zErrorStatus, zTicketCategory, zTicketStatus, zLinkKind, zVerifyScope } from "./enums";
 
@@ -58,14 +58,17 @@ export const zUpdateProject = z.object({
 });
 export const zCreateSpec = z.object({
   project: z.string(), source: zSpecSource, title: z.string().min(1),
-  priority: zPriority, payload: z.union([zBriefPayload, zQaPayload]),
+  priority: zPriority, payload: z.union([zBriefPayload, zQaPayload, zGoalPayload]),
   branchFrom: z.string().min(1).optional() })
   // SPEC-197 · ikat source ke bentuk payload: `qa` → QaPayload (punya `severity`), selain itu →
   // BriefPayload. Union saja tak menjaganya (objek non-strict), jadi `deriveSpecFields` bisa
   // menurunkan objective/priority dari bentuk yang salah. superRefine menegakkannya di boundary.
+  // SPEC-407 · kini TIGA-arah: `qa` ↔ `severity`, `goal` ↔ `goal`, selain itu → brief. Payload
+  // goal yang menyelinap ke source brief akan melahirkan spec ber-objective kosong.
   .superRefine((o, ctx) => {
-    const isQa = "severity" in o.payload;
-    if ((o.source === "qa") !== isQa)
+    const shape = "severity" in o.payload ? "qa" : "goal" in o.payload ? "goal" : "brief";
+    const want = o.source === "qa" ? "qa" : o.source === "goal" ? "goal" : "brief";
+    if (shape !== want)
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["payload"], message: "bentuk payload tak cocok dengan source" });
   });
 // nullable, bukan optional: `null` berarti "kosongkan, kembali ke default project",
@@ -80,7 +83,7 @@ export const zPatchSpec = z.object({
   // SPEC-186 · edit konten selagi item belum dimulai. Ditolak server bila sudah mulai.
   title: z.string().min(1).optional(),
   priority: zPriority.optional(),
-  payload: z.union([zBriefPayload, zQaPayload]).optional(),
+  payload: z.union([zBriefPayload, zQaPayload, zGoalPayload]).optional(),   // SPEC-407 · +goal
 });
 // SPEC-175 · rebase/merge branch hasil done spec. target = "local:<b>" | "origin:<b>".
 export const zIntegrate = z.object({
@@ -137,7 +140,8 @@ export const zSchedulerState = z.object({
 });
 export type SchedulerStateView = z.infer<typeof zSchedulerState>;
 
-export const zFlow = z.enum(["feature", "qa", "scaffold", "reverse", "prd", "audit", "breakdown", "cross-audit"]);
+// SPEC-407 · +goal · sesi dua fase (Goal → Verifikasi) tanpa fase perencanaan sama sekali.
+export const zFlow = z.enum(["feature", "qa", "scaffold", "reverse", "prd", "audit", "breakdown", "cross-audit", "goal"]);
 export type FlowName = z.infer<typeof zFlow>;
 // SPEC-237 · satu-satunya pemetaan source → flow (client memakainya saat start sesi).
 // qa → audit lalu execute perbaikan; audit → dokumen saja (Audit → Laporan, tanpa Execute).
@@ -146,6 +150,8 @@ export function flowForSource(source: string): FlowName {
   return source === "qa" ? "qa"
     : source === "audit" ? "audit"
     : source === "cross-audit" ? "cross-audit"
+    // SPEC-407 · goal → sesi dua fase yang langsung mengejar goal item, tanpa perencanaan.
+    : source === "goal" ? "goal"
     : "feature";
 }
 

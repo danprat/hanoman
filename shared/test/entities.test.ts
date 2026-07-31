@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { zProject, zSpec, zStage, zCreateSpec, zPatchSpec, zProjectView, zNotification, zSetting, zQaPayload, MODELS, EFFORTS } from "../src/index";
+import { zProject, zSpec, zStage, zCreateSpec, zPatchSpec, zProjectView, zNotification, zSetting, zQaPayload, zGoalPayload, MODELS, EFFORTS } from "../src/index";
 
 describe("zQaPayload fromAudit (SPEC-244)", () => {
   it("menerima fromAudit opsional", () => {
@@ -104,5 +104,25 @@ describe("schemas", () => {
       expect(EFFORTS).toContain("max");
       expect(EFFORTS).toContain("ultracode");
     });
+  });
+});
+
+// SPEC-407 · bentuk payload KETIGA: backlog goal. Objective spec diturunkan dari `goal`.
+describe("zGoalPayload (SPEC-407)", () => {
+  const payload = { goal: "p95 < 200 ms", done: "benchmark", constraints: "tanpa cache", priority: "tinggi" };
+  it("menerima bentuk goal utuh", () => {
+    expect(zGoalPayload.safeParse(payload).success).toBe(true);
+    expect(zGoalPayload.safeParse({ goal: "g", constraints: "", priority: "tinggi" }).success).toBe(false);
+  });
+  it("zSpec menyimpannya apa adanya", () => {
+    const spec = zSpec.parse({
+      id: "SPEC-407", projectId: "p1", title: "t", source: "goal", stage: "brainstorming",
+      priority: "tinggi", author: "Goal · a@b.c", objective: "p95 < 200 ms", payload,
+      branchFrom: null, baseSha: null,
+    });
+    expect(spec.payload).toEqual(payload);
+  });
+  it("zPatchSpec menerima payload goal", () => {
+    expect(zPatchSpec.safeParse({ payload }).success).toBe(true);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { zTerminalSession, zFlow, zPrdBrief } from "../src/dto";
+import { zTerminalSession, zFlow, zPrdBrief, zCreateSpec } from "../src/dto";
 
 // SPEC-210 · sesi prd project-level membawa brief; flow enum memuat "prd".
 describe("zTerminalSession — varian prd", () => {
@@ -70,5 +70,34 @@ describe("zTerminalSession — varian scaffold", () => {
     expect(zTerminalSession.safeParse({ project: "p1", flow: "reverse" }).success).toBe(true);
     expect(zTerminalSession.safeParse({ project: "p1", flow: "prd",
       brief: { title: "x", context: "c", outcome: "o" } }).success).toBe(true);
+  });
+});
+
+// SPEC-407 · flow goal (Goal → Verifikasi) + pengikatan source ↔ BENTUK payload jadi tiga-arah.
+describe("SPEC-407 · flow & payload goal", () => {
+  const base = { project: "p1", title: "t", priority: "tinggi" as const };
+  const goalPayload = { goal: "p95 < 200 ms", done: "benchmark di transkrip", constraints: "", priority: "tinggi" as const };
+  const briefPayload = { context: "c", outcome: "o", constraints: "", priority: "tinggi" as const };
+  const qaPayload = { severity: "major" as const, steps: "", expected: "", actual: "", env: "" };
+
+  it("zFlow memuat goal & zTerminalSession menerimanya", () => {
+    expect(zFlow.safeParse("goal").success).toBe(true);
+    expect(zTerminalSession.safeParse({ spec: "SPEC-407", flow: "goal" }).success).toBe(true);
+  });
+
+  it("zCreateSpec mengikat source goal ke payload ber-`goal`", () => {
+    expect(zCreateSpec.safeParse({ ...base, source: "goal", payload: goalPayload }).success).toBe(true);
+    expect(zCreateSpec.safeParse({ ...base, source: "goal", payload: briefPayload }).success).toBe(false);
+    expect(zCreateSpec.safeParse({ ...base, source: "goal", payload: qaPayload }).success).toBe(false);
+  });
+
+  it("payload goal tak boleh menyelinap ke source lain", () => {
+    expect(zCreateSpec.safeParse({ ...base, source: "brief", payload: goalPayload }).success).toBe(false);
+    expect(zCreateSpec.safeParse({ ...base, source: "qa", payload: goalPayload }).success).toBe(false);
+  });
+
+  it("pasangan lama tetap sah", () => {
+    expect(zCreateSpec.safeParse({ ...base, source: "brief", payload: briefPayload }).success).toBe(true);
+    expect(zCreateSpec.safeParse({ ...base, source: "qa", payload: qaPayload }).success).toBe(true);
   });
 });

@@ -33,7 +33,7 @@
 - Consumes: —
 - Produces: `zGoalPayload` (`{ goal: string; done: string; constraints: string; priority: Priority }`), `zSpecSource` menerima `"goal"`, `zFlow` menerima `"goal"`, `flowForSource("goal") === "goal"`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `shared/test/enums.test.ts` (di dalam `describe` zSpecSource yang sudah ada, atau describe baru bila belum ada):
 
@@ -88,12 +88,12 @@ it("SPEC-407 · zSpec menerima payload goal apa adanya", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `pnpm vitest --run shared/test/enums.test.ts shared/test/dto.test.ts shared/test/entities.test.ts`
 Expected: FAIL — `zSpecSource.safeParse("goal")` false, `zGoalPayload` tak ter-ekspor.
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 `shared/src/enums.ts` — ganti baris `zSpecSource`:
 
@@ -159,12 +159,12 @@ export function flowForSource(source: string): FlowName {
 
 Pastikan `zGoalPayload` ikut ter-ekspor dari barrel `shared/src/index.ts` bila barrel itu menyebut ekspor satu per satu (periksa dengan `grep -n "zQaPayload" shared/src/index.ts`; bila `export * from "./entities"` maka tak ada yang perlu ditambah).
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run: `pnpm vitest --run shared/test/enums.test.ts shared/test/dto.test.ts shared/test/entities.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add shared/src/enums.ts shared/src/entities.ts shared/src/dto.ts shared/test/enums.test.ts shared/test/dto.test.ts shared/test/entities.test.ts
