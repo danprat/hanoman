@@ -21,9 +21,11 @@ setelan paket. Jadi versi pertama tak bisa diotomasi.
    ```
    `npm publish` **ditolak 403** bila 2FA akun `disabled` **dan** tak ada GAT ber-bypass — npm
    menuntut salah satunya. Cek modenya dengan `npm profile get` (baris `two-factor auth`).
-2. **Daftarkan trusted publisher** — **BELUM DILAKUKAN per 2026-07-30**, dan inilah yang membuat
+2. **Daftarkan trusted publisher** — **BELUM DILAKUKAN per 2026-07-31**, dan inilah yang membuat
    tag `v0.1.3` gagal publish (lihat "Kalau publish gagal"); `0.1.3` akhirnya terbit **manual**
-   dari mesin dev, jadi tag `v0.1.3` tetap merah. Butuh akun ber-2FA: GAT bypass-2FA ditolak
+   dari mesin dev, jadi tag `v0.1.3` tetap merah. Terulang persis pada `v0.1.5`
+   (run `30597896875`, `E404 PUT` sesudah provenance ditandatangani) — `0.1.5` juga terbit manual.
+   Selama langkah ini belum dikerjakan, **setiap** tag akan merah dan rilis tetap manual. Butuh akun ber-2FA: GAT bypass-2FA ditolak
    `npm trust` bahkan untuk **membaca** konfigurasinya (`403 GET /-/package/hanoman/trust`) — npm
    sengaja tak mengizinkan kredensial statis memasang penggantinya sendiri. Login dulu
    (`npm login`) lalu:
