@@ -1,6 +1,8 @@
 import { describe, it, expect, afterEach, beforeEach } from "vitest";
 import { fileURLToPath } from "node:url";
-import { appendFileSync, chmodSync, copyFileSync, mkdtempSync, readFileSync } from "node:fs";
+import {
+  appendFileSync, chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -37,7 +39,7 @@ const withFailingTmux = async (fn: () => void | Promise<void>): Promise<void> =>
 
 // Klien palsu yang merekam frame — cukup untuk menguji kontrak broadcast.
 function fakeClient() {
-  const frames: { t: string; d?: string; code?: number; phases?: Phase[] }[] = [];
+  const frames: { t: string; d?: string; code?: number; phases?: Phase[]; complete?: boolean }[] = [];
   let closed = false;
   return {
     frames, wasClosed: () => closed,
@@ -402,6 +404,73 @@ describe("pty service", () => {
     const count = phaseFrames(c).length;
     await new Promise((r) => setTimeout(r, 1200)); // dua tick poll tanpa perubahan berkas
     expect(phaseFrames(c).length).toBe(count);
+  });
+
+  // SPEC-433 · frame fase membawa VERDICT-nya, bukan cuma daftar nama. Tanpa ini Terminal tak
+  // punya satu pun masukan soal "sudah selesai": satu-satunya gerbangnya `exited` (⇐ pane_dead),
+  // dan TUI agen tak pernah keluar sendiri sesudah fase terakhir.
+  it("frame phase membawa complete: false selama masih ada fase yang belum tercatat", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const phaseFile = phaseFilePath(repoDir, "spec-c1");
+    const s = createSession("p1", repoDir, { specId: "SPEC-C1", flow: "qa", prompt: "x", phaseFile });
+    const c = fakeClient();
+    attach(s.id, c);
+    await waitFor(() => phaseFrames(c).length > 0);
+    expect(phaseFrames(c)[0]!.complete).toBe(false);
+  });
+
+  it("seluruh fase tercatat + tanpa plan → frame phase complete: true walau pane MASIH HIDUP", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const phaseFile = phaseFilePath(repoDir, "spec-c2");
+    const s = createSession("p1", repoDir, { specId: "SPEC-C2", flow: "qa", prompt: "x", phaseFile });
+    const c = fakeClient();
+    attach(s.id, c);
+    await waitFor(() => phaseFrames(c).length > 0);
+
+    appendFileSync(phaseFile, "Audit done\nSpec skipped\nPlan skipped\nExecute done\n");
+    await waitFor(() => phaseFrames(c).some((f) => f.complete === true));
+    // Pane-nya memang belum mati — itulah inti temuannya.
+    expect(getSession(s.id)?.exited).toBe(false);
+  });
+
+  // Gerbang ADR-0029 ikut menyeberang: `Execute done` dengan plan bersisa `- [ ]` BUKAN selesai.
+  // Tanpa ini "tak pernah hijau" cuma bertukar jadi "hijau palsu" (kelas kesalahan SPEC-402).
+  it("Execute done tapi plan masih - [ ] → complete tetap false", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const phaseFile = phaseFilePath(repoDir, "spec-c3");
+    mkdirSync(join(repoDir, "docs/superpowers/plans"), { recursive: true });
+    writeFileSync(join(repoDir, "docs/superpowers/plans/plan-spec-c3.md"), "- [x] a\n- [ ] b\n");
+    const s = createSession("p1", repoDir, { specId: "SPEC-C3", flow: "qa", prompt: "x", phaseFile });
+    const c = fakeClient();
+    attach(s.id, c);
+    await waitFor(() => phaseFrames(c).length > 0);
+
+    appendFileSync(phaseFile, "Audit done\nSpec skipped\nPlan skipped\nExecute done\n");
+    await waitFor(() => phaseFrames(c).some((f) => f.phases!.every((p) => p.state !== "active")));
+    expect(phaseFrames(c).every((f) => f.complete === false)).toBe(true);
+  });
+
+  // JEBAKAN yang mengikat implementasi: `complete` berubah TANPA daftar fase berubah — agen
+  // mencentang kotak terakhir di plan sesudah menulis `Execute done`. Kunci dedup pollPhases
+  // yang hanya memuat `phases` akan menelan frame itu dan pil "Selesai" tak pernah muncul —
+  // bentuk yang sama dengan dedup lengket services/events.ts di SPEC-402.
+  it("kotak plan terakhir dicentang (berkas fase TAK berubah) tetap menyiarkan complete: true", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const phaseFile = phaseFilePath(repoDir, "spec-c4");
+    const plan = join(repoDir, "docs/superpowers/plans/plan-spec-c4.md");
+    mkdirSync(join(repoDir, "docs/superpowers/plans"), { recursive: true });
+    writeFileSync(plan, "- [x] a\n- [ ] b\n");
+    const s = createSession("p1", repoDir, { specId: "SPEC-C4", flow: "qa", prompt: "x", phaseFile });
+    const c = fakeClient();
+    attach(s.id, c);
+    await waitFor(() => phaseFrames(c).length > 0);
+
+    appendFileSync(phaseFile, "Audit done\nSpec skipped\nPlan skipped\nExecute done\n");
+    await waitFor(() => phaseFrames(c).some((f) => f.phases!.every((p) => p.state !== "active")));
+    expect(phaseFrames(c).every((f) => f.complete === false)).toBe(true);
+
+    writeFileSync(plan, "- [x] a\n- [x] b\n");   // berkas fase sengaja TIDAK disentuh
+    await waitFor(() => phaseFrames(c).some((f) => f.complete === true));
   });
 
   // SPEC-209 · riwayat claude hidup di scrollback pane tmux, tapi klien hanya menerima layar

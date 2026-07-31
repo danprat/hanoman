@@ -501,6 +501,10 @@ function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, onSessionR
   fullscreen: boolean; onFullscreen: () => void;
 }) {
   const [phases, setPhases] = React.useState<Phase[] | null>(null);
+  // SPEC-433 · verdict dari server, bukan kesimpulan klien: gerbang plan `- [ ]` (ADR-0029) hanya
+  // bisa dibaca di sisi yang memegang worktree-nya.
+  const [complete, setComplete] = React.useState(false);
+  const onPhases = React.useCallback((p: Phase[], done: boolean) => { setPhases(p); setComplete(done); }, []);
   const [docs, setDocs] = React.useState(false);
   const [integrate, setIntegrate] = React.useState(false);
   const [sessIntegrate, setSessIntegrate] = React.useState(false);
@@ -519,12 +523,18 @@ function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, onSessionR
   // SPEC-402 · pane mati berkode ≠ 0 = pekerjaan TERPUTUS (agen di-SIGTERM/crash), bukan tuntas.
   // `!!exitCode` sengaja: 0 dan undefined (sesi lama / daftar tanpa kode) tetap "Selesai".
   const failed = session.exited && !!session.exitCode;
+  // SPEC-433 · pekerjaan tuntas pada pane yang MASIH HIDUP — keadaan yang dulu tak punya tampilan
+  // apa pun. Agen adalah TUI interaktif: sesudah fase terakhir ia kembali ke prompt-nya, jadi
+  // `exited` tak pernah menjadi true di jalur sukses dan pil hijau tak pernah bisa muncul.
+  // `exited` tetap menang (SPEC-402: bisa di-SIGTERM sesudah baris fase terakhir ditulis).
+  const finished = !session.exited && complete;
   return (
     <>
       <div style={{
         display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", flex: "0 0 auto",
         background: failed ? "var(--status-err-tint)"
-          : session.exited ? "var(--status-ok-tint)" : awaiting ? "var(--status-warn-tint)" : "var(--bone-200)",
+          : session.exited || finished ? "var(--status-ok-tint)"
+            : awaiting ? "var(--status-warn-tint)" : "var(--bone-200)",
         borderBottom: "1px solid var(--border-hair)",
         fontFamily: "var(--font-mono)", fontSize: 11, color: session.exited ? "var(--text-muted)" : "var(--text-body)",
       }}>
@@ -536,7 +546,11 @@ function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, onSessionR
         {session.exited && (failed
           ? <StatusPill status="failed" size="sm">{`Gagal · exit ${session.exitCode}`}</StatusPill>
           : <StatusPill status="done" size="sm">Selesai</StatusPill>)}
-        {awaiting && (deciding
+        {finished && <StatusPill status="done" size="sm">Selesai</StatusPill>}
+        {/* SPEC-433 · `finished` membungkam marker: pada codex marker keputusan MENYALA saat sesi
+            selesai wajar (tak ada event Notification → dipasang di Stop+UserPromptSubmit,
+            ADR-0074), jadi membiarkan `awaiting` menang mengulang bug ini untuk separuh agen. */}
+        {awaiting && !finished && (deciding
           ? <StatusPill status="running" size="sm">Lead memutuskan</StatusPill>
           : <StatusPill status="awaiting" size="sm" />)}
         {session.specId && (
@@ -597,7 +611,7 @@ function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, onSessionR
                 color: "var(--text-subtle)", fontSize: 12, textAlign: "center" }}>
                 Terbuka di layar penuh
               </div>
-            : <TerminalPane key={session.id} sessionId={session.id} onExit={onExit} onPhases={setPhases} />}
+            : <TerminalPane key={session.id} sessionId={session.id} onExit={onExit} onPhases={onPhases} />}
         </div>
       </div>
       {docs && session.specId && <SpecDocsModal specId={session.specId} onClose={() => setDocs(false)} />}

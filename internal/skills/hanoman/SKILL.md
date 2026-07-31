@@ -198,6 +198,33 @@ Pakai skill lebih sempit saat task cocok:
   `exit` (dulu dibuang), jadi sesi yang mati di depan mata operator langsung terbaca gagal; nilai
   yang sama datang lagi dari daftar sesi sehingga labelnya selamat dari refresh. Sesudah itu tombol
   "Lanjutkan" (ADR-0084) baru punya makna — sebelumnya sesi terputus tampak tuntas.
+- **Pekerjaan selesai ≠ pane mati** (SPEC-433, tanpa ADR — QA; belahan KEDUA dari konflasi di atas):
+  sel Terminal dulu menggerbangi SELURUH statusnya pada `session.exited` (⇐ `#{pane_dead}`),
+  padahal agen adalah **TUI interaktif** — sesudah menulis baris fase terakhir + push ia kembali ke
+  prompt-nya dan pane hidup terus sampai operator menekan Tutup. Jadi pada jalur sukses `pane_dead`
+  **tak pernah** jadi `1` dan pil hijau "Selesai" **secara struktural tak bisa muncul**; satu-satunya
+  yang pernah menampilkannya adalah sesi yang mati exit 0 (di-`/exit` manual). Terukur 31 Jul dari
+  keadaan hidup: `spec-431`/`spec-432` berkas fasenya lengkap (`Audit done`/`Spec skipped`/`Plan
+  skipped`/`Execute done`), commit-nya mendarat, `Spec.stage = done` di DB — tapi `dead=0` dan
+  `capture-pane` menunjukkan TUI menganggur di `❯`. Server sudah tahu jawabannya (`stageForRun`,
+  dipakai `liveSpecs`); yang menyeberang ke Terminal hanya **daftar nama fase** yang dirender
+  `PhaseStrip`, tanpa verdict. Fix: **`sessionComplete(phases, worktree, specId?)`** =
+  `phasesComplete` (semua fase `done`|`skipped`, daftar kosong → **false**) **DAN** `planComplete`
+  untuk sesi ber-spec, ikut frame WS yang sudah mengalir → `{t:"phase", phases, complete}`, dikirim
+  dari **dua** titik (`pollPhases` + `attach`, jadi pil selamat dari refresh/pindah sel). Sengaja
+  **bukan** `stageForRun(...) === "done"`: peta `REACHED` berkunci nama fase dan tak mengenal fase
+  flow dokumen (`PRD`, `Serah terima`, `Breakdown`) — sesi itu akan selamanya terbaca belum selesai.
+  **Tiga jebakan mengikat:** (1) kunci dedup `pollPhases`/`attach` **wajib memuat `complete`** —
+  ia berubah tanpa satu baris fase pun berubah saat kotak `- [ ]` terakhir dicentang, dan dedup
+  berkunci `phases` saja menelan frame itu (bentuk yang sama dengan dedup lengket `events.ts`
+  SPEC-402); (2) gerbang plan ADR-0029 **wajib** ikut — tanpa itu "tak pernah hijau" cuma bertukar
+  jadi **"hijau palsu"**; (3) `complete` **menang atas `awaiting`** (SPEC-196) karena marker
+  keputusan **codex menyala saat sesi selesai wajar** (tak ada event `Notification` → dipasang di
+  `Stop`+`UserPromptSubmit`, ADR-0074) — membiarkan `awaiting` menang mengulang bug ini untuk
+  separuh agen. Urutan pil: `exited` → `complete` → `awaiting`. Badan pane **tidak** diredupkan saat
+  `complete` (prosesnya masih hidup & bisa diketik); peredupan tetap milik `exited` (SPEC-188).
+  `exited` sendiri **tak disentuh** — ia tetap menggerbangi re-attach (ADR-0084), "Lanjutkan",
+  `startable`, `liveDecisions`, dan penutupan `SessionHistory`, yang memang bertanya soal proses.
 - **Kegagalan `tmux` BUKAN "tak ada sesi"** (SPEC-402): `listPanes()` mengembalikan `[]` hanya untuk
   `no server running`/`error connecting to` (`TmuxError.noServer`); kegagalan lain **dilempar**.
   Dulu `catch { return []; }` menelan semuanya, dan loop poll 500 ms membacanya sebagai "semua sesi

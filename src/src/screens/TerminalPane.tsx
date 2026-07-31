@@ -7,7 +7,11 @@ import type { Phase } from "../api/client";
 import { clipboardIntent } from "./terminal-clipboard";
 
 export function TerminalPane({ sessionId, onExit, onPhases }: {
-  sessionId: string; onExit: (code: number) => void; onPhases?: (p: Phase[]) => void;
+  sessionId: string; onExit: (code: number) => void;
+  // SPEC-433 · frame phase membawa VERDICT-nya juga: `complete` = seluruh fase tercatat DAN plan
+  // tak menyisakan `- [ ]`. Tanpa itu sel tak punya satu pun kabar "selesai" — `exited` cuma
+  // berarti prosesnya mati, dan TUI agen tak pernah mati sendiri sesudah fase terakhir.
+  onPhases?: (p: Phase[], complete: boolean) => void;
 }) {
   const host = React.useRef<HTMLDivElement>(null);
   // onExit boleh berubah tiap render; menaruhnya di ref menjaga effect ini
@@ -38,10 +42,14 @@ export function TerminalPane({ sessionId, onExit, onPhases }: {
 
     ws.onopen = () => { term.focus(); send({ t: "resize", cols: term.cols, rows: term.rows }); };
     ws.onmessage = (ev) => {
-      const f = JSON.parse(ev.data as string) as { t: string; d?: string; code?: number; phases?: Phase[] };
+      const f = JSON.parse(ev.data as string) as {
+        t: string; d?: string; code?: number; phases?: Phase[]; complete?: boolean;
+      };
       if (f.t === "data") term.write(f.d ?? "");
       // Server menyiarkan fase saat attach dan setiap kali agen menutup satu (SPEC-162).
-      else if (f.t === "phase") phaseRef.current?.(f.phases ?? []);
+      // SPEC-433 · sejak sekarang juga saat `complete` berubah tanpa daftar fase berubah —
+      // kotak `- [ ]` terakhir di plan dicentang sesudah `Execute done`.
+      else if (f.t === "phase") phaseRef.current?.(f.phases ?? [], f.complete === true);
       else if (f.t === "exit") {
         term.write(`\r\n\x1b[33m— sesi berakhir (exit ${f.code}) —\x1b[0m\r\n`);
         exitRef.current(f.code ?? 0);

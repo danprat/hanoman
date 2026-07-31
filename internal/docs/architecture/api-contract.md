@@ -494,8 +494,14 @@ DELETE /terminal/sessions/:id        # 204 · 404; menutup sesi: majukan stage, 
 #   project yang di-bind ke checkout di bawah .worktrees/ (dogfooding hanoman di worktree sendiri)
 #   punya `cwd === repoDir` untuk terminal biasa, dan gerbang lama menghapus checkout itu sendiri.
 GET    /terminal/sessions/:id/ws     # WebSocket; close 4004 bila sesi tak ada
-#   server->klien: { t:"data", d } · { t:"phase", … } · { t:"exit", code }
+#   server->klien: { t:"data", d } · { t:"phase", phases, complete } · { t:"exit", code }
 #   klien->server: { t:"in", d } · { t:"resize", cols, rows }
+#   SPEC-433 · `complete` = seluruh fase pipeline tercatat (done|skipped) DAN plan spec-nya tak
+#   menyisakan `- [ ]` (gerbang ADR-0029 yang sama dengan stageForRun). Ia BUKAN turunan
+#   `exited`: agen adalah TUI interaktif yang kembali ke prompt-nya sesudah fase terakhir, jadi
+#   di jalur sukses pane TAK PERNAH mati dan `exited` tak bisa menjadi kabar "selesai".
+#   Frame lahir saat `phases` ATAU `complete` berubah — kotak `- [ ]` terakhir dicentang tanpa
+#   menyentuh berkas fase, dan dedup berkunci `phases` saja akan menelannya.
 
 # --- riwayat sesi (SPEC-362, ADR-0079) — LOCAL-only, tak disync -------------------------------
 GET    /terminal/history?projectId&specId&kind&q&page&limit

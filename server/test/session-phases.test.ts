@@ -3,7 +3,8 @@ import { mkdtempSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  phaseFilePath, decisionFilePath, readPhases, stageFor, planComplete, stageForRun, type Phase,
+  phaseFilePath, decisionFilePath, readPhases, stageFor, planComplete, stageForRun,
+  phasesComplete, sessionComplete, type Phase,
 } from "../src/services/session-phases";
 
 describe("decisionFilePath (SPEC-184)", () => {
@@ -126,6 +127,75 @@ describe("stageForRun", () => {
   });
   it("stage non-done tak terpengaruh gerbang", () => {
     expect(stageForRun(P([["Plan", "done"]]), mkPlan("- [ ] b\n"), "SPEC-173")).toBe("planned");
+  });
+});
+
+// SPEC-433 — "pekerjaan selesai" adalah fakta yang BERDIRI SENDIRI di sebelah "pane mati".
+// Agen adalah TUI interaktif: sesudah fase terakhir ia kembali ke prompt-nya dan pane tetap
+// hidup, jadi `exited` (⇐ #{pane_dead}) tak pernah bisa menjadi kabar "selesai" di jalur sukses.
+describe("SPEC-433 · phasesComplete", () => {
+  const P = (pairs: [string, string][]): Phase[] =>
+    pairs.map(([name, state]) => ({ name, state })) as Phase[];
+
+  it("semua fase done → true", () => {
+    expect(phasesComplete(P([["Audit", "done"], ["Execute", "done"]]))).toBe(true);
+  });
+
+  it("skipped ikut dihitung tercapai (fast-path qa)", () => {
+    expect(phasesComplete(P([
+      ["Audit", "done"], ["Spec", "skipped"], ["Plan", "skipped"], ["Execute", "done"],
+    ]))).toBe(true);
+  });
+
+  it("satu fase masih active → false", () => {
+    expect(phasesComplete(P([["Audit", "done"], ["Execute", "active"]]))).toBe(false);
+  });
+
+  it("satu fase masih pending → false", () => {
+    expect(phasesComplete(P([["Audit", "active"], ["Execute", "pending"]]))).toBe(false);
+  });
+
+  // Daftar kosong berarti "tak tahu apa-apa" (flow tak dikenal / sesi tanpa fase), bukan tuntas.
+  it("daftar kosong → false, bukan vacuous true", () => {
+    expect(phasesComplete([])).toBe(false);
+  });
+});
+
+describe("SPEC-433 · sessionComplete", () => {
+  const P = (pairs: [string, string][]): Phase[] =>
+    pairs.map(([name, state]) => ({ name, state })) as Phase[];
+  const qaDone = () => P([
+    ["Audit", "done"], ["Spec", "skipped"], ["Plan", "skipped"], ["Execute", "done"],
+  ]);
+
+  it("seluruh fase tercatat + tak ada plan → complete (persis keadaan spec-431/432)", () => {
+    expect(sessionComplete(qaDone(), mkWorktree({}), "SPEC-431")).toBe(true);
+  });
+
+  // Gerbang ADR-0029 yang sama dengan stageForRun: tanpa ini kita cuma menukar "tak pernah
+  // hijau" dengan "hijau palsu" — kelas kesalahan yang diperbaiki SPEC-402.
+  it("Execute done tapi plan masih - [ ] → BELUM complete", () => {
+    const wt = mkWorktree({ "2026-07-31-x-spec-433.md": "- [x] a\n- [ ] b\n" });
+    expect(sessionComplete(qaDone(), wt, "SPEC-433")).toBe(false);
+  });
+
+  it("kotak terakhir dicentang → complete", () => {
+    const wt = mkWorktree({ "2026-07-31-x-spec-433.md": "- [x] a\n- [x] b\n" });
+    expect(sessionComplete(qaDone(), wt, "SPEC-433")).toBe(true);
+  });
+
+  it("fase belum tuntas → false meski plan bersih", () => {
+    const wt = mkWorktree({ "2026-07-31-x-spec-433.md": "- [x] a\n" });
+    expect(sessionComplete(P([["Audit", "done"], ["Execute", "active"]]), wt, "SPEC-433")).toBe(false);
+  });
+
+  // Sesi project-level (prd/reverse/breakdown) tak punya spec → tak ada plan untuk digerbang.
+  // Nama fasenya juga tak ada di REACHED, jadi stageForRun tak bisa dipakai sebagai gantinya.
+  it("sesi tanpa specId: cukup seluruh fasenya tercatat", () => {
+    expect(sessionComplete(P([["Brainstorm", "done"], ["PRD", "done"]]), "/tak/ada", undefined))
+      .toBe(true);
+    expect(sessionComplete(P([["Brainstorm", "done"], ["PRD", "active"]]), "/tak/ada", undefined))
+      .toBe(false);
   });
 });
 
