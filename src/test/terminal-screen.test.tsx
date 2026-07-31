@@ -43,13 +43,18 @@ const projects = [{ id: "p1", name: "hanoman" }];
 const LKEY = "hanoman.terminal.layout";
 const WKEY = "hanoman.terminal.workspace";
 
+// SPEC-408 · ADR-0090 · `createdAt`/`startedAt` bagian dari kontrak Spec; nilainya tak relevan
+// untuk layar Terminal, tapi literalnya harus lengkap supaya tipe tetap menjaga bentuk wire.
 const backlog: Spec[] = [
   { id: "SPEC-100", projectId: "p1", title: "Fitur A", source: "brief", stage: "brainstorming",
-    priority: "tinggi", author: "human", objective: "obj A", payload: null, branchFrom: null, baseSha: null },
+    priority: "tinggi", author: "human", objective: "obj A", payload: null, branchFrom: null, baseSha: null,
+    createdAt: "2026-07-01T00:00:00.000Z", startedAt: null },
   { id: "SPEC-101", projectId: "p1", title: "Bug B", source: "qa", stage: "planned",
-    priority: "sedang", author: "human", objective: "obj B", payload: null, branchFrom: null, baseSha: null },
+    priority: "sedang", author: "human", objective: "obj B", payload: null, branchFrom: null, baseSha: null,
+    createdAt: "2026-07-02T00:00:00.000Z", startedAt: null },
   { id: "SPEC-102", projectId: "p1", title: "Selesai C", source: "brief", stage: "done",
-    priority: "rendah", author: "human", objective: "obj C", payload: null, branchFrom: null, baseSha: null },
+    priority: "rendah", author: "human", objective: "obj C", payload: null, branchFrom: null, baseSha: null,
+    createdAt: "2026-07-03T00:00:00.000Z", startedAt: "2026-07-04T00:00:00.000Z" },
 ];
 
 beforeEach(() => {

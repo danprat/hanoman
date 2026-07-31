@@ -96,6 +96,9 @@ const qs = (params: Record<string, string | number | boolean | undefined>) => {
 export type SpecListParams = {
   project?: string; source?: string; q?: string; stage?: string; priority?: string;
   startable?: boolean; page?: number; limit?: number;
+  // SPEC-408 · ADR-0090 · rentang tanggal. `dateField` memilih sumbunya; `from`/`to` = `YYYY-MM-DD`
+  // (bentuk yang dipancarkan `<input type="date">`), inklusif, boleh sendirian.
+  dateField?: "created" | "started"; from?: string; to?: string;
 };
 export type ProjectListParams = { q?: string; page?: number; limit?: number };
 export const api = {
