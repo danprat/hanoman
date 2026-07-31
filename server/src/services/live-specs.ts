@@ -5,6 +5,7 @@ import { stageForRun } from "./session-phases";
 import { STAGES } from "./stage-machine";
 import { recordCompletion } from "./notifications";
 import { notifySynced } from "./sync-notify";
+import { decorateBlocked } from "./spec-deps";
 
 // SPEC-199 · dulu inline di GET /specs; kini dipakai route HTTP DAN hub siar (services/events.ts)
 // supaya push WS dan pull HTTP tak pernah drift. Stage live diturunkan dari berkas fase sesi
@@ -14,7 +15,10 @@ export async function liveSpecs(filter: { project?: string; source?: string } = 
     where: { projectId: filter.project, source: filter.source }, orderBy: { id: "desc" },
   });
   const live = sessionPhasesBySpec();
-  if (live.size === 0) return specs;
+  // SPEC-447 · ADR-0093 · dependency dihias DI SINI supaya GET /specs dan grup siar WS `specs`
+  // membaca nilai yang sama (SPEC-199). Nol biaya untuk backlog yang tak memakai dependency:
+  // `decorateBlocked` keluar lebih awal saat tak ada satu pun `dependsOn`.
+  if (live.size === 0) return decorateBlocked(specs);
   const advanced: { id: string; from: Stage; stage: Stage }[] = [];
   const doneNow: { specId: string; title: string; projectId: string | null }[] = [];
   const out = specs.map((s) => {
@@ -41,5 +45,5 @@ export async function liveSpecs(filter: { project?: string; source?: string } = 
     }));
   // SPEC-180 · notif dibuat sesudah persist stage; recordCompletion idempoten (key unik).
   await Promise.all(doneNow.map((d) => recordCompletion(d.specId, d.title, d.projectId)));
-  return out;
+  return decorateBlocked(out);
 }

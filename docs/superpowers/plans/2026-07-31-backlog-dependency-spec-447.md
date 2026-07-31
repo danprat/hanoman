@@ -1087,7 +1087,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `decorateBlocked` (Task 3).
 - Produces: `liveSpecs()` mengembalikan baris ber-`dependsOn: string[]` + `blockedBy: SpecBlocker[]`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Buat `server/test/live-specs-blocked.test.ts`:
 
@@ -1141,14 +1141,14 @@ describe("liveSpecs · blockedBy (SPEC-447)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism server/test/live-specs-blocked.test.ts
 ```
 Expected: FAIL — `dependsOn`/`blockedBy` tidak ada di hasil.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 `server/src/services/live-specs.ts` — tambahkan import:
 
@@ -1173,7 +1173,7 @@ dan baris terakhir:
   return decorateBlocked(out);
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism server/test/live-specs-blocked.test.ts server/test/events.test.ts server/test/notifications.test.ts
@@ -1181,7 +1181,7 @@ env -u NODE_ENV ./node_modules/.bin/tsc -p server --noEmit
 ```
 Expected: semua PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/live-specs.ts server/test/live-specs-blocked.test.ts
