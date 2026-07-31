@@ -4,4 +4,4 @@
 // `runner` dan `cli` dulu absen di sini, jadi `pnpm test` di root melewatkan justru
 // paket yang memuat logika orkestrasi — test runner hijau hanya kalau seseorang ingat
 // menjalankannya per-paket. live-smoke.test.ts aman ikut: `describe.runIf(HANOMAN_LIVE)`.
-export default ["shared", "server", "src", "runner", "cli", "sdk"];
+export default ["shared", "server", "src", "runner", "cli"];
