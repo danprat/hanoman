@@ -24,7 +24,13 @@ describe("/agent-tokens routes (cookie-only)", () => {
     const cookie = await login();
     const r = await app.inject({ method: "GET", url: "/api/agent-tokens/capabilities", headers: { cookie } });
     expect(r.statusCode).toBe(200);
-    expect(r.json().capabilities).toHaveLength(18);
+    // Angka ini sengaja HARDCODE, bukan `CAPABILITIES.length` — route mengembalikan katalog itu apa
+    // adanya, jadi menurunkannya membuat assertion ini tautologi. Ia tripwire: tiap capability baru
+    // memperlebar permukaan `/api` yang boleh didelegasikan ke agent token (ADR-0065), dan itu harus
+    // disadari seorang manusia. SPEC-409 menambahkan `lead:read`/`lead:write` (ADR-0091) tanpa
+    // menyetel ulang angkanya → 18 sejak itu selalu merah. Naikkan HANYA bersama penambahan yang
+    // memang disengaja.
+    expect(r.json().capabilities).toHaveLength(20);
     expect(r.json().capabilities[0]).toMatchObject({ id: expect.any(String), domain: expect.any(String), access: expect.any(String) });
   });
 
