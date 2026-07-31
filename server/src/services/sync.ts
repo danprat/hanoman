@@ -7,7 +7,10 @@ import { renameProjectCore } from "./rename-project";
 // SPEC-268 · ADR-0066 · ticket masuk record-sync (metadata tiket). SPEC-384 · ADR-0092 ·
 // `errorGroup` dicabut bersama error monitoring — kind ini tak lagi dikenal `isEntity()`, jadi
 // push dari klien versi lama yang masih membawanya ditolak sebagai record tak dikenal.
-export const SYNCED = ["project", "spec", "vps", "sessionResult", "ticket", "ticketAttachment"] as const;
+// SPEC-450 · ADR-0094 · `customAgent` ikut menyeberang: katalog persona adalah pengetahuan
+// bersama, bukan setelan mesin. Id-nya deterministik ("<scope>:<name>") justru supaya dua mesin
+// yang membuat nama sama bertemu sebagai SATU baris di sini, bukan dua yang saling menelan.
+export const SYNCED = ["project", "spec", "vps", "sessionResult", "ticket", "ticketAttachment", "customAgent"] as const;
 export type Entity = (typeof SYNCED)[number];
 
 type Delegate = {
@@ -22,6 +25,7 @@ const DELEGATE: Record<Entity, Delegate> = {
   sessionResult: prisma.sessionResult as unknown as Delegate,
   ticket: prisma.ticket as unknown as Delegate,
   ticketAttachment: prisma.ticketAttachment as unknown as Delegate,
+  customAgent: prisma.customAgent as unknown as Delegate,
 };
 
 // Whitelist field bisnis per entitas — SENGAJA mengecualikan never-sync (Project.repoDir,
@@ -41,6 +45,11 @@ const FIELDS: Record<Entity, string[]> = {
   ticket: ["projectId", "number", "category", "title", "detail", "reporterEmail", "status", "accessKeyHash", "specId", "createdAt", "updatedAt"],
   // SPEC-272 · ADR-0068 · metadata lampiran (byte tak disync; ditarik lazy dari hub saat dibuka).
   ticketAttachment: ["ticketId", "projectId", "filename", "mimeType", "size", "storageKey", "createdAt", "updatedAt"],
+  // SPEC-450 · ADR-0094 · SELURUH kolom bermakna ikut menyeberang. `enabled` & `mentions` wajib
+  // ada: `upsert` yang tak menyebut kolom ber-default TETAP berhasil, jadi kolom yang terlewat
+  // mendarat sebagai default palsu di tiap client tanpa satu pun error (kelas ADR-0090/0093).
+  // `version` tak pernah masuk FIELDS — ia stempel mekanisme sync itu sendiri.
+  customAgent: ["projectId", "name", "description", "instructions", "tools", "model", "mentions", "enabled", "createdAt", "updatedAt"],
 };
 // Field yang JSONB-nya string ISO tapi kolomnya DateTime — dikonversi balik saat menulis.
 const DATE_FIELDS: Record<Entity, string[]> = {
@@ -48,6 +57,7 @@ const DATE_FIELDS: Record<Entity, string[]> = {
   sessionResult: ["createdAt", "updatedAt"],
   ticket: ["createdAt", "updatedAt"],
   ticketAttachment: ["createdAt", "updatedAt"],
+  customAgent: ["createdAt", "updatedAt"],
 };
 
 export function isEntity(e: string): e is Entity {

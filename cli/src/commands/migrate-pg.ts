@@ -14,7 +14,8 @@ import { resolveLayout } from "../layout";
 import { distDir, applyMigrations, ensurePrismaClient } from "./start";
 
 export const PG_ORDER = [
-  "Project", "Spec", "Setting", "Notification",
+  // SPEC-450 · ADR-0094 · CustomAgent sesudah Project (FK projectId nullable → cascade).
+  "Project", "Spec", "CustomAgent", "Setting", "Notification",
   "User", "Session", "DeviceToken", "AgentToken",
   "Vps", "VpsAuditSnapshot", "VpsItemState",
   "SessionResult", "SessionHistory",
