@@ -50,3 +50,30 @@ describe("StartSessionModal · mode goal", () => {
       expect.objectContaining({ goal: true, goalCondition: undefined })));
   });
 });
+
+// SPEC-407 · ADR-0089 · backlog goal SELALU bermode goal — switch-nya terkunci. Template global
+// TIDAK boleh ikut terkirim sebagai override: server menurunkan kondisinya dari item, dan override
+// yang tak diminta operator justru mengganti goal itu dengan kalimat generik.
+describe("StartSessionModal · spec bersource goal (SPEC-407)", () => {
+  const goalSpec: any = { id: "SPEC-407", source: "goal", title: "t", stage: "planned" };
+
+  it("switch terkunci aktif dan kondisi global tak ikut terkirim", async () => {
+    render(<StartSessionModal open spec={goalSpec} onClose={() => {}} onStarted={() => {}} />);
+    await waitFor(() => expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "true"));
+    expect(screen.queryByDisplayValue("TEMPLATE-GLOBAL")).toBeNull();
+    fireEvent.click(screen.getByRole("switch"));          // klik tak boleh mematikannya
+    expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(screen.getByText("Mulai"));
+    await waitFor(() => expect(api.startSession).toHaveBeenCalledWith(
+      expect.objectContaining({ spec: "SPEC-407", flow: "goal", goal: true, goalCondition: undefined })));
+  });
+
+  it("kondisi yang diketik operator tetap menang", async () => {
+    render(<StartSessionModal open spec={goalSpec} onClose={() => {}} onStarted={() => {}} />);
+    await waitFor(() => expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "true"));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "KONDISI-SESI" } });
+    fireEvent.click(screen.getByText("Mulai"));
+    await waitFor(() => expect(api.startSession).toHaveBeenCalledWith(
+      expect.objectContaining({ goalCondition: "KONDISI-SESI" })));
+  });
+});

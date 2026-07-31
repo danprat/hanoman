@@ -1157,7 +1157,7 @@ git commit -m "feat(407): backlog menampilkan item goal (badge, detail, edit)"
 - Consumes: `flowForSource` (Task 1).
 - Produces: untuk `spec.source === "goal"` picker mengirim `{ flow: "goal", goal: true }` dan `goalCondition: undefined` selama operator tak mengetik kondisi sendiri.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `src/test/start-session-goal.test.tsx`:
 
@@ -1189,12 +1189,12 @@ describe("StartSessionModal · spec bersource goal (SPEC-407)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan GAGAL**
+- [x] **Step 2: Jalankan, pastikan GAGAL**
 
 Run: `pnpm vitest --run src/test/start-session-goal.test.tsx`
 Expected: FAIL — kondisi global ikut terkirim, dan switch bisa dimatikan.
 
-- [ ] **Step 3: Implementasi `src/src/App.tsx` (StartSessionModal)**
+- [x] **Step 3: Implementasi `src/src/App.tsx` (StartSessionModal)**
 
 Di dalam effect prefill (`api.getSettings().then(...)`):
 
@@ -1237,12 +1237,12 @@ Render Field "Mode goal":
 
 `start()` tak perlu diubah — ia sudah mengirim `goal: goalOn` dan `goalCondition` hanya bila terisi.
 
-- [ ] **Step 4: Jalankan, pastikan LULUS**
+- [x] **Step 4: Jalankan, pastikan LULUS**
 
 Run: `pnpm vitest --run src/test/start-session-goal.test.tsx src/test/start-session-model.test.tsx src/test/start-session-agent.test.tsx src/test/start-session-verify-scope.test.tsx`
 Expected: PASS — test mode goal SPEC-332 lama tak boleh bergeser (spec-nya bersource `brief`).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/App.tsx src/test/start-session-goal.test.tsx

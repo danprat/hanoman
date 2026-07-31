@@ -83,12 +83,19 @@ export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
       };
       const a: Agent = s.agent === "codex" ? "codex" : "claude";
       setDefs(d); setAgent(a); setModel(d[a].model); setEffort(d[a].effort);
-      setGoalOn(s.goal.enabled); setGoalCond(s.goal.condition);
+      // SPEC-407 · ADR-0089 · backlog goal membawa kondisinya sendiri (server menurunkannya dari
+      // item), jadi (a) mode goal-nya tak boleh bisa dimatikan — itulah yang membedakan source ini
+      // dari brief — dan (b) template global TIDAK ikut di-prefill: mengirimnya sebagai override
+      // per-sesi akan menggantikan goal item dengan kalimat generik.
+      const goalLockedNow = !!spec && flowForSource(spec.source) === "goal";
+      setGoalOn(goalLockedNow || s.goal.enabled);
+      setGoalCond(goalLockedNow ? "" : s.goal.condition);
       setVerifyScope(s.verifyScope ?? "changed");
     }).catch(() => {});
     // SPEC-339 · versi codex CLI untuk catatan lunak. Gagal-diam: modal harus tetap bisa dipakai.
     api.getCodexVersion().then((v) => setCodexVer(v.version)).catch(() => {});
-  }, [open]);
+    // SPEC-407 · `spec` ikut jadi dependency: prefill mode goal bergantung source-nya.
+  }, [open, spec]);
   const pickAgent = (a: Agent) => {
     setAgent(a);
     setModel(defs[a].model);
@@ -107,6 +114,9 @@ export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
   if (!spec) return null;
   const s = spec;
   const flow = flowForSource(s.source);
+  // SPEC-407 · ADR-0089 · sesi backlog goal selalu lahir bermode goal (server pun memaksanya —
+  // ini cerminan UI-nya, bukan gerbangnya).
+  const goalLocked = flow === "goal";
   async function start() {
     setBusy(true);
     try {
@@ -161,13 +171,18 @@ export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
       {/* SPEC-332 · ADR-0073 · mode goal: sesi menolak berhenti sampai kondisinya terbukti di
           transkrip. Interupsi manusia (Esc) tetap bekerja; melepas gate = hentikan sesinya. */}
       <Field label="Mode goal"
-        hint="Sesi menolak berhenti sampai kondisinya terbukti. Kosongkan kondisi untuk memakai bawaan hanoman: semua fase tercatat, plan tak menyisakan task, push sukses.">
+        hint={goalLocked
+          ? "Backlog goal selalu berjalan dalam mode goal — sesi menolak berhenti sampai goal item ini terbukti tercapai. Kosongkan kondisi untuk memakai goal item apa adanya."
+          : "Sesi menolak berhenti sampai kondisinya terbukti. Kosongkan kondisi untuk memakai bawaan hanoman: semua fase tercatat, plan tak menyisakan task, push sukses."}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: goalOn ? 10 : 0 }}>
-          <Switch aria-label="Mode goal" checked={goalOn} onChange={(v: boolean) => setGoalOn(v)} />
-          <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{goalOn ? "aktif" : "nonaktif"}</span>
+          <Switch aria-label="Mode goal" checked={goalOn} disabled={goalLocked}
+            onChange={(v: boolean) => { if (!goalLocked) setGoalOn(v); }} />
+          <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
+            {goalLocked ? "aktif · terkunci" : goalOn ? "aktif" : "nonaktif"}
+          </span>
         </div>
         {goalOn && <HnTextarea value={goalCond} rows={4} mono
-          placeholder="Kosong = kondisi bawaan hanoman"
+          placeholder={goalLocked ? "Kosong = goal backlog item ini" : "Kosong = kondisi bawaan hanoman"}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setGoalCond(e.target.value)} />}
       </Field>
       {/* SPEC-376 · ADR-0080 · scope verifikasi: sesi menguji berkas yang berubah saja supaya
