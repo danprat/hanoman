@@ -14,13 +14,12 @@ import { resolveLayout } from "../layout";
 import { distDir, applyMigrations, ensurePrismaClient } from "./start";
 
 export const PG_ORDER = [
-  "Project", "ProjectLink", "Spec", "Setting", "Notification",
+  "Project", "Spec", "Setting", "Notification",
   "User", "Session", "DeviceToken", "AgentToken",
   "Vps", "VpsAuditSnapshot", "VpsItemState",
   "SessionResult", "SessionHistory",
   "SyncLog", "LocalBinding", "SyncOutbox", "SyncState", "SyncConflict",
   "SchedulerQueueItem", "RuntimeConfig", "LeadDecision",
-  "ErrorGroup", "ErrorEvent", "SourceMapArtifact",
   "Ticket", "TicketAttachment",
 ] as const;
 

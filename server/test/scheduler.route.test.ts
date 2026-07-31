@@ -12,11 +12,14 @@ describe("scheduler routes", () => {
     const r = await app.inject({ method: "GET", url: "/api/scheduler/config" });
     expect(r.statusCode).toBe(200);
     expect(r.json().enabled).toBe(false);
-    expect(r.json().sources.errors.minCount).toBe(5);
+    expect(r.json().sources.backlog.enabled).toBe(false);
+    expect(r.json().sources.triase.everyMin).toBe(30);
+    // SPEC-384 · source `errors` dicabut (ADR-0092) — blok setelannya tak boleh lahir kembali.
+    expect(r.json().sources.errors).toBeUndefined();
   });
   it("PUT /config sets knobs incl. pause, GET reflects them", async () => {
     const body = { enabled: true, paused: true, maxConcurrent: 4, autonomy: "full-control",
-      sources: { backlog: { enabled: true, everyMin: 5 }, errors: { enabled: false, everyMin: 15, minCount: 10 }, triase: { enabled: false, everyMin: 30 } } };
+      sources: { backlog: { enabled: true, everyMin: 5 }, triase: { enabled: false, everyMin: 30 } } };
     const r = await app.inject({ method: "PUT", url: "/api/scheduler/config", payload: body });
     expect(r.statusCode).toBe(200);
     const g = await app.inject({ method: "GET", url: "/api/scheduler/config" });
@@ -36,6 +39,6 @@ describe("scheduler routes", () => {
     expect(b.cap).toBe(2);
     expect(b.queue.length).toBe(1);
     expect(b.queue[0].specId).toBe("SPEC-1");
-    expect(b.sources.map((s: any) => s.id).sort()).toEqual(["backlog", "errors", "triase"]);
+    expect(b.sources.map((s: any) => s.id).sort()).toEqual(["backlog", "triase"]);
   });
 });
