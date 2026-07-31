@@ -2119,7 +2119,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 **Files:** tak ada perubahan kode kecuali perbaikan yang muncul dari verifikasi.
 
-- [ ] **Step 1: Jalankan seluruh test yang tersentuh perubahan ini**
+- [x] **Step 1: Jalankan seluruh test yang tersentuh perubahan ini**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism \
@@ -2144,7 +2144,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism \
 ```
 Expected: seluruhnya PASS. **Jangan menerima "no test files" sebagai bukti** — pastikan jumlah test yang berjalan masuk akal (>150). `sync-ws.test.ts` diketahui non-deterministik (SPEC-376) — bila ia muncul merah, jalankan ulang terisolasi sebelum menyalahkan perubahan ini.
 
-- [ ] **Step 2: Typecheck paket yang tersentuh (satu per satu, bukan `-r`)**
+- [x] **Step 2: Typecheck paket yang tersentuh (satu per satu, bukan `-r`)**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/tsc -p runner --noEmit
@@ -2154,7 +2154,7 @@ env -u NODE_ENV ./node_modules/.bin/tsc -p src --noEmit
 ```
 Expected: nol keluaran.
 
-- [ ] **Step 3: Smoke endpoint nyata (task ini menyentuh endpoint)**
+- [x] **Step 3: Smoke endpoint nyata (task ini menyentuh endpoint)**
 
 Boot server di DB & port khusus supaya tak menabrak sesi tetangga, lalu curl jalur yang berubah:
 
@@ -2173,7 +2173,7 @@ kill $SMOKE_PID
 
 Tulis langkah 1-5 sebagai perintah `curl` nyata (auth: jalankan `POST /api/auth/setup` lebih dulu dan simpan cookie dengan `curl -c/-b`). Catat status code yang benar-benar keluar; **jangan** melaporkan hijau tanpa keluarannya.
 
-- [ ] **Step 4: Pastikan diff bersih & centang seluruh plan**
+- [x] **Step 4: Pastikan diff bersih & centang seluruh plan**
 
 ```bash
 git status --porcelain
@@ -2181,7 +2181,7 @@ grep -c '^- \[ \]' docs/superpowers/plans/2026-07-31-backlog-dependency-spec-447
 ```
 Expected: `git status` bersih; hitungan `- [ ]` = 0.
 
-- [ ] **Step 5: Commit & push**
+- [x] **Step 5: Commit & push**
 
 ```bash
 git add -A
