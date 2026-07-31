@@ -612,6 +612,12 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
   const [q, setQ] = React.useState("");
   const [stageFilter, setStageFilter] = React.useState("all");
   const [prioFilter, setPrioFilter] = React.useState("all");
+  // SPEC-408 · ADR-0090 · rentang tanggal. `dateField` memilih sumbunya (dibuat / dikerjakan);
+  // `from`/`to` = "YYYY-MM-DD" apa adanya dari <input type="date">, inklusif, boleh sendirian.
+  // View-local seperti filter SPEC-178 — tak diangkat ke App.
+  const [dateField, setDateField] = React.useState<"created" | "started">("created");
+  const [from, setFrom] = React.useState("");
+  const [to, setTo] = React.useState("");
   // Filter project dimiliki App (SPEC-146): detail project membuka layar ini sudah tersaring.
   const proj = projectFilter;
   const setProj = onProjectFilter;
@@ -628,7 +634,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
   const [page, setPage] = React.useState(1);
   const [dq, setDq] = React.useState("");
   React.useEffect(() => { const t = setTimeout(() => setDq(q.trim()), 250); return () => clearTimeout(t); }, [q]);
-  React.useEffect(() => { setPage(1); }, [tab, proj, stageFilter, prioFilter, dq, view]);
+  React.useEffect(() => { setPage(1); }, [tab, proj, stageFilter, prioFilter, dq, view, dateField, from, to]);
   React.useEffect(() => {
     let alive = true;
     // sentinel "all" → undefined di call-site; server yang menyaring/memotong.
@@ -638,12 +644,17 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
       q: dq || undefined,
       stage: stageFilter === "all" ? undefined : stageFilter,
       priority: prioFilter === "all" ? undefined : prioFilter,
+      // Kirim sumbu HANYA saat rentangnya aktif — tanpa itu `dateField` jadi kebisingan di
+      // setiap request dan test kontrak param lama ikut goyah.
+      dateField: from || to ? dateField : undefined,
+      from: from || undefined,
+      to: to || undefined,
       page: view === "board" ? undefined : page,
       limit: view === "board" ? undefined : pageSize,
     });
     p?.then((r) => { if (alive) setData({ items: r.items, total: r.total }); }).catch(() => { });
     return () => { alive = false; };
-  }, [tab, proj, stageFilter, prioFilter, dq, view, page, pageSize, dataVersion, syncNonce]);
+  }, [tab, proj, stageFilter, prioFilter, dq, view, page, pageSize, dataVersion, syncNonce, dateField, from, to]);
   const items = data.items;
   const sp = serverPage(data.total, page, pageSize);
   return (
@@ -673,6 +684,18 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
               { value: "all", label: "Semua prioritas" }, { value: "tinggi", label: "Tinggi" },
               { value: "sedang", label: "Sedang" }, { value: "rendah", label: "Rendah" },
             ]} />
+          {/* SPEC-408 · ADR-0090 · rentang tanggal: satu sumbu + dua batas inklusif. DS `Input`
+              meneruskan ...rest ke <input>, jadi type="date" jalan tanpa mengubah design system. */}
+          <Select size="sm" aria-label="Filter tanggal berdasarkan" value={dateField}
+            onChange={(e) => setDateField(e.target.value as "created" | "started")}
+            options={[{ value: "created", label: "Dibuat" }, { value: "started", label: "Dikerjakan" }]} />
+          <Input size="sm" type="date" aria-label="Tanggal dari" value={from}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFrom(e.target.value)}
+            style={{ flex: "0 0 auto" }} />
+          <span className="hn-eyebrow" aria-hidden="true">→</span>
+          <Input size="sm" type="date" aria-label="Tanggal sampai" value={to}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTo(e.target.value)}
+            style={{ flex: "0 0 auto" }} />
         </div>
       </div>
       {data.total === 0 ? (
@@ -682,7 +705,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
             action={onNew} actionLabel="Tambah spec" />
           : <StateBlock kind="empty" icon="filter" title="Tidak ada spec untuk filter ini"
             hint={`${backlog.length} spec ada di backlog, tapi tak ada yang cocok dengan filter aktif.`}
-            action={() => { setTab("all"); setProj("all"); setQ(""); setStageFilter("all"); setPrioFilter("all"); }} actionLabel="Reset filter" actionIcon="rotate-ccw" />
+            action={() => { setTab("all"); setProj("all"); setQ(""); setStageFilter("all"); setPrioFilter("all"); setDateField("created"); setFrom(""); setTo(""); }} actionLabel="Reset filter" actionIcon="rotate-ccw" />
       ) : view === "board" ? (
         // Board tak dipaginasi: minta set terfilter penuh dari server (fetch tanpa page/limit).
         <Board specs={items} activeSpecs={activeSpecs}

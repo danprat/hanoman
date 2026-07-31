@@ -96,6 +96,25 @@ Pakai skill lebih sempit saat task cocok:
   dipendekkan git jadi bare `origin` (cermin `services/branches.ts`); dan `--end-of-options` **tak
   berlaku** untuk argumen `--merged` → base wajib di-resolve ke SHA lebih dulu. Ini pagar keselamatan
   data untuk satu endpoint bulk, **bukan** guardrail eksekusi — ADR-0037 tetap utuh.
+- **Stempel waktu backlog** (SPEC-408/ADR-0090): `Spec` punya `createdAt` (NOT NULL, `@default(now())`,
+  **tak pernah ditulis route**) dan `startedAt` (nullable). `startedAt` ditulis di **titik cekik yang
+  sama dengan `baseSha`** (`session-launch.ts`, cabang `if (!resume)`) → maknanya **mulai pertama**,
+  bukan sentuhan terakhir; jalur melanjutkan (ADR-0084) sengaja tak menimpanya. `updatedAt` **bukan**
+  proksi keduanya — mesin sync mem-bump `version` (`publishLocal`/`backfillFeed`) dan overlay
+  stage-live menulis kemajuan tiap `GET /specs` dibaca, jadi ia bergerak tanpa ada manusia. Arah
+  keputusannya **berlawanan dengan ADR-0018/0019** dan itu disengaja: aturannya bukan "selalu
+  turunkan" melainkan *bisakah dihitung ulang dari sumber lain* — coverage bisa, diff bisa, waktu
+  lahir sebuah baris tidak. `GET /specs` menerima `dateField=created|started` + `from`/`to`
+  (`YYYY-MM-DD`, **inklusif**, boleh sendirian), disaring di layer response bersama filter lain
+  (ADR-0038 utuh) lewat helper murni `services/date-range.ts`; `dateField=started` **membuang** item
+  ber-`startedAt` null. **Tiga gotcha:** SQLite melarang `ADD COLUMN … DEFAULT CURRENT_TIMESTAMP` →
+  migration wajib redefinisi tabel (dan klausa `SELECT`-nya satu-satunya tempat backfill dari
+  `updatedAt` bisa terjadi sekali jalan); `new Date("2026-07-31")` = tengah malam **UTC** sehingga
+  batas `to` polos membuang hampir seluruh hari itu di WIB → parsing komponen-per-komponen di zona
+  lokal + uji-balik terhadap input (`2026-02-30` → null, bukan 2 Maret); dan kedua kolom **wajib**
+  ada di `FIELDS.spec` + `DATE_FIELDS.spec` — `upsert` yang tak menyebut kolom ber-default **tetap
+  berhasil**, jadi tanpa itu spec asal-hub mendapat `createdAt` lokal palsu di tiap client tanpa
+  satu pun error.
 - Docs SoT & coverage dipindai **live dari path efektif** tiap request (ADR-0011/0018), bukan tabel DB.
 - Verifikasi doc terkini via Context7 sebelum mengubah keputusan platform/framework.
 

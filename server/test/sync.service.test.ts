@@ -47,6 +47,27 @@ describe("sync service (SPEC-213 AC-9..15)", () => {
     expect((await snapshot("spec", "SPEC-1"))?.data).toMatchObject({ stage: "executing" });
   });
 
+  // SPEC-408 · ADR-0090 · tanpa ini, spec yang lahir di hub akan mendapat createdAt = now()
+  // di TIAP client (kolom NOT NULL ber-default) alias tanggal palsu per mesin.
+  it("createdAt & startedAt menyeberang push (SPEC-408)", async () => {
+    await project();
+    const created = "2026-01-02T03:04:05.000Z";
+    const started = "2026-02-03T04:05:06.000Z";
+    await applyPush("spec", "SPEC-1", 0, specData({ createdAt: created, startedAt: started }));
+    const row = await prisma.spec.findUnique({ where: { id: "SPEC-1" } });
+    expect(row!.createdAt.toISOString()).toBe(created);
+    expect(row!.startedAt!.toISOString()).toBe(started);
+    const snap = await snapshot("spec", "SPEC-1");
+    expect(snap?.data).toMatchObject({ createdAt: created, startedAt: started });
+  });
+
+  it("startedAt null menyeberang sebagai null (SPEC-408)", async () => {
+    await project();
+    await applyPush("spec", "SPEC-2", 0, specData({ createdAt: "2026-01-02T03:04:05.000Z", startedAt: null }));
+    expect((await prisma.spec.findUnique({ where: { id: "SPEC-2" } }))!.startedAt).toBeNull();
+    expect((await snapshot("spec", "SPEC-2"))?.data).toMatchObject({ startedAt: null });
+  });
+
   it("pull returns records after cursor, then is idempotent/empty (AC-15)", async () => {
     await project();
     await applyPush("spec", "SPEC-1", 0, specData());

@@ -19,6 +19,7 @@ import { resolveRepoDir } from "../services/local-binding";
 import { readDocFile } from "../services/scan";
 import { downloadFormat, sendDocDownload, sendReviewDownload } from "../services/doc-export";
 import { paginate } from "../services/paginate";
+import { dayStart, dayEnd, inDayRange } from "../services/date-range";
 // SPEC-199 · overlay stage-live + write-through + notifikasi kini di liveSpecs (dipakai juga hub
 // siar WS) supaya push & pull tak drift. Rute tinggal filter+paginasi (SPEC-198) di atasnya.
 import { liveSpecs } from "../services/live-specs";
@@ -53,28 +54,40 @@ function deriveSpecFields(source: string, payload: any, manualPriority: string) 
 
 // SPEC-198 · search/filter di layer response, DITERAPKAN SETELAH overlay stage-live —
 // jadi filter `stage`/`startable` mencocokkan stage live, bukan stage DB yang basi.
-function filterSpecs<T extends { id: string; title: string; objective: string; stage: string; priority: string }>(
-  specs: T[], f: { q?: string; stage?: string; priority?: string; startable?: string },
+// SPEC-408 · ADR-0090 · + rentang tanggal. `dateField` memilih SUMBU-nya: `created` (kapan item
+// difilekan) atau `started` (kapan sesi pertama lahir). Tanggal tak valid → batas null → filter
+// mati; konsisten dengan `stage`/`priority` yang juga lenient di sini, bukan 400.
+function filterSpecs<T extends {
+  id: string; title: string; objective: string; stage: string; priority: string;
+  createdAt: Date; startedAt: Date | null;
+}>(
+  specs: T[], f: { q?: string; stage?: string; priority?: string; startable?: string;
+    dateField?: string; from?: string; to?: string },
 ): T[] {
   const needle = (f.q ?? "").trim().toLowerCase();
+  const from = dayStart(f.from);
+  const to = dayEnd(f.to);
+  const byStarted = f.dateField === "started";
   return specs.filter((s) =>
     (!f.stage || s.stage === f.stage) &&
     (!f.priority || s.priority === f.priority) &&
     (f.startable !== "true" || s.stage !== "done") &&
+    inDayRange(byStarted ? s.startedAt : s.createdAt, from, to) &&
     (needle === "" || `${s.id} ${s.title} ${s.objective}`.toLowerCase().includes(needle)));
 }
 
 export default async function (app: FastifyInstance) {
   app.get("/specs", async (req) => {
-    const { project, source, q, stage, priority, startable, page, limit } =
+    const { project, source, q, stage, priority, startable, dateField, from, to, page, limit } =
       req.query as { project?: string; source?: string; q?: string; stage?: string;
-        priority?: string; startable?: string; page?: string; limit?: string };
+        priority?: string; startable?: string; dateField?: string; from?: string; to?: string;
+        page?: string; limit?: string };
     // Overlay stage-live + write-through + notifikasi atas SET PENUH (scope project/source) —
     // sekarang di liveSpecs, dibagi dengan hub siar WS (SPEC-199) supaya push & pull tak drift.
     // Filter/paginasi DITERAPKAN SETELAH overlay (SPEC-198): filter `stage`/`startable` mencocokkan
     // stage live, bukan DB basi; spec off-page tetap maju stage & bernotif karena overlay lebih dulu.
     const overlaid = await liveSpecs({ project, source });
-    return paginate(filterSpecs(overlaid, { q, stage, priority, startable }), page, limit);
+    return paginate(filterSpecs(overlaid, { q, stage, priority, startable, dateField, from, to }), page, limit);
   });
   app.post("/specs", async (req, reply) => {
     const parsed = zCreateSpec.safeParse(req.body);

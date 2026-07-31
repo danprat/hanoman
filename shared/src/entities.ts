@@ -40,6 +40,10 @@ export const zSpec = z.object({
   payload: z.union([zBriefPayload, zQaPayload, zGoalPayload]).nullable(),   // SPEC-407 · +goal
   branchFrom: z.string().nullable(),                   // SPEC-143 · null = default project (main)
   baseSha: z.string().nullable(),                      // SPEC-186 · null = belum pernah ada sesi (belum dimulai)
+  // SPEC-408 · ADR-0090 · stempel waktu backlog (ISO string di wire — kolom DateTime di DB).
+  // `startedAt` null = belum pernah dikerjakan; ia tak pernah ditulis ulang saat sesi dilanjutkan.
+  createdAt: z.string(),
+  startedAt: z.string().nullable(),
 });
 export type Spec = z.infer<typeof zSpec>;
 

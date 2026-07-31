@@ -118,6 +118,17 @@ pengetahuan hanoman tentang project mana yang saling berintegrasi; ia menentukan
 - `baseSha?`/`headSha?` — commit tempat worktree sesi di-detach, dan commit HEAD worktree di akhir sesi
   (sebelum `removeWorktree`). Penunjuk, bukan isi: diff/daftar-file review diturunkan dari git saat
   `GET /specs/:id/review` dibaca, tidak pernah dipersist. Lihat [ADR-0019](../adr/0019-sha-disimpan-diff-diturunkan.md) dan [ADR-0030](../adr/0030-spec-menyimpan-base-head-sha.md).
+- `createdAt`/`startedAt` (SPEC-408/[ADR-0090](../adr/0090-stempel-waktu-backlog-created-started.md)) —
+  stempel waktu backlog. `createdAt` NOT NULL ber-`@default(now())`, ditulis DB dan **tak pernah** oleh
+  route, sehingga "kapan item difilekan" tak bisa diedit operator. `startedAt` nullable = kapan sesi
+  **pertama** lahir; ditulis di titik cekik yang sama dengan `baseSha` (`services/session-launch.ts`,
+  cabang `if (!resume)`) sehingga jalur *melanjutkan* ([ADR-0084](../adr/0084-melanjutkan-sesi-backlog.md))
+  tak menimpanya — ia berarti "mulai pertama", bukan "sentuhan terakhir". `updatedAt` **bukan**
+  penggantinya: mesin sync mem-bump `version` (`publishLocal`/`backfillFeed`) dan overlay stage-live
+  menulis kemajuan tiap `GET /specs` dibaca, jadi ia bergerak tanpa ada manusia yang menyentuh item.
+  Keduanya menyeberang record-sync (`FIELDS.spec` **dan** `DATE_FIELDS.spec` — tanpa itu spec asal-hub
+  mendapat `createdAt` lokal palsu di tiap client, karena `upsert` yang tak menyebut kolom ber-default
+  tetap berhasil). Baris pra-migration di-backfill dari `updatedAt` — aproksimasi yang disengaja.
 
 ## Setting (per workspace)
 Singleton `id = 1`, kolom `data` (Json) berbentuk `zSetting`:

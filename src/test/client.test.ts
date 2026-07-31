@@ -26,6 +26,22 @@ describe("api client", () => {
     expect(r.total).toBe(0);
     expect(Array.isArray(r.items)).toBe(true);
   });
+  // SPEC-408 · ADR-0090 · tiga param filter tanggal harus sampai ke query string apa adanya.
+  it("listSpecs mengirim dateField/from/to (SPEC-408)", async () => {
+    globalThis.fetch = vi.fn(async () => envelope([])) as any;
+    await api.listSpecs({ project: "p", dateField: "started", from: "2026-07-01", to: "2026-07-31" });
+    const url = (globalThis.fetch as any).mock.calls[0][0] as string;
+    expect(url).toContain("dateField=started");
+    expect(url).toContain("from=2026-07-01");
+    expect(url).toContain("to=2026-07-31");
+  });
+  it("listSpecs membuang param tanggal kosong (SPEC-408)", async () => {
+    globalThis.fetch = vi.fn(async () => envelope([])) as any;
+    await api.listSpecs({ project: "p", from: "", to: "" });
+    const url = (globalThis.fetch as any).mock.calls[0][0] as string;
+    expect(url).not.toContain("from=");
+    expect(url).not.toContain("to=");
+  });
   it("listProjects passes q as a query param", async () => {
     globalThis.fetch = vi.fn(async () => envelope([])) as any;
     await api.listProjects({ q: "arta" });

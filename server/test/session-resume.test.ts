@@ -75,6 +75,25 @@ describe("SPEC-394 · pane mati bukan sesi hidup", () => {
     expect(getSession(r2.id)?.exited).toBe(false);
     killSession(r2.id);
   });
+
+  // SPEC-408 · ADR-0090 · melanjutkan bukan "mulai lagi": startedAt harus setua sesi PERTAMA,
+  // cermin persis dari baseSha yang juga tak ditulis ulang saat resume (ADR-0084).
+  it("resume tidak menulis ulang startedAt (SPEC-408)", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = DIES;
+    const { spec } = await seed("SPEC-408R");
+    const r1 = await startSpecSession(spec, { flow: "qa" });
+    expect(await waitExited(r1.id)).toBe(true);
+    const first = (await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-408R" } })).startedAt;
+    expect(first).toBeInstanceOf(Date);
+
+    process.env.HANOMAN_CLAUDE_BIN = ALIVE;
+    await new Promise((r) => setTimeout(r, 25));
+    const fresh = await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-408R" } });
+    const r2 = await startSpecSession(fresh, { flow: "qa" });
+    const after = (await prisma.spec.findUniqueOrThrow({ where: { id: "SPEC-408R" } })).startedAt;
+    expect(after!.getTime()).toBe(first!.getTime());
+    killSession(r2.id);
+  });
 });
 
 describe("SPEC-394 · resume dengan worktree utuh", () => {

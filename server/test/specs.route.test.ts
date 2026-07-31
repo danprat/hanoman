@@ -88,6 +88,19 @@ describe("specs routes", () => {
     const b = (await app.inject({ url: "/api/specs?project=p1&startable=true" })).json();
     expect(b.items.every((s: any) => s.stage !== "done")).toBe(true);
   });
+  // SPEC-408 · ADR-0090 · stempel waktu backlog. `createdAt` diisi DB saat baris lahir;
+  // `startedAt` null sampai sesi pertama benar-benar lahir (session-launch).
+  it("spec baru punya createdAt terisi dan startedAt null (SPEC-408)", async () => {
+    const res = await app.inject({
+      method: "POST", url: "/api/specs",
+      payload: { project: "p1", source: "brief", title: "stempel waktu", priority: "sedang", payload: brief },
+    });
+    expect(res.statusCode).toBe(201);
+    const row = await prisma.spec.findUnique({ where: { id: res.json().id } });
+    expect(row!.createdAt).toBeInstanceOf(Date);
+    expect(row!.createdAt.getTime()).toBeGreaterThan(Date.now() - 60_000);
+    expect(row!.startedAt).toBeNull();
+  });
   it("paginates: page/limit slice with full total", async () => {
     const all = (await app.inject({ url: "/api/specs?project=p1" })).json();
     expect(all.total).toBeGreaterThan(2);
@@ -409,5 +422,50 @@ describe("POST /specs/:id/integrate", () => {
     const sid = res.json().sessionId as string;
     expect(getSession(sid)).toBeTruthy();
     killAll();
+  });
+});
+
+// SPEC-408 · ADR-0090 · filter rentang tanggal. Diterapkan di layer response SETELAH overlay
+// stage-live (ADR-0038), jadi `total` di envelope ikut menyusut — itu yang diuji, bukan hanya items.
+describe("filter rentang tanggal (SPEC-408)", () => {
+  const at = (iso: string) => new Date(iso);
+  beforeAll(async () => {
+    await makeProject({ id: "pdate", repoDir: makeTempRepo({ "a.txt": "a" }) });
+    await makeSpec({ id: "SPEC-D01", projectId: "pdate", title: "juni",
+      createdAt: at("2026-06-15T10:00:00Z"), startedAt: null });
+    await makeSpec({ id: "SPEC-D02", projectId: "pdate", title: "juli awal",
+      createdAt: at("2026-07-01T00:30:00Z"), startedAt: at("2026-08-10T09:00:00Z") });
+    await makeSpec({ id: "SPEC-D03", projectId: "pdate", title: "juli akhir",
+      createdAt: at("2026-07-31T16:45:00Z"), startedAt: at("2026-09-02T09:00:00Z") });
+  });
+  const ids = async (qs: string) => {
+    const res = await app.inject({ url: `/api/specs?project=pdate&${qs}` });
+    expect(res.statusCode).toBe(200);
+    return res.json().items.map((s: any) => s.id).sort();
+  };
+
+  it("from..to inklusif di KEDUA ujung", async () => {
+    expect(await ids("from=2026-07-01&to=2026-07-31")).toEqual(["SPEC-D02", "SPEC-D03"]);
+  });
+  it("batas terbuka: hanya from", async () => {
+    expect(await ids("from=2026-07-01")).toEqual(["SPEC-D02", "SPEC-D03"]);
+  });
+  it("batas terbuka: hanya to", async () => {
+    expect(await ids("to=2026-06-30")).toEqual(["SPEC-D01"]);
+  });
+  it("total di envelope ikut menyusut, bukan hanya items", async () => {
+    const res = await app.inject({ url: "/api/specs?project=pdate&from=2026-07-01&to=2026-07-31" });
+    expect(res.json().total).toBe(2);
+  });
+  it("dateField=started menyaring startedAt, dan membuang yang belum pernah dikerjakan", async () => {
+    expect(await ids("dateField=started&from=2026-08-01&to=2026-08-31")).toEqual(["SPEC-D02"]);
+    // SPEC-D01 (startedAt null) tak pernah muncul di rentang mana pun.
+    expect(await ids("dateField=started&from=2026-01-01&to=2026-12-31")).toEqual(["SPEC-D02", "SPEC-D03"]);
+  });
+  it("tanggal ngawur diabaikan (filter mati), bukan 400", async () => {
+    expect(await ids("from=kemarin&to=besok")).toEqual(["SPEC-D01", "SPEC-D02", "SPEC-D03"]);
+  });
+  it("dateField tak dikenal jatuh ke created", async () => {
+    expect(await ids("dateField=ngawur&from=2026-07-01&to=2026-07-31")).toEqual(["SPEC-D02", "SPEC-D03"]);
   });
 });

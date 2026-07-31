@@ -82,12 +82,20 @@ DELETE /projects/:id/links/:linkId  # 204 · 404 bila link tak ada ATAU tak meny
 
 ## Backlog / specs
 ```
-GET  /specs?project=&source=&q=&stage=&priority=&startable=&page=&limit=
+GET  /specs?project=&source=&q=&stage=&priority=&startable=&dateField=&from=&to=&page=&limit=
 #   -> { items: Spec[], total, page, pageSize }. SELALU envelope (SPEC-198).
 #   Overlay stage-live dari phase-file + write-through CAS + notifikasi `done` jalan atas SET PENUH
 #   (scope project/source). Search/filter (q atas id+title+objective, stage, priority, startable=live≠done)
 #   & paginasi diterapkan DI MEMORI SETELAH overlay — filter stage cocok ke stage LIVE, bukan DB.
 #   Tanpa page/limit → seluruh item terfilter (page 1, pageSize=total). Lihat ADR-0038.
+#   SPEC-408 · ADR-0090 · rentang tanggal: `dateField` = created (default) | started — sumbu
+#   `Spec.createdAt` atau `Spec.startedAt`; `from`/`to` = `YYYY-MM-DD` INKLUSIF (boleh sendirian),
+#   di-parse di zona waktu LOKAL SERVER (`from` 00:00:00.000, `to` 23:59:59.999) — `new Date("…")`
+#   polos akan menaruh batasnya di tengah malam UTC dan membuang hampir seluruh hari `to` di WIB.
+#   String bukan-tanggal DIABAIKAN (filter mati), bukan 400 — konsisten dgn stage/priority; tanggal
+#   yang tak ada (2026-02-30) juga null, tidak digulirkan. `dateField=started` MEMBUANG item
+#   ber-`startedAt` null (belum pernah dikerjakan — pakai `startable` untuk itu). Filternya sebidang
+#   dengan yang lain di layer response, jadi `total` di envelope ikut menyusut.
 POST /specs               { project, source, ...payload, branchFrom? }  -> SPEC-n
 POST /specs/batch         { project, items:[BreakdownItem], branchFrom?, prdPath? } -> {created:[Spec]}
 #   SPEC-273 · ADR-0069 · materialize breakdown: N spec `source:"brief"` independen (id berurutan via
