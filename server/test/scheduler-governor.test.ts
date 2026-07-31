@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterAll } from "vitest";
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
 import { prisma } from "../src/db";
 import { enqueue, queueItemForSpec, listQueue } from "../src/services/scheduler/queue";
 import { drain, type GovernorDeps } from "../src/services/scheduler/governor";
@@ -12,7 +12,7 @@ describe("governor.drain", () => {
   it("never launches beyond cap (live count invariant)", async () => {
     for (const p of ["a", "b", "c", "d"]) await enqueue({ specId: `SPEC-${p}`, projectId: "p1", source: "backlog", priority: "sedang" });
     let launched = 0;
-    const deps: GovernorDeps = { liveCount: () => launched, isLive: () => null, isDone: async () => false, launch: async () => { launched++; return `s${launched}`; } };
+    const deps: GovernorDeps = { liveCount: () => launched, isLive: () => null, isDone: async () => false, blockers: async () => [], launch: async () => { launched++; return `s${launched}`; } };
     await drain(cfg({ maxConcurrent: 2 }), deps);
     expect(launched).toBe(2);                                   // cap dihormati
     expect((await listQueue("launched")).length).toBe(2);
@@ -21,7 +21,7 @@ describe("governor.drain", () => {
   it("does nothing when live already at cap", async () => {
     await enqueue({ specId: "SPEC-x", projectId: "p1", source: "backlog", priority: "tinggi" });
     let launches = 0;
-    const deps: GovernorDeps = { liveCount: () => 3, isLive: () => null, isDone: async () => false, launch: async () => { launches++; return "s"; } };
+    const deps: GovernorDeps = { liveCount: () => 3, isLive: () => null, isDone: async () => false, blockers: async () => [], launch: async () => { launches++; return "s"; } };
     await drain(cfg({ maxConcurrent: 3 }), deps);
     expect(launches).toBe(0);
     expect((await listQueue("queued")).length).toBe(1);
@@ -33,7 +33,7 @@ describe("governor.drain", () => {
     const deps: GovernorDeps = {
       liveCount: () => 1,                                        // SPEC-live sudah dihitung live
       isLive: (specId) => (specId === "SPEC-live" ? "spec_live" : null),
-      isDone: async () => false,
+      isDone: async () => false, blockers: async () => [],
       launch: async () => { launches++; return "spec_new"; },
     };
     await drain(cfg({ maxConcurrent: 2 }), deps);
@@ -52,7 +52,7 @@ describe("governor.drain", () => {
     const launched: string[] = [];
     const deps: GovernorDeps = {
       liveCount: () => 0, isLive: () => null,
-      isDone: async (specId) => specId === "SPEC-old",
+      isDone: async (specId) => specId === "SPEC-old", blockers: async () => [],
       launch: async (item) => { launched.push(item.specId); return "s_open"; },
     };
     await drain(cfg({ maxConcurrent: 5 }), deps);
@@ -70,7 +70,7 @@ describe("governor.drain", () => {
     let launches = 0;
     const deps: GovernorDeps = {
       liveCount: () => 0, isLive: () => null,
-      isDone: async (specId) => specId.startsWith("SPEC-done"),
+      isDone: async (specId) => specId.startsWith("SPEC-done"), blockers: async () => [],
       launch: async () => { launches++; return `s${launches}`; },
     };
     await drain(cfg({ maxConcurrent: 1 }), deps);               // satu slot saja
@@ -82,12 +82,49 @@ describe("governor.drain", () => {
     await enqueue({ specId: "SPEC-bad", projectId: "p1", source: "backlog", priority: "tinggi" });
     await enqueue({ specId: "SPEC-ok", projectId: "p1", source: "backlog", priority: "sedang" });
     const deps: GovernorDeps = {
-      liveCount: () => 0, isLive: () => null, isDone: async () => false,
+      liveCount: () => 0, isLive: () => null, isDone: async () => false, blockers: async () => [],
       launch: async (item) => { if (item.specId === "SPEC-bad") throw new Error("needs-bind"); return "s_ok"; },
     };
     await drain(cfg({ maxConcurrent: 5 }), deps);
     expect((await queueItemForSpec("SPEC-bad"))!.status).toBe("failed");
     expect((await queueItemForSpec("SPEC-bad"))!.note).toBe("needs-bind");
     expect((await queueItemForSpec("SPEC-ok"))!.status).toBe("launched");
+  });
+  // SPEC-447 · ADR-0093 · gerbang KEDUA — pola SPEC-431. Checker yang benar tak cukup sendirian:
+  // baris `queued` bisa sudah ada sebelum dependency-nya ditulis, dan sebuah dependency bisa
+  // berbalik jadi belum-siap selagi item mengantre (stage dikembalikan mundur, ADR-0027).
+  it("melewati item terblokir tanpa memakai slot, barisnya tetap queued", async () => {
+    await enqueue({ specId: "SPEC-blk", projectId: "p1", source: "backlog", priority: "tinggi" });
+    await enqueue({ specId: "SPEC-free", projectId: "p1", source: "backlog", priority: "sedang" });
+    const launched: string[] = [];
+    const deps: GovernorDeps = {
+      liveCount: () => 0, isLive: () => null, isDone: async () => false,
+      blockers: async (specId) =>
+        (specId === "SPEC-blk" ? [{ id: "SPEC-dep", reason: "unmerged" as const }] : []),
+      launch: async (item) => { launched.push(item.specId); return "s_free"; },
+    };
+    await drain(cfg({ maxConcurrent: 1 }), deps);           // cap 1: slot HARUS jatuh ke SPEC-free
+    expect(launched).toEqual(["SPEC-free"]);
+    const blk = (await queueItemForSpec("SPEC-blk"))!;
+    expect(blk.status).toBe("queued");                      // bukan failed — pemblokirnya akan selesai
+    expect(blk.note).toBe("menunggu SPEC-dep (belum ter-merge)");
+    expect(blk.sessionId).toBeNull();
+  });
+
+  // Governor berdenyut tiap 10 detik; menulis note identik tiap tick = ~8.640 write/hari untuk
+  // informasi yang sama. Buktinya dari jumlah panggilan `update`, bukan dari bentuk barisnya.
+  it("tak menulis ulang note yang sama", async () => {
+    await enqueue({ specId: "SPEC-blk2", projectId: "p1", source: "backlog", priority: "tinggi" });
+    const deps: GovernorDeps = {
+      liveCount: () => 0, isLive: () => null, isDone: async () => false,
+      blockers: async () => [{ id: "SPEC-dep", reason: "unfinished" as const }],
+      launch: async () => "s",
+    };
+    await drain(cfg({ maxConcurrent: 5 }), deps);
+    const spy = vi.spyOn(prisma.schedulerQueueItem, "update");
+    await drain(cfg({ maxConcurrent: 5 }), deps);
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+    expect((await queueItemForSpec("SPEC-blk2"))!.note).toBe("menunggu SPEC-dep (belum selesai)");
   });
 });

@@ -1,6 +1,7 @@
 import type { Scheduler } from "@hanoman/shared";
 import type { SchedulerQueueItem } from "@prisma/client";
-import { queued, markLaunched, markFailed, markDone } from "./queue";
+import { queued, markLaunched, markFailed, markDone, noteQueued } from "./queue";
+import { blockedNote, type SpecBlocker } from "../spec-deps";
 
 // SPEC-294 · ADR-0072 · governor concurrency. Deps di-inject agar teruji tanpa tmux/claude nyata;
 // produksi mengikatnya ke pty + startSpecSession (engine.ts).
@@ -8,6 +9,10 @@ export type GovernorDeps = {
   liveCount: () => number;                                  // sesi hidup gabungan manual+scheduler (pty.listSessions)
   isLive: (specId: string) => string | null;               // sessionId hidup untuk spec, atau null
   isDone: (specId: string) => Promise<boolean>;            // SPEC-431 · spec sudah selesai → jangan pernah diluncurkan
+  // SPEC-447 · ADR-0093 · dependency yang belum selesai/ter-merge. WAJIB (bukan opsional): satu-
+  // satunya pembangun produksi adalah `prodDeps`, jadi tipe wajib = jaminan kompilasi bahwa
+  // gerbangnya tak pernah lupa dipasang. Otomasi tak punya `force`.
+  blockers: (specId: string) => Promise<SpecBlocker[]>;
   launch: (item: SchedulerQueueItem, autonomy?: string) => Promise<string>;   // spawn sesi → sessionId; throw = gagal. SPEC-298 · autonomy per mode (klausa prompt)
 };
 
@@ -32,6 +37,12 @@ export async function drain(cfg: Scheduler, deps: GovernorDeps): Promise<void> {
       // tak pernah menghidupkannya lagi. Sengaja BUKAN di `startSpecSession`: reopen manual item
       // `done` (SPEC-172) memang fitur; yang dilarang cuma otomasi memasukinya sendiri.
       if (await deps.isDone(item.specId)) { await markDone(item.id, ALREADY_DONE_NOTE); continue; }
+      // SPEC-447 · ADR-0093 · item yang dependency-nya belum selesai & ter-merge DILEWATI —
+      // barisnya tetap `queued` (pemblokirnya akan selesai, dan `enqueue` yang `upsert(update:{})`
+      // tak bisa menghidupkan kembali baris yang sudah ditutup), slot TIDAK terpakai, dan drain
+      // lanjut ke item berikutnya sehingga satu item terblokir tak menyumbat antrean.
+      const blocked = await deps.blockers(item.specId);
+      if (blocked.length) { await noteQueued(item.id, blockedNote(blocked)); continue; }
       // Idempoten satu-sesi-per-spec: sesi spec sudah hidup (mis. di-Start manual) → tandai launched
       // tanpa makan slot (sudah terhitung di liveCount) & tanpa spawn kedua.
       const liveId = deps.isLive(item.specId);

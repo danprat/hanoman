@@ -64,3 +64,12 @@ export function queueItemForSpec(specId: string): Promise<SchedulerQueueItem | n
 export function schedulerItemForSession(sessionId: string): Promise<SchedulerQueueItem | null> {
   return prisma.schedulerQueueItem.findFirst({ where: { sessionId } });
 }
+
+// SPEC-447 · ADR-0093 · alasan sebuah baris DIAM di antrean, tanpa mengubah statusnya. Ditulis
+// HANYA saat berubah: governor berdenyut tiap 10 detik, dan menulis note identik tiap tick berarti
+// ~8.640 write/hari untuk informasi yang sama.
+export async function noteQueued(id: string, note: string): Promise<void> {
+  const row = await prisma.schedulerQueueItem.findUnique({ where: { id }, select: { note: true } });
+  if (row?.note === note) return;
+  await prisma.schedulerQueueItem.update({ where: { id }, data: { note } });
+}

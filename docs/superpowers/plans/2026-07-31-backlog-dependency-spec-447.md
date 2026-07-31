@@ -811,7 +811,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `blockersForSpec`, `blockedNote`, `SpecBlocker` (Task 3).
 - Produces: `noteQueued(id: string, note: string): Promise<void>` (menulis hanya bila `note` berubah); `GovernorDeps.blockers: (specId: string) => Promise<SpecBlocker[]>` (**wajib**).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Tambahkan di akhir `describe("governor.drain", …)` pada `server/test/scheduler-governor.test.ts`:
 
@@ -859,14 +859,14 @@ Tambahkan `blockers: async () => [],` ke **setiap** literal `GovernorDeps` lama 
 > jalankan `drain` ketiga dengan blocker yang sama dan pastikan note tetap. Jalankan
 > `grep -n "model SchedulerQueueItem" -A 15 server/prisma/schema.prisma` lebih dulu dan sesuaikan.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism server/test/scheduler-governor.test.ts
 ```
 Expected: FAIL — `deps.blockers is not a function` / item terblokir tetap diluncurkan.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 `server/src/services/scheduler/queue.ts` — tambahkan sesudah `markDone`:
 
@@ -926,7 +926,7 @@ import { resolveRepoDir } from "../local-binding";
   },
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism server/test/scheduler-governor.test.ts server/test/scheduler-engine.test.ts server/test/scheduler-queue.service.test.ts server/test/scheduler-reconcile.test.ts
@@ -934,7 +934,7 @@ env -u NODE_ENV ./node_modules/.bin/tsc -p server --noEmit
 ```
 Expected: semua PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/scheduler server/test/scheduler-governor.test.ts server/test/scheduler-engine.test.ts

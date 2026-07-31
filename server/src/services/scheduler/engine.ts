@@ -8,6 +8,8 @@ import { reconcile as reconcileImpl, reconcileProdDeps } from "./reconcile";
 import { scanDecisions } from "../notifications";
 import { listSessions, getSession, sessionIdForSpec } from "../pty";
 import { startSpecSession } from "../session-launch";
+import { blockersForSpec } from "../spec-deps";
+import { resolveRepoDir } from "../local-binding";
 
 // SPEC-298 · seam akhir sesi: rekonsil item launched (done/failed) + terbitkan notif decision.
 // Di-inject agar engine.tick teruji tanpa tmux/git/fs; produksi mengikatnya ke reconcile+scanDecisions.
@@ -52,6 +54,13 @@ export const prodDeps: GovernorDeps = {
   isDone: async (specId) => {
     const s = await prisma.spec.findUnique({ where: { id: specId }, select: { stage: true } });
     return s?.stage === "done";
+  },
+  // SPEC-447 · ADR-0093 · dibaca ULANG dari DB tepat sebelum launch, seperti `isDone`: `dependsOn`
+  // bisa ditulis operator selagi item mengantre, dan merged-ness bergerak sendiri saat ada integrate.
+  blockers: async (specId) => {
+    const spec = await prisma.spec.findUnique({ where: { id: specId } });
+    if (!spec) return [];                       // spec hilang → biar `launch` yang melempar
+    return blockersForSpec(spec, await resolveRepoDir(spec.projectId));
   },
   launch: async (item, autonomy) => {
     const spec = await prisma.spec.findUnique({ where: { id: item.specId } });
