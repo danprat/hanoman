@@ -7,6 +7,7 @@ import { CAPABILITY_DOMAINS, SCHEDULER_DEFAULTS, GOAL_DEFAULTS, CODEX_DEFAULTS, 
 import type { Setting, UserView, DeviceTokenView, SessionResultView, ConfigResponse, ConfigEntryView, AgentTokenView, CapabilityInfo } from "@hanoman/shared";
 import type { ShowToast } from "../ds";
 import { playNotifySound, type NotifySound } from "../notifications/sound";
+import { CustomAgentsPanel } from "./CustomAgentsPanel";
 
 // SPEC-383 · katalog claude dibaca dari @hanoman/shared — sumber yang SAMA dengan picker Start
 // (App.tsx). Sebelumnya tab ini menyalinnya (`S_MODELS`/`S_EFFORT` + komentar "keep in sync"),
@@ -469,6 +470,7 @@ const S_SECTIONS = [
   { key: "users", label: "Users", icon: "users" },
   { key: "perangkat", label: "Perangkat", icon: "key-round" },   // SPEC-213 · device tokens
   { key: "agent", label: "Akses AI Agent", icon: "bot" },        // SPEC-257 · agent token + capability
+  { key: "custom-agent", label: "Custom agent", icon: "bot" },   // SPEC-450 · ADR-0094 · katalog agen global
   { key: "aktivitas", label: "Aktivitas", icon: "activity" },    // SPEC-213 · activity log
   { key: "konfigurasi", label: "Konfigurasi", icon: "sliders" }, // SPEC-215 · env runtime
   { key: "umum", label: "Umum", icon: "sliders-horizontal" },
@@ -771,6 +773,19 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
     : tab === "users" ? <UsersPanel me={me} onToast={onToast} />
     : tab === "perangkat" ? <DeviceTokensPanel onToast={onToast} />
     : tab === "agent" ? <AgentAccessPanel onToast={onToast} />
+    // SPEC-450 · ADR-0094 · permukaan GLOBAL katalog custom agent. Komponen yang sama dipakai
+    // Project detail dengan projectId terisi — satu panel, dua scope.
+    : tab === "custom-agent" ? (
+      <Card eyebrow="agen" title="Custom agent — global">
+        <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.5 }}>
+          Persona yang tersedia untuk <b>setiap sesi baru</b> di semua project. Sesi <b>claude</b>
+          menerimanya sebagai subagent sungguhan; sesi <b>codex</b> menerimanya sebagai peran yang
+          diadopsi di dalam sesi. Agen boleh saling memanggil lewat <i>Mention</i>, dan grafnya wajib
+          asiklik — agen tanpa mention tak diberi alat delegasi sama sekali.
+        </div>
+        <CustomAgentsPanel projectId={null} onToast={onToast} />
+      </Card>
+    )
     : tab === "aktivitas" ? <ActivityPanel onToast={onToast} />
     : tab === "konfigurasi" ? <ConfigPanel onToast={onToast} />
     : prefs();

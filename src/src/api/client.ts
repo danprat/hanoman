@@ -1,5 +1,11 @@
-import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type SessionHistoryView, type ConfigResponse, type ConfigEntryView, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView, type Agent, type AuditEscalationView, type VerifyScope, type Lead, type LeadStatusView, type LeadDecisionView } from "@hanoman/shared";
-export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
+import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type SessionHistoryView, type ConfigResponse, type ConfigEntryView, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView, type Agent, type AuditEscalationView, type VerifyScope, type Lead, type LeadStatusView, type LeadDecisionView, type CustomAgentView, type CreateCustomAgent, type UpdateCustomAgent } from "@hanoman/shared";
+// SPEC-450 · `detail` = body JSON respons galat (best-effort, null bila bukan JSON). Ditambahkan
+// karena penolakan custom agent membawa informasi yang HARUS sampai ke operator — jalur siklus
+// (`cycle`/`scope`) dan daftar mention tak dikenal (`unknown`); "409" saja tak bisa ditindaklanjuti.
+// Opsional & aditif: pemanggil lama tak berubah sedikit pun.
+export class ApiError extends Error {
+  constructor(public status: number, msg: string, public detail: unknown = null) { super(msg); }
+}
 // SPEC-407 · ADR-0089 · +goal · sesi dua fase (Goal → Verifikasi), tanpa fase perencanaan.
 export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit" | "breakdown" | "goal";
 // SPEC-210 · dokumen PRD project (freshest-wins: worktree sesi prd hidup > repoDir). Tipe di @hanoman/shared.
@@ -86,7 +92,10 @@ export const LOCK_LABEL: Record<BranchLock, string> = {
 };
 async function j<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { headers: { "content-type": "application/json" }, ...init });
-  if (!res.ok) throw new ApiError(res.status, `${init?.method ?? "GET"} ${url} → ${res.status}`);
+  if (!res.ok) {
+    const detail = await res.json().catch(() => null);
+    throw new ApiError(res.status, `${init?.method ?? "GET"} ${url} → ${res.status}`, detail);
+  }
   return res.status === 204 ? (undefined as T) : res.json();
 }
 const body = (b: unknown) => ({ body: JSON.stringify(b) });
@@ -377,5 +386,14 @@ export const api = {
       paths.leadDecisionOverride(id), { method: "POST", ...body({ answer, reason }) }),
   cancelLeadDecision: (id: string) =>
     j<LeadDecisionView>(paths.leadDecisionCancel(id), { method: "POST", ...body({}) }),
+  // SPEC-450 · ADR-0094 · katalog custom agent. Tanpa projectId → global saja; dengan projectId →
+  // himpunan EFEKTIF (global+project, baris global bertanda `inherited`).
+  listCustomAgents: (projectId?: string) =>
+    j<CustomAgentView[]>(paths.customAgents + qs(projectId ? { projectId } : {})),
+  createCustomAgent: (b: CreateCustomAgent) =>
+    j<CustomAgentView>(paths.customAgents, { method: "POST", ...body(b) }),
+  updateCustomAgent: (id: string, b: UpdateCustomAgent) =>
+    j<CustomAgentView>(paths.customAgent(id), { method: "PATCH", ...body(b) }),
+  deleteCustomAgent: (id: string) => j<void>(paths.customAgent(id), { method: "DELETE" }),
 };
 

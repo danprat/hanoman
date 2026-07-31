@@ -5,6 +5,7 @@ import React from "react";
 import { Card, Badge, StatusPill, ProgressBar, Button, Icon } from "../ds";
 import { api } from "../api/client";
 import type { ProjectVM } from "./types";
+import { CustomAgentsPanel } from "./CustomAgentsPanel";
 
 const COV_TONE = (s: string) => (s === "broken" ? "err" : s === "drift" ? "warn" : "ok");
 
@@ -130,6 +131,17 @@ export function ProjectDetailScreen({ p, onEdit, onGotoDocs, onGotoTerminal, onG
       </Card>
 
       <HelpCenterCard p={p} onToast={onToast} onProjectChanged={onProjectChanged} />
+
+      {/* SPEC-450 · ADR-0094 · permukaan PER-PROJECT katalog custom agent. Komponen yang sama
+          dipakai Settings dengan projectId=null; di sini agen global tampil read-only bertanda
+          "warisan global" supaya tak ada pertanyaan "lalu yang global mana". */}
+      <Card eyebrow="agen" title="Custom agent — project ini">
+        <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.5 }}>
+          Persona khusus project ini, ditambah agen global yang berlaku di sini. Agen project
+          <b> menimpa</b> agen global bernama sama — termasuk untuk mematikannya di project ini saja.
+        </div>
+        <CustomAgentsPanel projectId={p.id} onToast={onToast} />
+      </Card>
 
       <div style={{ display: "grid", gridTemplateColumns: `repeat(${onReverse || onScaffold ? 4 : 3}, 1fr)`, gap: 12 }}>
         <Door icon="book-open" title="Source of Truth" hint="baca & sunting docs" onClick={onGotoDocs} />

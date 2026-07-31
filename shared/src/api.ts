@@ -127,6 +127,9 @@ export const paths = {
   leadDecisions: `${API}/lead/decisions`,
   leadDecisionOverride: (id: string) => `${API}/lead/decisions/${encodeURIComponent(id)}/override`,
   leadDecisionCancel: (id: string) => `${API}/lead/decisions/${encodeURIComponent(id)}/cancel`,
+  // SPEC-450 · ADR-0094 · katalog custom agent. `?projectId=` → himpunan EFEKTIF (global+project).
+  customAgents: `${API}/custom-agents`,
+  customAgent: (id: string) => `${API}/custom-agents/${encodeURIComponent(id)}`,
   // SPEC-268 · ADR-0066 · pemicu sync manual (cookie-authed)
   syncNow: `${API}/sync/now`,
   // SPEC-270 · ADR-0067 · antrean konflik rekonsil (cookie-authed)

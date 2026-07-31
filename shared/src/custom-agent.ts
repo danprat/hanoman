@@ -93,6 +93,24 @@ export function resolveTools(a: { tools?: string[] | null; mentions?: string[] |
   return out;
 }
 
+/**
+ * Bentuk yang dikirim `/api/custom-agents`. `inherited` HANYA muncul saat diminta per-project
+ * (true = baris global yang berlaku di sana, read-only dari permukaan project). `createdAt`/
+ * `updatedAt` sengaja tak ikut: UI tak memakainya, dan panel ini bukan halaman audit.
+ */
+export type CustomAgentView = {
+  id: string;
+  projectId: string | null;
+  name: string;
+  description: string;
+  instructions: string;
+  tools: string[] | null;
+  model: string | null;
+  mentions: string[];
+  enabled: boolean;
+  inherited?: boolean;
+};
+
 export type AgentNode = { name: string; mentions: string[] };
 
 /**
