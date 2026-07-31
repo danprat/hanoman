@@ -393,6 +393,40 @@ akan mengirim rujukan yang tak ada di sana). Tanpa `version`/`notifySynced`, **t
 - Knob-nya sendiri hidup di `Setting.lead` (kolom `Json` → **tanpa migration**); yang butuh migration
   hanya tabel ini + `Project.leadOptIn`.
 
+## CustomAgent (SPEC-450 · [ADR-0094](../adr/0094-custom-agent-katalog-materialisasi-native.md))
+
+Katalog persona agen yang dipakai **setiap sesi baru**. `projectId` **null = GLOBAL** (berlaku di
+semua project); terisi = milik satu project, dan agen project **menimpa** agen global bernama sama.
+
+| Kolom | Tipe | Catatan |
+|---|---|---|
+| `id` | `String @id` | **Deterministik** `"<projectId\|global>:<name>"` — bukan cuid. |
+| `projectId` | `String?` | null = global. FK `onDelete: Cascade`. |
+| `name` | `String` | Slug `^[a-z][a-z0-9-]{1,39}$`. **IMMUTABLE.** |
+| `description` | `String` | "Kapan agen ini dipakai" — inilah yang dibaca agen untuk **memilih**. |
+| `instructions` | `String` | System prompt agen. |
+| `tools` | `Json?` | Array nama tool. `null` = pakai `DEFAULT_AGENT_TOOLS`. |
+| `model` | `String?` | `null` = warisi model sesi. |
+| `mentions` | `Json?` | Array nama agen yang boleh dipanggil. `null`/`[]` = daun. |
+| `enabled` | `Boolean` | Agen project yang **dimatikan menyembunyikan** global bernama sama. |
+| `version` | `Int` | Version-stamp sync (ADR-0045). Ikut `SYNCED`/`FIELDS`/`PG_ORDER`. |
+
+- **Kenapa `id` deterministik.** Baris ini menyeberang changefeed. Dengan id acak, dua mesin yang
+  sama-sama membuat agen global `reviewer` melahirkan **dua baris** yang keduanya tersinkron lalu
+  bertemu di satu objek JSON `--agents` yang **berkunci nama** — salah satunya hilang tanpa jejak.
+  Dengan id deterministik keduanya baris yang **sama**, dan rekonsiliasi LWW/`SyncConflict`
+  (ADR-0067) yang sudah ada menanganinya.
+- **Kenapa `name` immutable.** `SyncLog` **tak punya operasi hapus**: rename yang mengubah `id`
+  meninggalkan baris yatim di setiap mesin lain. `PATCH` menolak `name`/`projectId` dengan **400**;
+  ganti nama = hapus + buat baru.
+- **Gotcha SQLite:** `@@unique([projectId, name])` **TIDAK** mencegah dua agen global bernama sama —
+  pada indeks unik SQLite, **NULL saling berbeda**. Yang benar-benar mencegahnya adalah PK
+  deterministik di atas; indeks itu tinggal jaring kedua untuk baris ber-project.
+- **`mentions` tanpa FK**, jadi integritas ditegakkan di **boundary route** (rujukan tak dikenal →
+  400; graf bersiklus → 409 + jalurnya) dan `DELETE /custom-agents/:id` **mencabut** nama itu dari
+  `mentions` agen lain — cermin `dependsOn` (ADR-0093). Kolomnya dibaca **defensif** (`mentionsOf`/
+  `toolsOf`) karena bisa datang dari client versi lain.
+
 ## Docs (Source of Truth) — TIDAK dipersist
 Docs bukan entitas DB. Tabel `DocFile` sudah di-drop (ADR-0011). Docs dibaca **live dari path
 efektif** (`resolveRepoDir` = binding per-mesin ?? `Project.repoDir` — SPEC-217): korpus = semua

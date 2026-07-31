@@ -754,3 +754,44 @@ POST /api/lead/decisions/:id/cancel                       -> LeadDecisionView
 > **Panel Lead** (`LeadScreen.tsx` + nav `key:"lead"`) self-poll `GET /api/lead/status` +
 > `GET /api/lead/decisions` (5 dtk, pola SchedulerScreen): jejak (pertanyaan → jawaban → alasan →
 > rujukan), sesi menunggu vs **sedang diputuskan**, Pause global & per project, Timpa & Batalkan.
+
+## Custom agent (SPEC-450 · ADR-0094)
+```
+# Katalog persona yang dipakai SETIAP sesi baru. Capability agent-token: domain `agents`,
+# dipetakan MENURUT METHOD (baca → agents:read, tulis → agents:write) — bukan per prefix,
+# karena menulis definisi agen mengubah apa yang dilihat semua sesi berikutnya (kelas bug SPEC-405).
+GET    /api/custom-agents                 -> CustomAgentView[]        # agen GLOBAL saja
+GET    /api/custom-agents?projectId=<id>  -> CustomAgentView[]        # himpunan EFEKTIF (global+project),
+#                                            baris global bertanda `inherited: true`; nama yang ditimpa
+#                                            project muncul SEKALI (versi project yang menang)
+POST   /api/custom-agents { projectId?, name, description, instructions, tools?, model?, mentions?, enabled? }
+#      -> 201 CustomAgentView
+#         400 slug nama tak sah · projectId tak ada · mention tak dikenal { unknown: string[] }
+#         409 nama sudah dipakai di scope itu · mention membentuk siklus { scope, cycle: string[] }
+PATCH  /api/custom-agents/:id { description?, instructions?, tools?, model?, mentions?, enabled? }
+#      -> 200 CustomAgentView · 400 (termasuk upaya mengubah `name`/`projectId`) · 404 · 409 siklus
+DELETE /api/custom-agents/:id -> 204     # mencabut nama itu dari `mentions` agen lain (tanpa rujukan yatim)
+```
+> **`id` deterministik `"<projectId|global>:<name>"`** (titik dua sah di segmen path RFC 3986) dan
+> **`name` immutable** — baris ini menyeberang changefeed yang tak punya operasi hapus; rename yang
+> mengubah id akan meninggalkan baris yatim di setiap mesin lain (ADR-0094).
+>
+> **Materialisasinya berbeda per agen, dan tak menulis satu berkas pun ke worktree.** Sesi **claude**
+> lahir dengan `--agents "$(cat <file>)"` (mekanisme native; JSON di berkas tmpdir seperti prompt
+> SPEC-223, karena tmux membatasi SATU command ±16 KB). Sesi **codex** menerima blok **roster** yang
+> ditempel ke akhir prompt sesi — codex 0.146 tak punya padanan yang bisa diverifikasi (ia menerima
+> kunci `-c` tak dikenal secara diam-diam), jadi ia mengadopsi peran **inline** tanpa proses kedua.
+> Keduanya dirakit di titik cekik `createSession` lewat `registerCustomAgentSource`, jadi tak ada
+> route yang perlu diubah dan tak ada yang bisa lupa memasangnya.
+>
+> **Anti-loop tiga lapis**, dan yang menjamin adalah dua lapis pertama: (1) graf mention wajib
+> **asiklik** — divalidasi atas scope global **dan setiap project** (agen project bisa menimpa nama
+> global, jadi `g→h` yang aman secara global bisa jadi `g→h(project)→g`); (2) alat delegasi (`Task`)
+> **diturunkan dari `mentions`, bukan dari ketikan operator** — agen daun tak punya alat memanggil
+> siapa pun, dan `Task` yang diketik operator **dicabut**; (3) anggaran hop `MENTION_MAX_HOPS = 3`
+> di prosa instruksi. `DEFAULT_AGENT_TOOLS` & `MENTION_MAX_HOPS` adalah **konstanta modul, bukan
+> konfigurasi** (pola `LEAD_ACTIONS`).
+>
+> **Verifikasi wajib menanyai agen apa yang benar-benar ia miliki, bukan exit code:** `--agents`
+> ber-JSON rusak keluar **exit 0 dengan nol agen tanpa satu pun pesan**, dan nama tool tak dikenal
+> dibuang senyap.

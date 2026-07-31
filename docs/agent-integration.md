@@ -50,6 +50,7 @@ Capability berformat `"<domain>:<access>"`, `access ∈ {read, write}`, dan **wr
 | `support` | `/api/tickets*` | tiket Help Center (triase) |
 | `notifications` | `/api/notifications*` | notifikasi |
 | `lead` | `/api/lead*` | minta putusan ke hanoman-lead & baca jejak keputusan — **`lead:write` bisa menggerakkan sesi** (SPEC-409 · ADR-0091) |
+| `agents` | `/api/custom-agents*` | katalog custom agent global & per project — **`agents:write` mengubah apa yang dilihat SETIAP sesi baru** (SPEC-450 · ADR-0094) |
 
 Aturan pemetaan (deterministik, `server/src/services/agent-capabilities.ts`): `GET`/`HEAD` → `:read`, metode lain → `:write`. Itu berlaku untuk domain `lead` juga: **`POST /api/lead/decisions` menuntut `lead:write`**, dan `lead:read` tak pernah cukup — meminta putusan melahirkan baris jejak permanen dan keputusannya bisa menggerakkan sesi. Sub-path `/api/projects/:id/{docs,prds}` dihitung domain **`docs`**; sub-path IDE/git di atas dihitung domain **`ide`**; WebSocket terminal butuh **`sessions:write`**.
 

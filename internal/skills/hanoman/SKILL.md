@@ -459,6 +459,39 @@ Pakai skill lebih sempit saat task cocok:
   sengaja **di luar** gerbang edit SPEC-186 — ia menggerbangi peluncuran berikutnya, bukan konten
   sesi berjalan; dan `DELETE /specs/:id` mencabutnya dari dependent agar tak ada yang terkunci
   `missing` selamanya.
+- **Custom agent — persona global & per project** (SPEC-450/ADR-**0094**): entitas `CustomAgent`
+  (migration tulis tangan, **ikut sync**) dengan `projectId` null = **global**, terisi = milik satu
+  project; agen project **menimpa** global bernama sama (dan agen project yang **dimatikan**
+  menyembunyikan global itu — begitulah cara mematikan agen global di satu project). `id`
+  **deterministik** `"<projectId|global>:<name>"` dan `name` **immutable**: baris ini menyeberang
+  changefeed yang **tak punya operasi hapus**, jadi id acak membuat dua mesin melahirkan dua baris
+  yang lalu bertemu di satu objek JSON **berkunci nama** dan salah satunya hilang tanpa jejak.
+  **Nol berkas ditulis ke worktree.** Sesi **claude** lahir dengan `--agents "$(cat <file>)"`
+  (mekanisme native — custom agent jadi **subagent sungguhan**; JSON di berkas tmpdir karena tmux
+  membatasi SATU command ±16 KB, kelas kegagalan SPEC-223); sesi **codex** menerima blok **roster**
+  yang ditempel ke akhir prompt sesi dan mengadopsi peran **inline** (tak ada proses kedua → risiko
+  loop di codex **struktural nol**). Keduanya dirakit di titik cekik **`createSession`** lewat
+  `registerCustomAgentSource` (cermin `registerSessionHooks`) dengan cache **sinkron** — Prisma
+  async, `createSession` tidak — yang di-invalidasi tiap mutasi route & sync; gagal baca → daftar
+  kosong. Sesi ber-`opts.command` (shell mentah) tak menerima apa pun. **Anti-loop tiga lapis, dua
+  pertama yang menjamin:** graf mention wajib **asiklik** (409 + jalur siklusnya), lalu `Task`
+  **diturunkan dari `mentions`** sehingga agen daun **tak punya alat** memanggil siapa pun (dan
+  `Task` yang diketik operator DICABUT), lalu anggaran hop `MENTION_MAX_HOPS = 3` di prosa —
+  `DEFAULT_AGENT_TOOLS`/`MENTION_MAX_HOPS` **konstanta modul, bukan konfigurasi** (pola
+  `LEAD_ACTIONS`). **Tujuh gotcha:** (1) ketiga permukaan **gagal-senyap** sehingga verifikasi
+  berbasis exit code **lulus palsu** — `--agents` ber-JSON rusak keluar exit 0 dengan NOL agen,
+  nama tool tak dikenal dibuang tanpa pesan (`Glob`/`Grep`/`TodoWrite` terukur hilang), dan codex
+  menerima kunci `-c` tak dikenal tanpa keluhan; verifikasi harus **menanyai agen apa yang
+  benar-benar ia miliki** (kelas jebakan `paneText.includes("/goal")`, ADR-0085); (2) memeriksa graf
+  **global saja tidak cukup** — validasi wajib jalan atas global **dan setiap project**; (3)
+  `@@unique([projectId,name])` **tidak** mencegah dua agen global bernama sama (NULL saling berbeda
+  di indeks unik SQLite) — yang mencegahnya PK deterministik; (4) `--agents` **tak boleh** ikut
+  `.map(sq)` seperti flag lain atau claude menerima literal `$(cat …)` sebagai definisi agen; (5)
+  membiarkan `tools` kosong juga tak boleh — agen tanpa `tools` mewarisi SEMUA tool termasuk `Task`
+  dan lapis 2 lenyap; (6) nama tool yang dibuang senyap **aman** karena membuang hanya mengurangi
+  kemampuan; (7) `"customAgent"` wajib ikut `PG_ORDER` + seluruh kolomnya di `FIELDS.customAgent`.
+  Domain capability **baru `agents`**, dipetakan **menurut method** (kelas bug SPEC-405). **Bukan**
+  titik spawn agen baru — `services/lead/brain.ts` tetap satu-satunya di luar `pty.ts` (SPEC-448).
 - Stage bergerak **maju** hanya lewat fase yang dilaporkan sesi; **mundur** hanya lewat aksi human eksplisit `PATCH /specs/:id { stage }` (backward-only, ADR-0027). `executing` **tertahan** (tak jadi `done`) selama plan `docs/superpowers/plans/**` masih punya `- [ ]` (ADR-0029).
 - Biaya bersifat **estimasi dan tidak menggerakkan apa pun** (ADR-0012): tak ada `dailyBudget`/budget flag. Indikator limit dibaca dari OAuth usage API Anthropic (`services/limits.ts`), bukan parsing output terminal.
 - **Jangan pernah menjalankan run/sesi di working tree utama** — selalu worktree terpisah. Jangan menyentuh worktree sesi lain.
@@ -475,7 +508,7 @@ Pakai skill lebih sempit saat task cocok:
 
 ## Aturan Data & Skema
 
-- **Tujuh model inti** (SQLite via Prisma 6, ADR-0086): `Project`, `Spec`, `Setting`, `Notification`, `User`, `Session`, `Vps`. Tidak ada `Run` maupun `Trigger` — di-drop saat pindah ke sesi interaktif (ADR-0024). Model pendukung mencakup `DeviceToken`, **`AgentToken`** (kredensial AI agent + capability, SPEC-257/ADR-0065, server-local), `SessionResult`, sync (`SyncLog`/`SyncOutbox`/`SyncState`/`LocalBinding`/`RuntimeConfig`), Help Center (`Ticket`/`TicketAttachment`), VPS compliance (`VpsAuditSnapshot`/`VpsItemState`). **Error monitoring (`ErrorGroup`/`ErrorEvent`/`SourceMapArtifact`) dan `ProjectLink` sudah dicabut** — SPEC-384/ADR-0092, pemantauan pindah ke Uptrace.
+- **Tujuh model inti** (SQLite via Prisma 6, ADR-0086): `Project`, `Spec`, `Setting`, `Notification`, `User`, `Session`, `Vps`. Tidak ada `Run` maupun `Trigger` — di-drop saat pindah ke sesi interaktif (ADR-0024). Model pendukung mencakup `DeviceToken`, **`AgentToken`** (kredensial AI agent + capability, SPEC-257/ADR-0065, server-local), `SessionResult`, sync (`SyncLog`/`SyncOutbox`/`SyncState`/`LocalBinding`/`RuntimeConfig`), Help Center (`Ticket`/`TicketAttachment`), VPS compliance (`VpsAuditSnapshot`/`VpsItemState`), dan **`CustomAgent`** (katalog persona agen global & per project, SPEC-450/ADR-0094 — **disync**). **Error monitoring (`ErrorGroup`/`ErrorEvent`/`SourceMapArtifact`) dan `ProjectLink` sudah dicabut** — SPEC-384/ADR-0092, pemantauan pindah ke Uptrace.
 - Enum stage/source/priority disimpan sebagai **`String` + divalidasi zod** di `@hanoman/shared` (`enums.ts`), bukan enum Prisma.
 - `Project.id` (slug) **kekal**, tak ada endpoint rename; `repoDir` OPSIONAL & tak disync. **`LocalBinding`** (`projectId → repoDir`, per-mesin, LOCAL-ONLY) meng-override path; `resolveRepoDir = binding ?? Project.repoDir` dipakai **seluruh** jalur baca (spawn/IDE/coverage/branches/specs/docs).
 - `docStatus`/`coverage`/**Docs**/**PRD** **bukan kolom & tidak dipersist** — docs live dari disk via `git ls-files`, coverage diturunkan tiap `toProjectView` (ADR-0018), PRD = dokumen `docs/prd/<slug>.md` (ADR-0041). Tabel `DocFile` sudah di-drop (ADR-0011).
