@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import {
   createSession, getSession, listSessions, killSession, killAll, detachAll, attach, writeTo,
-  sessionPhases, markerFilled, promptFilePath, armGoalInTui, goalGatePath,
+  sessionPhases, sessionFinished, markerFilled, promptFilePath, armGoalInTui, goalGatePath,
   sessionKind, registerSessionHooks, rootBypassEnv, type SessionBirth, type SessionDeath,
 } from "../src/services/pty";
 import { phaseFilePath, type Phase } from "../src/services/session-phases";
@@ -471,6 +471,24 @@ describe("pty service", () => {
 
     writeFileSync(plan, "- [x] a\n- [x] b\n");   // berkas fase sengaja TIDAK disentuh
     await waitFor(() => phaseFrames(c).some((f) => f.complete === true));
+  });
+
+  // SPEC-451 · verdict yang sama harus bisa dibaca pembaca DI LUAR jembatan WebSocket — denyut
+  // hanoman-lead memutuskan nasib backlog yang sudah selesai, dan ia tak punya klien terpasang.
+  // Satu definisi dipakai keduanya; menyalinnya adalah kelas bug SPEC-431 & SPEC-448.
+  it("sessionFinished(id) menjawab true untuk sesi selesai yang panenya MASIH HIDUP", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const phaseFile = phaseFilePath(repoDir, "spec-c5");
+    const s = createSession("p1", repoDir, { specId: "SPEC-C5", flow: "qa", prompt: "x", phaseFile });
+    expect(sessionFinished(s.id)).toBe(false);
+
+    writeFileSync(phaseFile, "Audit done\nSpec skipped\nPlan skipped\nExecute done\n");
+    expect(sessionFinished(s.id)).toBe(true);
+    expect(getSession(s.id)?.exited).toBe(false);   // inti temuannya: selesai TANPA pane mati
+  });
+
+  it("sessionFinished(id) menjawab false untuk sesi yang tak dikenal", () => {
+    expect(sessionFinished("tidak-ada")).toBe(false);
   });
 
   // SPEC-209 · riwayat claude hidup di scrollback pane tmux, tapi klien hanya menerima layar

@@ -112,6 +112,11 @@ async function relaunch(row: LeadDecision, deps: ApplyDeps): Promise<ApplyResult
  * OQ-3 · `requireGreenBeforeIntegrate` (default menyala) menuntut syarat OBJEKTIF sebelum lead
  * boleh menekan tombol ini: plan tak menyisakan `- [ ]` (ADR-0029) dan panenya tak berakhir dengan
  * kode keluar ≠ 0 (SPEC-402). Bukan penilaian prosa lead — ia diperiksa server dari berkas & tmux.
+ *
+ * SPEC-451 · integrasi yang BERSIH juga MELEPAS panenya. Tanpa itu jawaban `integrate-main` cuma
+ * menyelesaikan separuh keluhan: hasilnya masuk main, tapi pane sesi yang sudah selesai tetap
+ * terhitung `liveCount()` governor (scheduler/engine.ts) — dan pane sesi sukses tak pernah mati
+ * sendiri (SPEC-433), jadi slot itu tertahan selamanya dan antrean tak pernah dapat ruang.
  */
 async function integrateMain(row: LeadDecision, deps: ApplyDeps): Promise<ApplyResult> {
   if (!row.specId) return { ok: false, detail: "keputusan ini tak menunjuk backlog" };
@@ -121,12 +126,15 @@ async function integrateMain(row: LeadDecision, deps: ApplyDeps): Promise<ApplyR
   const spec = await prisma.spec.findUnique({ where: { id: row.specId } });
   if (!spec) return { ok: false, detail: `backlog ${row.specId} tak ada` };
 
+  // SPEC-451 · `done` dihitung TANPA memandang knob: `requireGreenBeforeIntegrate` menjawab
+  // "boleh diintegrasikan?", sementara gerbang pelepasan pane menjawab pertanyaan yang berbeda —
+  // "boleh panenya dilepas?". Operator yang mematikan knob itu mengizinkan integrasi lebih awal,
+  // bukan mengizinkan membunuh pane yang plan-nya masih menyisakan pekerjaan.
+  const sid = sessionIdForSpec(spec.id);
+  const done = deps.planDone(worktreeDir(repoDir, spec.id), spec.id);
   const evidence: string[] = [];
   if (cfg.requireGreenBeforeIntegrate) {
-    const wt = worktreeDir(repoDir, spec.id);
-    const done = deps.planDone(wt, spec.id);
     evidence.push(done ? "plan tak menyisakan `- [ ]`" : "plan MASIH menyisakan `- [ ]`");
-    const sid = sessionIdForSpec(spec.id);
     const pane = deps.sessionExists(sid);
     evidence.push(pane ? `pane ${sid} masih ada` : `pane ${sid} sudah tak ada`);
     if (!done) {
@@ -141,6 +149,13 @@ async function integrateMain(row: LeadDecision, deps: ApplyDeps): Promise<ApplyR
 
   const res = await deps.integrate(repoDir, spec.id, "merge", "local:main");
   evidence.push(`integrate → ${res.status}`);
+  // Pane dilepas hanya pada integrasi BERSIH: hasil `conflict` meninggalkan worktree yang justru
+  // harus diselesaikan, dan panenya masih dibutuhkan. `killSession` LANGSUNG, bukan
+  // `DELETE /terminal/sessions/:id` — worktree sesi tetap utuh (AC-32a), jadi rentang review
+  // ADR-0030 selamat dan "Lanjutkan" (ADR-0084) tetap bermakna.
+  if (res.status === "clean" && done && deps.sessionExists(sid)) {
+    evidence.push(deps.killSession(sid) ? `pane ${sid} dilepas (worktree utuh)` : `pane ${sid} gagal dilepas`);
+  }
   await recordEvidence(row, evidence, res.status === "clean" ? "integrasi bersih" : `integrasi tak bersih: ${res.status}`);
   if (res.status !== "clean") {
     await deps.notify(row.id, `Integrasi ${spec.id} oleh lead tak bersih (${res.status}) — butuh operator`,

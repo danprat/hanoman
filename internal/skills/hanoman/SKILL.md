@@ -369,6 +369,38 @@ Pakai skill lebih sempit saat task cocok:
   `goalChunks` (burst ≥1024 char → `[Pasted Content]` SENYAP, ADR-0085); rujukan disaring terhadap
   repo (path absolut & `..` ditolak); dan marker sesi **codex** menyala juga saat selesai wajar
   (ADR-0074) → `services/lead/pane.ts` bias ke DIAM.
+- **Backlog yang SELESAI juga butuh diputuskan — pintu keberhasilan** (SPEC-451, tanpa ADR — QA;
+  ADR-0091 **ditegakkan**, ADR-0037 & ADR-0072 utuh): denyut lead punya pintu untuk kegagalan
+  (`followUpFinished`: exit ≠ 0 atau plan bersisa `- [ ]`) dan **tak punya pintu untuk
+  keberhasilan**. Gerbangnya `s.exited`, dan SPEC-433 sudah membuktikan pane sesi sukses **tak
+  pernah mati** — jadi keberhasilan bukan keadaan yang jarang diputuskan melainkan yang **secara
+  struktural tak bisa** diputuskan; gerbang kedua (`!bad && !unfinished → continue`) membuangnya
+  sekali lagi. Akibatnya `integrate-main` & `stop-session` — dua tindakan yang **sudah lengkap** di
+  `apply.ts` sejak ADR-0091, berikut gerbang bukti objektif `requireGreenBeforeIntegrate` — tak
+  pernah ditawarkan **satu pun dari lima call site `decide()`**: mesin tanpa pengemudi. Harganya
+  slot governor: `liveCount()` (`scheduler/engine.ts`) menghitung **pane hidup**, jadi
+  `maxConcurrent` sesi tuntas mengunci antrean selamanya — `reconcile` menutup baris antreannya
+  dengan benar tapi ia tak membaca tmux. Terukur dari keadaan hidup 2026-08-01: SPEC-450
+  `stage=done`, fase 5/5, plan **0** kotak, pane `dead=0` di `❯` — **4 jam 24 menit** memegang satu
+  dari 6 slot, nol keputusan, **32 baris antrean `queued`**. Fix: **`sessionFinished(id)`** diekspor
+  `pty.ts` sebagai **satu** definisi bersama frame `phase` (`paneComplete`) — menyalinnya adalah
+  kelas bug SPEC-431/448 — dan **tidak** dijadikan field `SessionInfo` (governor memanggil
+  `listSessions()` tiap 10 dtk; verdict itu akan membayar `readdir`+`readFile` sepanjang hidup tiap
+  sesi, bukan di ekornya); pintu keempat **`followUpComplete`** digerbangi **`finished`, BUKAN
+  `exited`**, **saling eksklusif** dengan pintu kegagalan secara konstruksi (`finished` ⇒
+  `planComplete` ⇒ `!unfinished`, plus tolak `exitCode ≠ 0`) sehingga tak ada sesi yang membeli dua
+  giliran agen untuk satu keadaan, dengan awalan idempotensi sendiri (`Backlog … sudah selesai di
+  sesi …`, **bukan** `kind` — SPEC-432) dan **tanpa** gerbang `Setting.scheduler` (beda dari
+  `orderReadyWork`: mengintegrasikan hasil yang sudah selesai berharga walau antrean tak dikuras);
+  dan `integrateMain` **melepas panenya** pada hasil `clean` lewat `killSession` LANGSUNG (worktree
+  utuh, AC-32a → rentang review ADR-0030 & tombol "Lanjutkan" ADR-0084 selamat), digerbangi
+  **`planDone`, bukan `requireGreenBeforeIntegrate`** — knob itu menjawab "boleh diintegrasikan?",
+  gerbang ini "boleh panenya dilepas?". **Dua penolakan sadar:** `rebase` tak ditambahkan ke
+  `LEAD_ACTIONS` (allowlist itu konstanta, AC-31; merge yang paling mudah dibatalkan — persis
+  kriteria yang diperintahkan prompt lead sendiri), dan **`liveCount()` tak disentuh** — menyaring
+  pane selesai dari cap menukar antrean mandek dengan **pane menumpuk tanpa batas** dan menutup
+  terminal tanpa keputusan siapa pun; yang benar adalah menutup panenya. Konsekuensi: selama
+  `Setting.lead.enabled` mati (default) perilakunya **tak berubah** — operator yang menutup sesinya.
 - **`services/lead/brain.ts` adalah titik spawn agen KEDUA — satu-satunya di luar `pty.ts`**
   (SPEC-448, tanpa ADR — QA; ADR-0091 ditegakkan, ADR-0037 utuh). Konsekuensinya mengikat: **setiap
   pelajaran spawn yang sudah dibayar di `pty.ts` harus dibayar ulang di sini**, dan sampai spec ini

@@ -30,7 +30,7 @@ function counters() {
     cfg: async () => cfg(),
   } as DetectDeps;
   const pulse = {
-    sessions: () => [], areas: async () => [], planDone: () => true,
+    sessions: () => [], areas: async () => [], planDone: () => true, finished: () => false,
     decide: (async () => null) as unknown as PulseDeps["decide"],
     decideDeps: {} as PulseDeps["decideDeps"],
     apply: (async () => ({ ok: true, detail: "" })) as unknown as PulseDeps["apply"],
