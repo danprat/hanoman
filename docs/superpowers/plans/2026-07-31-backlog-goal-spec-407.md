@@ -827,7 +827,7 @@ git commit -m "feat(407): sesi flow goal — prompt goal + mode goal dipaksa, te
 - Consumes: `zCreateSpec` tiga-arah (Task 1).
 - Produces: `POST /specs { source: "goal" }` → `objective === payload.goal`, `author` berprefix `Goal · `.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `server/test/specs.route.test.ts` (ikuti pola test POST /specs yang sudah ada di berkas itu — `app.inject({ method: "POST", url: "/api/specs", payload: … })`):
 
@@ -855,12 +855,12 @@ it("POST /specs source goal menolak payload brief", async () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan GAGAL**
+- [x] **Step 2: Jalankan, pastikan GAGAL**
 
 Run: `pnpm vitest --run server/test/specs.route.test.ts --no-file-parallelism`
 Expected: FAIL — `objective` kosong dan `author` tanpa prefix.
 
-- [ ] **Step 3: Implementasi `server/src/routes/specs.ts`**
+- [x] **Step 3: Implementasi `server/src/routes/specs.ts`**
 
 ```ts
 function deriveSpecFields(source: string, payload: any, manualPriority: string) {
@@ -889,12 +889,12 @@ dan pada blok `author`:
               : author,
 ```
 
-- [ ] **Step 4: Jalankan, pastikan LULUS**
+- [x] **Step 4: Jalankan, pastikan LULUS**
 
 Run: `pnpm vitest --run server/test/specs.route.test.ts --no-file-parallelism`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/routes/specs.ts server/test/specs.route.test.ts

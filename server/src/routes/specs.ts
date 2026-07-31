@@ -32,6 +32,16 @@ const branchUnknown = async (repoDir: string | null, branch: string) =>
 // SPEC-186 · derivasi priority + objective dari source+payload. Satu sumber untuk POST & PATCH:
 // qa → priority dari severity, objective dari actual/steps; brief → priority manual, objective dari outcome/context.
 function deriveSpecFields(source: string, payload: any, manualPriority: string) {
+  // SPEC-407 · ADR-0089 · backlog goal: objective ADALAH goal-nya (yang dibaca prompt sesi &
+  // kondisi Stop hook). Prioritas tetap manual — tak ada severity untuk diturunkan, dan operator
+  // yang tahu seberapa mendesak goal itu.
+  if (source === "goal") {
+    const pick = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+    return {
+      priority: manualPriority,
+      objective: pick(payload?.goal) || pick(payload?.done) || "— goal belum diisi.",
+    };
+  }
   const isQa = source === "qa";
   const priority = isQa && payload && "severity" in payload
     ? (payload.severity === "minor" ? "sedang" : "tinggi") : manualPriority;
@@ -97,6 +107,8 @@ export default async function (app: FastifyInstance) {
               : b.source === "audit" ? `Audit · ${author}`
               // SPEC-337 · asal item audit lintas terbaca di backlog (cermin `Audit ·`).
               : b.source === "cross-audit" ? `Audit lintas · ${author}`
+              // SPEC-407 · asal item goal terbaca di backlog (cermin `Audit ·`).
+              : b.source === "goal" ? `Goal · ${author}`
               : author,
             objective, payload: b.payload,
             branchFrom: b.branchFrom ?? null

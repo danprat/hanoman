@@ -162,6 +162,31 @@ describe("specs routes", () => {
     expect(res.statusCode).toBe(400);
   });
 
+  // SPEC-407 · ADR-0089 · backlog goal: objective ADALAH goal-nya — itulah yang dibaca prompt
+  // sesi & kondisi Stop hook, jadi baris yang objective-nya kosong berarti sesi tanpa sasaran.
+  it("creates a goal spec: objective dari payload.goal, author berprefix Goal", async () => {
+    const res = await app.inject({
+      method: "POST", url: "/api/specs", payload: {
+        project: "p1", source: "goal", title: "Turunkan latensi", priority: "tinggi",
+        payload: { goal: "p95 /api/specs < 200 ms", done: "benchmark", constraints: "", priority: "tinggi" }
+      }
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().source).toBe("goal");
+    expect(res.json().objective).toBe("p95 /api/specs < 200 ms");
+    expect(res.json().author).toMatch(/^Goal · /);
+    expect(res.json().stage).toBe("brainstorming");
+    expect(res.json().priority).toBe("tinggi");
+  });
+  it("rejects a goal spec that carries a brief payload", async () => {
+    const res = await app.inject({
+      method: "POST", url: "/api/specs", payload: {
+        project: "p1", source: "goal", title: "salah", priority: "tinggi", payload: brief
+      }
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
   // SPEC-143
   it("stores a valid branchFrom", async () => {
     const res = await app.inject({
