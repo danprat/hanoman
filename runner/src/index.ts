@@ -7,5 +7,6 @@ export * from "./goal";
 export * from "./goal-spec";
 export * from "./codex-settings";
 export * from "./agent-cli";
+export * from "./custom-agents";
 export * from "./verify-scope";
 export * from "./paths";
