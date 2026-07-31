@@ -1734,7 +1734,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `Spec.blockedBy`/`dependsOn` (Task 6), `api.patchSpec({ dependsOn })` (Task 11).
 - Produces: `BacklogScreen` menerima `onEditDeps?: (s: Spec, ids: string[]) => void`; ekspor `blockLabel(reason: string): string`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Tambahkan ke `src/test/backlog-dependency.test.tsx`:
 
@@ -1771,14 +1771,14 @@ describe("BacklogScreen · badge Terblokir (SPEC-447)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run src/test/backlog-dependency.test.tsx
 ```
 Expected: FAIL — teks `Terblokir` tak ada.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 `src/src/screens/BacklogScreen.tsx`:
 
@@ -1876,7 +1876,7 @@ dan blok tampil/edit sesudah blok "Branch worktree":
 
 dan tambahkan `onEditDeps={editDeps}` pada `<BacklogScreen … />`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run src/test/backlog-dependency.test.tsx src/test/backlog-board.test.tsx src/test/backlog-goal.test.tsx
@@ -1884,7 +1884,7 @@ env -u NODE_ENV ./node_modules/.bin/tsc -p src --noEmit
 ```
 Expected: semua PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/BacklogScreen.tsx src/src/App.tsx src/test/backlog-dependency.test.tsx

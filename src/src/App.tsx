@@ -946,6 +946,21 @@ export default function App() {
     }
   }
 
+  // SPEC-447 · ADR-0093 · dependency bisa diubah kapan saja — ia menggerbangi peluncuran
+  // BERIKUTNYA, bukan konten sesi berjalan (karena itu di luar gerbang SPEC-186). 400 = validasi
+  // server (id asing, lintas project, siklus).
+  async function editDeps(spec: Spec, dependsOn: string[]) {
+    try {
+      const updated = await api.patchSpec(spec.id, { dependsOn });
+      if ("pending" in updated) return;
+      setBacklog((b) => b.map((s) => (s.id === updated.id ? updated : s)));
+      showToast(spec.id + " · dependency diperbarui", "ok", "lock");
+    } catch (e) {
+      const bad = e instanceof ApiError && e.status === 400;
+      showToast(bad ? "Dependency ditolak server" : "Gagal menyimpan dependency " + spec.id, "warn", "x-circle");
+    }
+  }
+
   // SPEC-167 · revert backward-only. Respons `pending` = dry-run: kembalikan ke pemanggil
   // supaya dialog konfirmasi muncul; hanya panggilan confirmDelete yang mengubah state.
   async function revertStage(spec: Spec, target: string, confirmDelete?: boolean) {
@@ -1056,7 +1071,7 @@ export default function App() {
         {gate(<BacklogScreen backlog={backlog} projects={projectsView} pageSize={20}
           onStart={startSession} activeSpecs={activeSpecs} onNew={() => setModal("brief")}
           onDelete={deleteSpec} onOpenRun={() => setSection("terminal")} onOpenReview={openReview}
-          onEditBranch={editBranch} onRevertStage={revertStage} onIntegrate={integrateSpec} onEditSpec={editSpec}
+          onEditBranch={editBranch} onRevertStage={revertStage} onIntegrate={integrateSpec} onEditSpec={editSpec} onEditDeps={editDeps}
           onPromoteToQa={promoteToQa} onPromoteToBrief={promoteToBrief} onPromoteToPrd={promoteToPrd}
           onToast={showToast} initialDetailId={openSpecId}
           projectFilter={projectFilter} onProjectFilter={setProjectFilter} dataVersion={dataVersion} />)}

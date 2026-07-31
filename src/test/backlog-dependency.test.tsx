@@ -64,3 +64,34 @@ describe("NewSpecModal · picker dependency (SPEC-447)", () => {
       expect.objectContaining({ dependsOn: [] })));
   });
 });
+
+import { BacklogScreen } from "../src/screens/BacklogScreen";
+
+const blocked: any = {
+  id: "SPEC-9", projectId: "p1", title: "Turunan", source: "brief", stage: "brainstorming",
+  priority: "sedang", author: "a", objective: "o", payload: null, branchFrom: null, baseSha: null,
+  createdAt: "2026-07-31T00:00:00.000Z", startedAt: null,
+  dependsOn: ["SPEC-1"], blockedBy: [{ id: "SPEC-1", reason: "unmerged" }],
+};
+const free: any = { ...blocked, id: "SPEC-8", dependsOn: [], blockedBy: [] };
+
+describe("BacklogScreen · badge Terblokir (SPEC-447)", () => {
+  it("menandai item yang dependency-nya belum siap", async () => {
+    render(<BacklogScreen backlog={[blocked]} projects={projects} projectFilter="all"
+      onProjectFilter={() => {}} />);
+    await waitFor(() => expect(screen.getAllByText("Terblokir").length).toBeGreaterThan(0));
+  });
+  it("item tanpa dependency tak diberi badge", async () => {
+    render(<BacklogScreen backlog={[free]} projects={projects} projectFilter="all"
+      onProjectFilter={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Turunan")).toBeTruthy());
+    expect(screen.queryByText("Terblokir")).toBeNull();
+  });
+  it("detail menyebut siapa yang ditunggu dan alasannya", async () => {
+    render(<BacklogScreen backlog={[blocked]} projects={projects} projectFilter="all"
+      onProjectFilter={() => {}} />);
+    fireEvent.click(await screen.findByText("Turunan"));
+    expect(await screen.findByText("SPEC-1")).toBeTruthy();
+    expect(screen.getAllByText("belum ter-merge").length).toBeGreaterThan(0);
+  });
+});

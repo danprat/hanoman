@@ -2,7 +2,7 @@
    Ported; spec.project → spec.projectId; window → ds imports. */
 import React from "react";
 import {
-  Card, Badge, Tabs, Select, Button, IconButton, Icon, serverPage, Pager, Modal, StateBlock, Input,
+  Card, Badge, Tabs, Select, Button, IconButton, Icon, Checkbox, serverPage, Pager, Modal, StateBlock, Input,
   Field, HnTextarea, LIST_SCROLL_STYLE, LIST_SCREEN_STYLE, FIXED_ROW_STYLE
 } from "../ds";
 import { api } from "../api/client";
@@ -37,6 +37,20 @@ const SOURCE_META: Record<string, { label: string; icon: string; tone: "err" | "
   goal:  { label: "Goal",          icon: "target",    tone: "brass", color: "var(--brass-600)" },
 };
 const sourceMeta = (s: string) => SOURCE_META[s] ?? SOURCE_META.brief!;
+
+// SPEC-447 · ADR-0093 · alasan sebuah item tertahan. Label hidup di UI (server mengirim slug),
+// pola yang sama dengan B_PRIO/SOURCE_META.
+export const blockLabel = (reason: string): string =>
+  reason === "missing" ? "tak ditemukan" : reason === "unmerged" ? "belum ter-merge" : "belum selesai";
+
+function BlockedBadge({ spec }: { spec: Spec }) {
+  const bl = spec.blockedBy ?? [];
+  if (!bl.length) return null;
+  return (
+    <Badge tone="warn" size="sm" icon="lock"
+      title={bl.map((b) => `${b.id} — ${blockLabel(b.reason)}`).join(" · ")}>Terblokir</Badge>
+  );
+}
 // SPEC-186 · opsi enum untuk form edit inline.
 const PRIO_OPTS = [{ value: "tinggi", label: "Tinggi" }, { value: "sedang", label: "Sedang" }, { value: "rendah", label: "Rendah" }];
 const SEV_OPTS = [{ value: "critical", label: "Critical" }, { value: "major", label: "Major" }, { value: "minor", label: "Minor" }];
@@ -106,7 +120,7 @@ const escVariant = (e: AuditEscalation | null, target: string): "primary" | "sec
 // Source yang berujung dokumen audit — berhak atas ketiga pintu eskalasi.
 const isAuditSource = (source: string) => source === "audit";
 
-function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, onStart, onIntegrate, onEditSpec, onPromoteToQa, onPromoteToBrief, onPromoteToPrd }:
+function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, onStart, onIntegrate, onEditSpec, onPromoteToQa, onPromoteToBrief, onPromoteToPrd, onEditDeps, allSpecs }:
   {
     spec: Spec | null; onClose: () => void; onEditBranch?: (s: Spec, b: string | null) => void;
     onRevertStage?: (s: Spec, target: string, confirmDelete?: boolean) => Promise<any>;
@@ -119,6 +133,10 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
     onPromoteToQa?: (s: Spec, e: AuditEscalation | null) => void;
     onPromoteToBrief?: (s: Spec, e: AuditEscalation | null) => void;
     onPromoteToPrd?: (s: Spec, e: AuditEscalation | null) => void;
+    // SPEC-447 · ADR-0093 · dependency bisa diperbaiki kapan saja (termasuk sesudah item dimulai):
+    // gerbangnya soal peluncuran BERIKUTNYA, bukan konten yang sedang dikerjakan sesi hidup.
+    onEditDeps?: (s: Spec, ids: string[]) => void;
+    allSpecs?: Spec[];
   }) {
   // Hook HARUS mendahului early-return `if (!spec)` — rules-of-hooks.
   const [branches, setBranches] = React.useState<string[]>([]);
@@ -187,6 +205,9 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
   const qa = spec.source === "qa";
   const isGoal = spec.source === "goal";   // SPEC-407 · payload-nya bentuk ketiga
   const p = (spec.payload || {}) as Record<string, string>;
+  // SPEC-447 · kandidat dependency = backlog project yang sama, kecuali diri sendiri (server pun
+  // menolak keduanya). Diambil dari daftar yang sudah dimuat layar — tanpa fetch tambahan.
+  const depPickList = (allSpecs ?? []).filter((c) => c.projectId === spec.projectId && c.id !== spec.id);
   const fields: readonly (readonly [string, string])[] = qa ? QA_FIELDS : isGoal ? GOAL_FIELDS : BRIEF_FIELDS;
   return (
     <Modal open title={spec.title} eyebrow={spec.id + " · " + spec.projectId}
@@ -279,6 +300,44 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
         <Select size="sm" value={spec.branchFrom ?? ""} disabled={!branches.length}
           onChange={(e) => onEditBranch && onEditBranch(spec, e.target.value || null)}
           options={branchOptions(branches, remoteOnly)} />
+      </div>
+      {/* SPEC-447 · ADR-0093 · siapa yang ditunggu item ini, dan kenapa. */}
+      <div style={{ marginBottom: 14 }}>
+        <div className="hn-eyebrow" style={{ marginBottom: 4 }}>Bergantung pada</div>
+        {(spec.dependsOn ?? []).length === 0 ? (
+          <div style={{ fontSize: 13, color: "var(--text-subtle)" }}>— berdiri sendiri</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {(spec.dependsOn ?? []).map((depId) => {
+              const b = (spec.blockedBy ?? []).find((x) => x.id === depId);
+              return (
+                <div key={depId} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-strong)" }}>{depId}</span>
+                  {b
+                    ? <Badge tone="warn" size="sm">{blockLabel(b.reason)}</Badge>
+                    : <Badge tone="ok" size="sm" icon="check">selesai &amp; ter-merge</Badge>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {onEditDeps && depPickList.length > 0 && (
+          <div style={{
+            maxHeight: 132, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6,
+            border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", padding: 8, marginTop: 8,
+          }}>
+            {depPickList.map((c) => {
+              const on = (spec.dependsOn ?? []).includes(c.id);
+              return (
+                <Checkbox key={c.id} aria-label={`Bergantung pada ${c.id}`} checked={on}
+                  label={`${c.id} · ${c.title}`}
+                  onChange={() => onEditDeps(spec, on
+                    ? (spec.dependsOn ?? []).filter((x) => x !== c.id)
+                    : [...(spec.dependsOn ?? []), c.id])} />
+              );
+            })}
+          </div>
+        )}
       </div>
       {editing ? (
         <>
@@ -391,6 +450,7 @@ function SpecCard({ spec, onStart, onDelete, onOpenRun, onOpenReview, onOpenDeta
               {sourceMeta(spec.source).label}
             </Badge>
             {spec.branchFrom && <Badge tone="neutral" size="sm" icon="git-branch">{spec.branchFrom}</Badge>}
+            <BlockedBadge spec={spec} />
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-muted)" }}>· {spec.projectId}</span>
           </div>
           <div style={{ marginTop: 8 }}><TitleButton spec={spec} onOpenDetail={onOpenDetail} /></div>
@@ -432,6 +492,7 @@ function SpecRow({ spec, onStart, onDelete, onOpenRun, onOpenReview, onOpenDetai
         }}>{spec.objective}</div>
       </div>
       {spec.branchFrom && <Badge tone="neutral" size="sm" icon="git-branch">{spec.branchFrom}</Badge>}
+      <BlockedBadge spec={spec} />
       <Badge tone={prio.tone} size="sm" variant={spec.priority === "tinggi" ? "soft" : "outline"}>{prio.label}</Badge>
       <div style={{ flex: "0 0 auto" }}><StageBar stage={spec.stage} /></div>
       <SpecActions spec={spec} onStart={onStart} onDelete={onDelete} onOpenRun={onOpenRun} onOpenReview={onOpenReview} running={running} />
@@ -505,6 +566,9 @@ function BoardCard({ spec, col, onOpenDetail, onStart, onOpenRun, onOpenReview, 
       <TitleButton spec={spec} onOpenDetail={onOpenDetail} size={13} />
       {spec.branchFrom && (
         <div style={{ marginTop: 6 }}><Badge tone="neutral" size="sm" icon="git-branch">{spec.branchFrom}</Badge></div>
+      )}
+      {(spec.blockedBy ?? []).length > 0 && (
+        <div style={{ marginTop: 6 }}><BlockedBadge spec={spec} /></div>
       )}
       {/* HTML5 drag-and-drop mati di keyboard dan di layar sentuh. Tombol ini jalur
           satu-satunya di sana — termasuk retry spec di kolom Failed. */}
@@ -585,7 +649,7 @@ const VIEWS = [
   { value: "board", label: "Board", icon: "kanban" },
 ];
 
-export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onOpenReview, onNew, onEditBranch, onRevertStage, onIntegrate, onEditSpec, onPromoteToQa, onPromoteToBrief, onPromoteToPrd, projectFilter, onProjectFilter, dataVersion, onToast, initialDetailId }:
+export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onOpenReview, onNew, onEditBranch, onRevertStage, onIntegrate, onEditSpec, onEditDeps, onPromoteToQa, onPromoteToBrief, onPromoteToPrd, projectFilter, onProjectFilter, dataVersion, onToast, initialDetailId }:
   {
     backlog: Spec[]; projects: ProjectVM[]; pageSize?: number;
     onStart?: (s: Spec) => void; activeSpecs?: Set<string>;
@@ -594,6 +658,8 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
     onRevertStage?: (s: Spec, target: string, confirmDelete?: boolean) => Promise<any>;
     onIntegrate?: (s: Spec, op: "merge" | "rebase", target: string) => void;
     onEditSpec?: (s: Spec, patch: { title?: string; priority?: string; payload?: unknown }) => void;
+    // SPEC-447 · ADR-0093 · ubah dependency item (di luar gerbang edit SPEC-186).
+    onEditDeps?: (s: Spec, ids: string[]) => void;
     // SPEC-237 · naikkan audit → Finding QA. SPEC-340 · ADR-0076 · + feature brief & PRD;
     // argumen kedua = rekomendasi hanoman yang terbaca dari dokumen audit (bisa null).
     onPromoteToQa?: (s: Spec, e: AuditEscalation | null) => void;
@@ -738,7 +804,8 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
       )}
       <SpecDetail spec={backlog.find((s) => s.id === detailId) || null} onClose={() => setDetailId(null)}
         onEditBranch={onEditBranch} onRevertStage={onRevertStage} onOpenReview={onOpenReview} onStart={onStart} onIntegrate={onIntegrate} onEditSpec={onEditSpec} onPromoteToQa={onPromoteToQa}
-        onPromoteToBrief={onPromoteToBrief} onPromoteToPrd={onPromoteToPrd} />
+        onPromoteToBrief={onPromoteToBrief} onPromoteToPrd={onPromoteToPrd}
+        onEditDeps={onEditDeps} allSpecs={backlog} />
     </div>
   );
 }
