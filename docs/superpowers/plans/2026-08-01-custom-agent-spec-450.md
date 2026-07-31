@@ -69,7 +69,7 @@
   - `detectCycle(nodes: AgentNode[]): string[] | null`
   - `effectiveAgents(globals: CustomAgent[], project: CustomAgent[]): CustomAgent[]`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `shared/test/custom-agent.test.ts`:
 
@@ -244,12 +244,12 @@ describe("zCreateCustomAgent", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `./node_modules/.bin/vitest run shared/test/custom-agent.test.ts`
 Expected: FAIL — `Failed to resolve import "../src/custom-agent"`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Buat `shared/src/custom-agent.ts`:
 
@@ -405,17 +405,17 @@ Tambahkan ke `shared/src/index.ts`, setelah baris `export * from "./agent";`:
 export * from "./custom-agent";
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run: `./node_modules/.bin/vitest run shared/test/custom-agent.test.ts`
 Expected: PASS — semua test hijau (± 30 test).
 
-- [ ] **Step 5: Typecheck paket shared**
+- [x] **Step 5: Typecheck paket shared**
 
 Run: `pnpm --filter ./shared typecheck`
 Expected: keluar 0, tanpa output.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add shared/src/custom-agent.ts shared/test/custom-agent.test.ts shared/src/index.ts
@@ -444,7 +444,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
   - `renderAgentsJson(defs: AgentDef[]): string` — `""` bila kosong
   - `agentRosterBlock(defs: AgentDef[]): string` — `""` bila kosong
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `runner/test/custom-agents.test.ts`:
 
@@ -547,12 +547,12 @@ describe("agentRosterBlock — jalur codex", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `./node_modules/.bin/vitest run runner/test/custom-agents.test.ts`
 Expected: FAIL — `Failed to resolve import "../src/custom-agents"`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Buat `runner/src/custom-agents.ts`:
 
@@ -657,17 +657,17 @@ Tambahkan ke `runner/src/index.ts`, setelah baris `export * from "./agent-cli";`
 export * from "./custom-agents";
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run: `./node_modules/.bin/vitest run runner/test/custom-agents.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Typecheck paket runner**
+- [x] **Step 5: Typecheck paket runner**
 
 Run: `pnpm --filter ./runner typecheck`
 Expected: keluar 0.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add runner/src/custom-agents.ts runner/test/custom-agents.test.ts runner/src/index.ts
@@ -694,7 +694,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: Task 1 (`customAgentId`).
 - Produces: tabel `CustomAgent`; entity sync `"customAgent"`; `prisma.customAgent` delegate.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/custom-agent-sync.test.ts`:
 
@@ -768,12 +768,12 @@ describe("wiring sync entitas customAgent", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `./node_modules/.bin/vitest run server/test/custom-agent-sync.test.ts --no-file-parallelism`
 Expected: FAIL — `prisma.customAgent` undefined / `SYNCED` tak memuat `customAgent`.
 
-- [ ] **Step 3: Tambahkan model ke schema**
+- [x] **Step 3: Tambahkan model ke schema**
 
 Di `server/prisma/schema.prisma`, tambahkan **setelah** model `Spec` (sebelum `model Setting`):
 
@@ -819,7 +819,7 @@ Tambahkan relasi balik di `model Project` (sisipkan bersama relasi lain yang sud
   customAgents CustomAgent[]
 ```
 
-- [ ] **Step 4: Tulis migration TANGAN**
+- [x] **Step 4: Tulis migration TANGAN**
 
 `migrate dev` **me-reset DB saat ada drift worktree tetangga** — jangan pakai. Buat
 `server/prisma/migrations/20260801120000_custom_agent/migration.sql`:
@@ -863,7 +863,7 @@ pnpm --filter ./server exec prisma generate
 
 Expected: `1 migration found` → `Applied`; lalu `Generated Prisma Client`.
 
-- [ ] **Step 5: Daftarkan entitas di sync + PG_ORDER**
+- [x] **Step 5: Daftarkan entitas di sync + PG_ORDER**
 
 Di `server/src/services/sync.ts` baris 10, ubah `SYNCED`:
 
@@ -905,7 +905,7 @@ export const PG_ORDER = [
 ] as const;
 ```
 
-- [ ] **Step 6: Jalankan test, pastikan LULUS**
+- [x] **Step 6: Jalankan test, pastikan LULUS**
 
 Run: `./node_modules/.bin/vitest run server/test/custom-agent-sync.test.ts --no-file-parallelism`
 Expected: PASS (5 test).
@@ -915,12 +915,12 @@ Lalu test DMMF yang menjaga `PG_ORDER` (cari namanya bila berbeda):
 Run: `./node_modules/.bin/vitest run cli --no-file-parallelism`
 Expected: PASS — bila merah karena `PG_ORDER` tak lengkap, perbaiki daftarnya, bukan test-nya.
 
-- [ ] **Step 7: Typecheck**
+- [x] **Step 7: Typecheck**
 
 Run: `pnpm --filter ./server typecheck && pnpm --filter ./cli typecheck`
 Expected: keluar 0.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/prisma/schema.prisma server/prisma/migrations cli/src/commands/migrate-pg.ts server/src/services/sync.ts server/test/custom-agent-sync.test.ts
@@ -950,7 +950,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
   - `unknownMentions(row, rows): string[]`
   - `installCustomAgents(): Promise<void>` — load + daftarkan sumber ke pty
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/custom-agents.service.test.ts`:
 
@@ -1103,12 +1103,12 @@ describe("toDef", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `./node_modules/.bin/vitest run server/test/custom-agents.service.test.ts --no-file-parallelism`
 Expected: FAIL — modul `../src/services/custom-agents` tak ada.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Buat `server/src/services/custom-agents.ts`:
 
@@ -1219,14 +1219,14 @@ export async function installCustomAgents(): Promise<void> {
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run: `./node_modules/.bin/vitest run server/test/custom-agents.service.test.ts --no-file-parallelism`
 Expected: PASS. (Task 6 yang menambahkan `registerCustomAgentSource` — sampai itu ada, impor akan
 gagal; **kerjakan Task 6 Step 3 lebih dulu bila TypeScript mengeluh**, atau tambahkan stub-nya di
 `pty.ts` sekarang dan lengkapi di Task 6.)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/custom-agents.ts server/test/custom-agents.service.test.ts
@@ -1253,7 +1253,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: Task 1 (`zCreateCustomAgent`, `zUpdateCustomAgent`, `customAgentId`), Task 4 (`validateGraph`, `unknownMentions`, `loadCustomAgents`).
 - Produces: `GET/POST/PATCH/DELETE /api/custom-agents`, capability `agents:read` / `agents:write`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/custom-agents.route.test.ts`:
 
@@ -1418,12 +1418,12 @@ describe("DELETE /api/custom-agents/:id", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `./node_modules/.bin/vitest run server/test/custom-agents.route.test.ts --no-file-parallelism`
 Expected: FAIL — `capabilityForRoute` mengembalikan `null`, route 404.
 
-- [ ] **Step 3: Tambahkan capability domain**
+- [x] **Step 3: Tambahkan capability domain**
 
 Di `shared/src/agent.ts`, tambahkan ke `CAPABILITY_IDS` **setelah** `"lead:read", "lead:write",`:
 
@@ -1454,7 +1454,7 @@ Di `server/src/services/agent-capabilities.ts`, tambahkan **sebelum** baris `if 
   if (top === "custom-agents") return rw("agents");
 ```
 
-- [ ] **Step 4: Tulis route**
+- [x] **Step 4: Tulis route**
 
 Buat `server/src/routes/custom-agents.ts`:
 
@@ -1604,18 +1604,18 @@ dan registrasi setelah `await api.register(lead);` (atau di akhir daftar `api.re
     await api.register(customAgents);
 ```
 
-- [ ] **Step 5: Jalankan test, pastikan LULUS**
+- [x] **Step 5: Jalankan test, pastikan LULUS**
 
 Run: `./node_modules/.bin/vitest run server/test/custom-agents.route.test.ts server/test/agent-capabilities.test.ts --no-file-parallelism`
 Expected: PASS. Bila `agent-capabilities.test.ts` merah karena jumlah capability berubah, perbarui
 angka yang di-assert di sana — itu memang kontraknya.
 
-- [ ] **Step 6: Typecheck**
+- [x] **Step 6: Typecheck**
 
 Run: `pnpm --filter ./shared typecheck && pnpm --filter ./server typecheck`
 Expected: keluar 0.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add shared/src/agent.ts server/src/routes/custom-agents.ts server/src/services/agent-capabilities.ts server/src/app.ts server/test/custom-agents.route.test.ts server/test/agent-capabilities.test.ts
@@ -1645,7 +1645,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
   - `agentsFilePath(id: string): string` di `pty.ts`
   - `agentFlags({ …, agentsFile?: string })` — **claude saja**
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/custom-agents.pty.test.ts`:
 
@@ -1753,7 +1753,7 @@ describe("sumber yang melempar", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `./node_modules/.bin/vitest run server/test/custom-agents.pty.test.ts --no-file-parallelism`
 Expected: FAIL — `registerCustomAgentSource` / `agentsFilePath` belum diekspor.
@@ -1761,7 +1761,7 @@ Expected: FAIL — `registerCustomAgentSource` / `agentsFilePath` belum diekspor
 > Bila 1–3 test `pty` gagal dengan sesi tmux sisa dari run sebelumnya, **jalankan ulang dulu**
 > sebelum menyalahkan perubahanmu (jebakan yang sudah terdokumentasi di repo ini).
 
-- [ ] **Step 3: Tambahkan sumber + jalur berkas di `pty.ts`**
+- [x] **Step 3: Tambahkan sumber + jalur berkas di `pty.ts`**
 
 Di `server/src/services/pty.ts`, **setelah** blok `registerSessionHooks` (sekitar baris 206),
 tambahkan:
@@ -1798,7 +1798,7 @@ export const agentsFilePath = (id: string): string => promptFilePath(id).replace
 > Bila `promptFilePath` tidak berakhiran `prompt`, sesuaikan: yang penting berkas ini **berdampingan
 > dengan berkas prompt di tmpdir** dan namanya diturunkan dari `id` secara deterministik.
 
-- [ ] **Step 4: Rakit argv & prompt di `createSession`**
+- [x] **Step 4: Rakit argv & prompt di `createSession`**
 
 Di `createSession`, **sebelum** blok `let promptArg = "";`, hitung defs dan siapkan roster:
 
@@ -1859,7 +1859,7 @@ Ubah pemanggilan `agentFlags` menjadi:
     argv = [sq(agentBin(agent)), promptArg, flags, agentsArg].filter(Boolean).join(" ");
 ```
 
-- [ ] **Step 5: `agentFlags` tak berubah bentuknya**
+- [x] **Step 5: `agentFlags` tak berubah bentuknya**
 
 `--agents` **tidak** masuk `agentFlags` justru karena ia tak boleh di-`sq`. Tambahkan komentar di
 `runner/src/agent-cli.ts`, tepat di atas cabang claude:
@@ -1870,7 +1870,7 @@ Ubah pemanggilan `agentFlags` menjadi:
   // agar di-expand shell saat sesi lahir. Ia disisipkan di `createSession`, sejajar `promptArg`.
 ```
 
-- [ ] **Step 6: Pasang sumber saat boot**
+- [x] **Step 6: Pasang sumber saat boot**
 
 Di `server/src/server.ts`, tambahkan impor:
 
@@ -1889,7 +1889,7 @@ dan panggilan **sebelum** `startScheduler()` (sesi pertama bisa lahir dari gover
 > `server.ts` sudah berada di dalam `.then(async () => { … })` — bila tidak, bungkus dengan
 > `void installCustomAgents().catch((e) => console.error("katalog custom agent:", e));`.
 
-- [ ] **Step 7: Jalankan test, pastikan LULUS**
+- [x] **Step 7: Jalankan test, pastikan LULUS**
 
 Run: `./node_modules/.bin/vitest run server/test/custom-agents.pty.test.ts --no-file-parallelism`
 Expected: PASS (9 test).
@@ -1899,12 +1899,12 @@ Lalu pastikan sesi lain tak regresi:
 Run: `./node_modules/.bin/vitest run server/test/pty.test.ts server/test/session-launch.test.ts --no-file-parallelism`
 Expected: PASS. (Sesuaikan nama berkas bila berbeda — cari dengan `ls server/test | grep -E "pty|launch"`.)
 
-- [ ] **Step 8: Typecheck**
+- [x] **Step 8: Typecheck**
 
 Run: `pnpm --filter ./runner typecheck && pnpm --filter ./server typecheck`
 Expected: keluar 0.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add server/src/services/pty.ts server/src/server.ts runner/src/agent-cli.ts server/test/custom-agents.pty.test.ts
@@ -1932,7 +1932,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: Task 5 (`GET/POST/PATCH/DELETE /api/custom-agents`), Task 1 (`resolveTools`, `AGENT_NAME_RE`, `DEFAULT_AGENT_TOOLS`).
 - Produces: `<CustomAgentsPanel projectId={string | null} />`.
 
-- [ ] **Step 1: Baca pola yang ada sebelum menulis**
+- [x] **Step 1: Baca pola yang ada sebelum menulis**
 
 Run:
 ```bash
@@ -1943,7 +1943,7 @@ ls src/src/ds
 Ikuti pola fetch, `Card`, `Button`, `Switch`/`Checkbox`, dan gaya (editorial · bone paper · brass
 accent) yang sudah dipakai. **Jangan** memperkenalkan pustaka UI baru.
 
-- [ ] **Step 2: Tulis test yang gagal**
+- [x] **Step 2: Tulis test yang gagal**
 
 Buat `src/test/custom-agents-panel.test.tsx`:
 
@@ -2008,7 +2008,7 @@ describe("CustomAgentsPanel", () => {
 });
 ```
 
-- [ ] **Step 3: Jalankan test, pastikan GAGAL**
+- [x] **Step 3: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV ./node_modules/.bin/vitest run src/test/custom-agents-panel.test.tsx`
 Expected: FAIL — modul `CustomAgentsPanel` tak ada.
@@ -2016,7 +2016,7 @@ Expected: FAIL — modul `CustomAgentsPanel` tak ada.
 > `env -u NODE_ENV` **wajib**: `NODE_ENV=production` yang bocor dari shell membuat RTL `act` gagal
 > palsu secara massal.
 
-- [ ] **Step 4: Implementasi panel**
+- [x] **Step 4: Implementasi panel**
 
 Buat `src/src/screens/CustomAgentsPanel.tsx`. Bentuk yang harus dipenuhi:
 
@@ -2036,12 +2036,12 @@ Buat `src/src/screens/CustomAgentsPanel.tsx`. Bentuk yang harus dipenuhi:
 - Kartu yang memuat pane bergulir memakai **`<Card fill>`**, bukan rantai flex lewat `style`
   (SPEC-393) — bila kamu memang membungkusnya dengan `Card`.
 
-- [ ] **Step 5: Jalankan test, pastikan LULUS**
+- [x] **Step 5: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV ./node_modules/.bin/vitest run src/test/custom-agents-panel.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 6: Pasang di dua permukaan**
+- [x] **Step 6: Pasang di dua permukaan**
 
 - `SettingsScreen.tsx`: tambahkan tab **"Custom agent"** yang merender `<CustomAgentsPanel projectId={null} />`.
 - `ProjectDetailScreen.tsx`: tambahkan bagian yang merender `<CustomAgentsPanel projectId={project.id} />`.
@@ -2052,13 +2052,13 @@ Run: `env -u NODE_ENV ./node_modules/.bin/vitest run src/test --changed "$HANOMA
 Expected: PASS — dan **pastikan jumlah berkas test > 0**; `--changed` menyalakan
 `passWithNoTests`, jadi "no test files" **terlihat hijau** padahal tak menguji apa pun.
 
-- [ ] **Step 7: Typecheck web**
+- [x] **Step 7: Typecheck web**
 
 Run: `pnpm --filter ./src typecheck`
 Expected: keluar 0. (Bila nama paketnya berbeda, jalankan `pnpm -F <nama> typecheck`; lihat
 `src/package.json`.)
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/src/screens/CustomAgentsPanel.tsx src/test/custom-agents-panel.test.tsx src/src/screens/SettingsScreen.tsx src/src/screens/ProjectDetailScreen.tsx src/src/api
@@ -2085,20 +2085,20 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: seluruh task sebelumnya.
 - Produces: docs SoT yang sinkron + bukti hidup bahwa custom agent benar-benar sampai ke agen.
 
-- [ ] **Step 1: Perbarui `data-model.md`**
+- [x] **Step 1: Perbarui `data-model.md`**
 
 Tambahkan bagian `CustomAgent` yang memuat: kolom-kolomnya, arti `projectId` null, alasan `id`
 deterministik, alasan `name` immutable, dan **gotcha NULL-distinct SQLite** (`@@unique([projectId,
 name])` tak mencegah dua agen global bernama sama). Sebut ADR-0094.
 
-- [ ] **Step 2: Perbarui `api-contract.md`**
+- [x] **Step 2: Perbarui `api-contract.md`**
 
 Tambahkan tabel endpoint `/api/custom-agents` (GET/POST/PATCH/DELETE) berikut kode statusnya:
 `201` · `400` (slug, projectId tak ada, mention tak dikenal, upaya mengubah `name`) · `409`
 (duplikat scope, siklus + `scope`/`cycle`) · `404` · `204`. Sebut domain capability `agents`
 dipetakan **menurut method**.
 
-- [ ] **Step 3: Perbarui `internal/skills/hanoman/SKILL.md`**
+- [x] **Step 3: Perbarui `internal/skills/hanoman/SKILL.md`**
 
 Tambahkan satu butir di bagian **Aturan Sesi & Eksekusi**, sesudah butir SPEC-447/ADR-0093, yang
 memuat: mekanisme per agen (claude `--agents` via berkas; codex roster di prompt), tiga lapis
@@ -2108,11 +2108,11 @@ lulus palsu.
 
 Tambahkan model `CustomAgent` ke daftar model pendukung di bagian **Aturan Data & Skema**.
 
-- [ ] **Step 4: Perbarui `docs/agent-integration.md`**
+- [x] **Step 4: Perbarui `docs/agent-integration.md`**
 
 Tambahkan domain `agents` ke tabel capability.
 
-- [ ] **Step 5: Verifikasi hidup — SEKALI, di akhir**
+- [x] **Step 5: Verifikasi hidup — SEKALI, di akhir**
 
 Ini **wajib**: ADR-0094 gotcha 1 membuktikan proses yang "berhasil" tak membuktikan apa pun.
 
@@ -2147,7 +2147,7 @@ cat /tmp/cyc.json
 Expected: langkah 3 → dua kali `201`. Langkah 4 → **`409`** dan body memuat
 `"cycle":["hnm-rev","hnm-tes","hnm-rev"]` (urutan boleh berputar, isinya harus siklus itu).
 
-- [ ] **Step 6: Verifikasi hidup — agen benar-benar melihatnya**
+- [x] **Step 6: Verifikasi hidup — agen benar-benar melihatnya**
 
 ```bash
 # Ambil JSON yang akan dipasang hanoman, lalu tanyai claude apa yang BENAR-BENAR ia miliki.
@@ -2182,7 +2182,7 @@ kill "$SERVER_PID"
 
 (**Jangan** `pkill -f node` — itu membunuh sesi agen tetangga.)
 
-- [ ] **Step 7: Jalankan seluruh test yang tersentuh**
+- [x] **Step 7: Jalankan seluruh test yang tersentuh**
 
 Run:
 ```bash
@@ -2195,12 +2195,12 @@ Bila `sync-ws.test.ts` merah: ia terbukti **non-deterministik**. Jalankan ulang 
 (`./node_modules/.bin/vitest run server/test/sync-ws.test.ts --no-file-parallelism`) **dan** ulangi
 set yang sama sebelum menyalahkan perubahanmu.
 
-- [ ] **Step 8: Typecheck paket yang tersentuh**
+- [x] **Step 8: Typecheck paket yang tersentuh**
 
 Run: `pnpm --filter ./shared typecheck && pnpm --filter ./runner typecheck && pnpm --filter ./server typecheck && pnpm --filter ./cli typecheck`
 Expected: keluar 0. **Jangan** `pnpm -r typecheck` (satu proses tsc per paket sekaligus).
 
-- [ ] **Step 9: Commit + push**
+- [x] **Step 9: Commit + push**
 
 ```bash
 git add internal/docs docs/agent-integration.md internal/skills/hanoman/SKILL.md

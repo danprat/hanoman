@@ -20,7 +20,7 @@ describe("/agent-tokens routes (cookie-only)", () => {
     expect((await app.inject({ method: "GET", url: "/api/agent-tokens" })).statusCode).toBe(401);
   });
 
-  it("capabilities catalog lists 18 entries", async () => {
+  it("capabilities catalog lists 22 entries", async () => {
     const cookie = await login();
     const r = await app.inject({ method: "GET", url: "/api/agent-tokens/capabilities", headers: { cookie } });
     expect(r.statusCode).toBe(200);
@@ -29,8 +29,10 @@ describe("/agent-tokens routes (cookie-only)", () => {
     // memperlebar permukaan `/api` yang boleh didelegasikan ke agent token (ADR-0065), dan itu harus
     // disadari seorang manusia. SPEC-409 menambahkan `lead:read`/`lead:write` (ADR-0091) tanpa
     // menyetel ulang angkanya → 18 sejak itu selalu merah. Naikkan HANYA bersama penambahan yang
-    // memang disengaja.
-    expect(r.json().capabilities).toHaveLength(20);
+    // memang disengaja. SPEC-450 (ADR-0094) menambahkan `agents:read`/`agents:write` → 22:
+    // `agents:write` mengubah apa yang dilihat SETIAP sesi baru di seluruh workspace, jadi
+    // pelebaran permukaan ini memang harus disadari.
+    expect(r.json().capabilities).toHaveLength(22);
     expect(r.json().capabilities[0]).toMatchObject({ id: expect.any(String), domain: expect.any(String), access: expect.any(String) });
   });
 

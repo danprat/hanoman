@@ -16,9 +16,12 @@ describe("sync exclusions — preferensi lokal tak tersync (SPEC-213 AC-30)", ()
     }
   });
 
-  it("SYNCED is exactly the authoritative entities (SPEC-272: +ticketAttachment; SPEC-384: −errorGroup)", () => {
+  it("SYNCED is exactly the authoritative entities (SPEC-272: +ticketAttachment; SPEC-384: −errorGroup; SPEC-450: +customAgent)", () => {
+    // SPEC-450 · ADR-0094 · `customAgent` ikut menyeberang: katalog persona adalah pengetahuan
+    // bersama, dan id-nya deterministik justru supaya dua mesin yang membuat nama sama bertemu
+    // sebagai SATU baris di sini, bukan dua yang saling menelan di objek JSON berkunci nama.
     expect([...SYNCED].sort()).toEqual(
-      ["project", "sessionResult", "spec", "ticket", "ticketAttachment", "vps"],
+      ["customAgent", "project", "sessionResult", "spec", "ticket", "ticketAttachment", "vps"],
     );
   });
 
