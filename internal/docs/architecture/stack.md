@@ -19,7 +19,12 @@ lewat `setInterval` yang di-`start` dari `server.ts` saja (`app.ts` bebas-timer)
 5 mnt, audit 24 jam) dan — sejak SPEC-294/[ADR-0072](../adr/0072-scheduler-fondasi-engine-antrean-durable-cap.md) —
 **engine scheduler otonom** (tick governor: checker source enable+cadence → antrean durable
 `SchedulerQueueItem` → drain di bawah cap). Scheduler **membalik sebagian ADR-0024** (menghidupkan kembali
-antrean durable + cap concurrency), tetap **tanpa** broker eksternal: "antrean durable" = tabel DB hanoman.
+antrean durable + cap concurrency), tetap **tanpa** broker eksternal: "antrean durable" = tabel DB hanoman. Sejak
+SPEC-409/[ADR-0091](../adr/0091-hanoman-lead-agen-pemimpin.md) ada timer ketiga: **denyut hanoman-lead**
+(tick 5 dtk untuk pintu deteksi keputusan; denyut proaktif tiap `Setting.lead.everyMin`). Ia mengikuti
+pola yang sama persis — in-process, `.unref`, di-`start` dari `server.ts` — dan **tak menambah
+infrastruktur apa pun**: urutan kerja yang ia putuskan diserahkan ke antrean & governor scheduler yang
+sudah ada, bukan antrean kedua.
 
 ## Bentuk sistem
 ```
@@ -31,9 +36,13 @@ Server (Fastify, bind 127.0.0.1:8787)
    ├─ PTY/tmux  ─► sesi `claude` interaktif per backlog, di git worktree terisolasi
    ├─ VPS monitor (setInterval: health 5 mnt · audit 24 jam)
    ├─ Scheduler engine (setInterval tick: source enable+cadence → antrean durable → rekonsil akhir sesi + scanDecisions → drain di bawah cap · SPEC-294/ADR-0072; checker konkret: backlog SPEC-295, errors SPEC-296 — grup produksi berulang → escalate → antrean, satu grup = satu backlog, triase SPEC-297 — tiket bug/fitur eligible → accept → antrean, satu tiket = satu backlog; SPEC-298 — klausa autonomy per mode saat launch [full-control tembus sampai done / butuh-keputusan berhenti→notif decision, slot tetap] + akhir sesi: done→ringkasan `SessionResult`+notif done tanpa auto-merge, gagal/limit→notif fail tanpa retry)
+   ├─ Lead engine (setInterval: 5 dtk pintu deteksi keputusan [pane ber-marker → capture → putuskan → ketik jawabannya];
+   │                denyut proaktif tiap Setting.lead.everyMin: urutan kerja → antrean scheduler yang SUDAH ADA,
+   │                tabrakan area kerja dari diff worktree, tindak lanjut sesi exitCode≠0 / plan bersisa `- [ ]` · SPEC-409/ADR-0091;
+   │                default MATI, opt-in per project lewat Project.leadOptIn)
    ├─ Docs SoT scan (live dari Project.repoDir tiap request — ADR-0011/0018)
    ├─ @fastify/static → web/  (aset dashboard di dalam paket npm; HANOMAN_WEB_DIR)
-   └─ SQLite (Prisma): Project · Spec · Setting · Notification · User · Session · Vps
+   └─ SQLite (Prisma): Project · Spec · Setting · Notification · User · Session · Vps (+ LeadDecision, LOCAL-only · SPEC-409)
 ```
 
 **Nol proses eksternal, dan itu termasuk DB-nya.** Sejak SPEC-398/ADR-0086 provider Prisma adalah

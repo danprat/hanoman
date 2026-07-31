@@ -5,9 +5,10 @@ import {
 } from "../src";
 
 describe("agent capabilities", () => {
-  it("has 9 domains × read/write = 18 capability ids, all in metadata", () => {
-    expect(CAPABILITY_IDS.length).toBe(18);
-    expect(new Set(CAPABILITY_IDS).size).toBe(18);
+  // SPEC-409 · ADR-0091 · +domain `lead` (minta putusan & baca jejak) → 10 domain.
+  it("has 10 domains × read/write = 20 capability ids, all in metadata", () => {
+    expect(CAPABILITY_IDS.length).toBe(20);
+    expect(new Set(CAPABILITY_IDS).size).toBe(20);
     expect(CAPABILITIES.map((c) => c.id).sort()).toEqual([...CAPABILITY_IDS].sort());
     expect(zCapability.safeParse("projects:read").success).toBe(true);
     expect(zCapability.safeParse("nope:read").success).toBe(false);

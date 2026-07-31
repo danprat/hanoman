@@ -32,6 +32,7 @@ import help from "./routes/help";
 import tickets from "./routes/tickets";
 import scheduler from "./routes/scheduler";
 import audit from "./routes/audit";
+import lead from "./routes/lead";
 import { auditScopeFromReq } from "./services/audit-scope";
 import fastifyMultipart from "@fastify/multipart";
 import authRoutes from "./routes/auth";
@@ -150,6 +151,7 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
     await api.register(scheduler);  // SPEC-294 · config/state scheduler (di belakang gate cookie)
     await api.register(audit);      // SPEC-337 · log lintas project untuk sesi cross-audit
     await api.register(codex);      // SPEC-339 · versi codex CLI untuk peringatan model 5.6
+    await api.register(lead);       // SPEC-409 · ADR-0091 · hanoman-lead (cookie + capability `lead`)
   }, { prefix: "/api" });
 
   // Prod: serve the built dashboard from one process; SPA-fallback to

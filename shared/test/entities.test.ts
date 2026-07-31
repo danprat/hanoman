@@ -41,7 +41,9 @@ describe("schemas", () => {
   it("spec carries a nullable branchFrom", () => {
     const base = { id: "SPEC-1", projectId: "p1", title: "t", source: "brief" as const,
       stage: "brainstorming" as const, priority: "sedang" as const, author: "a", objective: "o",
-      payload: null, baseSha: null }; // baseSha wajib (nullable) sejak SPEC-186 — test lama terlewat
+      // baseSha wajib (nullable) sejak SPEC-186; createdAt/startedAt wajib sejak SPEC-408/ADR-0090.
+      payload: null, baseSha: null,
+      createdAt: new Date().toISOString(), startedAt: null };
     expect(zSpec.parse({ ...base, branchFrom: null }).branchFrom).toBeNull();
     expect(zSpec.parse({ ...base, branchFrom: "release/v2" }).branchFrom).toBe("release/v2");
   });
@@ -119,6 +121,7 @@ describe("zGoalPayload (SPEC-407)", () => {
       id: "SPEC-407", projectId: "p1", title: "t", source: "goal", stage: "brainstorming",
       priority: "tinggi", author: "Goal · a@b.c", objective: "p95 < 200 ms", payload,
       branchFrom: null, baseSha: null,
+      createdAt: new Date().toISOString(), startedAt: null,   // SPEC-408 · ADR-0090
     });
     expect(spec.payload).toEqual(payload);
   });

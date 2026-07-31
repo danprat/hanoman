@@ -36,7 +36,7 @@ curl -s "$HANOMAN_HOST/api/specs" \
 
 ## 3. Capability
 
-Capability berformat `"<domain>:<access>"`, `access ∈ {read, write}`, dan **write meng-implikasikan read** pada domain yang sama. Ada **9 domain × 2 = 18 capability**. Katalog resmi (dengan label & deskripsi) tampil di panel **Settings → Akses AI Agent** saat manusia membuat token; endpoint katalognya (`GET /api/agent-tokens/capabilities`) bersifat **cookie-only** (lihat §5) — agen tak perlu mengambilnya, cukup rujuk tabel di bawah:
+Capability berformat `"<domain>:<access>"`, `access ∈ {read, write}`, dan **write meng-implikasikan read** pada domain yang sama. Ada **10 domain × 2 = 20 capability**. Katalog resmi (dengan label & deskripsi) tampil di panel **Settings → Akses AI Agent** saat manusia membuat token; endpoint katalognya (`GET /api/agent-tokens/capabilities`) bersifat **cookie-only** (lihat §5) — agen tak perlu mengambilnya, cukup rujuk tabel di bawah:
 
 | Domain | Cakupan endpoint | Catatan |
 |---|---|---|
@@ -49,8 +49,9 @@ Capability berformat `"<domain>:<access>"`, `access ∈ {read, write}`, dan **wr
 | `settings` | `/api/settings*`, `/api/config*` | setelan & config runtime |
 | `support` | `/api/errors*`, `/api/tickets*` | error monitoring & tiket Help Center |
 | `notifications` | `/api/notifications*` | notifikasi |
+| `lead` | `/api/lead*` | minta putusan ke hanoman-lead & baca jejak keputusan — **`lead:write` bisa menggerakkan sesi** (SPEC-409 · ADR-0091) |
 
-Aturan pemetaan (deterministik, `server/src/services/agent-capabilities.ts`): `GET`/`HEAD` → `:read`, metode lain → `:write`. Sub-path `/api/projects/:id/{docs,prds}` dihitung domain **`docs`**; sub-path IDE/git di atas dihitung domain **`ide`**; WebSocket terminal butuh **`sessions:write`**.
+Aturan pemetaan (deterministik, `server/src/services/agent-capabilities.ts`): `GET`/`HEAD` → `:read`, metode lain → `:write`. Itu berlaku untuk domain `lead` juga: **`POST /api/lead/decisions` menuntut `lead:write`**, dan `lead:read` tak pernah cukup — meminta putusan melahirkan baris jejak permanen dan keputusannya bisa menggerakkan sesi. Sub-path `/api/projects/:id/{docs,prds}` dihitung domain **`docs`**; sub-path IDE/git di atas dihitung domain **`ide`**; WebSocket terminal butuh **`sessions:write`**.
 
 ## 4. Aturan gate & kode status
 
@@ -89,6 +90,36 @@ curl -s -X POST "$HANOMAN_HOST/api/specs" \
 
 # 3. Bila balas 403 { need: "backlog:write" }, tambah capability itu ke token di Settings.
 ```
+
+## 6b. Minta putusan ke hanoman-lead (SPEC-409 · ADR-0091)
+
+Agen yang menemui persimpangan tak perlu berhenti menunggu manusia — ia boleh **meminta putusan**:
+
+```bash
+curl -s -X POST "$HANOMAN_HOST/api/lead/decisions" \
+  -H "Authorization: Bearer $HANOMAN_AGENT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+        "projectId": "hanoman",
+        "specId": "SPEC-409",
+        "question": "Tambah kolom baru di Spec, atau turunkan dari updatedAt?",
+        "options": ["kolom baru", "turunkan dari updatedAt"],
+        "context": "Filter rentang tanggal butuh waktu item dibuat."
+      }'
+# 201 { id, decision, reason, refs: ["ADR-0090", "internal/docs/..."], confidence: "tinggi", action: "none" }
+```
+
+Jawabannya **terbaca mesin**, bukan prosa bebas, dan `refs` hanya memuat rujukan yang benar-benar ada
+di repo — jadi agen bisa memverifikasi sendiri dasar keputusannya. `confidence: "ragu"` berarti lead
+tetap memutuskan tapi memilih opsi yang paling mudah dibatalkan, dan operator sudah dinotifikasi.
+
+Kode balasan yang perlu ditangani:
+
+| Kode | Artinya |
+|---|---|
+| **409** | lead tak aktif / project belum opt-in → **kembali ke perilaku lama**: berhenti & tunggu manusia |
+| **504** | lead tak berhasil memutuskan dalam batas waktu; kegagalannya sudah tercatat & dinotifikasi |
+| **403** `{ need: "lead:write" }` | token cuma punya `lead:read` |
 
 Endpoint & payload lengkap: lihat **API contract** (`internal/docs/architecture/api-contract.md`) di repo — permukaan REST-nya identik dengan yang dipakai dashboard.
 

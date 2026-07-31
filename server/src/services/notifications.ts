@@ -66,6 +66,18 @@ export async function recordNewTicket(
   }).catch(() => { /* P2002: sudah ada untuk tiket ini */ });
 }
 
+// SPEC-409 · ADR-0091 · notif keputusan hanoman-lead. MEMBERI TAHU, bukan meminta izin (AC-25):
+// tak ada pekerjaan yang menunggu ini dibaca. Dedup `key: lead:<decisionId>` — satu baris jejak
+// paling banyak satu notif; insert kedua kena P2002 dan diabaikan.
+export async function recordLeadDecision(
+  decisionId: string, title: string, projectId: string | null,
+  specId: string | null, sessionId: string | null,
+): Promise<void> {
+  await prisma.notification.create({
+    data: { type: "lead", key: `lead:${decisionId}`, specId, sessionId, projectId, title },
+  }).catch(() => { /* P2002: sudah ada untuk keputusan ini */ });
+}
+
 type DecisionSession = { id: string; specId?: string; projectId: string; decisionFile: string };
 
 // SPEC-184 · episode per-sesi. Di-rebuild tiap scan dari kondisi marker: sesi mati hilang dari

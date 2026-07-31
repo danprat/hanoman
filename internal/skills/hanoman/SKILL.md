@@ -49,6 +49,9 @@ Pakai skill lebih sempit saat task cocok:
 
 - Bentuk produk: **instrument panel yang tenang**. Overview sebagai beranda; tiap area (Projects/PRD/Backlog/Terminal/Docs/VPS/Settings) satu klik dari sidebar; Terminal adalah pusat gravitasi saat sesuatu berjalan.
 - **Manusia terakhir yang memutuskan.** Otomasi penuh boleh, tapi selalu bisa diinterupsi/di-steer.
+  **Kecuali project yang meng-opt-in hanoman-lead** (SPEC-409/ADR-0091): di sana prinsipnya jadi
+  **"manusia terakhir yang bisa membatalkan"** — lead memutuskan lalu melapor. Opt-in per project,
+  default mati; selama `Setting.lead.enabled` mati prinsip lama berlaku di seluruh workspace.
 - **Satu workspace dulu** (nafanesia.id). Multi-tenant adalah pasca-MVP.
 - Objektif MVP: satu operator menjalankan & memantau Claude Code di banyak project sekaligus, dengan docs sebagai Source of Truth, tanpa kehilangan kendali atas sesi berjalan.
 - Empat lakon (temperamen produk): **Anoman Duta** (kepercayaan dibuktikan spec & docs), **Anoman Obong** (sesi menyelesaikan tugas & lapor balik), **Gunung Dronagiri** (ragu → dokumentasikan semuanya), **Chiranjivi** (docs abadi melampaui commit).
@@ -81,7 +84,7 @@ Pakai skill lebih sempit saat task cocok:
   berarti setiap agent token bisa me-restart instance — kini `GLOBAL_READ` hanya untuk method baca.
 - Realtime: **WebSocket hanya untuk terminal PTY**; sisanya **HTTP polling** (projects, backlog, notifications, limits, vps). Jaga UI responsif — log sesi streaming, jangan blok main thread.
 - Terminal server: **node-pty + tmux** (socket `-L hanoman`, `remain-on-exit on`); terminal web: **xterm.js** merender TUI Claude Code apa adanya. tmux menahan sesi hidup lintas restart API (ADR-0016).
-- **Tidak ada** message queue, Redis, worker terpisah, scheduler cron, maupun webhook GitHub — semua dicabut saat pindah ke sesi interaktif (ADR-0024). Satu-satunya kerja latar = dua `setInterval` di `server.ts` untuk monitor VPS (health 5 mnt, audit 24 jam).
+- **Tidak ada** message queue, Redis, worker terpisah, scheduler cron, maupun webhook GitHub — semua dicabut saat pindah ke sesi interaktif (ADR-0024). Kerja latar semuanya `setInterval` in-process yang di-`start` dari `server.ts` (`app.ts` bebas-timer): monitor VPS (health 5 mnt, audit 24 jam), engine scheduler (ADR-0072), dan denyut hanoman-lead (ADR-0091).
 - Server **bind `127.0.0.1:8787`** di belakang reverse proxy TLS; `HOST=0.0.0.0` hanya bila ada TLS di depan.
 - `runner/src/*` adalah **library**, bukan proses: `git.ts` (worktree), `prompt.ts` (prompt + `PIPELINES` fase), `reverse-standard.ts`, `settings.ts`. Tak ada lagi invokasi `claude` headless; flow CLI lama (execute/spec/plan/qa) sudah dicabut (ADR-0024).
 - **Bersihkan branch tak terpakai** (SPEC-360/ADR-0077): daftar branch ter-merge = **nilai turunan git**
@@ -319,6 +322,35 @@ Pakai skill lebih sempit saat task cocok:
   di modal backlog baru, dan tombol **"Take ke backlog"** di preview PRD yang kini **pemilih**
   (brief / goal, keduanya ber-`branchFrom = prd/<slug>`). Tanpa migration, tanpa endpoint baru;
   ADR-0029 (gerbang plan) & ADR-0037 tetap utuh.
+- **hanoman-lead — agen pemimpin di atas agen** (SPEC-409/ADR-0091, **mengamandemen ADR-0035**):
+  mekanisme "sesi menunggu keputusan" sudah lengkap sejak SPEC-184/196; yang tak pernah ada adalah
+  **yang menjawabnya selain manusia**. Lead adalah **agen** yang dipanggil sekali-jalan non-interaktif
+  (`claude -p`/`codex exec`, `services/lead/brain.ts`) dengan keluaran satu blok ```json — **bukan**
+  menghidupkan run headless ADR-0024 (yang dicabut itu MENGERJAKAN pekerjaan bertahap; lead cuma
+  penasihat berumur pendek yang tak menyentuh worktree sesi manapun). **Tiga pintu, satu otak**
+  (`services/lead/decide.ts`, urutan wajib bukti → putusan → saring rujukan → gerbang tindakan →
+  **TULIS JEJAK** → notifikasi): kontrak eksplisit `POST /api/lead/decisions` (agen internal &
+  eksternal ber-`AgentToken`, capability domain **`lead`** dipetakan MENURUT METHOD — kelas bug
+  SPEC-405), deteksi otomatis (baca pane ber-marker → ketik jawabannya lewat `pty.sendToPane`), dan
+  denyut proaktif `setInterval` in-process (urutan kerja diserahkan ke antrean+governor ADR-0072,
+  bukan antrean kedua; tabrakan area kerja dari diff worktree; tindak lanjut sesi ber-`exitCode ≠ 0`
+  atau plan bersisa `- [ ]`). **Batas kerasnya di permukaan tindakan LEAD** (`LEAD_ACTIONS` =
+  allowlist tertutup, konstanta modul **bukan konfigurasi**), ditegakkan **di server** — **ADR-0037
+  tetap utuh**, sesi pekerja tak diberi hook deny apa pun. Konsekuensi mengikat: **"ulangi dari nol"
+  mustahil bagi lead** (butuh menghapus worktree = terkunci), dan `stop-session` memanggil
+  `killSession()` LANGSUNG — bukan `DELETE /terminal/sessions/:id` yang memang menghapus worktree
+  (SPEC-362). Jejaknya model **`LeadDecision`** (migration tulis tangan, LOCAL-only, ikut `PG_ORDER`;
+  `trail.ts` sengaja **tak punya fungsi hapus**) + `Setting.lead` (kolom `Json` → tanpa migration) +
+  `Project.leadOptIn` (cermin `schedulerOptIn`). Jejak & status lewat **HTTP polling** — tanpa kanal
+  WS baru (ADR-0039 utuh). **Semua default MATI.** **Enam gotcha:** penghitung jawaban otomatis TAK
+  BOLEH di-reset saat marker kosong (marker memang kosong sesaat sesudah lead mengetik — hook
+  `UserPromptSubmit` menjalankan `: >` — jadi reset di sana membuat pagar AC-11 tak pernah tercapai);
+  idempotensi denyut lewat **jejak** bukan `Set` memori (pane mati bertahan berhari-hari, `Set`
+  kosong justru sesudah restart); `zLeadVerdict.action` sengaja `string` bukan enum supaya "deploy"
+  bisa MASUK lalu ditolak-dan-dicatat, bukan lenyap sebagai keluaran rusak; jawaban ke pane dipotong
+  `goalChunks` (burst ≥1024 char → `[Pasted Content]` SENYAP, ADR-0085); rujukan disaring terhadap
+  repo (path absolut & `..` ditolak); dan marker sesi **codex** menyala juga saat selesai wajar
+  (ADR-0074) → `services/lead/pane.ts` bias ke DIAM.
 - **Scope verifikasi per sesi** (SPEC-376/ADR-0080): `verifyScope` (`changed` default | `full`) —
   knob `Setting.verifyScope` (kolom `Json`, **tanpa migration**) + override saat Start. Sesi
   `changed` menguji **berkas yang berubah saja**: `pnpm vitest --run --changed "$HANOMAN_BASE_SHA"`

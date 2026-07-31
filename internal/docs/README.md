@@ -41,6 +41,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 > **Narasi tiap keputusan — apa yang diperluas/dicabut/diamandemen, berikut gotcha-nya — ada di
 > [adr/README.md](adr/README.md).** Daftar di bawah sengaja satu baris per ADR: index ini dibaca
 > setiap sesi agen, sub-index hanya saat butuh riwayatnya (SPEC-386).
+- [0091 — hanoman-lead: agen pemimpin di atas agen; manusia jadi pembatal, bukan gerbang](adr/0091-hanoman-lead-agen-pemimpin.md)
 - [0090 — Stempel waktu backlog: `Spec.createdAt` & `startedAt` sebagai kolom, bukan turunan](adr/0090-stempel-waktu-backlog-created-started.md)
 - [0089 — Backlog goal: source & flow `goal` dua fase, mode goal dipaksa dengan kondisi dari item](adr/0089-backlog-goal-flow-dua-fase.md)
 - [0088 — Tombol update dari dashboard: server keluar dengan sentinel, supervisor `hanoman start` yang memasang](adr/0088-tombol-update-npm-restart-tersupervisi.md)

@@ -22,6 +22,7 @@ const HN_NAV: NavItem[] = [
   { key: "errors", label: "Errors", icon: "triangle-alert" },
   { key: "triage", label: "Triase", icon: "inbox" },
   { key: "scheduler", label: "Scheduler", icon: "calendar-clock" },
+  { key: "lead", label: "Lead", icon: "compass" },   // SPEC-409 · ADR-0091 · hanoman-lead
   { key: "terminal", label: "Terminal", icon: "terminal" },
   { key: "ide", label: "IDE", icon: "code-2" },
   { key: "vps", label: "VPS", icon: "server" },

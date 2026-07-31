@@ -5,6 +5,7 @@ import { notificationsFeed } from "./notifications";
 import { getLimits } from "./limits";
 import { getCodexLimits } from "./codex-limits";
 import { getUpdateStatus } from "./update";
+import { isDeciding } from "./lead/deciding";
 import { prisma } from "../db";
 import { effectiveInt } from "../config";
 
@@ -24,7 +25,14 @@ const tickMs = () => effectiveInt("HANOMAN_EVENTS_TICK_MS") ?? 1000;
 type Group = { everyTicks: number; last: string; build: () => Promise<WireMsg> };
 // everyTicks = recompute tiap N detik: board 1s, notif 3s, vps 15s, limits 30s (cache 30s service).
 const GROUPS: Group[] = [
-  { everyTicks: 1,  last: "", build: async () => ({ t: "sessions", sessions: listSessions() }) },
+  // SPEC-409 · ADR-0091 · AC-3 · `deciding` menandai sesi yang sedang DISUSUN keputusannya oleh
+  // hanoman-lead. Tanpa penanda ini sesi yang justru sedang dilayani terbaca persis seperti sesi
+  // yang mandek — bentuknya sama: diam, marker keputusan terisi. Dihias DI SINI, bukan di pty.ts:
+  // service itu sengaja tak tahu apa-apa soal lead maupun DB.
+  { everyTicks: 1,  last: "", build: async () => ({
+    t: "sessions",
+    sessions: listSessions().map((s) => (isDeciding(s.id) ? { ...s, deciding: true } : s)),
+  }) },
   { everyTicks: 1,  last: "", build: async () => ({ t: "specs", specs: await liveSpecs() }) },
   { everyTicks: 3,  last: "", build: async () => ({ t: "notifications", ...(await notificationsFeed()) }) },
   // ponytail: cermin GET /vps (orderBy createdAt asc). Query sepele — tak diekstrak.

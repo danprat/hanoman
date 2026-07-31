@@ -211,6 +211,36 @@ export const zConflict = z.object({
 export type Conflict = z.infer<typeof zConflict>;
 export const CONFLICT_DEFAULTS: Conflict = zConflict.parse({});
 
+// SPEC-409 · ADR-0091 · hanoman-lead. Master switch default MATI (AC-30): selama mati hanoman
+// berperilaku persis seperti sebelum PRD orchestrator. Kolom `Setting.data` bertipe Json →
+// blok ini TANPA migration, cermin scheduler/goal/conflict.
+//
+// `engine` = agen yang menjalankan lead (OQ-1). Opt-in seperti `zConflict`: selama `enabled`
+// mati, lead memakai `sessionAgentDefaults()` — satu setelan agen, bukan dua yang bisa berselisih.
+export const zLeadEngine = z.object({
+  enabled: z.boolean().default(false),
+  agent: zAgent.default("claude"),
+  model: z.string().default("claude-opus-5"),
+  effort: z.string().default("xhigh"),
+});
+export type LeadEngine = z.infer<typeof zLeadEngine>;
+
+export const zLead = z.object({
+  enabled: z.boolean().default(false),            // master switch (AC-30)
+  paused: z.boolean().default(false),             // rem darurat global (AC-27)
+  pausedProjects: z.array(z.string()).default([]),// rem per project (AC-15/US-4)
+  everyMin: z.number().int().min(1).max(1440).default(5),   // denyut proaktif (OQ-2)
+  timeoutSec: z.number().int().min(10).max(900).default(120), // batas waktu satu putusan (AC-4/35)
+  // AC-11 / OQ-10 · berapa jawaban otomatis berturut-turut untuk SATU sesi sebelum lead berhenti.
+  maxAutoAnswers: z.number().int().min(1).max(20).default(3),
+  // OQ-3 · syarat objektif sebelum lead boleh mengintegrasikan ke branch utama. Default MENYALA:
+  // risiko "kode masuk main tanpa mata manusia" diterima sadar, tapi syaratnya tetap terukur.
+  requireGreenBeforeIntegrate: z.boolean().default(true),
+  engine: zLeadEngine.default({}),
+});
+export type Lead = z.infer<typeof zLead>;
+export const LEAD_DEFAULTS: Lead = zLead.parse({});
+
 export const zSetting = z.object({
   model: z.string().default("claude-opus-5"),
   effort: z.string().default("xhigh"),
@@ -228,6 +258,7 @@ export const zSetting = z.object({
   codex: zCodex.default(CODEX_DEFAULTS),                                  // SPEC-338 · ADR-0074 · model/effort codex
   verifyScope: zVerifyScope.default("changed"),                           // SPEC-376 · ADR-0080 · scope verifikasi sesi
   conflict: zConflict.default(CONFLICT_DEFAULTS),                         // SPEC-383 · ADR-0081 · default sesi konflik rebase/merge
+  lead: zLead.default(LEAD_DEFAULTS),                                     // SPEC-409 · ADR-0091 · hanoman-lead (default mati)
 });
 export type Setting = z.infer<typeof zSetting>;
 
@@ -235,7 +266,10 @@ export type Setting = z.infer<typeof zSetting>;
 // = target redirect terminal. Tanggal = string ISO (JSON). readAt null = unread.
 export const zNotification = z.object({
   id: z.string(),
-  type: z.enum(["done", "decision", "error", "ticket", "fail"]).default("done"),   // SPEC-249 · +error; SPEC-253 · +ticket; SPEC-298 · +fail (sesi scheduler gagal/limit)
+  // SPEC-249 · +error; SPEC-253 · +ticket; SPEC-298 · +fail (sesi scheduler gagal/limit)
+  // SPEC-409 · +lead (ADR-0091): keputusan berbobot / ragu / tindakan terkunci ditolak. MEMBERI
+  // TAHU, bukan meminta izin — tak ada pekerjaan yang menunggu notifikasi ini dibaca (AC-25).
+  type: z.enum(["done", "decision", "error", "ticket", "fail", "lead"]).default("done"),
   specId: z.string().nullable(),
   sessionId: z.string().nullable(),
   title: z.string(),

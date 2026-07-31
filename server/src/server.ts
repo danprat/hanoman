@@ -2,6 +2,7 @@ import { buildApp } from "./app";
 import { prisma } from "./db";
 import { startVpsMonitor } from "./services/vps-monitor";
 import { startScheduler } from "./services/scheduler/engine";
+import { startLead } from "./services/lead/engine";
 import { registerBacklogSource } from "./services/scheduler/sources/backlog";
 import { registerErrorsSource } from "./services/scheduler/sources/errors";
 import { registerTriaseSource } from "./services/scheduler/sources/triase";
@@ -54,6 +55,9 @@ app.listen({ port, host }).then(() => {
   registerErrorsSource(); // SPEC-296 · daftarkan checker errors sebelum engine tick pertama
   registerTriaseSource(); // SPEC-297 · daftarkan checker triase sebelum engine tick pertama
   startScheduler(); // SPEC-294 · ADR-0072 · engine scheduler in-process (timer .unref, app.ts bebas-timer)
+  // SPEC-409 · ADR-0091 · denyut hanoman-lead (in-process, cermin scheduler). Master switch default
+  // MATI: tick pertama membaca Setting dan langsung kembali bila lead tak dinyalakan operator (AC-30).
+  startLead();
   // SPEC-215 · config runtime: muat override DB lalu terapkan (mirror kredensial + init sync client).
   // Tanpa config sync efektif → peran HUB murni (perilaku lama, backward-compatible).
   void (async () => {

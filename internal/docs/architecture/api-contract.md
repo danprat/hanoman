@@ -777,3 +777,52 @@ GET  /api/scheduler/state    -> { config, cap, liveCount, sources:[{id,enabled,e
 > (enable+cadence per source, cap, autonomy, ambang errors); **rem darurat** Pause (`{paused:true}`) / Stop
 > (`{enabled:false}`) via endpoint yang sama; **opt-in per project** (pola helpEnabled) via `PATCH
 > /api/projects/:id { schedulerOptIn }`. Judul spec di baris antrean/sesi di-resolve dari daftar backlog klien.
+
+## hanoman-lead (SPEC-409 · ADR-0091) — LOCAL per-instance
+```
+# Semua HTTP (polling) — TAK ADA kanal WebSocket baru (ADR-0039 utuh). Semua default MATI.
+# Capability agent-token: domain `lead`, dipetakan MENURUT METHOD (baca → lead:read, tulis → lead:write).
+GET  /api/lead/config      -> Lead (zLead: enabled, paused, pausedProjects[], everyMin, timeoutSec,
+#                                    maxAutoAnswers, requireGreenBeforeIntegrate, engine{enabled,agent,model,effort})
+PUT  /api/lead/config      { Lead } -> Lead          # ganti blok penuh (pola PUT /scheduler/config). Pause = { paused:true }. 400 invalid.
+GET  /api/lead/status      -> { config, projects:[{projectId,name,optIn,paused,decisions24h,openSessions}],
+#                               queue: SchedulerQueueItem[], deciding:[sessionId], waiting:[sessionId], lastPulseAt }
+GET  /api/lead/decisions?projectId&specId&sessionId&status&take&skip -> { items: LeadDecisionView[] }
+POST /api/lead/decisions   { projectId, specId?, sessionId?, question, options?[], context? }
+#                          -> 201 { id, decision, reason, refs[], confidence, action }   # PINTU #1 (kontrak eksplisit)
+#                             409 lead tak aktif / project tak opt-in · 404 project · 504 lead gagal memutuskan (AC-4)
+POST /api/lead/decisions/:id/override { answer, reason? } -> { old, next, delivered }
+POST /api/lead/decisions/:id/cancel                       -> LeadDecisionView
+```
+> **Tiga pintu, satu otak** (`services/lead/decide.ts`) — urutan wajibnya bukti → putusan → saring
+> rujukan → gerbang tindakan → **TULIS JEJAK** → notifikasi. Jejak ditulis SEBELUM jawaban dikirim ke
+> peminta (AC-2), dan itulah alasan tak ada jalur kedua.
+>
+> **Pintu #1 — kontrak eksplisit** (`POST /api/lead/decisions`), dipakai sesi internal **dan** agen
+> eksternal ber-`AgentToken`. Ia **endpoint TULIS**: capability `lead:read` tak pernah cukup (403
+> `{need:"lead:write"}`). `capabilityForRoute` memetakan prefix `lead` menurut method — bukan
+> memetakan prefix ke izin baca lalu menambah endpoint tulis di bawahnya (kelas bug SPEC-405).
+>
+> **Pintu #2 — deteksi otomatis** (tanpa endpoint): lead melihat sesi hidup ber-marker keputusan
+> terisi (mekanisme SPEC-184/196 yang sudah ada), `capture-pane`, menyimpulkan pertanyaannya, lalu
+> **mengetik jawabannya ke pane** (`pty.sendToPane`, dipotong `goalChunks` — burst ≥1024 char jadi
+> `[Pasted Content]` secara senyap, ADR-0085). Pane MATI tak pernah dijawab; marker sesi **codex**
+> yang sebenarnya selesai wajar (ADR-0074) juga tidak. Batasnya `maxAutoAnswers` berturut-turut per
+> sesi → sesudah itu lead berhenti & menotifikasi.
+>
+> **Pintu #3 — denyut proaktif** (`setInterval` in-process, cermin engine scheduler — tanpa queue/
+> worker/cron, ADR-0024 utuh): menata urutan backlog siap-kerja (**diserahkan ke antrean & governor
+> yang sudah ada**, bukan antrean kedua), mendeteksi dua sesi yang menyentuh area kerja sama (diff
+> worktree lewat `specReview`), dan menindaklanjuti sesi yang berakhir dengan kode keluar ≠ 0 atau
+> plan bersisa `- [ ]`.
+>
+> **Permukaan tindakan lead adalah allowlist tertutup** (`shared/src/lead.ts`, konstanta modul —
+> bukan konfigurasi): deploy, perintah/konsol VPS, data produksi, dan penghapusan apa pun TERKUNCI
+> dan ditegakkan **di server** (`services/lead/apply.ts`), bukan lewat hook penolak perintah pada
+> sesi pekerja — ADR-0037 tetap utuh. Menghentikan sesi memakai `killSession()` langsung sehingga
+> **worktree-nya dibiarkan utuh** (berbeda dari `DELETE /api/terminal/sessions/:id`).
+>
+> **Opt-in per project:** `PATCH /api/projects/:id { leadOptIn }` (lokal — tak masuk `FIELDS` sync).
+> **Panel Lead** (`LeadScreen.tsx` + nav `key:"lead"`) self-poll `GET /api/lead/status` +
+> `GET /api/lead/decisions` (5 dtk, pola SchedulerScreen): jejak (pertanyaan → jawaban → alasan →
+> rujukan), sesi menunggu vs **sedang diputuskan**, Pause global & per project, Timpa & Batalkan.

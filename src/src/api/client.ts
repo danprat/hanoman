@@ -1,4 +1,4 @@
-import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type SessionHistoryView, type ConfigResponse, type ConfigEntryView, type IngestKeyView, type ErrorGroupView, type ErrorGroupDetail, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView, type Agent, type LinkView, type AuditEscalationView, type VerifyScope } from "@hanoman/shared";
+import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type SessionHistoryView, type ConfigResponse, type ConfigEntryView, type IngestKeyView, type ErrorGroupView, type ErrorGroupDetail, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView, type Agent, type LinkView, type AuditEscalationView, type VerifyScope, type Lead, type LeadStatusView, type LeadDecisionView } from "@hanoman/shared";
 export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 // SPEC-407 · ADR-0089 · +goal · sesi dua fase (Goal → Verifikasi), tanpa fase perencanaan.
 export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit" | "breakdown" | "cross-audit" | "goal";
@@ -10,6 +10,10 @@ export type TerminalSession = {
   branch?: string; decision?: boolean;   // SPEC-230 · branch integrasi sesi (PRD: prd/<slug>)
   // SPEC-402 · kode keluar pane mati (undefined selama hidup) — pembeda "Selesai" vs "Gagal".
   exitCode?: number;
+  // SPEC-409 · ADR-0091 · hanoman-lead sedang MENYUSUN keputusan untuk sesi ini. Bentuknya di layar
+  // sama persis dengan "mandek menunggu manusia" (diam, marker terisi), jadi tanpa penanda ini
+  // operator membaca sesi yang justru sedang dilayani sebagai sesi yang terbengkalai.
+  deciding?: boolean;
 };
 // SPEC-167 · respons dry-run PATCH /specs/:id saat revert akan menghapus artefak.
 export type RevertPending = { pending: true; stage: string; wouldDelete: string[] };
@@ -108,7 +112,7 @@ export const api = {
   deleteProject: (id: string) => j<void>(paths.project(id), { method: "DELETE" }),
   // SPEC-146 · hanya label. `id` tak pernah berubah, jadi respons selalu punya `id` yang sama.
   // SPEC-217 · `repoDir` = path default/server editable (null = kosongkan).
-  updateProject: (id: string, b: { name?: string; desc?: string; gitRemote?: string; repoDir?: string | null; schedulerOptIn?: boolean }) =>
+  updateProject: (id: string, b: { name?: string; desc?: string; gitRemote?: string; repoDir?: string | null; schedulerOptIn?: boolean; leadOptIn?: boolean }) =>
     j<ProjectView>(paths.project(id), { method: "PATCH", ...body(b) }),
   // SPEC-255 · ADR-0064 · rename slug project. Balik: id baru + DSN/Help URL baru (bila aktif) + affected.
   renameProject: (id: string, newId: string) =>
@@ -383,5 +387,16 @@ export const api = {
   getSchedulerConfig: () => j<Scheduler>(paths.schedulerConfig),
   putSchedulerConfig: (cfg: Scheduler) => j<Scheduler>(paths.schedulerConfig, { method: "PUT", ...body(cfg) }),
   getSchedulerState: () => j<SchedulerStateView>(paths.schedulerState),
+  // SPEC-409 · ADR-0091 · hanoman-lead. Semua HTTP polling — tak ada kanal WS baru (AC-26).
+  getLeadConfig: () => j<Lead>(paths.leadConfig),
+  putLeadConfig: (cfg: Lead) => j<Lead>(paths.leadConfig, { method: "PUT", ...body(cfg) }),
+  getLeadStatus: () => j<LeadStatusView>(paths.leadStatus),
+  getLeadDecisions: (params: { projectId?: string; specId?: string; sessionId?: string; status?: string; take?: number } = {}) =>
+    j<{ items: LeadDecisionView[] }>(paths.leadDecisions + qs(params)),
+  overrideLeadDecision: (id: string, answer: string, reason = "") =>
+    j<{ old: LeadDecisionView; next: LeadDecisionView; delivered: boolean }>(
+      paths.leadDecisionOverride(id), { method: "POST", ...body({ answer, reason }) }),
+  cancelLeadDecision: (id: string) =>
+    j<LeadDecisionView>(paths.leadDecisionCancel(id), { method: "POST", ...body({}) }),
 };
 

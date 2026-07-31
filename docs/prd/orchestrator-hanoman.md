@@ -1,6 +1,8 @@
 # PRD — Orchestrator Hanoman (hanoman-lead: agen pemimpin atas agen)
 
-> Status: Draft untuk review. Author: PM/PO (nafanesia). Disusun dari brief "Orchestrator Hanoman" + brainstorm.
+> Status: **Diwujudkan di SPEC-409** — lihat [ADR-0091](../../internal/docs/adr/0091-hanoman-lead-agen-pemimpin.md),
+> yang menutup keempat belas Open Question di bawah dan mencatat batas yang diterima sadar.
+> Author: PM/PO (nafanesia). Disusun dari brief "Orchestrator Hanoman" + brainstorm.
 > Deliverable ini adalah **dokumen PRD**, bukan spesifikasi teknis/rencana implementasi. Keputusan implementasi mengikuti PRD ini lewat SPEC/ADR tersendiri.
 > PRD ini **mengamandemen kontrak otonomi ADR-0035** dan prinsip produk "manusia terakhir yang memutuskan". Perubahan itu wajib diwujudkan sebagai ADR baru sebelum implementasi.
 

@@ -26,6 +26,7 @@ import { TerminalScreen } from "./screens/TerminalScreen";
 import { IdeScreen } from "./screens/IdeScreen";
 import { VpsScreen } from "./screens/VpsScreen";
 import { SchedulerScreen } from "./screens/SchedulerScreen";
+import { LeadScreen } from "./screens/LeadScreen";
 import { DocsWorkspace } from "./screens/DocsWorkspace";
 import { ReviewScreen } from "./screens/ReviewScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
@@ -1125,6 +1126,15 @@ export default function App() {
         <SchedulerScreen projects={projectsView} backlog={backlog}
           onProjectChanged={refreshProject} onToast={showToast}
           onGotoTerminal={() => setSection("terminal")} />
+      </Shell>
+    );
+  } else if (section === "lead") {
+    // SPEC-409 · ADR-0091 · Panel hanoman-lead: jejak keputusan + rem darurat + opt-in per project.
+    // Screen mandiri (pola Scheduler/VPS) — memuat statusnya sendiri lewat HTTP polling, tak lewat `gate`.
+    screen = (
+      <Shell active="lead" title="Lead" breadcrumb="otonom · keputusan → jejak → kendali" onNavigate={setSection}>
+        <LeadScreen projects={projectsView} onProjectChanged={refreshProject} onToast={showToast}
+          onGotoTerminal={(sid) => { if (sid) setFocusSession(sid); setSection("terminal"); }} />
       </Shell>
     );
   } else if (section === "docs") {

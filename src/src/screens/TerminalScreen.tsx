@@ -512,6 +512,10 @@ function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, onSessionR
   // SPEC-196 · sesi yang berhenti menunggu keputusan manusia (marker) belum `exited` — beri
   // pembeda sendiri. `exited` menang bila keduanya benar (proses sudah beku).
   const awaiting = !session.exited && !!session.decision;
+  // SPEC-409 · ADR-0091 · AC-3 · lead sedang menyusun keputusannya. MENANG atas `awaiting`: keduanya
+  // benar bersamaan (marker tetap terisi selama lead berpikir), dan yang perlu dibaca operator adalah
+  // "sedang dilayani", bukan "mandek".
+  const deciding = !session.exited && !!session.deciding;
   // SPEC-402 · pane mati berkode ≠ 0 = pekerjaan TERPUTUS (agen di-SIGTERM/crash), bukan tuntas.
   // `!!exitCode` sengaja: 0 dan undefined (sesi lama / daftar tanpa kode) tetap "Selesai".
   const failed = session.exited && !!session.exitCode;
@@ -532,7 +536,9 @@ function Cell({ session, nameOf, onClose, onDetach, onExit, onReview, onSessionR
         {session.exited && (failed
           ? <StatusPill status="failed" size="sm">{`Gagal · exit ${session.exitCode}`}</StatusPill>
           : <StatusPill status="done" size="sm">Selesai</StatusPill>)}
-        {awaiting && <StatusPill status="awaiting" size="sm" />}
+        {awaiting && (deciding
+          ? <StatusPill status="running" size="sm">Lead memutuskan</StatusPill>
+          : <StatusPill status="awaiting" size="sm" />)}
         {session.specId && (
           <span onClick={() => setDocs(true)} title="Lihat dokumen (audit/spec/plan)"
             style={{ cursor: "pointer", color: "var(--text-subtle)", display: "inline-flex", alignItems: "center" }}>

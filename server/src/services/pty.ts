@@ -413,6 +413,44 @@ const paneText = (id: string): string => {
   try { return tmux("capture-pane", "-p", "-t", name(id)); } catch { return ""; }
 };
 
+/**
+ * SPEC-409 · ADR-0091 · baca layar sebuah pane. Dipakai pintu deteksi otomatis hanoman-lead untuk
+ * menurunkan pertanyaan sesi yang menunggu. Tanpa `-e` (cermin captureTranscript): lead menalar
+ * atas teks polos, dan ANSI hanya jadi derau di prompt-nya. Pane mati pun boleh dibaca — itu
+ * justru cara melihat layar terakhirnya (lihat `attach`).
+ */
+export function capturePane(id: string, lines = 200): string {
+  try { return tmux("capture-pane", "-p", "-J", "-S", `-${lines}`, "-t", name(id)); }
+  catch { return ""; }
+}
+
+/**
+ * SPEC-409 · ADR-0091 · AC-8 · ketikkan jawaban ke pane sesi, lalu Enter. Sesi melanjutkan
+ * pekerjaannya tanpa perubahan apa pun pada prompt maupun kontraknya — ia tak tahu siapa yang
+ * menjawab.
+ *
+ * Dipotong ber-jeda dengan `goalChunks` yang sama seperti arming goal, karena jebakannya sama
+ * (ADR-0085): TUI codex mengubah masukan yang datang dalam SATU burst ≥ 1024 karakter menjadi
+ * `[Pasted Content N chars]`. Jawaban lead gampang melewati batas itu, dan degradasinya SENYAP —
+ * pane tetap terlihat menerima teks.
+ *
+ * Baris baru diratakan jadi spasi: Enter di tengah teks akan mengirim jawaban setengah jadi.
+ */
+export async function sendToPane(id: string, text: string, chunkMs = 50): Promise<boolean> {
+  const p = getSession(id);
+  if (!p || p.exited) return false;          // AC-10 · pane mati bukan sesi yang menunggu
+  const line = text.replace(/\s*\r?\n\s*/g, " ").trim();
+  if (!line) return false;
+  try {
+    for (const chunk of goalChunks(line)) {
+      tmux("send-keys", "-t", name(id), "-l", chunk);
+      await sleep(chunkMs);
+    }
+    tmux("send-keys", "-t", name(id), "Enter");
+    return true;
+  } catch { return false; }                   // sesi lenyap di tengah pengetikan
+}
+
 // SPEC-397 · penanda "goal BENAR-BENAR terpasang", per agen.
 //
 // codex TIDAK boleh diverifikasi dengan substring `/goal`: saat kondisi terkirim sebagai burst

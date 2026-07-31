@@ -22,6 +22,7 @@ model Project {
   ingestKeyPrefix String? // SPEC-249 · ~12-16 char awal key untuk hint UI (bukan rahasia)
   helpEnabled Boolean @default(false) // SPEC-253 · opt-in Help Center publik
   schedulerOptIn Boolean @default(false) // SPEC-294 · ADR-0072 · opt-in scheduler otonom (LOCAL — tak masuk FIELDS sync)
+  leadOptIn      Boolean @default(false) // SPEC-409 · ADR-0091 · opt-in hanoman-lead (LOCAL — cermin schedulerOptIn)
   specs       Spec[]
   errorGroups ErrorGroup[]
   tickets     Ticket[]
@@ -318,6 +319,39 @@ model SchedulerQueueItem {
   launchedAt DateTime?
 
   @@index([status])
+}
+
+// SPEC-409 · ADR-0091 · jejak keputusan hanoman-lead. Data BARU yang harus bertahan (bukan nilai
+// turunan seperti coverage/PRD, ADR-0011/0018): pertanyaan yang ditanyakan sesi yang sudah mati,
+// dan alasan yang dipakai lead, tak bisa dihitung ulang dari sumber mana pun.
+//
+// LOCAL-ONLY (tak disync, cermin SessionHistory/SchedulerQueueItem): barisnya menunjuk sesi tmux &
+// worktree di MESIN INI — menyiarkannya ke hub akan mengirim rujukan yang tak ada di sana. Tanpa
+// `version`/notifySynced. Tak ada FK ke Project: sesi VPS/cross-audit memakai projectId sintetis
+// (konvensi yang sama dipakai SessionResult & SessionHistory).
+model LeadDecision {
+  id             String    @id @default(cuid())
+  projectId      String
+  specId         String?
+  sessionId      String?
+  gate           String    // contract | detected | pulse (pintu masuk)
+  kind           String    // answer | order | collision | quality | refusal
+  question       String
+  answer         String
+  reason         String
+  refs           Json      // string[] — hanya rujukan yang benar-benar ada di repo (AC-6)
+  confidence     String    // tinggi | sedang | ragu
+  action         String    @default("none") // permukaan tindakan lead (allowlist, shared/src/lead.ts)
+  status         String    @default("berlaku") // berlaku | ditimpa | dibatalkan | gagal
+  weighty        Boolean   @default(false)     // memicu notifikasi (AC-25)
+  supersededById String?   // baris yang menimpanya (jawaban operator, AC-28)
+  actor          String    @default("lead")    // lead | operator — siapa yang mengeluarkan baris ini
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([projectId, createdAt])
+  @@index([specId])
+  @@index([sessionId])
 }
 
 // SPEC-215 · ADR-0049 · LOCAL-ONLY: override config runtime (env → DB). Tak pernah disync.

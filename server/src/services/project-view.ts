@@ -56,5 +56,7 @@ export async function toProjectView(p: Project, sessions: SessionInfo[]): Promis
     helpEnabled: p.helpEnabled,
     // SPEC-294 · opt-in scheduler otonom (lokal per-instance).
     schedulerOptIn: p.schedulerOptIn,
+    // SPEC-409 · ADR-0091 · opt-in hanoman-lead (lokal per-instance, cermin schedulerOptIn).
+    leadOptIn: p.leadOptIn,
   };
 }

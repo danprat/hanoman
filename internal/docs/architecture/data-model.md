@@ -58,6 +58,10 @@ tiap berkas.
   gerbang kelayakan **scheduler otonom** (pola `helpEnabled`). Project non-opt-in tak pernah disentuh source
   checker. Additive; diekspos `toProjectView` sebagai `schedulerOptIn`, editable via `PATCH /projects/:id`.
   **Tidak** masuk whitelist `FIELDS` sync → tetap **lokal per-instance** (cermin `helpEnabled`/`ingestKeyHash`).
+- `leadOptIn` (Boolean, default false · SPEC-409 · [ADR-0091](../adr/0091-hanoman-lead-agen-pemimpin.md)) —
+  gerbang kelayakan **hanoman-lead** (cermin persis `schedulerOptIn`). Project non-opt-in tak pernah
+  dijawab, ditata, maupun ditindaklanjuti lead. Additive; diekspos `toProjectView` sebagai `leadOptIn`,
+  editable via `PATCH /projects/:id`. **Tidak** masuk whitelist `FIELDS` sync → lokal per-instance.
 - `docStatus` ("ok" | "drift" | "broken") + `coverage` (0–100) **bukan kolom** — diturunkan dari disk tiap `toProjectView` (ADR-0018).
 
 ## ProjectLink (SPEC-337 · [ADR-0075](../adr/0075-audit-lintas-project-projectlink-kunci-sesi.md))
@@ -182,6 +186,16 @@ Singleton `id = 1`, kolom `data` (Json) berbentuk `zSetting`:
   `enabled` mati helper mendelegasikan penuh ke `sessionAgentDefaults()` — perilaku pra-SPEC-383.
   **Satu triple**, bukan blok per-agen seperti akar: menukar `agent` menukar model/effort sekalian.
   Tak ada override per-request. Ditambahkan sebagai `.default(CONFLICT_DEFAULTS)` → baris Setting
+  lama tetap parse, **tanpa migration**.
+- `lead` (SPEC-409/[ADR-0091](../adr/0091-hanoman-lead-agen-pemimpin.md), `zLead`,
+  **semua default MATI**) — knob hanoman-lead: `enabled` (master switch — selama mati hanoman
+  berperilaku persis seperti sebelum ADR-0091), `paused` (rem darurat global), `pausedProjects`
+  (rem per project), `everyMin` (denyut proaktif, default 5), `timeoutSec` (batas satu putusan,
+  default 120), `maxAutoAnswers` (jawaban otomatis berturut-turut per sesi sebelum lead berhenti,
+  default 3), `requireGreenBeforeIntegrate` (syarat objektif sebelum integrasi ke `main`, default
+  **menyala**), dan blok `engine` `{enabled,agent,model,effort}` = agen yang menjalankan lead —
+  **opt-in seperti `conflict`**: selama `engine.enabled` mati, `leadAgentDefaults()` mendelegasikan
+  penuh ke `sessionAgentDefaults()`. Ditambahkan sebagai `.default(LEAD_DEFAULTS)` → baris Setting
   lama tetap parse, **tanpa migration**.
 
 ## User / Session (auth — SPEC-169, [ADR-0028](../adr/0028-auth-sesi-opaque-di-db.md))
@@ -382,6 +396,32 @@ scaffold, breakdown, cross-audit, dan konsol VPS.
   tetap null. Cermin `backfillFeed` saat hub boot (ADR-0067).
 - **Purge manual ber-scope** (`projectId` dan/atau `before`) adalah satu-satunya penghapusan; ia ikut
   menghapus berkas transkripnya. Cermin `DELETE /session-results` (ADR-0047).
+
+## LeadDecision (SPEC-409 · [ADR-0091](../adr/0091-hanoman-lead-agen-pemimpin.md))
+Jejak keputusan **hanoman-lead** — **LOCAL-ONLY, tak disync** (cermin `SessionHistory`/
+`SchedulerQueueItem`: barisnya menunjuk sesi tmux & worktree di mesin ini, jadi menyiarkannya ke hub
+akan mengirim rujukan yang tak ada di sana). Tanpa `version`/`notifySynced`, **tak masuk `FIELDS`**.
+- Kenapa kolom, bukan nilai turunan: aturannya bukan "selalu turunkan" (ADR-0011/0018) melainkan
+  *bisakah dihitung ulang dari sumber lain* — coverage bisa (filesystem), diff bisa (git),
+  **pertanyaan yang ditanyakan sesi yang sudah mati dan alasan yang dipakai lead tidak bisa**. Arah
+  yang sama dengan ADR-0090.
+- `id` (cuid), `projectId` (**tanpa FK** — sesi VPS/cross-audit memakai projectId sintetis, konvensi
+  `SessionResult`/`SessionHistory`), `specId?`, `sessionId?`, `gate`
+  (`contract|detected|pulse` — pintu masuknya), `kind`
+  (`answer|order|collision|quality|refusal`), `question`, `answer`, `reason`, `refs` (Json `string[]`
+  — **hanya rujukan yang benar-benar ada di repo**; path absolut & `..` dibuang), `confidence`
+  (`tinggi|sedang|ragu`), `action` (allowlist `shared/src/lead.ts`), `status`
+  (`berlaku|ditimpa|dibatalkan|gagal`), `weighty`, `supersededById?`, `actor` (`lead|operator`),
+  `createdAt`, `updatedAt`. Index `(projectId, createdAt)`, `(specId)`, `(sessionId)`.
+- **`gagal` bukan keputusan** melainkan catatan bahwa lead tak berhasil memutuskan dalam batas waktu
+  (AC-4). Ia tetap disimpan: "tak ada barisnya" tak bisa dibedakan dari "tak pernah diminta".
+- **Append-mostly, tak pernah dihapus.** Menimpa (`POST …/override`) menandai baris lama `ditimpa`,
+  menyimpan jawaban operator sebagai baris BARU, dan menautkan keduanya lewat `supersededById`.
+  `services/lead/trail.ts` **tak punya fungsi hapus sama sekali** — cara termurah menegakkan larangan
+  lead menghapus jejaknya sendiri. Pemangkasan retensi, bila kelak ada, jadi wewenang manusia lewat
+  jalur terpisah.
+- Knob-nya sendiri hidup di `Setting.lead` (kolom `Json` → **tanpa migration**); yang butuh migration
+  hanya tabel ini + `Project.leadOptIn`.
 
 ## Docs (Source of Truth) — TIDAK dipersist
 Docs bukan entitas DB. Tabel `DocFile` sudah di-drop (ADR-0011). Docs dibaca **live dari path

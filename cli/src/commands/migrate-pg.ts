@@ -19,7 +19,7 @@ export const PG_ORDER = [
   "Vps", "VpsAuditSnapshot", "VpsItemState",
   "SessionResult", "SessionHistory",
   "SyncLog", "LocalBinding", "SyncOutbox", "SyncState", "SyncConflict",
-  "SchedulerQueueItem", "RuntimeConfig",
+  "SchedulerQueueItem", "RuntimeConfig", "LeadDecision",
   "ErrorGroup", "ErrorEvent", "SourceMapArtifact",
   "Ticket", "TicketAttachment",
 ] as const;

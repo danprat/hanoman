@@ -23,6 +23,11 @@ export function capabilityForRoute(method: string, path: string): Resolved {
   if (top === "limits" || top === "update" || top === "events" || top === "fs" || top === "health")
     return read ? "GLOBAL_READ" : "COOKIE_ONLY";
   if (top === "scheduler") return rw("settings");   // SPEC-294 · scheduler = setelan instance
+  // SPEC-409 · ADR-0091 · domain TERSENDIRI. `POST /lead/decisions` adalah endpoint TULIS: ia
+  // melahirkan baris jejak permanen dan keputusannya bisa menggerakkan sesi. Capability baca tak
+  // pernah cukup untuk memanggilnya (AC-5) — `rw()` sudah menurunkannya dari method, jadi tak ada
+  // pengulangan kelas bug SPEC-405 (prefix status yang dipetakan ke GLOBAL_READ tanpa lihat method).
+  if (top === "lead") return rw("lead");
   if (top === "settings" || top === "config") return rw("settings");
   if (top === "specs") return rw("backlog");
   if (top === "notifications") return rw("notifications");

@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { zProject, zBriefPayload, zQaPayload, zGoalPayload, zSpec, zScheduler, zAgent } from "./entities";
+import { zProject, zBriefPayload, zQaPayload, zGoalPayload, zSpec, zScheduler, zAgent, zLead } from "./entities";
+import { zLeadGate, zLeadKind, zLeadConfidence, zLeadAction, zLeadStatus } from "./lead";
 import type { Spec, Notification } from "./entities";
 import { zProjectKind, zSpecSource, zPriority, zStage, zErrorStatus, zTicketCategory, zTicketStatus, zLinkKind, zVerifyScope } from "./enums";
 
@@ -55,6 +56,7 @@ export const zUpdateProject = z.object({
   gitRemote: z.string().optional(),   // SPEC-213 · set git remote resmi project
   repoDir: z.string().nullable().optional(),   // SPEC-217 · path default/server editable (null = kosongkan)
   schedulerOptIn: z.boolean().optional(),   // SPEC-294 · opt-in scheduler otonom (lokal, tak disync)
+  leadOptIn: z.boolean().optional(),        // SPEC-409 · ADR-0091 · opt-in hanoman-lead (lokal, tak disync)
 });
 export const zCreateSpec = z.object({
   project: z.string(), source: zSpecSource, title: z.string().min(1),
@@ -103,7 +105,8 @@ export const zProjectView = zProject.extend({
   monitoringEnabled: z.boolean().default(false),   // SPEC-249 · error monitoring aktif (ingest key ada)
   ingestKeyPrefix: z.string().nullable().default(null),   // SPEC-249 · hint prefix DSN (bukan hash/rahasia)
   helpEnabled: z.boolean().default(false),   // SPEC-253 · Help Center publik aktif
-  schedulerOptIn: z.boolean().default(false) });   // SPEC-294 · opt-in scheduler otonom
+  schedulerOptIn: z.boolean().default(false),   // SPEC-294 · opt-in scheduler otonom
+  leadOptIn: z.boolean().default(false) });     // SPEC-409 · ADR-0091 · opt-in hanoman-lead
 export type ProjectView = z.infer<typeof zProjectView>;
 
 // SPEC-294 · ADR-0072 · baris antrean scheduler untuk panel (daun #6). Tanggal = string ISO.
@@ -139,6 +142,48 @@ export const zSchedulerState = z.object({
   sessions: z.array(zSchedulerSessionView),
 });
 export type SchedulerStateView = z.infer<typeof zSchedulerState>;
+
+// SPEC-409 · ADR-0091 · satu baris jejak keputusan hanoman-lead (AC-23). Tanggal = string ISO.
+// `refs` sudah tersaring di server: hanya rujukan yang benar-benar ada di repo (AC-6).
+export const zLeadDecisionView = z.object({
+  id: z.string(), projectId: z.string(),
+  specId: z.string().nullable(), sessionId: z.string().nullable(),
+  gate: zLeadGate, kind: zLeadKind,
+  question: z.string(), answer: z.string(), reason: z.string(),
+  refs: z.array(z.string()),
+  confidence: zLeadConfidence, action: zLeadAction,
+  status: zLeadStatus, weighty: z.boolean(),
+  supersededById: z.string().nullable(),
+  createdAt: z.string(),
+});
+export type LeadDecisionView = z.infer<typeof zLeadDecisionView>;
+
+// Balasan kontrak "minta putusan" (pintu #1). Peminta mesin membaca ini, bukan prosa bebas (AC-1).
+export const zLeadAnswer = z.object({
+  id: z.string(),
+  decision: z.string(), reason: z.string(),
+  refs: z.array(z.string()),
+  confidence: zLeadConfidence, action: zLeadAction,
+});
+export type LeadAnswer = z.infer<typeof zLeadAnswer>;
+
+// GET /api/lead/status — status lead + antrean kerja yang ia tata + sesi yang sedang dipimpin.
+export const zLeadProjectStatus = z.object({
+  projectId: z.string(), name: z.string(),
+  optIn: z.boolean(), paused: z.boolean(),
+  decisions24h: z.number(), openSessions: z.number(),
+});
+export type LeadProjectStatus = z.infer<typeof zLeadProjectStatus>;
+
+export const zLeadStatusView = z.object({
+  config: zLead,
+  projects: z.array(zLeadProjectStatus),
+  queue: z.array(zSchedulerQueueItem),
+  deciding: z.array(z.string()),      // id sesi yang sedang disusun keputusannya (AC-3)
+  waiting: z.array(z.string()),       // id sesi ber-marker keputusan terisi
+  lastPulseAt: z.string().nullable(),
+});
+export type LeadStatusView = z.infer<typeof zLeadStatusView>;
 
 // SPEC-407 · +goal · sesi dua fase (Goal → Verifikasi) tanpa fase perencanaan sama sekali.
 export const zFlow = z.enum(["feature", "qa", "scaffold", "reverse", "prd", "audit", "breakdown", "cross-audit", "goal"]);
