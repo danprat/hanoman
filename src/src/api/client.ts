@@ -136,7 +136,8 @@ export const api = {
     j<{ status: "clean"; detail: string } | { status: "conflict"; sessionId: string }>(
       paths.specIntegrate(id), { method: "POST", ...body({ op, target }) }),
   patchSpec: (id: string, b: { branchFrom?: string | null; stage?: string; confirmDelete?: boolean;
-    title?: string; priority?: string; payload?: unknown }) =>
+    title?: string; priority?: string; payload?: unknown;
+    dependsOn?: string[] }) =>   // SPEC-447 · ADR-0093 · divalidasi server (400 bila tak sah)
     j<Spec | RevertPending>(paths.spec(id), { method: "PATCH", ...body(b) }),
   // SPEC-171 · all files + file changed dari worktree backlog item.
   specReview: (id: string) => j<SpecReview>(paths.specReview(id)),

@@ -1556,7 +1556,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `Spec.dependsOn` (Task 6).
 - Produces: `NewSpecModal` menerima prop `specs?: Spec[]` dan `SpecForm.dependsOn: string[]`; `api.patchSpec` menerima `dependsOn?: string[]`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Buat `src/test/backlog-dependency.test.tsx`:
 
@@ -1615,14 +1615,14 @@ describe("NewSpecModal · picker dependency (SPEC-447)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run src/test/backlog-dependency.test.tsx
 ```
 Expected: FAIL — `Bergantung pada SPEC-1` tak ditemukan.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 `src/src/App.tsx`:
 
@@ -1704,7 +1704,7 @@ type SpecForm = { kind: string; project: string; title: string; context: string;
     j<Spec | RevertPending>(paths.spec(id), { method: "PATCH", ...body(b) }),
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run src/test/backlog-dependency.test.tsx src/test/backlog-goal.test.tsx
@@ -1712,7 +1712,7 @@ env -u NODE_ENV ./node_modules/.bin/tsc -p src --noEmit
 ```
 Expected: semua PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/App.tsx src/src/api/client.ts src/test/backlog-dependency.test.tsx

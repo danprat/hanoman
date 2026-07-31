@@ -4,7 +4,7 @@
 import React from "react";
 import { NotificationsProvider } from "./notifications/NotificationsContext";
 import { notifTarget } from "./notifications/target";
-import { Shell, Modal, Field, HnTextarea, Button, StatusPill, Select, Input, Switch, Tabs, Toast, useToast, Icon, StateBlock } from "./ds";
+import { Shell, Modal, Field, HnTextarea, Button, StatusPill, Select, Input, Switch, Checkbox, Tabs, Toast, useToast, Icon, StateBlock } from "./ds";
 import { api, ApiError, type TerminalSession } from "./api/client";
 import { subscribe } from "./api/events";
 import type { ProjectView, Spec, AuthStatus, UserView, Notification, BreakdownItem } from "@hanoman/shared";
@@ -36,7 +36,9 @@ const PRIORITY = [{ value: "tinggi", label: "Tinggi" }, { value: "sedang", label
 type SpecForm = { kind: string; project: string; title: string; context: string; outcome: string; constraints: string;
   priority: string; severity: string; steps: string; expected: string; actual: string; env: string; branchFrom: string; fromAudit: string;
   // SPEC-407 · ADR-0089 · backlog goal: goal yang dikejar + bukti berhentinya.
-  goal: string; done: string };
+  goal: string; done: string;
+  // SPEC-447 · ADR-0093 · backlog yang harus selesai & ter-merge sebelum item ini boleh jalan.
+  dependsOn: string[] };
 // SPEC-210 (PRD take-to-backlog) + SPEC-237 (promosi audit → Finding QA) menyeed NewSpecModal.
 // Semua opsional → PrdPrefill (field wajib) tetap assignable ke sini.
 // SPEC-244 · branchFrom (teruskan branch PRD/audit) + fromAudit (sinyal skip-audit) juga di-seed.
@@ -200,16 +202,20 @@ export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
   );
 }
 
-export function NewSpecModal({ open, onClose, projects, defaultProject, onCreate, prefill }:
+export function NewSpecModal({ open, onClose, projects, defaultProject, onCreate, prefill, specs }:
   { open: boolean; onClose: () => void; projects: ProjectVM[]; defaultProject: string; onCreate: (f: SpecForm) => void;
     // SPEC-210 · seed dari "Take ke backlog" PRD (kind brief). SPEC-237 · promosi audit → Finding QA
     // (kind qa) membawa `kind` + field qa. Semua opsional; PrdPrefill (semua wajib) tetap assignable.
-    prefill?: SpecPrefill }) {
+    prefill?: SpecPrefill;
+    // SPEC-447 · ADR-0093 · kandidat dependency. Diambil dari state backlog App (set penuh dari
+    // siar WS) — sengaja TANPA fetch baru: daftar yang sama sudah ada di memori.
+    specs?: Spec[] }) {
   const blank: SpecForm = { kind: prefill?.kind ?? "brief", project: prefill?.project || defaultProject,
     title: prefill?.title ?? "", context: prefill?.context ?? "", outcome: prefill?.outcome ?? "", constraints: "",
     priority: "sedang", severity: prefill?.severity ?? "major", steps: prefill?.steps ?? "",
     expected: "", actual: prefill?.actual ?? "", env: "", branchFrom: prefill?.branchFrom ?? "", fromAudit: prefill?.fromAudit ?? "",
-    goal: prefill?.goal ?? "", done: prefill?.done ?? "" };   // SPEC-407
+    goal: prefill?.goal ?? "", done: prefill?.done ?? "",   // SPEC-407
+    dependsOn: [] };                                        // SPEC-447
   const [f, setF] = React.useState<SpecForm>(blank);
   React.useEffect(() => {
     if (open) setF({ ...blank, project: prefill?.project || defaultProject });
@@ -236,6 +242,13 @@ export function NewSpecModal({ open, onClose, projects, defaultProject, onCreate
   const isQa = f.kind === "qa";
   const isAudit = f.kind === "audit";                       // SPEC-237 · audit-only (dokumen, tanpa perbaikan)
   const isGoal = f.kind === "goal";                         // SPEC-407 · backlog goal (Goal → Verifikasi)
+  // SPEC-447 · ADR-0093 · dependency adalah properti ITEM, bukan properti bentuk payload → picker
+  // ini hidup di luar cabang kind. Kandidatnya hanya project terpilih: dependency lintas project
+  // menuntut merge lintas repo dan ditolak server.
+  const depCandidates = (specs ?? []).filter((s) => s.projectId === f.project);
+  const toggleDep = (id: string) => setF((s) => ({
+    ...s, dependsOn: s.dependsOn.includes(id) ? s.dependsOn.filter((x) => x !== id) : [...s.dependsOn, id],
+  }));
   // SPEC-407 · goal wajib: `Spec.objective` diturunkan darinya, dan item ber-objective kosong
   // melahirkan sesi tanpa sasaran.
   const submit = () => { if (!f.title.trim() || (isGoal && !f.goal.trim())) return; onCreate(f); };
@@ -271,6 +284,28 @@ export function NewSpecModal({ open, onClose, projects, defaultProject, onCreate
       <Field label="Branch" hint="branch yang di-copy ke git worktree saat run">
         <Select value={f.branchFrom} onChange={set("branchFrom")} disabled={!branches.length}
           style={{ width: "100%" }} options={branchOptions(branches, remoteOnly)} />
+      </Field>
+      {/* SPEC-447 · ADR-0093 · sesi item ini tak akan lahir sebelum semua yang dicentang selesai
+          DAN commit-nya ada di branch basis. Otomasi memblokirnya keras; Start manual masih bisa
+          dipaksa lewat konfirmasi. */}
+      <Field label="Bergantung pada"
+        hint="Backlog yang harus selesai & ter-merge lebih dulu. Kosongkan bila item ini berdiri sendiri.">
+        {depCandidates.length === 0 ? (
+          <div style={{ fontSize: 12.5, color: "var(--text-subtle)" }}>
+            Belum ada backlog lain di project ini.
+          </div>
+        ) : (
+          <div style={{
+            maxHeight: 132, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6,
+            border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", padding: 8,
+          }}>
+            {depCandidates.map((s) => (
+              <Checkbox key={s.id} aria-label={`Bergantung pada ${s.id}`}
+                checked={f.dependsOn.includes(s.id)} onChange={() => toggleDep(s.id)}
+                label={`${s.id} · ${s.title}`} />
+            ))}
+          </div>
+        )}
       </Field>
       <Field label="Judul">
         <Input aria-label="Judul" value={f.title} onChange={set("title")}
@@ -948,7 +983,9 @@ export default function App() {
           ...(f.fromAudit ? { fromAudit: f.fromAudit } : {}) };
     try {
       const created = await api.createSpec({ project: f.project, source: f.kind, title: f.title.trim(),
-        priority: f.priority, payload, branchFrom: f.branchFrom || undefined });
+        priority: f.priority, payload, branchFrom: f.branchFrom || undefined,
+        // SPEC-447 · ADR-0093 · dikirim hanya bila ada isinya; server yang memvalidasi.
+        ...(f.dependsOn.length ? { dependsOn: f.dependsOn } : {}) });
       setBacklog((b) => [created, ...b]);
       setModal(null); setSpecPrefill(null); setSection("backlog");
       const toastMsg = f.kind === "audit" ? " dibuat · audit-only (dokumen)"
@@ -1147,7 +1184,7 @@ export default function App() {
         {screen}
         <NewSpecModal open={modal === "brief"} onClose={() => { setModal(null); setSpecPrefill(null); }}
           projects={projectsView} defaultProject={proj ? proj.id : ""} onCreate={createSpec}
-          prefill={specPrefill ?? undefined} />
+          prefill={specPrefill ?? undefined} specs={backlog} />   {/* SPEC-447 · kandidat dependency */}
         {/* SPEC-340 · ADR-0076 · eskalasi audit → PRD: brief PRD ter-prefill, project terkunci ke
             asal audit; sesi lahir dari branch audit dengan dokumen auditnya tersemat di prompt. */}
         {prdFromAudit && (
