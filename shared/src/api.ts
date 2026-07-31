@@ -137,14 +137,6 @@ export const paths = {
   agentTokens: `${API}/agent-tokens`,
   agentToken: (id: string) => `${API}/agent-tokens/${id}`,
   agentCapabilities: `${API}/agent-tokens/capabilities`,
-  // SPEC-249 · error monitoring. ingest publik ber-DSN (bypass gate cookie, ADR-0060).
-  ingest: (slug: string) => `${API}/ingest/${encodeURIComponent(slug)}`,
-  errors: `${API}/errors`,
-  errorsGuide: `${API}/errors/integration-guide`,
-  error: (id: string) => `${API}/errors/${id}`,
-  errorEscalate: (id: string) => `${API}/errors/${id}/escalate`,
-  errorUnlink: (id: string) => `${API}/errors/${id}/unlink`,  // SPEC-271 · lepas tautan backlog
-  projectIngestKey: (id: string) => `${API}/projects/${encodeURIComponent(id)}/ingest-key`,
   // SPEC-253 · Help Center publik (bypass gate cookie; otorisasi helpEnabled + kunci opaque tiket).
   help: (slug: string) => `${API}/help/${encodeURIComponent(slug)}`,
   helpTickets: (slug: string) => `${API}/help/${encodeURIComponent(slug)}/tickets`,
@@ -158,20 +150,10 @@ export const paths = {
   ticketAccept: (id: string) => `${API}/tickets/${id}/accept`,
   ticketUnlink: (id: string) => `${API}/tickets/${id}/unlink`,  // SPEC-271 · lepas tautan backlog
   ticketReject: (id: string) => `${API}/tickets/${id}/reject`,
-  // SPEC-337 · ADR-0075 · relasi integrasi antar project (LOCAL-only) + log lintas project.
-  projectLinks: (id: string) => `${API}/projects/${encodeURIComponent(id)}/links`,
-  projectLink: (id: string, linkId: string) =>
-    `${API}/projects/${encodeURIComponent(id)}/links/${encodeURIComponent(linkId)}`,
   // SPEC-361 · ADR-0078 · unduh dokumen: query ditempelkan ke URL endpoint dokumen yang sudah ada
   // (tak ada endpoint ekspor terpisah). `base` bisa sudah membawa query, mis. ideFile(?path=…).
   download: (base: string, fmt: "md" | "pdf") => `${base}${base.includes("?") ? "&" : "?"}download=${fmt}`,
 } as const;
-
-// SPEC-337 · bentuk LinkView server (server/src/services/project-links.ts).
-export type LinkView = {
-  id: string; fromProjectId: string; toProjectId: string; kind: string; note: string;
-  direction: "keluar" | "masuk"; other: { id: string; name: string };
-};
 
 // SPEC-215 · view config untuk UI. Secret: tanpa `value`, pakai `masked` + `hasValue`.
 export type ConfigEntryView = {

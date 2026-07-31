@@ -19,7 +19,6 @@ const HN_NAV: NavItem[] = [
   { key: "projects", label: "Projects", icon: "layout-grid" },
   { key: "prd", label: "PRD", icon: "scroll-text" },
   { key: "backlog", label: "Backlog", icon: "list-checks" },
-  { key: "errors", label: "Errors", icon: "triangle-alert" },
   { key: "triage", label: "Triase", icon: "inbox" },
   { key: "scheduler", label: "Scheduler", icon: "calendar-clock" },
   { key: "lead", label: "Lead", icon: "compass" },   // SPEC-409 · ADR-0091 · hanoman-lead

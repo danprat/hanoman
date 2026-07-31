@@ -8,7 +8,7 @@ describe("zSchedulerState (SPEC-299)", () => {
       cap: 2, liveCount: 1,
       sources: [
         { id: "backlog", enabled: true, everyMin: 15, lastRunAt: "2026-07-22T00:00:00.000Z", nextRunAt: "2026-07-22T00:15:00.000Z" },
-        { id: "errors", enabled: false, everyMin: 15, minCount: 5, lastRunAt: null, nextRunAt: null },
+        { id: "triase", enabled: false, everyMin: 30, lastRunAt: null, nextRunAt: null },
       ],
       queue: [
         { id: "q1", specId: "SPEC-1", projectId: "a", source: "backlog", priority: "sedang",
@@ -22,7 +22,7 @@ describe("zSchedulerState (SPEC-299)", () => {
     };
     const parsed = zSchedulerState.parse(sample);
     expect(parsed.sources[0]!.id).toBe("backlog");
-    expect(parsed.sources[1]!.minCount).toBe(5);
+    expect(parsed.sources[1]!.id).toBe("triase");
     expect(parsed.queue[0]!.status).toBe("done");
     expect(parsed.sessions[0]!.specId).toBe("SPEC-2");
   });

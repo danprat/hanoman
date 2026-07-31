@@ -1,7 +1,7 @@
-import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type SessionHistoryView, type ConfigResponse, type ConfigEntryView, type IngestKeyView, type ErrorGroupView, type ErrorGroupDetail, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView, type Agent, type LinkView, type AuditEscalationView, type VerifyScope, type Lead, type LeadStatusView, type LeadDecisionView } from "@hanoman/shared";
+import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type SessionHistoryView, type ConfigResponse, type ConfigEntryView, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView, type Agent, type AuditEscalationView, type VerifyScope, type Lead, type LeadStatusView, type LeadDecisionView } from "@hanoman/shared";
 export class ApiError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 // SPEC-407 · ADR-0089 · +goal · sesi dua fase (Goal → Verifikasi), tanpa fase perencanaan.
-export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit" | "breakdown" | "cross-audit" | "goal";
+export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit" | "breakdown" | "goal";
 // SPEC-210 · dokumen PRD project (freshest-wins: worktree sesi prd hidup > repoDir). Tipe di @hanoman/shared.
 export type { PrdDoc };
 export type Phase = { name: string; state: "done" | "skipped" | "active" | "pending" };
@@ -149,7 +149,7 @@ export const api = {
   getConfig: () => j<ConfigResponse>(paths.config),
   putConfig: (key: string, value: string) => j<ConfigEntryView>(paths.config, { method: "PUT", ...body({ key, value }) }),
   deleteConfig: (key: string) => j<void>(paths.configKey(key), { method: "DELETE" }),
-  // SPEC-268 · ADR-0066 · pemicu sync manual (tombol Backlog/Errors/Triase)
+  // SPEC-268 · ADR-0066 · pemicu sync manual (tombol Backlog/Triase)
   // SPEC-382 · opts.full → tarik ulang feed dari awal (pemulihan baris yang terlewat kursor)
   syncNow: (opts?: { full?: boolean }) =>
     j<{ ok: boolean; reason?: string; full?: boolean; pulled?: number; pushed?: number; conflicts?: number }>(
@@ -248,7 +248,7 @@ export const api = {
   // SPEC-222 · scaffold: sesi project-level menyusun Source of Truth dari ide (from-scratch).
   scaffoldDocs: (project: string) =>
     j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, flow: "scaffold" }) }),
-  // SPEC-362 · "Mulai lagi" sesi project-level dari riwayat (reverse/scaffold/cross-audit): bentuk
+  // SPEC-362 · "Mulai lagi" sesi project-level dari riwayat (reverse/scaffold): bentuk
   // body-nya identik dengan reverseDocs/scaffoldDocs, hanya flow-nya yang datang dari baris riwayat.
   createTerminalFlow: (project: string, flow: Flow) =>
     j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, flow }) }),
@@ -344,33 +344,10 @@ export const api = {
   listSessionHistory: (p: { projectId?: string; kind?: string; q?: string; page?: number; limit?: number } = {}) =>
     j<Paginated<SessionHistoryView>>(paths.sessionHistory(qs(p))),
   sessionTranscript: (id: string) => j<{ text: string; bytes: number }>(paths.sessionTranscript(id)),
-  // SPEC-249 · error monitoring — DSN ingest key (plaintext hanya balik di rotate, sekali).
-  getIngestKey: (id: string) => j<IngestKeyView>(paths.projectIngestKey(id)),
-  rotateIngestKey: (id: string) => j<IngestKeyView>(paths.projectIngestKey(id), { method: "POST" }),
-  revokeIngestKey: (id: string) => j<void>(paths.projectIngestKey(id), { method: "DELETE" }),
-  // SPEC-249 · error monitoring — grup + detail + eskalasi
-  listErrors: (params: Record<string, string | undefined> = {}) =>
-    j<Paginated<ErrorGroupView>>(paths.errors + qs(params)),
-  getError: (id: string) => j<ErrorGroupDetail>(paths.error(id)),
-  escalateError: (id: string) => j<{ spec: Spec; alreadyEscalated?: boolean }>(paths.errorEscalate(id), { method: "POST" }),
-  patchError: (id: string, status: string) =>
-    j<{ id: string; status: string }>(paths.error(id), { method: "PATCH", ...body({ status }) }),
-  unlinkError: (id: string) => j<{ id: string; status: string; specId: string | null }>(paths.errorUnlink(id), { method: "POST", ...body({}) }),
-  deleteError: (id: string) => j<{ ok: boolean }>(paths.error(id), { method: "DELETE" }),
-  // SPEC-249 · panduan integrasi SDK (markdown) untuk ditampilkan di web
-  getIntegrationGuide: () => j<{ text: string }>(paths.errorsGuide),
   // SPEC-253 · Help Center — manajemen per project + triase tiket.
   getHelpCenter: (id: string) => j<{ enabled: boolean; publicUrl: string }>(paths.projectHelpCenter(id)),
   enableHelpCenter: (id: string) => j<{ enabled: boolean; publicUrl: string }>(paths.projectHelpCenter(id), { method: "POST" }),
   disableHelpCenter: (id: string) => j<void>(paths.projectHelpCenter(id), { method: "DELETE" }),
-  // SPEC-337 · ADR-0075 · relasi integrasi antar project + sesi audit lintas (lepas).
-  listProjectLinks: (id: string) => j<{ links: LinkView[] }>(paths.projectLinks(id)),
-  createProjectLink: (id: string, b: { to: string; kind: string; note?: string }) =>
-    j<LinkView>(paths.projectLinks(id), { method: "POST", ...body(b) }),
-  deleteProjectLink: (id: string, linkId: string) =>
-    j<void>(paths.projectLink(id, linkId), { method: "DELETE" }),
-  crossAudit: (project: string) =>
-    j<{ id: string }>(paths.terminalSessions, { method: "POST", ...body({ project, flow: "cross-audit" }) }),
   listTickets: (params: Record<string, string | undefined> = {}) =>
     j<Paginated<TicketView> & { unreviewed: number }>(paths.tickets + qs(params)),
   getTicket: (id: string) => j<TicketDetail & { spec: Spec | null }>(paths.ticket(id)),

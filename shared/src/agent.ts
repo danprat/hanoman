@@ -30,7 +30,7 @@ export type CapabilityInfo = z.infer<typeof zCapabilityInfo>;
 // Metadata untuk UI (label Indonesia). risk = high-risk badge.
 export const CAPABILITIES: CapabilityInfo[] = [
   { id: "projects:read", domain: "projects", access: "read", label: "Projects — baca", desc: "Lihat daftar & detail project, branch, binding." },
-  { id: "projects:write", domain: "projects", access: "write", label: "Projects — tulis", desc: "Buat/ubah/hapus project, rename, clone, DSN, Help Center." },
+  { id: "projects:write", domain: "projects", access: "write", label: "Projects — tulis", desc: "Buat/ubah/hapus project, rename, clone, Help Center." },
   { id: "backlog:read", domain: "backlog", access: "read", label: "Backlog — baca", desc: "Lihat spec/backlog, dokumen, review diff." },
   { id: "backlog:write", domain: "backlog", access: "write", label: "Backlog — tulis", desc: "Buat/ubah/hapus spec, integrate branch." },
   { id: "sessions:read", domain: "sessions", access: "read", label: "Sesi — baca", desc: "Lihat sesi terminal, fase, review." },
@@ -43,8 +43,8 @@ export const CAPABILITIES: CapabilityInfo[] = [
   { id: "vps:write", domain: "vps", access: "write", label: "VPS — tulis", desc: "Kelola VPS, audit, harden, remediasi, konsol (remote exec).", risk: "exec" },
   { id: "settings:read", domain: "settings", access: "read", label: "Settings — baca", desc: "Baca setelan & config runtime." },
   { id: "settings:write", domain: "settings", access: "write", label: "Settings — tulis", desc: "Ubah setelan & config runtime." },
-  { id: "support:read", domain: "support", access: "read", label: "Errors & Tiket — baca", desc: "Lihat error monitoring & tiket Help Center." },
-  { id: "support:write", domain: "support", access: "write", label: "Errors & Tiket — tulis", desc: "Eskalasi error, ubah status, terima/tolak tiket." },
+  { id: "support:read", domain: "support", access: "read", label: "Tiket — baca", desc: "Lihat tiket Help Center." },
+  { id: "support:write", domain: "support", access: "write", label: "Tiket — tulis", desc: "Terima/tolak tiket, ubah status, promosikan ke backlog." },
   { id: "notifications:read", domain: "notifications", access: "read", label: "Notifikasi — baca", desc: "Lihat notifikasi." },
   { id: "notifications:write", domain: "notifications", access: "write", label: "Notifikasi — tulis", desc: "Tandai terbaca / bersihkan notifikasi." },
   { id: "lead:read", domain: "lead", access: "read", label: "Lead — baca", desc: "Baca jejak keputusan hanoman-lead & statusnya." },
@@ -52,18 +52,18 @@ export const CAPABILITIES: CapabilityInfo[] = [
 ];
 
 // SPEC-264 · Metadata per-domain untuk grid capability di Settings (label ramah + cakupan).
-// Grid dulu hanya merender slug domain mentah ("docs", "support") sehingga PRD/Errors/Help Desk
+// Grid dulu hanya merender slug domain mentah ("docs", "support") sehingga PRD/Help Desk
 // tak terbaca; ini sumber tunggal label/desc supaya cakupan tiap domain kelihatan. Urutan =
 // urutan kemunculan domain di CAPABILITIES.
 export const CAPABILITY_DOMAINS: { domain: string; label: string; desc: string }[] = [
-  { domain: "projects", label: "Projects", desc: "Project, branch, binding, DSN, Help Center." },
+  { domain: "projects", label: "Projects", desc: "Project, branch, binding, Help Center." },
   { domain: "backlog", label: "Backlog / Spec", desc: "Spec/backlog, dokumen, review diff, integrate." },
   { domain: "sessions", label: "Sesi", desc: "Sesi terminal, fase, jalankan claude/shell." },
   { domain: "docs", label: "Docs & PRD", desc: "Dokumen SoT project & PRD." },
   { domain: "ide", label: "IDE / Git", desc: "Tree, file, status git, graph, commit, diff." },
   { domain: "vps", label: "VPS", desc: "VPS, checklist kepatuhan, audit, konsol." },
   { domain: "settings", label: "Settings", desc: "Setelan & config runtime." },
-  { domain: "support", label: "Errors & Help Desk", desc: "Error monitoring & tiket Help Center (Help Desk): lihat, eskalasi, terima/tolak." },
+  { domain: "support", label: "Help Desk", desc: "Tiket Help Center (Help Desk): lihat, terima/tolak, promosikan ke backlog." },
   { domain: "notifications", label: "Notifikasi", desc: "Lihat & kelola notifikasi." },
   { domain: "lead", label: "Lead", desc: "Minta putusan ke hanoman-lead & baca jejak keputusannya." },
 ];

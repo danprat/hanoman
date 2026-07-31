@@ -1,4 +1,4 @@
-/* TriageScreen — antrean triase keluhan Help Center (SPEC-253). Screen mandiri (pola ErrorsScreen):
+/* TriageScreen — antrean triase keluhan Help Center (SPEC-253). Screen mandiri (pola VpsScreen):
    memuat datanya sendiri + silent poll (pola GitGraph). Master (daftar tiket) → detail dengan
    lampiran + aksi Terima (→ Spec, source mengikuti kategori: bug→qa, fitur→brief, pertanyaan→audit,
    lainnya→brief — SPEC-291) / Tolak. Realtime via HTTP polling (ADR-0062), bukan WS.

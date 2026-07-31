@@ -32,7 +32,6 @@ const SOURCE_META: Record<string, { label: string; icon: string; tone: "err" | "
   qa:    { label: "QA finding",    icon: "bug",       tone: "err",   color: "var(--clay-500)" },
   audit: { label: "Audit",         icon: "search",    tone: "info",  color: "var(--wind-600)" },
   // SPEC-337 · audit lintas project (scope: project + tetangga ProjectLink-nya)
-  "cross-audit": { label: "Audit lintas", icon: "radar", tone: "info", color: "var(--wind-600)" },
   brief: { label: "feature brief", icon: "lightbulb", tone: "brass", color: "var(--brass-500)" },
   // SPEC-407 · ADR-0089 · backlog goal: sesi dua fase (Goal → Verifikasi), tanpa perencanaan.
   goal:  { label: "Goal",          icon: "target",    tone: "brass", color: "var(--brass-600)" },
@@ -104,8 +103,8 @@ const ESC_LABEL: Record<string, string> = {
 // Target rekomendasi menonjol; sisanya tetap tersedia (manusia terakhir yang memutuskan).
 const escVariant = (e: AuditEscalation | null, target: string): "primary" | "secondary" =>
   e && e.target === target ? "primary" : "secondary";
-// Source yang berujung dokumen audit — keduanya berhak atas ketiga pintu eskalasi.
-const isAuditSource = (source: string) => source === "audit" || source === "cross-audit";
+// Source yang berujung dokumen audit — berhak atas ketiga pintu eskalasi.
+const isAuditSource = (source: string) => source === "audit";
 
 function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, onStart, onIntegrate, onEditSpec, onPromoteToQa, onPromoteToBrief, onPromoteToPrd }:
   {

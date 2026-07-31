@@ -20,10 +20,6 @@ export function toastFor(n: Notification, p: NotifyPrefs): ToastPlan {
   if (n.type === "decision")
     return { msg: `${n.specId ?? n.sessionId} · butuh keputusan`, tone: "warn", icon: "git-merge",
              sound: p.notifyDecisionSound as NotifySound, enabled: p.notifyDecision };
-  // SPEC-249 · grup error produksi baru (server hanya menotifikasi grup baru production).
-  if (n.type === "error")
-    return { msg: n.title, tone: "err", icon: "triangle-alert",
-             sound: p.notifyDecisionSound as NotifySound, enabled: true };
   // SPEC-253 · keluhan Help Center baru masuk (setiap tiket baru).
   if (n.type === "ticket")
     return { msg: n.title, tone: "warn", icon: "inbox",

@@ -68,6 +68,5 @@ describe("SPEC-407 · source goal", () => {
     expect(flowForSource("brief")).toBe("feature");
     expect(flowForSource("qa")).toBe("qa");
     expect(flowForSource("audit")).toBe("audit");
-    expect(flowForSource("cross-audit")).toBe("cross-audit");
   });
 });

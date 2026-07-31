@@ -1,5 +1,5 @@
 /* SchedulerScreen — panel scheduler otonom (SPEC-299, daun #6 ADR-0072). Screen mandiri (pola
-   ErrorsScreen/VpsScreen): memuat state fondasi sendiri + silent poll. Menampilkan status per
+   VpsScreen): memuat state fondasi sendiri + silent poll. Menampilkan status per
    source, antrean, sesi berjalan, done + link review, gagal + alasan; panel setelan menulis semua
    knob (PUT /api/scheduler/config), opt-in per project (pola helpEnabled → PATCH /projects/:id),
    dan rem darurat Pause/Stop. Konsumen API read-only GET /api/scheduler/state — tanpa endpoint baru. */
@@ -12,7 +12,7 @@ import { specDeepLink } from "./deeplink";
 
 const POLL_MS = 5000;
 
-// Waktu relatif ringkas (pola ErrorsScreen). null → "—".
+// Waktu relatif ringkas. null → "—".
 function ago(iso: string | null, now = Date.now()): string {
   if (!iso) return "—";
   const d = Math.max(0, now - new Date(iso).getTime());
@@ -54,7 +54,7 @@ function SourceCard({ s }: { s: SchedulerSourceView }) {
         <Badge tone={s.enabled ? "ok" : "neutral"} size="sm">{s.enabled ? "aktif" : "nonaktif"}</Badge>
       </div>
       <div style={{ fontSize: "var(--text-xs)", color: "var(--text-subtle)" }}>
-        tiap {s.everyMin}m{s.minCount != null ? ` · ambang ${s.minCount}×` : ""}
+        tiap {s.everyMin}m
       </div>
       <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
         terakhir {ago(s.lastRunAt)} · berikutnya {until(s.nextRunAt)}
@@ -165,7 +165,7 @@ function ControlBar({ cfg, cap, liveCount, onWrite, busy }:
 function SettingsPanel({ cfg, onWrite, busy }: { cfg: Scheduler; onWrite: (next: Scheduler) => void; busy: boolean }) {
   const [draft, setDraft] = React.useState<Scheduler>(cfg);
   React.useEffect(() => { setDraft(cfg); }, [cfg]);
-  const setSrc = (k: "backlog" | "errors" | "triase", patch: Record<string, unknown>) =>
+  const setSrc = (k: "backlog" | "triase", patch: Record<string, unknown>) =>
     setDraft((d) => ({ ...d, sources: { ...d.sources, [k]: { ...d.sources[k], ...patch } } }));
   const num = (v: string, min = 1) => Math.max(min, Number(v) || min);
   return (
@@ -185,7 +185,7 @@ function SettingsPanel({ cfg, onWrite, busy }: { cfg: Scheduler; onWrite: (next:
         </label>
       </div>
       <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 10 }}>
-        {(["backlog", "errors", "triase"] as const).map((k) => (
+        {(["backlog", "triase"] as const).map((k) => (
           <div key={k} style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
             padding: "10px 12px", border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)" }}>
             <Switch label={k} checked={draft.sources[k].enabled} onChange={(next: boolean) => setSrc(k, { enabled: next })} />
@@ -197,15 +197,6 @@ function SettingsPanel({ cfg, onWrite, busy }: { cfg: Scheduler; onWrite: (next:
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSrc(k, { everyMin: num(e.target.value) })} />
               menit
             </label>
-            {k === "errors" && (
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-xs)" }}>
-                ambang
-                <Input type="number" min={1} style={{ width: 84 }} aria-label="ambang errors"
-                  value={String(draft.sources.errors.minCount)}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSrc("errors", { minCount: num(e.target.value) })} />
-                ×
-              </label>
-            )}
           </div>
         ))}
       </div>

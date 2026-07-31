@@ -12,16 +12,15 @@ import { SchedulerScreen } from "../src/screens/SchedulerScreen";
 
 const STATE = {
   config: { enabled: true, paused: false, maxConcurrent: 2, autonomy: "butuh-keputusan",
-    sources: { backlog: { enabled: true, everyMin: 15 }, errors: { enabled: false, everyMin: 15, minCount: 5 }, triase: { enabled: false, everyMin: 30 } } },
+    sources: { backlog: { enabled: true, everyMin: 15 }, triase: { enabled: false, everyMin: 30 } } },
   cap: 2, liveCount: 1,
   sources: [
     { id: "backlog", enabled: true, everyMin: 15, lastRunAt: "2026-07-22T00:00:00.000Z", nextRunAt: "2026-07-22T00:15:00.000Z" },
-    { id: "errors", enabled: false, everyMin: 15, minCount: 5, lastRunAt: null, nextRunAt: null },
     { id: "triase", enabled: false, everyMin: 30, lastRunAt: null, nextRunAt: null },
   ],
   queue: [
     { id: "q1", specId: "SPEC-1", projectId: "a", source: "backlog", priority: "tinggi", status: "queued", sessionId: null, note: null, enqueuedAt: "2026-07-22T00:00:00.000Z", launchedAt: null },
-    { id: "q2", specId: "SPEC-2", projectId: "a", source: "errors", priority: "tinggi", status: "done", sessionId: "spec-2", note: null, enqueuedAt: "2026-07-22T00:00:00.000Z", launchedAt: "2026-07-22T00:01:00.000Z" },
+    { id: "q2", specId: "SPEC-2", projectId: "a", source: "triase", priority: "tinggi", status: "done", sessionId: "spec-2", note: null, enqueuedAt: "2026-07-22T00:00:00.000Z", launchedAt: "2026-07-22T00:01:00.000Z" },
     { id: "q3", specId: "SPEC-3", projectId: "a", source: "triase", priority: "sedang", status: "failed", sessionId: "spec-3", note: "sesi berakhir sebelum done", enqueuedAt: "2026-07-22T00:00:00.000Z", launchedAt: "2026-07-22T00:01:00.000Z" },
   ],
   sessions: [
@@ -46,7 +45,7 @@ describe("SchedulerScreen observabilitas (SPEC-299)", () => {
     // status per-source (id source muncul ≥1×)
     expect(await screen.findByText("Status per source")).toBeInTheDocument();
     expect(screen.getAllByText("backlog").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("errors").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("triase").length).toBeGreaterThan(0);
     // antrean (queued) → judul spec ter-resolve
     expect(screen.getByText("Judul satu")).toBeInTheDocument();
     // sesi berjalan + indikator menunggu keputusan

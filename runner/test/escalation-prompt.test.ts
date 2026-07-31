@@ -1,16 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { startPrompt, startCrossAuditPrompt, startPrdPrompt, ESCALATION_CONTRACT } from "../src/prompt";
-import type { CrossAuditCtx, SpecBrief } from "../src/types";
+import { startPrompt, startPrdPrompt, ESCALATION_CONTRACT } from "../src/prompt";
+import type { SpecBrief } from "../src/types";
 
 const spec: SpecBrief = {
   id: "SPEC-300", title: "Kenapa antrean menumpuk", source: "audit",
   priority: "tinggi", objective: "telusuri",
-};
-
-const crossCtx: CrossAuditCtx = {
-  primary: { id: "web", name: "Web", stack: "React", repoDir: "/repo/web" },
-  neighbors: [],
-  apiUrl: "http://127.0.0.1:8787/api/audit",
 };
 
 describe("kontrak escalation di prompt audit (SPEC-340 · ADR-0076)", () => {
@@ -28,17 +22,6 @@ describe("kontrak escalation di prompt audit (SPEC-340 · ADR-0076)", () => {
   it("prompt flow feature TIDAK memuat kontrak itu", () => {
     const p = startPrompt("feature", { ...spec, source: "brief" }, "hanoman/spec-300");
     expect(p).not.toContain("```json");
-  });
-  it("prompt cross-audit berdokumen memuat kontrak itu", () => {
-    const p = startCrossAuditPrompt({
-      ...crossCtx,
-      spec: { ...spec, id: "SPEC-400", source: "cross-audit" },
-      branchTo: "hanoman/spec-400",
-    }, "backlog");
-    expect(p).toContain(ESCALATION_CONTRACT);
-  });
-  it("cross-audit mode live tetap tanpa kontrak (tak berdokumen)", () => {
-    expect(startCrossAuditPrompt(crossCtx, "live")).not.toContain(ESCALATION_CONTRACT);
   });
 });
 

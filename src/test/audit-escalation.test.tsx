@@ -82,11 +82,6 @@ describe("SpecDetail eskalasi audit (SPEC-340)", () => {
     expect(handlers.onPromoteToPrd.mock.calls[0]![1]).toBeNull();   // tanpa rekomendasi terbaca
   });
 
-  it("cross-audit memperoleh tombol yang sama", async () => {
-    openDetail(spec({ id: "SPEC-301", title: "audit lintas", source: "cross-audit" }));
-    expect(await screen.findByRole("button", { name: /jadikan prd/i })).toBeTruthy();
-  });
-
   it("source brief tak menampilkan tombol eskalasi & tak memanggil endpoint", async () => {
     openDetail(spec({ id: "SPEC-302", title: "brief x", source: "brief" }));
     await screen.findAllByText("brief x");   // kartu + judul modal
