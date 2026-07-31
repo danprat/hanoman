@@ -110,6 +110,22 @@ tiap berkas.
   Keduanya menyeberang record-sync (`FIELDS.spec` **dan** `DATE_FIELDS.spec` — tanpa itu spec asal-hub
   mendapat `createdAt` lokal palsu di tiap client, karena `upsert` yang tak menyebut kolom ber-default
   tetap berhasil). Baris pra-migration di-backfill dari `updatedAt` — aproksimasi yang disengaja.
+- `dependsOn` (Json?, SPEC-447/[ADR-0093](../adr/0093-dependency-antar-backlog.md)) — **array id spec**
+  yang harus **selesai (`stage=done`) DAN commit-nya sudah ada di branch basis item ini** sebelum
+  sesinya boleh diluncurkan. `null`/`[]` = berdiri sendiri; pembaca menormalkannya (`dependsOnOf`,
+  defensif — kolom Json menyeberang lewat sync dari client versi lain). Sengaja **kolom, bukan tabel
+  join**: SQLite melarang scalar list, `Json` sudah dipakai `payload`, dan kolom ikut `FIELDS.spec`
+  apa adanya (**wajib** — tanpa itu client kehilangan urutan dan meluncurkan pekerjaan yang di hub
+  terblokir; **bukan** `DATE_FIELDS`). Karena tak ada FK, integritasnya ditegakkan di **boundary
+  route**: id harus ada, berada di **project yang sama**, bukan diri sendiri, dan tak membentuk
+  **siklus** (reachability atas graf project sesudah perubahan) → 400. `DELETE /specs/:id`
+  **mencabut** id itu dari `dependsOn` seluruh dependent-nya; tanpa itu menghapus satu item mengunci
+  tetangganya selamanya. `dependsOn` sengaja **di luar** gerbang edit SPEC-186 (`stage=brainstorming
+  ∧ baseSha=null`) — ia menggerbangi peluncuran *berikutnya*, bukan konten sesi berjalan.
+  **`blockedBy` bukan kolom**: nilai turunan yang dihitung `liveSpecs()` dari `stage` dependency +
+  `git merge-base --is-ancestor` (memo 15 dtk), ikut ADR-0018/0019. Dependency `done` ber-`headSha`
+  null dianggap **siap** — hanoman tak pernah membuatkan worktree untuknya (pelajaran SPEC-431), jadi
+  tak ada commit yang bisa di-merge.
 
 ## Setting (per workspace)
 Singleton `id = 1`, kolom `data` (Json) berbentuk `zSetting`:

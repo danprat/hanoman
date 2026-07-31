@@ -414,6 +414,26 @@ Pakai skill lebih sempit saat task cocok:
   itu **ditutup `done` + `note`** (bukan dihapus — `enqueue` ber-`update:{}` tak boleh menghidupkannya
   lagi) tanpa memakan slot. Gerbangnya sengaja **bukan** di `startSpecSession`: reopen manual item `done`
   memang fitur, yang dilarang cuma otomasi memasukinya sendiri.
+- **Backlog boleh saling bergantung** (SPEC-447/ADR-0093): `Spec.dependsOn` (kolom `Json?`, array id
+  spec **satu project**) menahan peluncuran sampai tiap dependency `stage = done` **DAN** commit-nya
+  (`headSha`) sudah ada di branch basis si dependent (`branchFrom ?? "HEAD"`) — merged adalah **nilai
+  turunan** git (`merge-base --is-ancestor`, memo 15 dtk), bukan kolom (ADR-0019). Yang membuatnya
+  penting bukan urutan melainkan ADR-0002: sesi lahir `--detach` dari `branchFrom`, jadi dependent
+  yang lahir lebih dulu **secara fisik tak memuat** pekerjaan dependency-nya. Satu resolver
+  `services/spec-deps.ts` dipakai TIGA pembaca (gerbang `startSpecSession`, gerbang governor,
+  dekorasi `liveSpecs` → `blockedBy`) — menyalin predikatnya adalah kelas bug SPEC-431. **Empat
+  gotcha:** dependency `done` ber-`headSha` null **SIAP** (hanoman tak pernah membuatkan worktree
+  untuknya — membacanya "belum" mengunci backlog lama selamanya); git yang tak bisa menjawab dibaca
+  **belum merged** (fail-closed); `"dependsOn"` **wajib** di `FIELDS.spec` atau client kehilangan
+  urutannya dan meluncurkan pekerjaan yang di hub terblokir; dan `GovernorDeps.blockers` sengaja
+  **wajib** (bukan opsional) supaya gerbang otomasi tak bisa lupa dipasang. Item terblokir tetap
+  `queued` + `note` (bukan `failed` — pemblokirnya akan selesai, dan `enqueue` ber-`update:{}` tak
+  bisa menghidupkan baris yang sudah ditutup) dan **tak memakan slot**; denyut lead menyaringnya
+  sebelum membeli giliran agen (gerbang aktionabilitas SPEC-432). `force` **hanya** untuk jalur
+  manusia (`POST /terminal/sessions`, 409 tanpa itu); otomasi tak punya jalan paksa. `dependsOn`
+  sengaja **di luar** gerbang edit SPEC-186 — ia menggerbangi peluncuran berikutnya, bukan konten
+  sesi berjalan; dan `DELETE /specs/:id` mencabutnya dari dependent agar tak ada yang terkunci
+  `missing` selamanya.
 - Stage bergerak **maju** hanya lewat fase yang dilaporkan sesi; **mundur** hanya lewat aksi human eksplisit `PATCH /specs/:id { stage }` (backward-only, ADR-0027). `executing` **tertahan** (tak jadi `done`) selama plan `docs/superpowers/plans/**` masih punya `- [ ]` (ADR-0029).
 - Biaya bersifat **estimasi dan tidak menggerakkan apa pun** (ADR-0012): tak ada `dailyBudget`/budget flag. Indikator limit dibaca dari OAuth usage API Anthropic (`services/limits.ts`), bukan parsing output terminal.
 - **Jangan pernah menjalankan run/sesi di working tree utama** — selalu worktree terpisah. Jangan menyentuh worktree sesi lain.

@@ -82,6 +82,11 @@ GET  /specs?project=&source=&q=&stage=&priority=&startable=&dateField=&from=&to=
 #   yang tak ada (2026-02-30) juga null, tidak digulirkan. `dateField=started` MEMBUANG item
 #   ber-`startedAt` null (belum pernah dikerjakan — pakai `startable` untuk itu). Filternya sebidang
 #   dengan yang lain di layer response, jadi `total` di envelope ikut menyusut.
+#   SPEC-447 · ADR-0093 · tiap Spec membawa `dependsOn: string[]` (kolom, dinormalkan dari `Json?`)
+#   dan `blockedBy: {id, reason:"missing"|"unfinished"|"unmerged"}[]` — TURUNAN (bukan kolom),
+#   dihitung `liveSpecs()` dari stage dependency + `git merge-base --is-ancestor` (memo 15 dtk).
+#   Dihias di `liveSpecs` supaya endpoint ini dan grup siar WS `specs` tak pernah drift (SPEC-199).
+#   `blockedBy` kosong = boleh diluncurkan. Backlog tanpa dependency: nol query & nol git tambahan.
 POST /specs               { project, source, ...payload, branchFrom? }  -> SPEC-n
 POST /specs/batch         { project, items:[BreakdownItem], branchFrom?, prdPath? } -> {created:[Spec]}
 #   SPEC-273 · ADR-0069 · materialize breakdown: N spec `source:"brief"` independen (id berurutan via
@@ -98,13 +103,24 @@ POST /specs/batch         { project, items:[BreakdownItem], branchFrom?, prdPath
 #   source `qa` (ADR-0059, lewati fase Audit) MAUPUN `brief` (baca dokumen audit sbg bahan Brainstorm/
 #   Objective, tanpa `skipped`). Pasangannya branchFrom `hanoman/<audit-id>` agar dokumen audit ada di worktree.
 #   404 bila project tak dikenal; 400 bila branchFrom tak ada di refs/heads repo project.
-PATCH /specs/:id          { branchFrom?: string|null, stage?, confirmDelete? }   -> Spec
+#   SPEC-447 · ADR-0093 · `dependsOn?: string[]` — backlog yang harus selesai & ter-merge lebih dulu.
+#   Divalidasi di boundary (tak ada FK untuk kolom Json): id harus ADA, berada di PROJECT YANG SAMA,
+#   bukan diri sendiri → 400 dengan alasannya. Siklus mustahil di POST (spec baru belum bisa dirujuk).
+PATCH /specs/:id          { branchFrom?: string|null, stage?, confirmDelete?, dependsOn? }   -> Spec
 #   branchFrom null = kembali ke default project (main); menentukan basis sesi BERIKUTNYA. Lihat ADR-0032.
 #   stage = revert backward-only atas perintah human (SPEC-167/ADR-0027): 422 bila maju/sama,
 #   400 bila stage tak dikenal. Bila mundur menghapus artefak docs & confirmDelete≠true →
 #   200 { pending:true, stage, wouldDelete:string[] } (dry-run, tak mengubah apa pun);
 #   confirmDelete:true → hapus artefak + set stage. Sesi tetap forward-only (ADR-0008/0024).
+#   SPEC-447 · ADR-0093 · `dependsOn?: string[]` (`[]` mengosongkan). Validasi POST + **deteksi
+#   siklus** (reachability atas graf project sesudah perubahan) → 400. SENGAJA DI LUAR gerbang edit
+#   SPEC-186 (`stage=brainstorming ∧ baseSha=null`): ia menggerbangi peluncuran BERIKUTNYA, bukan
+#   konten sesi berjalan — menguncinya membuat item yang terlanjur terblokir salah tulis hanya bisa
+#   dibebaskan dengan menghapusnya.
 DELETE /specs/:id
+#   SPEC-447 · ADR-0093 · id yang dihapus juga DICABUT dari `dependsOn` seluruh spec lain di project
+#   yang sama (+ antre sync per baris yang berubah). Tanpa itu, dependent-nya terkunci selamanya
+#   dengan alasan `missing` yang tak bisa diperbaiki dari UI.
 GET  /specs/:id/docs                   # daftar dokumen superpowers backlog ini (audit/spec/plan/objective/brainstorm) — SPEC-170
 #   kind audit = `*-audit.md` ATAU `…/research/audit-…` (SPEC-237/ADR-0057) — dokumen audit SoT ikut tampil sbg audit
 GET  /specs/:id/docs/*path             # isi satu dokumen superpowers (raw)
@@ -409,8 +425,8 @@ POST   /terminal/sessions  {project, flow?} # 201 { id } · 404 project · 400 t
 #   {project, shell:true} (SPEC-236, ADR-0056): terminal biasa NON-agen — shell mentah
 #     (HANOMAN_SHELL ?? $SHELL ?? /bin/bash) di repoDir project, tanpa flow (tak menggerakkan stage,
 #     tak buat worktree). 201 { id } · 404 project · 400 tanpa repoDir (needsBind).
-#   {spec, flow, model?, effort?, goal?, goalCondition?, agent?, verifyScope?} (SPEC-162; model/effort SPEC-252/ADR-0061;
-#     goal SPEC-332/ADR-0073; agent SPEC-338/ADR-0074; verifyScope SPEC-376/ADR-0080):
+#   {spec, flow, model?, effort?, goal?, goalCondition?, agent?, verifyScope?, force?} (SPEC-162; model/effort SPEC-252/ADR-0061;
+#     goal SPEC-332/ADR-0073; agent SPEC-338/ADR-0074; verifyScope SPEC-376/ADR-0080; force SPEC-447/ADR-0093):
 #     sesi backlog di worktree .worktrees/<spec>, prompt pipeline penuh.
 #     201 { id } · 201 { id, resumed: true } bila peluncuran MELANJUTKAN sesi yang sudah berjalan
 #       (SPEC-394/ADR-0084). TIGA keadaan: pane tmux HIDUP → re-attach (ADR-0015), tak menyentuh
@@ -423,6 +439,13 @@ POST   /terminal/sessions  {project, flow?} # 201 { id } · 404 project · 400 t
 #       prompt = resumePrompt yang menyebut baris fase yang sudah tercatat + fase berikutnya.
 #       Selain itu → fresh: persis perilaku sebelum SPEC-394. stage = done tetap jalur SPEC-172
 #       (continuePrompt, worktree dari branchFrom). Server tak pernah menulis $HANOMAN_PHASE_FILE.
+#     409 { error, blocked: true, blockers: [{id, reason:"missing"|"unfinished"|"unmerged"}] } bila
+#       backlog ini punya `dependsOn` yang belum SELESAI & TER-MERGE (SPEC-447/ADR-0093). Gerbangnya
+#       berdiri SESUDAH cek pane hidup — re-attach ke sesi yang sedang berjalan tak pernah ditolak —
+#       dan SEBELUM kill/worktree, jadi penolakan tak meninggalkan efek (baseSha/startedAt tak
+#       tersentuh). `force: true` MELEWATI gerbang ini: hanya jalur manusia yang memilikinya;
+#       governor scheduler & denyut lead tak punya jalan paksa (governor melewati item terblokir,
+#       barisnya tetap `queued` + `note`, slot tak terpakai).
 #     verifyScope?: "changed"|"full" — scope verifikasi PER SESI; kosong → Setting.verifyScope
 #       (default "changed"). "changed" menyisipkan klausa scope ke prompt (uji berkas yang berubah
 #       saja: `vitest --changed "$HANOMAN_BASE_SHA"`/`vitest related`, typecheck per paket, lint per

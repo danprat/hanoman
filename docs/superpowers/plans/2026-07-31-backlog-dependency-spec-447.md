@@ -2046,7 +2046,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: seluruh perilaku Task 1-13.
 - Produces: docs tersentuh diperbarui + ter-link (DoD repo).
 
-- [ ] **Step 1: Tulis ADR-0093**
+- [x] **Step 1: Tulis ADR-0093**
 
 Buat `internal/docs/adr/0093-dependency-antar-backlog.md` dengan format yang sama dengan `0090`/`0091` (baca salah satunya lebih dulu untuk menyalin strukturnya: judul, Status, Konteks, Keputusan, Konsekuensi, Alternatif ditolak). Isi wajib:
 
@@ -2057,7 +2057,7 @@ Buat `internal/docs/adr/0093-dependency-antar-backlog.md` dengan format yang sam
 - **Alternatif ditolak:** tabel join `SpecDependency` (entitas sync + PG_ORDER + permukaan API baru untuk manfaat yang tak terpakai — satu tingkat, tanpa metadata edge); menyimpan di `payload` (merusak ikatan source ↔ bentuk payload tiga-arah); `stage=done` saja (mengabaikan bunyi objective "dan di-merge", dan tepat meninggalkan bug basis-salah); blokir keras tanpa `force` (menjebak operator saat dependency salah tulis / merge dilakukan di tempat lain).
 - **Gotcha yang wajib tercatat:** (1) `headSha` null pada dependency `done` **bukan** "belum selesai" (SPEC-431) — ia berarti hanoman tak pernah membuatkan worktree, jadi tak ada yang bisa di-merge; (2) fail-closed saat git tak bisa menjawab; (3) `dependsOn` **wajib** ada di `FIELDS.spec`, kalau tidak client kehilangan urutan dan meluncurkan pekerjaan yang di hub terblokir — kelas bug yang sama dengan `createdAt` di SPEC-408; (4) `GovernorDeps.blockers` sengaja **wajib**, bukan opsional, supaya gerbangnya tak bisa lupa dipasang.
 
-- [ ] **Step 2: Tautkan di kedua index**
+- [x] **Step 2: Tautkan di kedua index**
 
 `internal/docs/README.md` — sisipkan sebagai baris **pertama** blok `## adr`:
 
@@ -2067,7 +2067,7 @@ Buat `internal/docs/adr/0093-dependency-antar-backlog.md` dengan format yang sam
 
 `internal/docs/adr/README.md` — tambahkan narasinya mengikuti gaya entri 0091/0092 di sana (apa yang diperluas/dipersempit + gotcha).
 
-- [ ] **Step 3: Perbarui doc arsitektur & skill**
+- [x] **Step 3: Perbarui doc arsitektur & skill**
 
 `internal/docs/architecture/data-model.md` — pada bagian model `Spec`, tambahkan baris kolom `dependsOn` beserta aturan integritas boundary (ada / satu project / bukan diri sendiri / non-siklus), catatan bahwa ia ikut sync, dan bahwa penghapusan spec membersihkan dependent.
 
@@ -2097,14 +2097,14 @@ Buat `internal/docs/adr/0093-dependency-antar-backlog.md` dengan format yang sam
   bukan konten sesi berjalan.
 ```
 
-- [ ] **Step 4: Verifikasi integritas index**
+- [x] **Step 4: Verifikasi integritas index**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism server/test/docs.test.ts server/test/coverage.test.ts
 ```
 Expected: PASS (doc baru ter-link, tak ada entri yatim).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/docs internal/skills
