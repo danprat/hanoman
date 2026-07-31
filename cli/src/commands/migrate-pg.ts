@@ -26,6 +26,47 @@ export const PG_ORDER = [
 
 const CHUNK = 200;
 
+/** OID tipe `bigint` Postgres. `pg` mengembalikannya sebagai string demi presisi 64-bit. */
+export const INT8_OID = 20;
+
+type PgField = { name: string; dataTypeID: number };
+
+/**
+ * Postgres `bigint` → `Int` Prisma/SQLite. Driver `pg` menyerahkan int8 sebagai STRING (agar
+ * presisi 64-bit tak hilang lewat `number`), dan Prisma menolak string untuk field `Int` — jadi
+ * `SyncLog.seq` menggagalkan migrasi di tengah jalan. Koersi disandarkan pada `dataTypeID` hasil
+ * query, bukan tebakan nama kolom, supaya tak ada kolom teks yang ikut jadi angka.
+ *
+ * Melempar bila nilainya di luar jangkauan integer aman JS: membulatkan diam-diam akan merusak
+ * kursor sync tanpa jejak.
+ */
+export function coerceInt8<T extends Record<string, unknown>>(rows: T[], fields: PgField[], model: string): T[] {
+  const cols = fields.filter((f) => f.dataTypeID === INT8_OID).map((f) => f.name);
+  if (!cols.length) return rows;
+  return rows.map((row) => {
+    const out = { ...row } as Record<string, unknown>;
+    for (const c of cols) {
+      const v = out[c];
+      if (v === null || v === undefined) continue;
+      const n = Number(v);
+      if (!Number.isSafeInteger(n)) {
+        throw new Error(`${model}.${c} = ${String(v)} di luar jangkauan integer aman — migrasi dihentikan`);
+      }
+      out[c] = n;
+    }
+    return out as T;
+  });
+}
+
+/**
+ * `42P01 undefined_table`. Model yang LOCAL-only (mis. `SessionHistory`, SPEC-362) atau ditambahkan
+ * sesudah instance sumber lahir tak punya tabel di Postgres. Itu berarti nol baris, bukan alasan
+ * membatalkan seluruh migrasi.
+ */
+export function isUndefinedTable(e: unknown): boolean {
+  return typeof e === "object" && e !== null && (e as { code?: unknown }).code === "42P01";
+}
+
 export function chunk<T>(xs: T[], n: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < xs.length; i += n) out.push(xs.slice(i, i + n));
@@ -116,7 +157,15 @@ export default async function migratePg(argv: string[], ctx: Ctx): Promise<numbe
 
     let total = 0;
     for (const model of PG_ORDER) {
-      const { rows } = await pg.query(`SELECT * FROM "${model}"`);
+      let rows: Record<string, unknown>[];
+      try {
+        const res = await pg.query(`SELECT * FROM "${model}"`);
+        rows = coerceInt8(res.rows as Record<string, unknown>[], res.fields as PgField[], model);
+      } catch (e) {
+        if (!isUndefinedTable(e)) throw e;
+        ctx.stdout(`  ${"—".padStart(6)} · ${model} (tak ada di sumber — dilewati)\n`);
+        continue;
+      }
       total += rows.length;
       if (rows.length && steps.write) {
         for (const part of chunk(rows, CHUNK)) await at(model).createMany({ data: part });

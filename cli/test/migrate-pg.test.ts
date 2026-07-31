@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { Prisma } from "@prisma/client";
-import { PG_ORDER, chunk, parseMigrateArgs, migrationSteps } from "../src/commands/migrate-pg";
+import {
+  PG_ORDER, chunk, parseMigrateArgs, migrationSteps, coerceInt8, isUndefinedTable, INT8_OID,
+} from "../src/commands/migrate-pg";
 
 const models = Prisma.dmmf.datamodel.models;
 
@@ -78,5 +80,50 @@ describe("migrationSteps", () => {
   it("--force tak mengubah langkah — ia hanya mengubah reaksi saat target berisi", () => {
     expect(migrationSteps({ ...base, dryRun: false, force: true }))
       .toEqual(migrationSteps({ ...base, dryRun: false }));
+  });
+});
+
+// Regresi terukur saat cutover hub produksi (2026-07-31): `SyncLog.seq` adalah `bigint` di Postgres
+// lama (sisa `@default(autoincrement())` yang dipetakan int8) sedangkan schema SQLite memakai `Int`.
+// Driver `pg` mengembalikan int8 sebagai STRING supaya presisi 64-bit tak hilang → Prisma menolak
+// `Argument seq: Expected Int, provided String` di tengah jalan, sesudah 13 tabel terlanjur tertulis.
+// Yang bikin mahal: `--dry-run` LULUS, karena ia tak pernah menulis.
+describe("coerceInt8", () => {
+  const fields = [{ name: "seq", dataTypeID: INT8_OID }, { name: "entity", dataTypeID: 25 }];
+
+  it("kolom int8 string → number; kolom lain tak disentuh", () => {
+    expect(coerceInt8([{ seq: "44770", entity: "Spec" }], fields, "SyncLog"))
+      .toEqual([{ seq: 44770, entity: "Spec" }]);
+  });
+  it("null tetap null — bukan 0", () => {
+    expect(coerceInt8([{ seq: null, entity: "x" }], fields, "SyncLog")).toEqual([{ seq: null, entity: "x" }]);
+  });
+  it("bigint asli (driver versi lain) ikut dikoersi", () => {
+    expect(coerceInt8([{ seq: 7n, entity: "x" }], fields, "SyncLog")).toEqual([{ seq: 7, entity: "x" }]);
+  });
+  it("tanpa kolom int8 → baris dikembalikan apa adanya", () => {
+    const rows = [{ entity: "x" }];
+    expect(coerceInt8(rows, [{ name: "entity", dataTypeID: 25 }], "SyncLog")).toEqual(rows);
+  });
+  // Diam-diam membulatkan ke float lebih buruk daripada berhenti: kursor sync yang salah satu digit
+  // membuat perangkat melompati baris SELAMANYA (SPEC-382).
+  it("di luar jangkauan aman → melempar dan menyebut tabel + kolom", () => {
+    expect(() => coerceInt8([{ seq: "9007199254740993" }], fields, "SyncLog"))
+      .toThrow(/SyncLog\.seq/);
+  });
+});
+
+// Regresi kedua dari cutover yang sama: `SessionHistory` LOCAL-only (SPEC-362) tak pernah ada di
+// Postgres, jadi `SELECT *` melempar 42P01 dan MEMATIKAN seluruh migrasi. Tabel yang tak ada di
+// sumber berarti nol baris — bukan alasan membuang 45 ribu baris lainnya.
+describe("isUndefinedTable", () => {
+  it("42P01 → true", () => {
+    expect(isUndefinedTable(Object.assign(new Error('relation "SessionHistory" does not exist'), { code: "42P01" })))
+      .toBe(true);
+  });
+  it("galat lain (mis. koneksi putus) → false, harus tetap menggagalkan migrasi", () => {
+    expect(isUndefinedTable(Object.assign(new Error("connection terminated"), { code: "57P01" }))).toBe(false);
+    expect(isUndefinedTable(new Error("boom"))).toBe(false);
+    expect(isUndefinedTable(null)).toBe(false);
   });
 });

@@ -66,6 +66,23 @@ Tool ini memindahkan 26 model dalam urutan FK (`createMany` per 200 baris), `--d
 menghitung baris per tabel. Target yang sudah berisi data **ditolak** kecuali `--force` (yang
 mengosongkannya dulu dalam urutan terbalik).
 
+Dua bentuk ketidakcocokan sumber ditangani sendiri sejak cutover hub produksi 2026-07-31 — keduanya
+dulu menggagalkan migrasi di tengah jalan:
+
+- **Tabel yang tak ada di Postgres dilewati** (`42P01`) dan ditandai `(tak ada di sumber — dilewati)`.
+  Model LOCAL-only seperti `SessionHistory` (SPEC-362) memang tak pernah punya tabel di hub, begitu
+  pula model yang lahir sesudah instance sumber dibuat. Galat Postgres lain tetap menggagalkan.
+- **Kolom `bigint` dikoersi ke `Int`.** Driver `pg` menyerahkan int8 sebagai *string* demi presisi
+  64-bit, dan Prisma menolaknya untuk field `Int` (`SyncLog.seq`). Koersi memakai `dataTypeID` hasil
+  query, dan **melempar** bila nilainya melewati `Number.MAX_SAFE_INTEGER` alih-alih membulatkan
+  diam-diam — kursor sync yang meleset satu digit membuat perangkat melompati baris selamanya.
+
+Ingat bahwa **`--dry-run` tak bisa menangkap ketidakcocokan tipe**: ia tak pernah menulis ke target,
+jadi ia lulus untuk data yang nanti ditolak Prisma. Dry-run hijau ≠ migrasi akan mulus.
+
+Migrator **tidak** idempoten saat gagal separuh jalan. Kalau ia berhenti di tengah, hapus berkas
+target (`rm -f /srv/hanoman-prod/hanoman.db*`) dan ulangi dari nol — jangan lanjutkan di atasnya.
+
 Dua hal yang mudah menjebak:
 
 - **`DATABASE_URL` di environment masih menunjuk Postgres → perintahnya melempar.** Itu disengaja
