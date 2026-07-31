@@ -7,11 +7,22 @@ import { TerminalScreen, PhaseStrip } from "../src/screens/TerminalScreen";
 // diuji di sini adalah komposisi grid, bukan rendering terminalnya.
 // SPEC-402 · tombol `exit …` memancarkan frame exit pty apa adanya (dengan kode keluarnya) —
 // jalur yang dipakai saat operator sedang menonton pane yang panenya mati.
+// SPEC-433 · tombol `phases …` memancarkan frame phase pty apa adanya (daftar fase + verdict
+// `complete`) — satu-satunya jalan Terminal tahu pekerjaannya tuntas, karena TUI agen tak pernah
+// keluar sendiri sesudah fase terakhir dan `exited` selamanya false di jalur sukses.
+const ph = vi.hoisted(() => ({
+  next: { phases: [] as { name: string; state: string }[], complete: false },
+}));
 vi.mock("../src/screens/TerminalPane", () => ({
-  TerminalPane: ({ sessionId, onExit }: { sessionId: string; onExit?: (c: number) => void }) => (
+  TerminalPane: ({ sessionId, onExit, onPhases }: {
+    sessionId: string; onExit?: (c: number) => void;
+    onPhases?: (p: { name: string; state: string }[], complete: boolean) => void;
+  }) => (
     <div data-testid="pane">
       {sessionId}
       <button aria-label={`exit ${sessionId}`} onClick={() => onExit?.(143)} />
+      <button aria-label={`phases ${sessionId}`}
+        onClick={() => onPhases?.(ph.next.phases, ph.next.complete)} />
     </div>
   ),
 }));
@@ -233,6 +244,82 @@ describe("TerminalScreen (grid)", () => {
     render(<TerminalScreen projects={projects} />);
     await screen.findByTestId("pane");
     expect(screen.queryByText("Menunggu keputusan")).toBeNull();
+    expect(screen.queryByText("Selesai")).toBeNull();
+  });
+
+  // SPEC-433 · keluhan: "status selesai di terminal tidak pernah terjadi". Benar — pil hijau
+  // digerbangi `exited` (⇐ #{pane_dead}) sementara agen adalah TUI interaktif yang kembali ke
+  // prompt-nya sesudah fase terakhir. Terukur: spec-431/432 berkas fasenya lengkap, commit-nya
+  // mendarat, Spec.stage=done di DB, tapi pane `dead=0` → sel Terminal tak berpil sama sekali.
+  const QA_DONE = [
+    { name: "Audit", state: "done" }, { name: "Spec", state: "skipped" },
+    { name: "Plan", state: "skipped" }, { name: "Execute", state: "done" },
+  ];
+  const emitPhases = (id: string, phases: typeof QA_DONE, complete: boolean) => {
+    ph.next = { phases, complete };
+    fireEvent.click(screen.getByLabelText(`phases ${id}`));
+  };
+
+  it("sesi HIDUP yang seluruh fasenya tuntas menampilkan Selesai (SPEC-433)", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["fin11111"] }));
+    listTerminals.mockResolvedValue([{ id: "fin11111", projectId: "p1", cwd: "/repo", exited: false }]);
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByTestId("pane");
+    expect(screen.queryByText("Selesai")).toBeNull();   // sebelum frame: belum tahu apa-apa
+
+    emitPhases("fin11111", QA_DONE, true);
+    expect(await screen.findByText("Selesai")).toBeInTheDocument();
+  });
+
+  // Badan pane TIDAK diredupkan: prosesnya masih hidup dan operator masih bisa mengetik di sana.
+  // Peredupan tetap milik `exited` (SPEC-188).
+  it("sesi hidup yang complete tak ikut meredup", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["fin22222"] }));
+    listTerminals.mockResolvedValue([{ id: "fin22222", projectId: "p1", cwd: "/repo", exited: false }]);
+    const { container } = render(<TerminalScreen projects={projects} />);
+    await screen.findByTestId("pane");
+    emitPhases("fin22222", QA_DONE, true);
+    await screen.findByText("Selesai");
+    expect(container.querySelector("[style*='opacity: 0.6']")).toBeNull();
+  });
+
+  // Gerbang ADR-0029 datang dari server lewat `complete`; klien tak boleh menyimpulkan sendiri
+  // dari daftar fase — plan yang masih `- [ ]` berarti Execute belum tuntas.
+  it("fase tuntas tapi complete=false (plan masih - [ ]) tetap tanpa pil Selesai", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["fin33333"] }));
+    listTerminals.mockResolvedValue([{ id: "fin33333", projectId: "p1", cwd: "/repo", exited: false }]);
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByTestId("pane");
+    emitPhases("fin33333", QA_DONE, false);
+    await waitFor(() => expect(screen.getByText("Execute")).toBeInTheDocument());  // strip fase terpasang
+    expect(screen.queryByText("Selesai")).toBeNull();
+  });
+
+  // Marker keputusan codex MENYALA saat sesi selesai wajar (tak ada event Notification →
+  // dipasang di Stop+UserPromptSubmit, ADR-0074). Membiarkan `awaiting` menang berarti mengulang
+  // bug yang sedang diperbaiki, khusus untuk separuh agen.
+  it("complete menang atas Menunggu keputusan (SPEC-433 vs SPEC-196)", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["fin44444"] }));
+    listTerminals.mockResolvedValue([
+      { id: "fin44444", projectId: "p1", cwd: "/repo", exited: false, decision: true }]);
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByTestId("pane");
+    expect(screen.getByText("Menunggu keputusan")).toBeInTheDocument();
+
+    emitPhases("fin44444", QA_DONE, true);
+    expect(await screen.findByText("Selesai")).toBeInTheDocument();
+    expect(screen.queryByText("Menunggu keputusan")).toBeNull();
+  });
+
+  // SPEC-402 tetap menang: agen bisa di-SIGTERM SESUDAH menulis baris fase terakhir.
+  it("pane mati berkode ≠ 0 tetap Gagal meski fasenya tuntas", async () => {
+    localStorage.setItem(LKEY, JSON.stringify({ rows: 1, cols: 1, cells: ["fin55555"] }));
+    listTerminals.mockResolvedValue([
+      { id: "fin55555", projectId: "p1", cwd: "/repo", exited: true, exitCode: 143 }]);
+    render(<TerminalScreen projects={projects} />);
+    await screen.findByTestId("pane");
+    emitPhases("fin55555", QA_DONE, true);
+    expect(await screen.findByText(/Gagal · exit 143/)).toBeInTheDocument();
     expect(screen.queryByText("Selesai")).toBeNull();
   });
 

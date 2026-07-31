@@ -8,7 +8,7 @@ import {
   goalOneLine, goalChunks, agentFlags, codexGoalScript, type Flow, type Agent,
 } from "@hanoman/runner";
 import { coerceCodexEffort, type SessionKind } from "@hanoman/shared";
-import { readPhases, type Phase } from "./session-phases";
+import { readPhases, sessionComplete, type Phase } from "./session-phases";
 import { effectiveStr } from "../config";
 
 // Sesi hidup di dalam tmux server, bukan di proses API (ADR-0016). Restart `pnpm dev`
@@ -36,7 +36,10 @@ export const markerFilled = (f: string): boolean => {
 export type Frame =
   | { t: "data"; d: string }
   | { t: "exit"; code: number }
-  | { t: "phase"; phases: Phase[] };
+  // SPEC-433 · `complete` = verdict, bukan daftar nama: seluruh fase pipeline sudah tercatat DAN
+  // plan spec-nya tak menyisakan `- [ ]` (ADR-0029). Terminal tak punya sumber lain untuk
+  // "selesai" — `exited` hanya berarti prosesnya mati, dan TUI agen tak pernah mati sendiri.
+  | { t: "phase"; phases: Phase[]; complete: boolean };
 // Sengaja bukan `WebSocket`: service ini tidak boleh tahu soal transport, dan test
 // menyuntikkan perekam frame biasa.
 export type Client = { send(msg: string): void; close(): void };
@@ -598,13 +601,22 @@ function end(id: string, code: number): void {
 // Terima Pane yang sudah dipegang loop poll (punya flow+phaseFile): baca berkas fase langsung
 // tanpa sessionPhases→getSession→listPanes lagi. SPEC-197: menghindari 1+K spawn `tmux list-panes`
 // sinkron per tick 500ms saat K terminal terbuka.
+// SPEC-433 · kunci dedup WAJIB memuat `complete`, bukan hanya `phases`. `complete` bisa berubah
+// tanpa satu baris fase pun berubah: agen menulis `Execute done` (frame terkirim, complete=false
+// karena plan masih `- [ ]`) lalu mencentang kotak terakhir. Dedup berkunci `phases` saja akan
+// menelan frame itu dan pil "Selesai" tak pernah muncul — persis bentuk dedup lengket
+// services/events.ts yang membuat pil palsu SPEC-402 tak bisa dikoreksi.
+const phaseKey = (phases: Phase[], complete: boolean): string => JSON.stringify({ phases, complete });
+
 function pollPhases(p: Pane, a: Attachment): void {
   if (!p.flow || !p.phaseFile) return;
   const phases = readPhases(p.phaseFile, p.flow);
-  const json = JSON.stringify(phases);
+  // `sessionComplete` menyentuh disk hanya sesudah cek fase murni lolos — biayanya di ekor sesi.
+  const complete = sessionComplete(phases, p.cwd, p.specId);
+  const json = phaseKey(phases, complete);
   if (json === a.lastPhases) return;
   a.lastPhases = json;
-  broadcast(a, { t: "phase", phases });
+  broadcast(a, { t: "phase", phases, complete });
 }
 
 let poll: NodeJS.Timeout | undefined;
@@ -651,10 +663,15 @@ export function attach(id: string, c: Client): void {
   if (a.scrollback) c.send(frame({ t: "data", d: a.scrollback }));
   // Fase dikirim ke klien ini saja: `lastPhases` milik attachment sudah terisi kalau klien
   // pertama menerimanya, dan siaran ulang tak akan pernah sampai ke klien kedua.
-  const phases = sessionPhases(id);
-  if (phases) {
-    a.lastPhases = JSON.stringify(phases);
-    c.send(frame({ t: "phase", phases }));
+  // SPEC-433 · dibaca dari `p` yang sudah di tangan, bukan `sessionPhases(id)` yang memanggil
+  // getSession→listPanes lagi — dan verdict `complete` memang butuh cwd+specId milik pane itu.
+  // Lewat sinilah pil "Selesai" selamat dari refresh & pindah sel: klien baru langsung diberi
+  // verdict-nya, tak perlu menunggu berkas fase berubah lagi (yang takkan pernah terjadi).
+  if (p.flow && p.phaseFile) {
+    const phases = readPhases(p.phaseFile, p.flow);
+    const complete = sessionComplete(phases, p.cwd, p.specId);
+    a.lastPhases = phaseKey(phases, complete);
+    c.send(frame({ t: "phase", phases, complete }));
   }
 }
 

@@ -92,6 +92,35 @@ export function planComplete(worktree: string, specId: string): boolean {
   return true;
 }
 
+// SPEC-433 · "pekerjaan selesai" adalah fakta yang BERDIRI SENDIRI di sebelah "pane mati".
+// `exited` (⇐ `#{pane_dead}`) menjawab "prosesnya sudah mati?", dan agen hanoman adalah TUI
+// interaktif yang kembali ke prompt-nya sesudah fase terakhir — jadi di jalur sukses pane tak
+// pernah mati sendiri dan status "Selesai" di Terminal tak pernah bisa dirender. Kedua fakta
+// dipisah, bukan digabung: `exited` tetap menggerbangi re-attach (ADR-0084), tombol "Lanjutkan",
+// `startable`, dan penutupan SessionHistory — semuanya memang bertanya soal proses.
+//
+// Daftar kosong = "tak tahu apa-apa" (flow tak dikenal / sesi tanpa fase) → false, bukan
+// vacuous true; kalau tidak, setiap terminal biasa akan lahir dengan label "Selesai".
+export const phasesComplete = (phases: Phase[]): boolean =>
+  phases.length > 0 && phases.every((p) => p.state === "done" || p.state === "skipped");
+
+// Verdict yang dikirim ke Terminal. Gerbang plan-nya SAMA dengan `stageForRun` (ADR-0029):
+// berkas fase bisa berkata `Execute done` sementara plan masih menyisakan `- [ ]`, dan hanoman
+// menahan backlog di `executing` justru untuk itu. Tanpa gerbang ini kita cuma menukar "tak
+// pernah hijau" dengan "hijau palsu" — kelas kesalahan yang diperbaiki SPEC-402.
+//
+// Sengaja BUKAN `stageForRun(...) === "done"`: peta `REACHED` berkunci nama fase dan tak
+// mengenal fase flow dokumen (`PRD`, `Serah terima`, `Breakdown`), jadi sesi PRD/reverse/
+// breakdown yang tuntas akan selamanya terbaca belum selesai. Yang ditanya di sini adalah
+// "seluruh pipeline-nya sudah tercatat?", bukan "sudah sampai stage mana?".
+//
+// `planComplete` (I/O) hanya dijalankan sesudah cek murni di atas lolos — yaitu di ekor sesi,
+// bukan sepanjang hidupnya.
+export function sessionComplete(phases: Phase[], worktree: string, specId?: string): boolean {
+  if (!phasesComplete(phases)) return false;
+  return specId ? planComplete(worktree, specId) : true;
+}
+
 // Stage turunan untuk run nyata: `Execute done` hanya sah bila plan spec-nya terceklist
 // penuh. Selama masih ada `- [ ]`, agen berhenti sebelum semua PR selesai — tahan di
 // `executing`, jangan biarkan backlog claim `done`. `stageFor` yang murni tetap dipakai
