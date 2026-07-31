@@ -68,7 +68,7 @@
 - Consumes: —
 - Produces: `GitOps.isAncestor(repo: string, sha: string, ref: string): boolean` — `true` bila `sha` adalah leluhur (atau sama dengan) commit yang ditunjuk `ref`. **Tak pernah melempar**; ref tak resolve / repo tak terbaca / exit selain 0|1 → `false`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Tambahkan di akhir `runner/test/git.test.ts` (di luar `describe` yang sudah ada):
 
@@ -114,14 +114,14 @@ describe("realGit.isAncestor", () => {
 
 Pastikan import yang dipakai test ini sudah ada di kepala berkas (`spawnSync` dari `node:child_process`, `mkdtempSync`/`writeFileSync` dari `node:fs`, `join` dari `node:path`, `tmpdir` dari `node:os`, `realGit` dari `../src/git`). Tambahkan yang belum ada.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run runner/test/git.test.ts
 ```
 Expected: FAIL — `realGit.isAncestor is not a function`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 `runner/src/types.ts` — tambahkan di dalam `interface GitOps`, tepat sesudah `revParse`:
 
@@ -145,7 +145,7 @@ Expected: FAIL — `realGit.isAncestor is not a function`.
   },
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run runner/test/git.test.ts
@@ -153,7 +153,7 @@ env -u NODE_ENV ./node_modules/.bin/tsc -p runner --noEmit
 ```
 Expected: seluruh berkas PASS, typecheck bersih.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runner/src/types.ts runner/src/git.ts runner/test/git.test.ts

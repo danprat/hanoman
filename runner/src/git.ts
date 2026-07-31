@@ -104,4 +104,12 @@ export const realGit: GitOps = {
       { cwd: repo, encoding: "utf8" });
     return r.status === 0 ? r.stdout.trim() : null;
   },
+  // SPEC-447 · `git merge-base --is-ancestor A B` = exit 0 (ya) / 1 (tidak) / lainnya (error).
+  // `--end-of-options` menjaga ADR-0032: sha & ref datang dari DB/kolom, jangan sampai terbaca
+  // sebagai flag. Ref yang tak resolve membuat git exit 128 → dibaca sebagai "belum" (fail-closed).
+  isAncestor: (repo, sha, ref) => {
+    const r = spawnSync("git", ["merge-base", "--is-ancestor", "--end-of-options", sha, ref],
+      { cwd: repo, encoding: "utf8" });
+    return r.status === 0;
+  },
 };

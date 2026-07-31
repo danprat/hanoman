@@ -204,3 +204,40 @@ describe("git · pembacaan untuk resume (SPEC-394)", () => {
     expect(realGit.revParse(repo, "origin/hanoman/spec-push")).toBe(tip);
   });
 });
+
+// SPEC-447 · "sudah ter-merge?" adalah pertanyaan ke git, bukan kolom DB (ADR-0019).
+describe("realGit.isAncestor", () => {
+  function repoWithBranch(): { dir: string; baseSha: string; featSha: string } {
+    const dir = mkdtempSync(join(tmpdir(), "hanoman-anc-"));
+    g(dir, "init", "-q");
+    g(dir, "config", "user.email", "t@t"); g(dir, "config", "user.name", "t");
+    writeFileSync(join(dir, "a.txt"), "1"); g(dir, "add", "-A"); g(dir, "commit", "-qm", "base");
+    g(dir, "branch", "-M", "main");
+    const baseSha = g(dir, "rev-parse", "HEAD").stdout.trim();
+    g(dir, "checkout", "-q", "-b", "feat");
+    writeFileSync(join(dir, "b.txt"), "2"); g(dir, "add", "-A"); g(dir, "commit", "-qm", "feat");
+    const featSha = g(dir, "rev-parse", "HEAD").stdout.trim();
+    g(dir, "checkout", "-q", "main");
+    return { dir, baseSha, featSha };
+  }
+
+  it("false selama commit branch belum ter-merge, true sesudahnya", () => {
+    const { dir, featSha } = repoWithBranch();
+    expect(realGit.isAncestor(dir, featSha, "main")).toBe(false);
+    g(dir, "merge", "-q", "--no-ff", "-m", "merge feat", "feat");
+    expect(realGit.isAncestor(dir, featSha, "main")).toBe(true);
+  });
+
+  it("commit dianggap leluhur dirinya sendiri", () => {
+    const { dir, baseSha } = repoWithBranch();
+    expect(realGit.isAncestor(dir, baseSha, "main")).toBe(true);
+  });
+
+  // Fail-closed: "tak bisa dipastikan" tak boleh terbaca sebagai "aman".
+  it("false (tanpa melempar) untuk ref/sha yang tak resolve dan repo yang tak ada", () => {
+    const { dir, featSha } = repoWithBranch();
+    expect(realGit.isAncestor(dir, featSha, "tak-ada-branch")).toBe(false);
+    expect(realGit.isAncestor(dir, "0".repeat(40), "main")).toBe(false);
+    expect(realGit.isAncestor(join(dir, "bukan-repo"), featSha, "main")).toBe(false);
+  });
+});

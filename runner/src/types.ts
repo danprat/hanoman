@@ -64,4 +64,8 @@ export interface GitOps {
   /** SPEC-394 · resolve rev secara LITERAL (tanpa DWIM `origin/` milik addWorktree) — `null` bila
    *  tak resolve, tak pernah melempar. Dipakai memilih basis worktree saat sesi dilanjutkan. */
   revParse(repo: string, rev: string): string | null;
+  /** SPEC-447 · apakah `sha` sudah ada di dalam `ref` (dependency backlog sudah ter-merge)?
+   *  Murni-baca, TAK PERNAH melempar: ref/sha tak resolve, repo tak terbaca, atau exit di luar
+   *  0|1 → `false`. Fail-closed disengaja — "tak bisa dipastikan" bukan "aman". */
+  isAncestor(repo: string, sha: string, ref: string): boolean;
 }
