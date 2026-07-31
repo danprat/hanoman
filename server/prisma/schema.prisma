@@ -62,6 +62,13 @@ model Spec {
   baseSha    String? // SPEC-176 · ADR-0030 · commit detach worktree sesi (nilai balik addWorktree)
   headSha    String? // SPEC-176 · ADR-0030 · commit HEAD worktree di akhir sesi (sebelum removeWorktree)
   version    Int      @default(0) // SPEC-213 · version-stamp sync (ADR-0045)
+  // SPEC-408 · ADR-0090 · kapan item difilekan. Ditulis DB (@default), tak pernah oleh route —
+  // "dibuat" harus jadi fakta yang tak bisa diedit operator.
+  createdAt  DateTime @default(now())
+  // SPEC-408 · ADR-0090 · kapan sesi PERTAMA lahir untuk item ini. Ditulis di titik cekik yang
+  // sama dengan `baseSha` (services/session-launch.ts); jalur RESUME (ADR-0084) sengaja tidak
+  // menimpanya — melanjutkan sesi bukan "mulai lagi". null = belum pernah dikerjakan.
+  startedAt  DateTime?
   updatedAt  DateTime @updatedAt
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }

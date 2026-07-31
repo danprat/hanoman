@@ -88,6 +88,19 @@ describe("specs routes", () => {
     const b = (await app.inject({ url: "/api/specs?project=p1&startable=true" })).json();
     expect(b.items.every((s: any) => s.stage !== "done")).toBe(true);
   });
+  // SPEC-408 · ADR-0090 · stempel waktu backlog. `createdAt` diisi DB saat baris lahir;
+  // `startedAt` null sampai sesi pertama benar-benar lahir (session-launch).
+  it("spec baru punya createdAt terisi dan startedAt null (SPEC-408)", async () => {
+    const res = await app.inject({
+      method: "POST", url: "/api/specs",
+      payload: { project: "p1", source: "brief", title: "stempel waktu", priority: "sedang", payload: brief },
+    });
+    expect(res.statusCode).toBe(201);
+    const row = await prisma.spec.findUnique({ where: { id: res.json().id } });
+    expect(row!.createdAt).toBeInstanceOf(Date);
+    expect(row!.createdAt.getTime()).toBeGreaterThan(Date.now() - 60_000);
+    expect(row!.startedAt).toBeNull();
+  });
   it("paginates: page/limit slice with full total", async () => {
     const all = (await app.inject({ url: "/api/specs?project=p1" })).json();
     expect(all.total).toBeGreaterThan(2);
