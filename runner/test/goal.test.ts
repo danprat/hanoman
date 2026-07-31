@@ -79,3 +79,51 @@ describe("goalChunks", () => {
     expect(GOAL_CHUNK * 2).toBeLessThan(GOAL_TUI_PASTE_LIMIT);
   });
 });
+
+// SPEC-407 · ADR-0089 · backlog goal: kondisi berhenti BUKAN DoD generik hanoman melainkan goal
+// item itu sendiri — plus dua bukti yang tanpa itu hasil sesi tak pernah terlihat (baris fase &
+// push).
+describe("kondisi goal untuk flow goal (SPEC-407)", () => {
+  const gArgs = {
+    flow: "goal" as const, specId: "SPEC-407", branchTo: "hanoman/spec-407",
+    spec: {
+      payload: { goal: "p95 /api/specs < 200 ms", done: "output benchmark < 200 ms",
+        constraints: "", priority: "tinggi" },
+      objective: "p95 /api/specs < 200 ms",
+    },
+  };
+
+  it("memuat goal, bukti selesai, baris fase, dan push", () => {
+    const c = defaultGoalCondition(gArgs);
+    expect(c).toContain("SPEC-407");
+    expect(c).toContain("p95 /api/specs < 200 ms");
+    expect(c).toContain("output benchmark < 200 ms");
+    expect(c).toContain("Goal → Verifikasi");
+    expect(c).toContain('cat "$HANOMAN_PHASE_FILE"');
+    expect(c).toContain("git push origin HEAD:refs/heads/hanoman/spec-407");
+    expect(c).not.toContain("docs/superpowers/plans/");
+    expect(c.length).toBeLessThanOrEqual(GOAL_MAX);
+  });
+
+  it("tanpa `done` → goal itu sendiri yang jadi buktinya", () => {
+    const c = defaultGoalCondition({ ...gArgs, spec: { ...gArgs.spec,
+      payload: { goal: "g", done: "", constraints: "", priority: "tinggi" } } });
+    expect(c).toContain("goal tercapai — g;");
+    expect(c).not.toContain("undefined");
+  });
+
+  it("payload rusak → jatuh ke objective, tanpa melempar", () => {
+    const c = defaultGoalCondition({ ...gArgs, spec: { payload: null, objective: "objective cadangan" } });
+    expect(c).toContain("objective cadangan");
+    expect(c).not.toContain("undefined");
+  });
+
+  it("resolve: override sesi tetap menang untuk flow goal", () => {
+    expect(resolveGoalCondition(gArgs, "KONDISI-SESI", "TEMPLATE")).toBe("KONDISI-SESI");
+  });
+
+  it("flow lain tak tersentuh", () => {
+    expect(defaultGoalCondition({ flow: "feature", specId: "SPEC-332", branchTo: "b" }))
+      .toContain("Brainstorm → Objective → Spec → Plan → Execute");
+  });
+});

@@ -1,17 +1,45 @@
 import type { Flow } from "./types";
 import { PIPELINES } from "./prompt";
+import { readGoalPayload } from "./goal-spec";
 
 // SPEC-332 · ADR-0073 — mode goal. Claude Code memasang `/goal` sebagai Stop hook bertipe `prompt`
 // dan menolak kondisi > 4000 karakter; angka ini menyalin batas itu.
 export const GOAL_MAX = 4000;
 
-export type GoalArgs = { flow: Flow; specId: string; branchTo: string };
+// SPEC-407 · `spec` hanya dibaca untuk flow "goal": kondisinya diturunkan dari ISI backlog item,
+// bukan dari DoD generik. Opsional supaya seluruh pemanggil lama tetap sah.
+export type GoalArgs = {
+  flow: Flow; specId: string; branchTo: string;
+  spec?: { payload?: unknown; objective?: string };
+};
+
+// SPEC-407 · ADR-0089 · kondisi sesi goal. Klausa 2 & 3 bukan hiasan: tanpa baris fase, board tak
+// pernah melihat item ini selesai (ADR-0008); tanpa push, hasilnya hilang bersama worktree-nya.
+function goalFlowCondition(
+  specId: string, branchTo: string, spec?: { payload?: unknown; objective?: string },
+): string {
+  const g = readGoalPayload(spec?.payload);
+  const goal = g?.goal || (spec?.objective ?? "").trim() || "(goal tak tercatat di backlog item)";
+  const bukti = g?.done || goal;
+  return [
+    `Sesi goal hanoman ${specId}. GOAL: ${goal}`,
+    "Sesi ini hanya boleh berhenti bila transkrip TERBARU memuat bukti langsung semua hal berikut:",
+    `1. goal tercapai — ${bukti};`,
+    `2. output \`cat "$HANOMAN_PHASE_FILE"\` yang memuat satu baris untuk SETIAP fase `
+      + `${PIPELINES.goal.join(" → ")}, masing-masing berakhiran \`done\` atau \`skipped\`;`,
+    `3. output \`git push origin HEAD:refs/heads/${branchTo}\` yang SUKSES sesudah commit terakhir.`,
+    "Bila salah satu bukti tak ada di transkrip terbaru, kondisi BELUM terpenuhi: jalankan "
+      + "perintah verifikasinya, tuntaskan yang masih kurang, lalu lanjutkan — jangan berhenti.",
+  ].join("\n");
+}
 
 // Evaluator hook `prompt` berjalan dengan instruksi "Answer based on transcript evidence only" —
 // ia TIDAK punya tool, dan transkrip Stop yang panjang DIPOTONG (bukti di prefix yang dibuang
 // dianggap tak cukup). Karena itu kondisi ini menuntut BUKTI SEGAR: output perintah verifikasi di
 // transkrip terbaru, bukan klaim agen bahwa pekerjaannya sudah selesai.
-export function defaultGoalCondition({ flow, specId, branchTo }: GoalArgs): string {
+export function defaultGoalCondition({ flow, specId, branchTo, spec }: GoalArgs): string {
+  // SPEC-407 · flow goal punya kondisinya sendiri: goal item, bukan DoD pipeline.
+  if (flow === "goal") return goalFlowCondition(specId, branchTo, spec);
   const phases = PIPELINES[flow];
   // Gate plan hanya berlaku untuk flow ber-fase Plan+Execute (cermin phaseInstruction & ADR-0029).
   const planGate = phases.includes("Plan") && phases.includes("Execute");

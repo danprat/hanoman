@@ -476,7 +476,7 @@ git commit -m "feat(407): pipeline goal dua fase + startGoalPrompt + readGoalPay
 - Consumes: `readGoalPayload` & `GoalBrief` (Task 2), `PIPELINES.goal` (Task 2).
 - Produces: `GoalArgs` bertambah field opsional `spec?: { payload?: unknown; objective?: string }`; `defaultGoalCondition` bercabang untuk `flow === "goal"`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `runner/test/goal.test.ts`:
 
@@ -523,12 +523,12 @@ describe("kondisi goal untuk flow goal (SPEC-407)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan GAGAL**
+- [x] **Step 2: Jalankan, pastikan GAGAL**
 
 Run: `pnpm vitest --run runner/test/goal.test.ts`
 Expected: FAIL — `spec` bukan properti `GoalArgs`; kondisi flow goal masih memakai cabang generik.
 
-- [ ] **Step 3: Implementasi `runner/src/goal.ts`**
+- [x] **Step 3: Implementasi `runner/src/goal.ts`**
 
 ```ts
 import type { Flow } from "./types";
@@ -574,12 +574,12 @@ export function defaultGoalCondition({ flow, specId, branchTo, spec }: GoalArgs)
 }
 ```
 
-- [ ] **Step 4: Jalankan, pastikan LULUS**
+- [x] **Step 4: Jalankan, pastikan LULUS**
 
 Run: `pnpm vitest --run runner/test/goal.test.ts`
 Expected: PASS — termasuk test SPEC-332/397 lama.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runner/src/goal.ts runner/test/goal.test.ts
