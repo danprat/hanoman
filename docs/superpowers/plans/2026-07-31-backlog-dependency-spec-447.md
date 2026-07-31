@@ -298,7 +298,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
   - `decorateBlocked<T>(specs: T[]): Promise<(T & { dependsOn: string[]; blockedBy: SpecBlocker[] })[]>`
   - `validateDependsOn(specId: string | null, projectId: string, ids: string[]): Promise<{ ok: true; ids: string[] } | { ok: false; error: string }>`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Tambahkan ke `server/test/spec-deps.test.ts` (di bawah blok yang sudah ada):
 
@@ -463,14 +463,14 @@ describe("validateDependsOn", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism server/test/spec-deps.test.ts
 ```
 Expected: FAIL — `Failed to resolve import "../src/services/spec-deps"`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Buat `server/src/services/spec-deps.ts`:
 
@@ -638,7 +638,7 @@ export async function validateDependsOn(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism server/test/spec-deps.test.ts
@@ -646,7 +646,7 @@ env -u NODE_ENV ./node_modules/.bin/tsc -p server --noEmit
 ```
 Expected: semua PASS; typecheck bersih.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/spec-deps.ts server/test/spec-deps.test.ts
