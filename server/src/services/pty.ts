@@ -5,7 +5,8 @@ import { mkdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { tmpdir } from "node:os";
 import {
-  goalOneLine, goalChunks, agentFlags, codexGoalScript, type Flow, type Agent,
+  goalOneLine, goalChunks, agentFlags, codexGoalScript,
+  renderAgentsJson, agentRosterBlock, type AgentDef, type Flow, type Agent,
 } from "@hanoman/runner";
 import { coerceCodexEffort, type SessionKind } from "@hanoman/shared";
 import { readPhases, sessionComplete, type Phase } from "./session-phases";
@@ -95,6 +96,12 @@ export const promptFilePath = (id: string): string => `${tmpdir()}/hanoman-promp
 export const goalGatePath = (id: string): string => `${tmpdir()}/hanoman-goal-gates/${id}.sh`;
 // Berkas penghitung penolakan gate (pagar anti-loop) — bersebelahan dengan skripnya.
 const goalStatePath = (id: string): string => `${tmpdir()}/hanoman-goal-gates/${id}.count`;
+
+// SPEC-450 · ADR-0094 · berkas JSON `claude --agents`. Sekamar dengan berkas prompt & alasannya
+// sama persis (SPEC-223): instruksi agen adalah PROSA, dan tmux membatasi SATU command ±16 KB —
+// JSON inline akan menembusnya dan sesi mati dengan `command too long`. Di tmpdir, bukan turunan
+// cwd: cwd bisa homedir (sesi VPS) yang tak boleh dikotori, dan worktree bisa lenyap.
+export const agentsFilePath = (id: string): string => `${tmpdir()}/hanoman-agents/${id}.json`;
 
 // SPEC-402 · "tmux gagal" BUKAN "tak ada sesi". Hanya dua sinyal di bawah yang benar-benar berarti
 // belum/tak ada tmux server di socket ini; sisanya (fork gagal saat mesin penuh proses, socket knob
@@ -208,6 +215,23 @@ export function registerSessionHooks(h: SessionHooks): void { hooks = h; }
 const emitBirth = (b: SessionBirth): void => { try { hooks.onBirth?.(b); } catch { /* riwayat opsional */ } };
 const emitDeath = (d: SessionDeath): void => { try { hooks.onDeath?.(d); } catch { /* riwayat opsional */ } };
 
+// SPEC-450 · ADR-0094 keputusan 7 · katalog custom agent. `pty.ts` tetap NOL DEPENDENSI DB — ia
+// hanya memanggil sumber yang mendaftarkan diri (services/custom-agents.ts, dipasang dari
+// server.ts), persis pola registerSessionHooks di atas & registerSchedulerSource. Karena ia dibaca
+// di `createSession` — pintu SATU-SATUNYA semua kelahiran sesi — tak ada call site yang perlu
+// diubah dan tak ada yang bisa lupa memasangnya (kelas bug SPEC-431/ADR-0093).
+//
+// Sumbernya SINKRON, bukan Promise: definisi agen harus sudah ada saat argv dirakit, bukan sesaat
+// sesudahnya. Yang menjembatani Prisma yang async adalah cache di sisi service (pola effectiveStr,
+// ADR-0049).
+type CustomAgentSource = (projectId: string) => AgentDef[];
+let customAgentSource: CustomAgentSource = () => [];
+export function registerCustomAgentSource(fn: CustomAgentSource): void { customAgentSource = fn; }
+// Gagal baca → daftar KOSONG. Katalog agen tak pernah boleh menggagalkan kelahiran sesi.
+const customAgentsFor = (projectId: string): AgentDef[] => {
+  try { return customAgentSource(projectId); } catch { return []; }
+};
+
 // Jenis sesi diturunkan saat LAHIR, saat opsinya masih di tangan — sesudah itu tmux hanya menyimpan
 // sebagian (tak ada jejak `command` maupun `prompt`). Fungsi murni supaya bisa diuji tanpa tmux.
 export function sessionKind(
@@ -274,11 +298,21 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
   // TIDAK dipindai ulang oleh shell (hasil command-substitution dikutip ganda) → aman dari injeksi.
   // Ditulis ke tmpdir (bukan turunan cwd): cwd bisa homedir (sesi VPS) yang tak boleh dikotori dan
   // parent-nya tak selalu writable. Dibaca sekali saat lahir; OS yang membersihkan tmpdir.
+  // SPEC-450 · ADR-0094 · custom agent. Dihitung SEBELUM berkas prompt ditulis: jalur codex
+  // menempelkan roster ke prompt, jadi ia harus sudah ada saat berkasnya dibuat. Sesi ber-
+  // `opts.command` (shell mentah ADR-0056, konsol VPS) tak menerima apa pun — tak ada agen di sana.
+  const agentForDefs: Agent = opts.agent ?? "claude";
+  const customDefs = opts.command ? [] : customAgentsFor(projectId);
+  // codex tak punya padanan `--agents` yang bisa diverifikasi (ADR-0094 M5: kunci `-c` tak dikenal
+  // diterima diam-diam), jadi rosternya lewat kanal yang memang milik hanoman sendiri: prompt.
+  // Mengembalikan "" saat katalog kosong → prompt sesi lain byte-identik seperti sebelumnya.
+  const rosterBlock = agentForDefs === "codex" ? agentRosterBlock(customDefs) : "";
+
   let promptArg = "";
   if (!opts.command && opts.prompt) {
     const promptFile = promptFilePath(id);
     mkdirSync(dirname(promptFile), { recursive: true });
-    writeFileSync(promptFile, opts.prompt);
+    writeFileSync(promptFile, opts.prompt + rosterBlock);
     promptArg = `"$(cat ${sq(promptFile)})"`;
   }
   // SPEC-338 · ADR-0074 · perbedaan CLI antar agen dirakit `agentFlags`; di sini tinggal
@@ -306,12 +340,30 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
     const effort = agent === "codex" && opts.model && opts.effort
       ? coerceCodexEffort(opts.model, opts.effort)
       : opts.effort;
+    // SPEC-450 · ADR-0094 gotcha 4 · JSON `--agents` lewat BERKAS, bukan inline: instruksi agen
+    // adalah prosa dan tmux membatasi SATU command ±16 KB — kelas kegagalan SPEC-223, dibayar
+    // sekali dan dipakai ulang. Hasil command-substitution dikutip ganda, jadi isinya tak dipindai
+    // ulang shell (aman dari injeksi) dan batasnya ARG_MAX, bukan 16 KB.
+    let agentsFile: string | undefined;
+    if (agent === "claude") {
+      const json = renderAgentsJson(customDefs);
+      if (json) {
+        agentsFile = agentsFilePath(id);
+        mkdirSync(dirname(agentsFile), { recursive: true });
+        writeFileSync(agentsFile, json);
+      }
+    }
     // Prompt (bila ada) = argumen positional pertama agen, TANPA sq (sudah dikutip ganda).
     const flags = agentFlags({
       agent, model: opts.model, effort,
       decisionFile: opts.decisionFile, goal: opts.goal, goalGate,
     }).map(sq).join(" ");
-    argv = [sq(agentBin(agent)), promptArg, flags].filter(Boolean).join(" ");
+    // GOTCHA ADR-0094 #4: `--agents` TIDAK boleh ikut `.map(sq)` seperti flag lain — ia harus tetap
+    // berbentuk `"$(cat …)"` supaya `sh -c` yang melahirkan sesi meng-expand-nya. Di-`sq` sekali
+    // saja, claude menerima literal `$(cat /tmp/…)` sebagai definisi agen — dan itu tepat
+    // kegagalan-senyapnya: JSON tak sah DIABAIKAN tanpa pesan, exit 0, NOL agen.
+    const agentsArg = agentsFile ? `--agents "$(cat ${sq(agentsFile)})"` : "";
+    argv = [sq(agentBin(agent)), promptArg, flags, agentsArg].filter(Boolean).join(" ");
   }
 
   // Env di depan perintah, bukan `new-session -e`: tmux menyerahkan sisa argv-nya ke shell,

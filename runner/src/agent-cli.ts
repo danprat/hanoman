@@ -31,6 +31,9 @@ export function agentFlags(o: AgentFlagsOpts): string[] {
       ...codexHookArgs({ decisionFile: o.decisionFile, goalGate: o.goalGate }),
     ];
   }
+  // SPEC-450 · ADR-0094 · `--agents` SENGAJA tidak dirakit di sini: seluruh keluaran fungsi ini
+  // dikutip `sq()` oleh pemanggil, sementara `--agents` harus tetap berbentuk `"$(cat <file>)"`
+  // agar di-expand shell saat sesi lahir. Ia disisipkan di `createSession`, sejajar `promptArg`.
   return [
     ...(o.model ? ["--model", o.model] : []),
     ...(o.effort ? ["--effort", o.effort] : []),
