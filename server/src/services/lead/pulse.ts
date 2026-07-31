@@ -5,6 +5,7 @@ import { planComplete } from "../session-phases";
 import { resolveRepoDir } from "../local-binding";
 import { specReview } from "../spec-review";
 import { enqueue, UNSTARTED_SPEC_WHERE } from "../scheduler/queue";
+import { blockersForSpec } from "../spec-deps";
 import { getScheduler } from "../scheduler/config";
 import { recordLeadDecision } from "../notifications";
 import { getLead, leadActive, leadProjects } from "./config";
@@ -237,7 +238,9 @@ async function orderReadyWork(optIn: string[], deps: PulseDeps): Promise<number>
  * 1. Project-nya opt-in scheduler. `leadOptIn` dan `schedulerOptIn` adalah dua kolom berbeda, dan
  *    di mesin operator ada project yang opt-in lead tapi tidak scheduler — menata antreannya berarti
  *    menata sesuatu yang `sources/backlog.ts` & governor takkan pernah sentuh.
- * 2. Ada minimal dua backlog siap-kerja yang BELUM punya baris antrean. `enqueue()` adalah
+ * 2. Ada minimal dua backlog siap-kerja — TIDAK terblokir dependency (SPEC-447/ADR-0093: item
+ *    yang menunggu backlog lain takkan pernah diluncurkan governor) — yang BELUM punya baris
+ *    antrean. `enqueue()` adalah
  *    `upsert(..., update: {})`: spec yang sudah antre tak berubah sama sekali, termasuk
  *    `enqueuedAt` yang jadi tiebreak FIFO — jadi menata himpunan yang seluruhnya sudah antre
  *    adalah no-op, dan no-op tak berharga satu panggilan agen (8/8 dan 20/20 di mesin operator).
@@ -253,11 +256,18 @@ async function orderProject(projectId: string, deps: PulseDeps): Promise<number>
   // SPEC-431 · "siap dikerjakan" memakai predikat BERSAMA dengan checker backlog. Sebelumnya
   // `baseSha: null` telanjang, jadi lead ikut mengurutkan — dan mengantrekan — pekerjaan yang
   // sudah `done`; item yang selesai sebelum ADR-0030 tak pernah punya `baseSha`.
-  const ready = await prisma.spec.findMany({
+  const readyRaw = await prisma.spec.findMany({
     where: { ...UNSTARTED_SPEC_WHERE, projectId },
-    select: { id: true, projectId: true, title: true, priority: true, objective: true },
+    select: { id: true, projectId: true, title: true, priority: true, objective: true,
+      branchFrom: true, dependsOn: true },
     orderBy: { id: "asc" },
   });
+  // SPEC-447 · ADR-0093 · item yang dependency-nya belum selesai & ter-merge takkan diluncurkan
+  // governor, jadi menatanya adalah no-op yang tetap membakar satu giliran agen — perluasan
+  // gerbang aktionabilitas SPEC-432 huruf (B). Nol biaya bila tak ada yang memakai dependency.
+  const repoDir = await resolveRepoDir(projectId);
+  const ready: typeof readyRaw = [];
+  for (const r of readyRaw) if ((await blockersForSpec(r, repoDir)).length === 0) ready.push(r);
   if (ready.length < 2) return 0;
   const already = new Set((await prisma.schedulerQueueItem.findMany({
     where: { specId: { in: ready.map((r) => r.id) } }, select: { specId: true },

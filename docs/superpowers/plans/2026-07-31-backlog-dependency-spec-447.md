@@ -1471,7 +1471,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `blockersForSpec` (Task 3).
 - Produces: `orderProject` hanya menghitung/menata backlog yang **tidak** terblokir.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Tambahkan ke `server/test/lead-pulse.test.ts` di dalam blok yang menguji `orderProject`:
 
@@ -1491,14 +1491,14 @@ Tambahkan ke `server/test/lead-pulse.test.ts` di dalam blok yang menguji `orderP
 > Sesuaikan nama helper (`seedProject`/`seedSpec`/`pulseOnce`/`deps`) dengan yang **sudah ada** di
 > `server/test/lead-pulse.test.ts`. Jangan membuat harness baru.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism server/test/lead-pulse.test.ts
 ```
 Expected: FAIL — agen tetap dipanggil (2 item terbaca siap-kerja).
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 `server/src/services/lead/pulse.ts` — import:
 
@@ -1526,7 +1526,7 @@ Ganti pembacaan `ready` di `orderProject` (tambah dua kolom yang dibutuhkan reso
 
 Perbarui juga komentar blok JSDoc di atas `orderProject`: syarat ke-2 kini berbunyi "minimal dua backlog siap-kerja **yang tidak terblokir dependency** dan belum punya baris antrean".
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism server/test/lead-pulse.test.ts
@@ -1534,7 +1534,7 @@ env -u NODE_ENV ./node_modules/.bin/tsc -p server --noEmit
 ```
 Expected: semua PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/lead/pulse.ts server/test/lead-pulse.test.ts

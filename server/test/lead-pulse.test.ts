@@ -303,6 +303,15 @@ describe("pulse · gerbang aktionabilitas penataan (audit SPEC-432)", () => {
     expect(h.asked.filter((a) => a.kind === "order")).toHaveLength(1);
   });
 
+  // SPEC-447 · ADR-0093 · gerbang aktionabilitas diperluas: item yang dependency-nya belum siap
+  // TAK BISA diluncurkan governor, jadi menatanya membakar giliran agen untuk nol hasil.
+  it("spends no lead turn when the only other ready item is blocked by a dependency", async () => {
+    await prisma.spec.update({ where: { id: "spec-2" }, data: { dependsOn: ["spec-1"] } });
+    const h = harness();
+    expect((await pulse(h.deps)).ordered).toBe(0);   // tersisa satu item benar-benar siap
+    expect(h.asked).toEqual([]);
+  });
+
   // Tanda tangannya harus dihitung atas himpunan BELUM-ANTRE, bukan seluruh himpunan siap-kerja:
   // kalau tidak, satu item yang masuk antrean lewat jalur lain menggeser tanda tangan dan membeli
   // satu giliran agen lagi untuk penataan yang sisanya sudah no-op.
