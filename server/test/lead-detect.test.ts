@@ -35,6 +35,7 @@ function harness(over: Partial<DetectDeps> = {}, conf: Lead = cfg()): Harness {
     agentOf: () => "claude",
     exited: () => false,
     send: async (id, text) => { sent.push({ id, text }); return true; },
+    clearMarker: () => {},
     decide: (async (req: { question: string; projectId: string; specId?: string | null; sessionId?: string | null }) => {
       asked.push(req.question);
       return recordDecision({
@@ -169,5 +170,53 @@ describe("scanAndAnswer · jejak", () => {
     const rows: LeadDecision[] = await prisma.leadDecision.findMany();
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ sessionId: "s1", specId: "spec-1", gate: "detected" });
+  });
+});
+
+// SPEC-452 · dua cacat di ujung pintu deteksi: opsi dialog tak pernah sampai ke lead, dan marker
+// tak pernah dikosongkan sesudah dialog dijawab (menjawab dialog BUKAN `UserPromptSubmit`, jadi
+// hook pengosongnya tak menembak) — lead lalu mengetik lagi ke sesi yang sudah kembali bekerja.
+const ASKQ_PANE = `
+Mau pakai strategi cache yang mana?
+
+❯ 1. In-memory
+  2. Redis
+  3. Tanpa cache
+  4. Type something.
+  5. Chat about this
+
+Enter to select · ↑/↓ to navigate · Esc to cancel
+`;
+
+describe("scanAndAnswer · dialog pilihan (SPEC-452)", () => {
+  it("meneruskan opsi dialog ke lead, bukan hanya teks layarnya", async () => {
+    const opts: (string[] | undefined)[] = [];
+    const h = harness({
+      pane: () => ASKQ_PANE,
+      decide: (async (req: { question: string; options?: string[]; projectId: string; specId?: string | null; sessionId?: string | null }) => {
+        opts.push(req.options);
+        return recordDecision({
+          projectId: req.projectId, specId: req.specId, sessionId: req.sessionId,
+          gate: "detected", kind: "answer", question: req.question,
+          answer: "Tanpa cache", reason: "r", refs: [], confidence: "tinggi", action: "none",
+        });
+      }) as unknown as DetectDeps["decide"],
+    });
+    await scanAndAnswer(h.deps);
+    expect(opts[0]).toEqual(["In-memory", "Redis", "Tanpa cache"]);
+  });
+
+  it("mengosongkan marker sesudah jawaban benar-benar mendarat", async () => {
+    const cleared: string[] = [];
+    const h = harness({ clearMarker: (f: string) => { cleared.push(f); } });
+    await scanAndAnswer(h.deps);
+    expect(cleared).toEqual(["/marker"]);
+  });
+
+  it("TIDAK mengosongkan marker saat pengetikan gagal — sesi memang masih menunggu", async () => {
+    const cleared: string[] = [];
+    const h = harness({ send: async () => false, clearMarker: (f: string) => { cleared.push(f); } });
+    await scanAndAnswer(h.deps);
+    expect(cleared).toEqual([]);
   });
 });

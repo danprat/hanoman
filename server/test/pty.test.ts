@@ -9,7 +9,8 @@ import { execFileSync } from "node:child_process";
 import {
   createSession, getSession, listSessions, killSession, killAll, detachAll, attach, writeTo,
   sessionPhases, markerFilled, promptFilePath, armGoalInTui, goalGatePath,
-  sessionKind, registerSessionHooks, rootBypassEnv, type SessionBirth, type SessionDeath,
+  sessionKind, registerSessionHooks, rootBypassEnv, sendToPane,
+  type SessionBirth, type SessionDeath,
 } from "../src/services/pty";
 import { phaseFilePath, type Phase } from "../src/services/session-phases";
 
@@ -21,6 +22,9 @@ const FAKE_CLAUDE = fileURLToPath(new URL("./fixtures/fake-claude.sh", import.me
 // begitu menerima `/goal …`. fake-claude.sh dipakai sebagai kontrol negatif (ia memantulkan `/goal`
 // tapi tak pernah memancarkan penanda goal).
 const FAKE_CODEX_GOAL = fileURLToPath(new URL("./fixtures/fake-codex-goal.sh", import.meta.url));
+
+// SPEC-452 · berdiri sebagai agen yang sedang menampilkan dialog `AskUserQuestion`.
+const FAKE_DIALOG = fileURLToPath(new URL("./fixtures/fake-dialog.sh", import.meta.url));
 
 // SPEC-402 · `tmux` yang gagal karena sebab SELAIN "tak ada server". Ditaruh di PATH sebagai satu
 // berkas bernama `tmux` — pty.ts memanggil `execFileSync("tmux", …)` tanpa path absolut, jadi ini
@@ -647,5 +651,42 @@ describe("hook riwayat sesi (SPEC-362)", () => {
     const d = deaths.find((x) => x.sessionId === id);
     expect(d).toBeDefined();
     expect(d!.transcript).toContain("PENANDA-RIWAYAT");
+  });
+
+  // SPEC-452 · sendToPane selama ini mengasumsikan pane SELALU kolom teks. Untuk dialog
+  // `AskUserQuestion` asumsi itu salah: burst > 1 karakter ditelan dan `Enter` memilih baris
+  // tersorot (baris 1), jadi keputusan lead tak pernah menyeberang.
+  describe("sendToPane · dialog pilihan (SPEC-452)", () => {
+    it("mengetik nomor kolom bebas lebih dulu saat pane menampilkan dialog", async () => {
+      const id = "dlg-1";
+      createSession("p-dlg", process.cwd(), { id, command: [FAKE_DIALOG] });
+      await waitFor(() => (tmuxCapture(id) ?? "").includes("Type something."));
+      await sendToPane(id, "Tanpa cache dulu");
+      // `4` dikirim sebagai send-keys TERSENDIRI, mendahului prosanya. Fixture cuma meng-echo,
+      // jadi urutan yang terbaca di pane adalah urutan yang benar-benar dikirim hanoman.
+      await waitFor(() => (tmuxCapture(id) ?? "").includes("4Tanpa cache dulu"));
+      killSession(id);
+    });
+
+    // Gerbang terpenting: fixture tak pernah mengisi baris 4, jadi Enter TIDAK boleh ditekan —
+    // menekannya berarti memilih baris 1 dan mengulang bug ini lewat jalur baru.
+    it("mengembalikan false — bukan menekan Enter — bila teks tak mendarat di kolom bebas", async () => {
+      const id = "dlg-2";
+      createSession("p-dlg", process.cwd(), { id, command: [FAKE_DIALOG] });
+      await waitFor(() => (tmuxCapture(id) ?? "").includes("Type something."));
+      expect(await sendToPane(id, "Tanpa cache dulu")).toBe(false);
+      killSession(id);
+    });
+
+    // Kolom chat biasa TIDAK boleh ikut berubah: di sana jalur lama (prosa + Enter) adalah yang benar.
+    it("pane tanpa dialog tetap menerima prosa apa adanya", async () => {
+      process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+      const s = createSession("p-dlg2", process.cwd(), { id: "dlg-3" });
+      await waitFor(() => (tmuxCapture(s.id) ?? "").includes("args:"));
+      expect(await sendToPane(s.id, "jawaban biasa")).toBe(true);
+      await waitFor(() => (tmuxCapture(s.id) ?? "").includes("jawaban biasa"));
+      expect(tmuxCapture(s.id) ?? "").not.toContain("4jawaban biasa");
+      killSession(s.id);
+    });
   });
 });

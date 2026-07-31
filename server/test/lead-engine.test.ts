@@ -24,7 +24,8 @@ function counters() {
   const detect = {
     live: () => { c.detect++; return []; },
     filled: () => false, pane: () => "", agentOf: () => "claude", exited: () => true,
-    send: async () => true, decide: (async () => null) as unknown as DetectDeps["decide"],
+    send: async () => true, clearMarker: () => { /* diam */ },
+    decide: (async () => null) as unknown as DetectDeps["decide"],
     decideDeps: {} as DetectDeps["decideDeps"],
     optIn: async () => [], notify: async () => { /* diam */ },
     cfg: async () => cfg(),

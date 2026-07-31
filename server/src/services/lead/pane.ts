@@ -1,4 +1,5 @@
 import type { Agent } from "@hanoman/shared";
+import { readChoiceDialog } from "../tui-dialog";
 
 // SPEC-409 · ADR-0091 · pintu keputusan #2 (deteksi otomatis) membaca LAYAR sesi. Modul ini murni:
 // masuk teks pane, keluar "apakah ini benar-benar pertanyaan" + pertanyaannya. Tanpa I/O, supaya
@@ -31,7 +32,18 @@ const ASK_SIGNALS = [
   /\b(pilih|apakah|haruskah|mana yang|opsi|which|should i|do you want|proceed\?)\b/i,
 ];
 
-export type PaneRead = { asking: boolean; question: string; reason: string };
+export type PaneRead = {
+  asking: boolean;
+  question: string;
+  reason: string;
+  /**
+   * SPEC-452 · label opsi bila layarnya dialog pilihan (`AskUserQuestion`). Disodorkan ke
+   * `leadPrompt` lewat `options` — tempat yang sudah ada sejak ADR-0091 dan selama ini tak pernah
+   * diisi pintu deteksi, sehingga lead cuma melihat opsinya terkubur di dalam teks layar. Kosong
+   * berarti "bukan dialog", bukan "dialog tanpa opsi".
+   */
+  choices: string[];
+};
 
 /**
  * Turunkan pertanyaan dari layar pane.
@@ -45,13 +57,16 @@ export type PaneRead = { asking: boolean; question: string; reason: string };
 export function readPaneQuestion(text: string, agent: Agent): PaneRead {
   const lines = tail(text, 40);
   const body = lines.join("\n").trim();
-  if (!body) return { asking: false, question: "", reason: "layar kosong" };
+  // SPEC-452 · dibaca dari teks ASLI, bukan dari `body`: `CLEAN` membuang `❯` dan garis kotak yang
+  // ikut menyusun layar dialog, dan parser dialog memang menunggu bentuknya apa adanya.
+  const choices = readChoiceDialog(text)?.options ?? [];
+  if (!body) return { asking: false, question: "", reason: "layar kosong", choices };
   const question = tail(text, 25).join("\n").trim();
   if (agent === "codex") {
     const finished = CODEX_FINISHED.find((re) => re.test(body));
-    if (finished) return { asking: false, question, reason: "sesi codex selesai wajar (ADR-0074)" };
+    if (finished) return { asking: false, question, reason: "sesi codex selesai wajar (ADR-0074)", choices };
     if (!ASK_SIGNALS.some((re) => re.test(body)))
-      return { asking: false, question, reason: "tak ada sinyal pertanyaan di layar codex" };
+      return { asking: false, question, reason: "tak ada sinyal pertanyaan di layar codex", choices };
   }
-  return { asking: true, question, reason: "" };
+  return { asking: true, question, reason: "", choices };
 }

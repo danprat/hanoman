@@ -1,3 +1,4 @@
+import { writeFileSync } from "node:fs";
 import type { Agent, Lead } from "@hanoman/shared";
 import { capturePane, getSession, liveDecisions, markerFilled, sendToPane } from "../pty";
 import { recordLeadDecision } from "../notifications";
@@ -36,6 +37,18 @@ export type DetectDeps = {
   agentOf: (id: string) => Agent | null;
   exited: (id: string) => boolean;
   send: (id: string, text: string) => Promise<boolean>;
+  /**
+   * SPEC-452 · kosongkan marker keputusan sesudah jawaban mendarat.
+   *
+   * Menjawab sebuah DIALOG bukan `UserPromptSubmit`, jadi hook pengosong (`: > <marker>`,
+   * SPEC-184) tak menembak dan markernya tetap terisi meski sesi sudah kembali bekerja. Terukur:
+   * 8 byte sebelum jawaban, 8 byte sesudahnya. Tanpa langkah ini denyut berikutnya membaca sesi
+   * itu masih "menunggu", membakar satu giliran agen, lalu mengetik prosanya ke kolom chat yang
+   * sudah normal — pesan liar yang membelokkan sesi yang sedang bekerja — sampai `maxAutoAnswers`.
+   * Berbeda dari berkas fase (ADR-0084, tak pernah ditulis server), marker keputusan memang berkas
+   * yang ditulis & dikosongkan dari luar agen sejak SPEC-184.
+   */
+  clearMarker: (file: string) => void;
   decide: typeof decide;
   decideDeps: DecideDeps;
   optIn: () => Promise<string[]>;
@@ -53,6 +66,7 @@ export const prodDetectDeps: DetectDeps = {
   // ke pane yang sudah tak ada.
   exited: (id) => { try { return getSession(id)?.exited ?? true; } catch { return true; } },
   send: (id, text) => sendToPane(id, text),
+  clearMarker: (file) => { try { writeFileSync(file, ""); } catch { /* marker lenyap = sudah kosong */ } },
   decide,
   decideDeps: prodDecideDeps,
   optIn: leadProjects,
@@ -101,11 +115,19 @@ export async function scanAndAnswer(deps: DetectDeps = prodDetectDeps): Promise<
     const read = readPaneQuestion(deps.pane(s.id), agent);
     if (!read.asking) { skip(read.reason); continue; }        // AC-9
 
+    // SPEC-452 · saat layarnya dialog pilihan, jawaban lead dimasukkan lewat KOLOM JAWABAN BEBAS
+    // dialog itu ("Type something.") — bukan dengan menekan nomor opsi. Jadi lead diminta menulis
+    // jawaban yang berdiri sendiri (boleh menyebut opsi yang dipilihnya), bukan nomor telanjang.
+    const notes = [`Sesi ini menunggu di terminal; teks di bawah adalah layar terakhirnya. Jawablah sebagai masukan yang bisa langsung diketik ke terminal itu (isi \`reply\`).`];
+    if (read.choices.length) {
+      notes.push("Layarnya adalah dialog pilihan. `reply` akan dimasukkan sebagai JAWABAN BEBAS ke dialog itu, jadi tulislah jawaban yang berdiri sendiri — sebut opsi yang kamu pilih beserta alasan singkatnya, bukan nomornya saja.");
+    }
     const row = await deps.decide({
       projectId: s.projectId, specId: s.specId, sessionId: s.id,
       gate: "detected", kind: "answer",
       question: read.question,
-      notes: [`Sesi ini menunggu di terminal; teks di bawah adalah layar terakhirnya. Jawablah sebagai masukan yang bisa langsung diketik ke terminal itu (isi \`reply\`).`],
+      options: read.choices.length ? read.choices : undefined,
+      notes,
     }, deps.decideDeps);
     if (!row || row.status !== "berlaku") { skip("lead tak menghasilkan keputusan yang berlaku"); continue; }
 
@@ -116,6 +138,10 @@ export async function scanAndAnswer(deps: DetectDeps = prodDetectDeps): Promise<
     const reply = takeReply(row.id) || row.answer;
     const sent = await deps.send(s.id, reply);
     if (!sent) { skip("gagal mengetik ke pane"); continue; }
+    // SPEC-452 · sesi ini sudah tak menunggu — dan lead-lah yang barusan membuatnya begitu.
+    // Hanya sesudah jawabannya TERBUKTI mendarat: marker yang dikosongkan terlalu dini menyembunyikan
+    // sesi yang sebenarnya masih menunggu manusia.
+    deps.clearMarker(s.decisionFile);
     answers.set(s.id, (answers.get(s.id) ?? 0) + 1);
     out.answered.push(s.id);
   }
