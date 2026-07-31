@@ -141,6 +141,54 @@ describe("decide · gagal (AC-4)", () => {
     expect(row!.status).toBe("gagal");
     expect(row!.reason).toContain("blok json");
   });
+
+  // SPEC-432 · di panel notifikasi operator, KETUJUH notifikasi lead yang pernah terbit berbunyi
+  // "Lead gagal memutuskan" — kegagalan yang sama, berulang. Kegagalan beruntun bukan kabar baru:
+  // yang pertama sudah memberi tahu bahwa lead rusak, sisanya cuma mengubur notifikasi lain.
+  // Baris jejaknya TETAP ditulis setiap kali (AC-4: "tak ada baris" tak bisa dibedakan dari
+  // "tak pernah diminta") — yang di-dedupe hanya notifikasinya.
+  it("writes every failed row but does not notify twice in a row", async () => {
+    const notes: Notif[] = [];
+    await decide({ ...ask }, deps(new Error("kehabisan waktu 600000 ms"), notes));
+    await decide({ ...ask, question: "Ada 27 backlog siap dikerjakan. Urutkan." },
+      deps(new Error("kehabisan waktu 600000 ms"), notes));
+    expect(await prisma.leadDecision.count({ where: { status: "gagal" } })).toBe(2);
+    expect(notes).toHaveLength(1);
+  });
+
+  // Sesudah lead terbukti pulih, kegagalan berikutnya kabar baru lagi.
+  it("notifies again once a decision in between actually succeeded", async () => {
+    const notes: Notif[] = [];
+    await decide({ ...ask }, deps(new Error("kehabisan waktu 600000 ms"), notes));
+    await decide({ ...ask }, deps(block({ decision: "a", reason: "b", confidence: "tinggi" }), notes));
+    await decide({ ...ask }, deps(new Error("kehabisan waktu 600000 ms"), notes));
+    expect(notes.filter((n) => n.title.includes("gagal memutuskan"))).toHaveLength(2);
+  });
+
+  // Dedup-nya per (project, pintu, jenis): kegagalan di pintu lain tetap dilaporkan.
+  it("still notifies a failure coming from a different door", async () => {
+    const notes: Notif[] = [];
+    await decide({ ...ask }, deps(new Error("kehabisan waktu 600000 ms"), notes));
+    await decide({ ...ask, gate: "pulse", kind: "order" }, deps(new Error("kehabisan waktu 600000 ms"), notes));
+    expect(notes).toHaveLength(2);
+  });
+});
+
+// SPEC-432 · anggaran waktu yang disebut prompt HARUS angka yang benar-benar berlaku: agen yang
+// diberi tahu satu angka lalu dibunuh di angka lain akan menganggarkan pembacaannya ke arah yang
+// salah — persis kegagalan 7/7 yang tercatat di jejak operator.
+describe("decide · anggaran waktu sampai ke agen (audit SPEC-432)", () => {
+  it("tells the agent the same budget it will actually be killed at", async () => {
+    await setLead(cfg({ timeoutSec: 300 }));
+    let seen = { prompt: "", timeoutMs: 0 };
+    const out = block({ decision: "a", reason: "b" });
+    await decide({ ...ask }, {
+      ...deps(out),
+      think: async (prompt, o) => { seen = { prompt, timeoutMs: o.timeoutMs }; return out; },
+    });
+    expect(seen.timeoutMs).toBe(300_000);
+    expect(seen.prompt).toContain("300 detik");
+  });
 });
 
 describe("decide · balasan untuk pane", () => {

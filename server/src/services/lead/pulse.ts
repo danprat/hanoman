@@ -1,10 +1,11 @@
 import { prisma } from "../../db";
-import type { Lead } from "@hanoman/shared";
+import type { Lead, Scheduler } from "@hanoman/shared";
 import { listSessions } from "../pty";
 import { planComplete } from "../session-phases";
 import { resolveRepoDir } from "../local-binding";
 import { specReview } from "../spec-review";
 import { enqueue, UNSTARTED_SPEC_WHERE } from "../scheduler/queue";
+import { getScheduler } from "../scheduler/config";
 import { recordLeadDecision } from "../notifications";
 import { getLead, leadActive, leadProjects } from "./config";
 import { decide, prodDecideDeps, type DecideDeps } from "./decide";
@@ -63,6 +64,8 @@ export type PulseDeps = {
   notify: (id: string, title: string, projectId: string, specId: string | null, sessionId: string | null) => Promise<void>;
   optIn: () => Promise<string[]>;
   cfg: () => Promise<Lead>;
+  /** SPEC-432 · penataan urutan hanya berarti bila antrean memang dikuras — lihat `orderProject`. */
+  scheduler: () => Promise<Scheduler>;
 };
 
 export const prodPulseDeps: PulseDeps = {
@@ -85,6 +88,7 @@ export const prodPulseDeps: PulseDeps = {
   notify: recordLeadDecision,
   optIn: leadProjects,
   cfg: getLead,
+  scheduler: getScheduler,
 };
 
 export type PulseResult = { ordered: number; collisions: number; quality: number };
@@ -134,14 +138,23 @@ async function followUpFinished(cfg: Lead, optIn: string[], deps: PulseDeps): Pr
     // Idempoten lewat JEJAK, bukan Set memori: sesi mati bertahan di tmux (`remain-on-exit on`)
     // berhari-hari, dan denyut tiap 5 menit akan memutuskan hal yang sama berulang kali —
     // termasuk sesudah server restart, yang justru saat Set memori kosong.
-    const seen = await prisma.leadDecision.findFirst({ where: { sessionId: s.id, kind: "quality", gate: "pulse" } });
+    //
+    // SPEC-432 · kuncinya BUKAN `kind`. `decide()` menulis ulang `kind` jadi "refusal" begitu
+    // tindakan usulan lead di luar allowlist, jadi kunci ber-`kind` meleset persis pada baris yang
+    // sudah ditulis — dan sesi yang sama ditanyakan ulang tiap denyut, selamanya. Yang stabil
+    // adalah awalan pertanyaannya: ia deterministik per sesi dan tak pernah dimiliki pintu lain
+    // (pertanyaan tabrakan berbunyi "Dua pekerjaan menyentuh …").
+    const mark = `Sesi ${s.id} untuk backlog ${s.specId}`;
+    const seen = await prisma.leadDecision.findFirst({
+      where: { sessionId: s.id, gate: "pulse", question: { startsWith: mark } },
+    });
     if (seen) continue;
     const why = [bad ? `berakhir dengan kode keluar ${s.exitCode}` : null,
       unfinished ? "plan-nya masih menyisakan kotak `- [ ]`" : null].filter(Boolean).join(" dan ");
     const row = await deps.decide({
       projectId: s.projectId, specId: s.specId, sessionId: s.id,
       gate: "pulse", kind: "quality",
-      question: `Sesi ${s.id} untuk backlog ${s.specId} ${why}. Tindak lanjutnya apa: lanjutkan pekerjaan yang terputus, ulangi dari awal, atau hentikan?`,
+      question: `${mark} ${why}. Tindak lanjutnya apa: lanjutkan pekerjaan yang terputus, ulangi dari awal, atau hentikan?`,
       options: [
         "resume-session — lanjutkan dari keadaan worktree sekarang (ADR-0084)",
         "restart-session — ulangi dari awal",
@@ -174,8 +187,11 @@ async function detectCollisions(optIn: string[], deps: PulseDeps): Promise<numbe
   let n = 0;
   for (const c of findCollisions(areas)) {
     const key = [c.a.sessionId, c.b.sessionId].sort().join("|");
+    // SPEC-432 · tanpa `kind`, alasan yang sama seperti di `followUpFinished`: `decide()` menulis
+    // ulang `kind` jadi "refusal" untuk tindakan terkunci, dan pasangan yang sudah diputuskan akan
+    // ditanyakan ulang tiap denyut. Kunci `key` di dalam pertanyaan sudah unik per pasangan.
     const seen = await prisma.leadDecision.findFirst({
-      where: { kind: "collision", gate: "pulse", question: { contains: key } },
+      where: { gate: "pulse", question: { contains: key } },
     });
     if (seen) continue;
     const row = await deps.decide({
@@ -204,12 +220,36 @@ async function detectCollisions(optIn: string[], deps: PulseDeps): Promise<numbe
  * prioritas. Itu batas yang diterima sadar di versi ini (lihat ADR-0091 §Konsekuensi).
  */
 async function orderReadyWork(optIn: string[], deps: PulseDeps): Promise<number> {
+  // SPEC-432 · gerbang PALING MURAH lebih dulu: selama subsistem scheduler mati atau dijeda, tak
+  // ada yang menguras antrean sama sekali (`scheduler/engine.ts` berhenti sebelum `drain()`), jadi
+  // urutan apa pun yang lead putuskan tak punya pembaca. Nol panggilan agen untuk SEMUA project.
+  const sched = await deps.scheduler();
+  if (!sched.enabled || sched.paused) return 0;
   let total = 0;
   for (const projectId of optIn) total += await orderProject(projectId, deps);
   return total;
 }
 
+/**
+ * SPEC-432 · satu giliran lead hanya boleh dibeli oleh penataan yang benar-benar bisa berdampak.
+ * Tiga syarat, semuanya diperiksa SEBELUM agen dipanggil:
+ *
+ * 1. Project-nya opt-in scheduler. `leadOptIn` dan `schedulerOptIn` adalah dua kolom berbeda, dan
+ *    di mesin operator ada project yang opt-in lead tapi tidak scheduler — menata antreannya berarti
+ *    menata sesuatu yang `sources/backlog.ts` & governor takkan pernah sentuh.
+ * 2. Ada minimal dua backlog siap-kerja yang BELUM punya baris antrean. `enqueue()` adalah
+ *    `upsert(..., update: {})`: spec yang sudah antre tak berubah sama sekali, termasuk
+ *    `enqueuedAt` yang jadi tiebreak FIFO — jadi menata himpunan yang seluruhnya sudah antre
+ *    adalah no-op, dan no-op tak berharga satu panggilan agen (8/8 dan 20/20 di mesin operator).
+ * 3. Himpunan belum-antre itu berubah sejak terakhir ditata (tanda tangan). Tanda tangan dihitung
+ *    atas himpunan BELUM-ANTRE, bukan seluruh himpunan siap-kerja: kalau tidak, satu item yang
+ *    masuk antrean lewat jalur lain akan menggeser tanda tangan dan membeli giliran lagi untuk
+ *    sisa yang sudah no-op.
+ */
 async function orderProject(projectId: string, deps: PulseDeps): Promise<number> {
+  const project = await prisma.project.findUnique({ where: { id: projectId }, select: { schedulerOptIn: true } });
+  if (!project?.schedulerOptIn) return 0;
+
   // SPEC-431 · "siap dikerjakan" memakai predikat BERSAMA dengan checker backlog. Sebelumnya
   // `baseSha: null` telanjang, jadi lead ikut mengurutkan — dan mengantrekan — pekerjaan yang
   // sudah `done`; item yang selesai sebelum ADR-0030 tak pernah punya `baseSha`.
@@ -219,28 +259,36 @@ async function orderProject(projectId: string, deps: PulseDeps): Promise<number>
     orderBy: { id: "asc" },
   });
   if (ready.length < 2) return 0;
-  const sig = ready.map((r) => r.id).join(",");
+  const already = new Set((await prisma.schedulerQueueItem.findMany({
+    where: { specId: { in: ready.map((r) => r.id) } }, select: { specId: true },
+  })).map((q) => q.specId));
+  const pending = ready.filter((r) => !already.has(r.id));
+  if (pending.length < 2) return 0;                   // penataannya no-op → nol panggilan agen
+
+  const sig = pending.map((r) => r.id).join(",");
   if (sig === lastReadySig.get(projectId)) return 0;   // tak berubah → tak ada giliran lead terpakai
   lastReadySig.set(projectId, sig);
 
   const row = await deps.decide({
     projectId,
     gate: "pulse", kind: "order",
-    question: `Ada ${ready.length} backlog siap dikerjakan. Urutkan mana yang lebih dulu berdasarkan isi pekerjaannya, lalu tuliskan urutan id-nya (dipisah koma) di \`decision\`.`,
-    options: ready.map((r) => `${r.id} · [${r.priority}] ${r.title}`),
-    notes: ready.map((r) => `${r.id}: ${r.objective.slice(0, 200)}`),
+    question: `Ada ${pending.length} backlog siap dikerjakan. Urutkan mana yang lebih dulu berdasarkan isi pekerjaannya, lalu tuliskan urutan id-nya (dipisah koma) di \`decision\`.`,
+    options: pending.map((r) => `${r.id} · [${r.priority}] ${r.title}`),
+    notes: pending.map((r) => `${r.id}: ${r.objective.slice(0, 200)}`),
   }, deps.decideDeps);
   if (!row || row.status !== "berlaku") return 0;
 
   // Urutan dibaca dari jawabannya; id yang tak dikenal diabaikan, dan sisa yang tak disebut lead
   // tetap masuk antrean di belakang — lead yang lupa satu item tak boleh membuatnya hilang.
-  const byId = new Map(ready.map((r) => [r.id.toLowerCase(), r]));
-  const named: typeof ready = [];
+  // Yang di-enqueue hanya `pending`: item yang sudah antre tak bisa dipindah oleh `upsert`-nya,
+  // jadi menyertakannya cuma menggelembungkan hitungan dan judul notifikasinya.
+  const byId = new Map(pending.map((r) => [r.id.toLowerCase(), r]));
+  const named: typeof pending = [];
   for (const tok of row.answer.split(/[,\s]+/).map((t) => t.trim().toLowerCase()).filter(Boolean)) {
     const hit = byId.get(tok);
     if (hit && !named.includes(hit)) named.push(hit);
   }
-  const ordered = [...named, ...ready.filter((r) => !named.includes(r))];
+  const ordered = [...named, ...pending.filter((r) => !named.includes(r))];
   for (const r of ordered) {
     await deps.enqueue({ specId: r.id, projectId: r.projectId, source: "lead", priority: r.priority });
   }
