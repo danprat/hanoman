@@ -2,7 +2,7 @@ import { z } from "zod";
 import { zProject, zBriefPayload, zQaPayload, zGoalPayload, zSpec, zScheduler, zAgent, zLead } from "./entities";
 import { zLeadGate, zLeadKind, zLeadConfidence, zLeadAction, zLeadStatus } from "./lead";
 import type { Spec, Notification } from "./entities";
-import { zProjectKind, zSpecSource, zPriority, zStage, zErrorStatus, zTicketCategory, zTicketStatus, zLinkKind, zVerifyScope } from "./enums";
+import { zProjectKind, zSpecSource, zPriority, zStage, zTicketCategory, zTicketStatus, zVerifyScope } from "./enums";
 
 // SPEC-198 · amplop daftar via API: search/filter/paginasi dilakukan server-side.
 export type Paginated<T> = { items: T[]; total: number; page: number; pageSize: number };
@@ -42,14 +42,6 @@ export const zCreateProject = z.object({
 // awal/akhir). Dipakai operasi rename id (bukan field PATCH). Regex = gate 400 endpoint rename.
 export const zProjectId = z.string().regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/, "slug tak sah");
 export const zRenameProject = z.object({ newId: zProjectId });
-// SPEC-337 · ADR-0075 · relasi integrasi/dependency antar project (from = project di path,
-// BERGANTUNG PADA to). `note` = bentuk integrasinya, disalin apa adanya ke prompt sesi audit lintas.
-export const zCreateLink = z.object({
-  to: z.string().min(1),
-  kind: zLinkKind,
-  note: z.string().max(2000).optional(),
-});
-export type CreateLink = z.infer<typeof zCreateLink>;
 export const zUpdateProject = z.object({
   name: z.string().min(1).optional(),
   desc: z.string().optional(),
@@ -102,8 +94,6 @@ export const zProjectView = zProject.extend({
   binding: z.string().nullable(),   // SPEC-217 · override repoDir per-mesin (null = pakai Project.repoDir)
   backlog: z.number().int(), topStage: z.string(), session: zSessionSummary,
   activity: z.string(), commit: z.string(),
-  monitoringEnabled: z.boolean().default(false),   // SPEC-249 · error monitoring aktif (ingest key ada)
-  ingestKeyPrefix: z.string().nullable().default(null),   // SPEC-249 · hint prefix DSN (bukan hash/rahasia)
   helpEnabled: z.boolean().default(false),   // SPEC-253 · Help Center publik aktif
   schedulerOptIn: z.boolean().default(false),   // SPEC-294 · opt-in scheduler otonom
   leadOptIn: z.boolean().default(false) });     // SPEC-409 · ADR-0091 · opt-in hanoman-lead
@@ -122,7 +112,6 @@ export type SchedulerQueueItemView = z.infer<typeof zSchedulerQueueItem>;
 // dikembalikan routes/scheduler.ts apa adanya — parse non-strict (field ekstra spt cwd diabaikan).
 export const zSchedulerSourceView = z.object({
   id: z.string(), enabled: z.boolean(), everyMin: z.number(),
-  minCount: z.number().optional(),           // hanya errors
   lastRunAt: z.string().nullable(), nextRunAt: z.string().nullable(),
 });
 export type SchedulerSourceView = z.infer<typeof zSchedulerSourceView>;
@@ -186,15 +175,13 @@ export const zLeadStatusView = z.object({
 export type LeadStatusView = z.infer<typeof zLeadStatusView>;
 
 // SPEC-407 · +goal · sesi dua fase (Goal → Verifikasi) tanpa fase perencanaan sama sekali.
-export const zFlow = z.enum(["feature", "qa", "scaffold", "reverse", "prd", "audit", "breakdown", "cross-audit", "goal"]);
+export const zFlow = z.enum(["feature", "qa", "scaffold", "reverse", "prd", "audit", "breakdown", "goal"]);
 export type FlowName = z.infer<typeof zFlow>;
 // SPEC-237 · satu-satunya pemetaan source → flow (client memakainya saat start sesi).
 // qa → audit lalu execute perbaikan; audit → dokumen saja (Audit → Laporan, tanpa Execute).
-// SPEC-337 · cross-audit → dokumen juga, tapi ber-scope project ini + tetangga ProjectLink-nya.
 export function flowForSource(source: string): FlowName {
   return source === "qa" ? "qa"
     : source === "audit" ? "audit"
-    : source === "cross-audit" ? "cross-audit"
     // SPEC-407 · goal → sesi dua fase yang langsung mengejar goal item, tanpa perencanaan.
     : source === "goal" ? "goal"
     : "feature";
@@ -297,8 +284,6 @@ export const zTerminalSession = z.union([
     branchFrom: z.string().min(1).optional(), fromAudit: z.string().min(1).optional() }),
   // SPEC-273 · sesi breakdown project-level: pecah SATU PRD (prdPath) → manifest N backlog.
   z.object({ project: z.string(), flow: z.literal("breakdown"), prdPath: z.string().min(1) }),
-  // SPEC-337 · ADR-0075 · sesi audit lintas project LEPAS (tanya-jawab): tanpa Spec, tanpa fase.
-  z.object({ project: z.string(), flow: z.literal("cross-audit") }),
   // SPEC-222 · scaffold: sesi project-level from-scratch, menyusun SoT dari ide. Tanpa brief
   // (diseed dari Project.desc), tanpa Spec — cermin reverse.
   z.object({ project: z.string(), flow: z.literal("scaffold") }),
@@ -469,80 +454,6 @@ export type EventMsg =
   | { t: "codexLimits"; limits: CodexLimitsDTO }   // SPEC-338 · ADR-0074 · grup terpisah dari `limits`
   | { t: "vps"; vps: VpsView[] }
   | { t: "update"; update: UpdateStatus };
-
-// SPEC-249 · ADR-0060 · Error monitoring (Sentry ringan).
-// SPEC-276 · ADR-0070 · frame terstruktur (SDK→server) untuk symbolication.
-export const zStackFrame = z.object({
-  function: z.string().max(500).optional(),
-  filename: z.string().max(2000).optional(),
-  lineno: z.number().int().optional(),
-  colno: z.number().int().optional(),
-  in_app: z.boolean().optional(),
-});
-export type StackFrame = z.infer<typeof zStackFrame>;
-
-// SPEC-276 · frame hasil symbolication (server→UI): + posisi sumber + context lines.
-export const zSymbolicatedFrame = zStackFrame.extend({
-  source: z.string().optional(),
-  sourceLine: z.number().int().optional(),
-  sourceColumn: z.number().int().optional(),
-  contextLine: z.string().optional(),
-  preContext: z.array(z.string()).optional(),
-  postContext: z.array(z.string()).optional(),
-  symbolicated: z.boolean(),
-});
-export type SymbolicatedFrame = z.infer<typeof zSymbolicatedFrame>;
-
-// SPEC-276 · upload source-map per release (auth DSN key). Byte map di server-local upload dir.
-export const zSourceMapUpload = z.object({
-  release: z.string().min(1).max(200),
-  artifacts: z.array(z.object({
-    filename: z.string().min(1).max(2000),
-    map: z.string().min(1),
-    debugId: z.string().max(200).optional(),
-  })).min(1).max(200),
-});
-export type SourceMapUpload = z.infer<typeof zSourceMapUpload>;
-
-// Payload ingest generik: bahasa apa pun bisa POST tanpa perubahan server.
-export const zIngestPayload = z.object({
-  type: z.string().min(1).max(500),
-  message: z.string().min(1),
-  stack: z.string().optional(),
-  frames: z.array(zStackFrame).max(200).optional(),   // SPEC-276 · opsional → kompatibel mundur
-  environment: z.string().max(120).optional(),
-  release: z.string().max(200).optional(),
-  context: z.record(z.string(), z.unknown()).optional(),
-});
-export type IngestPayload = z.infer<typeof zIngestPayload>;
-
-export const zErrorGroupView = z.object({
-  id: z.string(), projectId: z.string(), type: z.string(), message: z.string(),
-  environment: z.string(), status: zErrorStatus, count: z.number().int(),
-  firstSeenAt: z.string(), lastSeenAt: z.string(), specId: z.string().nullable(),
-  release: z.string().nullable(),   // SPEC-276 · release terakhir grup (korelasi build)
-});
-export type ErrorGroupView = z.infer<typeof zErrorGroupView>;
-
-export const zErrorEventView = z.object({
-  id: z.string(), type: z.string(), message: z.string(), stack: z.string().nullable(),
-  environment: z.string(), release: z.string().nullable(), receivedAt: z.string(),
-});
-export type ErrorEventView = z.infer<typeof zErrorEventView>;
-
-export const zErrorGroupDetail = zErrorGroupView.extend({
-  sampleStack: z.string().nullable(),
-  sampleFrames: z.array(zSymbolicatedFrame).nullable(),   // SPEC-276 · frame tersimbolikasi (bila map ada)
-  events: z.array(zErrorEventView),
-});
-export type ErrorGroupDetail = z.infer<typeof zErrorGroupDetail>;
-
-// key/dsnUrl HANYA muncul saat generate/rotate (plaintext sekali). GET tanpa keduanya.
-export const zIngestKeyView = z.object({
-  enabled: z.boolean(), prefix: z.string().nullable(),
-  key: z.string().optional(), dsnUrl: z.string().optional(),
-});
-export type IngestKeyView = z.infer<typeof zIngestKeyView>;
 
 // SPEC-253 · Help Center — DTO triase + halaman publik.
 export const zTicketView = z.object({

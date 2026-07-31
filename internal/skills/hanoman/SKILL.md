@@ -240,8 +240,8 @@ Pakai skill lebih sempit saat task cocok:
 - **Gerbang pane-mati hidup di titik cekik `createSession`** (SPEC-394/ADR-0084), bukan hanya di
   `startSpecSession` — jadi ia menutup sekaligus jalur yang **tak punya gerbang sendiri**: sesi
   konflik `merge-<spec>` (`routes/specs.ts`) & `finishGraphOp` (`routes/ide.ts`), dan konsol VPS
-  `vpsc-<id>` (`routes/vps.ts`). Kelima route **project-level** (reverse · scaffold · prd ·
-  breakdown · cross-audit) punya gerbang `getSession` sendiri di depan `createSession`, jadi
+  `vpsc-<id>` (`routes/vps.ts`). Keempat route **project-level** (reverse · scaffold · prd ·
+  breakdown) punya gerbang `getSession` sendiri di depan `createSession`, jadi
   masing-masing ikut disempitkan ke `!exited`. **`attach()` pada pane mati TETAP sah** — itu justru
   cara membaca layar terakhir sesi yang sudah selesai; jangan ikut dipagari. **Pasangan wajib untuk
   flow project-level:** kelimanya memanggil `realGit.addWorktree` **setelah** gerbangnya, jadi
@@ -255,16 +255,7 @@ Pakai skill lebih sempit saat task cocok:
 - Sesi berjalan di worktree sendiri di `<repoDir>/.worktrees/<id>`, dibuat `--detach` dari `branchFrom` (default `main`); `baseSha` dicatat untuk rentang review (ADR-0030). Jenis sesi: **spec-flow** (feature/qa/audit), **reverse** (project-level), **prd**, **plain terminal** (claude di repoDir; atau shell mentah non-claude via `{shell:true}`, SPEC-236/ADR-0056), **integrate-conflict** (merge-<id>), **vps**. Flow **audit** (SPEC-237/ADR-0057) = audit-only: pipeline `Audit → Laporan`, hanya dokumen SoT (`research/audit-<id>-<slug>.md`), tanpa Execute; bisa dinaikkan jadi Finding QA.
 - **Fase bukan proses melainkan giliran** dalam satu sesi: `runner/src/prompt.ts` `PIPELINES` mendefinisikan nama fase per flow; prompt menyuruh agen `echo "<Fase> done" >> $HANOMAN_PHASE_FILE`. Server membaca file append-only itu (`services/session-phases.ts`) untuk menurunkan fase aktif → `Stage`. Konteks terbawa antar fase karena semuanya satu sesi.
 - **Kontrak otonomi** (ADR-0035): agen menembus batas antar-fase tanpa berhenti — checkpoint "review" milik skill superpowers **bukan** titik berhenti — dan hanya berhenti untuk bertanya di terminal saat butuh keputusan manusia sejati. Waspada: subagent async bisa bikin agen `end_turn` dan runner mengira fase selesai (fase jadi dangkal).
-- **Audit lintas project** (SPEC-337/ADR-0075): flow `cross-audit` — satu sesi mengaudit project utama
-  **+ tetangga `ProjectLink`-nya** (relasi berarah `from → to`, satu hop, kedua arah). Pipeline & deliverable
-  sama dengan audit-only (`Audit → Laporan`, dokumen SoT, tanpa perbaikan kode); bedanya prompt memuat path
-  checkout tetangga (**read-only** — hanya worktree sendiri yang boleh ditulis) dan sesi memegang **kunci
-  audit** untuk menarik timeline error gabungan lewat `GET /api/audit/logs`. Kunci hidup di tmux option
-  (`@hanoman_audit_key`/`@hanoman_audit_projects`), mati bersama pane, tak pernah keluar lewat API. Dua pintu:
-  backlog `source: "cross-audit"` (berdokumen) dan sesi lepas `{project, flow:"cross-audit"}` (tanya-jawab,
-  tanpa Spec/fase). Agennya **hanoman sendiri** — bukan agent token eksternal (ADR-0065). **Jalan di
-  claude maupun codex** (ADR-0074): kunci audit dikirim lewat env, jadi tak ada percabangan per agen.
-- **Eskalasi audit dinamis** (SPEC-340/ADR-0076, memperluas ADR-0057): audit **dan** cross-audit punya
+- **Eskalasi audit dinamis** (SPEC-340/ADR-0076, memperluas ADR-0057): audit punya
   **tiga** pintu tindak lanjut — Finding QA · Feature brief · PRD — bukan lagi hanya QA. Rekomendasi
   hanoman **terbaca mesin**: fase Laporan menulis satu blok ```json kanonik
   `{escalation:{target:"none|qa|brief|prd",reason,alternatives,prefill}}` di dokumen audit (pola
@@ -393,7 +384,7 @@ Pakai skill lebih sempit saat task cocok:
 
 ## Aturan Data & Skema
 
-- **Tujuh model inti** (SQLite via Prisma 6, ADR-0086): `Project`, `Spec`, `Setting`, `Notification`, `User`, `Session`, `Vps`. Tidak ada `Run` maupun `Trigger` — di-drop saat pindah ke sesi interaktif (ADR-0024). Model pendukung mencakup `DeviceToken`, **`AgentToken`** (kredensial AI agent + capability, SPEC-257/ADR-0065, server-local), `SessionResult`, sync (`SyncLog`/`SyncOutbox`/`SyncState`/`LocalBinding`/`RuntimeConfig`), error monitoring (`ErrorGroup`/`ErrorEvent`), Help Center (`Ticket`/`TicketAttachment`), VPS compliance (`VpsAuditSnapshot`/`VpsItemState`).
+- **Tujuh model inti** (SQLite via Prisma 6, ADR-0086): `Project`, `Spec`, `Setting`, `Notification`, `User`, `Session`, `Vps`. Tidak ada `Run` maupun `Trigger` — di-drop saat pindah ke sesi interaktif (ADR-0024). Model pendukung mencakup `DeviceToken`, **`AgentToken`** (kredensial AI agent + capability, SPEC-257/ADR-0065, server-local), `SessionResult`, sync (`SyncLog`/`SyncOutbox`/`SyncState`/`LocalBinding`/`RuntimeConfig`), Help Center (`Ticket`/`TicketAttachment`), VPS compliance (`VpsAuditSnapshot`/`VpsItemState`). **Error monitoring (`ErrorGroup`/`ErrorEvent`/`SourceMapArtifact`) dan `ProjectLink` sudah dicabut** — SPEC-384/ADR-0092, pemantauan pindah ke Uptrace.
 - Enum stage/source/priority disimpan sebagai **`String` + divalidasi zod** di `@hanoman/shared` (`enums.ts`), bukan enum Prisma.
 - `Project.id` (slug) **kekal**, tak ada endpoint rename; `repoDir` OPSIONAL & tak disync. **`LocalBinding`** (`projectId → repoDir`, per-mesin, LOCAL-ONLY) meng-override path; `resolveRepoDir = binding ?? Project.repoDir` dipakai **seluruh** jalur baca (spawn/IDE/coverage/branches/specs/docs).
 - `docStatus`/`coverage`/**Docs**/**PRD** **bukan kolom & tidak dipersist** — docs live dari disk via `git ls-files`, coverage diturunkan tiap `toProjectView` (ADR-0018), PRD = dokumen `docs/prd/<slug>.md` (ADR-0041). Tabel `DocFile` sudah di-drop (ADR-0011).

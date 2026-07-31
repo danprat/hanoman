@@ -118,8 +118,6 @@ export default async function (app: FastifyInstance) {
             priority,
             author: isQa ? `QA · ${author}`
               : b.source === "audit" ? `Audit · ${author}`
-              // SPEC-337 · asal item audit lintas terbaca di backlog (cermin `Audit ·`).
-              : b.source === "cross-audit" ? `Audit lintas · ${author}`
               // SPEC-407 · asal item goal terbaca di backlog (cermin `Audit ·`).
               : b.source === "goal" ? `Goal · ${author}`
               : author,

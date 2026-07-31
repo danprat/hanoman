@@ -16,10 +16,19 @@ describe("sync exclusions — preferensi lokal tak tersync (SPEC-213 AC-30)", ()
     }
   });
 
-  it("SYNCED is exactly the authoritative entities (SPEC-272: +ticketAttachment)", () => {
+  it("SYNCED is exactly the authoritative entities (SPEC-272: +ticketAttachment; SPEC-384: −errorGroup)", () => {
     expect([...SYNCED].sort()).toEqual(
-      ["errorGroup", "project", "sessionResult", "spec", "ticket", "ticketAttachment", "vps"],
+      ["project", "sessionResult", "spec", "ticket", "ticketAttachment", "vps"],
     );
+  });
+
+  // SPEC-384 · ADR-0092 · errorGroup dicabut dari record-sync bersama error monitoring. Klien
+  // versi lama bisa saja masih mendorongnya; yang benar adalah menolaknya sebagai kind tak
+  // dikenal, bukan menerimanya ke tabel yang sudah tak ada.
+  it("errorGroup bukan lagi entity ter-sync", () => {
+    expect(SYNCED as readonly string[]).not.toContain("errorGroup");
+    expect(isEntity("errorGroup")).toBe(false);
+    expect(isEntity("ticket")).toBe(true);   // kontrol negatif: tiket tetap tersync
   });
 
   it("mutating settings does NOT enqueue outbox (settings are per-device)", async () => {

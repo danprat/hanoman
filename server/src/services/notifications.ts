@@ -41,21 +41,9 @@ export async function recordFailure(specId: string, title: string, projectId: st
   }).catch(() => { /* P2002: sudah ada */ });
 }
 
-// SPEC-249 · ADR-0060 · notif saat grup error PRODUKSI baru muncul. Dedup `key: error:<groupId>`
-// idempoten (insert kedua kena P2002, diabaikan) — grup lama tak menotifikasi ulang tiap kejadian.
-export async function recordNewErrorGroup(
-  groupId: string, projectId: string, projectName: string, type: string, message: string,
-): Promise<void> {
-  const short = message.length > 80 ? message.slice(0, 77) + "…" : message;
-  const title = `Error baru di "${projectName}": ${type}: ${short}`;
-  await prisma.notification.create({
-    data: { type: "error", key: `error:${groupId}`, projectId, title },
-  }).catch(() => { /* P2002: sudah ada untuk grup ini */ });
-}
-
 // SPEC-253 · ADR-0062 · notif saat tiket Help Center baru masuk. Dedup `key: ticket:<ticketId>`
-// idempoten (insert kedua kena P2002, diabaikan). Setiap tiket baru menotifikasi (bukan hanya
-// "grup baru" seperti error) — volume manusiawi, dijaga rate-limit di endpoint publik.
+// idempoten (insert kedua kena P2002, diabaikan). Setiap tiket baru menotifikasi — volume
+// manusiawi, dijaga rate-limit di endpoint publik.
 export async function recordNewTicket(
   ticketId: string, projectId: string, projectName: string, category: string, title: string,
 ): Promise<void> {

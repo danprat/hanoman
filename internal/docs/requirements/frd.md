@@ -161,17 +161,6 @@ tanpa penopang tidak ditulis.
   `session`) **di jalur tulis**, sehingga klien tak dapat menyelundupkan branch lewat body.
 - THE SYSTEM SHALL menghapus branch tanpa `--force`.
 
-## Errors
-
-- THE SYSTEM SHALL menerima ingest ber-DSN sebagai pengecualian auth yang ber-scope project
-  ([ADR-0060](../adr/0060-error-monitoring-ingest-ber-dsn.md)).
-- THE SYSTEM SHALL mengelompokkan event ke `ErrorGroup` dengan fingerprint yang **tidak** memuat hash
-  bundle, sehingga grup tidak pecah tiap deploy (SPEC-276).
-- WHERE source map untuk sebuah `release` sudah diunggah, THE SYSTEM SHALL men-symbolicate stack pada
-  waktu tampil ([ADR-0070](../adr/0070-symbolication-source-map-server-side.md)).
-- WHEN operator mengeskalasi grup error, THE SYSTEM SHALL membuat spec bersumber `qa`; WHEN operator
-  melepas tautannya, THE SYSTEM SHALL mengembalikan status ke `new` tanpa menghapus spec-nya.
-
 ## Help Desk & triase
 
 - THE SYSTEM SHALL menyediakan halaman Help Center publik per project di luar gate `/api`.

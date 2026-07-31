@@ -4,13 +4,14 @@ Entitas inti (**SQLite via Prisma 6** — SPEC-398/[ADR-0086](../adr/0086-sqlite
 satu berkas di `$HANOMAN_HOME`, default `~/.hanoman/hanoman.db`, tanpa Docker/Postgres).
 **Tujuh model inti**: Project, Spec, Setting, Notification, User,
 Session, Vps — plus model pendukung (VpsAuditSnapshot/VpsItemState, DeviceToken, **AgentToken**, SessionResult, SyncLog,
-LocalBinding, SyncOutbox, SyncState, SyncConflict, RuntimeConfig), **model error monitoring** (`ErrorGroup`,
-`ErrorEvent`, SPEC-249/[ADR-0060](../adr/0060-error-monitoring-ingest-ber-dsn.md)), **model Help
-Center** (`Ticket`, `TicketAttachment`, SPEC-253/[ADR-0062](../adr/0062-help-center-tiket-publik-triase.md))
-dan **relasi antar project** (`ProjectLink`, SPEC-337/[ADR-0075](../adr/0075-audit-lintas-project-projectlink-kunci-sesi.md)).
+LocalBinding, SyncOutbox, SyncState, SyncConflict, RuntimeConfig) dan **model Help Center**
+(`Ticket`, `TicketAttachment`, SPEC-253/[ADR-0062](../adr/0062-help-center-tiket-publik-triase.md)).
 Tidak ada model `Run` maupun `Trigger` — keduanya di-drop saat pindah ke sesi interaktif (ADR-0024; migrasi
-`drop_run_trigger_github`). Enum stage/source/priority/error-status/ticket-status/ticket-category disimpan
-sebagai `String` dan divalidasi zod di `@hanoman/shared` (`enums.ts`), bukan enum Prisma.
+`drop_run_trigger_github`). **Model error monitoring** (`ErrorGroup`, `ErrorEvent`, `SourceMapArtifact`) dan
+**relasi antar project** (`ProjectLink`) juga tak ada lagi — dicabut SPEC-384/[ADR-0092](../adr/0092-cabut-error-monitoring-sdk-cross-audit.md)
+bersama error monitoring & cross-audit (migrasi `drop_errors_sdk_crossaudit`). Enum
+stage/source/priority/ticket-status/ticket-category disimpan sebagai `String` dan divalidasi zod di
+`@hanoman/shared` (`enums.ts`), bukan enum Prisma.
 
 **Provider & migrasi.** Riwayat 32 migrasi Postgres diganti satu init SQLite
 (`20260730000000_init_sqlite`) — migrasi lama tak bisa di-*replay* di SQLite, dan jalan pindah bagi
@@ -31,12 +32,12 @@ tiap berkas.
 
 ## Project
 - `id` (slug) — **renameable lewat operasi khusus** `POST /projects/:id/rename { newId }` (SPEC-255/ADR-0064,
-  mencabut sebagian invariant "kekal" SPEC-146). Kunci asing `Spec`/`ErrorGroup`/`Ticket` **sudah**
+  mencabut sebagian invariant "kekal" SPEC-146). Kunci asing `Spec`/`Ticket` **sudah**
   `ON UPDATE CASCADE` **dan** `ON DELETE CASCADE` (bawaan Prisma → cascade otomatis, tanpa migration); referensi
-  longgar (`Notification/SessionResult/ErrorEvent/TicketAttachment`) + `LocalBinding` di-update manual dalam
+  longgar (`Notification/SessionResult/TicketAttachment`) + `LocalBinding` di-update manual dalam
   transaksi rename. Id **tetap tak tersentuh** oleh
-  `PATCH`/`zUpdateProject`. Rename merambat ke hub sync (penanda `renamedFrom`) → DSN `/api/ingest/<id>` &
-  URL Help `/help/<id>` (derived) ikut berganti. Guard: 409 bila id baru terpakai / ada sesi aktif.
+  `PATCH`/`zUpdateProject`. Rename merambat ke hub sync (penanda `renamedFrom`) → URL Help `/help/<id>`
+  (derived) ikut berganti. Guard: 409 bila id baru terpakai / ada sesi aktif.
 - `name`, `desc` — label tampilan; dapat diubah lewat `PATCH /projects/:id` (SPEC-146) dan boleh
   menyimpang dari `id`. Tak ada jalur git/worktree/filesystem yang membacanya.
 - `kind` ("from-scratch" | "existing"), `repoDir?` (absolut, OPSIONAL; path default/server, editable via
@@ -47,39 +48,21 @@ tiap berkas.
   = `binding ?? Project.repoDir` (null-safe), dipakai SELURUH jalur baca (spawn/IDE/coverage/branches/specs/docs).
   Editable via `PUT /projects/:id/binding`, dikosongkan via `DELETE` (SPEC-213/217).
 - `createdAt`
-- `ingestKeyHash?`/`ingestKeyPrefix?` (SPEC-249 · [ADR-0060](../adr/0060-error-monitoring-ingest-ber-dsn.md)) —
-  kunci ingest error hash-at-rest (`sha256(key)`) + hint prefix untuk UI. `null` = monitoring off.
-  **`ingestKeyHash` TAK PERNAH ke client/log**; `toProjectView` hanya mengekspos `monitoringEnabled`
-  (`!!ingestKeyHash`) + `ingestKeyPrefix`.
 - `helpEnabled` (Boolean, default false · SPEC-253 · [ADR-0062](../adr/0062-help-center-tiket-publik-triase.md)) —
   flag opt-in Help Center publik. Link publik `/help/<id>` menerima keluhan HANYA bila aktif. Additive;
   diekspos di `toProjectView` sebagai `helpEnabled`.
 - `schedulerOptIn` (Boolean, default false · SPEC-294 · [ADR-0072](../adr/0072-scheduler-fondasi-engine-antrean-durable-cap.md)) —
   gerbang kelayakan **scheduler otonom** (pola `helpEnabled`). Project non-opt-in tak pernah disentuh source
   checker. Additive; diekspos `toProjectView` sebagai `schedulerOptIn`, editable via `PATCH /projects/:id`.
-  **Tidak** masuk whitelist `FIELDS` sync → tetap **lokal per-instance** (cermin `helpEnabled`/`ingestKeyHash`).
+  **Tidak** masuk whitelist `FIELDS` sync → tetap **lokal per-instance** (cermin `helpEnabled`).
 - `leadOptIn` (Boolean, default false · SPEC-409 · [ADR-0091](../adr/0091-hanoman-lead-agen-pemimpin.md)) —
   gerbang kelayakan **hanoman-lead** (cermin persis `schedulerOptIn`). Project non-opt-in tak pernah
   dijawab, ditata, maupun ditindaklanjuti lead. Additive; diekspos `toProjectView` sebagai `leadOptIn`,
   editable via `PATCH /projects/:id`. **Tidak** masuk whitelist `FIELDS` sync → lokal per-instance.
 - `docStatus` ("ok" | "drift" | "broken") + `coverage` (0–100) **bukan kolom** — diturunkan dari disk tiap `toProjectView` (ADR-0018).
 
-## ProjectLink (SPEC-337 · [ADR-0075](../adr/0075-audit-lintas-project-projectlink-kunci-sesi.md))
-Relasi **berarah** antar project: `fromProjectId` **bergantung pada** `toProjectId`. Inilah satu-satunya
-pengetahuan hanoman tentang project mana yang saling berintegrasi; ia menentukan scope sesi audit lintas.
-- `id` (cuid), `fromProjectId`, `toProjectId` — FK ke `Project` dengan `onDelete: Cascade` **dan**
-  `onUpdate: Cascade`, jadi hapus/rename project (ADR-0064) merambat otomatis; tak ada referensi longgar baru.
-- `kind` ("api" | "sdk" | "data" | "event" | "lainnya") — `String` + zod (`zLinkKind`), bukan enum Prisma.
-- `note` (String, default "") — bentuk integrasinya dengan kata-kata operator ("web memanggil `/api/orders`,
-  auth lewat cookie sesi"). Disalin apa adanya ke prompt sesi audit lintas; field paling berharga bagi agen.
-- `createdAt`, `updatedAt`. `@@unique([fromProjectId, toProjectId])` — satu edge per pasangan berarah.
-- **Tetangga** sebuah project = union kedua arah, **satu hop** (bukan closure transitif). Itulah "grup"
-  yang diaudit satu sesi.
-- **LOCAL-only — tidak masuk `SYNCED`**: id cuid + unique pasangan membuat dua device yang mendeklarasikan
-  edge sama bertabrakan saat `applyPush` upsert-by-id. Alasan & jalan keluarnya di ADR-0075.
-
 ## Spec (backlog item)
-- `id` (SPEC-n), `projectId`, `title`, `source` ("brief" | "qa" | "audit" | "cross-audit" | "help" | "goal")
+- `id` (SPEC-n), `projectId`, `title`, `source` ("brief" | "qa" | "audit" | "help" | "goal")
   - **`help`** (SPEC-253/[ADR-0062](../adr/0062-help-center-tiket-publik-triase.md)): backlog hasil
     promosi tiket Help Center. `flowForSource("help") = "feature"` (pipeline penuh), payload brief-shaped
     (context berisi keluhan + kategori + pelapor + backlink tiket). Author `Help ·`. Tanpa migration
@@ -90,12 +73,6 @@ pengetahuan hanoman tentang project mana yang saling berintegrasi; ia menentukan
     Plan/Execute, jadi gerbang ADR-0029 tak berlaku. Payload brief-shaped; author berawalan `Audit ·`. Bisa
     dinaikkan jadi Finding QA (source `qa`) lewat "Take ke backlog" (cermin PRD, ADR-0041). Tanpa migration
     (source/flow = String + zod, bukan enum Prisma).
-  - **`cross-audit`** (SPEC-337/[ADR-0075](../adr/0075-audit-lintas-project-projectlink-kunci-sesi.md)):
-    audit **lintas project**. Flow `cross-audit` memakai pipeline yang sama (`Audit → Laporan`) dan
-    deliverable yang sama (dokumen `internal/docs/research/audit-<spec-id>-<slug>.md`, tanpa perbaikan
-    kode), tetapi scope-nya = project ini **+ tetangga `ProjectLink`-nya**: prompt memuat path checkout
-    tetangga (read-only) dan sesi memegang kunci menarik timeline error gabungan lewat `/api/audit/logs`.
-    Payload brief-shaped; author berawalan `Audit lintas ·`. Tanpa migration.
   - **`goal`** (SPEC-407/[ADR-0089](../adr/0089-backlog-goal-flow-dua-fase.md)): backlog yang
     langsung dikejar sesi mode goal. Flow `goal` = pipeline **`Goal → Verifikasi`** — tak ada
     Brainstorm/Objective/Spec/Plan sama sekali. Stage: `Goal` (aktif maupun tercatat) → `executing`,
@@ -259,40 +236,6 @@ Kerangka kepatuhan checklist 232 item (katalog di git, lihat [vps-compliance.md]
   `attested`/`attestNote` (item `INFO`), `actorEmail` (jejak pelaku dari sesi auth), `updatedAt`.
   Unik `(vpsId, itemId)`, `vpsId`→Vps (cascade).
 
-## ErrorGroup / ErrorEvent / SourceMapArtifact (SPEC-249 · [ADR-0060](../adr/0060-error-monitoring-ingest-ber-dsn.md) · SPEC-276 · [ADR-0070](../adr/0070-symbolication-source-map-server-side.md))
-Error monitoring (Sentry ringan). **SPEC-268/[ADR-0066](../adr/0066-errors-tickets-masuk-record-sync-plus-pemicu-manual.md):**
-agregat `ErrorGroup` kini **tersync** (kolom `version`, entitas `errorGroup` di `SYNCED`); publish
-**asal-hub** pada grup **baru** + perubahan status (escalate/resolve) — bukan tiap increment count
-(hindari churn feed). `ErrorEvent` mentah **tetap server-local** (volume tinggi, dipangkas retensi).
-Enum `status` = `String` + zod (`zErrorStatus`), bukan enum Prisma.
-- **`ErrorGroup`** — grup error per project (dedup by fingerprint):
-  `id`, `projectId`→Project (cascade), `fingerprint`, `type`, `message`, `sampleStack?`,
-  `sampleFrames? (Json)` (**SPEC-276** · frame mentah sample untuk symbolication saat display),
-  `release?` (**SPEC-276** · release terakhir, korelasi build + surface UI), `environment`
-  (last-seen), `status` (`new`|`escalated`|`resolved`, default `new`), `count`, `firstSeenAt`,
-  `lastSeenAt`, `specId?` (tautan Spec hasil eskalasi), `createdAt`, `updatedAt`, `version` (sync).
-  Unik `(projectId, fingerprint)`; index `(projectId, lastSeenAt)`. Fingerprint deterministik dari
-  tipe + pesan ternormalisasi + frame teratas. **SPEC-276 (Temuan B):** `error-fingerprint.ts`
-  menormalkan content-hash basename bundle (`index-4f3a2b.js`→`index.js`) & mereduksi URL anonim ke
-  basename → grup **stabil lintas deploy** (tak lagi pecah tiap rilis); bila `frames[]` ada, memakai
-  top frame `in_app`.
-- **`ErrorEvent`** — kejadian error mentah, **dipangkas retensi** (cap terakhir per grup + umur,
-  opportunistic-on-write, tanpa scheduler baru): `id`, `groupId`→ErrorGroup (cascade), `projectId`
-  (denormal, isolasi & query murah), `type`, `message`, `stack?`, `frames? (Json)` (**SPEC-276** ·
-  frame terstruktur mentah dari SDK), `environment`, `release?`, `context? (Json)`, `receivedAt`.
-  Index `(groupId, receivedAt)` + `(projectId, receivedAt)`.
-- **`SourceMapArtifact`** (**SPEC-276** · [ADR-0070](../adr/0070-symbolication-source-map-server-side.md)) —
-  source-map ter-upload per release untuk symbolication: `id`, `projectId`→Project (cascade),
-  `release`, `filename` (basename artifact hasil-build yang dipetakan), `debugId?`, `storageKey`
-  (berkas opaque `uuid.map` di `HANOMAN_UPLOAD_DIR`), `size`, `createdAt`. Unik
-  `(projectId, release, filename)`; index `(projectId, release)`. **Byte map & metadata server-local,
-  TAK disync** (cermin `TicketAttachment` biner & `ErrorEvent`). Retensi: keep-N-release terbaru.
-- Ingest publik `POST /api/ingest/:slug` diotorisasi **DSN** (`Project.ingestKeyHash`) — pengecualian
-  sah gate `/api` (ADR-0060). SDK kini mengirim `frames[]` terstruktur (opsional). Upload source-map
-  via `POST /api/ingest/:slug/sourcemaps` (auth DSN sama). Symbolication **lazy saat buka detail grup**
-  (`services/symbolicate.ts`, `@jridgewell/trace-mapping`) — bukan worker (patuh ADR-0024). Grup
-  produksi **baru** → `Notification` type `error`. Eskalasi → `Spec` source qa (`fromErrorGroup`).
-
 ## Ticket / TicketAttachment (SPEC-253 · [ADR-0062](../adr/0062-help-center-tiket-publik-triase.md))
 Help Center: keluhan pengguna akhir → antrean triase → promosi ke backlog. **SPEC-268/[ADR-0066](../adr/0066-errors-tickets-masuk-record-sync-plus-pemicu-manual.md):**
 **metadata** `Ticket` kini **tersync** (kolom `version`, entitas `ticket` di `SYNCED`); publish
@@ -321,8 +264,8 @@ di-cache lokal. `status`/`category` = `String` + zod (`zTicketStatus`/`zTicketCa
   + honeypot (`hc_trap`) + retensi opportunistic.
 
 ## Sync — konflik & jam LWW (SPEC-270 · [ADR-0067](../adr/0067-sync-lww-reconciliation-manual.md))
-- **`updatedAt` = jam LWW.** Enam model synced (`Project`, `Spec`, `Vps`, `SessionResult`,
-  `ErrorGroup`, `Ticket`) kini `updatedAt @updatedAt` (dulu `@default(now())`) — auto-bump tiap edit;
+- **`updatedAt` = jam LWW.** Model synced (`Project`, `Spec`, `Vps`, `SessionResult`,
+  `Ticket`, `TicketAttachment`) kini `updatedAt @updatedAt` (dulu `@default(now())`) — auto-bump tiap edit;
   masuk `FIELDS`/`DATE_FIELDS` → **ikut menyeberang**; layer sync **mempertahankan `updatedAt` asal**
   saat apply dari peer (bukan menstempel ulang), jadi basis last-write-wins konsisten lintas node.
 - **`SyncConflict`** (LOCAL-only, tak disync): antrean divergensi **dua-sisi sejati** menunggu
@@ -349,11 +292,6 @@ overlay sesi live — status live (running/done/failed) tetap diturunkan dari `p
   `Setting.data.scheduler` (`zScheduler`, semua default mati). Lihat [ADR-0072](../adr/0072-scheduler-fondasi-engine-antrean-durable-cap.md).
 - **Diisi oleh checker `backlog` (SPEC-295):** spec `baseSha=null` dari project `schedulerOptIn`, urut prioritas
   `tinggi→sedang→rendah`, `source:"backlog"` (asal checker; `flow` peluncuran tetap diturunkan `spec.source`).
-- **Diisi oleh checker `errors` (SPEC-296):** tiap `ErrorGroup` eligible (`status:"new"` ∧ `environment:"production"` ∧
-  `specId=null` ∧ `count ≥ Setting.scheduler.sources.errors.minCount` ∧ project `schedulerOptIn`) di-escalate lewat jalur
-  bersama `escalateErrorGroup` (`services/error-escalate.ts`) → Spec `qa` prioritas `tinggi`, lalu `source:"errors"`.
-  Idempoten: filter query menyaring grup escalated/resolved/ber-specId; satu grup = satu backlog; banyak grup satu
-  window (tanpa limit checker — cap ditegakkan governor).
 - **Diisi oleh checker `triase` (SPEC-297):** tiap `Ticket` eligible (`status:"new"` ∧ `category ∈ {bug,fitur}` ∧
   `specId=null` ∧ project `schedulerOptIn`) di-accept lewat jalur bersama `acceptTicket` (`services/ticket-accept.ts`,
   pemetaan kategori→source SPEC-291: bug→`qa`, fitur→`brief`) → Spec prioritas `sedang`, lalu `source:"triase"`.
@@ -373,13 +311,13 @@ sesi hidup di tmux mesin ini dan transkripnya berkas di disk mesin ini). tmux te
 sesi **hidup** (ADR-0016); tabel ini adalah jejak sesi yang **sudah berlalu**, yang sebelumnya lenyap
 total saat `killSession()` + `removeWorktree()`. Berbeda dari `SessionResult` (ADR-0047) yang hanya
 lahir saat transisi stage **spec** — tabel ini mencatat semua jenis sesi, termasuk shell, PRD, reverse,
-scaffold, breakdown, cross-audit, dan konsol VPS.
+scaffold, breakdown, dan konsol VPS.
 - `id` (**uuid milik BARIS**), `sessionId` (id tmux — **bukan** PK: `sessionIdForSpec()` deterministik,
   jadi satu backlog yang dibuka-tutup lima kali menghasilkan lima baris ber-`sessionId` sama; PK
   `sessionId` akan menimpa riwayat lama tiap reopen), `projectId` (**tanpa FK** — sesi VPS memakai
   `vps:<id>`/`vps-console:<id>`, konvensi `SessionResult`), `specId?`, `title?` (**snapshot** judul spec
   saat sesi lahir — riwayat tetap terbaca setelah spec-nya dihapus), `kind`
-  (`spec|reverse|prd|scaffold|breakdown|cross-audit|vps|shell|worktree|terminal`), `flow?`, `agent`
+  (`spec|reverse|prd|scaffold|breakdown|vps|shell|worktree|terminal`), `flow?`, `agent`
   (`claude|codex`), `model?`, `effort?`, `branch?`, `cwd`, `startedAt`, `endedAt?` (null = **berjalan**),
   `exitCode?`, `transcriptKey?` + `transcriptBytes?` (pointer berkas; **isi tak pernah di DB**),
   `createdAt`, `updatedAt`. Index `(projectId, startedAt)`, `(specId)`, `(sessionId)`.
@@ -405,7 +343,7 @@ akan mengirim rujukan yang tak ada di sana). Tanpa `version`/`notifySynced`, **t
   *bisakah dihitung ulang dari sumber lain* — coverage bisa (filesystem), diff bisa (git),
   **pertanyaan yang ditanyakan sesi yang sudah mati dan alasan yang dipakai lead tidak bisa**. Arah
   yang sama dengan ADR-0090.
-- `id` (cuid), `projectId` (**tanpa FK** — sesi VPS/cross-audit memakai projectId sintetis, konvensi
+- `id` (cuid), `projectId` (**tanpa FK** — sesi VPS memakai projectId sintetis, konvensi
   `SessionResult`/`SessionHistory`), `specId?`, `sessionId?`, `gate`
   (`contract|detected|pulse` — pintu masuknya), `kind`
   (`answer|order|collision|quality|refusal`), `question`, `answer`, `reason`, `refs` (Json `string[]`
@@ -440,9 +378,8 @@ List/preview **freshest-wins** (worktree sesi `prd` hidup > `repoDir`). "Take ke
 ter-prefill dari PRD, tautan balik dibawa teks Konteks ("Dari PRD: <path>") bukan field payload
 (zBriefPayload strip key tak dikenal) — atau *sebagai goal*: `Spec` source `goal` ber-`payload.goal`
 `"Wujudkan PRD <path>"`. Keduanya membawa `branchFrom = prd/<slug>` (SPEC-244). Set flow sesi kini:
-`feature | qa | scaffold | reverse | prd | audit | breakdown | cross-audit | goal` (audit =
-SPEC-237/ADR-0057; breakdown = SPEC-273/ADR-0069; cross-audit = SPEC-337/ADR-0075; goal =
-SPEC-407/ADR-0089). Sesi shell "terminal biasa" (SPEC-236/ADR-0056) **tanpa flow** — bukan pipeline,
+`feature | qa | scaffold | reverse | prd | audit | breakdown | goal` (audit =
+SPEC-237/ADR-0057; breakdown = SPEC-273/ADR-0069; goal = SPEC-407/ADR-0089). Sesi shell "terminal biasa" (SPEC-236/ADR-0056) **tanpa flow** — bukan pipeline,
 tak menggerakkan stage; ditandai wire `{project, shell:true}`.
 
 **Breakdown PRD (SPEC-273 · [ADR-0069](../adr/0069-breakdown-prd-ke-backlog-paralel.md))** — juga **bukan

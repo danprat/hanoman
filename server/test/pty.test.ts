@@ -549,7 +549,6 @@ describe("hook riwayat sesi (SPEC-362)", () => {
     expect(sessionKind({ id: "spec-1", specId: "SPEC-1" }, "p1", "/r/.worktrees/spec-1")).toBe("spec");
     expect(sessionKind({ id: "prd-x", flow: "prd" }, "p1", "/r/.worktrees/prd-x")).toBe("prd");
     expect(sessionKind({ id: "reverse-p1", flow: "reverse" }, "p1", "/r/.worktrees/reverse-p1")).toBe("reverse");
-    expect(sessionKind({ id: "xaudit-p1" }, "p1", "/r/.worktrees/xaudit-p1")).toBe("cross-audit");
     expect(sessionKind({ id: "vpsc-1", command: ["ssh"] }, "vps-console:1", "/home/x")).toBe("vps");
     expect(sessionKind({ id: "abc", command: ["/bin/bash"] }, "p1", "/r")).toBe("shell");
     expect(sessionKind({ id: "merge-x" }, "p1", "/r/.worktrees/merge-x")).toBe("worktree");

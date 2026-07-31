@@ -52,8 +52,8 @@ Tidak memberi (atau memberi dengan bentuk berbeda):
 3. **Kendali live** — steer, interupsi, dan `/model` manual di dalam sesi yang sedang berjalan.
 4. **Isolasi murni worktree** — satu-satunya batas keamanan yang tersisa setelah guardrail perintah
    dicabut ([ADR-0037](../adr/0037-cabut-guardrail-safety.md)).
-5. **Jembatan masuk** — Help Center & error monitoring menyuapi backlog: laporan pengguna dan crash
-   produksi jadi spec tanpa menyalin-tempel manual.
+5. **Jembatan masuk** — Help Center menyuapi backlog: laporan pengguna jadi spec tanpa
+   menyalin-tempel manual.
 
 ## Yang jujur harus disebut
 

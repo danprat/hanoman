@@ -1,6 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { zCreateProject, zUpdateProject, zRenameProject, zCreateLink } from "@hanoman/shared";
-import { linksOf, linkViews } from "../services/project-links";
+import { zCreateProject, zUpdateProject, zRenameProject } from "@hanoman/shared";
 import { prisma } from "../db";
 import { renameProject } from "../services/rename-project";
 import { toProjectView } from "../services/project-view";
@@ -9,7 +8,6 @@ import { listRepoBranches, listRepoRemoteBranches } from "../services/branches";
 import { resolveRepoDir } from "../services/local-binding";
 import { listSessions } from "../services/pty";
 import { paginate } from "../services/paginate";
-import { generateIngestKey, dsnUrl } from "../services/ingest-key";
 import { realGit } from "@hanoman/runner";
 
 export default async function (app: FastifyInstance) {
@@ -70,7 +68,7 @@ export default async function (app: FastifyInstance) {
   });
   // SPEC-255 · ADR-0064 · rename slug project. Terpisah dari PATCH: efek samping besar (cascade FK +
   // ref longgar + LocalBinding + rambat sync) & guard sendiri (id baru bebas, tak ada sesi aktif).
-  // DSN (/api/ingest/<id>) & Help URL (/help/<id>) derived → path baru dikembalikan sebagai hint.
+  // Help URL (/help/<id>) derived → path baru dikembalikan sebagai hint.
   app.post("/projects/:id/rename", async (req, reply) => {
     const { id } = req.params as { id: string };
     const parsed = zRenameProject.safeParse(req.body);
@@ -82,8 +80,6 @@ export default async function (app: FastifyInstance) {
     const base = `${req.protocol}://${req.headers.host ?? "localhost"}`;
     return {
       id: newId,
-      // Plaintext key DSN tak tersimpan; kembalikan path DSN baru (tanpa key) sbg hint bila monitoring aktif.
-      dsnUrl: p?.ingestKeyHash ? `${base.replace(/\/$/, "")}/api/ingest/${encodeURIComponent(newId)}` : undefined,
       helpUrl: p?.helpEnabled ? `${base}/help/${encodeURIComponent(newId)}` : undefined,
       affected: r.affected,
     };
@@ -108,32 +104,6 @@ export default async function (app: FastifyInstance) {
     // SPEC-217 · path efektif (binding lokal per-mesin ?? Project.repoDir).
     const repoDir = await resolveRepoDir(id);
     return { branches: await listRepoBranches(repoDir), remotes: await listRepoRemoteBranches(repoDir) };
-  });
-
-  // SPEC-249 · ADR-0060 · DSN ingest key per project. Hash-at-rest; plaintext hanya di POST (sekali).
-  app.get("/projects/:id/ingest-key", async (req, reply) => {
-    const { id } = req.params as { id: string };
-    const p = await prisma.project.findUnique({ where: { id } });
-    if (!p) return reply.code(404).send({ error: "not found" });
-    return { enabled: !!p.ingestKeyHash, prefix: p.ingestKeyPrefix ?? null };
-  });
-  app.post("/projects/:id/ingest-key", async (req, reply) => {
-    const { id } = req.params as { id: string };
-    const p = await prisma.project.findUnique({ where: { id } });
-    if (!p) return reply.code(404).send({ error: "not found" });
-    const { key, hash, prefix } = generateIngestKey();
-    await prisma.project.update({ where: { id }, data: { ingestKeyHash: hash, ingestKeyPrefix: prefix } });
-    await notifySynced("project", id); // SPEC-213/330 · sadar-peran: client antre push, hub publish ke feed
-    const base = `${req.protocol}://${req.headers.host ?? "localhost"}`;
-    return reply.code(201).send({ enabled: true, prefix, key, dsnUrl: dsnUrl(id, key, base) });
-  });
-  app.delete("/projects/:id/ingest-key", async (req, reply) => {
-    const { id } = req.params as { id: string };
-    const p = await prisma.project.findUnique({ where: { id } });
-    if (!p) return reply.code(404).send({ error: "not found" });
-    await prisma.project.update({ where: { id }, data: { ingestKeyHash: null, ingestKeyPrefix: null } });
-    await notifySynced("project", id); // SPEC-213/330 · sadar-peran: client antre push, hub publish ke feed
-    return reply.code(204).send();
   });
 
   // SPEC-253 · ADR-0062 · Help Center publik per project (opt-in). Link publik terikat Project.id (slug).
@@ -163,36 +133,4 @@ export default async function (app: FastifyInstance) {
     return reply.code(204).send();
   });
 
-  // SPEC-337 · ADR-0075 · relasi integrasi/dependency antar project. LOCAL-only (tak disync):
-  // JANGAN panggil notifySynced di sini. Ubah = hapus + tambah (tanpa PATCH).
-  app.get("/projects/:id/links", async (req, reply) => {
-    const { id } = req.params as { id: string };
-    if (!(await prisma.project.findUnique({ where: { id } }))) return reply.code(404).send({ error: "not found" });
-    return { links: await linkViews(id, await linksOf(id)) };
-  });
-  app.post("/projects/:id/links", async (req, reply) => {
-    const { id } = req.params as { id: string };
-    const parsed = zCreateLink.safeParse(req.body);
-    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
-    const { to, kind, note } = parsed.data;
-    if (to === id) return reply.code(400).send({ error: "project tak bisa bergantung pada dirinya sendiri" });
-    if (!(await prisma.project.findUnique({ where: { id } }))) return reply.code(404).send({ error: "not found" });
-    if (!(await prisma.project.findUnique({ where: { id: to } }))) return reply.code(404).send({ error: `project "${to}" tak ada` });
-    const existing = await prisma.projectLink.findUnique({
-      where: { fromProjectId_toProjectId: { fromProjectId: id, toProjectId: to } },
-    });
-    if (existing) return reply.code(409).send({ error: `relasi ${id} → ${to} sudah ada` });
-    const created = await prisma.projectLink.create({ data: { fromProjectId: id, toProjectId: to, kind, note: note ?? "" } });
-    const [view] = await linkViews(id, [created]);
-    return reply.code(201).send(view);
-  });
-  app.delete("/projects/:id/links/:linkId", async (req, reply) => {
-    const { id, linkId } = req.params as { id: string; linkId: string };
-    const link = await prisma.projectLink.findUnique({ where: { id: linkId } });
-    // Relasi yang tak menyentuh project ini = 404 (bukan 403): pemiliknya tak perlu dibocorkan.
-    if (!link || (link.fromProjectId !== id && link.toProjectId !== id))
-      return reply.code(404).send({ error: "not found" });
-    await prisma.projectLink.delete({ where: { id: linkId } });
-    return reply.code(204).send();
-  });
 }

@@ -49,9 +49,6 @@ export async function toProjectView(p: Project, sessions: SessionInfo[]): Promis
     session,
     activity: session.status === "running" ? `running · ${session.flow ?? "sesi"}` : "idle",
     commit,
-    // SPEC-249 · error monitoring: ekspos status + hint prefix. ingestKeyHash TAK PERNAH ke client.
-    monitoringEnabled: !!p.ingestKeyHash,
-    ingestKeyPrefix: p.ingestKeyPrefix ?? null,
     // SPEC-253 · Help Center publik aktif.
     helpEnabled: p.helpEnabled,
     // SPEC-294 · opt-in scheduler otonom (lokal per-instance).

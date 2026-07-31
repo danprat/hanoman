@@ -118,3 +118,19 @@ Deteksi saja — server tak pernah memasang apa pun sendiri
 ([ADR-0048](../adr/0048-auto-update-deteksi-read-only.md) utuh): instance yang me-`npm i` dirinya
 sendiri lalu keluar akan memutus sesi tmux yang sedang berjalan tanpa peringatan. `hanoman update
 --check` hanya melaporkan, exit 0.
+
+## SPEC-384 · membersihkan byte source-map (sekali, SEBELUM migrate)
+
+`SourceMapArtifact` menyimpan byte `.map` di `HANOMAN_UPLOAD_DIR` dengan nama opaque `<uuid>.map` —
+**direktori yang sama dengan lampiran tiket**. Jangan pernah menghapus direktorinya: lampiran tiket
+yang masih dipakai ikut hilang. Baca daftar `storageKey` **sebelum** `prisma migrate deploy`
+menjatuhkan tabelnya; sesudah itu daftarnya tak bisa direkonstruksi dari apa pun.
+
+```bash
+sqlite3 "$HANOMAN_HOME/hanoman.db" "SELECT storageKey FROM SourceMapArtifact" > /tmp/maps.txt
+while read -r k; do [ -n "$k" ] && rm -f "$HANOMAN_UPLOAD_DIR/$k"; done < /tmp/maps.txt
+```
+
+Melewatkannya hanya menyisakan byte inert — tak ada yang rusak, cuma disk terpakai. Migration-nya
+sendiri (`20260731180000_drop_errors_sdk_crossaudit`) tetap aman dijalankan tanpa langkah ini.
+Lihat [ADR-0092](../adr/0092-cabut-error-monitoring-sdk-cross-audit.md).

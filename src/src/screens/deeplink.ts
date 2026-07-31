@@ -1,6 +1,6 @@
 // SPEC-293 · deep-link backlog lewat hash fragment (SPA hanoman tak punya router; ADR-0071).
 // URL kanonik satu backlog = `${origin}${pathname}#spec=<SPEC-ID>`. App mem-parse-nya sekali saat
-// mount lalu membuka SpecDetail. Modul murni ini dipakai App (parse) + Triase/Errors (build).
+// mount lalu membuka SpecDetail. Modul murni ini dipakai App (parse) + Triase (build).
 
 // Ekstrak SPEC-ID dari hash `#spec=<id>` (juga `#a=1&spec=<id>`). null bila tak ada.
 export function parseSpecHash(hash: string): string | null {

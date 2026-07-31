@@ -6,7 +6,7 @@ nama `hp` → `hc_trap` (+ `autocomplete="new-password"`) karena `hp` diisi auto
 pelapor sungguhan, dan rate-limit per-IP kini short-circuit. Bukti detailnya dulu hidup di dokumen
 audit SPEC-352; dokumen itu dipensiunkan di SPEC-386 ([ADR-0083](0083-retensi-dokumen-audit.md)) —
 ringkasan temuannya ada di ledger ADR itu, naskah penuhnya di riwayat git.
-**Terkait:** [ADR-0060](0060-error-monitoring-ingest-ber-dsn.md) (pola endpoint publik ber-scope-project + jembatan ke Spec — SPEC-253 menutup jalur **manusia → backlog**, ADR-0060 menutup **mesin → backlog**),
+**Terkait:** **ADR-0060** (dicabut, [ADR-0092](0092-cabut-error-monitoring-sdk-cross-audit.md)) (pola endpoint publik ber-scope-project + jembatan ke Spec — SPEC-253 menutup jalur **manusia → backlog**, ADR-0060 menutup **mesin → backlog**),
 [ADR-0028](0028-auth-sesi-opaque-di-db.md) (auth sesi menggerbangi `/api`),
 [ADR-0044](0044-device-token-machine-identity.md) (kunci hash-at-rest, pola verifikasi),
 [ADR-0033](0033-notifikasi-backlog-selesai.md) (Notification reuse), [ADR-0039](0039-realtime-lewat-websocket-siar.md) (siar dashboard, sisanya polling),

@@ -18,35 +18,11 @@ model Project {
   createdAt DateTime @default(now())
   version   Int      @default(0) // SPEC-213 · version-stamp sync (ADR-0045)
   updatedAt DateTime @updatedAt
-  ingestKeyHash   String? // SPEC-249 · sha256(ingest key) hex; null = monitoring off. TAK PERNAH ke client.
-  ingestKeyPrefix String? // SPEC-249 · ~12-16 char awal key untuk hint UI (bukan rahasia)
   helpEnabled Boolean @default(false) // SPEC-253 · opt-in Help Center publik
   schedulerOptIn Boolean @default(false) // SPEC-294 · ADR-0072 · opt-in scheduler otonom (LOCAL — tak masuk FIELDS sync)
   leadOptIn      Boolean @default(false) // SPEC-409 · ADR-0091 · opt-in hanoman-lead (LOCAL — cermin schedulerOptIn)
   specs       Spec[]
-  errorGroups ErrorGroup[]
   tickets     Ticket[]
-  sourceMaps  SourceMapArtifact[] // SPEC-276 · source-map ter-upload per release (symbolication)
-  linksOut    ProjectLink[] @relation("ProjectLinkFrom") // SPEC-337 · project ini bergantung pada …
-  linksIn     ProjectLink[] @relation("ProjectLinkTo")   // SPEC-337 · … yang bergantung pada project ini
-}
-
-// SPEC-337 · ADR-0075 · relasi integrasi/dependency BERARAH antar project: from BERGANTUNG PADA to.
-// LOCAL-only (tak masuk SYNCED): id cuid + unique pasangan bertabrakan saat upsert-by-id lintas device.
-// onUpdate: Cascade → rename project (ADR-0064) merambat gratis; tak ada ref longgar baru.
-model ProjectLink {
-  id            String   @id @default(cuid())
-  fromProjectId String
-  toProjectId   String
-  kind          String   // api | sdk | data | event | lainnya (zLinkKind)
-  note          String   @default("") // bentuk integrasinya — disalin apa adanya ke prompt sesi audit lintas
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  from Project @relation("ProjectLinkFrom", fields: [fromProjectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  to   Project @relation("ProjectLinkTo",   fields: [toProjectId],   references: [id], onDelete: Cascade, onUpdate: Cascade)
-
-  @@unique([fromProjectId, toProjectId])
-  @@index([toProjectId])
 }
 
 model Spec {
@@ -310,7 +286,7 @@ model SchedulerQueueItem {
   id         String    @id @default(cuid())
   specId     String    @unique
   projectId  String
-  source     String    // backlog | errors | triase (asal checker)
+  source     String    // backlog | triase (asal checker) — SPEC-384 · `errors` dicabut (ADR-0092)
   priority   String    // tinggi | sedang | rendah (urutan drain)
   status     String    @default("queued") // queued | launched | done | failed
   sessionId  String?
@@ -327,7 +303,7 @@ model SchedulerQueueItem {
 //
 // LOCAL-ONLY (tak disync, cermin SessionHistory/SchedulerQueueItem): barisnya menunjuk sesi tmux &
 // worktree di MESIN INI — menyiarkannya ke hub akan mengirim rujukan yang tak ada di sana. Tanpa
-// `version`/notifySynced. Tak ada FK ke Project: sesi VPS/cross-audit memakai projectId sintetis
+// `version`/notifySynced. Tak ada FK ke Project: sesi VPS memakai projectId sintetis
 // (konvensi yang sama dipakai SessionResult & SessionHistory).
 model LeadDecision {
   id             String    @id @default(cuid())
@@ -361,68 +337,8 @@ model RuntimeConfig {
   updatedAt DateTime @updatedAt
 }
 
-// SPEC-249 · ADR-0060 · grup error per project (fingerprint dedup). SPEC-268/ADR-0066: agregat
-// grup kini tersync (version-stamp); ErrorEvent mentah tetap server-local (tak disync).
-model ErrorGroup {
-  id          String   @id @default(cuid())
-  projectId   String
-  fingerprint String
-  type        String
-  message     String
-  sampleStack String?
-  sampleFrames Json?   // SPEC-276 · ADR-0070 · frame mentah sample (disymbolikasi saat display)
-  release     String?  // SPEC-276 · ADR-0070 · release terakhir (korelasi build + surface di UI)
-  environment String
-  status      String   @default("new") // new | escalated | resolved
-  count       Int      @default(0)
-  firstSeenAt DateTime @default(now())
-  lastSeenAt  DateTime @default(now())
-  specId      String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  version     Int      @default(0) // SPEC-268 · version-stamp sync (ADR-0066)
-  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  events      ErrorEvent[]
 
-  @@unique([projectId, fingerprint])
-  @@index([projectId, lastSeenAt])
-}
 
-// SPEC-249 · ADR-0060 · kejadian error mentah, dipangkas retensi (cap per grup + umur).
-model ErrorEvent {
-  id          String     @id @default(cuid())
-  groupId     String
-  projectId   String
-  type        String
-  message     String
-  stack       String?
-  frames      Json?      // SPEC-276 · ADR-0070 · frame terstruktur mentah dari SDK
-  environment String
-  release     String?
-  context     Json?
-  receivedAt  DateTime   @default(now())
-  group       ErrorGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-
-  @@index([groupId, receivedAt])
-  @@index([projectId, receivedAt])
-}
-
-// SPEC-276 · ADR-0070 · source-map ter-upload per release untuk symbolication. Byte map di
-// HANOMAN_UPLOAD_DIR (server-local, TAK disync — cermin TicketAttachment biner & ErrorEvent).
-model SourceMapArtifact {
-  id         String   @id @default(cuid())
-  projectId  String
-  release    String
-  filename   String   // basename artifact hasil-build (mis. index-4f3a2b.js) yang dipetakan map ini
-  debugId    String?
-  storageKey String   // berkas opaque (uuid.map) di upload dir
-  size       Int
-  createdAt  DateTime @default(now())
-  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  @@unique([projectId, release, filename])
-  @@index([projectId, release])
-}
 
 // SPEC-253 · ADR-0062 · tiket keluhan Help Center. SPEC-268/ADR-0066: metadata tiket kini tersync
 // (version-stamp); lampiran (TicketAttachment, file biner) tetap server-local (tak disync).
@@ -437,7 +353,7 @@ model Ticket {
   status        String   @default("new") // new | accepted | rejected (zTicketStatus)
   accessKeyHash String   @unique // sha256(kunci opaque) — lookup cek status. Plaintext hanya sekali.
   shareToken    String?  @unique // SPEC-293 · token bagikan link status publik (hnm_shr_…); operator → pelapor
-  specId        String?  // soft-link Spec hasil promosi (cermin ErrorGroup.specId)
+  specId        String?  // soft-link Spec hasil promosi
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   version       Int      @default(0) // SPEC-268 · version-stamp sync (ADR-0066)
@@ -452,7 +368,7 @@ model Ticket {
 model TicketAttachment {
   id         String   @id @default(cuid())
   ticketId   String
-  projectId  String   // denormal — isolasi & query murah (pola ErrorEvent.projectId)
+  projectId  String   // denormal — isolasi & query murah
   filename   String   // nama asli tersanitasi (display saja)
   mimeType   String   // image/png | image/jpeg | image/webp
   size       Int

@@ -4,7 +4,7 @@ import { SESSION_KINDS, SESSION_KIND_LABEL, restartableKind, zSessionKind } from
 describe("SessionKind (SPEC-362)", () => {
   it("mencakup setiap jenis sesi yang bisa lahir dari createSession", () => {
     expect([...SESSION_KINDS].sort()).toEqual([
-      "breakdown", "cross-audit", "prd", "reverse", "scaffold", "shell",
+      "breakdown", "prd", "reverse", "scaffold", "shell",
       "spec", "terminal", "vps", "worktree",
     ]);
   });
@@ -14,7 +14,7 @@ describe("SessionKind (SPEC-362)", () => {
   });
 
   it("restartable hanya untuk sesi yang konteksnya bisa dibangun ulang dari riwayat", () => {
-    for (const k of ["spec", "terminal", "shell", "reverse", "scaffold", "cross-audit"] as const)
+    for (const k of ["spec", "terminal", "shell", "reverse", "scaffold"] as const)
       expect(restartableKind(k)).toBe(true);
     // prd/breakdown butuh brief/prdPath yang tak tersimpan; vps/worktree tak punya arti "mulai lagi".
     for (const k of ["prd", "breakdown", "vps", "worktree"] as const)

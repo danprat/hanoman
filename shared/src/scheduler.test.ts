@@ -8,9 +8,10 @@ describe("zScheduler", () => {
     expect(SCHEDULER_DEFAULTS.maxConcurrent).toBe(2);
     expect(SCHEDULER_DEFAULTS.autonomy).toBe("butuh-keputusan");
     expect(SCHEDULER_DEFAULTS.sources.backlog.enabled).toBe(false);
-    expect(SCHEDULER_DEFAULTS.sources.errors.enabled).toBe(false);
-    expect(SCHEDULER_DEFAULTS.sources.errors.minCount).toBe(5);
+    expect(SCHEDULER_DEFAULTS.sources.triase.enabled).toBe(false);
     expect(SCHEDULER_DEFAULTS.sources.triase.everyMin).toBe(30);
+    // SPEC-384 · source `errors` dicabut (ADR-0092) — blok setelannya tak boleh lahir kembali.
+    expect(SCHEDULER_DEFAULTS.sources).not.toHaveProperty("errors");
   });
   it("parses {} to full defaults", () => {
     expect(zScheduler.parse({})).toEqual(SCHEDULER_DEFAULTS);

@@ -87,5 +87,5 @@ yang menuntut ADR tersendiri sejak awal.
 - Tak ada pipeline CI yang men-deploy; deploy adalah tindakan operator.
 - Tak ada self-update, self-restart, maupun supervisor auto-heal — menghidupkannya butuh ADR baru
   ([ADR-0048](../adr/0048-auto-update-deteksi-read-only.md)).
-- Tak ada artefak rilis ber-tag di registry; distribusi publik terbatas pada `hanoman-sdk` di npm
-  ([ADR-0063](../adr/0063-hanoman-sdk-npm-package.md)).
+- Distribusi publik = paket npm `hanoman` itu sendiri ([ADR-0087](../adr/0087-distribusi-npm-global-satu-perintah.md));
+  `hanoman-sdk` dicabut bersama error monitoring ([ADR-0092](../adr/0092-cabut-error-monitoring-sdk-cross-audit.md)).

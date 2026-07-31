@@ -1,7 +1,7 @@
 # ADR-0065 — AI agent capability: agent token + capability scope per-domain gating `/api`
 
 **Status:** accepted · **Tanggal:** 2026-07-21 · **Spec:** SPEC-257
-**Terkait:** [ADR-0028](0028-auth-sesi-opaque-di-db.md) (auth sesi — **diperluas** di sini) · [ADR-0044](0044-device-token-machine-identity.md) (device token — pola dicerminkan) · [ADR-0037](0037-cabut-guardrail-safety.md) (isolasi worktree = batas eksekusi) · [ADR-0060](0060-error-monitoring-ingest-ber-dsn.md)/[0062](0062-help-center-tiket-publik-triase.md) (pengecualian gate ber-otorisasi sendiri)
+**Terkait:** [ADR-0028](0028-auth-sesi-opaque-di-db.md) (auth sesi — **diperluas** di sini) · [ADR-0044](0044-device-token-machine-identity.md) (device token — pola dicerminkan) · [ADR-0037](0037-cabut-guardrail-safety.md) (isolasi worktree = batas eksekusi) · **ADR-0060** (dicabut, [ADR-0092](0092-cabut-error-monitoring-sdk-cross-audit.md))/[0062](0062-help-center-tiket-publik-triase.md) (pengecualian gate ber-otorisasi sendiri)
 **Design-of-record:** [`docs/superpowers/specs/2026-07-21-spec-257-ai-agent-capability-design.md`](../../../docs/superpowers/specs/2026-07-21-spec-257-ai-agent-capability-design.md)
 
 ## Konteks

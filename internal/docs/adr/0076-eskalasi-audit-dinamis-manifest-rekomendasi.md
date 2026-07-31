@@ -2,7 +2,7 @@
 
 **Status:** accepted · **Tanggal:** 2026-07-27 · **Spec:** SPEC-340
 **Terkait:** [ADR-0057](0057-audit-only-source-flow.md) (**memperluas** — audit-only kini punya tiga
-tindak lanjut, bukan satu), [ADR-0075](0075-audit-lintas-project-projectlink-kunci-sesi.md)
+tindak lanjut, bukan satu), **ADR-0075** (dicabut, [ADR-0092](0092-cabut-error-monitoring-sdk-cross-audit.md))
 (cross-audit ikut), [ADR-0069](0069-breakdown-prd-ke-backlog-paralel.md) (**pola manifest
 prosa + blok json kanonik**), [ADR-0059](0059-kontinuitas-branch-take-to-backlog-dan-skip-audit.md)
 (kontinuitas branch take-to-backlog), [ADR-0041](0041-prd-sebagai-dokumen-flow-project-level.md)

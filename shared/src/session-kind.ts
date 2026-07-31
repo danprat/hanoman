@@ -4,7 +4,7 @@ import { z } from "zod";
 // disimpan di SessionHistory.kind. Label ikut di sini, bukan di UI: SPEC-262/264 sudah membuktikan
 // grid yang merender slug mentah membuat fiturnya tak ketemu saat dicari manusia.
 export const SESSION_KINDS = [
-  "spec", "reverse", "prd", "scaffold", "breakdown", "cross-audit", "vps", "shell", "worktree", "terminal",
+  "spec", "reverse", "prd", "scaffold", "breakdown", "vps", "shell", "worktree", "terminal",
 ] as const;
 export type SessionKind = (typeof SESSION_KINDS)[number];
 export const zSessionKind = z.enum(SESSION_KINDS);
@@ -15,7 +15,6 @@ export const SESSION_KIND_LABEL: Record<SessionKind, string> = {
   prd: "PRD",
   scaffold: "Scaffold",
   breakdown: "Breakdown PRD",
-  "cross-audit": "Audit lintas",
   vps: "VPS",
   shell: "Terminal biasa",
   worktree: "Worktree (konflik)",
@@ -26,6 +25,6 @@ export const SESSION_KIND_LABEL: Record<SessionKind, string> = {
 // baru dengan konteks sama. Hanya sah bila konteks itu bisa dibangun ulang dari baris riwayat:
 // prd/breakdown butuh brief/prdPath yang tak tersimpan, vps & worktree konflik tak punya artinya.
 const RESTARTABLE: ReadonlySet<string> = new Set<SessionKind>([
-  "spec", "terminal", "shell", "reverse", "scaffold", "cross-audit",
+  "spec", "terminal", "shell", "reverse", "scaffold",
 ]);
 export const restartableKind = (kind: string): boolean => RESTARTABLE.has(kind);

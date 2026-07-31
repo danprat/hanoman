@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { resolve, join, dirname } from "node:path";
 import { execFileSync } from "node:child_process";
 
-// Sesi men-spawn `claude` sungguhan bila tak distub (pola cross-audit-session.test.ts).
+// Sesi men-spawn `claude` sungguhan bila tak distub.
 process.env.HANOMAN_CLAUDE_BIN = resolve(import.meta.dirname, "fixtures/fake-claude.sh");
 process.env.CODEX_HOME = mkdtempSync(join(tmpdir(), "hanoman-codexhome-"));
 

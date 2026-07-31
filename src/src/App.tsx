@@ -18,7 +18,6 @@ import { OverviewScreen } from "./screens/OverviewScreen";
 import { ProjectsScreen } from "./screens/ProjectsScreen";
 import { ProjectDetailScreen } from "./screens/ProjectDetailScreen";
 import { BacklogScreen } from "./screens/BacklogScreen";
-import { ErrorsScreen } from "./screens/ErrorsScreen";
 import { TriageScreen } from "./screens/TriageScreen";
 import { PrdScreen, NewPrdModal, type PrdPrefill, type PrdBriefForm } from "./screens/PrdScreen";
 import type { AuditEscalation } from "@hanoman/shared";
@@ -236,18 +235,17 @@ export function NewSpecModal({ open, onClose, projects, defaultProject, onCreate
   const set = (k: keyof SpecForm) => (e: React.ChangeEvent<any>) => setF((s) => ({ ...s, [k]: e.target.value }));
   const isQa = f.kind === "qa";
   const isAudit = f.kind === "audit";                       // SPEC-237 · audit-only (dokumen, tanpa perbaikan)
-  const isCross = f.kind === "cross-audit";                 // SPEC-337 · audit lintas project (dokumen)
   const isGoal = f.kind === "goal";                         // SPEC-407 · backlog goal (Goal → Verifikasi)
   // SPEC-407 · goal wajib: `Spec.objective` diturunkan darinya, dan item ber-objective kosong
   // melahirkan sesi tanpa sasaran.
   const submit = () => { if (!f.title.trim() || (isGoal && !f.goal.trim())) return; onCreate(f); };
   return (
-    <Modal open={open} onClose={onClose} icon={isQa ? "bug" : isCross ? "radar" : isAudit ? "search" : isGoal ? "target" : "lightbulb"} eyebrow="human → hanoman"
-      title={isQa ? "QA finding baru" : isCross ? "Audit lintas project baru" : isAudit ? "Audit baru" : isGoal ? "Goal baru" : "Feature brief baru"}
+    <Modal open={open} onClose={onClose} icon={isQa ? "bug" : isAudit ? "search" : isGoal ? "target" : "lightbulb"} eyebrow="human → hanoman"
+      title={isQa ? "QA finding baru" : isAudit ? "Audit baru" : isGoal ? "Goal baru" : "Feature brief baru"}
       footer={<>
         <Button variant="ghost" size="sm" onClick={onClose}>Batal</Button>
-        <Button size="sm" leftIcon={isQa ? "radar" : isCross ? "radar" : isAudit ? "search" : isGoal ? "target" : "messages-square"} onClick={submit}>
-          {isQa ? "Filekan finding → audit" : isCross ? "Buat audit lintas → investigasi"
+        <Button size="sm" leftIcon={isQa ? "radar" : isAudit ? "search" : isGoal ? "target" : "messages-square"} onClick={submit}>
+          {isQa ? "Filekan finding → audit"
             : isAudit ? "Buat audit → investigasi" : isGoal ? "Buat goal → sesi goal" : "Buat brief → brainstorm"}
         </Button>
       </>}>
@@ -256,14 +254,12 @@ export function NewSpecModal({ open, onClose, projects, defaultProject, onCreate
           { value: "brief", label: "Feature brief", icon: "lightbulb" },
           { value: "qa", label: "QA finding", icon: "bug" },
           { value: "audit", label: "Audit", icon: "search" },
-          { value: "cross-audit", label: "Audit lintas", icon: "radar" },
           // SPEC-407 · ADR-0089 · backlog goal: cukup goal-nya, tanpa ritual perencanaan.
           { value: "goal", label: "Goal", icon: "target" },
         ]} />
         <div style={{ fontSize: 12, color: "var(--text-subtle)", marginTop: 8, lineHeight: 1.5 }}>
           {isGoal ? "Sesi goal langsung mengejar goal-nya — tanpa brainstorm, spec, atau plan (fase: Goal → Verifikasi). Sesi lahir dengan mode goal aktif dan menolak berhenti sampai buktinya ada di transkrip."
             : isQa ? "Finding masuk lewat alur audit → spec → plan → execute. hanoman menelusuri akar masalah dulu."
-            : isCross ? "Audit lintas melihat project ini BESERTA project yang berelasi dengannya (kartu Integrasi di detail project) — kode, docs, dan timeline error gabungan. Hasilnya dokumen audit, tanpa perbaikan kode."
             : isAudit ? "Audit HANYA menghasilkan dokumen (audit → laporan) — tanpa perbaikan kode. Bisa dinaikkan jadi Finding QA bila perlu diperbaiki."
             : "Brief masuk lewat alur brainstorm → objective → spec → plan → execute."}
         </div>
@@ -498,7 +494,7 @@ export function EditProjectModal({ open, project, onClose, onSave }:
   // SPEC-217 · `dir` = override path per-mesin (LocalBinding). Diisi dari binding project;
   // kosong = pakai path default project. Tak disync antar-mesin.
   // SPEC-218 · `gitRemote` = remote resmi (disync) agar device lain bisa clone.
-  // SPEC-255 · `id` = slug renameable; ganti berdampak DSN, Help Center, & sync ke server.
+  // SPEC-255 · `id` = slug renameable; ganti berdampak Help Center & sync ke server.
   const [f, setF] = React.useState({ id: "", name: "", desc: "", dir: "", gitRemote: "" });
   React.useEffect(() => {
     if (open && project) setF({ id: project.id, name: project.name, desc: project.desc, dir: project.binding ?? "", gitRemote: project.gitRemote ?? "" });
@@ -513,7 +509,7 @@ export function EditProjectModal({ open, project, onClose, onSave }:
         <Button size="sm" leftIcon="check" onClick={() => canSubmit && onSave(f)}>Simpan</Button>
       </>}>
       {/* SPEC-255 · ADR-0064 · `id` kini renameable lewat operasi khusus (cascade + rambat sync). */}
-      <Field label="ID project" hint="slug unik · huruf-kecil/angka/hubung · ganti = pengaruh DSN, Help Center, & sync ke server">
+      <Field label="ID project" hint="slug unik · huruf-kecil/angka/hubung · ganti = pengaruh Help Center & sync ke server">
         <Input value={f.id} onChange={(e: React.ChangeEvent<any>) => setF((s) => ({ ...s, id: e.target.value }))}
           leftIcon="hash" mono style={{ width: "100%" }} />
       </Field>
@@ -574,7 +570,7 @@ export default function App() {
   React.useEffect(() => { api.authStatus().then(setAuth).catch(() => setAuth({ needsSetup: false, user: null })); }, []);
 
   // SPEC-293 · deep-link backlog: buka `${origin}${pathname}#spec=<id>` (mis. dari tab baru tombol
-  // "Buka backlog" di Triase/Errors) → langsung ke section backlog + SpecDetail. Hash dibersihkan
+  // "Buka backlog" di Triase) → langsung ke section backlog + SpecDetail. Hash dibersihkan
   // agar tak memicu ulang. Sekali-mount (ADR-0071); bukan router SPA umum.
   React.useEffect(() => {
     const id = parseSpecHash(window.location.hash);
@@ -606,8 +602,8 @@ export default function App() {
   // ProjectVM dulu membawa daftar tipe trigger per project; trigger sudah tak ada (SPEC-162).
   const projectsView: ProjectVM[] = projects;
 
-  // SPEC-258 · refetch satu VM project ke state sesudah mutasi in-card (DSN/Help). State `projects`
-  // hanya dimuat saat login (WS cuma dorong specs/sessions), jadi tanpa ini status DSN yang baru
+  // SPEC-258 · refetch satu VM project ke state sesudah mutasi in-card (Help Center). State `projects`
+  // hanya dimuat saat login (WS cuma dorong specs/sessions), jadi tanpa ini status Help Center yang baru
   // di-generate "hilang" saat layar re-mount/refresh (baca prop basi). Cermin updateProject().
   const refreshProject = React.useCallback(async (id: string) => {
     try {
@@ -659,16 +655,14 @@ export default function App() {
     const newId = f.id.trim();
     try {
       // SPEC-255 · ADR-0064 · rename id lebih dulu (operasi khusus): konfirmasi dampak → renameProject.
-      // Efek merambat: DSN /api/ingest/<id>, Help /help/<id>, dan sync ke server (hub ikut berganti).
+      // Efek merambat: Help /help/<id> dan sync ke server (hub ikut berganti).
       if (newId && newId !== proj.id) {
         if (!window.confirm(
           `Ganti ID project "${proj.id}" → "${newId}"?\n\n` +
           `Ini berpengaruh ke SEMUA yang terkait project:\n` +
-          `• DSN error monitoring berubah jadi /api/ingest/${newId} — perbarui kode project.\n` +
           `• Link Help Center publik berubah jadi /help/${newId} — tautan lama rusak.\n` +
           `• Perubahan dirambatkan (sync) ke server; server ikut berganti id.`)) return;
         const r = await api.renameProject(proj.id, newId);
-        if (r.dsnUrl) showToast("DSN baru: " + r.dsnUrl, "ok", "key-round");
         if (r.helpUrl) showToast("Help Center baru: " + r.helpUrl, "ok", "life-buoy");
       }
       const effId = newId && newId !== proj.id ? newId : proj.id;
@@ -820,18 +814,6 @@ export default function App() {
     } catch (e) {
       const noRepo = e instanceof ApiError && (e.status === 422 || e.status === 400);
       showToast(p.id + " · gagal mulai scaffold" + (noRepo ? " · project belum punya repoDir" : ""), "warn", "x-circle");
-    }
-  }
-
-  // SPEC-337 · ADR-0075 · sesi audit LINTAS project (lepas, tanya-jawab), lalu ke Terminal.
-  async function crossAudit(p: ProjectVM) {
-    try {
-      const { id } = await api.crossAudit(p.id);
-      setSection("terminal");
-      showToast(p.id + " · audit lintas · sesi " + id + " dimulai", "info", "radar");
-    } catch (e) {
-      const noRepo = e instanceof ApiError && (e.status === 422 || e.status === 400);
-      showToast(p.id + " · gagal mulai audit lintas" + (noRepo ? " · project belum punya repoDir" : ""), "warn", "x-circle");
     }
   }
 
@@ -1022,8 +1004,6 @@ export default function App() {
               onGotoDocs={() => setSection("docs")}
               onGotoTerminal={() => { setProjectFilter(proj.id); setSection("terminal"); }}
               onGotoBacklog={() => { setProjectFilter(proj.id); setSection("backlog"); }}
-              others={projectsView.filter((x) => x.id !== proj.id).map((x) => ({ id: x.id, name: x.name }))}
-              onCrossAudit={() => crossAudit(proj)}
               onReverse={proj.kind === "existing" && proj.repoDir ? () => reverseDocs(proj) : undefined}
               onScaffold={proj.kind === "from-scratch" && proj.repoDir ? () => scaffoldDocs(proj) : undefined}
               onDelete={() => deleteProject(proj)} />
@@ -1045,22 +1025,9 @@ export default function App() {
           projectFilter={projectFilter} onProjectFilter={setProjectFilter} dataVersion={dataVersion} />)}
       </Shell>
     );
-  } else if (section === "errors") {
-    // SPEC-249 · Error monitoring (Sentry ringan): daftar grup + detail + eskalasi ke backlog.
-    // Screen mandiri (pola VPS) — memuat datanya sendiri (HTTP polling), tak lewat `gate`.
-    screen = (
-      <Shell active="errors" title="Errors" breadcrumb="monitoring · ingest → group → escalate" onNavigate={setSection}>
-        <ErrorsScreen projects={projectsView} onToast={showToast}
-          onEscalated={(spec, already) => {
-            showToast(already ? `Sudah dieskalasi ke ${spec.id}` : `Dieskalasi ke ${spec.id}`, "ok", "arrow-up-right");
-            setProjectFilter(spec.projectId);
-            setSection("backlog");
-          }} />
-      </Shell>
-    );
   } else if (section === "triage") {
     // SPEC-253 · Help Center: antrean triase keluhan publik → terima jadi Spec / tolak.
-    // Screen mandiri (pola Errors) — memuat datanya sendiri (HTTP polling), tak lewat `gate`.
+    // Screen mandiri (pola VPS) — memuat datanya sendiri (HTTP polling), tak lewat `gate`.
     screen = (
       <Shell active="triage" title="Triase" breadcrumb="keluhan · lapor → triase → backlog" onNavigate={setSection}>
         <TriageScreen projects={projectsView} onToast={showToast}
@@ -1120,7 +1087,7 @@ export default function App() {
     );
   } else if (section === "scheduler") {
     // SPEC-299 · Panel Scheduler otonom: observabilitas + setelan + opt-in + rem darurat.
-    // Screen mandiri (pola VPS/Errors) — memuat state fondasi sendiri (HTTP polling), tak lewat `gate`.
+    // Screen mandiri (pola VPS) — memuat state fondasi sendiri (HTTP polling), tak lewat `gate`.
     screen = (
       <Shell active="scheduler" title="Scheduler" breadcrumb="otonom · jadwal → antrean → sesi" onNavigate={setSection}>
         <SchedulerScreen projects={projectsView} backlog={backlog}

@@ -36,24 +36,9 @@
   lebih disukai bila lingkungan memungkinkan.
 - **Isolasi**: sesi di worktree terpisah (`.worktrees/<id>`); tak ada akses ke working tree utama.
   Sejak ADR-0037 ini adalah satu-satunya batas keamanan yang tersisa.
-- **Ingest error ber-DSN (SPEC-249, [ADR-0060](../adr/0060-error-monitoring-ingest-ber-dsn.md))**:
-  `POST /api/ingest/:slug` adalah **pengecualian sah** gate `/api` — dipanggil project eksternal tanpa
-  sesi login, diotorisasi **hanya** oleh DSN per-project (cermin pola `/api/sync`). Gate cookie di-bypass
-  untuk prefix `/api/ingest`; route memverifikasi DSN sendiri.
-  - **DSN hash-at-rest**: `Project.ingestKeyHash = sha256(key)` + `timingSafeEqual` (pola `DeviceToken`);
-    plaintext hanya ditampilkan **sekali** saat generate/rotate. `ingestKeyHash` **tak pernah** ke client/log
-    (`ProjectView` hanya `monitoringEnabled` + `ingestKeyPrefix`). Rotate = ganti (tanpa grace); revoke = null.
-  - **Error generik**: project tak dikenal / DSN salah / revoked sama-sama **401** — tak mengenumerasi project.
-  - **Isolasi antar-project**: query error selalu ber-scope `projectId`; satu DSN tak pernah membaca/menulis
-    error project lain (AC PRD).
-  - **Ketahanan**: caps payload (message ≤ 2 KB, stack ≤ 16 KB, body ≤ 64 KB → 413) + rate-limit token-bucket
-    in-memory per project (429) + retensi opportunistic. DSN browser inheren semi-publik (ship di bundle
-    npm `hanoman-sdk` / snippet browser) — batasnya adalah rotate/revoke + rate-limit, bukan kerahasiaan.
-  - **PII**: payload disimpan **apa adanya** (scrub PII pasca-MVP, Open question PRD) — SDK `hanoman-sdk`
-    diingatkan tak mengirim rahasia/PII di `message`/`context`.
 - **Help Center publik (SPEC-253, [ADR-0062](../adr/0062-help-center-tiket-publik-triase.md))**:
   `/api/help/*` adalah **pengecualian sah** gate `/api` — dipanggil pengguna akhir tanpa sesi login.
-  Gate cookie di-bypass untuk prefix `/api/help` (cermin `/api/ingest`); route mengotorisasi sendiri.
+  Gate cookie di-bypass untuk prefix `/api/help` (cermin pola `/api/sync`); route mengotorisasi sendiri.
   - **Otorisasi non-cookie**: submit/info oleh `Project.helpEnabled` (nonaktif/project asing → **404
     generik**, tak enumerasi); cek status oleh **kunci opaque tiket** `hnm_tkt_<hex>`, disimpan
     **hash-at-rest** `sha256(key)` (**@unique**, `accessKeyHash` **TAK PERNAH** ke client/log), lookup
@@ -73,22 +58,6 @@
     yang diabaikan browser; honeypot yang menyala WAJIB meninggalkan jejak log agar false positive
     teramati. Rate-limit per IP **short-circuit** — IP yang jatahnya habis tak boleh ikut menguras
     bucket per-project bersama (amplifikasi 429 ke pelapor lain).
-- **Kunci audit lintas project (SPEC-337, [ADR-0075](../adr/0075-audit-lintas-project-projectlink-kunci-sesi.md))**:
-  prefix `/api/audit/*` adalah **pengecualian sah** gate `/api` — dipanggil **sesi `claude` milik hanoman
-  sendiri** (bukan agen eksternal) yang tak punya cookie. Gate di-bypass **hanya bila** header
-  `X-Hanoman-Audit-Key` cocok dengan sesi tmux **hidup**; selain itu jatuh ke jalur auth normal → 401.
-  - **Kunci seumur sesi, tanpa tabel kredensial**: `hnm_xa_<hex>` hidup sebagai tmux option
-    (`@hanoman_audit_key`) bersama scope-nya (`@hanoman_audit_projects`), diteruskan ke proses sesi lewat
-    env. Karena tmux = sumber kebenaran sesi (ADR-0016), kunci selamat dari restart API dan **mati bersama
-    pane** — tak ada revoke yang bisa terlupa. **TAK PERNAH** keluar lewat API (`SessionInfo`/`GET
-    /terminal/sessions` tak memuatnya).
-  - **Read-only & ber-scope**: hanya `ErrorGroup`/`ErrorEvent` project di scope sesi (project utama +
-    tetangga `ProjectLink` satu hop). Project di luar scope → **403**; grup di luar scope → **404**
-    (keberadaannya tak dibocorkan). Tak ada jalur tulis, tak ada domain lain.
-  - **Model ancaman**: kunci terlihat oleh siapa pun yang bisa `tmux -L hanoman` sebagai user itu —
-    kepercayaan yang **sama** dengan bisa menjalankan `claude` di mesin itu (ADR-0037). Tak ada batas baru
-    yang ditembus. Sesi cross-audit juga **membaca** checkout project tetangga; batas **tulis** tetap
-    worktree (ADR-0002) dan flow-nya audit-only (dilarang menulis kode, ADR-0057).
 - **Agent token — akses AI agent (SPEC-257, [ADR-0065](../adr/0065-ai-agent-capability-agent-token.md))**:
   **jalur auth kedua** ke seluruh `/api` di samping cookie sesi. Agen eksternal mengirim
   `Authorization: Bearer <token>` (upgrade WebSocket: `?agent_token=`); gate `onRequest` yang sama

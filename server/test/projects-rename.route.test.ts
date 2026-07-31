@@ -23,13 +23,6 @@ describe("POST /api/projects/:id/rename (SPEC-255)", () => {
     expect(await prisma.project.findUnique({ where: { id: "old" } })).toBeNull();
   });
 
-  it("dsnUrl hadir hanya bila monitoring aktif (ingestKeyHash)", async () => {
-    await prisma.project.create({ data: { id: "mon", name: "mon", desc: "d", kind: "existing", ingestKeyHash: "deadbeef", ingestKeyPrefix: "hnm_ing_dead" } });
-    const body = (await app.inject({ method: "POST", url: "/api/projects/mon/rename", payload: { newId: "mon2" } })).json();
-    expect(body.dsnUrl).toContain("/api/ingest/mon2");
-    expect(body.helpUrl).toBeUndefined();
-  });
-
   it("409 saat newId dipakai; 404 saat project tak ada; 400 saat slug jelek", async () => {
     await prisma.project.create({ data: { id: "a", name: "a", desc: "d", kind: "existing" } });
     await prisma.project.create({ data: { id: "b", name: "b", desc: "d", kind: "existing" } });

@@ -25,8 +25,7 @@ export const zBriefPayload = z.object({
 export const zQaPayload = z.object({
   severity: z.enum(["critical","major","minor"]), steps: z.string(),
   expected: z.string(), actual: z.string(), env: z.string(),
-  fromAudit: z.string().optional(),      // SPEC-244 · qa dinaikkan dari audit → sinyal skip fase Audit (ADR-0059)
-  fromErrorGroup: z.string().optional() });   // SPEC-249 · qa dari eskalasi error → tautan grup (ADR-0060)
+  fromAudit: z.string().optional() });   // SPEC-244 · qa dinaikkan dari audit → sinyal skip fase Audit (ADR-0059)
 // SPEC-407 · ADR-0089 · bentuk payload KETIGA: backlog goal. Sesi mengejar SATU goal tanpa fase
 // perencanaan, jadi yang disimpan bukan konteks+outcome melainkan goal itu sendiri. `goal` wajib —
 // `Spec.objective` diturunkan darinya (deriveSpecFields) DAN ia jadi inti kondisi Stop hook
@@ -176,7 +175,6 @@ export const zScheduler = z.object({
   autonomy: z.enum(["full-control", "butuh-keputusan"]).default("butuh-keputusan"), // dikonsumsi daun #5
   sources: z.object({
     backlog: z.object({ ...zSourceCommon, everyMin: z.number().int().min(1).default(15) }).default({}),
-    errors:  z.object({ ...zSourceCommon, everyMin: z.number().int().min(1).default(15), minCount: z.number().int().min(1).default(5) }).default({}),
     triase:  z.object({ ...zSourceCommon, everyMin: z.number().int().min(1).default(30) }).default({}),
   }).default({}),
 });
@@ -266,10 +264,11 @@ export type Setting = z.infer<typeof zSetting>;
 // = target redirect terminal. Tanggal = string ISO (JSON). readAt null = unread.
 export const zNotification = z.object({
   id: z.string(),
-  // SPEC-249 · +error; SPEC-253 · +ticket; SPEC-298 · +fail (sesi scheduler gagal/limit)
+  // SPEC-253 · +ticket; SPEC-298 · +fail (sesi scheduler gagal/limit)
   // SPEC-409 · +lead (ADR-0091): keputusan berbobot / ragu / tindakan terkunci ditolak. MEMBERI
   // TAHU, bukan meminta izin — tak ada pekerjaan yang menunggu notifikasi ini dibaca (AC-25).
-  type: z.enum(["done", "decision", "error", "ticket", "fail", "lead"]).default("done"),
+  // SPEC-384 · −error (ADR-0092) · dicabut bersama error monitoring.
+  type: z.enum(["done", "decision", "ticket", "fail", "lead"]).default("done"),
   specId: z.string().nullable(),
   sessionId: z.string().nullable(),
   title: z.string(),

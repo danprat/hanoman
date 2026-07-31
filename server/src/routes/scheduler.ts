@@ -31,7 +31,6 @@ export default async function (app: FastifyInstance) {
     };
     const sources = [
       srcView("backlog", cfg.sources.backlog),
-      srcView("errors", cfg.sources.errors, cfg.sources.errors.minCount),
       srcView("triase", cfg.sources.triase),
     ];
     // Sesi scheduler = sesi live yang punya item antrean 'launched' (marker asal-scheduler).

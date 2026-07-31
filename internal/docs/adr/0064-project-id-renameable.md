@@ -1,7 +1,7 @@
 # ADR-0064 — `Project.id` renameable lewat operasi rename khusus (cascade + merambat sync)
 
 **Status:** accepted · **Tanggal:** 2026-07-21 · **Spec:** SPEC-255
-**Terkait:** SPEC-146 (id kekal — sebagian **dicabut** di sini) · [ADR-0045](0045-skema-sync-synclog-version-stamp.md)/[0046](0046-kanal-ws-sync-terpisah.md) (sync) · [ADR-0060](0060-error-monitoring-ingest-ber-dsn.md) (DSN) · [ADR-0062](0062-help-center-tiket-publik-triase.md) (Help Center)
+**Terkait:** SPEC-146 (id kekal — sebagian **dicabut** di sini) · [ADR-0045](0045-skema-sync-synclog-version-stamp.md)/[0046](0046-kanal-ws-sync-terpisah.md) (sync) · **ADR-0060** (dicabut, [ADR-0092](0092-cabut-error-monitoring-sdk-cross-audit.md)) (DSN) · [ADR-0062](0062-help-center-tiket-publik-triase.md) (Help Center)
 **Doc-of-record audit:** audit SPEC-255 — dokumen auditnya dipensiunkan di SPEC-386 ([ADR-0083](0083-retensi-dokumen-audit.md)); **ADR ini** adalah rekaman permanennya.
 
 ## Konteks
