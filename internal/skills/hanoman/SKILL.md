@@ -278,6 +278,28 @@ Pakai skill lebih sempit saat task cocok:
   `/goal …`, sebagai pesan chat — jadi codex diverifikasi lewat penanda runtime goal-nya sendiri dan
   arming yang gagal boleh dikirim ulang (maks 3); verifikasi claude sengaja **tak disentuh**.
   Tanpa skema/migration/endpoint/knob baru.
+- **Backlog goal — sesi dua fase tanpa perencanaan** (SPEC-407/ADR-0089, memperluas ADR-0073):
+  source **`goal`** → flow **`goal`** = `PIPELINES.goal = ["Goal", "Verifikasi"]`. Sampai spec ini
+  mode goal cuma **knob di atas pipeline `feature`**, jadi sesi "goal" tetap menulis design doc +
+  plan berkotak sebelum menyentuh pekerjaannya. Kini prompt-nya builder terpisah
+  **`startGoalPrompt`** (mengeja `Goal` / `Selesai bila` / `Batasan` dari payload; tanpa instruksi
+  fase perencanaan, tanpa keputusan pasca-Audit, tanpa skill Brainstorm/Plan — fase `Goal` sengaja
+  **tanpa skill**, hanya `Verifikasi` → `verification-before-completion`). Stage: `Goal` **aktif
+  maupun tercatat** → `executing`, `Verifikasi` → `done` (nama fase wajib unik lintas `PIPELINES`
+  — `REACHED` berkunci nama). Payload **bentuk ketiga** `zGoalPayload {goal, done, constraints,
+  priority}`; `superRefine` `zCreateSpec` kini **tiga-arah** (`qa` ↔ `severity`, `goal` ↔ `goal`,
+  selain itu brief) dan `Spec.objective` diturunkan dari `payload.goal`. **Mode goal dipaksa
+  menyala** untuk flow ini (`opts.goal:false` diabaikan) dan **template global
+  `Setting.goal.condition` DILEWATI** — ia generik untuk semua sesi sedangkan item goal membawa
+  kondisinya sendiri; override per-sesi tetap paling tinggi. **Dua gotcha wajib:** (1) gerbang
+  klausa scope verifikasi pindah dari "pipeline punya fase `Execute`" ke predikat
+  **`writesCode(flow)`** — sesi goal menulis kode meski tanpa fase `Execute`, dan melewatkannya
+  membuatnya jatuh ke DoD repo target alias suite penuh (lubang yang ditutup ADR-0080); (2)
+  `resumeClause` hanya menyebut plan `docs/superpowers/plans/**` untuk pipeline ber-fase `Plan` —
+  menyuruh sesi goal mencari plan justru mengundangnya membuat satu. Dua pintu masuk: tab **Goal**
+  di modal backlog baru, dan tombol **"Take ke backlog"** di preview PRD yang kini **pemilih**
+  (brief / goal, keduanya ber-`branchFrom = prd/<slug>`). Tanpa migration, tanpa endpoint baru;
+  ADR-0029 (gerbang plan) & ADR-0037 tetap utuh.
 - **Scope verifikasi per sesi** (SPEC-376/ADR-0080): `verifyScope` (`changed` default | `full`) —
   knob `Setting.verifyScope` (kolom `Json`, **tanpa migration**) + override saat Start. Sesi
   `changed` menguji **berkas yang berubah saja**: `pnpm vitest --run --changed "$HANOMAN_BASE_SHA"`

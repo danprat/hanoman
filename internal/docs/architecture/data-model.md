@@ -75,7 +75,7 @@ pengetahuan hanoman tentang project mana yang saling berintegrasi; ia menentukan
   edge sama bertabrakan saat `applyPush` upsert-by-id. Alasan & jalan keluarnya di ADR-0075.
 
 ## Spec (backlog item)
-- `id` (SPEC-n), `projectId`, `title`, `source` ("brief" | "qa" | "audit" | "cross-audit" | "help")
+- `id` (SPEC-n), `projectId`, `title`, `source` ("brief" | "qa" | "audit" | "cross-audit" | "help" | "goal")
   - **`help`** (SPEC-253/[ADR-0062](../adr/0062-help-center-tiket-publik-triase.md)): backlog hasil
     promosi tiket Help Center. `flowForSource("help") = "feature"` (pipeline penuh), payload brief-shaped
     (context berisi keluhan + kategori + pelapor + backlink tiket). Author `Help ·`. Tanpa migration
@@ -92,6 +92,14 @@ pengetahuan hanoman tentang project mana yang saling berintegrasi; ia menentukan
     kode), tetapi scope-nya = project ini **+ tetangga `ProjectLink`-nya**: prompt memuat path checkout
     tetangga (read-only) dan sesi memegang kunci menarik timeline error gabungan lewat `/api/audit/logs`.
     Payload brief-shaped; author berawalan `Audit lintas ·`. Tanpa migration.
+  - **`goal`** (SPEC-407/[ADR-0089](../adr/0089-backlog-goal-flow-dua-fase.md)): backlog yang
+    langsung dikejar sesi mode goal. Flow `goal` = pipeline **`Goal → Verifikasi`** — tak ada
+    Brainstorm/Objective/Spec/Plan sama sekali. Stage: `Goal` (aktif maupun tercatat) → `executing`,
+    `Verifikasi` → `done`. **Payload bentuk ketiga** (`zGoalPayload {goal, done, constraints,
+    priority}`), bukan brief-shaped: `goal` wajib dan `Spec.objective` diturunkan darinya. Mode goal
+    (ADR-0073) **selalu** menyala untuk flow ini dan kondisinya diturunkan dari item (template
+    global `Setting.goal.condition` dilewati; override per-sesi tetap menang). Author berawalan
+    `Goal ·`. Gerbang plan ADR-0029 tetap berlaku bila sesi kebetulan menulis plan. Tanpa migration.
 - `stage` ("brainstorming" | "objective" | "spec-ready" | "planned" | "executing" | "done").
   Bergerak **maju** hanya lewat fase yang dilaporkan sesi (ADR-0008/0024), **mundur** hanya
   lewat aksi human eksplisit `PATCH /specs/:id { stage }` (backward-only, SPEC-167/ADR-0027).
@@ -100,7 +108,10 @@ pengetahuan hanoman tentang project mana yang saling berintegrasi; ia menentukan
   `executing` **tertahan** (tak jadi `done`) selama plan `docs/superpowers/plans/**` masih punya
   `- [ ]` (SPEC-173/ADR-0029, `planComplete`).
 - `priority` ("tinggi" | "sedang" | "rendah"), `author`, `objective`
-- `payload` (Json?) — brief (context/outcome/constraints) atau qa (severity/steps/expected/actual/env)
+- `payload` (Json?) — brief (context/outcome/constraints), qa (severity/steps/expected/actual/env),
+  atau **goal** (goal/done/constraints, SPEC-407). Bentuknya **terikat `source`** di boundary
+  (`zCreateSpec.superRefine`, tiga-arah): `qa` ↔ `severity`, `goal` ↔ `goal`, selain itu brief —
+  tanpa ikatan itu `deriveSpecFields` bisa menurunkan objective dari bentuk yang salah.
 - `branchFrom?` — branch sumber worktree bagi sesi yang lahir dari item ini. `null` = default project
   (`main`). Divalidasi terhadap `refs/heads` repo project; lihat
   [ADR-0032](../adr/0032-branch-adalah-properti-backlog-item.md).
@@ -373,11 +384,14 @@ efektif** (`resolveRepoDir` = binding per-mesin ?? `Project.repoDir` — SPEC-21
 PRD **bukan entitas DB** — ia dokumen `docs/prd/<slug>.md` di repo project (konsisten ADR-0011).
 Dibuat oleh **flow sesi `prd`** (project-level, tanpa `Spec`; pipeline `Brainstorm → PRD`), meniru
 `reverse`: worktree isolasi, brainstorm interaktif, push ke branch `prd/<slug>`, manusia merge.
-List/preview **freshest-wins** (worktree sesi `prd` hidup > `repoDir`). "Take ke backlog" membuat
-`Spec` (source `brief`) ter-prefill dari PRD; tautan balik dibawa teks Konteks brief ("Dari PRD: <path>"),
-bukan field payload (zBriefPayload strip key tak dikenal). Set flow sesi kini:
-`feature | qa | scaffold | reverse | prd | audit | breakdown` (audit = SPEC-237/ADR-0057; breakdown =
-SPEC-273/ADR-0069). Sesi shell "terminal biasa" (SPEC-236/ADR-0056) **tanpa flow** — bukan pipeline,
+List/preview **freshest-wins** (worktree sesi `prd` hidup > `repoDir`). "Take ke backlog" kini
+**pemilih dua jalur** (SPEC-407/ADR-0089): *sebagai feature brief* — `Spec` source `brief`
+ter-prefill dari PRD, tautan balik dibawa teks Konteks ("Dari PRD: <path>") bukan field payload
+(zBriefPayload strip key tak dikenal) — atau *sebagai goal*: `Spec` source `goal` ber-`payload.goal`
+`"Wujudkan PRD <path>"`. Keduanya membawa `branchFrom = prd/<slug>` (SPEC-244). Set flow sesi kini:
+`feature | qa | scaffold | reverse | prd | audit | breakdown | cross-audit | goal` (audit =
+SPEC-237/ADR-0057; breakdown = SPEC-273/ADR-0069; cross-audit = SPEC-337/ADR-0075; goal =
+SPEC-407/ADR-0089). Sesi shell "terminal biasa" (SPEC-236/ADR-0056) **tanpa flow** — bukan pipeline,
 tak menggerakkan stage; ditandai wire `{project, shell:true}`.
 
 **Breakdown PRD (SPEC-273 · [ADR-0069](../adr/0069-breakdown-prd-ke-backlog-paralel.md))** — juga **bukan

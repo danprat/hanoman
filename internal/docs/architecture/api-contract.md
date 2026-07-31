@@ -93,9 +93,13 @@ POST /specs/batch         { project, items:[BreakdownItem], branchFrom?, prdPath
 #   SPEC-273 · ADR-0069 · materialize breakdown: N spec `source:"brief"` independen (id berurutan via
 #   nextSpecId+retry), provenance PRD di teks Konteks. 400 items kosong / branch tak dikenal; 404 project.
 #   BreakdownItem = { title, context, outcome, priority:"tinggi"|"sedang"|"rendah" }.
-#   source ∈ brief|qa|audit (SPEC-237). audit = audit-only (payload brief-shaped, author `Audit ·`);
-#   qa payload ber-severity (superRefine mengikat source↔bentuk payload). audit → flow `audit`
-#   (Audit → Laporan, dokumen SoT tanpa Execute; ADR-0057). Client memetakan source→flow via flowForSource.
+#   source ∈ brief|qa|audit|cross-audit|help|goal (SPEC-237/337/253/407). audit = audit-only (payload
+#   brief-shaped, author `Audit ·`); qa payload ber-severity (superRefine mengikat source↔bentuk payload,
+#   TIGA-arah sejak SPEC-407). audit → flow `audit` (Audit → Laporan, dokumen SoT tanpa Execute; ADR-0057).
+#   SPEC-407 · ADR-0089 · source `goal` → flow `goal` (Goal → Verifikasi): payload bentuk KETIGA
+#   { goal, done, constraints, priority } — `goal` WAJIB, `Spec.objective` diturunkan darinya (`done`
+#   sebagai cadangan), author `Goal ·`. Payload brief/qa untuk source goal (atau sebaliknya) → 400.
+#   Client memetakan source→flow via flowForSource.
 #   SPEC-340 · ADR-0076 · eskalasi audit → backlog: payload boleh membawa `fromAudit:"SPEC-n"` untuk
 #   source `qa` (ADR-0059, lewati fase Audit) MAUPUN `brief` (baca dokumen audit sbg bahan Brainstorm/
 #   Objective, tanpa `skipped`). Pasangannya branchFrom `hanoman/<audit-id>` agar dokumen audit ada di worktree.
@@ -450,7 +454,13 @@ POST   /terminal/sessions  {project, flow?} # 201 { id } · 404 project · 400 t
 #       DETERMINISTIK sebagai Stop hook `command` — cek phase file lengkap + plan tak menyisakan
 #       `- [ ]`; belum terpenuhi → exit 2 (stderr jadi continuation prompt, codex dipaksa lanjut).
 #       Kondisi prosa ikut sebagai teks alasan, bukan yang menggerbang. Pagar anti-loop: 25 penolakan.
-#     flow ∈ feature|qa|audit|cross-audit (dari source; flowForSource). audit (SPEC-237/ADR-0057) = pipeline
+#     flow ∈ feature|qa|audit|cross-audit|goal (dari source; flowForSource).
+#     goal (SPEC-407/ADR-0089) = pipeline Goal → Verifikasi, tanpa fase perencanaan: prompt-nya
+#     startGoalPrompt (mengeja Goal/Selesai bila/Batasan dari payload, tanpa skill Brainstorm/Plan),
+#     stage Goal→executing & Verifikasi→done, dan mode goal DIPAKSA menyala — `goal:false` diabaikan,
+#     template global Setting.goal.condition DILEWATI (kondisi diturunkan dari item), `goalCondition`
+#     per-request tetap menang. Klausa scope verifikasi ikut (flow ini menulis kode meski tanpa Execute).
+#     audit (SPEC-237/ADR-0057) = pipeline
 #     Audit → Laporan: investigasi + dokumen SoT (research/audit-<spec>-<slug>.md), TANPA Execute; stage done via Laporan.
 #     cross-audit (SPEC-337/ADR-0075) = pipeline & deliverable SAMA, tapi ber-scope project ini + tetangga
 #     ProjectLink-nya: prompt memuat path checkout tetangga (read-only) + sesi memegang kunci /api/audit/logs.

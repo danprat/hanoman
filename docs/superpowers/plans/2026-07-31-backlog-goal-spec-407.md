@@ -1383,7 +1383,7 @@ git commit -m "feat(407): PRD → backlog jadi pilihan (feature brief atau goal)
 - Consumes: seluruh keputusan Task 1–10.
 - Produces: ADR-0089 ter-link di dua index (syarat SPEC-386).
 
-- [ ] **Step 1: Pastikan nomor ADR masih bebas**
+- [x] **Step 1: Pastikan nomor ADR masih bebas**
 
 Run:
 ```bash
@@ -1392,7 +1392,7 @@ ls internal/docs/adr | tail -3
 ```
 Expected: tertinggi `0088`. Bila sudah ada 0089 di branch lain, pakai nomor bebas berikutnya dan sesuaikan seluruh rujukan di plan ini.
 
-- [ ] **Step 2: Tulis ADR-0089**
+- [x] **Step 2: Tulis ADR-0089**
 
 Buat `internal/docs/adr/0089-backlog-goal-flow-dua-fase.md` mengikuti bentuk ADR tetangganya (baca `internal/docs/adr/0085-mode-goal-codex-native.md` sebagai contoh bentuk: judul, Status, Konteks, Keputusan, Konsekuensi, Alternatif ditolak). Isi wajib:
 - Konteks: mode goal (ADR-0073) selama ini knob di atas pipeline `feature`, jadi sesi goal tetap menjalankan Brainstorm→Execute.
@@ -1400,7 +1400,7 @@ Buat `internal/docs/adr/0089-backlog-goal-flow-dua-fase.md` mengikuti bentuk ADR
 - Konsekuensi: tanpa migration/endpoint baru; gerbang plan ADR-0029 tetap berlaku bila plan ditulis; ADR-0037 utuh (Stop hook, bukan deny); dua pintu masuk (modal backlog & PRD).
 - Alternatif ditolak: (a) reuse payload brief — konvensi tersembunyi di kolom Json; (b) sesi goal tanpa fase sama sekali — board buta terhadap sesi berjalan; (c) satu fase saja — pintu keluar tak punya tempat untuk dibuktikan.
 
-- [ ] **Step 3: Tautkan di kedua index**
+- [x] **Step 3: Tautkan di kedua index**
 
 `internal/docs/README.md` — di bagian `## adr`, baris pertama daftar:
 
@@ -1410,13 +1410,13 @@ Buat `internal/docs/adr/0089-backlog-goal-flow-dua-fase.md` mengikuti bentuk ADR
 
 `internal/docs/adr/README.md` — tambahkan narasinya di posisi paling atas daftar (ikuti bentuk entri 0088 di berkas itu).
 
-- [ ] **Step 4: Perbarui doc arsitektur & skill**
+- [x] **Step 4: Perbarui doc arsitektur & skill**
 
 - `internal/docs/architecture/api-contract.md`: pada bagian yang menyebut enum `source` dan `flow` serta bentuk payload `POST /specs`, tambahkan `goal` + bentuk `{goal, done, constraints, priority}` dan catatan bahwa `POST /terminal/sessions` menerima `flow: "goal"`. Temukan tempatnya dengan `grep -n "cross-audit" internal/docs/architecture/api-contract.md`.
 - `internal/docs/architecture/data-model.md`: pada penjelasan `Spec.payload`, tambahkan varian ketiga. Temukan dengan `grep -n "payload" internal/docs/architecture/data-model.md`.
 - `internal/skills/hanoman/SKILL.md`: tambahkan butir di "Aturan Sesi & Eksekusi" (sesudah butir mode goal SPEC-397) yang merangkum SPEC-407 + ADR-0089, termasuk gotcha "flow goal menulis kode meski tanpa fase Execute → `scopeClause` memakai predikat `writesCode`, bukan kehadiran fase `Execute`" dan "template global goal DILEWATI untuk flow goal".
 
-- [ ] **Step 5: Verifikasi integritas index & commit**
+- [x] **Step 5: Verifikasi integritas index & commit**
 
 Run: `node cli/dist/hanoman.js docs index --check` (bila `cli/dist` belum terbangun, lewati dan cukup pastikan tautan relatifnya benar dengan `ls internal/docs/adr/0089-backlog-goal-flow-dua-fase.md`).
 
