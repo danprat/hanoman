@@ -25,6 +25,15 @@
 - **Guardrail perintah**: DICABUT sepenuhnya (SPEC-197, [ADR-0037](../adr/0037-cabut-guardrail-safety.md)).
   Sesi jalan `--dangerously-skip-permissions` tanpa hook deny apa pun — agen dipercaya penuh, setara
   developer yang menjalankan `claude` di mesinnya sendiri. Batas kerusakan satu-satunya adalah isolasi worktree.
+- **Sesi sebagai root (VPS)**: claude CLI menolak `--dangerously-skip-permissions` saat `uid 0`
+  (`"cannot be used with root/sudo privileges for security reasons"` lalu `exit(1)`) — di VPS, tempat
+  hanoman lazim jalan sebagai root, akibatnya SETIAP sesi claude lahir lalu mati seketika. `createSession`
+  memasang `IS_SANDBOX=1` di env sesi **hanya** bila `process.getuid() === 0` dan hanya untuk agen claude
+  (`rootBypassEnv`, `server/src/services/pty.ts`) — jalan keluar resmi gerbang itu di CLI. Ini tidak
+  menurunkan batas keamanan apa pun: sikap kepercayaan penuh sudah diputuskan di ADR-0037, dan menolak
+  bypass hanya membuat sesi mati, bukan membuat eksekusi lebih terkurung. Sesi non-claude (Console VPS
+  `ssh`, terminal biasa, codex) tak menyentuh env ini. Menjalankan hanoman sebagai user non-root tetap
+  lebih disukai bila lingkungan memungkinkan.
 - **Isolasi**: sesi di worktree terpisah (`.worktrees/<id>`); tak ada akses ke working tree utama.
   Sejak ADR-0037 ini adalah satu-satunya batas keamanan yang tersisa.
 - **Ingest error ber-DSN (SPEC-249, [ADR-0060](../adr/0060-error-monitoring-ingest-ber-dsn.md))**:
