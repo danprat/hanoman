@@ -31,7 +31,9 @@ const FIELDS: Record<Entity, string[]> = {
   project: ["name", "desc", "kind", "stack", "gitRemote", "updatedAt"],
   // SPEC-408 · ADR-0090 · createdAt/startedAt ikut menyeberang — sejajar baseSha/headSha. Tanpa
   // ini spec asal-hub mendapat createdAt lokal palsu di tiap client (kolom NOT NULL ber-default).
-  spec: ["projectId", "title", "source", "stage", "priority", "author", "objective", "payload", "branchFrom", "baseSha", "headSha", "createdAt", "startedAt", "updatedAt"],
+  // SPEC-447 · ADR-0093 · dependsOn ikut juga: tanpa itu client tak tahu urutannya dan akan
+  // meluncurkan pekerjaan yang di hub terblokir. Bukan DATE_FIELDS — nilainya array string.
+  spec: ["projectId", "title", "source", "stage", "priority", "author", "objective", "payload", "branchFrom", "baseSha", "headSha", "dependsOn", "createdAt", "startedAt", "updatedAt"],
   vps: ["name", "host", "port", "user", "health", "audit", "hardened", "lastSeenAt", "lastAuditAt", "updatedAt"],
   sessionResult: ["projectId", "specId", "oldStage", "newStage", "commitSha", "branch", "prUrl", "status", "deviceId", "author", "createdAt", "updatedAt"],
   // SPEC-268 · ADR-0066 · metadata tiket (lampiran biner tak disync). accessKeyHash wajib
@@ -218,3 +220,7 @@ export async function upsertLocal(entity: Entity, id: string, version: number, d
 export type AcceptedHook = (row: { entity: string; recordId: string; version: number; data: unknown; seq: string }) => void;
 let onAccepted: AcceptedHook | undefined;
 export function setAcceptedHook(hook: AcceptedHook | undefined): void { onAccepted = hook; }
+
+// SPEC-447 · whitelist field adalah KONTRAK (spec kehilangan kolom saat menyeberang = bug senyap).
+// Diekspor agar test bisa menegakkannya tanpa menebak dari perilaku end-to-end.
+export const __FIELDS_FOR_TEST = FIELDS;

@@ -46,6 +46,12 @@ model Spec {
   // sama dengan `baseSha` (services/session-launch.ts); jalur RESUME (ADR-0084) sengaja tidak
   // menimpanya — melanjutkan sesi bukan "mulai lagi". null = belum pernah dikerjakan.
   startedAt  DateTime?
+  // SPEC-447 · ADR-0093 · id spec lain yang harus SELESAI & commit-nya sudah ada di branch basis
+  // sebelum item ini boleh diluncurkan. Array JSON of string; null/[] = tak bergantung apa pun.
+  // Sengaja kolom, bukan tabel join: SQLite melarang scalar list, `Json` sudah dipakai `payload`,
+  // dan kolom ikut FIELDS.spec sync apa adanya. Integritas ditegakkan di boundary route +
+  // pembersihan saat spec dihapus, bukan FK.
+  dependsOn  Json?
   updatedAt  DateTime @updatedAt
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }

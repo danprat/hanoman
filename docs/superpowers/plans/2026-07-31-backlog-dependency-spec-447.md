@@ -176,7 +176,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: —
 - Produces: kolom `Spec.dependsOn` (Prisma `Json?`), tersedia di seluruh `prisma.spec.*`; `FIELDS.spec` memuat `"dependsOn"`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Buat `server/test/spec-deps.test.ts`:
 
@@ -205,14 +205,14 @@ describe("Spec.dependsOn (SPEC-447)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism server/test/spec-deps.test.ts
 ```
 Expected: FAIL — `Unknown argument 'dependsOn'` dan `__FIELDS_FOR_TEST` tak diekspor.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 `server/prisma/schema.prisma` — di dalam `model Spec`, sesudah `startedAt`:
 
@@ -260,14 +260,14 @@ Dan di akhir berkas `server/src/services/sync.ts` tambahkan ekspor test-only:
 export const __FIELDS_FOR_TEST = FIELDS;
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism server/test/spec-deps.test.ts
 ```
 Expected: 2 passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/prisma/schema.prisma server/prisma/migrations server/src/services/sync.ts server/test/spec-deps.test.ts
