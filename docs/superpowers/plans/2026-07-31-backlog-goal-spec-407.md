@@ -1435,7 +1435,7 @@ git commit -m "docs(407): ADR-0089 + index/sub-index + api-contract/data-model +
 - Consumes: seluruh task sebelumnya.
 - Produces: bukti hijau untuk berkas yang berubah + bukti nyata `POST /specs` & `POST /terminal/sessions` bekerja untuk source/flow goal.
 
-- [ ] **Step 1: Typecheck paket yang tersentuh (satu per satu, jangan `-r`)**
+- [x] **Step 1: Typecheck paket yang tersentuh (satu per satu, jangan `-r`)**
 
 ```bash
 pnpm --filter ./shared typecheck
@@ -1445,14 +1445,14 @@ pnpm --filter ./src typecheck
 ```
 Expected: exit 0 semua.
 
-- [ ] **Step 2: Jalankan set test yang berubah — WAJIB serial**
+- [x] **Step 2: Jalankan set test yang berubah — WAJIB serial**
 
 ```bash
 pnpm vitest --run --changed "$HANOMAN_BASE_SHA" --no-file-parallelism
 ```
 Expected: PASS. Jangan menerima "no test files" sebagai bukti (`--changed` menyalakan `passWithNoTests`) — pastikan berkas test SPEC-407 memang ikut berjalan di daftar yang tercetak.
 
-- [ ] **Step 3: Smoke endpoint nyata (task ini menyentuh endpoint)**
+- [x] **Step 3: Smoke endpoint nyata (task ini menyentuh endpoint)**
 
 Boot server di port yang tak dipakai sesi lain, lalu:
 
@@ -1473,7 +1473,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST localhost:<port>/api/specs \
 
 Matikan server per-PID (`lsof -ti:<port>` → `kill <pid>`), **jangan** `pkill -f`.
 
-- [ ] **Step 4: Pastikan diff bersih & seluruh kotak plan ini tercentang**
+- [x] **Step 4: Pastikan diff bersih & seluruh kotak plan ini tercentang**
 
 ```bash
 git status --porcelain
@@ -1481,7 +1481,7 @@ grep -n -- "- \[ \]" docs/superpowers/plans/2026-07-31-backlog-goal-spec-407.md
 ```
 Expected: `git status` bersih; grep tak menghasilkan baris (`- [ ]` habis).
 
-- [ ] **Step 5: Push**
+- [x] **Step 5: Push**
 
 ```bash
 git push origin HEAD:refs/heads/hanoman/spec-407
