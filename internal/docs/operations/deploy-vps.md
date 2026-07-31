@@ -18,7 +18,7 @@ sekali — lihat §2.
 ## Arsitektur
 
 ```
-Internet ──TLS──> reverse proxy (Caddy) ──127.0.0.1:8788──> hanoman  (npm -g)
+Internet ──TLS──> reverse proxy (Caddy) ──127.0.0.1:8787──> hanoman  (npm -g)
                                                                 │
                                                         $HANOMAN_HOME/hanoman.db  (SQLite, in-process)
 ```
@@ -100,7 +100,7 @@ umask 077 && install -m 600 /dev/null /etc/hanoman.env
 
 ```ini
 HANOMAN_HOME=/srv/hanoman-prod
-PORT=8788
+PORT=8787
 HOST=127.0.0.1
 NODE_ENV=production
 HANOMAN_TMUX_SOCKET=hanoman-prod
@@ -162,7 +162,7 @@ hanoman.<domain> {
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "no-referrer"
 	}
-	reverse_proxy 127.0.0.1:8788
+	reverse_proxy 127.0.0.1:8787
 }
 ```
 

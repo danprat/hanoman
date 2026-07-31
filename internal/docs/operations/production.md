@@ -8,7 +8,7 @@ Tidak ada Docker, Postgres, Redis, worker, maupun namespace run id — DB adalah
 | | dev (checkout) | prod (paket npm) |
 |---|---|---|
 | data | `HANOMAN_HOME` default `~/.hanoman` · DB `file:../../hanoman-dev.db` dari `.env` | `HANOMAN_HOME=/srv/hanoman-prod` → `…/hanoman.db` |
-| port | `8787` | `8788` |
+| port | `8787` | `8787` di VPS sejak 2026-07-31 (dulu `8788`; contoh di bawah tetap `8788` supaya bisa dijalankan berdampingan dengan dev di mesin yang sama) |
 | dashboard | vite dev server (`:5173`) | `web/` di dalam paket npm, disajikan proses api |
 
 ## Cara yang didokumentasikan: paket npm
