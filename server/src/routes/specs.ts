@@ -16,6 +16,7 @@ import { deleteDoc } from "../services/docs";
 import { listSpecDocs, resolveDir } from "../services/spec-docs";
 import { readEscalation } from "../services/audit-escalation";
 import { resolveRepoDir } from "../services/local-binding";
+import { validateDependsOn, dependsOnOf } from "../services/spec-deps";
 import { readDocFile } from "../services/scan";
 import { downloadFormat, sendDocDownload, sendReviewDownload } from "../services/doc-export";
 import { paginate } from "../services/paginate";
@@ -101,6 +102,11 @@ export default async function (app: FastifyInstance) {
     const repoDir = await resolveRepoDir(b.project);
     if (b.branchFrom && await branchUnknown(repoDir, b.branchFrom))
       return reply.code(400).send({ error: `branch "${b.branchFrom}" tidak ada di repo project` });
+    // SPEC-447 · ADR-0093 · integritas dependency ditegakkan DI SINI (tak ada FK untuk kolom Json):
+    // id harus ada, satu project, bukan diri sendiri. Siklus mustahil untuk spec baru (belum ada
+    // yang bisa menunjuk ke sana), jadi specId dikirim null.
+    const dep = await validateDependsOn(null, b.project, b.dependsOn ?? []);
+    if (!dep.ok) return reply.code(400).send({ error: dep.error });
     const isQa = b.source === "qa";
     const { priority, objective } = deriveSpecFields(b.source, b.payload, b.priority);
     // Author = user yang login (req.user diisi gate auth; dijamin ada di prod, fallback hanya
@@ -122,7 +128,8 @@ export default async function (app: FastifyInstance) {
               : b.source === "goal" ? `Goal · ${author}`
               : author,
             objective, payload: b.payload,
-            branchFrom: b.branchFrom ?? null
+            branchFrom: b.branchFrom ?? null,
+            dependsOn: dep.ids,   // SPEC-447 · ADR-0093
           }
         });
       } catch (e) {
@@ -181,7 +188,7 @@ export default async function (app: FastifyInstance) {
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
     const spec = await prisma.spec.findUnique({ where: { id } });
     if (!spec) return reply.code(404).send({ error: "not found" });
-    const { branchFrom, stage, confirmDelete, title, priority: newPriority, payload } = parsed.data;
+    const { branchFrom, stage, confirmDelete, title, priority: newPriority, payload, dependsOn } = parsed.data;
     const editingContent = title !== undefined || newPriority !== undefined || payload !== undefined;
     // SPEC-186 · konten hanya boleh diubah selagi item masih di backlog & belum dimulai.
     if (editingContent && (spec.stage !== "brainstorming" || spec.baseSha !== null))
@@ -191,6 +198,15 @@ export default async function (app: FastifyInstance) {
       if (await branchUnknown(await resolveRepoDir(spec.projectId), branchFrom))
         return reply.code(400).send({ error: `branch "${branchFrom}" tidak ada di repo project` });
     }
+    // SPEC-447 · ADR-0093 · SENGAJA tak ikut gerbang `editingContent` di atas: dependency
+    // menggerbangi peluncuran BERIKUTNYA, bukan konten yang sedang dikerjakan sesi hidup —
+    // menguncinya berarti item yang terlanjur terblokir salah tulis hanya bisa dihapus.
+    let depIds: string[] | undefined;
+    if (dependsOn !== undefined) {
+      const d = await validateDependsOn(spec.id, spec.projectId, dependsOn);
+      if (!d.ok) return reply.code(400).send({ error: d.error });
+      depIds = d.ids;
+    }
     if (stage !== undefined) {
       if (STAGES.indexOf(stage) >= STAGES.indexOf(spec.stage as Stage))
         return reply.code(422).send({ error: "stage hanya boleh dikembalikan mundur" });
@@ -199,8 +215,9 @@ export default async function (app: FastifyInstance) {
         return reply.send({ pending: true, stage, wouldDelete });
       for (const rel of wouldDelete) await deleteDoc(spec.projectId, rel).catch(() => { });
     }
-    const data: { branchFrom?: string | null; stage?: string; title?: string; priority?: string; objective?: string; payload?: any } = {};
+    const data: { branchFrom?: string | null; stage?: string; title?: string; priority?: string; objective?: string; payload?: any; dependsOn?: string[] } = {};
     if (branchFrom !== undefined) data.branchFrom = branchFrom;
+    if (depIds !== undefined) data.dependsOn = depIds;   // SPEC-447 · ADR-0093
     if (stage !== undefined) data.stage = stage;
     if (editingContent) {
       const effPayload = payload ?? spec.payload;
@@ -244,7 +261,22 @@ export default async function (app: FastifyInstance) {
 
   app.delete("/specs/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
+    // SPEC-447 · ADR-0093 · baca projectId SEBELUM menghapus: kolom `dependsOn` tak punya FK, jadi
+    // tanpa pembersihan ini menghapus satu item mengunci dependent-nya SELAMANYA dengan alasan
+    // `missing` yang tak bisa diperbaiki dari UI.
+    const gone = await prisma.spec.findUnique({ where: { id }, select: { projectId: true } });
     await prisma.spec.delete({ where: { id } }).catch(() => { });
+    if (gone) {
+      const rows = await prisma.spec.findMany({
+        where: { projectId: gone.projectId }, select: { id: true, dependsOn: true },
+      });
+      for (const r of rows) {
+        const ids = dependsOnOf(r);
+        if (!ids.includes(id)) continue;
+        await prisma.spec.update({ where: { id: r.id }, data: { dependsOn: ids.filter((x) => x !== id) } });
+        await notifySynced("spec", r.id);   // SPEC-213/330 · perubahan ini nyata, harus menyeberang
+      }
+    }
     return reply.code(204).send();
   });
 

@@ -469,3 +469,65 @@ describe("filter rentang tanggal (SPEC-408)", () => {
     expect(await ids("dateField=ngawur&from=2026-07-01&to=2026-07-31")).toEqual(["SPEC-D02", "SPEC-D03"]);
   });
 });
+
+// SPEC-447 · ADR-0093 · integritas dependency ditegakkan di boundary route (kolom Json tak punya FK).
+describe("POST/PATCH/DELETE /specs · dependsOn (SPEC-447)", () => {
+  const post = async (payload: Record<string, unknown>) =>
+    await app.inject({ method: "POST", url: "/api/specs", payload });
+  const patch = async (id: string, payload: Record<string, unknown>) =>
+    await app.inject({ method: "PATCH", url: `/api/specs/${id}`, payload });
+
+  beforeAll(async () => {
+    await makeProject({ id: "pdep", repoDir: makeRepoWithBranches() });
+    await makeProject({ id: "pdep2", repoDir: makeRepoWithBranches() });
+    await makeSpec({ id: "SPEC-D10", projectId: "pdep", stage: "brainstorming" });
+    await makeSpec({ id: "SPEC-D11", projectId: "pdep", stage: "brainstorming" });
+    await makeSpec({ id: "SPEC-D12", projectId: "pdep", stage: "brainstorming" });
+    await makeSpec({ id: "SPEC-D20", projectId: "pdep2", stage: "brainstorming" });
+  });
+
+  it("membuat spec dengan dependsOn yang sah", async () => {
+    const res = await post({ project: "pdep", source: "brief", title: "Turunan",
+      priority: "sedang", payload: brief, dependsOn: ["SPEC-D10"] });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().dependsOn).toEqual(["SPEC-D10"]);
+  });
+
+  it("menolak dependency yang tak ada (400, bukan pelanggaran FK)", async () => {
+    const res = await post({ project: "pdep", source: "brief", title: "X",
+      priority: "sedang", payload: brief, dependsOn: ["SPEC-TIDAK-ADA"] });
+    expect(res.statusCode).toBe(400);
+    expect(String(res.json().error)).toContain("tak ditemukan");
+  });
+
+  it("menolak dependency lintas project", async () => {
+    const res = await post({ project: "pdep", source: "brief", title: "X",
+      priority: "sedang", payload: brief, dependsOn: ["SPEC-D20"] });
+    expect(res.statusCode).toBe(400);
+    expect(String(res.json().error)).toContain("project yang sama");
+  });
+
+  it("menolak siklus di PATCH", async () => {
+    expect((await patch("SPEC-D11", { dependsOn: ["SPEC-D10"] })).statusCode).toBe(200);
+    const res = await patch("SPEC-D10", { dependsOn: ["SPEC-D11"] });
+    expect(res.statusCode).toBe(400);
+    expect(String(res.json().error)).toContain("siklus");
+  });
+
+  // Gerbang SPEC-186 melindungi KONTEN; dependency menggerbangi peluncuran berikutnya, jadi ia
+  // harus tetap bisa diperbaiki sesudah item dimulai — kalau tidak, item yang terlanjur terblokir
+  // salah tulis hanya bisa dibebaskan dengan menghapusnya.
+  it("dependsOn tetap bisa diubah sesudah item dimulai", async () => {
+    await prisma.spec.update({ where: { id: "SPEC-D12" }, data: { stage: "executing", baseSha: "abc" } });
+    const res = await patch("SPEC-D12", { dependsOn: ["SPEC-D10"] });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().dependsOn).toEqual(["SPEC-D10"]);
+  });
+
+  it("menghapus spec mencabutnya dari dependsOn dependent-nya", async () => {
+    expect((await app.inject({ method: "DELETE", url: "/api/specs/SPEC-D10" })).statusCode).toBe(204);
+    for (const id of ["SPEC-D11", "SPEC-D12"]) {
+      expect((await prisma.spec.findUnique({ where: { id } }))!.dependsOn).toEqual([]);
+    }
+  });
+});

@@ -1202,7 +1202,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `validateDependsOn`, `dependsOnOf` (Task 3), `zCreateSpec`/`zPatchSpec` (Task 6).
 - Produces: `POST /specs` & `PATCH /specs/:id` menolak `dependsOn` tak sah dengan **400** `{ error: string }`; `DELETE /specs/:id` mencabut id itu dari `dependsOn` seluruh spec di project yang sama.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Tambahkan di akhir `server/test/specs.route.test.ts` (gunakan helper `app`/`inject` yang sudah dipakai berkas itu — samakan gayanya dengan `describe` yang sudah ada di sana):
 
@@ -1265,14 +1265,14 @@ describe("POST/PATCH/DELETE /specs · dependsOn (SPEC-447)", () => {
 > di sana (nama `post`/`patch`/`del`/`mkSpec` di atas adalah placeholder gaya). Jangan membuat
 > harness baru — samakan dengan `describe` tetangga.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism server/test/specs.route.test.ts
 ```
 Expected: FAIL — `dependsOn` tak tersimpan, siklus lolos, cleanup tak terjadi.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 `server/src/routes/specs.ts` — import:
 
@@ -1349,7 +1349,7 @@ Tambahkan ke tipe & isi `data`:
   });
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism server/test/specs.route.test.ts server/test/specs-batch.route.test.ts
@@ -1357,7 +1357,7 @@ env -u NODE_ENV ./node_modules/.bin/tsc -p server --noEmit
 ```
 Expected: semua PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/routes/specs.ts server/test/specs.route.test.ts
