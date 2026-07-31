@@ -31,11 +31,15 @@ describe("agent capabilities", () => {
     }
   });
 
-  it("SPEC-264: PRD, Errors, Help Desk are discoverable in domain labels/desc", () => {
+  // SPEC-264 · grid capability dulu hanya merender slug domain mentah, jadi cakupan tiap domain
+  // tak terbaca. SPEC-384 · "error" dicabut dari daftar ini bersama error monitoring (ADR-0092);
+  // domain `support` bertahan dan kini bercakupan tiket Help Desk saja.
+  it("SPEC-264: PRD & Help Desk terbaca di label/desc domain", () => {
     const blob = CAPABILITY_DOMAINS.map((d) => `${d.label} ${d.desc}`).join(" ").toLowerCase();
     expect(blob).toContain("prd");
-    expect(blob).toContain("error");
     expect(blob).toContain("help desk");
+    expect(blob).toContain("tiket");
+    expect(blob).not.toContain("error");   // cakupan yang dicabut tak boleh diiklankan kembali
   });
 
   it("high-risk caps are flagged", () => {

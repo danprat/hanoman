@@ -1,6 +1,6 @@
 # SPEC-384 — Hapus `hanoman-sdk`, error monitoring, cross-audit — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Mencabut tiga blok fitur yang sudah digantikan Uptrace — paket npm `hanoman-sdk`, seluruh error monitoring (ingest DSN → grouping → symbolication → eskalasi → scheduler source `errors`), dan cross-audit lintas project — dari kode, skema DB, API, dashboard, dan docs, tanpa menyisakan kode mati, tabel yatim, atau doc yang menunjuk fitur mati.
 
@@ -45,7 +45,7 @@
 
 | Path | Tanggung jawab |
 |---|---|
-| `server/prisma/migrations/20260731000000_drop_errors_sdk_crossaudit/migration.sql` | drop tabel + kolom + pembersihan baris enum |
+| `server/prisma/migrations/20260731180000_drop_errors_sdk_crossaudit/migration.sql` | drop tabel + kolom + pembersihan baris enum |
 | `server/test/errors-gone.route.test.ts` | membuktikan permukaan HTTP-nya benar-benar 404 |
 | `server/test/schema-drop.test.ts` | membuktikan tabel & kolom benar-benar hilang dari berkas DB |
 | `internal/docs/adr/0092-cabut-error-monitoring-sdk-cross-audit.md` | ADR pencabutan |
@@ -123,7 +123,7 @@ git add -A && git commit -m "chore(384): cabut paket hanoman-sdk dari workspace"
 - Consumes: —
 - Produces: tak ada lagi `prisma.errorGroup` / `prisma.errorEvent` / `prisma.sourceMapArtifact` di `server/src/**` kecuali `routes/audit.ts` (dihapus Task 3). Task 7 mengandalkan itu sebelum menghapus model dari skema.
 
-- [ ] **Step 1: Tulis test yang gagal — permukaannya harus 404**
+- [x] **Step 1: Tulis test yang gagal — permukaannya harus 404**
 
 Buat `server/test/errors-gone.route.test.ts`. Ikuti pola boot app yang dipakai `server/test/errors.route.test.ts` yang lama (baca dulu sebelum menghapusnya) agar helper-nya sama.
 
@@ -180,14 +180,14 @@ describe("SPEC-384 · permukaan errors dicabut", () => {
 
 Catatan kenapa 404 vs 401 beda: `/api/ingest` **di-bypass** gate, jadi selama prefix bypass-nya masih ada, request tanpa cookie sampai ke router dan menjawab 404 — sama seperti sesudah dicabut. Karena itu assert 404-nya dipasangkan dengan Step 4 yang mencabut prefix-nya; nilai test ini adalah menahan route agar tak pernah kembali. `/api/errors` dan `/api/projects/:id/ingest-key` **tak** di-bypass → tanpa cookie jawabannya 401 dari gate, apakah route-nya ada atau tidak. Keduanya diuji supaya regresi "route dihidupkan lagi" tetap tertangkap oleh Step 8 (`git grep`), dan test ini menjaga kontrak permukaannya.
 
-- [ ] **Step 2: Jalankan test — harus gagal**
+- [x] **Step 2: Jalankan test — harus gagal**
 
 ```bash
 cd server && ./node_modules/.bin/vitest run --no-file-parallelism test/errors-gone.route.test.ts
 ```
 Expected: FAIL — `POST /api/ingest/p-gone` menjawab **401** (`unauthorized`, dari `verifyKey`), bukan 404.
 
-- [ ] **Step 3: Hapus route + service**
+- [x] **Step 3: Hapus route + service**
 
 ```bash
 git rm -q server/src/routes/errors.ts server/src/routes/ingest.ts \
@@ -203,7 +203,7 @@ git rm -q server/src/routes/errors.ts server/src/routes/ingest.ts \
   server/test/scheduler-source-errors.test.ts
 ```
 
-- [ ] **Step 4: Cabut wiring di `server/src/app.ts`**
+- [x] **Step 4: Cabut wiring di `server/src/app.ts`**
 
 Hapus: `import ingest from "./routes/ingest";`, `import errors from "./routes/errors";`, baris `await api.register(ingest);`, `await api.register(errors);`, dan **pengecualian gate**:
 
@@ -213,11 +213,11 @@ Hapus: `import ingest from "./routes/ingest";`, `import errors from "./routes/er
         if (path.startsWith("/api/ingest")) return;
 ```
 
-- [ ] **Step 5: Cabut registrasi scheduler source di `server/src/server.ts`**
+- [x] **Step 5: Cabut registrasi scheduler source di `server/src/server.ts`**
 
 Hapus `import { registerErrorsSource } from "./services/scheduler/sources/errors";` dan baris `registerErrorsSource();`.
 
-- [ ] **Step 6: Cabut endpoint DSN di `server/src/routes/projects.ts`**
+- [x] **Step 6: Cabut endpoint DSN di `server/src/routes/projects.ts`**
 
 Hapus import `generateIngestKey, dsnUrl`, ketiga handler `/projects/:id/ingest-key` (GET/POST/DELETE), dan field `dsnUrl` pada respons rename. Blok rename jadi:
 
@@ -239,7 +239,7 @@ Perbarui juga komentar di atasnya yang menyebut DSN:
   // Help URL (/help/<id>) derived → path baru dikembalikan sebagai hint.
 ```
 
-- [ ] **Step 7: Cabut notifikasi & sync**
+- [x] **Step 7: Cabut notifikasi & sync**
 
 `server/src/services/notifications.ts` — hapus fungsi `recordNewErrorGroup()` beserta komentar SPEC-249 di atasnya.
 
@@ -256,7 +256,7 @@ hapus baris `errorGroup: prisma.errorGroup as unknown as Delegate,` dari `DELEGA
 // bersama error monitoring — record kind ini tak lagi dikenal `isSynced()`.
 ```
 
-- [ ] **Step 8: Sesuaikan test server yang menyinggung (bukan menguji) errors**
+- [x] **Step 8: Sesuaikan test server yang menyinggung (bukan menguji) errors**
 
 ```bash
 git grep -n "errorGroup\|ingestKey\|monitoringEnabled\|recordNewErrorGroup" -- server/test
@@ -277,14 +277,14 @@ Untuk tiap kecocokan, hapus case/fixture errors-nya — **bukan** berkasnya:
   });
 ```
 
-- [ ] **Step 9: Verifikasi tak ada rujukan tersisa (selain `routes/audit.ts`)**
+- [x] **Step 9: Verifikasi tak ada rujukan tersisa (selain `routes/audit.ts`)**
 
 ```bash
 git grep -n "errorGroup\|errorEvent\|sourceMapArtifact\|ingestKey\|symbolicate\|recordNewErrorGroup" -- server/src | grep -v "routes/audit.ts"
 ```
 Expected: nol keluaran.
 
-- [ ] **Step 10: Jalankan test baru & yang disesuaikan — harus lulus**
+- [x] **Step 10: Jalankan test baru & yang disesuaikan — harus lulus**
 
 ```bash
 cd server && ./node_modules/.bin/vitest run --no-file-parallelism \
@@ -293,7 +293,7 @@ cd server && ./node_modules/.bin/vitest run --no-file-parallelism \
 ```
 Expected: semua PASS.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add -A && git commit -m "refactor(384): cabut route, service, dan scheduler source error monitoring"
@@ -313,7 +313,7 @@ git add -A && git commit -m "refactor(384): cabut route, service, dan scheduler 
 - Consumes: Task 2 (tak ada lagi konsumen error di server selain berkas yang dihapus di sini).
 - Produces: tak ada lagi `prisma.projectLink`, `auditSessionScope`, `buildCrossAuditCtx`, `crossAuditSessionOpts`, `linksOf`, `linkViews` di mana pun. `sessionKind()` tak lagi mengembalikan `"cross-audit"`.
 
-- [ ] **Step 1: Hapus berkas**
+- [x] **Step 1: Hapus berkas**
 
 ```bash
 git rm -q server/src/routes/audit.ts server/src/services/cross-audit.ts \
@@ -322,7 +322,7 @@ git rm -q server/src/routes/audit.ts server/src/services/cross-audit.ts \
   server/test/project-links.route.test.ts server/test/project-links.service.test.ts
 ```
 
-- [ ] **Step 2: Cabut wiring di `server/src/app.ts`**
+- [x] **Step 2: Cabut wiring di `server/src/app.ts`**
 
 Hapus `import audit from "./routes/audit";`, `import { auditScopeFromReq } from "./services/audit-scope";`, `await api.register(audit);`, dan pengecualian gate:
 
@@ -333,11 +333,11 @@ Hapus `import audit from "./routes/audit";`, `import { auditScopeFromReq } from 
         if (path.startsWith("/api/audit/") && auditScopeFromReq(req)) return;
 ```
 
-- [ ] **Step 3: Cabut endpoint ProjectLink di `server/src/routes/projects.ts`**
+- [x] **Step 3: Cabut endpoint ProjectLink di `server/src/routes/projects.ts`**
 
 Hapus `import { linksOf, linkViews } from "../services/project-links";` dan ketiga handler `/projects/:id/links` (GET, POST, DELETE `/:linkId`).
 
-- [ ] **Step 4: Cabut cabang flow di `terminal.ts` dan `session-launch.ts`**
+- [x] **Step 4: Cabut cabang flow di `terminal.ts` dan `session-launch.ts`**
 
 `server/src/routes/terminal.ts` — hapus import `buildCrossAuditCtx, crossAuditSessionOpts` dan seluruh blok `if (parsed.data.flow === "cross-audit") { … }`.
 
@@ -364,7 +364,7 @@ menjadi:
 
 lalu hapus penyebaran `...extra` di `createSession(...)`. Perbarui komentar SPEC-337 di atas `resumeCtx` — hapus kalimat cross-audit-nya.
 
-- [ ] **Step 5: Cabut kunci audit di `server/src/services/pty.ts`**
+- [x] **Step 5: Cabut kunci audit di `server/src/services/pty.ts`**
 
 Empat titik:
 
@@ -374,32 +374,32 @@ Empat titik:
 4. `sessionKind()` — hapus baris `if (o.id.startsWith("xaudit-")) return "cross-audit";`.
 5. `CreateOpts`/`createSession` — hapus opsi `audit` bila ada, dan perbarui komentar `// SPEC-337 · env sesi cross-audit (HANOMAN_AUDIT_KEY/URL) lewat jalur yang sama.` menjadi `// Env tambahan dari pemanggil lewat jalur yang sama.`
 
-- [ ] **Step 6: Cabut label sumber di `server/src/routes/specs.ts`**
+- [x] **Step 6: Cabut label sumber di `server/src/routes/specs.ts`**
 
 Hapus cabang `: b.source === "cross-audit" ? \`Audit lintas · ${author}\`` dari rantai ternary label.
 
-- [ ] **Step 7: Sesuaikan test yang menyinggung**
+- [x] **Step 7: Sesuaikan test yang menyinggung**
 
 ```bash
 git grep -n "cross-audit\|crossAudit\|projectLink\|auditKey\|xaudit" -- server/test
 ```
 Untuk tiap kecocokan: hapus case/assertion cross-audit-nya (bukan seluruh berkasnya). `server/test/pty.test.ts` menguji `sessionKind` — hapus case `xaudit-`. `server/test/prd-from-audit.route.test.ts` — hapus fixture bersumber `cross-audit`.
 
-- [ ] **Step 8: Verifikasi**
+- [x] **Step 8: Verifikasi**
 
 ```bash
 git grep -n "cross-audit\|crossAudit\|projectLink\|linksOf\|auditSessionScope\|auditScopeFromReq" -- server
 ```
 Expected: nol keluaran.
 
-- [ ] **Step 9: Jalankan test server yang tersentuh**
+- [x] **Step 9: Jalankan test server yang tersentuh**
 
 ```bash
 cd server && ./node_modules/.bin/vitest run --no-file-parallelism test/pty.test.ts test/prd-from-audit.route.test.ts test/errors-gone.route.test.ts
 ```
 Expected: semua PASS. (`pty.test.ts` bisa gagal 1–3 test karena sesi tmux bocor dari run lain — jalankan ulang sekali sebelum menganggapnya regresi.)
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add -A && git commit -m "refactor(384): cabut cross-audit dari server (route, service, pty, flow)"
@@ -419,7 +419,7 @@ git add -A && git commit -m "refactor(384): cabut cross-audit dari server (route
 - Consumes: Task 2 & 3 (endpoint-nya sudah tak ada).
 - Produces: tipe `Flow` di `src/src/api/client.ts` tanpa `"cross-audit"`; tak ada section `errors` di navigasi.
 
-- [ ] **Step 1: Hapus layar & test-nya**
+- [x] **Step 1: Hapus layar & test-nya**
 
 ```bash
 git rm -q src/src/screens/ErrorsScreen.tsx src/src/screens/IntegrationGuideModal.tsx \
@@ -428,7 +428,7 @@ git rm -q src/src/screens/ErrorsScreen.tsx src/src/screens/IntegrationGuideModal
   src/test/project-links-card.test.tsx
 ```
 
-- [ ] **Step 2: Cabut dari `src/src/api/client.ts`**
+- [x] **Step 2: Cabut dari `src/src/api/client.ts`**
 
 ```ts
 export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit" | "breakdown" | "goal";
@@ -436,7 +436,7 @@ export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit" |
 
 Hapus method `crossAudit(...)`, `getIntegrationGuide()`, dan semua method errors/DSN (`listErrors`, `getError`, `escalateError`, `unlinkError`, `patchError`, `getIngestKey`, `createIngestKey`, `deleteIngestKey`, `listProjectLinks`, `addProjectLink`, `deleteProjectLink` — nama persis dibaca dari berkasnya). Perbarui komentar SPEC-362 di baris ~251 agar tak lagi menyebut `cross-audit`.
 
-- [ ] **Step 3: Cabut dari `src/src/App.tsx`**
+- [x] **Step 3: Cabut dari `src/src/App.tsx`**
 
 Hapus `import { ErrorsScreen }`, seluruh cabang `} else if (section === "errors") { … }`, entri navigasi `errors` di `Shell`, opsi cross-audit di `StartSessionModal` (termasuk teks penjelas `"Audit lintas melihat project ini BESERTA project yang berelasi…"`), dan baris peringatan DSN di dialog rename:
 
@@ -446,37 +446,37 @@ Hapus `import { ErrorsScreen }`, seluruh cabang `} else if (section === "errors"
 
 Perbarui komentar di sekitar baris 577 dan 662 yang menyebut Errors/DSN.
 
-- [ ] **Step 4: Cabut kartu DSN & kartu Integrasi di `src/src/screens/ProjectDetailScreen.tsx`**
+- [x] **Step 4: Cabut kartu DSN & kartu Integrasi di `src/src/screens/ProjectDetailScreen.tsx`**
 
 Hapus import `IntegrationGuideModal` dan `ProjectLinksCard`, komponen kartu DSN (`<Card eyebrow="error monitoring" title="DSN ingest" …>` beserta state `prefix`/`enabled`/`rotate`/`revoke`), dan pemakaian `<ProjectLinksCard …/>`.
 
-- [ ] **Step 5: Cabut panel source `errors` di `src/src/screens/SchedulerScreen.tsx`**
+- [x] **Step 5: Cabut panel source `errors` di `src/src/screens/SchedulerScreen.tsx`**
 
 Hapus entri source `errors` (label, cadence, `minCount`) dari daftar source yang dirender.
 
-- [ ] **Step 6: Cabut label sumber `cross-audit` di Backlog & Triase**
+- [x] **Step 6: Cabut label sumber `cross-audit` di Backlog & Triase**
 
 `BacklogScreen.tsx` dan `TriageScreen.tsx` — hapus cabang label/ikon untuk `source === "cross-audit"`.
 
-- [ ] **Step 7: Sesuaikan `src/test/audit-escalation.test.tsx`**
+- [x] **Step 7: Sesuaikan `src/test/audit-escalation.test.tsx`**
 
 Hapus case yang memakai `cross-audit`; sisakan yang menguji `audit` satu-project.
 
-- [ ] **Step 8: Verifikasi**
+- [x] **Step 8: Verifikasi**
 
 ```bash
 git grep -n "cross-audit\|crossAudit\|ErrorsScreen\|IntegrationGuide\|ProjectLinksCard\|ingest-key\|ingestKey" -- src
 ```
 Expected: nol keluaran.
 
-- [ ] **Step 9: Jalankan test web yang tersentuh**
+- [x] **Step 9: Jalankan test web yang tersentuh**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --dir src/test audit-escalation
 ```
 Expected: PASS. (`env -u NODE_ENV` wajib — `NODE_ENV=production` di shell ini membuat React menolak `act` dan seluruh test web gagal palsu.)
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add -A && git commit -m "refactor(384): cabut area Errors, DSN, panduan SDK, dan cross-audit dari dashboard"
@@ -495,13 +495,13 @@ git add -A && git commit -m "refactor(384): cabut area Errors, DSN, panduan SDK,
 - Consumes: Task 3 (`session-launch.ts` sudah tak memanggil `startCrossAuditPrompt`).
 - Produces: `Flow` di `runner/src/types.ts` tanpa `"cross-audit"`; `PIPELINES` tanpa kunci `"cross-audit"`.
 
-- [ ] **Step 1: Hapus test prompt**
+- [x] **Step 1: Hapus test prompt**
 
 ```bash
 git rm -q runner/test/cross-audit-prompt.test.ts
 ```
 
-- [ ] **Step 2: Cabut tipe**
+- [x] **Step 2: Cabut tipe**
 
 `runner/src/types.ts`:
 
@@ -511,18 +511,18 @@ export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit" |
 
 Hapus `export type CrossAuditProject = { … }` dan `export type CrossAuditCtx = { … }`.
 
-- [ ] **Step 3: Cabut prompt**
+- [x] **Step 3: Cabut prompt**
 
 `runner/src/prompt.ts` — hapus dari daftar import tipe `CrossAuditCtx, CrossAuditProject`, entri `"cross-audit": ["Audit", "Laporan"],` di `PIPELINES`, fungsi `projectLine()`, `crossAuditLogGuide()`, dan `startCrossAuditPrompt()`. Perbarui dua komentar yang mendaftar flow dokumen (baris ~189 dan ~347) agar tak lagi menyebut `cross-audit`.
 
-- [ ] **Step 4: Sesuaikan test**
+- [x] **Step 4: Sesuaikan test**
 
 ```bash
 git grep -n "cross-audit\|CrossAudit" -- runner/test
 ```
 Hapus case cross-audit di `types.test.ts` dan `escalation-prompt.test.ts`.
 
-- [ ] **Step 5: Verifikasi & jalankan**
+- [x] **Step 5: Verifikasi & jalankan**
 
 ```bash
 git grep -n "cross-audit\|CrossAudit" -- runner
@@ -530,7 +530,7 @@ git grep -n "cross-audit\|CrossAudit" -- runner
 ```
 Expected: grep nol keluaran; test PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A && git commit -m "refactor(384): cabut flow dan prompt cross-audit dari runner"
@@ -549,13 +549,13 @@ git add -A && git commit -m "refactor(384): cabut flow dan prompt cross-audit da
 - Consumes: Task 2–5 (semua konsumen sudah dihapus).
 - Produces: `zFlow` & `zSpecSource` tanpa `cross-audit`; tipe `Notification` tanpa `"error"`; config scheduler tanpa `sources.errors`. Task 7 mengandalkan `zSpecSource` yang sudah menyempit saat menormalkan baris DB.
 
-- [ ] **Step 1: Hapus test symbolication**
+- [x] **Step 1: Hapus test symbolication**
 
 ```bash
 git rm -q shared/test/dto-symbolication.test.ts
 ```
 
-- [ ] **Step 2: Cabut dari `shared/src/dto.ts`**
+- [x] **Step 2: Cabut dari `shared/src/dto.ts`**
 
 Hapus schema: `zStackFrame`, `zSymbolicatedFrame`, `zSourceMapUpload`, `zIngestPayload`, `zErrorGroupView`, `zErrorEventView`, `zErrorGroupDetail`, `zIngestKeyView` (+ tipe turunannya), dan blok komentar SPEC-249/SPEC-276 di atasnya.
 
@@ -571,7 +571,7 @@ Hapus cabang `: source === "cross-audit" ? "cross-audit"` di peta sumber→flow,
 
 Hapus `zErrorStatus` dari daftar import di baris 5.
 
-- [ ] **Step 3: Cabut dari `shared/src/enums.ts`**
+- [x] **Step 3: Cabut dari `shared/src/enums.ts`**
 
 Hapus `export const zErrorStatus = …` (baris 12). `zSpecSource` jadi:
 
@@ -587,11 +587,11 @@ Hapus `errors: z.object({ … })` dari config scheduler `sources`. Tipe notifika
   type: z.enum(["done", "decision", "ticket", "fail", "lead"]).default("done"),
 ```
 
-- [ ] **Step 4: Cabut dari `shared/src/api.ts`**
+- [x] **Step 4: Cabut dari `shared/src/api.ts`**
 
 Hapus blok path: `ingest`, `errors`, `errorsGuide`, `error`, `errorEscalate`, `errorUnlink`, `projectIngestKey`, dan path ProjectLink bila ada.
 
-- [ ] **Step 5: Perbarui label capability di `shared/src/agent.ts`**
+- [x] **Step 5: Perbarui label capability di `shared/src/agent.ts`**
 
 `support:*` **tetap ada**; ganti teksnya:
 
@@ -608,15 +608,15 @@ dan domain-nya:
 
 Perbarui juga komentar SPEC-264 di atas `CAPABILITY_DOMAINS` yang menyebut "PRD/Errors".
 
-- [ ] **Step 6: Cabut dari `shared/src/session-kind.ts`**
+- [x] **Step 6: Cabut dari `shared/src/session-kind.ts`**
 
 Hapus `"cross-audit"` dari daftar kind, dari peta label (`"cross-audit": "Audit lintas",`), dan dari daftar kind project-level di baris ~29.
 
-- [ ] **Step 7: Sesuaikan test**
+- [x] **Step 7: Sesuaikan test**
 
 `shared/src/session-kind.test.ts` dan `shared/test/enums.test.ts` — hapus `"cross-audit"` dari array ekspektasi.
 
-- [ ] **Step 8: Verifikasi & jalankan**
+- [x] **Step 8: Verifikasi & jalankan**
 
 ```bash
 git grep -n "cross-audit\|zErrorStatus\|zIngestPayload\|monitoringEnabled\|ingestKeyPrefix\|fromErrorGroup" -- shared
@@ -624,14 +624,14 @@ git grep -n "cross-audit\|zErrorStatus\|zIngestPayload\|monitoringEnabled\|inges
 ```
 Expected: grep nol keluaran; test PASS.
 
-- [ ] **Step 9: Typecheck tiga paket konsumen**
+- [x] **Step 9: Typecheck tiga paket konsumen**
 
 ```bash
 pnpm --filter ./shared typecheck && pnpm --filter ./runner typecheck && pnpm --filter ./server typecheck
 ```
 Expected: nol error. Perbaiki sisa rujukan yang muncul di sini sebelum lanjut.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add -A && git commit -m "refactor(384): cabut tipe errors, DSN, dan cross-audit dari shared"
@@ -643,14 +643,14 @@ git add -A && git commit -m "refactor(384): cabut tipe errors, DSN, dan cross-au
 
 **Files:**
 - Modify: `server/prisma/schema.prisma`, `cli/src/commands/migrate-pg.ts`
-- Create: `server/prisma/migrations/20260731000000_drop_errors_sdk_crossaudit/migration.sql`
+- Create: `server/prisma/migrations/20260731180000_drop_errors_sdk_crossaudit/migration.sql`
 - Create: `server/test/schema-drop.test.ts`
 
 **Interfaces:**
 - Consumes: Task 2, 3, 6 (tak ada lagi kode yang menyentuh model-model ini).
 - Produces: berkas DB tanpa `ErrorGroup`, `ErrorEvent`, `SourceMapArtifact`, `ProjectLink`, dan `Project` tanpa `ingestKeyHash`/`ingestKeyPrefix`.
 
-- [ ] **Step 1: Tulis test yang gagal — skema harus bersih**
+- [x] **Step 1: Tulis test yang gagal — skema harus bersih**
 
 Buat `server/test/schema-drop.test.ts`:
 
@@ -685,14 +685,14 @@ describe("SPEC-384 · tabel & kolom dicabut dari berkas DB", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan — harus gagal**
+- [x] **Step 2: Jalankan — harus gagal**
 
 ```bash
 cd server && ./node_modules/.bin/vitest run --no-file-parallelism test/schema-drop.test.ts
 ```
 Expected: FAIL — tabel masih ada.
 
-- [ ] **Step 3: Catat `storageKey` source-map sebelum tabelnya hilang**
+- [x] **Step 3: Catat `storageKey` source-map sebelum tabelnya hilang**
 
 ```bash
 node -e '
@@ -704,7 +704,7 @@ new PrismaClient().sourceMapArtifact.findMany({ select: { storageKey: true } })
 ```
 Simpan keluarannya. Byte-nya hidup di `uploadDir()` **bersama lampiran tiket** — jangan pernah menghapus direktorinya; hapus tepat berkas-berkas ini saja. Di DB dev biasanya kosong; langkah yang sama ditulis sebagai runbook prod di Task 8.
 
-- [ ] **Step 4: Cabut model dari `server/prisma/schema.prisma`**
+- [x] **Step 4: Cabut model dari `server/prisma/schema.prisma`**
 
 Hapus `model ErrorGroup`, `model ErrorEvent`, `model SourceMapArtifact`, `model ProjectLink` beserta komentarnya. Dari `model Project` hapus:
 
@@ -725,9 +725,9 @@ Perbarui komentar `SchedulerQueueItem.source`:
 
 Perbarui komentar `LeadDecision` yang menyebut "sesi VPS/cross-audit" menjadi "sesi VPS".
 
-- [ ] **Step 5: Tulis migration**
+- [x] **Step 5: Tulis migration**
 
-`server/prisma/migrations/20260731000000_drop_errors_sdk_crossaudit/migration.sql`:
+`server/prisma/migrations/20260731180000_drop_errors_sdk_crossaudit/migration.sql`:
 
 ```sql
 -- SPEC-384 · ADR-0092 · cabut error monitoring (SPEC-249/254/269/271/276/296) dan cross-audit
@@ -778,25 +778,25 @@ PRAGMA foreign_keys=ON;
 
 **Sebelum commit:** cocokkan daftar kolom `new_Project` dengan `model Project` hasil Step 4 satu per satu. Kolom yang terlewat di `INSERT … SELECT` hilang **tanpa error** — kegagalan senyap paling mahal di task ini.
 
-- [ ] **Step 6: Terapkan & regenerasi client**
+- [x] **Step 6: Terapkan & regenerasi client**
 
 ```bash
 cd server && pnpm exec prisma migrate deploy && pnpm exec prisma generate
 ```
 Expected: `1 migration applied`, lalu `Generated Prisma Client`.
 
-- [ ] **Step 7: Jalankan test skema — harus lulus**
+- [x] **Step 7: Jalankan test skema — harus lulus**
 
 ```bash
 cd server && ./node_modules/.bin/vitest run --no-file-parallelism test/schema-drop.test.ts
 ```
 Expected: 2 passed.
 
-- [ ] **Step 8: Cabut model dari `cli/src/commands/migrate-pg.ts`**
+- [x] **Step 8: Cabut model dari `cli/src/commands/migrate-pg.ts`**
 
 Hapus `"ErrorGroup"`, `"ErrorEvent"`, `"SourceMapArtifact"`, dan `"ProjectLink"` dari daftar model (baris ~23).
 
-- [ ] **Step 9: Verifikasi & typecheck**
+- [x] **Step 9: Verifikasi & typecheck**
 
 ```bash
 git grep -n "ErrorGroup\|ErrorEvent\|SourceMapArtifact\|ProjectLink\|ingestKeyHash" -- server/src server/prisma/schema.prisma cli/src shared/src src/src runner/src
@@ -804,7 +804,7 @@ pnpm --filter ./server typecheck && pnpm --filter ./cli typecheck && pnpm --filt
 ```
 Expected: grep nol keluaran; typecheck nol error.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add -A && git commit -m "feat(384): migration drop tabel errors, source-map, dan ProjectLink"
@@ -826,7 +826,7 @@ git add -A && git commit -m "feat(384): migration drop tabel errors, source-map,
 - Consumes: Task 1–7 (semua kode sudah hilang; docs mengikuti keadaan akhir).
 - Produces: nol tautan menggantung di `internal/docs/**`.
 
-- [ ] **Step 1: Kunci nomor ADR**
+- [x] **Step 1: Kunci nomor ADR**
 
 ```bash
 for r in $(git for-each-ref --format='%(refname)' refs/heads refs/remotes); do
@@ -836,7 +836,7 @@ for w in ../spec-*; do ls "$w/internal/docs/adr" 2>/dev/null | tail -2; done
 ```
 Expected: tertinggi `0091` → pakai **0092**. Kalau worktree tetangga sudah memakai 0092, naik ke nomor bebas berikutnya dan ganti seluruh rujukan `0092` di plan & spec ini.
 
-- [ ] **Step 2: Tulis ADR-0092**
+- [x] **Step 2: Tulis ADR-0092**
 
 `internal/docs/adr/0092-cabut-error-monitoring-sdk-cross-audit.md`. Ikuti struktur ADR yang ada di repo (Status · Terkait · Konteks · Keputusan · Konsekuensi · Alternatif ditolak). Isi wajib:
 
@@ -849,7 +849,7 @@ Expected: tertinggi `0091` → pakai **0092**. Kalau worktree tetangga sudah mem
 - **Gotcha yang wajib tercatat:** byte `.map` berbagi `uploadDir()` dengan lampiran tiket dan bernama opaque `<uuid>.map` — menghapus direktorinya akan ikut menghapus lampiran tiket; pembersihan harus memakai daftar `storageKey` yang dibaca **sebelum** tabel di-drop.
 - **Alternatif ditolak:** menyisakan endpoint kosong (kode mati), menyisakan tabel tanpa model (drift skema).
 
-- [ ] **Step 3: Hapus berkas docs**
+- [x] **Step 3: Hapus berkas docs**
 
 ```bash
 git rm -q internal/docs/adr/0060-error-monitoring-ingest-ber-dsn.md \
@@ -871,11 +871,11 @@ git rm -q internal/docs/adr/0060-error-monitoring-ingest-ber-dsn.md \
   docs/superpowers/plans/2026-07-27-cross-project-audit-agent-spec-337.md
 ```
 
-- [ ] **Step 4: Tulis ulang ADR-0066**
+- [x] **Step 4: Tulis ulang ADR-0066**
 
 Judul & isi jadi tiket Help Center + pemicu sync manual saja. Ganti judul berkas-nya di index menjadi *"Ticket masuk record-sync (publish asal-hub) + pemicu sync manual"*. Hapus rujukan ke ADR-0060, kalimat tentang `ErrorGroup` asal-DSN, dan tabel/paragraf khusus errors. Tambahkan satu baris di bagian Status: *"SPEC-384 · bagian errors dicabut bersama error monitoring (ADR-0092); keputusan tiket & pemicu manual tetap berlaku."* Nama berkasnya **tidak** diganti (tautan dari ADR lain tetap hidup).
 
-- [ ] **Step 5: Perbarui index `internal/docs/README.md`**
+- [x] **Step 5: Perbarui index `internal/docs/README.md`**
 
 - Hapus baris integrasi SDK di bagian `integrasi` (baris ~36).
 - Hapus empat baris ADR 0060/0063/0070/0075.
@@ -886,11 +886,11 @@ Judul & isi jadi tiket Help Center + pemicu sync manual saja. Ganti judul berkas
 - [0092 — Cabut error monitoring, `hanoman-sdk`, dan cross-audit (pindah ke Uptrace)](adr/0092-cabut-error-monitoring-sdk-cross-audit.md)
 ```
 
-- [ ] **Step 6: Perbarui narasi `internal/docs/adr/README.md`**
+- [x] **Step 6: Perbarui narasi `internal/docs/adr/README.md`**
 
 Hapus entri naratif 0060, 0063, 0070, 0075. Perbarui entri 0066, dan bersihkan sebutan ADR yang dihapus dari entri 0064, 0087, dan entri lain yang menyinggungnya. Tambah entri naratif 0092.
 
-- [ ] **Step 7: Bersihkan doc SoT lain**
+- [x] **Step 7: Bersihkan doc SoT lain**
 
 Untuk tiap berkas, hapus bagian/kalimat yang menjelaskan errors/SDK/cross-audit:
 
@@ -905,7 +905,7 @@ Untuk tiap berkas, hapus bagian/kalimat yang menjelaskan errors/SDK/cross-audit:
 
 Lalu bersihkan lintas-referensi di ADR yang **tetap hidup**: 0062, 0064, 0065, 0076, 0078, 0083, 0087 — ganti tautan `[ADR-0060](…)`/`[ADR-0063](…)`/`[ADR-0070](…)`/`[ADR-0075](…)` yang kini menggantung dengan rujukan ke ADR-0092 atau hapus klausanya, sesuai konteks kalimatnya.
 
-- [ ] **Step 8: Tulis prosedur pencabutan npm**
+- [x] **Step 8: Tulis prosedur pencabutan npm**
 
 Tambahkan bagian di `internal/docs/operations/release-npm.md`:
 
@@ -928,7 +928,7 @@ npm deprecate hanoman-sdk "Dicabut (SPEC-384). Pemantauan error hanoman pindah k
 Verifikasi: `npm view hanoman-sdk` — `deprecated` terisi, atau paket 404 bila unpublish berhasil.
 ```
 
-- [ ] **Step 9: Tulis runbook pembersihan byte source-map**
+- [x] **Step 9: Tulis runbook pembersihan byte source-map**
 
 Tambahkan di `internal/docs/operations/production.md` (atau `deploy-vps.md` bila lebih cocok dengan runbook prod yang ada):
 
@@ -947,7 +947,7 @@ while read -r k; do rm -f "$HANOMAN_UPLOAD_DIR/$k"; done < /tmp/maps.txt
 Melewatkannya hanya menyisakan byte inert — tak ada yang rusak, cuma disk terpakai.
 ```
 
-- [ ] **Step 10: Verifikasi tak ada tautan menggantung**
+- [x] **Step 10: Verifikasi tak ada tautan menggantung**
 
 ```bash
 git grep -n "0060-error-monitoring\|0063-hanoman-sdk\|0070-symbolication\|0075-audit-lintas\|log-error-monitoring.md\|sdk/README" -- internal docs
@@ -955,14 +955,14 @@ git grep -ni "hanoman-sdk\|error monitoring\|cross-audit\|ingest key\|DSN" -- in
 ```
 Expected: kecocokan **hanya** di `internal/docs/adr/0092-…md`, `internal/docs/adr/README.md` (narasi 0092), dan `internal/docs/operations/release-npm.md` (prosedur pencabutan) — semuanya menjelaskan pencabutannya, bukan fiturnya.
 
-- [ ] **Step 11: Cek integritas index**
+- [x] **Step 11: Cek integritas index**
 
 ```bash
 node cli/dist/hanoman.js docs index --check 2>/dev/null || pnpm --filter ./cli build && node cli/dist/hanoman.js docs index --check
 ```
 Expected: index konsisten (tak ada doc tak ter-link, tak ada link ke berkas yang hilang).
 
-- [ ] **Step 12: Commit**
+- [x] **Step 12: Commit**
 
 ```bash
 git add -A && git commit -m "docs(384): cabut docs errors, SDK, dan cross-audit; ADR-0092"
@@ -978,7 +978,7 @@ git add -A && git commit -m "docs(384): cabut docs errors, SDK, dan cross-audit;
 - Consumes: Task 1–8.
 - Produces: bukti hijau untuk klaim selesai.
 
-- [ ] **Step 1: Typecheck seluruh paket yang tersentuh**
+- [x] **Step 1: Typecheck seluruh paket yang tersentuh**
 
 ```bash
 pnpm --filter ./shared typecheck && pnpm --filter ./runner typecheck && \
@@ -988,7 +988,7 @@ Expected: nol error. Dijalankan berurutan (`&&`), bukan `pnpm -r` — satu prose
 
 Scope diperluas melebihi `--changed` dengan sengaja: perubahan ini menyentuh tipe bersama, skema Prisma, dan berkas yang diimpor banyak modul — kasus "berdampak luas" yang secara eksplisit diizinkan ADR-0080.
 
-- [ ] **Step 2: Test per paket**
+- [x] **Step 2: Test per paket**
 
 ```bash
 ./node_modules/.bin/vitest run --dir shared
@@ -998,7 +998,7 @@ cd server && ./node_modules/.bin/vitest run --no-file-parallelism
 ```
 Expected: semua PASS. `--no-file-parallelism` wajib untuk server (satu berkas DB dibagi semua test di paket itu). Bila `pty.test.ts` gagal 1–3 test, jalankan ulang sekali — sesi tmux bocor dari run lain memberi gagal palsu.
 
-- [ ] **Step 3: Boot server & curl permukaan yang dicabut**
+- [x] **Step 3: Boot server & curl permukaan yang dicabut**
 
 ```bash
 cd server && node dist/server.js &   # atau `pnpm dev` bila dist belum dibangun
@@ -1016,13 +1016,61 @@ Matikan **per-PID**, jangan pernah `pkill -f`:
 lsof -ti:8787 | xargs -r kill
 ```
 
-- [ ] **Step 4: Centang seluruh checkbox plan ini**
+- [x] **Step 4: Centang seluruh checkbox plan ini**
 
-Semua `- [ ]` di berkas ini jadi `- [x]`. hanoman menahan backlog di `executing` selama masih ada kotak kosong.
+Semua `- [x]` di berkas ini jadi `- [x]`. hanoman menahan backlog di `executing` selama masih ada kotak kosong.
 
-- [ ] **Step 5: Commit akhir & push**
+- [x] **Step 5: Commit akhir & push**
 
 ```bash
 git add -A && git commit -m "chore(384): centang plan SPEC-384"
 git push origin HEAD:refs/heads/hanoman/spec-384
 ```
+
+
+---
+
+## Catatan eksekusi (apa yang berbeda dari rencana)
+
+Plan ini dieksekusi 2026-07-31. Enam hal menyimpang dari yang tertulis di atas; dicatat di sini agar
+plan-nya jujur terhadap apa yang benar-benar terjadi.
+
+1. **Task 2 & 3 digabung jadi satu commit.** `server/src/routes/audit.ts` meng-import
+   `services/symbolicate`, jadi menghapus service errors (Task 2) tanpa menghapus route cross-audit
+   (Task 3) meninggalkan server yang gagal boot. Dua commit terpisah berarti satu commit rusak di
+   riwayat.
+2. **Timestamp migration digeser ke `20260731180000`.** `20260731000000` yang direncanakan sudah
+   dipakai `spec_created_started_at` (SPEC-408).
+3. **Migration butuh `PRAGMA defer_foreign_keys=ON`**, yang tak tertulis di rencana. `Spec` & `Ticket`
+   memegang FK ke `Project`, dan rebuild tabel menjatuhkan `Project` sebelum penggantinya bernama
+   sama. Idiom itu diambil dari migration SPEC-408.
+4. **Satu assertion di `errors-gone.route.test.ts` dibuang karena premisnya salah.** Rencananya
+   menguji bahwa `POST /api/ingest/…` menjawab 401 dengan gate hidup, sebagai bukti prefix bypass
+   dicabut. Faktanya `setNotFoundHandler` terpasang di app **root** sementara hook gate hidup di
+   scope `/api`: untuk path tanpa route, Fastify menjawab dari handler root dan hook ber-scope itu
+   tak pernah berjalan — jadi prefix yatim menghasilkan 404 yang identik dengan keadaan benar.
+   Penjaga sesungguhnya adalah ketiadaan route-nya; ini dicatat di ADR-0092.
+5. **`src/test/project-dsn.test.tsx` dipindahkan, bukan dihapus.** Tiga test-nya memang DSN-only,
+   tapi test keempat menjaga regresi SPEC-258 (status mutasi in-card hilang saat layar re-mount) yang
+   berlaku sama persis pada kartu Help Center — dan kartu itu **tak punya test lain**. Berkasnya jadi
+   `project-help-center.test.tsx`.
+6. **Berkas yang lolos enumerasi grep, ditangkap typecheck/test:**
+   `server/src/routes/scheduler.ts`, `server/src/services/project-view.ts`,
+   `server/src/services/rename-project.ts`, `server/src/services/agent-capabilities.ts`,
+   `server/test/audit-scope.test.ts`, `src/src/ds/shell.tsx`, `src/src/notifications/*`,
+   `shared/test/agent.test.ts`, `shared/src/scheduler*.test.ts`, `server/test/projects-rename.route.test.ts`.
+
+**Dua kegagalan test yang TIDAK diperbaiki** karena sudah ada sebelum spec ini (berkasnya tak
+tersentuh diff — diverifikasi lewat `git diff <base> HEAD -- <path>`):
+
+| Berkas | Gejala | Sebab |
+|---|---|---|
+| `server/test/agent-tokens.route.test.ts` | menuntut 18 capability, katalog punya 20 | SPEC-409 menambah `lead:read`/`lead:write` tanpa memperbarui hitungannya |
+| `server/test/update.route.test.ts` | `canApply` `true` vs `false` | SPEC-405 mengubah perilaku `canApply` |
+
+**Jebakan tmux yang wajib diketahui pembaca berikutnya:** socket test default `hanoman-test`
+di-*hardcode* dan **dibagi semua worktree di mesin ini**. Saat worktree tetangga menjalankan
+test-nya, seluruh test yang menyentuh tmux gagal dengan "no server running" / "server exited
+unexpectedly" — set yang gagal berubah tiap run. Jalankan dengan socket sendiri:
+`HANOMAN_TMUX_SOCKET=hanoman-spec384 vitest run --no-file-parallelism`. Terukur di sesi ini:
+`terminal.route.test.ts` 10 gagal pada socket bersama, **0 gagal** pada socket terisolasi.
