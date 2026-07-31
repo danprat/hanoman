@@ -1906,7 +1906,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `Spec.blockedBy` (Task 6), 409 `blocked` (Task 9).
 - Produces: `api.startSession` menerima `force?: boolean`; modal mengirim `force: true` **hanya** bila `spec.blockedBy` tak kosong.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Tambahkan ke `src/test/backlog-dependency.test.tsx` — perluas mock `api` di kepala berkas agar memuat `getSettings`, `getCodexVersion`, `startSession`:
 
@@ -1948,14 +1948,14 @@ describe("StartSessionModal · dependency (SPEC-447)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run src/test/backlog-dependency.test.tsx
 ```
 Expected: FAIL — teks `Mulai tetap` tak ada.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 `src/src/api/client.ts`:
 
@@ -2013,7 +2013,7 @@ Footer:
 > Bila DS `Button` tak punya variant `danger`, pakai `variant="secondary"` — periksa
 > `src/src/ds/components/forms.tsx` dan gunakan varian yang memang ada. Label tombol yang membedakan.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run src/test/backlog-dependency.test.tsx src/test/codex-version-note.test.tsx
@@ -2021,7 +2021,7 @@ env -u NODE_ENV ./node_modules/.bin/tsc -p src --noEmit
 ```
 Expected: semua PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/App.tsx src/src/api/client.ts src/test/backlog-dependency.test.tsx

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
-const startSession = vi.fn(async () => ({ id: "spec-9" }));
+const startSession = vi.fn(async (_b: Record<string, unknown>) => ({ id: "spec-9" }));
 vi.mock("../src/api/client", () => ({
   api: {
     listBranches: vi.fn(async () => ({ branches: ["main"], remotes: [] })),
@@ -10,7 +10,7 @@ vi.mock("../src/api/client", () => ({
       goal: { enabled: false, condition: "" }, verifyScope: "changed",
     })),
     getCodexVersion: vi.fn(async () => ({ version: null })),
-    startSession: (...a: unknown[]) => startSession(...(a as [])),
+    startSession: (b: Record<string, unknown>) => startSession(b),
   },
   ApiError: class extends Error {},
 }));
@@ -93,5 +93,23 @@ describe("BacklogScreen · badge Terblokir (SPEC-447)", () => {
     fireEvent.click(await screen.findByText("Turunan"));
     expect(await screen.findByText("SPEC-1")).toBeTruthy();
     expect(screen.getAllByText("belum ter-merge").length).toBeGreaterThan(0);
+  });
+});
+
+import { StartSessionModal } from "../src/App";
+
+describe("StartSessionModal · dependency (SPEC-447)", () => {
+  it("item terblokir: tombol jadi 'Mulai tetap' dan mengirim force", async () => {
+    render(<StartSessionModal open spec={blocked} onClose={() => {}} onStarted={() => {}} />);
+    fireEvent.click(await screen.findByText("Mulai tetap"));
+    await waitFor(() => expect(startSession).toHaveBeenCalledWith(
+      expect.objectContaining({ spec: "SPEC-9", force: true })));
+  });
+
+  it("item bebas: tombol tetap 'Mulai' dan force tak pernah terkirim", async () => {
+    render(<StartSessionModal open spec={free} onClose={() => {}} onStarted={() => {}} />);
+    fireEvent.click(await screen.findByText("Mulai"));
+    await waitFor(() => expect(startSession).toHaveBeenCalled());
+    expect(startSession.mock.calls[0]![0]).not.toHaveProperty("force");
   });
 });

@@ -119,6 +119,10 @@ export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
   // SPEC-407 · ADR-0089 · sesi backlog goal selalu lahir bermode goal (server pun memaksanya —
   // ini cerminan UI-nya, bukan gerbangnya).
   const goalLocked = flow === "goal";
+  // SPEC-447 · ADR-0093 · gerbang dependency ada di SERVER (409); ini cerminannya supaya operator
+  // tahu apa yang ia paksa sebelum menekannya. `force` tak pernah terkirim bila daftar ini kosong.
+  const blockers = s.blockedBy ?? [];
+  const isBlocked = blockers.length > 0;
   async function start() {
     setBusy(true);
     try {
@@ -126,6 +130,7 @@ export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
         spec: s.id, flow, model, effort, agent,
         goal: goalOn, goalCondition: goalOn && goalCond.trim() ? goalCond.trim() : undefined,
         verifyScope,
+        ...(isBlocked ? { force: true } : {}),   // SPEC-447 · ADR-0093
       });
       onStarted(id, resumed); onClose();
     }
@@ -136,12 +141,27 @@ export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
     <Modal open={open} onClose={onClose} icon="play" eyebrow={`${s.id} · ${flow}`} title="Mulai sesi"
       footer={<>
         <Button variant="ghost" onClick={onClose}>Batal</Button>
-        <Button leftIcon="play" disabled={busy} onClick={start}>Mulai</Button>
+        <Button leftIcon={isBlocked ? "lock" : "play"} variant={isBlocked ? "danger" : "primary"}
+          disabled={busy} onClick={start}>{isBlocked ? "Mulai tetap" : "Mulai"}</Button>
       </>}>
       <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.5 }}>
         Agen, model & effort untuk sesi ini. Default dari setelan global; ubah bila perlu. Sesi lahir dengan pilihan
         ini untuk seluruh hidupnya (satu proses) — <code>/model</code> di terminal tetap bisa mengubahnya.
       </div>
+      {/* SPEC-447 · ADR-0093 · daftar pemblokir DI DEPAN tombol: memaksa peluncuran itu sah, tapi
+          operator harus melihat dulu apa yang ia lewati. Worktree sesi lahir `--detach` dari
+          basisnya, jadi pekerjaan dependency yang belum ter-merge memang TAK ADA di dalamnya. */}
+      {isBlocked && (
+        <div data-testid="dep-blocked-note" style={{
+          fontSize: 12.5, lineHeight: 1.55, marginBottom: 12, padding: "9px 11px",
+          borderRadius: 8, background: "var(--warn-bg, #fdf6e3)", color: "var(--text-strong)",
+        }}>
+          Backlog ini menunggu{" "}
+          <b>{blockers.map((b) => `${b.id} (${b.reason === "missing" ? "tak ditemukan"
+            : b.reason === "unmerged" ? "belum ter-merge" : "belum selesai"})`).join(", ")}</b>.
+          Sesi tetap bisa dimulai, tapi worktree-nya lahir dari basis yang belum memuat pekerjaan itu.
+        </div>
+      )}
       {/* SPEC-338 · ADR-0074 · mesin sesi. Perilaku sesi identik (worktree, fase, stage, review);
           yang berbeda hanya CLI yang dijalankan — dan karenanya katalog model/effort-nya. */}
       <Field label="Agen" hint="Mesin yang menjalankan sesi ini. Perilaku sesi sama; hanya CLI-nya berbeda.">
