@@ -1,6 +1,6 @@
 import { prisma } from "../db";
 import type { Spec } from "@prisma/client";
-import { realGit, startPrompt, continuePrompt, resumePrompt, startCrossAuditPrompt, resolveGoalCondition, type Flow, type Autonomy, type VerifyScope, type ResumeCtx } from "@hanoman/runner";
+import { realGit, startPrompt, continuePrompt, resumePrompt, startGoalPrompt, startCrossAuditPrompt, resolveGoalCondition, type Flow, type Autonomy, type VerifyScope, type ResumeCtx } from "@hanoman/runner";
 import type { Agent } from "@hanoman/shared";
 import { buildCrossAuditCtx, crossAuditSessionOpts } from "./cross-audit";
 import { resolveRepoDir } from "./local-binding";
@@ -37,6 +37,18 @@ function resumeState(
     ?? realGit.revParse(repoDir, branchTo)
     ?? (headSha ? realGit.revParse(repoDir, headSha) : null);
   return base ? { worktreeKept: false, base } : null;
+}
+
+// SPEC-394 · fase yang sudah tercatat hidup DI LUAR worktree (session-phases.ts) dan tak ikut
+// ter-checkout, jadi agen tak punya cara lain mengetahuinya selain diberi tahu di prompt.
+function buildResumeCtx(repoDir: string, id: string, flow: Flow, worktreeKept: boolean): ResumeCtx {
+  const phases = readPhases(phaseFilePath(repoDir, id), flow);
+  return {
+    recorded: phases.filter((p) => p.state === "done" || p.state === "skipped")
+      .map((p) => `${p.name} ${p.state}`),
+    next: phases.find((p) => p.state === "active")?.name,
+    worktreeKept,
+  };
 }
 
 export async function startSpecSession(
@@ -90,10 +102,18 @@ export async function startSpecSession(
     ? resumeState(repoDir, worktree, branchTo, spec.headSha)
     : null;
   // SPEC-332 · ADR-0073 · kondisi goal: override sesi → template global → default DoD bawaan.
-  const goal = (opts.goal ?? setting.goal.enabled)
-    ? resolveGoalCondition(
-        { flow: opts.flow, specId: spec.id, branchTo },
-        opts.goalCondition, setting.goal.condition)
+  // SPEC-407 · ADR-0089 · flow goal adalah pengecualiannya. (a) Mode goal SELALU menyala —
+  // `opts.goal:false` tak boleh mematikannya, karena backlog goal tanpa Stop hook cuma backlog
+  // biasa berprompt lain. (b) Template global DILEWATI: ia generik untuk semua sesi, sedangkan
+  // item goal membawa kondisinya sendiri, dan yang lebih spesifik harus menang. Override
+  // per-sesi tetap paling tinggi.
+  const isGoalFlow = opts.flow === "goal";
+  const goalArgs = {
+    flow: opts.flow, specId: spec.id, branchTo,
+    spec: { payload: spec.payload ?? undefined, objective: spec.objective },
+  };
+  const goal = (isGoalFlow || (opts.goal ?? setting.goal.enabled))
+    ? resolveGoalCondition(goalArgs, opts.goalCondition, isGoalFlow ? null : setting.goal.condition)
     : undefined;
   // SPEC-376 · ADR-0080 · scope verifikasi: override sesi → Setting global → "changed".
   const verifyScope: VerifyScope = opts.verifyScope ?? setting.verifyScope;
@@ -130,20 +150,18 @@ export async function startSpecSession(
   };
   // SPEC-337 · ADR-0075 · flow cross-audit: prompt ber-peta project + kunci baca log seumur sesi.
   // Flow lain tak tersentuh (prompt & opsi persis seperti sebelumnya).
+  const resumeCtx = resume ? buildResumeCtx(repoDir, id, opts.flow, resume.worktreeKept) : undefined;
   let prompt: string;
-  if (isContinue) {
+  if (isGoalFlow) {
+    // SPEC-407 · satu builder untuk ketiga keadaan sesi goal: `continuePrompt`/`resumePrompt`
+    // bicara plan berkotak & fase perencanaan, dan sesi goal tak punya keduanya.
+    prompt = startGoalPrompt(brief, branchTo, {
+      autonomy: opts.autonomy, verifyScope, resume: resumeCtx,
+    });
+  } else if (isContinue) {
     prompt = continuePrompt(opts.flow, brief, branchTo, opts.autonomy, verifyScope);
-  } else if (resume) {
-    // SPEC-394 · fase yang sudah tercatat hidup DI LUAR worktree (session-phases.ts) dan tak ikut
-    // ter-checkout, jadi agen tak punya cara lain mengetahuinya selain diberi tahu di prompt.
-    const phases = readPhases(phaseFilePath(repoDir, id), opts.flow);
-    const ctx: ResumeCtx = {
-      recorded: phases.filter((p) => p.state === "done" || p.state === "skipped")
-        .map((p) => `${p.name} ${p.state}`),
-      next: phases.find((p) => p.state === "active")?.name,
-      worktreeKept: resume.worktreeKept,
-    };
-    prompt = resumePrompt(opts.flow, brief, branchTo, ctx, opts.autonomy, verifyScope);
+  } else if (resumeCtx) {
+    prompt = resumePrompt(opts.flow, brief, branchTo, resumeCtx, opts.autonomy, verifyScope);
   } else {
     prompt = startPrompt(opts.flow, brief, branchTo, opts.autonomy, verifyScope);
   }

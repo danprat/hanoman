@@ -690,7 +690,7 @@ git commit -m "feat(407): stage flow goal — Goal → executing, Verifikasi →
 - Consumes: `startGoalPrompt` (Task 2), `defaultGoalCondition`/`GoalArgs` (Task 3).
 - Produces: `startSpecSession(spec, { flow: "goal" })` melahirkan sesi ber-`--settings` (Stop hook) walau `opts.goal === false`, dengan prompt `startGoalPrompt`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `server/test/session-launch.test.ts` (memakai helper `seedRepo`, `argvOf`, `setGoal` yang sudah ada di berkas itu; buat spec bersource `goal` dengan payload goal):
 
@@ -744,12 +744,12 @@ describe("flow goal (SPEC-407)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan GAGAL**
+- [x] **Step 2: Jalankan, pastikan GAGAL**
 
 Run: `pnpm vitest --run server/test/session-launch.test.ts --no-file-parallelism`
 Expected: FAIL — sesi lahir tanpa `--settings` saat `goal: false`, dan prompt-nya `startPrompt`.
 
-- [ ] **Step 3: Implementasi `server/src/services/session-launch.ts`**
+- [x] **Step 3: Implementasi `server/src/services/session-launch.ts`**
 
 Impor `startGoalPrompt` dari `@hanoman/runner`. Ganti blok resolusi goal:
 
@@ -803,12 +803,12 @@ lalu ganti blok pemilihan prompt:
   }
 ```
 
-- [ ] **Step 4: Jalankan, pastikan LULUS**
+- [x] **Step 4: Jalankan, pastikan LULUS**
 
 Run: `pnpm vitest --run server/test/session-launch.test.ts server/test/session-resume.test.ts --no-file-parallelism`
 Expected: PASS — termasuk test resume SPEC-394 yang tak boleh bergeser.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/session-launch.ts server/test/session-launch.test.ts

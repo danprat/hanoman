@@ -191,4 +191,60 @@ describe("session-launch", () => {
     expect(argv).toContain("--model claude-opus-5");   // kembali ke blok model claude
     killSession(r.id);
   });
+
+  // SPEC-407 · ADR-0089 · backlog goal SELALU bermode goal — itulah yang membedakan source ini dari
+  // brief. Bukti diambil dari argv pane tmux, tempat `--settings` (berisi hook Stop) benar-benar ada.
+  describe("session-launch · flow goal (SPEC-407)", () => {
+    const goalPayload = { goal: "p95 < 200 ms", done: "output benchmark < 200 ms", constraints: "", priority: "tinggi" };
+
+    const seedRepoGoal = async (id: string) => {
+      const spec = await seedRepo(id);
+      return prisma.spec.update({
+        where: { id: spec.id },
+        data: { source: "goal", payload: goalPayload, objective: goalPayload.goal },
+      });
+    };
+
+    it("mode goal menyala walau opts.goal false dan Setting global mati", async () => {
+      process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+      await setGoal({ enabled: false, condition: "" });
+      const spec = await seedRepoGoal("SPEC-GG1");
+      const r = await startSpecSession(spec, { flow: "goal", goal: false });
+      const argv = await argvOf(r.id);
+      expect(argv).toContain('"type":"prompt"');
+      expect(argv).toContain("p95 < 200 ms");
+      killSession(r.id);
+    });
+
+    it("template global TIDAK menimpa goal item", async () => {
+      process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+      await setGoal({ enabled: true, condition: "TEMPLATE-GLOBAL" });
+      const spec = await seedRepoGoal("SPEC-GG2");
+      const r = await startSpecSession(spec, { flow: "goal" });
+      const argv = await argvOf(r.id);
+      expect(argv).not.toContain("TEMPLATE-GLOBAL");
+      expect(argv).toContain("output benchmark < 200 ms");
+      killSession(r.id);
+    });
+
+    it("override per-sesi tetap menang", async () => {
+      process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+      await setGoal({ enabled: false, condition: "" });
+      const spec = await seedRepoGoal("SPEC-GG3");
+      const r = await startSpecSession(spec, { flow: "goal", goalCondition: "KONDISI-SESI" });
+      expect(await argvOf(r.id)).toContain("KONDISI-SESI");
+      killSession(r.id);
+    });
+
+    it("prompt-nya prompt goal, bukan pipeline perencanaan", async () => {
+      process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+      await setGoal({ enabled: false, condition: "" });
+      const spec = await seedRepoGoal("SPEC-GG4");
+      const r = await startSpecSession(spec, { flow: "goal" });
+      const argv = await argvOf(r.id);
+      expect(argv).toContain("Kerjakan fase berurutan: Goal → Verifikasi");
+      expect(argv).not.toContain("Kerjakan fase berurutan: Brainstorm");
+      killSession(r.id);
+    });
+  });
 });
