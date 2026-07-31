@@ -847,3 +847,34 @@ describe("terminal routes · sesi breakdown", () => {
     await app.inject({ method: "DELETE", url: "/api/terminal/sessions/breakdown-jadwal-invoice" });
   });
 });
+
+// SPEC-447 · ADR-0093 · kontrak HTTP gerbang dependency.
+describe("POST /terminal/sessions · dependency (SPEC-447)", () => {
+  beforeAll(async () => {
+    await makeSpec({ id: "SPEC-T1", projectId: "p1", stage: "planned" });
+    await makeSpec({ id: "SPEC-T2", projectId: "p1", stage: "planned", dependsOn: ["SPEC-T1"] });
+  });
+
+  it("409 + daftar pemblokir saat dependency belum siap", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+    const res = await app.inject({
+      method: "POST", url: "/api/terminal/sessions", payload: { spec: "SPEC-T2", flow: "feature" },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json().blocked).toBe(true);
+    expect(res.json().blockers).toEqual([{ id: "SPEC-T1", reason: "unfinished" }]);
+    // Gerbang berdiri di depan worktree: penolakan tak boleh meninggalkan jejak apa pun.
+    expect((await prisma.spec.findUnique({ where: { id: "SPEC-T2" } }))!.baseSha).toBeNull();
+  });
+
+  it("force:true melewati gerbang dan sesi lahir", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+    const res = await app.inject({
+      method: "POST", url: "/api/terminal/sessions",
+      payload: { spec: "SPEC-T2", flow: "feature", force: true },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().id).toBe("spec-t2");
+    killSession("spec-t2");
+  });
+});

@@ -86,6 +86,7 @@ export default async function (app: FastifyInstance) {
           goal: parsed.data.goal, goalCondition: parsed.data.goalCondition,   // SPEC-332 · ADR-0073
           agent: parsed.data.agent,                                           // SPEC-338 · ADR-0074
           verifyScope: parsed.data.verifyScope,                               // SPEC-376 · ADR-0080
+          force: parsed.data.force,                                           // SPEC-447 · ADR-0093
         });
         // SPEC-394 · ADR-0084 · `resumed` hanya muncul saat peluncuran benar-benar MELANJUTKAN
         // artefak sesi sebelumnya. Aditif — klien yang hanya membaca `id` tak terpengaruh.
@@ -93,6 +94,10 @@ export default async function (app: FastifyInstance) {
       } catch (e) {
         if (e instanceof LaunchError) {
           // Parity status: needs-bind → 400 {needsBind}, worktree gagal → 422.
+          // SPEC-447 · ADR-0093 · dependency belum siap → 409 + daftar pemblokirnya, supaya UI
+          // bisa menyebut SIAPA yang ditunggu dan menawarkan "Mulai tetap" (force).
+          if (e.kind === "blocked")
+            return reply.code(409).send({ error: e.message, blocked: true, blockers: e.blockers });
           return e.kind === "needs-bind"
             ? reply.code(400).send({ error: e.message, needsBind: true })
             : reply.code(422).send({ error: e.message });

@@ -1380,7 +1380,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `LaunchError kind "blocked"` + `blockers` (Task 4), `force` di `zTerminalSession` (Task 6).
 - Produces: `POST /terminal/sessions {spec}` → **409** `{ error, blocked: true, blockers }` saat terblokir; `{ …, force: true }` → 201.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Tambahkan di akhir `server/test/terminal.route.test.ts`, memakai helper app/inject yang sudah ada di berkas itu:
 
@@ -1406,14 +1406,14 @@ describe("POST /terminal/sessions · dependency (SPEC-447)", () => {
 > Ikuti pola seeding yang sudah dipakai `terminal.route.test.ts` untuk spec-flow (project ber-`repoDir`
 > hasil `makeRepoWithBranches`, `HANOMAN_CLAUDE_BIN=/bin/echo`, dan `killSession` di akhir).
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism server/test/terminal.route.test.ts
 ```
 Expected: FAIL — 201 padahal seharusnya 409.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 `server/src/routes/terminal.ts` — di dalam cabang `if ("spec" in parsed.data)`:
 
@@ -1442,7 +1442,7 @@ dan pada pemetaan error:
         }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism server/test/terminal.route.test.ts
@@ -1450,7 +1450,7 @@ env -u NODE_ENV ./node_modules/.bin/tsc -p server --noEmit
 ```
 Expected: semua PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/routes/terminal.ts server/test/terminal.route.test.ts
