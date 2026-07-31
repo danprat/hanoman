@@ -55,11 +55,17 @@ export function readPhases(file: string, flow: Flow): Phase[] {
 const REACHED: Record<string, Stage> = {
   Objective: "objective", Audit: "objective", Spec: "spec-ready", Plan: "planned",
   Laporan: "done", Execute: "done",
+  // SPEC-407 · ADR-0089 · flow goal (Goal → Verifikasi): fase kerja mencapai `executing`, fase
+  // verifikasi yang mencapai `done`. Kedua nama unik lintas PIPELINES — peta ini berkunci nama.
+  Goal: "executing", Verifikasi: "done",
 };
 export function stageFor(phases: Phase[]): Stage | null {
   let best = -1;
   for (const p of phases) {
-    if (p.name === "Execute" && p.state === "active") best = Math.max(best, STAGES.indexOf("executing"));
+    // Fase KERJA yang sedang berjalan sudah berarti `executing` — berlaku untuk `Execute`
+    // (feature/qa) maupun `Goal` (SPEC-407, flow tanpa fase perencanaan sama sekali).
+    if ((p.name === "Execute" || p.name === "Goal") && p.state === "active")
+      best = Math.max(best, STAGES.indexOf("executing"));
     if (p.state !== "done" && p.state !== "skipped") continue;
     const s = REACHED[p.name];
     if (s) best = Math.max(best, STAGES.indexOf(s));

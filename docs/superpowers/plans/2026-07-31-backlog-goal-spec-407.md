@@ -598,7 +598,7 @@ git commit -m "feat(407): kondisi Stop hook sesi goal diturunkan dari isi backlo
 - Consumes: `PIPELINES.goal` (Task 2).
 - Produces: `readPhases(file, "goal")` → dua fase; `stageFor` memetakan `Goal` aktif/tercatat → `executing`, `Verifikasi` tercatat → `done`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `server/test/session-phases.test.ts`:
 
@@ -633,12 +633,12 @@ describe("stage flow goal (SPEC-407)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan GAGAL**
+- [x] **Step 2: Jalankan, pastikan GAGAL**
 
 Run: `pnpm vitest --run server/test/session-phases.test.ts --no-file-parallelism`
 Expected: FAIL — `PIPELINES.goal` sudah ada (Task 2) tapi `stageFor` mengembalikan `brainstorming`/`null`.
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 `server/src/services/session-phases.ts`:
 
@@ -666,12 +666,12 @@ export function stageFor(phases: Phase[]): Stage | null {
 }
 ```
 
-- [ ] **Step 4: Jalankan, pastikan LULUS**
+- [x] **Step 4: Jalankan, pastikan LULUS**
 
 Run: `pnpm vitest --run server/test/session-phases.test.ts --no-file-parallelism`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/session-phases.ts server/test/session-phases.test.ts

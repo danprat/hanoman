@@ -140,3 +140,33 @@ describe("SPEC-237 · stage audit-only", () => {
     expect(stageFor(phases)).toBe("objective");
   });
 });
+
+// SPEC-407 · ADR-0089 — flow goal (Goal → Verifikasi). Fase KERJA yang sedang berjalan sudah
+// berarti `executing`: tanpa itu sesi goal yang jalan tampak `brainstorming` di board — persis
+// fase yang dihapus flow ini.
+describe("SPEC-407 · stage flow goal", () => {
+  const goalPhases = () => readPhases(file, "goal");
+
+  it("berkas kosong → Goal aktif, Verifikasi pending", () => {
+    expect(goalPhases().map((p) => `${p.name}:${p.state}`)).toEqual(["Goal:active", "Verifikasi:pending"]);
+  });
+
+  it("Goal aktif → executing (bukan brainstorming)", () => {
+    expect(stageFor(goalPhases())).toBe("executing");
+  });
+
+  it("Goal done → executing; Verifikasi done → done", () => {
+    write("Goal done\n");
+    expect(stageFor(goalPhases())).toBe("executing");
+    write("Goal done\nVerifikasi done\n");
+    expect(stageFor(goalPhases())).toBe("done");
+  });
+
+  it("gerbang plan ADR-0029 tetap berlaku bila sesi goal sempat menulis plan berkotak", () => {
+    write("Goal done\nVerifikasi done\n");
+    const wt = mkWorktree({ "2026-07-31-x-spec-407.md": "- [ ] belum\n" });
+    expect(stageForRun(goalPhases(), wt, "SPEC-407")).toBe("executing");
+    const bersih = mkWorktree({ "2026-07-31-x-spec-407.md": "- [x] beres\n" });
+    expect(stageForRun(goalPhases(), bersih, "SPEC-407")).toBe("done");
+  });
+});
