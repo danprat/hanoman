@@ -46,6 +46,13 @@ export async function tick(now: number, deps: GovernorDeps, end: EndOfSession = 
 export const prodDeps: GovernorDeps = {
   liveCount: () => listSessions().filter((s) => !s.exited).length,
   isLive: (specId) => { const s = getSession(sessionIdForSpec(specId)); return s && !s.exited ? s.id : null; },
+  // SPEC-431 · dibaca ULANG dari DB tepat sebelum launch, bukan dari baris antrean: antrean tak
+  // menyimpan stage, dan item bisa selesai selagi mengantre. Spec yang hilang bukan urusan gerbang
+  // ini — `launch` di bawah yang melempar "spec tak ada" → item ditandai failed dengan alasannya.
+  isDone: async (specId) => {
+    const s = await prisma.spec.findUnique({ where: { id: specId }, select: { stage: true } });
+    return s?.stage === "done";
+  },
   launch: async (item, autonomy) => {
     const spec = await prisma.spec.findUnique({ where: { id: item.specId } });
     if (!spec) throw new Error(`spec ${item.specId} tak ada`);

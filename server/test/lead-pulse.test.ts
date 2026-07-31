@@ -191,6 +191,15 @@ describe("pulse · urutan kerja (AC-13)", () => {
     const h = harness();
     expect((await pulse(h.deps)).ordered).toBe(0);
   });
+  // SPEC-431 · predikat lama (`baseSha: null` telanjang) juga dipakai di sini, jadi lead ikut
+  // mengurutkan DAN mengantrekan pekerjaan yang sudah tuntas — item lama yang selesai sebelum
+  // ADR-0030 tak pernah punya `baseSha`.
+  it("ignores backlog that is already done, even without baseSha", async () => {
+    await prisma.spec.update({ where: { id: "spec-2" }, data: { stage: "done" } });
+    const h = harness();
+    expect((await pulse(h.deps)).ordered).toBe(0);   // tersisa satu item siap → tak ada yang ditata
+    expect(h.enqueued).toEqual([]);
+  });
   // NG1 · satu lead melayani satu project. Menata dua project dalam SATU giliran akan menaruh
   // backlog project lain ke dalam pertanyaan yang diberi label project pertama — dan tanda tangan
   // "sudah ditata" jadi gabungan, sehingga project yang diam menahan project yang bergerak.

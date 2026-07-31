@@ -104,7 +104,10 @@ function DoneRow({ q, backlog, onToast }: { q: SchedulerQueueItemView; backlog: 
       <span style={{ flex: 1, minWidth: 0 }}>
         <span style={{ color: "var(--text-strong)", fontWeight: 500 }}>{titleFor(q.specId, backlog)}</span>
         <span style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-subtle)" }}>
-          {q.projectId} · {q.source} · selesai {ago(q.launchedAt)}{q.sessionId ? ` · hanoman/${q.sessionId}` : ""}
+          {/* SPEC-431 · baris yang ditutup gerbang "spec sudah selesai" tak pernah punya sesi;
+              "selesai —" akan terbaca seolah scheduler yang menyelesaikannya. */}
+          {q.projectId} · {q.source} · {q.launchedAt ? `selesai ${ago(q.launchedAt)}` : (q.note ?? "tak diluncurkan")}
+          {q.sessionId ? ` · hanoman/${q.sessionId}` : ""}
         </span>
       </span>
       <Button size="sm" variant="ghost" leftIcon="external-link" onClick={() => window.open(link, "_blank", "noreferrer")}>Buka review</Button>

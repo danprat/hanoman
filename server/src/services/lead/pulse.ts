@@ -4,7 +4,7 @@ import { listSessions } from "../pty";
 import { planComplete } from "../session-phases";
 import { resolveRepoDir } from "../local-binding";
 import { specReview } from "../spec-review";
-import { enqueue } from "../scheduler/queue";
+import { enqueue, UNSTARTED_SPEC_WHERE } from "../scheduler/queue";
 import { recordLeadDecision } from "../notifications";
 import { getLead, leadActive, leadProjects } from "./config";
 import { decide, prodDecideDeps, type DecideDeps } from "./decide";
@@ -210,8 +210,11 @@ async function orderReadyWork(optIn: string[], deps: PulseDeps): Promise<number>
 }
 
 async function orderProject(projectId: string, deps: PulseDeps): Promise<number> {
+  // SPEC-431 · "siap dikerjakan" memakai predikat BERSAMA dengan checker backlog. Sebelumnya
+  // `baseSha: null` telanjang, jadi lead ikut mengurutkan — dan mengantrekan — pekerjaan yang
+  // sudah `done`; item yang selesai sebelum ADR-0030 tak pernah punya `baseSha`.
   const ready = await prisma.spec.findMany({
-    where: { baseSha: null, projectId },
+    where: { ...UNSTARTED_SPEC_WHERE, projectId },
     select: { id: true, projectId: true, title: true, priority: true, objective: true },
     orderBy: { id: "asc" },
   });

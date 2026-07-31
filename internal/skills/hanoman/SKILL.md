@@ -377,6 +377,25 @@ Pakai skill lebih sempit saat task cocok:
   terbukti **non-deterministik** (gagal 2× di run campur-project, lulus sendirian, lulus bersama
   tetangga server, lulus saat set yang sama diulang) — jalankan ulang terisolasi DAN ulangi
   set yang sama sebelum menyalahkan perubahanmu.
+- **"Belum mulai" ≠ `baseSha IS NULL`** (SPEC-431, tanpa ADR — QA, mempersempit ADR-0072): checker
+  `backlog` (SPEC-295) dan denyut lead (SPEC-409) memilih pekerjaan lewat **satu** predikat bersama
+  `UNSTARTED_SPEC_WHERE` (`services/scheduler/queue.ts`) = **`baseSha: null` DAN `stage: not "done"`**.
+  `baseSha` sendirian menjawab pertanyaan yang **berbeda** — "pernahkah hanoman membuatkan worktree
+  untuk item ini" — dan kolomnya baru ada sejak ADR-0030, jadi item yang tuntas tanpa pernah diluncurkan
+  hanoman (selesai pra-ADR-0030, ditandai selesai manual lewat `PATCH /specs/:id {stage}`, atau
+  dikerjakan di checkout lain) permanen tak terbedakan dari item yang belum pernah disentuh. Terukur di
+  DB produksi: **27 `Spec` `done` ber-`baseSha` null → 27 dari 29 baris antrean → 6 sesi tmux sungguhan
+  lahir di atas pekerjaan yang sudah selesai**. `startedAt` (SPEC-408) **bukan** penggantinya: ia ditulis
+  di titik cekik yang SAMA dengan `baseSha`, jadi null untuk 27 item yang sama — menukar proksi dengan
+  proksi tak memperbaiki apa pun; `stage` adalah satu-satunya pernyataan tentang pekerjaannya sendiri.
+  Yang membuat bug ini mahal: `startSpecSession` menghitung `isContinue = stage === "done"`, jadi item
+  `done` justru masuk jalur reopen SPEC-172 — worktree + branch baru dan `baseSha`/`headSha`/`startedAt`
+  **ditulis ulang** (stempel ADR-0090 milik item lama jadi bohong). **Gerbang kedua wajib di governor**
+  (`isDone` dep, tepat sebelum `launch`): memperbaiki checker saja meninggalkan baris `queued` basi yang
+  tetap akan meluncur, dan tak menutup balapan "operator menyelesaikan item selagi ia mengantre"; item
+  itu **ditutup `done` + `note`** (bukan dihapus — `enqueue` ber-`update:{}` tak boleh menghidupkannya
+  lagi) tanpa memakan slot. Gerbangnya sengaja **bukan** di `startSpecSession`: reopen manual item `done`
+  memang fitur, yang dilarang cuma otomasi memasukinya sendiri.
 - Stage bergerak **maju** hanya lewat fase yang dilaporkan sesi; **mundur** hanya lewat aksi human eksplisit `PATCH /specs/:id { stage }` (backward-only, ADR-0027). `executing` **tertahan** (tak jadi `done`) selama plan `docs/superpowers/plans/**` masih punya `- [ ]` (ADR-0029).
 - Biaya bersifat **estimasi dan tidak menggerakkan apa pun** (ADR-0012): tak ada `dailyBudget`/budget flag. Indikator limit dibaca dari OAuth usage API Anthropic (`services/limits.ts`), bukan parsing output terminal.
 - **Jangan pernah menjalankan run/sesi di working tree utama** — selalu worktree terpisah. Jangan menyentuh worktree sesi lain.

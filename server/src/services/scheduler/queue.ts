@@ -3,11 +3,28 @@ import type { SchedulerQueueItem } from "@prisma/client";
 
 const RANK: Record<string, number> = { tinggi: 0, sedang: 1, rendah: 2 };
 
+// SPEC-431 · definisi TUNGGAL "backlog yang boleh diambil otomatis", dipakai checker `backlog`
+// (SPEC-295) DAN denyut lead (SPEC-409) — dua pemakai yang sebelumnya menyalin predikatnya dan
+// karena itu salah dengan cara yang sama persis.
+//
+// Dua syarat, dan keduanya wajib:
+//   `baseSha: null`      — belum pernah punya worktree, jadi tak ada sesi berjalan yang direbut.
+//   `stage: not "done"`  — masih perlu dikerjakan.
+//
+// `baseSha` SENDIRIAN bukan proksi "belum mulai": ia menjawab "apakah hanoman pernah membuatkan
+// worktree", dan kolomnya baru ada sejak ADR-0030. Item yang selesai sebelum itu, ditandai selesai
+// manual (`PATCH /specs/:id { stage }`), atau dikerjakan di checkout lain permanen ber-`baseSha`
+// null — terukur di DB produksi: 27 `Spec` `done` ber-`baseSha` null, dan 27 dari 29 baris antrean
+// menunjuk ke sana. Enam di antaranya telanjur diluncurkan sebagai sesi tmux sungguhan (jalur
+// `isContinue`/SPEC-172, worktree + branch baru + `startedAt` ditimpa). `startedAt` (SPEC-408) tak
+// menolong: ia ditulis di titik cekik yang SAMA dengan `baseSha`, jadi null untuk 27 item yang sama.
+export const UNSTARTED_SPEC_WHERE = { baseSha: null, stage: { not: "done" } } as const;
+
 export type EnqueueInput = { specId: string; projectId: string; source: string; priority: string };
 
 // Idempoten via specId @unique: bila item sudah ada (queued/launched/done/failed) → no-op (update {}),
-// jangan resurrect item yang sudah diproses. Backlog checker menyaring baseSha≠null; errors/triase
-// membuat Spec baru tiap kali, jadi re-enqueue hanya kena dalam jendela queued/launched.
+// jangan resurrect item yang sudah diproses. Backlog checker menyaring `UNSTARTED_SPEC_WHERE`;
+// errors/triase membuat Spec baru tiap kali, jadi re-enqueue hanya kena dalam jendela queued/launched.
 export async function enqueue(i: EnqueueInput): Promise<void> {
   await prisma.schedulerQueueItem.upsert({
     where: { specId: i.specId },
@@ -34,8 +51,12 @@ export async function markLaunched(id: string, sessionId: string): Promise<void>
 export async function markFailed(id: string, note?: string): Promise<void> {
   await prisma.schedulerQueueItem.update({ where: { id }, data: { status: "failed", note: note ?? null } });
 }
-export async function markDone(id: string): Promise<void> {
-  await prisma.schedulerQueueItem.update({ where: { id }, data: { status: "done" } });
+// `note` opsional: rekonsiliasi akhir sesi (SPEC-298) menutup tanpa alasan, sementara gerbang
+// "sudah selesai" (SPEC-431) menutup baris yang tak pernah punya sesi dan harus bisa dijelaskan.
+export async function markDone(id: string, note?: string): Promise<void> {
+  await prisma.schedulerQueueItem.update({
+    where: { id }, data: { status: "done", ...(note ? { note } : {}) },
+  });
 }
 export function queueItemForSpec(specId: string): Promise<SchedulerQueueItem | null> {
   return prisma.schedulerQueueItem.findUnique({ where: { specId } });

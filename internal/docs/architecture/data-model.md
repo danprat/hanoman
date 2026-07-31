@@ -347,8 +347,20 @@ overlay sesi live — status live (running/done/failed) tetap diturunkan dari `p
 - Governor men-drain item `queued` (urut prioritas→FIFO) selagi sesi hidup `< cap` (`Setting.scheduler.maxConcurrent`),
   meluncurkan lewat `startSpecSession` (jalur bersama peluncuran manual). Knob scheduler hidup di
   `Setting.data.scheduler` (`zScheduler`, semua default mati). Lihat [ADR-0072](../adr/0072-scheduler-fondasi-engine-antrean-durable-cap.md).
-- **Diisi oleh checker `backlog` (SPEC-295):** spec `baseSha=null` dari project `schedulerOptIn`, urut prioritas
-  `tinggi→sedang→rendah`, `source:"backlog"` (asal checker; `flow` peluncuran tetap diturunkan `spec.source`).
+- **Diisi oleh checker `backlog` (SPEC-295, dipersempit SPEC-431):** spec **belum-mulai** dari project
+  `schedulerOptIn`, urut prioritas `tinggi→sedang→rendah`, `source:"backlog"` (asal checker; `flow`
+  peluncuran tetap diturunkan `spec.source`). "Belum-mulai" = **`baseSha=null` DAN `stage ≠ "done"`**
+  (`UNSTARTED_SPEC_WHERE`, `services/scheduler/queue.ts` — dipakai checker **dan** denyut lead SPEC-409).
+  `baseSha` **sendirian bukan proksi** "belum mulai": ia menjawab "pernahkah hanoman membuatkan worktree",
+  dan kolomnya baru ada sejak [ADR-0030](../adr/0030-spec-menyimpan-base-head-sha.md) — item yang selesai
+  sebelum itu, ditandai selesai manual, atau dikerjakan di checkout lain permanen ber-`baseSha` null lalu
+  **diluncurkan ulang** sebagai sesi (jalur `isContinue`/SPEC-172: worktree + branch baru, `startedAt`
+  ditimpa). Terukur di DB produksi: 27 `Spec` `done` ber-`baseSha` null, 27 dari 29 baris antrean, 6 sesi
+  telanjur lahir. `startedAt` (SPEC-408) tak menolong — ia ditulis di titik cekik yang sama dengan `baseSha`.
+  **Gerbang kedua di governor:** tepat sebelum `launch`, item yang spec-nya sudah `done` **ditutup**
+  (`status:"done"` + `note`) tanpa meluncurkan apa pun & tanpa memakan slot — itu yang membereskan baris
+  basi yang telanjur ada dan balapan "operator menyelesaikan item selagi ia mengantre". Sengaja **bukan**
+  di `startSpecSession`: reopen manual item `done` (SPEC-172) tetap boleh.
 - **Diisi oleh checker `errors` (SPEC-296):** tiap `ErrorGroup` eligible (`status:"new"` ∧ `environment:"production"` ∧
   `specId=null` ∧ `count ≥ Setting.scheduler.sources.errors.minCount` ∧ project `schedulerOptIn`) di-escalate lewat jalur
   bersama `escalateErrorGroup` (`services/error-escalate.ts`) → Spec `qa` prioritas `tinggi`, lalu `source:"errors"`.
