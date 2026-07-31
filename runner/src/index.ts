@@ -4,6 +4,7 @@ export * from "./reverse-standard";
 export * from "./git";
 export * from "./settings";
 export * from "./goal";
+export * from "./goal-spec";
 export * from "./codex-settings";
 export * from "./agent-cli";
 export * from "./verify-scope";

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { PIPELINES, startPrompt, startProjectPrompt, continuePrompt, resumePrompt, startPrdPrompt, startScaffoldPrompt, startBreakdownPrompt } from "../src/prompt";
+import { PIPELINES, startPrompt, startProjectPrompt, continuePrompt, resumePrompt, startPrdPrompt, startScaffoldPrompt, startBreakdownPrompt, startGoalPrompt } from "../src/prompt";
 
 const spec = { id: "SPEC-162", title: "Sesi interaktif", source: "brief",
   priority: "high", objective: "Ganti runOne dengan tmux" };
@@ -465,5 +465,71 @@ describe("startBreakdownPrompt (SPEC-273)", () => {
   it("push ke branch breakdown + tak menulis kode fitur", () => {
     expect(p).toContain("git push origin HEAD:refs/heads/breakdown/jadwal-invoice");
     expect(p).toContain("JANGAN menulis kode fitur");
+  });
+});
+
+// SPEC-407 · ADR-0089 · sesi backlog GOAL. Yang dihapus justru KERANGKA-nya: prompt ini harus
+// mengeja goal-nya, dua fasenya, dan pintu keluar yang dibuktikan — tanpa menyeret satu pun
+// artefak perencanaan (design doc, plan berkotak, skill brainstorming/writing-plans).
+describe("startGoalPrompt (SPEC-407)", () => {
+  const goalSpec = {
+    id: "SPEC-407", title: "Backlog goal", source: "goal", priority: "tinggi",
+    objective: "p95 < 200 ms",
+    payload: { goal: "p95 /api/specs < 200 ms", done: "output benchmark < 200 ms",
+      constraints: "tanpa cache eksternal", priority: "tinggi" },
+  };
+
+  it("pipeline goal berisi dua fase", () => {
+    expect(PIPELINES.goal).toEqual(["Goal", "Verifikasi"]);
+  });
+
+  it("mengeja goal, selesai-bila, batasan, dua fase, dan push", () => {
+    const p = startGoalPrompt(goalSpec, "hanoman/spec-407");
+    expect(p).toContain("Goal: p95 /api/specs < 200 ms");
+    expect(p).toContain("Selesai bila: output benchmark < 200 ms");
+    expect(p).toContain("Batasan: tanpa cache eksternal");
+    expect(p).toContain("Kerjakan fase berurutan: Goal → Verifikasi.");
+    expect(p).toContain("git push origin HEAD:refs/heads/hanoman/spec-407");
+    expect(p).toContain("SPEC-407");
+  });
+
+  it("tak menyeret pipeline perencanaan maupun skill-nya", () => {
+    const p = startGoalPrompt(goalSpec, "b");
+    expect(p).not.toContain("Kerjakan fase berurutan: Brainstorm");
+    expect(p).not.toContain("superpowers:brainstorming");
+    expect(p).not.toContain("superpowers:writing-plans");
+    // Gerbang plan ADR-0029 hanya untuk pipeline ber-Plan+Execute; sesi goal tak berplan.
+    expect(p).not.toContain("docs/superpowers/plans");
+    // Pintu keluarnya tetap dijaga.
+    expect(p).toContain("superpowers:verification-before-completion");
+  });
+
+  it("membawa klausa scope verifikasi — sesi goal menulis kode meski tanpa fase Execute", () => {
+    expect(startGoalPrompt(goalSpec, "b", { verifyScope: "changed" }))
+      .toContain("Scope verifikasi: HANYA yang berubah");
+    expect(startGoalPrompt(goalSpec, "b")).not.toContain("Scope verifikasi");
+  });
+
+  it("payload rusak → jatuh ke objective spec, tanpa melempar", () => {
+    const p = startGoalPrompt({ ...goalSpec, payload: { context: "c" } }, "b");
+    expect(p).toContain("Goal: p95 < 200 ms");
+    expect(p).not.toContain("Selesai bila:");
+    expect(p).not.toContain("undefined");
+  });
+
+  it("varian resume menyebut keadaan nyata tanpa menyuruh mencari plan", () => {
+    const p = startGoalPrompt(goalSpec, "hanoman/spec-407", {
+      resume: { recorded: ["Goal done"], next: "Verifikasi", worktreeKept: true },
+    });
+    expect(p).toContain("MELANJUTKAN");
+    expect(p).toContain("Goal done");
+    expect(p).toContain("Lanjutkan dari fase: Verifikasi.");
+    expect(p).not.toContain("docs/superpowers/plans");
+  });
+
+  // resumePrompt (flow ber-Plan) TIDAK boleh ikut kehilangan kalimat plannya.
+  it("resumePrompt flow feature tetap menyuruh membaca plan", () => {
+    const p = resumePrompt("feature", spec, "b", { recorded: ["Brainstorm done"], next: "Objective", worktreeKept: true });
+    expect(p).toContain("docs/superpowers/plans/**");
   });
 });

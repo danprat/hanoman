@@ -1,4 +1,5 @@
-export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit" | "breakdown" | "cross-audit";
+// SPEC-407 · ADR-0089 · +goal · sesi backlog dua fase (Goal → Verifikasi), tanpa fase perencanaan.
+export type Flow = "feature" | "qa" | "scaffold" | "reverse" | "prd" | "audit" | "breakdown" | "cross-audit" | "goal";
 
 // SPEC-298 · mode autonomy sesi scheduler (Setting.scheduler.autonomy). full-control = putuskan
 // sendiri & tembus sampai done tanpa berhenti bertanya; butuh-keputusan = berhenti di titik

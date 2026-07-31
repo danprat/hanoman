@@ -1,6 +1,7 @@
 import type { Flow, SpecBrief, ProjectBrief, PrdBrief, AuditDoc, BreakdownPrd, Autonomy, CrossAuditCtx, CrossAuditProject, VerifyScope, ResumeCtx } from "./types";
 import { REVERSE_STANDARD } from "./reverse-standard";
 import { verifyScopeClause } from "./verify-scope";
+import { readGoalPayload } from "./goal-spec";
 
 export const PIPELINES: Record<Flow, readonly string[]> = {
   feature: ["Brainstorm", "Objective", "Spec", "Plan", "Execute"],
@@ -13,6 +14,10 @@ export const PIPELINES: Record<Flow, readonly string[]> = {
   // SPEC-337 · ADR-0075 · audit lintas project: fase & stage-map identik audit-only, scope-nya
   // yang berbeda (project utama + tetangga ProjectLink).
   "cross-audit": ["Audit", "Laporan"],
+  // SPEC-407 · ADR-0089 · backlog goal: tak ada fase perencanaan sama sekali. `Goal` = kerjakan,
+  // `Verifikasi` = buktikan. Kedua nama unik lintas PIPELINES — syarat peta REACHED di server,
+  // yang berkunci nama fase saja.
+  goal: ["Goal", "Verifikasi"],
 };
 
 // SPEC-252 · ADR-0061 — model & effort kini PER SESI (dipilih saat Start, argv saat lahir), bukan per
@@ -81,6 +86,9 @@ const PHASE_SKILLS: Record<string, readonly string[]> = {
     "superpowers:test-driven-development",
     "superpowers:verification-before-completion",
   ],
+  // SPEC-407 · fase `Goal` sengaja TANPA skill: seluruh inti flow ini adalah membebaskan sesi
+  // dari proses kaku. Yang tetap dijaga cuma pintu keluarnya.
+  Verifikasi: ["superpowers:verification-before-completion"],
 };
 
 const skillInstruction = (phases: readonly string[]) => {
@@ -181,8 +189,12 @@ const auditContinuationInstruction = (flow: Flow, spec: SpecBrief): string => {
 // dokumen (audit, cross-audit, prd, breakdown, reverse, scaffold) tak punya test untuk
 // dijalankan, jadi klausanya cuma menambah token. Ditentukan dari kehadiran fase Execute —
 // sumber kebenaran yang sama dengan gate plan di phaseInstruction.
+// SPEC-407 · flow goal MENULIS KODE juga, meski pipeline-nya tak punya fase `Execute`. Tanpa
+// klausa ini ia jatuh ke DoD repo target dan menjalankan suite penuh — persis lubang ADR-0080.
+const writesCode = (flow: Flow): boolean =>
+  PIPELINES[flow].includes("Execute") || PIPELINES[flow].includes("Goal");
 const scopeClause = (flow: Flow, scope?: VerifyScope): string =>
-  scope && PIPELINES[flow].includes("Execute") ? verifyScopeClause(scope) : "";
+  scope && writesCode(flow) ? verifyScopeClause(scope) : "";
 
 export function startPrompt(
   flow: Flow, spec: SpecBrief, branchTo: string, autonomy?: Autonomy, verifyScope?: VerifyScope,
@@ -236,7 +248,9 @@ export function continuePrompt(
 // yang berubah hanya titik masuknya. Agen tak bisa menurunkan sendiri "fase mana yang sudah
 // selesai" — berkas fase hidup di luar worktree dan tak ikut ter-checkout — jadi server yang
 // menyebutkannya. Sengaja TIDAK menyalin baris fase ke phase file: berkas itu milik agen.
-const resumeClause = (r: ResumeCtx, branchTo: string): string => {
+// SPEC-407 · `hasPlan` = pipeline-nya memang punya fase Plan. Sesi goal tak punya plan berkotak,
+// dan menyuruhnya mencari plan justru mengundangnya membuat satu — persis ritual yang dihapus.
+const resumeClause = (r: ResumeCtx, branchTo: string, hasPlan = true): string => {
   const fase = r.recorded.length
     ? `Fase yang SUDAH tercatat di $HANOMAN_PHASE_FILE: ${r.recorded.join(" · ")}. `
       + "JANGAN mengulang fase itu dan JANGAN menulis ulang barisnya."
@@ -244,20 +258,26 @@ const resumeClause = (r: ResumeCtx, branchTo: string): string => {
       + "alasan melanjutkan.";
   const lanjut = r.next
     ? `Lanjutkan dari fase: ${r.next}.`
-    : "Semua fase sudah tercatat. Periksa apakah plan di `docs/superpowers/plans/**` masih "
-      + "menyisakan task `- [ ]` dan selesaikan sisanya; bila sudah bersih, tinggal commit & push.";
+    : hasPlan
+      ? "Semua fase sudah tercatat. Periksa apakah plan di `docs/superpowers/plans/**` masih "
+        + "menyisakan task `- [ ]` dan selesaikan sisanya; bila sudah bersih, tinggal commit & push."
+      : "Semua fase sudah tercatat. Buktikan sekali lagi goal-nya benar-benar tercapai, lalu "
+        + "commit & push.";
   const worktree = r.worktreeKept
     ? "Worktree ini adalah worktree sesi sebelumnya apa adanya — termasuk perubahan yang belum "
       + "di-commit."
     : `Worktree ini DIBANGUN ULANG dari tip branch sesi \`${branchTo}\`: commit sesi sebelumnya `
       + "ada, tetapi perubahan yang belum sempat di-commit TIDAK ada.";
+  const baca = hasPlan
+    ? "Sebelum menulis apa pun: baca `git log --oneline` dan `git status`, lalu plan di "
+      + "`docs/superpowers/plans/**` untuk backlog item ini (`- [x]` sudah selesai, `- [ ]` belum). "
+      + "Jangan menulis ulang yang sudah ada."
+    : "Sebelum menulis apa pun: baca `git log --oneline` dan `git status` untuk melihat apa yang "
+      + "sudah dikerjakan. Jangan menulis ulang yang sudah ada.";
   return [
     "Sesi ini MELANJUTKAN pekerjaan sesi sebelumnya untuk backlog item yang sama — bukan memulai "
       + "dari nol.",
-    fase, lanjut, worktree,
-    "Sebelum menulis apa pun: baca `git log --oneline` dan `git status`, lalu plan di "
-      + "`docs/superpowers/plans/**` untuk backlog item ini (`- [x]` sudah selesai, `- [ ]` belum). "
-      + "Jangan menulis ulang yang sudah ada.",
+    fase, lanjut, worktree, baca,
   ].join(" ");
 };
 
@@ -274,7 +294,7 @@ export function resumePrompt(
   return [
     `hanoman ${flow} — MELANJUTKAN sesi backlog yang sudah berjalan. Ikuti internal/docs sebagai `
       + `Source of Truth; perbarui docs yang tersentuh dan link-nya di index, dalam commit yang sama.`,
-    resumeClause(resume, branchTo),
+    resumeClause(resume, branchTo, PIPELINES[flow].includes("Plan")),
     phaseInstruction(PIPELINES[flow]),
     auditDecided ? "" : auditDecisionInstruction(flow),
     autonomyClause(autonomy),
@@ -284,6 +304,43 @@ export function resumePrompt(
       + `Worktree ini detached HEAD — itu memang disengaja.`,
     `Backlog item ${spec.id} · sumber ${spec.source} · prioritas ${spec.priority}\n`
       + `Judul: ${spec.title}\nObjective: ${spec.objective}${detail}`,
+  ].filter(Boolean).join("\n\n");
+}
+
+// SPEC-407 · ADR-0089 · sesi backlog GOAL. Sengaja bukan cabang di dalam startPrompt: yang
+// berbeda bukan satu-dua kalimat melainkan KERANGKA-nya — tak ada fase perencanaan, tak ada
+// keputusan pasca-Audit, tak ada skill Brainstorm/Plan, tak ada blok Detail berisi JSON payload
+// (isi payload sudah dieja sebagai Goal/Selesai bila/Batasan). Mode goal (Stop hook ADR-0073)
+// dipasang di sisi server saat sesi lahir, bukan lewat prompt ini.
+export function startGoalPrompt(
+  spec: SpecBrief, branchTo: string,
+  opts: { autonomy?: Autonomy; verifyScope?: VerifyScope; resume?: ResumeCtx } = {},
+): string {
+  const g = readGoalPayload(spec.payload);
+  const detail = [
+    `Goal: ${g?.goal ?? spec.objective}`,
+    g?.done ? `Selesai bila: ${g.done}` : "",
+    g?.constraints ? `Batasan: ${g.constraints}` : "",
+  ].filter(Boolean).join("\n");
+  return [
+    "hanoman goal — sesi ini mengejar SATU goal sampai tercapai. TIDAK ada fase Brainstorm, "
+      + "Objective, Spec, maupun Plan: jangan menulis design doc, jangan menulis plan berkotak, "
+      + "jangan memecah pekerjaan ini jadi backlog baru. Langsung kerjakan goal-nya. Tetap ikuti "
+      + "internal/docs sebagai Source of Truth; perbarui docs yang tersentuh dan link-nya di "
+      + "index, dalam commit yang sama.",
+    opts.resume ? resumeClause(opts.resume, branchTo, false) : "",
+    detail,
+    phaseInstruction(PIPELINES.goal),
+    "Fase Verifikasi bukan formalitas: jalankan perintah yang membuktikan goal-nya tercapai "
+      + "(test/typecheck/benchmark/perintah yang relevan) dan baca outputnya. Klaim tanpa output "
+      + "bukan bukti.",
+    autonomyClause(opts.autonomy),
+    scopeClause("goal", opts.verifyScope),
+    skillInstruction(PIPELINES.goal),
+    `Setelah fase terakhir: commit, lalu \`git push origin HEAD:refs/heads/${branchTo}\`. `
+      + `Worktree ini detached HEAD — itu memang disengaja.`,
+    `Backlog item ${spec.id} · sumber ${spec.source} · prioritas ${spec.priority}\n`
+      + `Judul: ${spec.title}`,
   ].filter(Boolean).join("\n\n");
 }
 

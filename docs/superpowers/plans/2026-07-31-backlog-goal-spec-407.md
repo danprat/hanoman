@@ -190,7 +190,7 @@ git commit -m "feat(407): source & flow goal + zGoalPayload di shared (tanpa mig
   - `PIPELINES.goal === ["Goal", "Verifikasi"]`
   - `startGoalPrompt(spec: SpecBrief, branchTo: string, opts?: { autonomy?: Autonomy; verifyScope?: VerifyScope; resume?: ResumeCtx }): string`
 
-- [ ] **Step 1: Tulis test yang gagal untuk `readGoalPayload`**
+- [x] **Step 1: Tulis test yang gagal untuk `readGoalPayload`**
 
 Buat `runner/test/goal-spec.test.ts`:
 
@@ -221,12 +221,12 @@ describe("readGoalPayload (SPEC-407)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan GAGAL**
+- [x] **Step 2: Jalankan, pastikan GAGAL**
 
 Run: `pnpm vitest --run runner/test/goal-spec.test.ts`
 Expected: FAIL — modul `../src/goal-spec` tak ada.
 
-- [ ] **Step 3: Implementasi `runner/src/goal-spec.ts`**
+- [x] **Step 3: Implementasi `runner/src/goal-spec.ts`**
 
 ```ts
 // SPEC-407 · pembaca payload backlog goal.
@@ -255,12 +255,12 @@ Tambahkan di `runner/src/index.ts` (setelah `export * from "./goal";`):
 export * from "./goal-spec";
 ```
 
-- [ ] **Step 4: Jalankan, pastikan LULUS**
+- [x] **Step 4: Jalankan, pastikan LULUS**
 
 Run: `pnpm vitest --run runner/test/goal-spec.test.ts`
 Expected: PASS (7 assertion group hijau).
 
-- [ ] **Step 5: Tulis test yang gagal untuk pipeline & prompt goal**
+- [x] **Step 5: Tulis test yang gagal untuk pipeline & prompt goal**
 
 Tambahkan di `runner/test/prompt.test.ts` (impor `startGoalPrompt` di baris impor teratas):
 
@@ -323,12 +323,12 @@ describe("startGoalPrompt", () => {
 });
 ```
 
-- [ ] **Step 6: Jalankan, pastikan GAGAL**
+- [x] **Step 6: Jalankan, pastikan GAGAL**
 
 Run: `pnpm vitest --run runner/test/prompt.test.ts`
 Expected: FAIL — `startGoalPrompt` tak ada, `PIPELINES.goal` undefined.
 
-- [ ] **Step 7: Implementasi di runner**
+- [x] **Step 7: Implementasi di runner**
 
 `runner/src/types.ts` baris 1:
 
@@ -452,12 +452,12 @@ export function startGoalPrompt(
 }
 ```
 
-- [ ] **Step 8: Jalankan, pastikan LULUS**
+- [x] **Step 8: Jalankan, pastikan LULUS**
 
 Run: `pnpm vitest --run runner/test/prompt.test.ts runner/test/goal-spec.test.ts`
 Expected: PASS — termasuk test lama `resumePrompt`/`startPrompt` yang tak boleh bergeser.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add runner/src/types.ts runner/src/goal-spec.ts runner/src/prompt.ts runner/src/index.ts runner/test/goal-spec.test.ts runner/test/prompt.test.ts
