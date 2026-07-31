@@ -34,6 +34,8 @@ const SOURCE_META: Record<string, { label: string; icon: string; tone: "err" | "
   // SPEC-337 · audit lintas project (scope: project + tetangga ProjectLink-nya)
   "cross-audit": { label: "Audit lintas", icon: "radar", tone: "info", color: "var(--wind-600)" },
   brief: { label: "feature brief", icon: "lightbulb", tone: "brass", color: "var(--brass-500)" },
+  // SPEC-407 · ADR-0089 · backlog goal: sesi dua fase (Goal → Verifikasi), tanpa perencanaan.
+  goal:  { label: "Goal",          icon: "target",    tone: "brass", color: "var(--brass-600)" },
 };
 const sourceMeta = (s: string) => SOURCE_META[s] ?? SOURCE_META.brief!;
 // SPEC-186 · opsi enum untuk form edit inline.
@@ -72,6 +74,10 @@ function StageBar({ stage }: { stage: string }) {
 
 const BRIEF_FIELDS = [
   ["context", "Konteks"], ["outcome", "Outcome"], ["constraints", "Constraints"],
+] as const;
+// SPEC-407 · ADR-0089 · bentuk payload backlog goal (zGoalPayload) — bukan konteks/outcome.
+const GOAL_FIELDS = [
+  ["goal", "Goal"], ["done", "Selesai bila"], ["constraints", "Batasan"],
 ] as const;
 const QA_FIELDS = [
   ["severity", "Severity"], ["steps", "Langkah reproduksi"], ["expected", "Diharapkan"],
@@ -148,6 +154,10 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
     if (!spec || !onEditSpec) return;
     const patch = spec.source === "qa"
       ? { title: form.title, payload: { severity: form.severity, steps: form.steps, expected: form.expected, actual: form.actual, env: form.env } }
+      // SPEC-407 · bentuk payload terikat source di boundary server (zPatchSpec + superRefine
+      // POST); mengirim bentuk brief untuk item goal akan ditolak dan menghapus goal-nya.
+      : spec.source === "goal"
+      ? { title: form.title, priority: form.priority, payload: { goal: form.goal, done: form.done ?? "", constraints: form.constraints ?? "", priority: form.priority } }
       : { title: form.title, priority: form.priority, payload: { context: form.context, outcome: form.outcome, constraints: form.constraints, priority: form.priority } };
     onEditSpec(spec, patch);
     setEditing(false);
@@ -176,8 +186,9 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
   if (!spec) return null;
   const earlier = B_STAGES.slice(0, bStageIndex(spec.stage));
   const qa = spec.source === "qa";
+  const isGoal = spec.source === "goal";   // SPEC-407 · payload-nya bentuk ketiga
   const p = (spec.payload || {}) as Record<string, string>;
-  const fields = qa ? QA_FIELDS : BRIEF_FIELDS;
+  const fields: readonly (readonly [string, string])[] = qa ? QA_FIELDS : isGoal ? GOAL_FIELDS : BRIEF_FIELDS;
   return (
     <Modal open title={spec.title} eyebrow={spec.id + " · " + spec.projectId}
       icon={sourceMeta(spec.source).icon} onClose={() => { setEditing(false); onClose(); }}>

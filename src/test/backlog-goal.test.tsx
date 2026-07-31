@@ -53,3 +53,40 @@ describe("NewSpecModal · tab Goal (SPEC-407)", () => {
     await waitFor(() => expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({ kind: "brief" })));
   });
 });
+
+import { BacklogScreen } from "../src/screens/BacklogScreen";
+
+const goalSpec: any = {
+  id: "SPEC-407", projectId: "p1", title: "Turunkan latensi", source: "goal", stage: "executing",
+  priority: "tinggi", author: "Goal · a@b.c", objective: "p95 < 200 ms",
+  payload: { goal: "p95 < 200 ms", done: "benchmark < 200 ms", constraints: "tanpa cache", priority: "tinggi" },
+  branchFrom: null, baseSha: null,
+};
+
+// SPEC-407 · item goal harus terbaca sebagai goal di backlog — bukan jatuh ke label "feature
+// brief" (fallback SOURCE_META) dan bukan menampilkan field konteks/outcome yang tak pernah diisi.
+describe("BacklogScreen · item goal (SPEC-407)", () => {
+  it("badge Goal muncul dan detail mengeja goal, selesai bila, batasan", async () => {
+    render(<BacklogScreen backlog={[goalSpec]} projects={[{ id: "p1", name: "P1" }] as never}
+      projectFilter="all" onProjectFilter={() => {}} />);
+    expect(await screen.findByText("Goal")).toBeTruthy();
+    fireEvent.click(screen.getByText("Turunkan latensi"));
+    await waitFor(() => expect(screen.getByText("Selesai bila")).toBeTruthy());
+    expect(screen.getByText("benchmark < 200 ms")).toBeTruthy();
+    expect(screen.getByText("tanpa cache")).toBeTruthy();
+    expect(screen.queryByText("Konteks")).toBeNull();
+  });
+
+  it("edit inline menyimpan payload goal, bukan payload brief", async () => {
+    const onEditSpec = vi.fn();
+    render(<BacklogScreen backlog={[{ ...goalSpec, stage: "brainstorming", baseSha: null }]}
+      projects={[{ id: "p1", name: "P1" }] as never} onEditSpec={onEditSpec}
+      projectFilter="all" onProjectFilter={() => {}} />);
+    fireEvent.click(await screen.findByText("Turunkan latensi"));
+    fireEvent.click(await screen.findByText("Edit"));
+    fireEvent.click(screen.getByText("Simpan"));
+    await waitFor(() => expect(onEditSpec).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "SPEC-407" }),
+      expect.objectContaining({ payload: expect.objectContaining({ goal: "p95 < 200 ms" }) })));
+  });
+});

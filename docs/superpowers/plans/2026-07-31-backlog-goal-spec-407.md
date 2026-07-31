@@ -1076,7 +1076,7 @@ git commit -m "feat(407): tab Goal di modal backlog baru + payload goal"
 - Consumes: spec bersource `goal` berpayload `{goal, done, constraints, priority}`.
 - Produces: badge "Goal" + detail yang menampilkan Goal / Selesai bila / Batasan; form edit inline memakai field yang sama.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `src/test/backlog-goal.test.tsx`:
 
@@ -1104,12 +1104,12 @@ describe("BacklogScreen · item goal (SPEC-407)", () => {
 
 Sebelum menulis, periksa prop wajib `BacklogScreen` dengan `grep -n "export function BacklogScreen" -A 20 src/src/screens/BacklogScreen.tsx` dan tiru pemanggilan di `src/test/backlog-board.test.tsx`; lengkapi prop yang wajib.
 
-- [ ] **Step 2: Jalankan, pastikan GAGAL**
+- [x] **Step 2: Jalankan, pastikan GAGAL**
 
 Run: `pnpm vitest --run src/test/backlog-goal.test.tsx`
 Expected: FAIL — badge berlabel "feature brief" (fallback SOURCE_META) dan field goal tak dirender.
 
-- [ ] **Step 3: Implementasi `src/src/screens/BacklogScreen.tsx`**
+- [x] **Step 3: Implementasi `src/src/screens/BacklogScreen.tsx`**
 
 ```ts
   // SPEC-407 · backlog goal: sesi dua fase (Goal → Verifikasi), tanpa fase perencanaan.
@@ -1133,12 +1133,12 @@ pemilihan field di `SpecDetail` (menggantikan `const fields = qa ? QA_FIELDS : B
 
 Periksa juga blok form edit inline (`editing`) — bila ia mengiterasi `fields`, tak ada perubahan lain yang perlu; bila ia menyebut `BRIEF_FIELDS`/`QA_FIELDS` langsung, ganti ke `fields`.
 
-- [ ] **Step 4: Jalankan, pastikan LULUS**
+- [x] **Step 4: Jalankan, pastikan LULUS**
 
 Run: `pnpm vitest --run src/test/backlog-goal.test.tsx src/test/backlog-board.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/BacklogScreen.tsx src/test/backlog-goal.test.tsx
