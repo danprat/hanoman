@@ -33,6 +33,14 @@ export const zQaPayload = z.object({
 export const zGoalPayload = z.object({
   goal: z.string(), done: z.string(), constraints: z.string(), priority: zPriority });
 
+// SPEC-447 · ADR-0093 · alasan sebuah backlog item tertahan. `missing` = dependency-nya tak ada
+// (mis. terhapus di mesin lain sebelum sync menyusul); `unfinished` = stage belum `done`;
+// `unmerged` = sudah `done` tapi commit-nya belum ada di branch basis item ini.
+export const zSpecBlocker = z.object({
+  id: z.string(), reason: z.enum(["missing", "unfinished", "unmerged"]),
+});
+export type SpecBlocker = z.infer<typeof zSpecBlocker>;
+
 export const zSpec = z.object({
   id: z.string(), projectId: z.string(), title: z.string(), source: zSpecSource,
   stage: zStage, priority: zPriority, author: z.string(), objective: z.string(),
@@ -43,6 +51,12 @@ export const zSpec = z.object({
   // `startedAt` null = belum pernah dikerjakan; ia tak pernah ditulis ulang saat sesi dilanjutkan.
   createdAt: z.string(),
   startedAt: z.string().nullable(),
+  // SPEC-447 · ADR-0093 · id backlog yang harus selesai & ter-merge lebih dulu. Server selalu
+  // menormalkannya ke array (kolom DB-nya `Json?`); `.default([])` menjaga respons lama.
+  dependsOn: z.array(z.string()).default([]),
+  // Turunan (bukan kolom): dihitung `liveSpecs` dari stage dependency + git. Klien tak pernah
+  // mengirimkannya — `.default([])` supaya bentuk lama tetap parse.
+  blockedBy: z.array(zSpecBlocker).default([]),
 });
 export type Spec = z.infer<typeof zSpec>;
 

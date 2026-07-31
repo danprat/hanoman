@@ -53,7 +53,9 @@ export const zUpdateProject = z.object({
 export const zCreateSpec = z.object({
   project: z.string(), source: zSpecSource, title: z.string().min(1),
   priority: zPriority, payload: z.union([zBriefPayload, zQaPayload, zGoalPayload]),
-  branchFrom: z.string().min(1).optional() })
+  branchFrom: z.string().min(1).optional(),
+  // SPEC-447 · ADR-0093 · divalidasi server (id ada / satu project / bukan diri sendiri / non-siklus).
+  dependsOn: z.array(z.string()).optional() })
   // SPEC-197 · ikat source ke bentuk payload: `qa` → QaPayload (punya `severity`), selain itu →
   // BriefPayload. Union saja tak menjaganya (objek non-strict), jadi `deriveSpecFields` bisa
   // menurunkan objective/priority dari bentuk yang salah. superRefine menegakkannya di boundary.
@@ -78,6 +80,10 @@ export const zPatchSpec = z.object({
   title: z.string().min(1).optional(),
   priority: zPriority.optional(),
   payload: z.union([zBriefPayload, zQaPayload, zGoalPayload]).optional(),   // SPEC-407 · +goal
+  // SPEC-447 · ADR-0093 · SENGAJA di luar gerbang `editingContent` (SPEC-186): gerbang itu
+  // melindungi konten yang sudah jadi dasar kerja sesi berjalan, sedangkan dependsOn hanya
+  // menggerbangi peluncuran BERIKUTNYA. `[]` = kosongkan.
+  dependsOn: z.array(z.string()).optional(),
 });
 // SPEC-175 · rebase/merge branch hasil done spec. target = "local:<b>" | "origin:<b>".
 export const zIntegrate = z.object({
@@ -297,6 +303,9 @@ export const zTerminalSession = z.union([
     goal: z.boolean().optional(), goalCondition: z.string().max(4000).optional(),
     agent: zAgent.optional(),
     verifyScope: zVerifyScope.optional(),
+    // SPEC-447 · ADR-0093 — lewati gerbang dependency. Hanya jalur manusia; UI hanya
+    // mengirimkannya sesudah operator melihat daftar pemblokirnya.
+    force: z.boolean().optional(),
   }),
 ]);
 

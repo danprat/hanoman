@@ -958,7 +958,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: —
 - Produces: `zSpecBlocker`, `SpecBlockerDTO`; `Spec.dependsOn: string[]`, `Spec.blockedBy: SpecBlocker[]`; `zCreateSpec`/`zPatchSpec` menerima `dependsOn?: string[]`; varian `{spec}` `zTerminalSession` menerima `force?: boolean`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Buat `shared/src/spec-deps-contract.test.ts`:
 
@@ -1002,14 +1002,14 @@ describe("kontrak dependency backlog (SPEC-447)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run shared/src/spec-deps-contract.test.ts
 ```
 Expected: FAIL — `dependsOn`/`blockedBy` undefined, `force` dibuang.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 `shared/src/entities.ts` — tepat sebelum `export const zSpec`:
 
@@ -1058,7 +1058,7 @@ Pada varian `{spec}` di `zTerminalSession`, tambahkan field:
     force: z.boolean().optional(),
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run shared/src/spec-deps-contract.test.ts
@@ -1066,7 +1066,7 @@ env -u NODE_ENV ./node_modules/.bin/tsc -p shared --noEmit
 ```
 Expected: 5 passed; typecheck bersih.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add shared/src/entities.ts shared/src/dto.ts shared/src/spec-deps-contract.test.ts
