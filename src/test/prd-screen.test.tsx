@@ -45,7 +45,9 @@ describe("PrdScreen", () => {
     await waitFor(() => expect(screen.getByText("Jadwal Invoice")).toBeTruthy());
     fireEvent.click(screen.getByText("Jadwal Invoice"));
     await waitFor(() => expect(api.getPrd).toHaveBeenCalledWith("p1", "docs/prd/jadwal-invoice.md"));
+    // SPEC-407 · tombolnya kini pemilih brief/goal — jalur brief adalah perilaku lama.
     fireEvent.click(await screen.findByRole("button", { name: /take ke backlog/i }));
+    fireEvent.click(await screen.findByText("Sebagai feature brief"));
     expect(onTake).toHaveBeenCalledWith(expect.objectContaining({
       project: "p1", title: "Jadwal Invoice", prdPath: "docs/prd/jadwal-invoice.md",
     }));
@@ -97,6 +99,7 @@ describe("PrdScreen", () => {
     fireEvent.click(await screen.findByText("Auth Device"));
     await waitFor(() => expect(api.getPrd).toHaveBeenCalledWith("p2", "docs/prd/auth.md"));
     fireEvent.click(await screen.findByRole("button", { name: /take ke backlog/i }));
+    fireEvent.click(await screen.findByText("Sebagai feature brief"));   // SPEC-407 · lewat pemilih
     expect(onTake).toHaveBeenCalledWith(expect.objectContaining({ project: "p2", prdPath: "docs/prd/auth.md" }));
   });
 
@@ -124,5 +127,43 @@ describe("PrdScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: /buat 2 backlog/i }));
     await waitFor(() => expect(onMat).toHaveBeenCalledWith("p1", "docs/prd/jadwal-invoice.md",
       expect.arrayContaining([expect.objectContaining({ title: "Endpoint jadwal" })])));
+  });
+});
+
+// SPEC-407 · ADR-0089 · satu PRD punya DUA jalur ke backlog, dan pilihannya eksplisit: keduanya
+// melahirkan sesi berbentuk beda (pipeline perencanaan vs sesi goal dua fase).
+describe("PRD → backlog: brief atau goal (SPEC-407)", () => {
+  const openPreview = async (onTake: any) => {
+    render(<PrdScreen projects={projects} {...base} projectFilter="p1" onProjectFilter={() => {}}
+      onNewPrd={() => {}} onTakeToBacklog={onTake} />);
+    fireEvent.click(await screen.findByText("Jadwal Invoice"));
+    fireEvent.click(await screen.findByText("Take ke backlog"));
+  };
+
+  it("pilihan goal mem-prefill kind goal + branch PRD-nya", async () => {
+    const onTake = vi.fn();
+    await openPreview(onTake);
+    fireEvent.click(await screen.findByText("Sebagai goal"));
+    await waitFor(() => expect(onTake).toHaveBeenCalledWith(expect.objectContaining({
+      kind: "goal", project: "p1", title: "Jadwal Invoice",
+      goal: expect.stringContaining("docs/prd/jadwal-invoice.md"),
+      branchFrom: "prd/jadwal-invoice",
+    })));
+  });
+
+  it("pilihan brief mempertahankan perilaku lama", async () => {
+    const onTake = vi.fn();
+    await openPreview(onTake);
+    fireEvent.click(await screen.findByText("Sebagai feature brief"));
+    await waitFor(() => expect(onTake).toHaveBeenCalledWith(expect.objectContaining({
+      kind: "brief", context: "Dari PRD: docs/prd/jadwal-invoice.md",
+      prdPath: "docs/prd/jadwal-invoice.md", branchFrom: "prd/jadwal-invoice",
+    })));
+  });
+
+  it("membuka pemilih tak langsung memanggil onTake", async () => {
+    const onTake = vi.fn();
+    await openPreview(onTake);
+    expect(onTake).not.toHaveBeenCalled();
   });
 });

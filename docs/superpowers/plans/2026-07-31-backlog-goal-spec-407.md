@@ -1261,7 +1261,7 @@ git commit -m "feat(407): picker Start mengunci mode goal untuk backlog bersourc
 - Consumes: `SpecPrefill.kind`/`goal` (Task 7).
 - Produces: `PrdPrefill` bertambah `kind?: "brief" | "goal"; goal?: string`; klik "Take ke backlog" membuka pemilih, tiap pilihan memanggil `onTake` dengan `kind` yang sesuai dan `branchFrom = prdBranchOf(path)`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `src/test/prd-screen.test.tsx`:
 
@@ -1295,12 +1295,12 @@ it("pilihan brief mempertahankan perilaku lama", async () => {
 
 Verifikasi nilai `branchFrom` yang benar dengan membaca `prdBranchOf` di `src/src/screens/PrdScreen.tsx` sebelum menulis assertion-nya.
 
-- [ ] **Step 2: Jalankan, pastikan GAGAL**
+- [x] **Step 2: Jalankan, pastikan GAGAL**
 
 Run: `pnpm vitest --run src/test/prd-screen.test.tsx`
 Expected: FAIL — "Sebagai goal" tak ada; klik "Take ke backlog" langsung memanggil `onTake`.
 
-- [ ] **Step 3: Implementasi `src/src/screens/PrdScreen.tsx`**
+- [x] **Step 3: Implementasi `src/src/screens/PrdScreen.tsx`**
 
 ```ts
 // SPEC-407 · `kind` memilih bentuk backlog-nya: brief (brainstorm → … → execute) atau goal
@@ -1359,12 +1359,12 @@ dan modal pemilih (letakkan di akhir JSX pane, sebelum penutup `</div>` terluar)
 
 Impor `Modal` dari `../ds` bila belum diimpor di berkas itu.
 
-- [ ] **Step 4: Jalankan, pastikan LULUS**
+- [x] **Step 4: Jalankan, pastikan LULUS**
 
 Run: `pnpm vitest --run src/test/prd-screen.test.tsx`
 Expected: PASS — termasuk test breakdown SPEC-273 yang tak boleh bergeser.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/PrdScreen.tsx src/test/prd-screen.test.tsx

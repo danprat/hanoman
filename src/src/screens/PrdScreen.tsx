@@ -14,7 +14,12 @@ import { prdBranchOf } from "./branch";
 
 export type PrdBriefForm = { title: string; context: string; outcome: string; constraints?: string };
 // SPEC-244 · branchFrom = branch yang dibuat sesi PRD (prd/<slug>) — diteruskan ke brief take-to-backlog.
-export type PrdPrefill = { project: string; title: string; context: string; outcome: string; prdPath: string; branchFrom: string };
+// SPEC-407 · `kind` memilih BENTUK backlog-nya: brief (brainstorm → … → execute) atau goal (sesi
+// dua fase yang langsung mengejar goal). `goal` hanya terisi untuk kind goal.
+export type PrdPrefill = {
+  project: string; title: string; context: string; outcome: string; prdPath: string; branchFrom: string;
+  kind?: "brief" | "goal"; goal?: string;
+};
 
 // SPEC-340 · ADR-0076 · di-export karena App memakainya ulang untuk eskalasi audit → PRD (brief
 // ter-prefill dari rekomendasi audit). `lockProject` mengunci project ke asal auditnya.
@@ -71,6 +76,8 @@ function PrdPreviewPane({ prd, projectId, onTake, onStartBreakdown, onMaterializ
   const [items, setItems] = React.useState<BreakdownItem[]>([]);
   const [include, setInclude] = React.useState<boolean[]>([]);
   const [busy, setBusy] = React.useState(false);
+  // SPEC-407 · ADR-0089 · "Take ke backlog" kini pemilih: brief atau goal.
+  const [takeOpen, setTakeOpen] = React.useState(false);
 
   React.useEffect(() => {
     let alive = true;
@@ -90,6 +97,8 @@ function PrdPreviewPane({ prd, projectId, onTake, onStartBreakdown, onMaterializ
     return () => { alive = false; };
   }, [projectId, prd.path]);
 
+  // SPEC-244 · branchFrom = branch sesi PRD-nya, dipakai kedua jalur take-to-backlog.
+  const takeBase = { project: projectId, title: prd.title, prdPath: prd.path, branchFrom: prdBranchOf(prd.path) };
   const chosen = items.filter((_, i) => include[i]);
   const materialize = async () => {
     if (!chosen.length) return;
@@ -108,8 +117,7 @@ function PrdPreviewPane({ prd, projectId, onTake, onStartBreakdown, onMaterializ
         <div style={{ display: "flex", gap: 8, flexShrink: 0, alignItems: "center" }}>
           {/* SPEC-361 · unduh PRD sebagai .md / .pdf untuk dibagikan ke tim */}
           <DocDownload href={(f) => api.prdDownloadUrl(projectId, prd.path, f)} disabled={content === null} />
-          <Button size="sm" variant="ghost" leftIcon="list-checks"
-            onClick={() => onTake({ project: projectId, title: prd.title, context: `Dari PRD: ${prd.path}`, outcome: "", prdPath: prd.path, branchFrom: prdBranchOf(prd.path) })}>
+          <Button size="sm" variant="ghost" leftIcon="list-checks" onClick={() => setTakeOpen(true)}>
             Take ke backlog
           </Button>
           <Button size="sm" leftIcon="split"
@@ -148,6 +156,37 @@ function PrdPreviewPane({ prd, projectId, onTake, onStartBreakdown, onMaterializ
         {content === null ? <StateBlock kind="loading" title="Memuat PRD…" />
           : <MarkdownView text={content} name={prd.name} />}
       </div>
+
+      {/* SPEC-407 · ADR-0089 · dua jalur PRD → backlog, dipisah eksplisit karena keduanya
+          melahirkan sesi berbentuk beda: brief menjalankan pipeline perencanaan penuh, goal
+          langsung mengejar goal-nya dalam dua fase. Manusia yang memutuskan. */}
+      {takeOpen && (
+        <Modal open onClose={() => setTakeOpen(false)} icon="list-checks"
+          eyebrow="PRD → backlog" title="Take PRD ke backlog"
+          footer={<Button variant="ghost" size="sm" onClick={() => setTakeOpen(false)}>Batal</Button>}>
+          <div style={{ display: "grid", gap: 16 }}>
+            <div>
+              <Button leftIcon="lightbulb" onClick={() => {
+                setTakeOpen(false);
+                onTake({ ...takeBase, kind: "brief", context: `Dari PRD: ${prd.path}`, outcome: "" });
+              }}>Sebagai feature brief</Button>
+              <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 6, lineHeight: 1.5 }}>
+                Sesi menjalankan pipeline penuh: brainstorm → objective → spec → plan → execute.
+              </div>
+            </div>
+            <div>
+              <Button leftIcon="target" variant="secondary" onClick={() => {
+                setTakeOpen(false);
+                onTake({ ...takeBase, kind: "goal", context: "", outcome: "", goal: `Wujudkan PRD ${prd.path}` });
+              }}>Sebagai goal</Button>
+              <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 6, lineHeight: 1.5 }}>
+                Sesi dua fase (Goal → Verifikasi) yang langsung mengejar goal-nya, tanpa brainstorm,
+                spec, maupun plan. Mode goal selalu aktif.
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
