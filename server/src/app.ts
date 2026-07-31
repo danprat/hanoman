@@ -30,6 +30,7 @@ import help from "./routes/help";
 import tickets from "./routes/tickets";
 import scheduler from "./routes/scheduler";
 import lead from "./routes/lead";
+import customAgents from "./routes/custom-agents";
 import fastifyMultipart from "@fastify/multipart";
 import authRoutes from "./routes/auth";
 import agentTokens from "./routes/agent-tokens";
@@ -138,6 +139,7 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
     await api.register(scheduler);  // SPEC-294 · config/state scheduler (di belakang gate cookie)
     await api.register(codex);      // SPEC-339 · versi codex CLI untuk peringatan model 5.6
     await api.register(lead);       // SPEC-409 · ADR-0091 · hanoman-lead (cookie + capability `lead`)
+    await api.register(customAgents); // SPEC-450 · ADR-0094 · katalog custom agent (capability `agents`)
   }, { prefix: "/api" });
 
   // Prod: serve the built dashboard from one process; SPA-fallback to

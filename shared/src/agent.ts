@@ -17,6 +17,10 @@ export const CAPABILITY_IDS = [
   // baris jejak & bisa menggerakkan sesi), dan SPEC-405 sudah membuktikan apa yang terjadi saat
   // endpoint tulis menumpang prefix status yang dipetakan tanpa melihat method (AC-5).
   "lead:read", "lead:write",
+  // SPEC-450 · ADR-0094 · custom agent. Domain TERSENDIRI, dipetakan MENURUT METHOD: menulis
+  // definisi agen mengubah apa yang dilihat SETIAP sesi baru di seluruh workspace, jadi izin
+  // baca tak pernah cukup untuk itu (kelas bug SPEC-405).
+  "agents:read", "agents:write",
 ] as const;
 export const zCapability = z.enum(CAPABILITY_IDS);
 export type Capability = z.infer<typeof zCapability>;
@@ -49,6 +53,8 @@ export const CAPABILITIES: CapabilityInfo[] = [
   { id: "notifications:write", domain: "notifications", access: "write", label: "Notifikasi — tulis", desc: "Tandai terbaca / bersihkan notifikasi." },
   { id: "lead:read", domain: "lead", access: "read", label: "Lead — baca", desc: "Baca jejak keputusan hanoman-lead & statusnya." },
   { id: "lead:write", domain: "lead", access: "write", label: "Lead — tulis", desc: "Minta putusan ke hanoman-lead (keputusan bisa menggerakkan sesi).", risk: "exec" },
+  { id: "agents:read", domain: "agents", access: "read", label: "Custom agent — baca", desc: "Lihat katalog custom agent global & per project." },
+  { id: "agents:write", domain: "agents", access: "write", label: "Custom agent — tulis", desc: "Buat/ubah/hapus custom agent; definisinya dipakai setiap sesi baru.", risk: "exec" },
 ];
 
 // SPEC-264 · Metadata per-domain untuk grid capability di Settings (label ramah + cakupan).
@@ -66,6 +72,7 @@ export const CAPABILITY_DOMAINS: { domain: string; label: string; desc: string }
   { domain: "support", label: "Help Desk", desc: "Tiket Help Center (Help Desk): lihat, terima/tolak, promosikan ke backlog." },
   { domain: "notifications", label: "Notifikasi", desc: "Lihat & kelola notifikasi." },
   { domain: "lead", label: "Lead", desc: "Minta putusan ke hanoman-lead & baca jejak keputusannya." },
+  { domain: "agents", label: "Custom agent", desc: "Katalog persona agen global & per project." },
 ];
 
 // write meng-implikasikan read pada domain yang sama.

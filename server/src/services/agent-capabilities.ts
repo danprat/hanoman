@@ -28,6 +28,9 @@ export function capabilityForRoute(method: string, path: string): Resolved {
   // pernah cukup untuk memanggilnya (AC-5) — `rw()` sudah menurunkannya dari method, jadi tak ada
   // pengulangan kelas bug SPEC-405 (prefix status yang dipetakan ke GLOBAL_READ tanpa lihat method).
   if (top === "lead") return rw("lead");
+  // SPEC-450 · ADR-0094 keputusan 8 · dipetakan MENURUT METHOD, bukan prefix (kelas bug SPEC-405):
+  // menulis definisi agen mengubah apa yang dilihat SETIAP sesi baru di seluruh workspace.
+  if (top === "custom-agents") return rw("agents");
   if (top === "settings" || top === "config") return rw("settings");
   if (top === "specs") return rw("backlog");
   if (top === "notifications") return rw("notifications");
