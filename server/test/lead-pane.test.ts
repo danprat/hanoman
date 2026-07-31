@@ -57,3 +57,35 @@ describe("readPaneQuestion · codex (AC-9)", () => {
     expect(readPaneQuestion("Selesai. Mau saya lanjut?\nGoal achieved", "codex").asking).toBe(false);
   });
 });
+
+// SPEC-452 · dialog `AskUserQuestion`: opsinya harus SAMPAI ke lead sebagai daftar, bukan hanya
+// terkubur di dalam teks layar. `leadPrompt` sudah punya tempatnya (`options`) sejak ADR-0091;
+// yang tak pernah ada adalah yang mengisinya dari pintu deteksi.
+const ASKQ = `
+Mau pakai strategi cache yang mana?
+
+❯ 1. In-memory
+     Cache disimpan di memori proses
+  2. Redis
+  3. Tanpa cache
+  4. Type something.
+  5. Chat about this
+
+Enter to select · ↑/↓ to navigate · Esc to cancel
+`;
+
+describe("readPaneQuestion · opsi dialog (SPEC-452)", () => {
+  it("menyodorkan opsi dialog claude sebagai daftar", () => {
+    const r = readPaneQuestion(ASKQ, "claude");
+    expect(r.asking).toBe(true);
+    expect(r.choices).toEqual(["In-memory", "Redis", "Tanpa cache"]);
+  });
+
+  it("tak mengarang opsi untuk layar yang bukan dialog", () => {
+    expect(readPaneQuestion(CLAUDE_ASKING, "claude").choices).toEqual([]);
+  });
+
+  it("dialog yang sama juga terbaca saat agennya codex", () => {
+    expect(readPaneQuestion(ASKQ, "codex").choices).toEqual(["In-memory", "Redis", "Tanpa cache"]);
+  });
+});

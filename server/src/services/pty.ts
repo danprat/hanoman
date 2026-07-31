@@ -10,6 +10,7 @@ import {
 } from "@hanoman/runner";
 import { coerceCodexEffort, type SessionKind } from "@hanoman/shared";
 import { readPhases, sessionComplete, type Phase } from "./session-phases";
+import { answerChoiceDialog, readChoiceDialog, type PaneIO } from "./tui-dialog";
 import { effectiveStr } from "../config";
 
 // Sesi hidup di dalam tmux server, bukan di proses API (ADR-0016). Restart `pnpm dev`
@@ -451,7 +452,7 @@ export type GoalArmOpts = {
   chunkMs?: number; sendTries?: number;
 };
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const sleep = (ms: number): Promise<void> => new Promise((r) => { setTimeout(r, ms); });
 const paneText = (id: string): string => {
   try { return tmux("capture-pane", "-p", "-t", name(id)); } catch { return ""; }
 };
@@ -478,6 +479,13 @@ export function capturePane(id: string, lines = 200): string {
  * pane tetap terlihat menerima teks.
  *
  * Baris baru diratakan jadi spasi: Enter di tengah teks akan mengirim jawaban setengah jadi.
+ *
+ * SPEC-452 · pane TIDAK selalu berupa kolom teks. Saat agen menampilkan dialog pilihan
+ * (`AskUserQuestion`) layarnya widget daftar: burst apa pun yang lebih dari SATU karakter ditelan
+ * tanpa jejak, dan `Enter` memilih baris yang sedang disorot — jadi jalur di bawah menjawab
+ * "opsi 1" untuk setiap pertanyaan, apa pun isi keputusannya, tanpa satu pun sinyal gagal. Dialog
+ * ber-kolom-jawaban-bebas karena itu dijawab lewat `answerChoiceDialog`; selain itu perilakunya
+ * tak berubah satu byte pun.
  */
 export async function sendToPane(id: string, text: string, chunkMs = 50): Promise<boolean> {
   const p = getSession(id);
@@ -485,14 +493,28 @@ export async function sendToPane(id: string, text: string, chunkMs = 50): Promis
   const line = text.replace(/\s*\r?\n\s*/g, " ").trim();
   if (!line) return false;
   try {
+    const io: PaneIO = {
+      capture: () => capturePane(id, DIALOG_CAPTURE_LINES),
+      literal: (s) => { tmux("send-keys", "-t", name(id), "-l", s); },
+      enter: () => { tmux("send-keys", "-t", name(id), "Enter"); },
+      sleep,
+    };
+    // Dialog TANPA kolom bebas (trust, prompt izin) sengaja tak disentuh: di sana `Enter` memilih
+    // baris 1 yang memang berarti "ya", dan mengubahnya menukar bug ini dengan regresi.
+    const free = readChoiceDialog(io.capture())?.freeIndex ?? null;
+    if (free !== null) return await answerChoiceDialog(io, free, line, chunkMs);
     for (const chunk of goalChunks(line)) {
-      tmux("send-keys", "-t", name(id), "-l", chunk);
+      io.literal(chunk);
       await sleep(chunkMs);
     }
-    tmux("send-keys", "-t", name(id), "Enter");
+    io.enter();
     return true;
   } catch { return false; }                   // sesi lenyap di tengah pengetikan
 }
+
+// Cukup untuk satu layar dialog penuh (pertanyaan + opsi + keterangan + footer) tanpa menyeret
+// scrollback panjang ke dalam setiap pengetikan.
+const DIALOG_CAPTURE_LINES = 60;
 
 // SPEC-397 · penanda "goal BENAR-BENAR terpasang", per agen.
 //

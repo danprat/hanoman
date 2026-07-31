@@ -426,6 +426,35 @@ Pakai skill lebih sempit saat task cocok:
   fixture:** `fake-claude.sh` diakhiri `exec cat` karena ia mensimulasikan TUI di pane; memakainya
   untuk agen one-shot membuat tiap test `think()` selalu "kehabisan waktu" — hijau & merah tak
   terbedakan. Agen lead butuh fixture yang **keluar sendiri** (`fake-lead-agent.sh`).
+- **Menjawab dialog `AskUserQuestion` bukan mengetik prosa** (SPEC-452, tanpa ADR — QA; ADR-0091
+  ditegakkan, ADR-0037 utuh): `sendToPane` selama ini mengasumsikan pane **selalu** kolom teks.
+  Untuk dialog pilihan claude asumsi itu salah — layarnya **widget daftar** Ink, dan handler-nya
+  membandingkan `input` **UTUH** dengan nomor baris, jadi burst apa pun yang lebih dari **satu
+  karakter** ditelan tanpa jejak dan `Enter` memilih baris yang sedang **disorot** (baris 1).
+  Akibatnya keputusan lead **tak pernah menyeberang**: yang terpilih selalu opsi pertama, apa pun
+  isinya. Terukur pada claude 2.1.220: prosa 55 karakter → layar tak berubah, `Enter` → baris 1;
+  jawaban yang eksplisit menyebut nomornya (`"Pilih opsi 2 (Node 22) karena …"`) tetap memilih
+  **Node 20** — kebalikannya, dan jejaknya tetap berstatus `berlaku`. `goalChunks` (ADR-0085)
+  **tak menolong**: potongan 500 karakter tetap bukan satu karakter — `send-keys -l "2"` telanjang
+  memilih **seketika** (tanpa `Enter`), menempel pada teks lain nol efek. **Deteksinya tak pernah
+  rusak**: dialog memancarkan `Notification` `notification_type: permission_prompt` lewat pengait
+  idle 6 dtk dan marker SPEC-184 terisi. Jalan keluarnya milik claude sendiri: setiap
+  `AskUserQuestion` punya **kolom jawaban bebas** (`Type something.`) di nomor `jumlah_opsi + 1`,
+  dan baris terakhir `Chat about this` di `jumlah_opsi + 2`. Urutan yang benar & terverifikasi:
+  nomor kolom bebas sebagai `send-keys` **tersendiri berisi tepat satu karakter** → prosa (tetap
+  ber-`goalChunks`, kolom bebas adalah kolom teks) → **`Enter` HANYA setelah teksnya terbukti
+  mendarat**; nomor opsi biasa memilih seketika, nomor kolom bebas cuma memindahkan fokus.
+  Mekanismenya di `services/tui-dialog.ts` (baca murni, tulis lewat `PaneIO` yang disuntikkan) dan
+  **fail-closed** di setiap ragu — bukan dialog → jalur lama persis seperti sebelumnya, dan dialog
+  **tanpa** kolom bebas (trust, prompt izin) sengaja tak disentuh karena di sana `Enter` = baris 1
+  = "ya". **Dua gotcha mengikat:** (1) verifikasi sebelum `Enter` itu wajib — menekannya
+  "kalau-kalau berhasil" mengulang bug ini lewat jalur baru; (2) marker keputusan **tak ikut
+  kosong** sesudah dialog dijawab (menjawab dialog bukan `UserPromptSubmit`, terukur 8 byte sebelum
+  & sesudah), jadi `detect.ts` mengosongkannya sendiri sesudah jawaban mendarat — tanpa itu denyut
+  berikutnya membakar giliran agen lalu mengetik prosa ke kolom chat yang sudah normal, **pesan
+  liar** ke sesi yang sedang bekerja, sampai `maxAutoAnswers`. Opsi dialog sekalian disodorkan ke
+  `leadPrompt.options` — field yang ada sejak ADR-0091 dan tak pernah diisi pintu deteksi. Pintu
+  override operator (`POST /lead/decisions/:id/override`) ikut sembuh lewat `sendToPane` yang sama.
 - **Scope verifikasi per sesi** (SPEC-376/ADR-0080): `verifyScope` (`changed` default | `full`) —
   knob `Setting.verifyScope` (kolom `Json`, **tanpa migration**) + override saat Start. Sesi
   `changed` menguji **berkas yang berubah saja**: `pnpm vitest --run --changed "$HANOMAN_BASE_SHA"`
