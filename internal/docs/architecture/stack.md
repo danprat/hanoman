@@ -137,6 +137,9 @@ Sesi memakai `--dangerously-skip-permissions` (tak berpenunggu), sehingga guardr
 bersandar sepenuhnya pada **PreToolUse hook** (`runner/src/safety.ts` `deniesDangerous` lewat
 `hanoman hook pretooluse`) yang dipasang di setiap sesi via `--settings` inline — menolak `rm -rf`, push
 ke `main`, dan `git worktree add` liar. Hook tetap jalan di bawah flag itu; yang dilewati hanya prompt izin.
+Saat hanoman sendiri jalan sebagai **root** (kasus lazim di VPS), claude CLI menolak flag itu dan `exit(1)`
+seketika — `createSession` karena itu memasang `IS_SANDBOX=1` di env sesi claude bila `getuid() === 0`
+(`rootBypassEnv`); lihat [security-standard](../security/security-standard.md).
 
 Biaya bersifat **estimasi dan tidak menggerakkan apa pun** (ADR-0012): tidak ada `dailyBudget`, tidak ada
 budget flag. Indikator limit dibaca langsung dari OAuth usage API Anthropic (`services/limits.ts`,

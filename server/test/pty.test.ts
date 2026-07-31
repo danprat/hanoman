@@ -7,7 +7,7 @@ import { execFileSync } from "node:child_process";
 import {
   createSession, getSession, listSessions, killSession, killAll, detachAll, attach, writeTo,
   sessionPhases, markerFilled, promptFilePath, armGoalInTui, goalGatePath,
-  sessionKind, registerSessionHooks, type SessionBirth, type SessionDeath,
+  sessionKind, registerSessionHooks, rootBypassEnv, type SessionBirth, type SessionDeath,
 } from "../src/services/pty";
 import { phaseFilePath, type Phase } from "../src/services/session-phases";
 
@@ -80,6 +80,33 @@ describe("pty service", () => {
     expect(allData(c)).toContain("--dangerously-skip-permissions");
     expect(lastFrame(c)).toEqual({ t: "exit", code: 0 });
     expect(c.wasClosed()).toBe(true);
+  });
+
+  // SPEC-403 · claude CLI menolak --dangerously-skip-permissions saat uid 0 dan langsung exit(1)
+  // → di VPS (hanoman jalan sebagai root) SEMUA sesi mati saat lahir. IS_SANDBOX=1 membuka gerbang.
+  it("rootBypassEnv memasang IS_SANDBOX hanya saat uid 0", () => {
+    expect(rootBypassEnv(0)).toEqual({ IS_SANDBOX: "1" });
+    expect(rootBypassEnv(1000)).toEqual({});
+    // Tanpa argumen: uid proses yang berlaku.
+    expect(rootBypassEnv()).toEqual(process.getuid?.() === 0 ? { IS_SANDBOX: "1" } : {});
+  });
+
+  it("sesi claude mewarisi IS_SANDBOX sesuai uid proses; sesi non-claude tidak", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_CLAUDE;
+    const expected = process.getuid?.() === 0 ? "IS_SANDBOX=1" : "IS_SANDBOX=";
+    const s = createSession("sbx1", process.cwd());
+    const c = fakeClient();
+    attach(s.id, c);
+    await waitFor(() => allData(c).includes("env:"));
+    expect(allData(c).replace(/\s+/g, " ")).toContain(`env: ${expected}`);
+
+    // Console VPS / terminal biasa: argv mentah, tak ada gerbang root untuk dibuka.
+    const raw = createSession("sbx2", process.cwd(), { command: [FAKE_CLAUDE] });
+    const c2 = fakeClient();
+    attach(raw.id, c2);
+    await waitFor(() => allData(c2).includes("env:"));
+    expect(allData(c2).replace(/\s+/g, " ")).toContain("env: IS_SANDBOX=");
+    expect(allData(c2).replace(/\s+/g, " ")).not.toContain("env: IS_SANDBOX=1");
   });
 
   // SPEC-332 · ADR-0073 · mode goal: Stop hook bertipe prompt ikut lahir bersama sesi.

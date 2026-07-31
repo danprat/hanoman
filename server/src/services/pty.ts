@@ -72,6 +72,16 @@ export const shellBin = (): string => effectiveStr("HANOMAN_SHELL") ?? process.e
 const codexBin = () => effectiveStr("HANOMAN_CODEX_BIN") ?? "codex";
 const agentBin = (agent: Agent): string => (agent === "codex" ? codexBin() : claudeBin());
 
+// Claude CLI menolak `--dangerously-skip-permissions` saat uid 0 ("cannot be used with root/sudo
+// privileges for security reasons") dan langsung `process.exit(1)` — sesi lahir lalu MATI seketika.
+// Ini persis kasus VPS: hanoman dijalankan sebagai root, jadi SEMUA sesi claude mati saat lahir.
+// Gerbangnya di CLI punya jalan keluar resmi: `IS_SANDBOX=1`. Kita memasangnya hanya bila memang
+// uid 0 — di mesin non-root env ini tak perlu dan tak boleh mengubah perilaku claude apa pun.
+// Sikap ini sejalan ADR-0037: agen dipercaya penuh, isolasi murni lewat worktree; menolak bypass
+// hanya membuat sesi mati, bukan membuat apa pun lebih aman.
+export const rootBypassEnv = (uid = process.getuid?.()): Record<string, string> =>
+  uid === 0 ? { IS_SANDBOX: "1" } : {};
+
 const frame = (f: Frame): string => JSON.stringify(f);
 const name = (id: string): string => PREFIX + id;
 
@@ -327,6 +337,11 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
   // jadi penugasan env bekerja di semua versi tmux sementara `-e` baru ada sejak 3.0.
   // Direktorinya dibuat di sini — `echo >> berkas` milik agen tak membuat direktori induk.
   const envPairs: string[] = [];
+  // Hanya untuk agen claude: Console VPS / terminal biasa (`opts.command`) adalah shell mentah,
+  // dan codex tak punya gerbang root ini. Dipasang sebelum env pemanggil supaya tetap bisa ditimpa.
+  if (!opts.command && agent === "claude") {
+    for (const [k, v] of Object.entries(rootBypassEnv())) envPairs.push(`${k}=${sq(v)}`);
+  }
   if (opts.phaseFile) {
     mkdirSync(dirname(opts.phaseFile), { recursive: true });
     envPairs.push(`HANOMAN_PHASE_FILE=${sq(opts.phaseFile)}`);
