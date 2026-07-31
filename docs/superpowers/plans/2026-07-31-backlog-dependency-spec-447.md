@@ -670,7 +670,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `blockersForSpec`, `blockedNote`, `SpecBlocker` (Task 3).
 - Produces: `LaunchError` bertambah `kind: "blocked"` dan properti `blockers: SpecBlocker[]` (default `[]`); `startSpecSession(spec, opts)` menerima `opts.force?: boolean`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Tambahkan di akhir `server/test/session-launch.test.ts`, **di dalam** `describe("session-launch", …)` yang sudah ada (tepat sebelum kurung penutupnya) — `seedRepo` sudah tersedia di scope itu:
 
@@ -726,14 +726,14 @@ Tambahkan di akhir `server/test/session-launch.test.ts`, **di dalam** `describe(
   });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism server/test/session-launch.test.ts
 ```
 Expected: FAIL — sesi terblokir tetap lahir (`kind: "blocked"` tak pernah dilempar) dan `force` tak dikenal tipe.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 `server/src/services/session-launch.ts`:
 
@@ -777,7 +777,7 @@ export class LaunchError extends Error {
   if (pane) killSession(id);
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism server/test/session-launch.test.ts server/test/session-resume.test.ts
@@ -785,7 +785,7 @@ env -u NODE_ENV ./node_modules/.bin/tsc -p server --noEmit
 ```
 Expected: semua PASS (termasuk test resume lama — gerbang tak boleh mengubahnya).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/session-launch.ts server/test/session-launch.test.ts

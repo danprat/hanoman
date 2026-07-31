@@ -262,4 +262,52 @@ describe("session-launch", () => {
       killSession(r.id);
     });
   });
+  // SPEC-447 · ADR-0093 · titik cekik peluncuran adalah tempat gerbang dependency berdiri:
+  // route manual DAN governor scheduler sama-sama lewat sini.
+  describe("gerbang dependency (SPEC-447)", () => {
+    it("menolak meluncurkan selagi dependency belum selesai — worktree tak pernah dibuat", async () => {
+      process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+      await seedRepo("SPEC-447A");                        // dependency, stage planned
+      await seedRepo("SPEC-447B");
+      await prisma.spec.update({ where: { id: "SPEC-447B" }, data: { dependsOn: ["SPEC-447A"] } });
+      const spec = (await prisma.spec.findUnique({ where: { id: "SPEC-447B" } }))!;
+      await expect(startSpecSession(spec, { flow: "feature" })).rejects.toMatchObject({ kind: "blocked" });
+      const row = (await prisma.spec.findUnique({ where: { id: "SPEC-447B" } }))!;
+      expect(row.baseSha).toBeNull();                     // tak menyentuh worktree/stempel
+      expect(row.startedAt).toBeNull();
+    });
+
+    it("membawa daftar pemblokir di error, bukan hanya pesan", async () => {
+      process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+      await seedRepo("SPEC-447C");
+      await seedRepo("SPEC-447D");
+      await prisma.spec.update({ where: { id: "SPEC-447D" }, data: { dependsOn: ["SPEC-447C"] } });
+      const spec = (await prisma.spec.findUnique({ where: { id: "SPEC-447D" } }))!;
+      const err = await startSpecSession(spec, { flow: "feature" }).catch((e) => e as LaunchError);
+      expect((err as LaunchError).blockers).toEqual([{ id: "SPEC-447C", reason: "unfinished" }]);
+    });
+
+    it("force melewati gerbang — manusia yang terakhir memutuskan", async () => {
+      process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+      await seedRepo("SPEC-447E");
+      await seedRepo("SPEC-447F");
+      await prisma.spec.update({ where: { id: "SPEC-447F" }, data: { dependsOn: ["SPEC-447E"] } });
+      const spec = (await prisma.spec.findUnique({ where: { id: "SPEC-447F" } }))!;
+      const r = await startSpecSession(spec, { flow: "feature", force: true });
+      expect(r.id).toBe("spec-447f");
+      killSession(r.id);
+    });
+
+    it("dependency done tanpa headSha tak memblokir apa pun", async () => {
+      process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+      await seedRepo("SPEC-447G");
+      await prisma.spec.update({ where: { id: "SPEC-447G" }, data: { stage: "done" } });
+      await seedRepo("SPEC-447H");
+      await prisma.spec.update({ where: { id: "SPEC-447H" }, data: { dependsOn: ["SPEC-447G"] } });
+      const spec = (await prisma.spec.findUnique({ where: { id: "SPEC-447H" } }))!;
+      const r = await startSpecSession(spec, { flow: "feature" });
+      expect(r.id).toBe("spec-447h");
+      killSession(r.id);
+    });
+  });
 });

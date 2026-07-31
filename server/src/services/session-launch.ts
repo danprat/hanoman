@@ -6,6 +6,7 @@ import { resolveRepoDir } from "./local-binding";
 import { getSetting } from "./settings";
 import { ensureCodexTrust } from "./codex-trust";
 import { createSession, getSession, killSession, sessionIdForSpec } from "./pty";
+import { blockersForSpec, blockedNote, type SpecBlocker } from "./spec-deps";
 import { phaseFilePath, decisionFilePath, readPhases } from "./session-phases";
 
 // Re-ekspor supaya pemanggil (governor, test) punya satu titik impor jalur peluncuran.
@@ -15,7 +16,9 @@ export { sessionIdForSpec } from "./pty";
 // & governor scheduler. Melempar LaunchError dengan `kind` agar pemanggil memetakan status HTTP
 // (route) atau menandai antrean gagal (governor).
 export class LaunchError extends Error {
-  constructor(message: string, readonly kind: "needs-bind" | "worktree") { super(message); }
+  // SPEC-447 · `blockers` hanya terisi untuk kind "blocked"; route memetakannya ke body 409.
+  constructor(message: string, readonly kind: "needs-bind" | "worktree" | "blocked",
+              readonly blockers: SpecBlocker[] = []) { super(message); }
 }
 export type StartSpecResult = { id: string; reused?: boolean; resumed?: boolean };
 
@@ -63,6 +66,9 @@ export async function startSpecSession(
     // SPEC-376 · ADR-0080 · scope verifikasi. undefined → ikut Setting.verifyScope (default
     // "changed"). Governor scheduler tak memasoknya → ikut default global, seperti model/effort.
     verifyScope?: VerifyScope;
+    // SPEC-447 · ADR-0093 · lewati gerbang dependency. HANYA jalur manusia yang memasoknya
+    // (POST /terminal/sessions); governor & denyut lead TAK PERNAH memaksa.
+    force?: boolean;
   },
 ): Promise<StartSpecResult> {
   // SPEC-213 · binding lokal per-device menang atas Project.repoDir (AC-8). Tanpa checkout lokal →
@@ -78,6 +84,14 @@ export async function startSpecSession(
   // (SPEC-362: menutup baris SessionHistory + menyimpan transkrip pane) lalu dilahirkan ulang.
   const pane = getSession(id);
   if (pane && !pane.exited) return { id: pane.id, reused: true };
+  // SPEC-447 · ADR-0093 · gerbang dependency. Berdiri SESUDAH cek pane hidup (re-attach ke sesi
+  // yang sedang berjalan tak boleh ikut ditolak — itu menyembunyikan pekerjaan yang justru perlu
+  // dilihat operator) dan SEBELUM `killSession`/worktree, supaya penolakan tak meninggalkan efek.
+  if (!opts.force) {
+    const blockers = await blockersForSpec(spec, repoDir);
+    if (blockers.length)
+      throw new LaunchError(`${spec.id} ${blockedNote(blockers)}`, "blocked", blockers);
+  }
   if (pane) killSession(id);
 
   // SPEC-252 · ADR-0061 · model/effort per SESI: default global, override per-instance opsional.
