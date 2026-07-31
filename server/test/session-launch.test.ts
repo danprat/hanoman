@@ -58,6 +58,21 @@ describe("session-launch", () => {
     return prisma.setting.upsert({ where: { id: 1 }, update: { data }, create: { id: 1, data } });
   };
 
+  // SPEC-408 · ADR-0090 · "dikerjakan" = sesi pertama lahir. Titiknya sama dengan baseSha:
+  // satu tulisan, satu makna. Bukti diambil dari DB, bukan dari bentuk respons.
+  it("sesi pertama menulis startedAt bersama baseSha (SPEC-408)", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
+    const spec = await seedRepo("SPEC-408A");
+    expect(spec.startedAt).toBeNull();
+    const before = Date.now();
+    const r = await startSpecSession(spec, { flow: "feature" });
+    const row = await prisma.spec.findUnique({ where: { id: "SPEC-408A" } });
+    expect(row!.baseSha).toBeTruthy();
+    expect(row!.startedAt).toBeInstanceOf(Date);
+    expect(row!.startedAt!.getTime()).toBeGreaterThanOrEqual(before - 1000);
+    killSession(r.id);
+  });
+
   it("Setting.goal mati & tanpa override → sesi lahir tanpa hook Stop", async () => {
     process.env.HANOMAN_CLAUDE_BIN = "/bin/echo";
     const spec = await seedRepo("SPEC-G1");

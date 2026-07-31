@@ -141,7 +141,11 @@ export async function startSpecSession(
     }
     // Menulis ulang baseSha saat resume akan memotong rentang review jadi "sejak dilanjutkan";
     // headSha yang di-null-kan menghapus ujung yang sudah tercatat sesi sebelumnya.
-    if (!resume) await prisma.spec.update({ where: { id: spec.id }, data: { baseSha, headSha: null } });
+    // SPEC-408 · ADR-0090 · `startedAt` ikut jalur yang SAMA persis: ia berarti "kapan item ini
+    // MULAI dikerjakan", jadi melanjutkan sesi tak boleh memundurkan/memajukannya.
+    if (!resume) await prisma.spec.update({
+      where: { id: spec.id }, data: { baseSha, headSha: null, startedAt: new Date() },
+    });
   }
 
   const brief = {
