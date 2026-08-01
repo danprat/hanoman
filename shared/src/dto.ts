@@ -175,8 +175,17 @@ export const zLeadStatusView = z.object({
   projects: z.array(zLeadProjectStatus),
   queue: z.array(zSchedulerQueueItem),
   deciding: z.array(z.string()),      // id sesi yang sedang disusun keputusannya (AC-3)
+  queued: z.array(z.string()).default([]),   // SPEC-479 · id sesi yang menunggu SLOT, bukan manusia
   waiting: z.array(z.string()),       // id sesi ber-marker keputusan terisi
   lastPulseAt: z.string().nullable(),
+  // SPEC-479 (QA) · keadaan gerbang konkurensi. Batas yang tak terlihat operator terbaca sebagai
+  // "lead diam" — persis salah baca yang melahirkan tiket itu. `.default()` supaya klien lama
+  // tetap mem-parse respons ini.
+  gate: z.object({
+    inFlight: z.number(),
+    queued: z.number(),
+    capacity: z.number(),
+  }).default({ inFlight: 0, queued: 0, capacity: 1 }),
 });
 export type LeadStatusView = z.infer<typeof zLeadStatusView>;
 

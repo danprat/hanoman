@@ -78,6 +78,33 @@ describe("LeadScreen · jejak keputusan (AC-23/24, US-2)", () => {
     expect(await screen.findByText("sedang diputuskan")).toBeInTheDocument();
     expect(screen.getByText("menunggu")).toBeInTheDocument();
   });
+
+  // SPEC-479 (QA) · keadaan KETIGA. Di pane, "menunggu manusia", "sedang diputuskan", dan
+  // "menunggu giliran" terlihat persis sama — marker terisi, agen diam — tapi hanya yang pertama
+  // butuh manusia. Batas konkurensi yang tak terlihat terbaca sebagai "lead diam", dan salah baca
+  // itulah yang melahirkan tiket ini.
+  it("membedakan sesi yang mengantre slot dari sesi yang menunggu manusia", async () => {
+    getLeadStatus.mockResolvedValue({
+      ...STATUS,
+      deciding: ["spec-9"], queued: ["spec-8"], waiting: ["spec-9", "spec-8"],
+      gate: { inFlight: 1, queued: 1, capacity: 2 },
+    });
+    getLeadDecisions.mockResolvedValue(DECISIONS);
+    renderScreen();
+    expect(await screen.findByText("sedang diputuskan")).toBeInTheDocument();
+    expect(screen.getByText("antre")).toBeInTheDocument();
+    expect(screen.queryByText("menunggu")).not.toBeInTheDocument();
+  });
+
+  it("menyebut batas konkurensi saat gerbangnya sedang mengikat", async () => {
+    getLeadStatus.mockResolvedValue({
+      ...STATUS, deciding: ["spec-9"], queued: ["spec-8"],
+      gate: { inFlight: 2, queued: 3, capacity: 2 },
+    });
+    getLeadDecisions.mockResolvedValue(DECISIONS);
+    renderScreen();
+    expect(await screen.findByText(/2\/2 diputuskan · 3 antre/)).toBeInTheDocument();
+  });
 });
 
 describe("LeadScreen · kendali manusia (AC-27/28, US-3/4)", () => {

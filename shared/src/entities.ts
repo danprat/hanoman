@@ -251,6 +251,18 @@ export const zLead = z.object({
   timeoutSec: z.number().int().min(10).max(900).default(600),
   // AC-11 / OQ-10 · berapa jawaban otomatis berturut-turut untuk SATU sesi sebelum lead berhenti.
   maxAutoAnswers: z.number().int().min(1).max(20).default(3),
+  // SPEC-479 (QA) · berapa putusan boleh DISUSUN SEKALIGUS, untuk KETIGA pintu bersama. Sebelum
+  // knob ini jawabannya tak pernah dinyatakan, jadi ia jatuh ke bentuk kode tiap pintu: 1 di pintu
+  // deteksi (`for`+`await`, terukur `maxInFlight = 1` dengan tangga tunggu linier) dan tak hingga
+  // di pintu kontrak (Fastify konkuren, terukur 12 permintaan → 12 proses agen). Default 2 diambil
+  // dari mesin tempat keluhan lahir — 8 GB / 8 core yang sudah menanggung sesi pekerja di tmux,
+  // sementara satu `claude -p --effort xhigh` adalah runtime Node penuh, bukan panggilan HTTP tipis.
+  maxConcurrent: z.number().int().min(1).max(16).default(2),
+  // Deadline penerimaan: menunggu slot lebih lama dari ini → penolakan EKSPLISIT yang bisa dicoba
+  // ulang (503 + Retry-After di pintu kontrak), bukan gantung. Wajib ada karena Fastify menyetel
+  // `requestTimeout: 0` (terukur dari `buildApp()`) — tak ada pihak lain yang akan memutus peminta.
+  // 0 = tanpa antrean sama sekali: penuh berarti langsung ditolak.
+  queueWaitSec: z.number().int().min(0).max(900).default(120),
   // OQ-3 · syarat objektif sebelum lead boleh mengintegrasikan ke branch utama. Default MENYALA:
   // risiko "kode masuk main tanpa mata manusia" diterima sadar, tapi syaratnya tetap terukur.
   requireGreenBeforeIntegrate: z.boolean().default(true),

@@ -6,6 +6,7 @@ import { LEAD_DEFAULTS } from "@hanoman/shared";
 import { capabilityForRoute, checkAgentCapability } from "../src/services/agent-capabilities";
 import { setLead } from "../src/services/lead/config";
 import { recordDecision } from "../src/services/lead/trail";
+import { runGated, __resetLeadGate } from "../src/services/lead/gate";
 
 // SPEC-409 · ADR-0091 · permukaan HTTP hanoman-lead.
 
@@ -22,6 +23,7 @@ const clean = async () => {
 };
 beforeEach(async () => {
   await clean();
+  __resetLeadGate();
   await prisma.project.create({ data: { id: "demo", name: "Demo", desc: "", kind: "web", leadOptIn: true } });
 });
 afterAll(clean);
@@ -125,6 +127,52 @@ describe("POST /api/lead/decisions (pintu #1)", () => {
       headers: { authorization: `Bearer ${token}` }, payload: { projectId: "demo", question: "q?" } });
     expect(r.statusCode).toBe(403);
     expect(r.json().need).toBe("lead:write");
+  });
+
+  // SPEC-479 (QA) · pintu ini tak punya pengereman apa pun sebelumnya: terukur 12 permintaan
+  // bersamaan → 12 proses `claude -p --effort xhigh` sekaligus. Sekarang ia mengantre, dan antrean
+  // yang penuh menjawab EKSPLISIT alih-alih menggantung.
+  it("503 + Retry-After saat gerbang penuh — bukan 409 (lead mati) dan bukan 504 (sudah mencoba)", async () => {
+    const cookie = await login();
+    await setLead({ ...LEAD_DEFAULTS, enabled: true, maxConcurrent: 1, queueWaitSec: 0 });
+
+    let release!: () => void;
+    const held = new Promise<void>((r) => { release = r; });
+    const occupied = runGated({ capacity: 1, waitMs: 5_000 }, async () => { await held; });
+    await new Promise((r) => setTimeout(r, 5));
+
+    const r = await app.inject({ method: "POST", url: "/api/lead/decisions", headers: { cookie },
+      payload: { projectId: "demo", question: "pakai kolom baru?" } });
+    expect(r.statusCode).toBe(503);
+    expect(Number(r.headers["retry-after"])).toBeGreaterThan(0);
+    // Peminta harus TAHU bahwa ini layak diulang — itu bedanya dengan 409/504.
+    expect(r.json().retryable).toBe(true);
+    // Dan tak ada baris `gagal` yang menyesatkan jejak operator (temuan C).
+    expect(await prisma.leadDecision.count()).toBe(0);
+
+    release();
+    await occupied;
+  });
+});
+
+describe("GET /api/lead/status · gerbang konkurensi (SPEC-479)", () => {
+  it("melaporkan berapa yang sedang disusun dan berapa yang mengantre", async () => {
+    const cookie = await login();
+    await setLead({ ...LEAD_DEFAULTS, enabled: true, maxConcurrent: 1 });
+
+    let release!: () => void;
+    const held = new Promise<void>((r) => { release = r; });
+    const occupied = runGated({ capacity: 1, waitMs: 5_000 }, async () => { await held; });
+    await new Promise((r) => setTimeout(r, 5));
+
+    const r = await app.inject({ method: "GET", url: "/api/lead/status", headers: { cookie } });
+    expect(r.statusCode).toBe(200);
+    // Batas yang tak terlihat operator akan terbaca lagi sebagai "lead diam" — persis salah baca
+    // yang melahirkan tiket ini.
+    expect(r.json().gate).toEqual({ inFlight: 1, queued: 0, capacity: 1 });
+
+    release();
+    await occupied;
   });
 });
 

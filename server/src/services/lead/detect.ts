@@ -1,4 +1,5 @@
 import { writeFileSync } from "node:fs";
+import type { LeadDecision } from "@prisma/client";
 import type { Agent, Lead } from "@hanoman/shared";
 import { capturePane, getSession, liveDecisions, markerFilled, sendToPane, submitPaneDialog } from "../pty";
 import { dialogKey, readDialogScreen } from "../tui-dialog";
@@ -6,6 +7,7 @@ import { recordLeadDecision } from "../notifications";
 import { getLead, leadActive, leadProjects } from "./config";
 import { readPaneQuestion } from "./pane";
 import { decide, prodDecideDeps, takeReply, type DecideDeps } from "./decide";
+import { LeadBusyError, runPool } from "./gate";
 import { recordDecision } from "./trail";
 
 // SPEC-409 · ADR-0091 · PINTU KEPUTUSAN #2 — deteksi otomatis.
@@ -133,6 +135,19 @@ export async function scanAndAnswer(deps: DetectDeps = prodDetectDeps): Promise<
   const sessions = deps.live();
   sweep(sessions.map((s) => s.id));
 
+  // SPEC-479 (QA) · DUA TAHAP, dan pemisahannya adalah seluruh perbaikannya.
+  //
+  // Tahap 1 (di bawah) hanya menyaring dan — untuk sesi yang menabrak pagar — menulis satu baris
+  // + notifikasi. Semuanya murah dan berurutan, jadi jejak & `skipped` tetap deterministik.
+  // Tahap 2 menjalankan rantai dialognya BERBARENGAN, berbatas `maxConcurrent`.
+  //
+  // Sebelumnya keduanya satu loop `for`+`await`, dan itu membuat "berapa sesi dilayani sekaligus"
+  // dijawab oleh bentuk kode: SATU. Terukur `maxInFlight = 1` dengan tangga tunggu linier
+  // 0/204/407/614/832/1035 ms untuk 6 sesi, dan karena urutan `tmux list-panes -a` stabil, ekor
+  // daftar selalu di ekor. Ditambah `busyDetect` (engine.ts) yang memulangkan tiap tick 5 detik
+  // selama satu rantai berjalan — pada anggaran penuh satu sesi boleh memegang pintu ini 60,6 menit.
+  const ready: { s: (typeof sessions)[number]; agent: Agent }[] = [];
+
   for (const s of sessions) {
     const skip = (reason: string) => out.skipped.push({ id: s.id, reason });
     if (!optIn.has(s.projectId)) { skip("project tak opt-in lead"); continue; }
@@ -182,6 +197,10 @@ export async function scanAndAnswer(deps: DetectDeps = prodDetectDeps): Promise<
     const read = readPaneQuestion(deps.pane(s.id), agent);
     if (!read.asking) { skip(read.reason); continue; }        // AC-9
 
+    ready.push({ s, agent });
+  }
+
+  await runPool(ready, cfg.maxConcurrent, async ({ s, agent }) => {
     const chain = await runChain(s, agent, deps);
     if (chain.acted && chain.done) {
       // SPEC-452/474 · marker dikosongkan HANYA sesudah layarnya bukan dialog lagi. Mengosongkannya
@@ -192,11 +211,11 @@ export async function scanAndAnswer(deps: DetectDeps = prodDetectDeps): Promise<
       answers.set(s.id, (answers.get(s.id) ?? 0) + 1);   // satu RANTAI = satu jawaban otomatis
       failures.delete(s.id);   // SPEC-472 · "beruntun" — satu keberhasilan memutus rantainya
       out.answered.push(s.id);
-      continue;
+      return;
     }
     if (chain.failed) failures.set(s.id, (failures.get(s.id) ?? 0) + 1);
-    skip(chain.reason);
-  }
+    out.skipped.push({ id: s.id, reason: chain.reason });
+  });
   return out;
 }
 
@@ -268,13 +287,28 @@ async function runChain(
       );
     }
 
-    const row = await deps.decide({
-      projectId: s.projectId, specId: s.specId, sessionId: s.id,
-      gate: "detected", kind: "answer",
-      question: read.question,
-      options: read.choices.length ? read.choices : undefined,
-      notes,
-    }, deps.decideDeps);
+    // SPEC-479 (QA) · gerbang penuh BUKAN kegagalan lead (`failed: false`). Pagar `failures`
+    // SPEC-472 dibuat untuk sebab yang TAK HILANG dengan mengulang — kunci ditolak, kuota habis,
+    // biner tak terpasang. Penuh adalah kebalikannya: ia hilang begitu slot bebas. Menghitungnya
+    // membuat tiga lonjakan beban menutup lead bagi sesi ini selamanya, karena `failCapped` adalah
+    // keadaan MENYERAP (tanpa percobaan tak ada keberhasilan, tanpa keberhasilan tak ada reset) —
+    // terukur nol percobaan baru dalam 10 denyut sesudah bebannya hilang.
+    //
+    // Rantai yang terputus di tengah aman ditinggalkan: markernya belum dikosongkan, jadi denyut
+    // berikutnya membaca layar dialog apa adanya dan melanjutkan dari pertanyaan yang tampil.
+    let row: LeadDecision | null;
+    try {
+      row = await deps.decide({
+        projectId: s.projectId, specId: s.specId, sessionId: s.id,
+        gate: "detected", kind: "answer",
+        question: read.question,
+        options: read.choices.length ? read.choices : undefined,
+        notes,
+      }, deps.decideDeps);
+    } catch (e) {
+      if (e instanceof LeadBusyError) return { acted, done: false, failed: false, reason: `lead penuh — ${e.message}` };
+      throw e;
+    }
     // `null` = lead baru saja dijeda/dimatikan di tengah panggilan — bukan kegagalan lead, jadi tak
     // dihitung. Baris ber-status `gagal` ADALAH kegagalan: ia yang harus punya ujung (SPEC-472).
     if (!row) return { acted, done: false, failed: false, reason: "lead tak menghasilkan keputusan yang berlaku" };

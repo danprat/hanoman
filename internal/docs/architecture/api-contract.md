@@ -755,14 +755,17 @@ GET  /api/scheduler/state    -> { config, cap, liveCount, sources:[{id,enabled,e
 # Semua HTTP (polling) — TAK ADA kanal WebSocket baru (ADR-0039 utuh). Semua default MATI.
 # Capability agent-token: domain `lead`, dipetakan MENURUT METHOD (baca → lead:read, tulis → lead:write).
 GET  /api/lead/config      -> Lead (zLead: enabled, paused, pausedProjects[], everyMin, timeoutSec,
-#                                    maxAutoAnswers, requireGreenBeforeIntegrate, engine{enabled,agent,model,effort})
+#                                    maxAutoAnswers, maxConcurrent, queueWaitSec,
+#                                    requireGreenBeforeIntegrate, engine{enabled,agent,model,effort})
 PUT  /api/lead/config      { Lead } -> Lead          # ganti blok penuh (pola PUT /scheduler/config). Pause = { paused:true }. 400 invalid.
 GET  /api/lead/status      -> { config, projects:[{projectId,name,optIn,paused,decisions24h,openSessions}],
-#                               queue: SchedulerQueueItem[], deciding:[sessionId], waiting:[sessionId], lastPulseAt }
+#                               queue: SchedulerQueueItem[], deciding:[sessionId], queued:[sessionId],
+#                               waiting:[sessionId], lastPulseAt, gate:{inFlight,queued,capacity} }
 GET  /api/lead/decisions?projectId&specId&sessionId&status&take&skip -> { items: LeadDecisionView[] }
 POST /api/lead/decisions   { projectId, specId?, sessionId?, question, options?[], context? }
 #                          -> 201 { id, decision, reason, refs[], confidence, action }   # PINTU #1 (kontrak eksplisit)
 #                             409 lead tak aktif / project tak opt-in · 404 project · 504 lead gagal memutuskan (AC-4)
+#                             503 { error, retryable:true, queued } + Retry-After  gerbang penuh (SPEC-479)
 POST /api/lead/decisions/:id/override { answer, reason? } -> { old, next, delivered }
 POST /api/lead/decisions/:id/cancel                       -> LeadDecisionView
 ```
@@ -794,10 +797,24 @@ POST /api/lead/decisions/:id/cancel                       -> LeadDecisionView
 > sesi pekerja — ADR-0037 tetap utuh. Menghentikan sesi memakai `killSession()` langsung sehingga
 > **worktree-nya dibiarkan utuh** (berbeda dari `DELETE /api/terminal/sessions/:id`).
 >
+> **Gerbang konkurensi** (SPEC-479 · QA, `services/lead/gate.ts`): ketiga pintu berbagi SATU gerbang
+> penerimaan **FIFO** berkapasitas `maxConcurrent` (default 2), dipasang di choke point yang sudah
+> tunggal — `decide()` — bukan disalin ke tiap pintu. Sebelumnya batas itu tak pernah dinyatakan di
+> mana pun, jadi ia jatuh ke bentuk kode masing-masing pintu: **1** di pintu deteksi (`for`+`await`,
+> terukur `maxInFlight = 1` dengan tangga tunggu linier untuk 6 sesi) dan **tak hingga** di pintu
+> kontrak (Fastify konkuren, terukur 12 permintaan → 12 proses `claude -p`). FIFO bukan gaya: urutan
+> `tmux list-panes -a` stabil, jadi gerbang "siapa cepat" melaparkan ekor daftar persis seperti loop
+> serial yang digantikannya. Slot yang tak didapat dalam `queueWaitSec` (default 120) → penolakan
+> **eksplisit yang bisa diulang**: `503 { retryable:true }` + `Retry-After` di pintu kontrak, lewati-
+> dan-coba-lagi di pintu deteksi & denyut. Penuh **bukan** kegagalan lead — ia tak menulis baris
+> jejak dan tak menambah penghitung `maxAutoAnswers`, sebab pagar itu (SPEC-472) dibuat untuk sebab
+> yang tak hilang dengan mengulang sementara penuh hilang begitu slot bebas.
+>
 > **Opt-in per project:** `PATCH /api/projects/:id { leadOptIn }` (lokal — tak masuk `FIELDS` sync).
 > **Panel Lead** (`LeadScreen.tsx` + nav `key:"lead"`) self-poll `GET /api/lead/status` +
 > `GET /api/lead/decisions` (5 dtk, pola SchedulerScreen): jejak (pertanyaan → jawaban → alasan →
-> rujukan), sesi menunggu vs **sedang diputuskan**, Pause global & per project, Timpa & Batalkan.
+> rujukan), sesi menunggu vs **sedang diputuskan** vs **antre** (SPEC-479 — ketiganya terlihat sama
+> di pane, hanya yang pertama butuh manusia), Pause global & per project, Timpa & Batalkan.
 
 ## Custom agent (SPEC-450 · ADR-0094)
 ```

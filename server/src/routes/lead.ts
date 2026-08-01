@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import type { LeadDecision } from "@prisma/client";
 import { zLead, zLeadAsk, zLeadOverride, type LeadAnswer, type LeadStatusView } from "@hanoman/shared";
 import { prisma } from "../db";
 import { listSessions, liveDecisions, markerFilled, sendToPane } from "../services/pty";
@@ -7,7 +8,8 @@ import { getLead, setLead, leadActive } from "../services/lead/config";
 import { decide, takeReply } from "../services/lead/decide";
 import { applyAction } from "../services/lead/apply";
 import { listDecisions, overrideDecision, cancelDecision, toDecisionView } from "../services/lead/trail";
-import { decidingIds } from "../services/lead/deciding";
+import { decidingIds, queuedIds } from "../services/lead/deciding";
+import { LeadBusyError, leadGateStats } from "../services/lead/gate";
 import { resetSession } from "../services/lead/detect";
 import { lastPulse } from "../services/lead/engine";
 
@@ -56,8 +58,11 @@ export default async function (app: FastifyInstance) {
         enqueuedAt: q.enqueuedAt.toISOString(),
         launchedAt: q.launchedAt ? q.launchedAt.toISOString() : null,
       })),
-      deciding: decidingIds(), waiting,
+      deciding: decidingIds(), queued: queuedIds(), waiting,
       lastPulseAt: last ? new Date(last).toISOString() : null,
+      // SPEC-479 · keadaan gerbang konkurensi. Tanpa ini "lead sedang penuh" dan "lead diam"
+      // terlihat identik di layar, dan salah baca itulah yang melahirkan tiketnya.
+      gate: { ...leadGateStats(), capacity: cfg.maxConcurrent },
     };
   });
 
@@ -86,11 +91,27 @@ export default async function (app: FastifyInstance) {
     if (!project.leadOptIn || !leadActive(cfg, ask.projectId))
       return reply.code(409).send({ error: "lead tidak aktif untuk project ini" });
 
-    const row = await decide({
-      projectId: ask.projectId, specId: ask.specId ?? null, sessionId: ask.sessionId ?? null,
-      gate: "contract", kind: "answer", question: ask.question, options: ask.options,
-      notes: ask.context ? [ask.context] : undefined,
-    });
+    // SPEC-479 (QA) · pintu ini tak punya pengereman apa pun sebelum gerbang konkurensi: Fastify
+    // melayani permintaan secara konkuren, jadi terukur 12 permintaan bersamaan → 12 proses
+    // `claude -p --effort xhigh` sekaligus di mesin 8 GB / 8 core yang sudah menanggung sesi
+    // pekerja. Sekarang ia mengantre, dan antrean yang penuh MENJAWAB alih-alih menggantung.
+    let row: LeadDecision | null;
+    try {
+      row = await decide({
+        projectId: ask.projectId, specId: ask.specId ?? null, sessionId: ask.sessionId ?? null,
+        gate: "contract", kind: "answer", question: ask.question, options: ask.options,
+        notes: ask.context ? [ask.context] : undefined,
+      });
+    } catch (e) {
+      if (!(e instanceof LeadBusyError)) throw e;
+      // 503, dan sengaja BUKAN dua kode yang sudah dipakai di sini: 409 berarti "tak ada yang
+      // menjawab, tunggu manusia" (lead mati/dijeda) dan 504 berarti "lead sudah mencoba lalu
+      // kehabisan waktu" — keduanya menyuruh peminta menyerah. Ini kebalikannya: lead sehat,
+      // hanya penuh, dan permintaan yang sama layak dikirim lagi.
+      return reply.code(503)
+        .header("retry-after", String(Math.max(5, cfg.queueWaitSec)))
+        .send({ error: e.message, retryable: true, queued: e.queued });
+    }
     if (!row) return reply.code(409).send({ error: "lead tidak aktif untuk project ini" });
     takeReply(row.id);   // kontrak eksplisit tak mengetik ke pane; buang balasan pane-nya
     if (row.status === "gagal") return reply.code(504).send({ error: row.reason, id: row.id });

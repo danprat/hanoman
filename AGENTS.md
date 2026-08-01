@@ -52,10 +52,18 @@ hanoman --version | --help
   (atau sebut path test-nya langsung) dan typecheck paket yang tersentuh (`pnpm --filter ./server typecheck`).
   **`--no-file-parallelism` wajib** bila set-nya menyentuh test server: run tingkat-root tak
   menghormati `fileParallelism: false` milik project server dan test server berbagi **satu berkas DB**
-  (`<db>.test.db` per checkout sejak SPEC-398/ADR-0086 — berkasnya tak lagi bisa di-*truncate* worktree
-  tetangga dan dimigrasi otomatis `server/test/global-setup.ts`, tapi berkas test dalam paket yang sama
-  masih men-seed ulang DB yang sama) — terukur di SPEC-397, set yang sama memberi **181 gagal palsu**
-  paralel vs **736 lulus** serial. Sesi
+  (`<db>.test.db`, dimigrasi otomatis `server/test/global-setup.ts`) — terukur di SPEC-397, set yang
+  sama memberi **181 gagal palsu** paralel vs **736 lulus** serial.
+  **`TEST_DATABASE_URL` wajib bila ada sesi lain jalan di mesin ini** (SPEC-479, mengoreksi klaim
+  SPEC-398 "per checkout, aman dari worktree tetangga"): berkas itu diturunkan dari **`HANOMAN_HOME`**,
+  bukan dari checkout (`runner/src/paths.ts` `resolveDbUrl` → `join(resolveHome(env),"hanoman.db")`),
+  dan setiap sesi hanoman mewarisi `HANOMAN_HOME` yang sama → **semua worktree memakai satu
+  `~/.hanoman/hanoman.test.db`**, yang `global-setup.ts:15` **hapus** (`rmSync`) di awal tiap run.
+  Run tetangga karena itu menghapus DB di tengah run kita. Terukur pada set yang sama: **99 gagal →
+  2 gagal → 0 gagal (266/266 berkas, 2211/2211 test)** semata-mata sebagai fungsi isolasi DB, dengan
+  log memperlihatkan `SQLite database hanoman.test.db created` **di tengah** run. Pakai
+  `TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db"`; suite yang gagal ramai dengan **404/P2022**
+  hampir selalu ini, bukan regresi. Sesi
   hanoman default `verifyScope=changed` (SPEC-376, ADR-0080): jangan menjalankan suite penuh,
   `pnpm -r typecheck`, atau build penuh sebagai rutinitas — mesin ini menjalankan beberapa sesi
   sekaligus. Perluas scope hanya bila perubahannya memang berdampak luas, dan katakan alasannya.

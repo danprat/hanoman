@@ -100,6 +100,29 @@ describe("SPEC-409 · knob lead (AC-30)", () => {
   });
 });
 
+// SPEC-479 (QA) · sebelum ini "berapa putusan boleh disusun sekaligus" tak dinyatakan di mana pun,
+// jadi jawabannya jatuh ke bentuk kode tiap pintu: 1 (pintu deteksi, `for`+`await`) dan tak hingga
+// (pintu kontrak, Fastify konkuren). Knob-nya hidup di blok `lead` yang sudah ada — kolom
+// `Setting.data` bertipe Json, jadi TANPA migration, cermin seluruh knob lead sejak ADR-0091.
+describe("SPEC-479 · batas konkurensi & deadline penerimaan", () => {
+  it("membatasi putusan yang disusun sekaligus, default kecil", () => {
+    // 2 diambil dari mesin tempat keluhan lahir (8 GB / 8 core yang sudah menanggung sesi pekerja
+    // di tmux), bukan dari angka bulat: satu `claude -p --effort xhigh` adalah runtime Node penuh.
+    expect(LEAD_DEFAULTS.maxConcurrent).toBe(2);
+  });
+  it("memberi deadline pada antreannya — menunggu harus punya ujung", () => {
+    // Fastify menyetel `requestTimeout: 0` (terukur), jadi TAK ADA yang memutus peminta selain
+    // batas ini. Antrean tanpa deadline = "menggantung tanpa batas" yang diminta dihapus keluhan.
+    expect(LEAD_DEFAULTS.queueWaitSec).toBe(120);
+  });
+  it("menolak kapasitas nol — gerbang yang tak meloloskan siapa pun bukan gerbang", () => {
+    expect(zLead.safeParse({ maxConcurrent: 0 }).success).toBe(false);
+  });
+  it("mengizinkan antrean tanpa tunggu (0) — penuh berarti langsung ditolak", () => {
+    expect(zLead.safeParse({ queueWaitSec: 0 }).success).toBe(true);
+  });
+});
+
 describe("SPEC-409 · capability lead (AC-5)", () => {
   it("adds a domain of its own rather than borrowing an existing prefix", () => {
     expect(CAPABILITY_IDS).toContain("lead:read");
