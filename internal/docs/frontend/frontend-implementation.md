@@ -582,6 +582,37 @@ Karena itu `Button` DS menerima prop `as="a"` (menekan atribut `type`/`disabled`
 `<a>`, memakai `aria-disabled`). Test yang mem-*mock* `../src/api/client` secara parsial perlu ikut
 menyediakan fungsi URL ini.
 
+## Settings → Model sesi → Agen hanoman-lead (SPEC-488)
+
+Kartu keempat di tab **Model sesi**, di bawah "Konflik rebase & merge", dengan bentuk yang persis
+sama (ADR-0081): `Switch` opt-in → tiga `Select` (Runtime · Model · Effort). Mati → satu baris
+`data-testid="lead-engine-inherited"` yang **menyebutkan nilai warisan yang benar-benar berlaku**
+(hasil `sessionAgentDefaults()`, dihitung di klien dari `agent`/`model`/`effort`/`codex`) — tanpa
+baris itu operator ditinggal bertanya "lalu lead pakai apa?".
+
+Tiga aturan yang mengikat, ketiganya sudah berlaku untuk kartu konflik dan tak boleh menyimpang:
+menukar **Runtime** menukar model+effort sekalian ke default runtime itu (kalau tidak lead lahir
+`codex -m claude-opus-5`); memilih model codex **mengoersi** effort-nya (`coerceCodexEffort` —
+effort properti per-model, SPEC-339, jadi picker memakai `codexEfforts(model)` bukan
+`CODEX_EFFORTS`); dan katalognya dibaca dari `@hanoman/shared`, sumber yang sama dengan picker
+Start.
+
+**Beda satu-satunya dari kartu konflik: jalur tulisnya.** Kartu ini melakukan read-modify-write
+bersegar lewat `GET`+`PUT /lead/config`, bukan `save()` (`PUT /settings`). `SettingsScreen`
+mengirim seluruh `Setting` dari snapshot yang dimuat **sekali** saat mount, dan blok `lead` punya
+penulis kedua — `LeadScreen`. Menulisnya dari snapshot mengembalikan `paused`/`everyMin` ke nilai
+lama: rem darurat yang lepas sendiri. Kegagalan menulis mengembalikan state lokal ke nilai
+sebelumnya (pola "jangan pernah biarkan layar memperlihatkan nilai yang tak ada di server").
+Konsekuensi untuk test: berkas test Settings yang mem-*mock* `../src/api/client` **tak** perlu
+menyediakan `getLeadConfig`/`putLeadConfig` selama ia tak menyentuh kartu ini — kartu tak memanggil
+keduanya saat render, hanya saat operator menyimpan.
+
+`LeadScreen` sendiri menampilkan hasilnya sebagai satu baris `data-testid="lead-engine-line"`
+(`mesin: Claude Code · claude-opus-5 · xhigh`, atau "ikut default global · atur di Settings → Model
+sesi"). Datanya sudah ada di `config` yang dipoll layar itu — **nol permintaan baru, nol perubahan
+DTO**; `cfg.engine?.` memakai optional chaining karena dashboard bisa lebih baru daripada server
+yang dilayaninya (ADR-0087).
+
 ## Form Custom Agent — kontrol pilihan, bukan teks bebas (SPEC-484 · ADR-0101)
 
 `CustomAgentsPanel` (satu komponen untuk Settings **dan** Project detail) memakai empat kontrol

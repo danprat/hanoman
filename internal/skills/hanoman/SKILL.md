@@ -443,6 +443,27 @@ Pakai skill lebih sempit saat task cocok:
   `goalChunks` (burst ≥1024 char → `[Pasted Content]` SENYAP, ADR-0085); rujukan disaring terhadap
   repo (path absolut & `..` ditolak); dan marker sesi **codex** menyala juga saat selesai wajar
   (ADR-0074) → `services/lead/pane.ts` bias ke DIAM.
+- **Runtime/model/effort lead punya permukaan operator** (SPEC-488, tanpa ADR — skema `Setting`
+  tak berubah): blok `Setting.lead.engine` `{enabled,agent,model,effort}` ada sejak ADR-0091 dan
+  `leadAgentDefaults()` sudah menyalurkannya ke `decide()` → `think()` → `leadArgv()`, tetapi
+  sampai spec ini **tak ada satu pun kontrol UI** (`grep "engine" src/src/` → nol) dan **tak ada
+  satu pun test** (`lead-decide.test.ts` menyuntik `think` sebagai stub, jadi `brain.ts` maupun
+  `leadAgentDefaults()` tak pernah dieksekusi olehnya). Permukaannya kini kartu **"Agen
+  hanoman-lead"** di Settings → Model sesi, cermin kartu konflik ADR-0081; `LeadScreen` menampilkan
+  hasilnya sebagai satu baris tanpa permintaan baru. **Tiga gotcha:** (1) kartu itu menulis lewat
+  **`PUT /lead/config`**, bukan `PUT /settings` — `SettingsScreen` mengirim seluruh `Setting` dari
+  snapshot yang dimuat **sekali** saat mount, dan blok `lead` punya **penulis kedua** (`LeadScreen`:
+  Pause/denyut/opt-in), jadi menulisnya dari snapshot membuat **rem darurat lepas sendiri**; blok
+  `conflict` aman dengan `save()` justru karena tak punya penulis kedua; (2) bukti "setelan dipakai"
+  harus dibaca dari **argv proses**, bukan bentuk respons API — fixture `fake-lead-argv.sh` merekam
+  argv (kecuali argumen terakhir, yakni prompt ±10 KB ber-baris-baru) lalu mencetak putusan json
+  **sah**; `fake-lead-agent.sh` tak pernah mencetak json sehingga `decide()` berhenti di parser
+  sebelum membuktikan apa pun, dan `fake-claude.sh` (`exec cat`) haram untuk agen one-shot
+  (SPEC-448); (3) "tanpa restart" adalah **sifat** `getSetting()` yang tak punya cache dan dipanggil
+  di dalam `decide()` — dikunci test yang memanggil `decide()` dua kali dalam satu proses dengan
+  baris `Setting` berbeda di antaranya, supaya cache yang kelak ditambahkan orang lain memerahkan
+  sesuatu. Terukur saat spec ini ditulis: memutus `leadAgentDefaults()` (paksa selalu warisan)
+  memerahkan **5 dari 8** test berkas itu — buktinya tidak hampa.
 - **Backlog yang SELESAI juga butuh diputuskan — pintu keberhasilan** (SPEC-451, tanpa ADR — QA;
   ADR-0091 **ditegakkan**, ADR-0037 & ADR-0072 utuh): denyut lead punya pintu untuk kegagalan
   (`followUpFinished`: exit ≠ 0 atau plan bersisa `- [ ]`) dan **tak punya pintu untuk

@@ -228,6 +228,19 @@ Singleton `id = 1`, kolom `data` (Json) berbentuk `zSetting`:
   **opt-in seperti `conflict`**: selama `engine.enabled` mati, `leadAgentDefaults()` mendelegasikan
   penuh ke `sessionAgentDefaults()`. Ditambahkan sebagai `.default(LEAD_DEFAULTS)` → baris Setting
   lama tetap parse, **tanpa migration**.
+  **Permukaan operatornya** (SPEC-488, tanpa ADR — skema tak berubah) adalah kartu
+  "Agen hanoman-lead" di **Settings → Model sesi**, katalognya sumber yang sama dengan dua kartu di
+  atasnya (`MODELS`/`EFFORTS` untuk claude; `CODEX_MODELS` + **`codexEfforts(model)`** untuk codex —
+  effort codex properti **per-model**, SPEC-339, jadi picker tak boleh memakai `CODEX_EFFORTS`).
+  Kartu itu menulis lewat **`PUT /lead/config`**, bukan `PUT /settings` seperti kartu konflik, dan
+  itu perbedaan sadar: `SettingsScreen` mengirim seluruh objek `Setting` dari snapshot yang dimuat
+  **sekali** saat mount, sementara blok `lead` punya **penulis kedua** (`LeadScreen` — Pause, denyut,
+  batas waktu, opt-in per project). Menulisnya dari snapshot berarti rem darurat yang ditekan di
+  layar Lead **lepas sendiri** saat operator mengganti model di Settings; blok `conflict` tak punya
+  penulis kedua, jadi pola `save()`-nya tetap sah di sana. Nilainya dibaca `getSetting()` **tiap
+  panggilan** (tanpa cache) dari dalam `decide()` → ganti setelan **berlaku tanpa restart**, dikunci
+  `server/test/lead-engine-argv.test.ts` yang memanggil `decide()` dua kali dalam satu proses
+  dengan baris `Setting` berbeda di antaranya.
 
 ## User / Session (auth — SPEC-169, [ADR-0028](../adr/0028-auth-sesi-opaque-di-db.md))
 - **User**: `id` (cuid), `email` (unique), `passwordHash` (`scrypt` "saltHex:hashHex"), `createdAt`.
