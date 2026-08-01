@@ -73,6 +73,22 @@ describe("reconcile", () => {
     expect(await prisma.notification.count({ where: { specId: "SPEC-104", type: "fail" } })).toBe(1);
   });
 
+  // SPEC-475 · reconcile adalah satu-satunya jalur andal yang menyelesaikan sesi scheduler, dan
+  // sampai audit ini ia menghitung HEAD worktree untuk SessionResult lalu MEMBUANGNYA — sehingga
+  // `Spec.headSha` tetap null dan gerbang dependency ADR-0093 kehilangan buktinya.
+  it("done merekam ujung kerja ke Spec.headSha, bukan cuma ke SessionResult", async () => {
+    await seedLaunched("SPEC-106", "executing");
+    await reconcile(deps({ deriveStage: () => "done" as Stage, headSha: () => "tip106" }));
+    expect((await prisma.spec.findUnique({ where: { id: "SPEC-106" } }))!.headSha).toBe("tip106");
+  });
+
+  it("HEAD tak terbaca saat done → headSha lama tak ditimpa null", async () => {
+    await seedLaunched("SPEC-107", "executing");
+    await prisma.spec.update({ where: { id: "SPEC-107" }, data: { headSha: "lama107" } });
+    await reconcile(deps({ deriveStage: () => "done" as Stage, headSha: () => null }));
+    expect((await prisma.spec.findUnique({ where: { id: "SPEC-107" } }))!.headSha).toBe("lama107");
+  });
+
   it("dedup ringkasan: SessionResult(done) sudah ada → tak buat kedua", async () => {
     await seedLaunched("SPEC-105", "executing");
     await prisma.sessionResult.create({ data: { id: "pre-105", projectId: "p1", specId: "SPEC-105", newStage: "done", status: "done" } });

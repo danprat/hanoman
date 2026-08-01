@@ -12,6 +12,7 @@ import { ensureCodexTrust } from "../services/codex-trust";
 import { startSpecSession, LaunchError } from "../services/session-launch";
 import { resolveRepoDir } from "../services/local-binding";
 import { ownsWorktree } from "../services/session-worktree";
+import { recordHeadSha } from "../services/spec-head";
 import { readPrd } from "../services/project-prds";
 import { readAuditDoc } from "../services/audit-escalation";
 import { recordSessionResult } from "../services/session-result";
@@ -382,10 +383,9 @@ export default async function (app: FastifyInstance) {
           if (s.flow) await advanceStage(s.specId, repoDir, id, s.flow, s.cwd);
           // HEAD worktree = ujung range review sesudah item selesai (SPEC-176, ADR-0030).
           // Dibaca sebelum removeWorktree; gagal-diam agar tak memblok penutupan sesi.
-          try {
-            const headSha = realGit.headSha(s.cwd);
-            await prisma.spec.update({ where: { id: s.specId }, data: { headSha } });
-          } catch { /* HEAD tak resolve — biarkan headSha apa adanya */ }
+          // SPEC-475 · lewat penulis BERSAMA — jalur ini dulu satu-satunya yang menulis kolomnya,
+          // dan itulah sebabnya dua jalur otonom lain kehilangan bukti dependency-nya.
+          await recordHeadSha(s.specId, s.cwd);
         }
         killSession(id);
         // SPEC-362 · hanya hapus worktree yang benar-benar milik sesi ini. Tanpa gerbang ini,

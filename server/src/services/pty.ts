@@ -10,6 +10,7 @@ import {
 } from "@hanoman/runner";
 import { coerceCodexEffort, type SessionKind } from "@hanoman/shared";
 import { readPhases, sessionComplete, type Phase } from "./session-phases";
+import { sessionIdForSpec } from "./session-id";
 import {
   answerChoiceDialog, answerNotesDialog, readDialogScreen, submitReview, type PaneIO,
 } from "./tui-dialog";
@@ -140,12 +141,9 @@ function tmux(...args: string[]): string {
 // kutip, JSON `--settings` pecah di setiap spasi dan claude mati sebelum lahir.
 const sq = (s: string): string => `'${s.split("'").join("'\\''")}'`;
 
-// tmux menolak `.` dan `:` dalam nama sesi. Sesi backlog id-nya bisa ditebak dari spec-nya —
-// itulah yang membuat Start dua kali menyambung ke sesi yang sama, bukan melahirkan yang kedua.
-// SPEC-294 · satu definisi dipakai terminal route, session-launch, dan governor scheduler —
-// tak ada divergensi id sesi antar jalur peluncuran.
-export const sessionIdForSpec = (specId: string): string =>
-  specId.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+// SPEC-475 · definisinya pindah ke `./session-id` supaya `spec-deps.ts` bisa memakainya tanpa
+// ikut memuat `node-pty`; di-re-export di sini agar seluruh pemakai lama tak berubah.
+export { sessionIdForSpec };
 const idFor = (specId?: string) =>
   specId ? sessionIdForSpec(specId) : randomUUID().slice(0, 8);
 

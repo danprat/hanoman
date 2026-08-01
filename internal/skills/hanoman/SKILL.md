@@ -570,8 +570,12 @@ Pakai skill lebih sempit saat task cocok:
   yang lahir lebih dulu **secara fisik tak memuat** pekerjaan dependency-nya. Satu resolver
   `services/spec-deps.ts` dipakai TIGA pembaca (gerbang `startSpecSession`, gerbang governor,
   dekorasi `liveSpecs` → `blockedBy`) — menyalin predikatnya adalah kelas bug SPEC-431. **Empat
-  gotcha:** dependency `done` ber-`headSha` null **SIAP** (hanoman tak pernah membuatkan worktree
-  untuknya — membacanya "belum" mengunci backlog lama selamanya); git yang tak bisa menjawab dibaca
+  gotcha:** dependency yang **tak punya jejak kerja sama sekali** adalah **SIAP** — dan sejak SPEC-475
+  "jejak kerja" berarti `headSha` **?? tip branch sesinya** (`hanoman/<sessionIdForSpec(id)>`, ADR-0032),
+  bukan kolom `headSha` sendirian: kolom itu kosong pada **~76 %** item `done` ber-worktree, sehingga
+  membacanya begitu saja membuat alasan `unmerged` **tak pernah menyala sekali pun** (0 dari 56 baris
+  antrean di DB hidup) dan rantai backlog diluncurkan **6 detik** sesudah dependency-nya `done`, ±8,5
+  jam sebelum merge-nya; git yang tak bisa menjawab dibaca
   **belum merged** (fail-closed); `"dependsOn"` **wajib** di `FIELDS.spec` atau client kehilangan
   urutannya dan meluncurkan pekerjaan yang di hub terblokir; dan `GovernorDeps.blockers` sengaja
   **wajib** (bukan opsional) supaya gerbang otomasi tak bisa lupa dipasang. Item terblokir tetap
@@ -582,6 +586,21 @@ Pakai skill lebih sempit saat task cocok:
   sengaja **di luar** gerbang edit SPEC-186 — ia menggerbangi peluncuran berikutnya, bukan konten
   sesi berjalan; dan `DELETE /specs/:id` mencabutnya dari dependent agar tak ada yang terkunci
   `missing` selamanya.
+- **`Spec.headSha` punya SATU penulis dan TIGA jalur yang memicunya** (SPEC-475,
+  `services/spec-head.ts` → `recordHeadSha()`): `DELETE /terminal/sessions/:id`,
+  `scheduler/reconcile.ts`, dan overlay stage-live `live-specs.ts`. Setiap jalur yang mempersist
+  `stage = "done"` **wajib** memanggilnya — bukan opsional, dan jangan pernah menyalin isinya.
+  Sampai SPEC-475 hanya jalur DELETE yang menulis kolom itu, sementara penyelesaian **otonom** tak
+  pernah melewatinya (pane sesi sukses tak mati sendiri, SPEC-433; `integrate-main` lead melepas pane
+  lewat `killSession` LANGSUNG demi worktree utuh, SPEC-451; item yang di-Start manual tak punya baris
+  antrean sehingga `reconcile` tak menyentuhnya) → **159 dari 210** item `done` ber-worktree kosong
+  ujungnya, gerbang dependency ADR-0093 kehilangan buktinya, dan rentang review ADR-0030 jatuh ke
+  fallback worktree. Ini pengulangan **ketiga** pola SPEC-431/448 "satu definisi, N call site", dengan
+  satu perbedaan yang membuatnya lebih licin: yang berbeda antar-jalur bukan **predikat** melainkan
+  **efek samping** — dan efek samping tak punya tipe yang bisa memaksanya konsisten seperti
+  `GovernorDeps.blockers`. `null` **tak pernah** ditulis: HEAD yang tak terbaca (worktree lenyap, repo
+  rusak) tak boleh MENGHAPUS ujung yang sudah tercatat — itu menukar "belum ter-merge" jadi "siap"
+  persis di titik paling berbahaya.
 - **Custom agent — persona global & per project** (SPEC-450/ADR-**0094**): entitas `CustomAgent`
   (migration tulis tangan, **ikut sync**) dengan `projectId` null = **global**, terisi = milik satu
   project; agen project **menimpa** global bernama sama (dan agen project yang **dimatikan**

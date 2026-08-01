@@ -96,9 +96,18 @@ tiap berkas.
 - `branchFrom?` — branch sumber worktree bagi sesi yang lahir dari item ini. `null` = default project
   (`main`). Divalidasi terhadap `refs/heads` repo project; lihat
   [ADR-0032](../adr/0032-branch-adalah-properti-backlog-item.md).
-- `baseSha?`/`headSha?` — commit tempat worktree sesi di-detach, dan commit HEAD worktree di akhir sesi
-  (sebelum `removeWorktree`). Penunjuk, bukan isi: diff/daftar-file review diturunkan dari git saat
+- `baseSha?`/`headSha?` — commit tempat worktree sesi di-detach, dan commit HEAD worktree di akhir sesi.
+  Penunjuk, bukan isi: diff/daftar-file review diturunkan dari git saat
   `GET /specs/:id/review` dibaca, tidak pernah dipersist. Lihat [ADR-0019](../adr/0019-sha-disimpan-diff-diturunkan.md) dan [ADR-0030](../adr/0030-spec-menyimpan-base-head-sha.md).
+  **SPEC-475 · `headSha` distempel satu penulis bersama `recordHeadSha()` (`services/spec-head.ts`) di
+  KETIGA jalur yang mempersist `stage = "done"`** — `DELETE /terminal/sessions/:id` (sebelum
+  `removeWorktree`), `scheduler/reconcile.ts`, dan overlay stage-live `live-specs.ts`. Sebelumnya hanya
+  jalur DELETE yang menulisnya, sementara penyelesaian OTONOM tak pernah melewatinya (pane sesi sukses
+  tak mati sendiri, SPEC-433; `integrate-main` lead melepas pane lewat `killSession` langsung demi
+  worktree utuh, SPEC-451) → **159 dari 210** item `done` ber-worktree tak punya ujung kerja tercatat,
+  dan gerbang dependency ADR-0093 kehilangan buktinya. `null` **tak pernah ditulis**: HEAD yang tak
+  terbaca tak boleh menghapus ujung yang sudah tercatat. `session-launch.ts` tetap me-null-kannya saat
+  sesi BARU lahir (bukan saat *melanjutkan*, ADR-0084) — rentang review dimulai ulang bersama basisnya.
 - `createdAt`/`startedAt` (SPEC-408/[ADR-0090](../adr/0090-stempel-waktu-backlog-created-started.md)) —
   stempel waktu backlog. `createdAt` NOT NULL ber-`@default(now())`, ditulis DB dan **tak pernah** oleh
   route, sehingga "kapan item difilekan" tak bisa diedit operator. `startedAt` nullable = kapan sesi
@@ -123,9 +132,14 @@ tiap berkas.
   tetangganya selamanya. `dependsOn` sengaja **di luar** gerbang edit SPEC-186 (`stage=brainstorming
   ∧ baseSha=null`) — ia menggerbangi peluncuran *berikutnya*, bukan konten sesi berjalan.
   **`blockedBy` bukan kolom**: nilai turunan yang dihitung `liveSpecs()` dari `stage` dependency +
-  `git merge-base --is-ancestor` (memo 15 dtk), ikut ADR-0018/0019. Dependency `done` ber-`headSha`
-  null dianggap **siap** — hanoman tak pernah membuatkan worktree untuknya (pelajaran SPEC-431), jadi
-  tak ada commit yang bisa di-merge.
+  `git merge-base --is-ancestor` (memo 15 dtk), ikut ADR-0018/0019.
+  **SPEC-475 · "ujung kerja" dependency = `headSha` ?? tip branch sesinya** (`workTip`,
+  `hanoman/<sessionIdForSpec(id)>` — nama deterministik per ADR-0032, memo 15 dtk). Yang berarti
+  **siap** adalah **tak ada jejak kerja sama sekali**, bukan sekadar kolom `headSha` yang kosong:
+  hanoman tak pernah membuatkan worktree untuk item itu (pelajaran SPEC-431) **atau** branch sesinya
+  sudah dihapus karena ter-merge (SPEC-360 — penghapusan itu sendiri buktinya). Membaca `headSha` null
+  begitu saja sebagai "siap" membuat alasan `unmerged` **tak pernah menyala sekali pun** di produksi
+  (0 dari 56 baris antrean), karena kolom itu kosong pada ~76 % item `done` ber-worktree.
 
 ## Setting (per workspace)
 Singleton `id = 1`, kolom `data` (Json) berbentuk `zSetting`:

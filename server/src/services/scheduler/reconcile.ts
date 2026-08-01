@@ -8,6 +8,7 @@ import { STAGES } from "../stage-machine";
 import { notifySynced } from "../sync-notify";
 import { getSession } from "../pty";
 import { readPhases, stageForRun } from "../session-phases";
+import { recordHeadSha } from "../spec-head";
 
 // SPEC-298 · ADR-0072 (daun #5) · rekonsiliasi akhir sesi scheduler. Dipanggil engine.tick
 // (loop selalu-hidup) — satu-satunya jalur andal untuk sesi tak-berpengawas: advanceStage butuh
@@ -43,12 +44,16 @@ export async function reconcile(deps: ReconcileDeps): Promise<void> {
 
       if (stage === "done") {
         await recordCompletion(item.specId, spec.title, spec.projectId);        // notif done (idempoten key)
+        // SPEC-475 · ujung kerja distempel ke `Spec.headSha` DI SINI, bukan hanya ikut ke
+        // SessionResult: sesi scheduler tak pernah ditutup lewat DELETE, jadi tanpa baris ini
+        // kolom itu tetap null selamanya dan gerbang dependency ADR-0093 kehilangan buktinya.
+        const head = p?.cwd ? await recordHeadSha(item.specId, p.cwd, deps.headSha) : null;
         // Ringkasan/diff review: SessionResult (diff turunan baseSha..headSha). Dedup vs advanceStage.
         const existing = await prisma.sessionResult.findFirst({ where: { specId: item.specId, newStage: "done" } });
         if (!existing) {
           await recordSessionResult({
             projectId: spec.projectId, specId: item.specId, newStage: "done",
-            commitSha: p?.cwd ? deps.headSha(p.cwd) : null,
+            commitSha: head,
             branch: `hanoman/${item.sessionId}`, status: "done",
           }).catch(() => {});
         }

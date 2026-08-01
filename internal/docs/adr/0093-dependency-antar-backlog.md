@@ -104,11 +104,30 @@ Menghias hanya salah satunya membuat badge berkedip tiap frame WS tiba.
 
 ## Gotcha yang wajib diingat
 
-1. **Dependency `done` ber-`headSha` null adalah SIAP, bukan "belum".** `headSha`/`baseSha` null
-   berarti hanoman tak pernah membuatkan worktree untuk item itu — selesai sebelum ADR-0030,
-   ditandai selesai manual, atau dikerjakan di checkout lain (terukur di SPEC-431: 27 `Spec` `done`
-   ber-`baseSha` null di DB produksi). Membacanya sebagai "belum ter-merge" akan mengunci backlog
-   lama **selamanya**, karena tak ada commit yang bisa dijadikan bukti.
+1. **Dependency yang tak punya JEJAK KERJA sama sekali adalah SIAP, bukan "belum".** Item semacam itu
+   tak pernah dibuatkan worktree oleh hanoman — selesai sebelum ADR-0030, ditandai selesai manual,
+   atau dikerjakan di checkout lain (terukur di SPEC-431: 27 `Spec` `done` ber-`baseSha` null di DB
+   produksi). Membacanya sebagai "belum ter-merge" akan mengunci backlog lama **selamanya**, karena
+   tak ada commit yang bisa dijadikan bukti.
+
+   > **Amandemen SPEC-475 (2026-08-01).** Bunyi aslinya — "`headSha` null adalah SIAP" — **salah
+   > sebagai ukuran**, dan salahnya fail-open. `headSha` sampai saat itu hanya ditulis
+   > `DELETE /terminal/sessions/:id`, sementara penyelesaian OTONOM tak pernah melewatinya, sehingga
+   > kolom itu kosong pada **159 dari 210** item `done` ber-worktree (~76 %) — bukan kasus pinggiran
+   > untuk data lama melainkan **keadaan normal item yang baru saja selesai**. Akibatnya alasan
+   > `unmerged` **tak pernah menyala sekali pun** (0 dari 56 baris antrean di DB hidup) dan dependent
+   > lahir 6 detik sesudah dependency-nya `done`, ±8,5 jam sebelum merge-nya. Ukurannya kini
+   > **ujung kerja** = `headSha` **?? tip branch sesi** (`workTip`,
+   > `hanoman/<sessionIdForSpec(id)>` — nama deterministik per ADR-0032, memo 15 dtk). Gotcha ini
+   > **dipersempit, bukan dicabut**: branch yang dihapus karena ter-merge (SPEC-360) juga tak
+   > meninggalkan jejak, jadi item lama tetap terbaca siap — kini karena alasan yang tepat.
+   > **Konsekuensi yang diterima:** merge dengan **squash** membuat tip branch tak pernah jadi
+   > ancestor basis → dependent terbaca `unmerged` terus; itu pembacaan fail-closed yang memang
+   > dipilih gotcha 2, alasannya terlihat di UI, dan jalan keluarnya `force` di jalur manusia.
+   > `integrate.ts` sendiri memakai `git merge`, jadi jalur hanoman tak menghasilkan keadaan itu.
+   > Sisi penulisnya diperbaiki bersamaan: `recordHeadSha()` (`services/spec-head.ts`) dipanggil
+   > **ketiga** jalur yang mempersist `stage = "done"`. Doc-of-record:
+   > [audit SPEC-475](../research/audit-spec-475-dependency-tak-menunggu-merge.md).
 2. **Fail-closed saat git tak bisa menjawab.** Ref tak resolve, repo tak terbaca, project belum
    di-bind → dibaca **belum merged**. "Tak bisa dipastikan" tak boleh terbaca sebagai "aman"; dan
    keadaannya tetap terlihat karena alasannya ikut ke UI sebagai `unmerged`.

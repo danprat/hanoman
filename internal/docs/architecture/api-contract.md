@@ -87,6 +87,9 @@ GET  /specs?project=&source=&q=&stage=&priority=&startable=&dateField=&from=&to=
 #   dihitung `liveSpecs()` dari stage dependency + `git merge-base --is-ancestor` (memo 15 dtk).
 #   Dihias di `liveSpecs` supaya endpoint ini dan grup siar WS `specs` tak pernah drift (SPEC-199).
 #   `blockedBy` kosong = boleh diluncurkan. Backlog tanpa dependency: nol query & nol git tambahan.
+#   SPEC-475 · "ujung kerja" dependency = `headSha` ?? tip branch sesinya (`hanoman/<sessionId>`,
+#   memo 15 dtk) — kolom `headSha` sendirian kosong pada ~76 % item `done` ber-worktree, sehingga
+#   membacanya begitu saja membuat `unmerged` tak pernah muncul. Tak ada jejak sama sekali = siap.
 POST /specs               { project, source, ...payload, branchFrom? }  -> SPEC-n
 POST /specs/batch         { project, items:[BreakdownItem], branchFrom?, prdPath? } -> {created:[Spec]}
 #   SPEC-273 · ADR-0069 · materialize breakdown: N spec `source:"brief"` independen (id berurutan via

@@ -6,6 +6,7 @@ import { STAGES } from "./stage-machine";
 import { recordCompletion } from "./notifications";
 import { notifySynced } from "./sync-notify";
 import { decorateBlocked } from "./spec-deps";
+import { recordHeadSha } from "./spec-head";
 
 // SPEC-199 · dulu inline di GET /specs; kini dipakai route HTTP DAN hub siar (services/events.ts)
 // supaya push WS dan pull HTTP tak pernah drift. Stage live diturunkan dari berkas fase sesi
@@ -19,7 +20,7 @@ export async function liveSpecs(filter: { project?: string; source?: string } = 
   // membaca nilai yang sama (SPEC-199). Nol biaya untuk backlog yang tak memakai dependency:
   // `decorateBlocked` keluar lebih awal saat tak ada satu pun `dependsOn`.
   if (live.size === 0) return decorateBlocked(specs);
-  const advanced: { id: string; from: Stage; stage: Stage }[] = [];
+  const advanced: { id: string; from: Stage; stage: Stage; cwd: string }[] = [];
   const doneNow: { specId: string; title: string; projectId: string | null }[] = [];
   const out = specs.map((s) => {
     const entry = live.get(s.id);
@@ -27,7 +28,7 @@ export async function liveSpecs(filter: { project?: string; source?: string } = 
     // stageForRun menahan `done` bila plan di worktree (entry.cwd) masih `- [ ]` (SPEC-173).
     const next = stageForRun(entry.phases, entry.cwd, s.id);
     if (!next || STAGES.indexOf(next) <= STAGES.indexOf(s.stage as Stage)) return s;
-    advanced.push({ id: s.id, from: s.stage as Stage, stage: next });
+    advanced.push({ id: s.id, from: s.stage as Stage, stage: next, cwd: entry.cwd });
     if (next === "done") doneNow.push({ specId: s.id, title: s.title, projectId: s.projectId });
     return { ...s, stage: next };
   });
@@ -41,7 +42,13 @@ export async function liveSpecs(filter: { project?: string; source?: string } = 
       const res = await prisma.spec
         .updateMany({ where: { id: a.id, stage: a.from }, data: { stage: a.stage } })
         .catch(() => ({ count: 0 }));
-      if (res.count > 0) await notifySynced("spec", a.id); // SPEC-267/268 · advance → feed (hub publish / client push)
+      if (res.count === 0) return;
+      // SPEC-475 · jalur persist `done` untuk sesi yang di-Start MANUAL — item seperti itu tak
+      // punya baris antrean, jadi reconcile tak pernah menyentuhnya (terukur: SPEC-453, dependency
+      // yang jadi biang keluhan). Hanya saat MENCAPAI `done`: rentang review ADR-0030 berakhir
+      // ketika item selesai, bukan ketika fase perencanaannya lewat.
+      if (a.stage === "done") await recordHeadSha(a.id, a.cwd);
+      await notifySynced("spec", a.id); // SPEC-267/268 · advance → feed (hub publish / client push)
     }));
   // SPEC-180 · notif dibuat sesudah persist stage; recordCompletion idempoten (key unik).
   await Promise.all(doneNow.map((d) => recordCompletion(d.specId, d.title, d.projectId)));

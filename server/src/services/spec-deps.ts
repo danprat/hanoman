@@ -1,6 +1,7 @@
 import { prisma } from "../db";
 import { realGit } from "@hanoman/runner";
 import { resolveRepoDir } from "./local-binding";
+import { sessionIdForSpec } from "./session-id";
 
 // SPEC-447 · ADR-0093 · satu-satunya sumber kebenaran "apa yang memblokir backlog item ini".
 // Dipakai TIGA pembaca: gerbang peluncuran (session-launch), gerbang otomasi (governor + denyut
@@ -11,7 +12,7 @@ import { resolveRepoDir } from "./local-binding";
 export type BlockReason = "missing" | "unfinished" | "unmerged";
 export type SpecBlocker = { id: string; reason: BlockReason };
 
-type DepRow = { id: string; stage: string; headSha: string | null };
+export type DepRow = { id: string; stage: string; headSha: string | null };
 type SpecLike = { branchFrom: string | null; dependsOn?: unknown };
 
 const REASON_LABEL: Record<BlockReason, string> = {
@@ -29,10 +30,12 @@ export function dependsOnOf(spec: { dependsOn?: unknown }): string[] {
 }
 
 /** MURNI: seluruh matriks keputusan tanpa DB/git, jadi ia teruji tanpa harness.
- *  `isMerged(headSha, baseRef)` = "apakah commit itu sudah ada di basis si dependent". */
+ *  `tipOf(dep)` = "commit mana hasil kerja dependency itu", null bila tak ada jejak sama sekali.
+ *  `isMerged(sha, baseRef)` = "apakah commit itu sudah ada di basis si dependent". */
 export function blockersFor(
   spec: SpecLike, deps: Map<string, DepRow>,
-  isMerged: (headSha: string, baseRef: string) => boolean,
+  tipOf: (dep: DepRow) => string | null,
+  isMerged: (sha: string, baseRef: string) => boolean,
 ): SpecBlocker[] {
   const ids = dependsOnOf(spec);
   if (ids.length === 0) return [];
@@ -44,9 +47,14 @@ export function blockersFor(
     const d = deps.get(id);
     if (!d) { out.push({ id, reason: "missing" }); continue; }
     if (d.stage !== "done") { out.push({ id, reason: "unfinished" }); continue; }
-    // headSha null = hanoman tak pernah membuatkan worktree untuknya (selesai manual / pra-ADR-0030
-    // / dikerjakan di checkout lain, SPEC-431) → tak ada commit yang bisa di-merge → siap.
-    if (d.headSha && !isMerged(d.headSha, base)) out.push({ id, reason: "unmerged" });
+    // SPEC-475 · yang berarti "siap" adalah TAK ADA JEJAK KERJA sama sekali — hanoman tak pernah
+    // membuatkan worktree untuk item itu (selesai manual / pra-ADR-0030 / dikerjakan di checkout
+    // lain, SPEC-431), atau branch sesinya sudah dihapus karena ter-merge (SPEC-360). Kolom
+    // `headSha` sendirian BUKAN jawaban itu: ia kosong pada ~76 % item `done` ber-worktree karena
+    // hanya jalur DELETE sesi yang pernah menulisnya, dan membacanya sebagai "siap" membuat
+    // separuh gerbang ADR-0093 tak pernah menyala sekali pun.
+    const tip = tipOf(d);
+    if (tip && !isMerged(tip, base)) out.push({ id, reason: "unmerged" });
   }
   return out;
 }
@@ -76,7 +84,8 @@ export function reaches(edges: Map<string, string[]>, from: string[], target: st
 // (events.ts). Memo pendek menahan biaya subprocess tanpa membuat jawabannya terasa basi.
 const TTL_MS = 15_000;
 const mergeCache = new Map<string, { at: number; v: boolean }>();
-export function __clearMergeCache(): void { mergeCache.clear(); }
+const tipCache = new Map<string, { at: number; v: string | null }>();
+export function __clearGitCaches(): void { mergeCache.clear(); tipCache.clear(); }
 
 export function mergedInto(repoDir: string, sha: string, baseRef: string): boolean {
   const key = `${repoDir} ${sha} ${baseRef}`;
@@ -89,9 +98,32 @@ export function mergedInto(repoDir: string, sha: string, baseRef: string): boole
   return v;
 }
 
+/** SPEC-475 · ujung kerja sebuah dependency. Kolom `headSha` menang bila terisi — ia commit yang
+ *  benar-benar tercatat hanoman. Bila kosong, jawabannya dicari dari branch sesinya, yang namanya
+ *  deterministik dari id spec (ADR-0032, `hanoman/<sessionIdForSpec(id)>`) dan hidup lebih lama
+ *  daripada kolom mana pun: ia bertahan meski sesi tak pernah ditutup lewat DELETE, meski
+ *  peluncuran ulang me-null-kan `headSha`, dan ia LENYAP persis saat pembersihan branch ter-merge
+ *  (SPEC-360) — sehingga "tak ada branch" adalah jawaban yang benar untuk "sudah ter-merge".
+ *  Null = tak ada jejak kerja apa pun → tak ada yang bisa memblokir dependent-nya. */
+export function workTip(repoDir: string, dep: DepRow): string | null {
+  if (dep.headSha) return dep.headSha;
+  const branch = `hanoman/${sessionIdForSpec(dep.id)}`;
+  const key = `${repoDir} ${branch}`;
+  const hit = tipCache.get(key);
+  const now = Date.now();
+  if (hit && now - hit.at < TTL_MS) return hit.v;
+  let v: string | null = null;
+  try { v = realGit.revParse(repoDir, branch); } catch { v = null; }
+  tipCache.set(key, { at: now, v });
+  return v;
+}
+
 // repoDir null (project belum di-bind) → tak ada yang bisa ditanya → fail-closed.
 const merger = (repoDir: string | null) =>
   (sha: string, base: string) => (repoDir ? mergedInto(repoDir, sha, base) : false);
+// Tanpa repoDir tak ada branch yang bisa dilihat; yang tersisa cuma kolomnya.
+const tipper = (repoDir: string | null) =>
+  (d: DepRow) => (repoDir ? workTip(repoDir, d) : d.headSha);
 
 const depRows = (ids: string[]) => prisma.spec.findMany({
   where: { id: { in: ids } }, select: { id: true, stage: true, headSha: true },
@@ -105,7 +137,7 @@ export async function blockersForSpec(
   const ids = dependsOnOf(spec);
   if (ids.length === 0) return [];
   const rows = await depRows(ids);
-  return blockersFor(spec, new Map(rows.map((r) => [r.id, r])), merger(repoDir));
+  return blockersFor(spec, new Map(rows.map((r) => [r.id, r])), tipper(repoDir), merger(repoDir));
 }
 
 /** Versi batch untuk permukaan baca: satu query dependency untuk seluruh halaman, satu
@@ -124,7 +156,8 @@ export async function decorateBlocked<T extends SpecLike & { projectId: string }
     const own = dependsOnOf(s);
     if (own.length === 0) { out.push({ ...s, dependsOn: [], blockedBy: [] }); continue; }
     if (!repos.has(s.projectId)) repos.set(s.projectId, await resolveRepoDir(s.projectId));
-    out.push({ ...s, dependsOn: own, blockedBy: blockersFor(s, deps, merger(repos.get(s.projectId)!)) });
+    const repo = repos.get(s.projectId)!;
+    out.push({ ...s, dependsOn: own, blockedBy: blockersFor(s, deps, tipper(repo), merger(repo)) });
   }
   return out;
 }
