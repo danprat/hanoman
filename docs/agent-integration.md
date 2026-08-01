@@ -1,58 +1,122 @@
-# hanoman — integrasi AI agent (agent capability) · SPEC-257 · ADR-0065
+# hanoman — dokumentasi AI Agent
 
-Beri **AI agent eksternal** kendali penuh atas hanoman lewat **agent token** + **capability per-domain**. Seluruh permukaan fitur hanoman sudah berupa REST API di bawah `/api` (projects, backlog, sesi/terminal, docs, ide/git, vps, settings, errors, help/tiket, notifikasi) — dashboard React hanyalah satu klien. Agen memakai API yang sama, hanya jalur auth-nya berbeda: **`Authorization: Bearer <token>`** ketimbang cookie sesi.
+**Halaman ini ditulis untuk kamu, agen.** Kalau kamu diberi tautan ini dan satu **agent token**,
+tak ada lagi yang perlu dijelaskan manusia: semua yang kamu butuhkan ada di bawah.
 
-> Ada **MCP server resmi** sejak SPEC-482 · ADR-0099 — lihat **§8**. Agen yang tak berbicara MCP tetap bisa memakai HTTP client apa pun. Akses dibuka **oleh manusia** di Settings; tanpa itu, semua token ditolak.
+Naskah ini punya **satu sumber** dan tiga cara membacanya — isinya byte yang sama:
+
+| Cara | Alamat |
+|---|---|
+| **markdown mentah** (paling berguna untukmu) | `GET $HANOMAN_HOST/api/agent-integration.md` — **publik, tanpa auth** |
+| repo GitHub | [`docs/agent-integration.md`](https://github.com/denameidina/hanoman/blob/main/docs/agent-integration.md) |
+| dashboard | Settings → **Dokumentasi AI Agent** |
+
+> SPEC-257/265/489 · ADR-0065 (agent token & capability) · ADR-0099 (MCP server).
+
+---
+
+## 0. Apa itu hanoman, dan bagaimana ia bekerja
+
+hanoman adalah **orchestrator + dashboard** untuk pengembangan yang digerakkan dokumentasi. Ia tidak
+menulis kode sendiri; ia **menjalankan agen** (Claude Code atau Codex CLI) sebagai sesi interaktif,
+lalu memantau semuanya dalam satu tempat.
+
+Model kerjanya tiga tingkat, dan penting kamu pegang sebelum memanggil endpoint apa pun:
+
+```
+backlog item (Spec)  →  sesi agen (tmux)  →  git worktree terisolasi
+   "SPEC-489"            satu sesi per item      <repo>/.worktrees/spec-489
+```
+
+- **Backlog item** (`Spec`, id `SPEC-nnn`) adalah unit kerja: sebuah brief, temuan QA, laporan
+  audit, tiket Help Center, atau satu goal. Ia milik sebuah **project**.
+- **Satu backlog = satu sesi.** Menekan Start dua kali bukan melahirkan sesi kedua — ia menyambung
+  ke sesi yang sudah ada.
+- **Sesi hidup di worktree-nya sendiri**, bercabang dari branch basis, dan mendorong hasilnya ke
+  `hanoman/<id>`. Isolasi worktree itulah satu-satunya batas keamanan eksekusi di hanoman —
+  tak ada guardrail perintah.
+- **Fase bukan proses, melainkan giliran** di dalam satu sesi: `Brainstorm → Objective → Spec →
+  Plan → Execute` (bervariasi per jenis kerja). Kemajuannya dibaca dari berkas fase, bukan dari
+  status proses.
+- **Dokumentasi project (`internal/docs/**`) adalah Source of Truth.** Sebelum mengusulkan apa pun,
+  baca dokumen project-nya — itu sikap yang diharapkan dari agen di sini.
+
+Dashboard React hanyalah **satu klien** dari REST API di bawah `/api`. Kamu memakai API yang persis
+sama; yang berbeda hanya jalur auth-nya: **`Authorization: Bearer`**, bukan cookie sesi.
 
 ## 1. Nyalakan akses & buat token (manusia, sekali)
 
-Di dashboard hanoman: **Settings → Akses AI Agent**.
+Langkah ini **bukan** milikmu — mintalah ke manusia bila belum dilakukan. Di dashboard hanoman:
+**Settings → Akses AI Agent**.
 
-1. **Aktifkan "Akses AI Agent"** (master switch). Selagi mati, *semua* agent token dibalas **401** apa pun capability-nya.
-2. **Buat token:** beri nama (mis. `agent-ci`), centang **capability** yang dibutuhkan (baca/tulis per domain), klik **Buat token**.
-3. **Salin token plaintext sekarang** — bentuknya `hnm_agt_<hex>` dan **hanya ditampilkan sekali** (di server hanya `sha256` yang tersimpan). Simpan di rahasia agen (mis. env `HANOMAN_AGENT_TOKEN`).
+1. **Aktifkan "Akses AI Agent"** (master switch). Selagi mati, *semua* agent token dibalas **401**
+   apa pun capability-nya.
+2. **Buat token:** beri nama (mis. `agent-ci`), centang **capability** yang dibutuhkan (baca/tulis
+   per domain), klik **Buat token**.
+3. **Salin token plaintext sekarang** — bentuknya `hnm_agt_<hex>` dan **hanya ditampilkan sekali**
+   (di server hanya `sha256` yang tersimpan). Simpan di rahasia agen (mis. env
+   `HANOMAN_AGENT_TOKEN`).
 
 Cabut/nonaktifkan token atau matikan master switch kapan saja → efek **instan**.
 
-## 2. Autentikasi
-
-Sertakan token di tiap request:
-
-```
-Authorization: Bearer hnm_agt_xxxxxxxxxxxx
-```
-
-Untuk **WebSocket** (terminal PTY, event stream) yang tak bisa memasang header dari browser, kirim sebagai query: `?agent_token=hnm_agt_...`.
-
-Contoh:
+## 2. Base URL & autentikasi
 
 ```bash
-export HANOMAN_HOST="https://hanoman.example"
-export HANOMAN_AGENT_TOKEN="hnm_agt_xxxxxxxxxxxx"
-
-curl -s "$HANOMAN_HOST/api/specs" \
-  -H "Authorization: Bearer $HANOMAN_AGENT_TOKEN"
+export HANOMAN_HOST="https://hanoman.example"   # TANPA "/" di ekor
+export HANOMAN_AGENT_TOKEN="hnm_agt_…"          # dari langkah §1
 ```
+
+- **Seluruh path berawalan `/api`.** `$HANOMAN_HOST/api/specs`, bukan `$HANOMAN_HOST/specs`.
+- **`HANOMAN_HOST` tanpa garis miring di ekor** — path di dokumen ini selalu dimulai dengan `/`,
+  jadi ekor ganda menghasilkan `//api/...` yang tak dikenal router.
+- Sertakan token di **tiap** request:
+
+  ```
+  Authorization: Bearer hnm_agt_xxxxxxxxxxxx
+  ```
+
+- Untuk **WebSocket** (terminal PTY, event stream) yang tak bisa memasang header dari browser,
+  kirim sebagai query: `?agent_token=hnm_agt_...`.
+- **Token diterbitkan per-instance.** Token dari instance lain selalu 401 di sini.
+
+```bash
+curl -s "$HANOMAN_HOST/api/specs" -H "Authorization: Bearer $HANOMAN_AGENT_TOKEN"
+```
+
+**Probe host lebih dulu.** `GET /api/health` bersifat **publik** (tanpa auth), begitu pula halaman
+ini (`GET /api/agent-integration.md`). Keduanya memisahkan tiga sebab yang tampak identik sebagai
+"401 telanjang": host salah · master switch mati · token dicabut. Kalau `/api/health` menjawab 200,
+host-mu benar dan masalahnya ada pada token atau master switch.
 
 ## 3. Capability
 
-Capability berformat `"<domain>:<access>"`, `access ∈ {read, write}`, dan **write meng-implikasikan read** pada domain yang sama. Ada **10 domain × 2 = 20 capability**. Katalog resmi (dengan label & deskripsi) tampil di panel **Settings → Akses AI Agent** saat manusia membuat token; endpoint katalognya (`GET /api/agent-tokens/capabilities`) bersifat **cookie-only** (lihat §5) — agen tak perlu mengambilnya, cukup rujuk tabel di bawah:
+Capability berformat `"<domain>:<access>"`, `access ∈ {read, write}`, dan **write meng-implikasikan
+read** pada domain yang sama. Ada **12 domain × 2 = 24 capability**. Katalog resmi (dengan label &
+deskripsi) tampil di panel **Settings → Akses AI Agent** saat manusia membuat token; endpoint
+katalognya (`GET /api/agent-tokens/capabilities`) bersifat **cookie-only** (lihat §5) — kamu tak
+perlu mengambilnya, cukup rujuk tabel di bawah:
 
 | Domain | Cakupan endpoint | Catatan |
 |---|---|---|
-| `projects` | `/api/projects*` | project, branch, binding, DSN, Help Center |
+| `projects` | `/api/projects*` | project, branch, binding, Help Center |
 | `backlog` | `/api/specs*` | spec/backlog, dokumen, review diff, integrate |
-| `sessions` | `/api/terminal*` (+ WS terminal) | jalankan sesi `claude`/shell, kirim input — **high-risk (RCE)** |
+| `sessions` | `/api/terminal*` (+ WS terminal) | jalankan sesi agen/shell, kirim input — **high-risk (RCE)** |
 | `docs` | `/api/prds*`, `/api/projects/:id/{docs,prds}*` | dokumen SoT project & PRD |
 | `ide` | `/api/projects/:id/{tree,file,file-diff,working-status,graph,commit,git,status,stashes,remotes,compare,archive,pr-url}*` | tree/file working tree, operasi git |
 | `vps` | `/api/vps*` | kelola VPS, audit, harden, konsol — **high-risk (remote exec)** |
-| `settings` | `/api/settings*`, `/api/config*` | setelan & config runtime |
-| `support` | `/api/tickets*` | tiket Help Center (triase) |
+| `settings` | `/api/settings*`, `/api/config*`, `/api/scheduler*` | setelan instance & config runtime |
+| `support` | `/api/tickets*`, `/api/github-issues*`, `/api/projects/:id/github*` | tiket Help Center & issue GitHub (triase) |
 | `notifications` | `/api/notifications*` | notifikasi |
-| `lead` | `/api/lead*` | minta putusan ke hanoman-lead & baca jejak keputusan — **`lead:write` bisa menggerakkan sesi** (SPEC-409 · ADR-0091) |
-| `agents` | `/api/custom-agents*` | katalog custom agent global & per project — **`agents:write` mengubah apa yang dilihat SETIAP sesi baru** (SPEC-450 · ADR-0094) |
+| `lead` | `/api/lead*` | minta putusan ke hanoman-lead & baca jejaknya — **`lead:write` bisa menggerakkan sesi** (ADR-0091) |
+| `agents` | `/api/custom-agents*` | katalog custom agent global & per project — **`agents:write` mengubah apa yang dilihat SETIAP sesi baru** (ADR-0094) |
+| `telegram` | `/api/telegram*` kecuali sub-path kredensial | context/memory/reply/audit kanal operator Telegram (ADR-0096) |
 
-Aturan pemetaan (deterministik, `server/src/services/agent-capabilities.ts`): `GET`/`HEAD` → `:read`, metode lain → `:write`. Itu berlaku untuk domain `lead` juga: **`POST /api/lead/decisions` menuntut `lead:write`**, dan `lead:read` tak pernah cukup — meminta putusan melahirkan baris jejak permanen dan keputusannya bisa menggerakkan sesi. Sub-path `/api/projects/:id/{docs,prds}` dihitung domain **`docs`**; sub-path IDE/git di atas dihitung domain **`ide`**; WebSocket terminal butuh **`sessions:write`**.
+Aturan pemetaan **deterministik** (`server/src/services/agent-capabilities.ts`): `GET`/`HEAD` →
+`:read`, metode lain → `:write`. Itu berlaku untuk domain `lead` juga — **`POST /api/lead/decisions`
+menuntut `lead:write`**, dan `lead:read` tak pernah cukup: meminta putusan melahirkan baris jejak
+permanen dan keputusannya bisa menggerakkan sesi. Sub-path `/api/projects/:id/{docs,prds}` dihitung
+domain **`docs`**; sub-path IDE/git di atas dihitung domain **`ide`**; WebSocket terminal butuh
+**`sessions:write`**.
 
 ## 4. Aturan gate & kode status
 
@@ -62,39 +126,184 @@ Gate `onRequest` yang sama menegakkan semuanya:
 |---|---|
 | Master switch mati, atau token invalid/nonaktif/dicabut | **401** `{ error: "unauthorized" }` |
 | Token valid tapi capability kurang | **403** `{ error: "capability required", need: "<domain>:<access>" }` |
-| Route cookie-only (lihat §5) diakses agen | **403** `{ error: "cookie session required" }` |
+| Route cookie-only (§5) diakses agen | **403** `{ error: "cookie session required" }` |
 | Capability cukup | request diproses seperti biasa |
 
-Field **`need`** pada 403 memberi tahu capability persis yang harus ditambahkan ke token.
+Field **`need`** pada 403 memberi tahu capability persis yang harus ditambahkan ke token. Baca 403
+seperti itu bukan sebagai "gagal" melainkan sebagai **instruksi**: sampaikan `need` ke manusia dan
+minta capability itu ditambahkan di Settings.
 
 ## 5. Yang tak bisa didelegasikan (cookie-only)
 
-Untuk mencegah privilege-escalation, endpoint berikut **hanya** untuk sesi cookie manusia — agent token selalu **403**:
+Untuk mencegah privilege-escalation, endpoint berikut **hanya** untuk sesi cookie manusia — agent
+token selalu **403**, apa pun capability-nya, dan tak ada capability yang bisa membukanya:
 
 - `/api/auth/*` — kelola user & password
 - `/api/agent-tokens*` — agen tak boleh mencetak/menaikkan token sendiri
 - `/api/device-tokens*`, `/api/sync*` — identitas mesin & sync hub
+- `/api/webhooks*` — memegang secret penandatanganan **dan** menentukan ke mana data workspace
+  mengalir keluar (ADR-0100)
+- `/api/telegram/settings`, `/api/telegram/test`, `/api/telegram/credentials` — permukaan
+  **kredensial** (bot token & agent token), beda dari sisa `/api/telegram*` (ADR-0097)
+- `POST /api/update/apply` dan tulis lain di bawah prefix status (`/api/limits`, `/api/update`,
+  `/api/events`, `/api/fs`, `/api/health`) — **baca**-nya terbuka untuk token mana pun, **tulis**-nya
+  cookie-only
 
-Route yang tak dikenal peta juga default cookie-only (aman). Endpoint `/api/help*` (Help Center publik) memiliki otorisasi sendiri (kunci tiket) dan tak memakai agent token.
+Route yang tak dikenal peta juga **default cookie-only** (aman): endpoint baru tak pernah terbuka
+karena kelalaian. Endpoint `/api/help*` (Help Center publik) punya otorisasi sendiri (kunci tiket)
+dan tak memakai agent token.
 
-## 6. Contoh alur end-to-end
+## 6. Endpoint yang paling sering dipakai
 
-```bash
-# 1. Lihat backlog (butuh backlog:read)
-curl -s "$HANOMAN_HOST/api/specs" -H "Authorization: Bearer $HANOMAN_AGENT_TOKEN"
+| Method & path | Capability | Catatan |
+|---|---|---|
+| `GET /api/health` | — (publik) | probe host. Tanpa auth. |
+| `GET /api/agent-integration.md` | — (publik) | halaman ini, markdown mentah. |
+| `GET /api/projects` | `projects:read` | daftar project. `id` di sini yang dipakai `POST /api/specs`. |
+| `GET /api/projects/:id` | `projects:read` | detail satu project. |
+| `GET /api/specs` | `backlog:read` | backlog. Filter: `project`, `source`, `q`, `stage`, `priority`, `startable=true`, `dateField=created\|started` + `from`/`to` (`YYYY-MM-DD`, inklusif), `page`, `limit`. |
+| `POST /api/specs` | `backlog:write` | buat backlog item — bentuk payload di §7. |
+| `PATCH /api/specs/:id` | `backlog:write` | ubah item; konten hanya selagi belum dimulai. |
+| `GET /api/specs/:id/docs` | `backlog:read` | dokumen yang ditulis sesi item itu. |
+| `GET /api/specs/:id/review` | `backlog:read` | diff hasil kerja sesi. |
+| `GET /api/projects/:id/docs` | `docs:read` | index Source of Truth project. |
+| `GET /api/projects/:id/docs/<path>` | `docs:read` | isi satu dokumen. |
+| `GET /api/terminal/sessions` | `sessions:read` | sesi yang sedang hidup. |
+| `GET /api/notifications` | `notifications:read` | notifikasi. |
+| `GET /api/tickets` | `support:read` | tiket Help Center. |
+| `GET /api/lead/decisions` | `lead:read` | jejak keputusan hanoman-lead. |
+| `POST /api/lead/decisions` | `lead:write` | minta putusan — baca **§8** dan **§11** dulu. |
 
-# 2. Buat backlog item baru (butuh backlog:write)
-curl -s -X POST "$HANOMAN_HOST/api/specs" \
-  -H "Authorization: Bearer $HANOMAN_AGENT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{ "title": "Perbaiki X", "source": "qa" }'
+## 7. `POST /api/specs` — bentuk payload per `source`
 
-# 3. Bila balas 403 { need: "backlog:write" }, tambah capability itu ke token di Settings.
+`source` dan bentuk `payload` **saling mengikat**. Salah pasang → **400**
+`"bentuk payload tak cocok dengan source"`. Union saja tak menjaganya (objek non-strict), jadi
+server menegakkannya di boundary.
+
+| `source` | Bentuk `payload` | Field |
+|---|---|---|
+| `brief` | brief | `context`, `outcome`, `constraints`, `priority` |
+| `audit` | brief | idem — audit-only: hasilnya dokumen temuan, tanpa Execute |
+| `help` | brief | idem — item yang lahir dari tiket Help Center |
+| `qa` | qa | `severity` (`critical`\|`major`\|`minor`), `steps`, `expected`, `actual`, `env` |
+| `goal` | goal | `goal` (wajib), `done`, `constraints`, `priority` |
+
+Body lengkap: `project` (slug project), `source`, `title`, `priority`
+(`tinggi`\|`sedang`\|`rendah`), `payload`; opsional `branchFrom` (branch basis — harus benar-benar
+ada di repo project) dan `dependsOn` (array id backlog yang harus selesai & ter-merge lebih dulu).
+
+Yang **tak** kamu kirim karena diturunkan server: `objective` (dari `outcome`/`context` untuk brief,
+`actual`/`steps` untuk qa, `goal` untuk goal) dan — khusus `qa` — `priority`, yang diturunkan dari
+`severity`.
+
+```json
+{
+  "project": "hanoman",
+  "source": "qa",
+  "title": "Tombol Lanjutkan diam saat pane mati",
+  "priority": "tinggi",
+  "payload": {
+    "severity": "major",
+    "steps": "Buka Terminal → tunggu sesi keluar → klik Lanjutkan",
+    "expected": "Sesi dilanjutkan dari fase terakhir",
+    "actual": "Tak terjadi apa-apa",
+    "env": "hanoman 0.1.13, macOS"
+  }
+}
 ```
 
-## 6b. Minta putusan ke hanoman-lead (SPEC-409 · ADR-0091)
+Balasannya **201** dengan seluruh baris `Spec`, termasuk `id` (`SPEC-nnn`) yang diterbitkan server.
 
-Agen yang menemui persimpangan tak perlu berhenti menunggu manusia — ia boleh **meminta putusan**:
+## 8. Tindakan berbahaya — wajib konfirmasi manusia
+
+Tiga permukaan ini **wajib** kamu konfirmasikan ke manusia lebih dulu, walaupun token-mu sudah punya
+capability-nya. Capability menjawab "boleh?", bukan "sebaiknya?".
+
+| Tindakan | Kenapa |
+|---|---|
+| `POST /api/terminal/sessions` | melahirkan proses agen `--dangerously-skip-permissions` di sebuah worktree — **RCE efektif**. Batas satu-satunya adalah isolasi git worktree (ADR-0037). |
+| `POST`/`PUT`/`DELETE` di bawah `/api/vps` | **remote exec** di server produksi. |
+| `POST /api/lead/decisions` | putusannya bisa **menggerakkan sesi** (integrate ke main, menghentikan sesi) dan selalu melahirkan baris jejak permanen (ADR-0091/0098). |
+
+Perlakukan `POST /api/specs/:id/integrate`, `DELETE /api/specs/:id`, dan perubahan `stage` dengan
+disiplin yang sama: ketiganya mengubah sejarah git atau membuang pekerjaan.
+
+**Preseden yang mengikat:** MCP server resmi (`hanoman mcp`, §13) sengaja **tak punya tool** untuk
+satu pun dari yang di atas — batasnya ada di katalog tool, bukan di token. Token yang punya
+`sessions:write` sekalipun tak akan menemukan tool untuk memakainya. Lewat REST kamu *bisa*
+memanggilnya; jangan lakukan tanpa manusia.
+
+## 9. Jebakan yang sudah diketahui
+
+| Jebakan | Yang benar |
+|---|---|
+| `startable` hanya bereaksi pada string **`"true"`**; nilai lain (`false`, `1`, `yes`) diabaikan **senyap** dan kamu menerima daftar penuh yang terlihat sah | kirim `?startable=true`, atau jangan kirim sama sekali |
+| `q` mencari di `id`, `title`, dan `objective` saja — ia **tak menyentuh `payload`** | untuk mencari isi brief/QA, ambil itemnya lalu baca `payload` sendiri |
+| `id` dan `stage` yang kamu sertakan di `POST /api/specs` **dibuang diam-diam** — tak ada galat | `id` diterbitkan server (`SPEC-nnn` berikutnya), `stage` selalu mulai `brainstorming`. Untuk mengubah stage pakai `PATCH /api/specs/:id`, dan ia hanya boleh **mundur** (ADR-0027) |
+| **`GET /api/specs/:id` tidak ada** | `GET /api/specs?q=SPEC-489` lalu cocokkan `id` **persis** — `q` itu substring, jadi ia bisa mengembalikan lebih dari satu |
+| daftar mengembalikan amplop `{ items, total, page, pageSize }` | jangan perlakukan responsnya sebagai array |
+| tanpa `limit`, daftar mengembalikan **seluruh** item dalam satu halaman | kirim `limit` untuk backlog besar |
+| `PATCH /api/specs/:id` menolak edit konten begitu item pernah dimulai | ubah `title`/`payload` hanya selagi item belum punya sesi |
+| `branchFrom` yang tak ada di repo project → **400**, bukan diterima lalu gagal di tengah sesi | ambil kandidatnya dari `GET /api/projects/:id/branches` |
+| **401 telanjang** tak memisahkan "host salah" dari "token salah" dari "master switch mati" | probe `GET /api/health` sekali: 200 = host benar → masalahnya token atau master switch |
+| **403** bukan kegagalan permanen | bacalah field `need`, sampaikan ke manusia, minta capability itu ditambahkan |
+
+## 10. Contoh alur end-to-end
+
+Bisa disalin apa adanya.
+
+```bash
+export HANOMAN_HOST="https://hanoman.example"        # tanpa "/" di ekor
+export HANOMAN_AGENT_TOKEN="hnm_agt_…"               # dari Settings → Akses AI Agent
+auth=(-H "Authorization: Bearer $HANOMAN_AGENT_TOKEN")
+
+# 0. Host benar? (publik, tanpa auth — memisahkan "host salah" dari "token salah")
+curl -fsS "$HANOMAN_HOST/api/health"
+
+# 0b. Baca halaman ini sendiri (publik, markdown mentah)
+curl -fsS "$HANOMAN_HOST/api/agent-integration.md"
+
+# 1. Project apa saja yang ada? (projects:read) — `id` di sini yang dipakai langkah berikutnya
+curl -fsS "${auth[@]}" "$HANOMAN_HOST/api/projects"
+
+# 2. Backlog yang belum selesai di satu project (backlog:read)
+curl -fsS "${auth[@]}" "$HANOMAN_HOST/api/specs?project=hanoman&startable=true&limit=20"
+
+# 3. Sudah ada item tentang "webhook"? (q = substring atas id+title+objective, BUKAN payload)
+curl -fsS "${auth[@]}" "$HANOMAN_HOST/api/specs?project=hanoman&q=webhook"
+
+# 4. Filekan temuan sebagai backlog item (backlog:write)
+curl -fsS -X POST "$HANOMAN_HOST/api/specs" "${auth[@]}" \
+  -H "Content-Type: application/json" \
+  -d '{
+        "project": "hanoman",
+        "source": "qa",
+        "title": "Preview docs menggulir ke samping",
+        "priority": "sedang",
+        "payload": { "severity": "minor", "steps": "Buka Docs → pilih .md panjang",
+                     "expected": "Teks membungkus", "actual": "Muncul scrollbar horizontal",
+                     "env": "hanoman 0.1.13, Chrome" }
+      }'
+# → 201 { "id": "SPEC-490", ... }   ← id datang dari server; jangan pernah dikirim
+
+# 5. Ambil satu item (tak ada GET /api/specs/:id — pakai q lalu cocokkan persis)
+curl -fsS "${auth[@]}" "$HANOMAN_HOST/api/specs?q=SPEC-490" \
+  | python3 -c 'import json,sys; print([s for s in json.load(sys.stdin)["items"] if s["id"]=="SPEC-490"])'
+
+# 6. Baca Source of Truth project sebelum mengusulkan apa pun (docs:read)
+curl -fsS "${auth[@]}" "$HANOMAN_HOST/api/projects/hanoman/docs"
+
+# 7. 403? Bacanya bukan "gagal" — bacanya "tambahkan capability ini ke token":
+#    { "error": "capability required", "need": "backlog:write" }
+```
+
+**Yang TIDAK kamu lakukan tanpa manusia:** menjalankan backlog itu
+(`POST /api/terminal/sessions`) — lihat §8.
+
+## 11. Minta putusan ke hanoman-lead
+
+Agen yang menemui persimpangan tak selalu harus berhenti menunggu manusia — bila project-nya
+meng-opt-in **hanoman-lead**, ia boleh **meminta putusan**:
 
 ```bash
 curl -s -X POST "$HANOMAN_HOST/api/lead/decisions" \
@@ -110,27 +319,36 @@ curl -s -X POST "$HANOMAN_HOST/api/lead/decisions" \
 # 201 { id, decision, reason, refs: ["ADR-0090", "internal/docs/..."], confidence: "tinggi", action: "none" }
 ```
 
-Jawabannya **terbaca mesin**, bukan prosa bebas, dan `refs` hanya memuat rujukan yang benar-benar ada
-di repo — jadi agen bisa memverifikasi sendiri dasar keputusannya. `confidence: "ragu"` berarti lead
-tetap memutuskan tapi memilih opsi yang paling mudah dibatalkan, dan operator sudah dinotifikasi.
+Jawabannya **terbaca mesin**, bukan prosa bebas, dan `refs` hanya memuat rujukan yang benar-benar
+ada di repo — jadi kamu bisa memverifikasi sendiri dasar keputusannya. `confidence: "ragu"` berarti
+lead tetap memutuskan tapi memilih opsi yang paling mudah dibatalkan, dan operator sudah
+dinotifikasi.
 
 Kode balasan yang perlu ditangani:
 
 | Kode | Artinya |
 |---|---|
 | **409** | lead tak aktif / project belum opt-in → **kembali ke perilaku lama**: berhenti & tunggu manusia |
+| **503** + `Retry-After` | lead sedang penuh (batas konkurensi) → **boleh diulang** sesudah jeda; ini bukan kegagalan lead |
 | **504** | lead tak berhasil memutuskan dalam batas waktu; kegagalannya sudah tercatat & dinotifikasi |
 | **403** `{ need: "lead:write" }` | token cuma punya `lead:read` |
 
-Endpoint & payload lengkap: lihat **API contract** (`internal/docs/architecture/api-contract.md`) di repo — permukaan REST-nya identik dengan yang dipakai dashboard.
+Ingat §8: permintaan putusan **bisa menggerakkan sesi**. Konfirmasikan ke manusia dulu.
 
-## 7. Keamanan
+## 12. Keamanan
 
-- Token = rahasia. Simpan di env/secret manager, jangan commit. Bocor → **Cabut** di Settings (efek instan).
-- Beri capability **seminimal** mungkin. `sessions:write` (spawn `claude --dangerously-skip-permissions`) dan `vps:write` (remote exec) adalah RCE efektif — batas eksekusi sesungguhnya tetap **isolasi git worktree** (ADR-0037), tapi tetap tandai high-risk.
-- `lastUsedAt` per token = jejak audit ringan. Matikan master switch untuk kill-switch seluruh workspace.
+- Token = rahasia. Simpan di env/secret manager, **jangan commit**, dan **jangan pernah** berikan
+  lewat argumen baris perintah — ARGV terbaca proses lain di mesin yang sama. Bocor → **Cabut** di
+  Settings (efek instan).
+- Beri capability **seminimal** mungkin. `sessions:write` (spawn agen
+  `--dangerously-skip-permissions`) dan `vps:write` (remote exec) adalah RCE efektif — batas
+  eksekusi sesungguhnya tetap **isolasi git worktree** (ADR-0037), tapi tetap tandai high-risk.
+- `lastUsedAt` per token = jejak audit ringan. Matikan master switch untuk kill-switch seluruh
+  workspace.
+- Halaman ini sendiri **tak pernah memuat token nyata** — hanya format/placeholder. Kalau kamu
+  melihat sesuatu yang menyerupai token asli di sini, itu bug; laporkan.
 
-## 8. MCP server (SPEC-482 · ADR-0099)
+## 13. MCP server (ADR-0099)
 
 Agen yang berbicara **MCP** tak perlu menulis pembungkus sendiri. `hanoman mcp` adalah MCP server
 **stdio** yang membungkus permukaan REST di atas sebagai **17 tool**. Ia memakai **agent token dan
@@ -186,10 +404,10 @@ Panduan siap salin untuk keempat klien, berikut tabel tool → capability, ada d
 
 ### Yang sengaja TIDAK tersedia lewat MCP
 
-Membuat sesi terminal (`POST /terminal/sessions` — menjalankan agen di worktree, RCE efektif) dan
-seluruh `/api/vps*` (remote exec) **tidak ikut**, begitu pula merge/rebase (`integrate`), penghapusan
-backlog, dan perubahan `stage`. Batasan ini ada di katalog toolnya, bukan di token: token yang punya
-`sessions:write` sekalipun tak akan menemukan tool untuk memakainya.
+Membuat sesi terminal (`POST /api/terminal/sessions` — menjalankan agen di worktree, RCE efektif)
+dan seluruh `/api/vps*` (remote exec) **tidak ikut**, begitu pula merge/rebase (`integrate`),
+penghapusan backlog, dan perubahan `stage`. Batasan ini ada di katalog toolnya, bukan di token:
+token yang punya `sessions:write` sekalipun tak akan menemukan tool untuk memakainya. Lihat §8.
 
 ### Opsi
 
@@ -205,4 +423,7 @@ menambah tool tak mematahkan klien lama.
 
 ---
 
-*Doc-of-record fitur: [ADR-0065](../internal/docs/adr/0065-ai-agent-capability-agent-token.md) dan, untuk permukaan MCP, [ADR-0099](../internal/docs/adr/0099-mcp-server-hanoman.md).*
+*Doc-of-record fitur: [ADR-0065](../internal/docs/adr/0065-ai-agent-capability-agent-token.md) dan,
+untuk permukaan MCP, [ADR-0099](../internal/docs/adr/0099-mcp-server-hanoman.md). Kontrak API penuh:
+[`internal/docs/architecture/api-contract.md`](../internal/docs/architecture/api-contract.md) —
+permukaan REST-nya identik dengan yang dipakai dashboard.*
