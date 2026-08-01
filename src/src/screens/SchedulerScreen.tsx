@@ -177,7 +177,7 @@ function SettingsPanel({ cfg, onWrite, busy }: { cfg: Scheduler; onWrite: (next:
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: 14 }}>
         <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <span className="hn-eyebrow">Cap concurrent</span>
-          <Input type="number" min={1} value={String(draft.maxConcurrent)} aria-label="Cap concurrent"
+          <Input type="number" min={1} value={String(draft.maxConcurrent)} aria-label="Cap concurrent" placeholder="6"
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDraft((d) => ({ ...d, maxConcurrent: num(e.target.value) }))} />
         </label>
         <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -196,7 +196,7 @@ function SettingsPanel({ cfg, onWrite, busy }: { cfg: Scheduler; onWrite: (next:
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-xs)" }}>
               tiap
               <Input type="number" min={1} style={{ width: 84 }} aria-label={`cadence ${k}`}
-                value={String(draft.sources[k].everyMin)}
+                placeholder="30" value={String(draft.sources[k].everyMin)}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSrc(k, { everyMin: num(e.target.value) })} />
               menit
             </label>

@@ -105,10 +105,10 @@ function AccountPanel({ me, onLoggedOut, onToast }: { me: UserView; onLoggedOut:
       <div style={{ paddingTop: 14 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-strong)", marginBottom: 10 }}>Ganti password</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 10, alignItems: "end" }}>
-          <Field label="Password lama"><Input type="password" autoComplete="current-password" value={cur}
+          <Field label="Password lama"><Input type="password" autoComplete="current-password" placeholder="••••••••" value={cur}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCur(e.target.value)} style={{ width: "100%" }} /></Field>
           <Field label={<>Password baru <span style={{ fontWeight: 400, color: "var(--text-subtle)" }}>· min 8</span></>}>
-            <Input type="password" autoComplete="new-password" value={next}
+            <Input type="password" autoComplete="new-password" placeholder="minimal 8 karakter" value={next}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNext(e.target.value)} style={{ width: "100%" }} /></Field>
           {/* marginBottom = Field.marginBottom (kit.tsx). alignItems:end mendasarkan tombol
               ke dasar baris, tapi margin bawah Field mengangkat input 14px dari sana; tanpa
@@ -163,7 +163,7 @@ function UsersPanel({ me, onToast }: { me: UserView; onToast?: ShowToast }) {
           <Field label="Email"><Input type="email" value={email} placeholder="user@nafanesia.id"
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)} style={{ width: "100%" }} /></Field>
           <Field label={<>Password <span style={{ fontWeight: 400, color: "var(--text-subtle)" }}>· min 8</span></>}>
-            <Input type="password" autoComplete="new-password" value={password}
+            <Input type="password" autoComplete="new-password" placeholder="minimal 8 karakter" value={password}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)} style={{ width: "100%" }} /></Field>
           {/* marginBottom = Field.marginBottom — sejajarkan dasar tombol dengan dasar input (lihat AccountPanel). */}
           <Button size="sm" leftIcon="user-plus" disabled={!canInvite} onClick={invite}
