@@ -44,7 +44,7 @@
 - Consumes: `EnvLike` dari `@hanoman/runner` (dipakai juga `server/src/web-dir.ts`).
 - Produces: `AGENT_DOC_REL: string` (= `"docs/agent-integration.md"`) dan `pickGuideFile(distDir: string, env: EnvLike, exists: (p: string) => boolean): string | null`. Dipakai Task 2 (lewat `app.ts`).
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/guide-file.test.ts`:
 
@@ -97,7 +97,7 @@ describe("pickGuideFile", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-489
@@ -106,7 +106,7 @@ TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run -
 
 Expected: FAIL — `Failed to resolve import "../src/guide-file"`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Buat `server/src/guide-file.ts`:
 
@@ -137,7 +137,7 @@ export function pickGuideFile(distDir: string, env: EnvLike, exists: (p: string)
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --no-file-parallelism server/test/guide-file.test.ts
@@ -145,7 +145,7 @@ TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run -
 
 Expected: PASS — 7 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/guide-file.ts server/test/guide-file.test.ts
@@ -165,7 +165,7 @@ git commit -m "feat(489): resolver murni path naskah panduan AI agent"
 - Consumes: `pickGuideFile`, `AGENT_DOC_REL` (Task 1).
 - Produces: route `GET /api/agent-integration.md` → `200 text/markdown; charset=utf-8` berisi byte naskah apa adanya; `404 { error }` bila naskah tak ada di instalasi. `buildApp({ requireAuth?, agentDocFile? })` — opsi baru `agentDocFile?: string | null` menimpa resolusi otomatis (dipakai test).
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/agent-doc.route.test.ts`:
 
@@ -241,7 +241,7 @@ describe("GET /api/agent-integration.md", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --no-file-parallelism server/test/agent-doc.route.test.ts
@@ -249,7 +249,7 @@ TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run -
 
 Expected: FAIL — `buildApp` belum menerima `agentDocFile`; route 404/401.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Buat `server/src/routes/agent-doc.ts`:
 
@@ -326,7 +326,7 @@ Tepat sebelum `const app = Fastify(...)` (atau tepat sesudahnya, sebelum `app.re
     await api.register(agentDoc, { file: docFile });   // SPEC-489 · panduan AI agent (PUBLIC)
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --no-file-parallelism \
@@ -335,7 +335,7 @@ TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run -
 
 Expected: PASS semua — 5 test baru + gate lama tak berubah.
 
-- [ ] **Step 5: Typecheck server**
+- [x] **Step 5: Typecheck server**
 
 ```bash
 pnpm --filter ./server typecheck
@@ -343,7 +343,7 @@ pnpm --filter ./server typecheck
 
 Expected: exit 0, tanpa keluaran.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/routes/agent-doc.ts server/src/app.ts server/test/agent-doc.route.test.ts
@@ -362,7 +362,7 @@ git commit -m "feat(489): sajikan naskah panduan AI agent mentah di GET /api/age
 - Consumes: konstanta path literal `"docs/agent-integration.md"` (nilai yang sama dengan `AGENT_DOC_REL`; `cli` tak mengimpor dari `server`, jadi sengaja ditulis literal dan diikat test).
 - Produces: paket npm membawa `docs/agent-integration.md` di root paket → dikenali kandidat pertama `pickGuideFile`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan ke `cli/test/pack.test.ts` — di dalam `describe("packageJsonFor", …)`:
 
@@ -398,7 +398,7 @@ describe("REQUIRED_ARTIFACTS", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 ./node_modules/.bin/vitest run --no-file-parallelism cli/test/pack.test.ts
@@ -406,7 +406,7 @@ describe("REQUIRED_ARTIFACTS", () => {
 
 Expected: FAIL — 3 test baru merah (`files` tanpa `"docs"`, `copyPlan` tanpa entri, `REQUIRED_ARTIFACTS` tanpa entri).
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Di `cli/src/release/pack.ts`:
 
@@ -435,7 +435,7 @@ export const REQUIRED_ARTIFACTS = [
     { from: join(repo, "docs/agent-integration.md"), to: "docs/agent-integration.md" },
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 ```bash
 ./node_modules/.bin/vitest run --no-file-parallelism cli/test/pack.test.ts
@@ -443,7 +443,7 @@ export const REQUIRED_ARTIFACTS = [
 
 Expected: PASS semua.
 
-- [ ] **Step 5: Typecheck cli**
+- [x] **Step 5: Typecheck cli**
 
 ```bash
 pnpm --filter ./cli typecheck
@@ -451,7 +451,7 @@ pnpm --filter ./cli typecheck
 
 Expected: exit 0.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add cli/src/release/pack.ts cli/test/pack.test.ts
@@ -472,7 +472,7 @@ Ini task terbesar: menulis isinya. Test ditulis **lebih dulu** supaya kelengkapa
 - Consumes: `CAPABILITY_DOMAINS` (`@hanoman/shared`), `capabilityForRoute` (`server/src/services/agent-capabilities.ts`), `zSpecSource` (`@hanoman/shared`).
 - Produces: naskah yang memenuhi struktur §0–§13 di bawah. Task 5 & 6 hanya menautkannya.
 
-- [ ] **Step 1: Tulis test kontrak yang gagal**
+- [x] **Step 1: Tulis test kontrak yang gagal**
 
 Buat `server/test/agent-doc-contract.test.ts`:
 
@@ -529,7 +529,7 @@ describe("naskah panduan AI agent", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --no-file-parallelism server/test/agent-doc-contract.test.ts
@@ -537,7 +537,7 @@ TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run -
 
 Expected: FAIL — minimal pada domain `telegram` (belum disebut), `/api/webhooks` (belum disebut), source `audit`/`help`/`goal`, dan tabel jebakan.
 
-- [ ] **Step 3: Tulis ulang `docs/agent-integration.md`**
+- [x] **Step 3: Tulis ulang `docs/agent-integration.md`**
 
 Pertahankan judul & isi yang sudah ada; **tambah** bagian baru dan **perbaiki** yang basi. Struktur final:
 
@@ -558,7 +558,7 @@ Pertahankan judul & isi yang sudah ada; **tambah** bagian baru dan **perbaiki** 
 | 12 | Keamanan | isi §7 sekarang |
 | 13 | MCP server | isi §8 sekarang, utuh |
 
-- [ ] **Step 3b: §6 — tabel endpoint**
+- [x] **Step 3b: §6 — tabel endpoint**
 
 ```markdown
 | Method & path | Capability | Catatan |
@@ -581,7 +581,7 @@ Pertahankan judul & isi yang sudah ada; **tambah** bagian baru dan **perbaiki** 
 | `POST /api/lead/decisions` | `lead:write` | minta putusan — **§8**. |
 ```
 
-- [ ] **Step 3c: §7 — payload per source**
+- [x] **Step 3c: §7 — payload per source**
 
 ```markdown
 `source` dan bentuk `payload` **saling mengikat**. Salah pasang → **400**
@@ -620,7 +620,7 @@ dari `severity`.
 ​```
 ```
 
-- [ ] **Step 3d: §8 — tindakan berbahaya**
+- [x] **Step 3d: §8 — tindakan berbahaya**
 
 ```markdown
 Tiga permukaan ini **wajib** kamu konfirmasikan ke manusia lebih dulu, walaupun token-mu sudah
@@ -637,7 +637,7 @@ Preseden yang mengikat: MCP server resmi (`hanoman mcp`) sengaja **tak punya too
 katalog tool, bukan di token. Perlakukan REST dengan disiplin yang sama.
 ```
 
-- [ ] **Step 3e: §9 — jebakan**
+- [x] **Step 3e: §9 — jebakan**
 
 ```markdown
 | Jebakan | Yang benar |
@@ -652,7 +652,7 @@ katalog tool, bukan di token. Perlakukan REST dengan disiplin yang sama.
 | **401 telanjang** tak memisahkan "host salah" dari "token salah" dari "master switch mati" | probe `GET /api/health` sekali: 200 = host benar → masalahnya token/master switch |
 ```
 
-- [ ] **Step 3f: §10 — alur end-to-end**
+- [x] **Step 3f: §10 — alur end-to-end**
 
 ```markdown
 ​```bash
@@ -704,7 +704,7 @@ curl -fsS "${auth[@]}" "$HANOMAN_HOST/api/projects/hanoman/docs"
 (`POST /api/terminal/sessions`) — lihat §8.
 ```
 
-- [ ] **Step 4: Jalankan test kontrak, pastikan LULUS**
+- [x] **Step 4: Jalankan test kontrak, pastikan LULUS**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --no-file-parallelism \
@@ -713,7 +713,7 @@ TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run -
 
 Expected: PASS — 6 test kontrak + 5 test route.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/agent-integration.md server/test/agent-doc-contract.test.ts
@@ -735,7 +735,7 @@ git commit -m "docs(489): naskah panduan AI agent lengkap + test kontrak katalog
 - Consumes: endpoint Task 2.
 - Produces: `paths.agentDoc: string` (= `` `${API}/agent-integration.md` ``); `api.agentDoc(): Promise<string>`; komponen `<AgentDocCard onToast={...} />`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/test/AgentDocCard.test.tsx`:
 
@@ -778,7 +778,7 @@ describe("AgentDocCard", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --dir src src/test/AgentDocCard.test.tsx
@@ -788,7 +788,7 @@ Expected: FAIL — `Failed to resolve import "../src/screens/AgentDocCard"`.
 
 > `env -u NODE_ENV` wajib: shell mesin ini menunjuk `production`, dan itu membuat RTL `act` gagal massal.
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 1. `shared/src/api.ts` — tambah di dekat `paths.docs`:
 
@@ -882,7 +882,7 @@ export function AgentDocCard({ onToast }: {
    - **buang** blok tombol "Dokumentasi integrasi" di kartu "Akses AI Agent" (`<div style={{ marginBottom: 12 }}> <a href="https://github.com/…"> … </a> </div>`) — kartu baru menggantikannya, dan dua tombol ke dokumen yang sama adalah duplikasi permukaan;
    - render `<AgentDocCard onToast={onToast} />` tepat **sebelum** `<Card eyebrow="ai agent" title="Akses AI Agent">` sehingga "baca panduannya" mendahului "buat token".
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --dir src src/test/AgentDocCard.test.tsx src/src/screens/SettingsScreen.test.tsx
@@ -890,7 +890,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run --dir src src/test/AgentDocCard.t
 
 Expected: PASS — 3 test baru + SettingsScreen lama tetap hijau.
 
-- [ ] **Step 5: Typecheck paket yang tersentuh**
+- [x] **Step 5: Typecheck paket yang tersentuh**
 
 ```bash
 pnpm --filter ./shared typecheck && pnpm --filter ./src typecheck
@@ -898,7 +898,7 @@ pnpm --filter ./shared typecheck && pnpm --filter ./src typecheck
 
 Expected: exit 0 keduanya.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add shared/src/api.ts src/src/api/client.ts src/src/screens/AgentDocCard.tsx \
@@ -920,7 +920,7 @@ git commit -m "feat(489): kartu Dokumentasi AI Agent di Settings (render dari en
 - Consumes: endpoint Task 2 & naskah Task 4.
 - Produces: tak ada API baru — hanya tautan. Ini yang membuat "ditautkan dari README repo GitHub dan dari `internal/docs/README.md`" terpenuhi.
 
-- [ ] **Step 1: README repo**
+- [x] **Step 1: README repo**
 
 Tambah bagian setelah "Cara kerjanya" (sebelum bagian instalasi):
 
@@ -937,7 +937,7 @@ curl -fsS https://hanoman.example/api/agent-integration.md
 ​```
 ```
 
-- [ ] **Step 2: Index Source of Truth**
+- [x] **Step 2: Index Source of Truth**
 
 Di `internal/docs/README.md`, ganti baris §integrasi yang sekarang dengan:
 
@@ -945,7 +945,7 @@ Di `internal/docs/README.md`, ganti baris §integrasi yang sekarang dengan:
 - [Integrasi AI agent — panduan berhadapan-agen](../../docs/agent-integration.md) — halaman dokumentasi AI Agent: model kerja hanoman (backlog → sesi → worktree), auth `Bearer hnm_agt_…`, `HANOMAN_HOST`, endpoint tersering + payload `POST /specs` per source, capability & arti 403 (`need`), route cookie-only, tindakan berbahaya yang wajib konfirmasi manusia, jebakan, dan alur end-to-end siap salin. **Naskah tunggal**: instance berjalan menyajikan byte yang sama di `GET /api/agent-integration.md` (PUBLIC, `text/markdown`) dan dashboard merender respons itu di Settings → Dokumentasi AI Agent — tak ada salinan yang bisa basi (SPEC-257/265/489 · ADR-0065)
 ```
 
-- [ ] **Step 3: Kontrak API**
+- [x] **Step 3: Kontrak API**
 
 Di `internal/docs/architecture/api-contract.md`, di bagian endpoint publik (dekat `GET /api/health`), tambahkan:
 
@@ -963,7 +963,7 @@ tak ada jalur tulis. SPEC-489.
 
 Perbarui juga baris rujukan di `api-contract.md:393` agar menyebut URL runtime-nya, bukan hanya path repo.
 
-- [ ] **Step 4: Skill project**
+- [x] **Step 4: Skill project**
 
 Di `internal/skills/hanoman/SKILL.md`, tambahkan satu butir di bagian Aturan Arsitektur (dekat butir MCP server):
 
@@ -983,14 +983,14 @@ Di `internal/skills/hanoman/SKILL.md`, tambahkan satu butir di bagian Aturan Ars
   (ADR-0100) yang tak mungkin di sini karena kendalanya satu berkas markdown.
 ```
 
-- [ ] **Step 5: Commit docs**
+- [x] **Step 5: Commit docs**
 
 ```bash
 git add README.md internal/docs/README.md internal/docs/architecture/api-contract.md internal/skills/hanoman/SKILL.md
 git commit -m "docs(489): tautkan halaman dokumentasi AI Agent dari README, index SoT, api-contract & SKILL"
 ```
 
-- [ ] **Step 6: Smoke nyata — boot server + curl tanpa auth**
+- [x] **Step 6: Smoke nyata — boot server + curl tanpa auth**
 
 Task ini menyentuh endpoint, jadi diuji nyata **sekali di akhir** (bukan tiap task). DB khusus supaya
 run tetangga tak menghapusnya di tengah smoke:
@@ -1019,7 +1019,7 @@ Expected:
 **Bunuh per-PID (`kill "$SRV"`), jangan `pkill -f`** — pola seperti `node`/`tsx` mencocoki agen sesi
 tetangga di mesin ini dan `pkill` mengecualikan leluhurnya sendiri, jadi yang mati selalu sesi orang lain.
 
-- [ ] **Step 7: Verifikasi akhir — seluruh test yang tersentuh**
+- [x] **Step 7: Verifikasi akhir — seluruh test yang tersentuh**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --no-file-parallelism \
@@ -1033,7 +1033,7 @@ pnpm --filter ./server typecheck && pnpm --filter ./shared typecheck && pnpm --f
 Expected: semua hijau, semua typecheck exit 0. **Pastikan jumlah test yang berjalan bukan nol** —
 `--changed` menyalakan `passWithNoTests`, jadi "no test files" terlihat hijau padahal tak menguji apa pun.
 
-- [ ] **Step 8: Commit akhir & push**
+- [x] **Step 8: Commit akhir & push**
 
 ```bash
 git add -A
@@ -1073,3 +1073,55 @@ Tak ada tuntutan tanpa task.
 (`app.ts`) dengan urutan argumen yang sama; `AGENT_DOC_REL` dipakai Task 1 & 2; `opts.file` route
 sama dengan `{ file: docFile }` di `app.ts`; `paths.agentDoc` dipakai Task 5 di dua tempat dengan
 nama identik; `api.agentDoc()` mengembalikan `Promise<string>` dan dipakai sebagai string.
+
+---
+
+## Catatan pelaksanaan (2026-08-01)
+
+Seluruh 41 langkah terlaksana. Tiga penyimpangan sadar dari plan, semuanya kecil:
+
+1. **Nama berkas test web** → `src/test/agent-doc-card.test.tsx` (bukan `AgentDocCard.test.tsx`):
+   seluruh isi `src/test/` memakai kebab-case. Ia juga memakai `fireEvent`, bukan `userEvent` —
+   `@testing-library/user-event` **tak** ada di `src/package.json`, dan menambah dependency untuk
+   tiga klik bukan bagian dari fitur ini.
+2. **`api-contract.md` diperbaiki lebih dari yang direncanakan.** Blok capability yang persis
+   sedang disunting masih berbunyi "9 domain … 18 capability" dan daftar cookie-only-nya belum
+   memuat `/webhooks` (ADR-0100) maupun `/telegram/{settings,test,credentials}` (ADR-0097) — angka
+   yang **bertentangan langsung** dengan naskah baru (12 domain × 2 = 24), jadi membiarkannya
+   berarti menerbitkan dua kebenaran. Diperbaiki bersama entri endpoint barunya.
+3. **`pnpm build` + `hanoman __pack` penuh TIDAK dijalankan.** Logika paketnya murni dan sudah
+   dijaga `cli/test/pack.test.ts` (20 lulus), dan `REQUIRED_ARTIFACTS` menggagalkan `__pack` dengan
+   keras bila naskahnya hilang — build penuh (vite + esbuild + tsc) di mesin yang menjalankan
+   beberapa sesi sekaligus tak sepadan untuk menegakkan invarian yang sudah punya gerbangnya sendiri.
+
+### Bukti smoke (nyata, bukan test)
+
+Server `tsx server/src/server.ts` di port 8799 dengan `HANOMAN_HOME` khusus:
+
+| Periksa | Hasil |
+|---|---|
+| `GET /api/agent-integration.md` **tanpa header apa pun** | `HTTP/1.1 200 OK` · `content-type: text/markdown; charset=utf-8` · 22 992 byte |
+| byte yang disajikan vs berkas repo | `sha256` **identik** — `3c319212…0883` di kedua sisi (bukan sekadar "mirip") |
+| dengan `Authorization: Bearer hnm_agt_sampah` | tetap `HTTP/1.1 200 OK` |
+| kontrol negatif `GET /api/specs` tanpa auth | `HTTP/1.1 401 Unauthorized` — gerbangnya masih hidup, yang publik hanya endpoint ini |
+| kontrol negatif `GET /api/health` | `HTTP/1.1 200 OK` |
+
+Proses dimatikan **per-PID** lewat `lsof -ti:8799` → `kill`, tak pernah `pkill -f` (SPEC-402).
+
+### Bukti test
+
+- server + cli: **105 lulus / 9 berkas** — `guide-file` (7), `agent-doc.route` (5),
+  `agent-doc-contract` (6), `agent-gate` (5), `agent-capabilities` (48), `app` (2),
+  `mcp-capability` (5), `pack` (20), `verify-packed` (7).
+- web: **25 lulus / 4 berkas** — `agent-doc-card` (3), `agent-tokens` (3), `SettingsScreen` (7),
+  `api-client` (12).
+- typecheck: `server` · `shared` · `cli` · `src` → keempatnya exit 0.
+
+Jumlahnya bukan nol di tiap berkas — `passWithNoTests` tak sedang menyamarkan apa pun.
+
+### Yang terbukti saat menulis, layak diingat
+
+Test kontrak **langsung menangkap dua kebasian nyata** pada percobaan pertamanya, bukan hipotesis:
+domain `telegram` dan cookie-only `/api/webhooks` sudah lama tak ada di naskah lama. Itu bukti
+mekanisme "katalog mengikat naskah lewat test" memang bekerja sebagai pengganti render-dari-katalog
+— dan bahwa dokumen prosa yang tak diikat apa pun memang membusuk diam-diam.
