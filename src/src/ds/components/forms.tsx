@@ -166,6 +166,10 @@ export function Checkbox({ checked, defaultChecked, onChange, label, description
       cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.55 : 1, ...style },
   }, rest),
     React.createElement("span", {
+      // SPEC-485 · peran & keadaan dinyatakan eksplisit: pembaca layar (dan test) harus bisa
+      // membedakan "centang beberapa" dari "pilih salah satu" tanpa membaca teks di sebelahnya.
+      role: "checkbox", "aria-checked": on, "aria-disabled": disabled || undefined,
+      tabIndex: disabled ? -1 : 0,
       onClick: toggle,
       style: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18,
         marginTop: description ? 2 : 0, borderRadius: "var(--radius-xs)",
@@ -174,6 +178,37 @@ export function Checkbox({ checked, defaultChecked, onChange, label, description
         boxShadow: on ? "none" : "var(--shadow-inset)", transition: "var(--transition-fast)", flex: "0 0 auto" },
     }, on && React.createElement(Icon, { name: "check", size: 13, stroke: 3, color: "var(--accent-on)" })),
     (label || description) && React.createElement("span", { onClick: toggle, style: { userSelect: "none" } },
+      label && React.createElement("span", { style: { display: "block", fontSize: "var(--text-md)",
+        color: "var(--text-strong)", lineHeight: 1.4 } }, label),
+      description && React.createElement("span", { style: { display: "block", fontSize: "var(--text-sm)",
+        color: "var(--text-muted)", lineHeight: 1.45 } }, description)));
+}
+
+// SPEC-485 · ADR-0102 · pilihan TUNGGAL butuh kontrol yang menyatakan dirinya tunggal. Cermin
+// `Checkbox` di atas — bentuknya saja yang bundar dan `role`-nya `radio`. Sengaja TANPA keadaan
+// internal: "salah satu dari sekumpulan" hanya benar bila yang memegang daftarnya satu pihak, dan
+// itu induknya, bukan tiap tombol.
+type RadioProps = { checked?: boolean; onChange?: (e: React.MouseEvent) => void;
+  label?: React.ReactNode; description?: React.ReactNode; disabled?: boolean;
+  style?: React.CSSProperties } & Record<string, any>;
+export function Radio({ checked = false, onChange, label, description, disabled = false, className = "", style = {}, ...rest }: RadioProps) {
+  const pick = (e: React.MouseEvent) => { if (!disabled) onChange && onChange(e); };
+  return React.createElement("label", _extends({
+    className,
+    style: { display: "inline-flex", alignItems: description ? "flex-start" : "center", gap: 10,
+      cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.55 : 1, ...style },
+  }, rest),
+    React.createElement("span", {
+      role: "radio", "aria-checked": checked, "aria-disabled": disabled || undefined,
+      tabIndex: disabled ? -1 : 0, onClick: pick,
+      style: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18,
+        marginTop: description ? 2 : 0, borderRadius: "var(--radius-pill)",
+        background: "var(--surface-card)",
+        border: `1.5px solid ${checked ? "var(--accent)" : "var(--border-strong)"}`,
+        boxShadow: checked ? "none" : "var(--shadow-inset)", transition: "var(--transition-fast)", flex: "0 0 auto" },
+    }, checked && React.createElement("span", { style: { width: 8, height: 8,
+      borderRadius: "var(--radius-pill)", background: "var(--accent)" } })),
+    (label || description) && React.createElement("span", { onClick: pick, style: { userSelect: "none" } },
       label && React.createElement("span", { style: { display: "block", fontSize: "var(--text-md)",
         color: "var(--text-strong)", lineHeight: 1.4 } }, label),
       description && React.createElement("span", { style: { display: "block", fontSize: "var(--text-sm)",

@@ -1897,7 +1897,7 @@ git commit -m "feat(485): lead mencentang dialog multiSelect claude, bukan menge
 - Produces: DS `Radio`; `api.getLeadFlows`, `api.submitLeadFlow`, `api.cancelLeadFlow`;
   `api.overrideLeadDecision(id, answer, reason?, choices?)`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan ke `src/test/lead-screen.test.tsx` (ikuti pola mock `api` yang sudah dipakai berkas itu):
 
@@ -1950,7 +1950,7 @@ it("SPEC-485 · respons server lama (tanpa `choices`/`flows`) tak meruntuhkan pa
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism src/test/lead-screen.test.tsx
@@ -1958,7 +1958,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism src/test/le
 Expected: FAIL — tak ada `role="radio"`, `api.getLeadFlows` bukan fungsi.
 (`env -u NODE_ENV` wajib: `NODE_ENV=production` di env sesi membuat RTL `act` gagal massal.)
 
-- [ ] **Step 3: DS `Radio` + peran pada `Checkbox`**
+- [x] **Step 3: DS `Radio` + peran pada `Checkbox`**
 
 Di `src/src/ds/components/forms.tsx`, pada `Checkbox`, tambahkan pada `<span>` yang bisa diklik:
 `role: "checkbox", "aria-checked": on, tabIndex: disabled ? -1 : 0,`.
@@ -1998,7 +1998,7 @@ export function Radio({ checked = false, onChange, label, description, disabled 
 
 `src/src/ds/index.ts`: tambahkan `Radio` ke ekspor `./components/forms`.
 
-- [ ] **Step 4: API client**
+- [x] **Step 4: API client**
 
 ```ts
   overrideLeadDecision: (id: string, answer: string, reason = "", choices: string[] = []) =>
@@ -2013,7 +2013,7 @@ export function Radio({ checked = false, onChange, label, description, disabled 
 
 (tambahkan `LeadFlowView` ke `import type` di kepala berkas.)
 
-- [ ] **Step 5: `LeadScreen.tsx`**
+- [x] **Step 5: `LeadScreen.tsx`**
 
 Tambahkan komponen pemilih di atas `DecisionRow`:
 
@@ -2117,21 +2117,21 @@ dan di `load()`: `api.getLeadFlows({ projectId: filter === "all" ? undefined : f
 ditambahkan ke `Promise.all`, hasilnya `setFlows(f.items ?? [])`. `submitFlow`/`cancelFlow` mengikuti
 pola `cancel` yang sudah ada (set `busyId`, panggil api, toast, `load(true)`).
 
-- [ ] **Step 6: Jalankan test, pastikan LULUS**
+- [x] **Step 6: Jalankan test, pastikan LULUS**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism src/test/lead-screen.test.tsx
 ```
 Expected: PASS.
 
-- [ ] **Step 7: Typecheck paket yang tersentuh**
+- [x] **Step 7: Typecheck paket yang tersentuh**
 
 ```bash
 pnpm --filter ./shared typecheck && pnpm --filter ./server typecheck && pnpm --filter . typecheck
 ```
 Expected: keluar 0 untuk ketiganya.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/src/ds/components/forms.tsx src/src/ds/index.ts src/src/api/client.ts src/src/screens/LeadScreen.tsx src/test/lead-screen.test.tsx

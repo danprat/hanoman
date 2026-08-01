@@ -5,9 +5,9 @@
    dilayani (menunggu / sedang diputuskan), dan jejak keputusan — pertanyaan → jawaban → alasan →
    rujukan — dengan tombol Timpa & Batalkan per baris (AC-27/28, US-2/3/4). */
 import React from "react";
-import { Card, Button, Badge, Input, Select, StateBlock, Icon } from "../ds";
+import { Card, Button, Badge, Input, Select, StateBlock, Icon, Checkbox, Radio } from "../ds";
 import { api } from "../api/client";
-import type { Lead, LeadStatusView, LeadDecisionView } from "@hanoman/shared";
+import type { Lead, LeadStatusView, LeadDecisionView, LeadFlowView } from "@hanoman/shared";
 import type { ProjectVM } from "./types";
 
 const POLL_MS = 5000;
@@ -32,6 +32,15 @@ const KIND_LABEL: Record<string, string> = {
 };
 const GATE_LABEL: Record<string, string> = {
   contract: "kontrak", detected: "deteksi otomatis", pulse: "denyut",
+};
+// SPEC-485 · ADR-0102 · status satu RANTAI keputusan. `menunggu` diberi nada peringatan: alur yang
+// terbuka tanpa satu pun jawaban berlaku memang keadaan yang menuntut mata operator.
+const FLOW_TONE: Record<string, Tone> = {
+  menunggu: "warn", sebagian: "info", selesai: "ok", dibatalkan: "neutral",
+};
+const FLOW_OPEN = new Set(["menunggu", "sebagian"]);
+const FLOW_CLOSE_LABEL: Record<string, string> = {
+  tunggal: "sekali jalan", submit: "di-submit", operator: "dibatalkan operator", kedaluwarsa: "kedaluwarsa",
 };
 
 function RowShell({ children }: { children: React.ReactNode }) {
@@ -110,14 +119,44 @@ function ControlBar({ cfg, onWrite, busy }: { cfg: Lead; onWrite: (n: Lead) => v
   );
 }
 
+/**
+ * SPEC-485 · ADR-0102 · kontrol yang MENYATAKAN bentuk pilihannya: radio untuk tunggal, checkbox
+ * untuk jamak. Sebelum spec ini "Timpa" cuma kotak teks, jadi operator harus menuliskan ulang label
+ * opsi yang sudah ada di layar — dan salah ketik satu huruf membuat pilihannya tak terpetakan.
+ */
+function ChoicePicker({ options, multi, value, onChange }: {
+  options: string[]; multi: boolean; value: string[]; onChange: (next: string[]) => void;
+}) {
+  const toggle = (o: string) => {
+    if (!multi) { onChange([o]); return; }   // tunggal: yang terakhir dipilih menang
+    onChange(value.includes(o) ? value.filter((v) => v !== o) : [...value, o]);
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {options.map((o) => multi
+        ? <Checkbox key={o} checked={value.includes(o)} label={o} onChange={() => toggle(o)} />
+        : <Radio key={o} checked={value.includes(o)} label={o} onChange={() => toggle(o)} />)}
+    </div>
+  );
+}
+
 function DecisionRow({ d, onOverride, onCancel, busyId }: {
   d: LeadDecisionView;
-  onOverride: (id: string, answer: string) => void;
+  onOverride: (id: string, answer: string, choices: string[]) => void;
   onCancel: (id: string) => void;
   busyId: string | null;
 }) {
   const [open, setOpen] = React.useState(false);
   const [draft, setDraft] = React.useState("");
+  const [draftChoices, setDraftChoices] = React.useState<string[]>([]);
+  // SPEC-485 · `choices` bentuk yang berlaku; baris dari server LAMA hanya punya pasangan skalar,
+  // dan `?? []` di sepanjang berkas ini bukan kehati-hatian berlebih — dashboard bisa lebih baru
+  // daripada server yang dilayaninya (paket npm global, ADR-0087).
+  const picked = (d.choices ?? []).length > 0
+    ? d.choices
+    : (d.choiceIndex != null && d.choice ? [{ index: d.choiceIndex, option: d.choice }] : []);
+  const options = d.options ?? [];
+  const multi = d.select?.mode === "multi";
   return (
     <div style={{ padding: "10px 12px", border: "1px solid var(--border-hair)",
       borderRadius: "var(--radius-sm)", background: "var(--surface-card)", marginBottom: 6 }}>
@@ -131,8 +170,12 @@ function DecisionRow({ d, onOverride, onCancel, busyId }: {
             `?? []` bukan kehati-hatian berlebih — dashboard bisa lebih baru daripada server yang
             dilayaninya (paket npm global, ADR-0087), dan baris tanpa field ini akan meruntuhkan
             SELURUH panel, bukan cuma badge-nya. */}
-        {d.choiceIndex != null && (d.options ?? []).length > 0 &&
-          <Badge tone="brass" size="sm">{`opsi ${d.choiceIndex}/${d.options.length}`}</Badge>}
+        {picked.length > 0 && options.length > 0 &&
+          <Badge tone="brass" size="sm">
+            {picked.length > 1
+              ? `${picked.length} dari ${options.length} opsi`
+              : `opsi ${picked[0]!.index}/${options.length}`}
+          </Badge>}
         {(d.missing ?? []).length > 0 && <Badge tone="warn" size="sm">kurang konteks</Badge>}
         <span style={{ flex: 1 }} />
         <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{ago(d.createdAt)}</span>
@@ -141,8 +184,11 @@ function DecisionRow({ d, onOverride, onCancel, busyId }: {
         {d.question.slice(0, 400)}
       </div>
       <div style={{ marginTop: 4, color: "var(--text-strong)", fontWeight: 500, whiteSpace: "pre-wrap" }}>
-        {/* Label opsi terpilih menang atas prosa: itulah yang benar-benar dikirim ke peminta. */}
-        {d.choice ?? (d.answer || <em style={{ fontWeight: 400, color: "var(--text-muted)" }}>tak ada jawaban</em>)}
+        {/* Label opsi terpilih menang atas prosa: itulah yang benar-benar dikirim ke peminta.
+            SPEC-485 · SEMUA yang terpilih, bukan hanya yang pertama. */}
+        {picked.length
+          ? picked.map((c) => c.option).join(" · ")
+          : (d.answer || <em style={{ fontWeight: 400, color: "var(--text-muted)" }}>tak ada jawaban</em>)}
       </div>
       <div style={{ marginTop: 4, fontSize: "var(--text-xs)", color: "var(--text-subtle)", whiteSpace: "pre-wrap" }}>
         {d.reason}
@@ -174,12 +220,22 @@ function DecisionRow({ d, onOverride, onCancel, busyId }: {
             onClick={() => onCancel(d.id)}>Batalkan</Button>}
       </div>
       {open && (
-        <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-          <Input style={{ flex: 1 }} aria-label={`jawaban operator untuk ${d.id}`}
-            placeholder="Jawaban kamu — dikirim ke sesi bila panenya masih hidup"
-            value={draft} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDraft(e.target.value)} />
-          <Button size="sm" leftIcon="check" disabled={!draft.trim() || busyId === d.id}
-            onClick={() => { onOverride(d.id, draft.trim()); setOpen(false); setDraft(""); }}>Simpan</Button>
+        <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+          {options.length > 0 && (
+            <ChoicePicker options={options} multi={multi} value={draftChoices} onChange={setDraftChoices} />
+          )}
+          <div style={{ display: "flex", gap: 8 }}>
+            <Input style={{ flex: 1 }} aria-label={`jawaban operator untuk ${d.id}`}
+              placeholder="Jawaban kamu — dikirim ke sesi bila panenya masih hidup"
+              value={draft} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDraft(e.target.value)} />
+            {/* Centang saja sudah cukup: labelnya yang jadi jawaban bila kolom prosanya kosong. */}
+            <Button size="sm" leftIcon="check"
+              disabled={(!draft.trim() && draftChoices.length === 0) || busyId === d.id}
+              onClick={() => {
+                onOverride(d.id, draft.trim() || draftChoices.join("; "), draftChoices);
+                setOpen(false); setDraft(""); setDraftChoices([]);
+              }}>Simpan</Button>
+          </div>
         </div>
       )}
     </div>
@@ -196,6 +252,7 @@ export type LeadScreenProps = {
 export function LeadScreen({ projects, onProjectChanged, onToast, onGotoTerminal }: LeadScreenProps) {
   const [state, setState] = React.useState<LeadStatusView | null>(null);
   const [decisions, setDecisions] = React.useState<LeadDecisionView[]>([]);
+  const [flows, setFlows] = React.useState<LeadFlowView[]>([]);
   const [phase, setPhase] = React.useState<"loading" | "ready" | "error">("loading");
   const [busy, setBusy] = React.useState(false);
   const [busyId, setBusyId] = React.useState<string | null>(null);
@@ -206,8 +263,14 @@ export function LeadScreen({ projects, onProjectChanged, onToast, onGotoTerminal
     Promise.all([
       api.getLeadStatus(),
       api.getLeadDecisions({ projectId: filter === "all" ? undefined : filter, take: 50 }),
+      // SPEC-485 · rantai. Instance lama tak punya endpoint ini; kegagalannya tak boleh menjatuhkan
+      // seluruh panel (ADR-0087: dashboard bisa lebih baru daripada server yang dilayaninya).
+      api.getLeadFlows({ projectId: filter === "all" ? undefined : filter, take: 50 })
+        .catch(() => ({ items: [] as LeadFlowView[] })),
     ])
-      .then(([s, d]) => { setState(s); setDecisions(d.items); setPhase("ready"); })
+      .then(([s, d, f]) => {
+        setState(s); setDecisions(d.items ?? []); setFlows(f.items ?? []); setPhase("ready");
+      })
       .catch(() => { if (!silent) setPhase("error"); });   // silent poll tak pernah mem-blank layar
   }, [filter]);
   React.useEffect(() => { load(); }, [load]);
@@ -237,13 +300,25 @@ export function LeadScreen({ projects, onProjectChanged, onToast, onGotoTerminal
     await writeConfig({ ...state.config, pausedProjects: [...set] });
   }, [state, writeConfig]);
 
-  const override = React.useCallback(async (id: string, answer: string) => {
+  const override = React.useCallback(async (id: string, answer: string, choices: string[] = []) => {
     setBusyId(id);
     try {
-      const r = await api.overrideLeadDecision(id, answer);
+      const r = await api.overrideLeadDecision(id, answer, "", choices);
       onToast(r.delivered ? "Jawaban kamu dikirim ke sesi" : "Keputusan ditimpa", "ok", "check");
       load(true);
     } catch { onToast("Gagal menimpa keputusan", "err", "x-circle"); }
+    finally { setBusyId(null); }
+  }, [load, onToast]);
+
+  // SPEC-485 · menutup rantai adalah tindakan operator, bukan keputusan lead — tak ada agen yang
+  // dipanggil untuknya.
+  const closeFlow = React.useCallback(async (id: string, how: "submit" | "cancel") => {
+    setBusyId(id);
+    try {
+      await (how === "submit" ? api.submitLeadFlow(id) : api.cancelLeadFlow(id));
+      onToast(how === "submit" ? "Rantai di-submit" : "Rantai dibatalkan", "ok", "check");
+      load(true);
+    } catch { onToast("Gagal menutup rantai", "err", "x-circle"); }
     finally { setBusyId(null); }
   }, [load, onToast]);
 
@@ -326,6 +401,31 @@ export function LeadScreen({ projects, onProjectChanged, onToast, onGotoTerminal
           );
         })}
       </Section>
+
+      {/* SPEC-485 · ADR-0102 · satu rantai = satu urusan, dari pertanyaan pertama sampai submit.
+          Statusnya dijawab satu kolom, bukan disimpulkan ulang dari kumpulan baris jejak. */}
+      <Card eyebrow="lead · rantai keputusan" title={`Rantai (${flows.length})`}>
+        {flows.length === 0
+          ? <div style={{ fontSize: "var(--text-sm)", color: "var(--text-subtle)" }}>
+              Belum ada rantai. Satu rantai adalah satu urusan — beberapa pertanyaan berurutan sampai di-submit.
+            </div>
+          : flows.map((f) => (
+            <RowShell key={f.id}>
+              <Badge tone={FLOW_TONE[f.status] ?? "neutral"} size="sm">{f.status}</Badge>
+              <span style={{ flex: 1, minWidth: 0, color: "var(--text-strong)" }}>{f.title}</span>
+              <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+                {f.steps} langkah · {ago(f.openedAt)}
+                {f.closeReason ? ` · ${FLOW_CLOSE_LABEL[f.closeReason] ?? f.closeReason}` : ""}
+              </span>
+              {FLOW_OPEN.has(f.status) && <>
+                <Button size="sm" leftIcon="check" disabled={busyId === f.id}
+                  onClick={() => closeFlow(f.id, "submit")}>Submit</Button>
+                <Button size="sm" variant="ghost" leftIcon="x-circle" disabled={busyId === f.id}
+                  onClick={() => closeFlow(f.id, "cancel")}>Batalkan</Button>
+              </>}
+            </RowShell>
+          ))}
+      </Card>
 
       <Card eyebrow="lead · jejak keputusan" title={`Keputusan (${decisions.length})`}
         actions={

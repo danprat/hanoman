@@ -6,13 +6,22 @@ import { describe, it, expect, vi } from "vitest";
 // jawaban → alasan → rujukan), rem daruratnya benar-benar menulis knob, dan Timpa memanggil
 // endpoint override (bukan sekadar menutup formulirnya).
 
-const { getLeadStatus, getLeadDecisions, putLeadConfig, overrideLeadDecision, cancelLeadDecision, updateProject } =
-  vi.hoisted(() => ({
-    getLeadStatus: vi.fn(), getLeadDecisions: vi.fn(), putLeadConfig: vi.fn(),
-    overrideLeadDecision: vi.fn(), cancelLeadDecision: vi.fn(), updateProject: vi.fn(),
-  }));
+const {
+  getLeadStatus, getLeadDecisions, putLeadConfig, overrideLeadDecision, cancelLeadDecision, updateProject,
+  getLeadFlows, submitLeadFlow, cancelLeadFlow,
+} = vi.hoisted(() => ({
+  getLeadStatus: vi.fn(), getLeadDecisions: vi.fn(), putLeadConfig: vi.fn(),
+  overrideLeadDecision: vi.fn(), cancelLeadDecision: vi.fn(), updateProject: vi.fn(),
+  // SPEC-485 · ADR-0102 · rantai keputusan; `mockResolvedValue` default supaya test lama tak perlu
+  // tahu apa-apa tentangnya.
+  getLeadFlows: vi.fn().mockResolvedValue({ items: [] }),
+  submitLeadFlow: vi.fn(), cancelLeadFlow: vi.fn(),
+}));
 vi.mock("../src/api/client", () => ({
-  api: { getLeadStatus, getLeadDecisions, putLeadConfig, overrideLeadDecision, cancelLeadDecision, updateProject },
+  api: {
+    getLeadStatus, getLeadDecisions, putLeadConfig, overrideLeadDecision, cancelLeadDecision, updateProject,
+    getLeadFlows, submitLeadFlow, cancelLeadFlow,
+  },
   ApiError: class extends Error {},
 }));
 
@@ -133,7 +142,8 @@ describe("LeadScreen · kendali manusia (AC-27/28, US-3/4)", () => {
     const input = screen.getByLabelText("jawaban operator untuk d1");
     await act(async () => { fireEvent.change(input, { target: { value: "turunkan saja" } }); });
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /simpan/i })); });
-    await waitFor(() => expect(overrideLeadDecision).toHaveBeenCalledWith("d1", "turunkan saja"));
+    // SPEC-485 · tanda tangannya kini `(id, answer, reason, choices)` — centang operator adalah DATA.
+    await waitFor(() => expect(overrideLeadDecision).toHaveBeenCalledWith("d1", "turunkan saja", "", []));
   });
   it("cancelling a decision calls the cancel endpoint", async () => {
     getLeadStatus.mockResolvedValue(STATUS);
@@ -208,5 +218,97 @@ describe("LeadScreen · pilihan terstruktur (SPEC-480)", () => {
     expect(await screen.findByText("Kolom baru.")).toBeInTheDocument();
     expect(screen.queryByText(/^opsi \d/)).not.toBeInTheDocument();
     expect(screen.queryByText("kurang konteks")).not.toBeInTheDocument();
+  });
+});
+
+// SPEC-485 · ADR-0102 · pilihan jamak & rantai di dashboard.
+const OPT_ROW = {
+  id: "d3", projectId: "a", specId: null, sessionId: "spec-3",
+  gate: "contract", kind: "answer", question: "Paket mana?", answer: "beta & gamma",
+  reason: "keduanya dipakai.", refs: [], confidence: "tinggi", action: "none",
+  status: "berlaku", weighty: false, supersededById: null,
+  choice: "beta", choiceIndex: 2, options: ["alpha", "beta", "gamma"], missing: [],
+  choices: [{ index: 2, option: "beta" }, { index: 3, option: "gamma" }],
+  select: { mode: "multi", min: 1, max: 3 }, flowId: "f1", step: 1,
+  createdAt: "2026-08-01T00:00:00.000Z",
+};
+const flow = (over: Record<string, unknown> = {}) => ({
+  id: "f1", projectId: "a", specId: null, sessionId: null, gate: "contract",
+  status: "sebagian", title: "Paket mana?", steps: 2, closeReason: null,
+  openedAt: "2026-08-01T00:00:00.000Z", closedAt: null, expiresAt: "2026-08-01T01:00:00.000Z",
+  ...over,
+});
+
+describe("LeadScreen · pilihan jamak & rantai (SPEC-485)", () => {
+  const boot = (rows: unknown[], flows: unknown[] = []) => {
+    getLeadStatus.mockResolvedValue(STATUS);
+    getLeadDecisions.mockResolvedValue({ items: rows });
+    getLeadFlows.mockResolvedValue({ items: flows });
+  };
+
+  it("menampilkan SEMUA label terpilih, bukan hanya yang pertama", async () => {
+    boot([OPT_ROW]);
+    renderScreen();
+    expect(await screen.findByText(/beta · gamma/)).toBeInTheDocument();
+    expect(screen.getByText("2 dari 3 opsi")).toBeInTheDocument();
+  });
+
+  it("Timpa menampilkan CHECKBOX saat pilihannya jamak, dan mengirim semua yang dicentang", async () => {
+    boot([OPT_ROW]);
+    overrideLeadDecision.mockResolvedValue({ old: OPT_ROW, next: OPT_ROW, delivered: true });
+    renderScreen();
+    const timpa = (await screen.findAllByRole("button", { name: /timpa/i }))[0]!;
+    await act(async () => { fireEvent.click(timpa); });
+    const boxes = screen.getAllByRole("checkbox");
+    expect(boxes).toHaveLength(3);
+    expect(screen.queryAllByRole("radio")).toHaveLength(0);
+    await act(async () => { fireEvent.click(boxes[0]!); });
+    await act(async () => { fireEvent.click(boxes[2]!); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /simpan/i })); });
+    await waitFor(() => expect(overrideLeadDecision)
+      .toHaveBeenCalledWith("d3", expect.any(String), "", ["alpha", "gamma"]));
+  });
+
+  it("Timpa menampilkan RADIO saat pilihannya tunggal, dan hanya satu yang bertahan", async () => {
+    boot([{ ...OPT_ROW, select: { mode: "single", min: 0, max: 1 },
+      choices: [{ index: 2, option: "beta" }] }]);
+    overrideLeadDecision.mockResolvedValue({ old: OPT_ROW, next: OPT_ROW, delivered: true });
+    renderScreen();
+    const timpa = (await screen.findAllByRole("button", { name: /timpa/i }))[0]!;
+    await act(async () => { fireEvent.click(timpa); });
+    const radios = screen.getAllByRole("radio");
+    expect(radios).toHaveLength(3);
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+    await act(async () => { fireEvent.click(radios[0]!); });
+    await act(async () => { fireEvent.click(radios[2]!); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /simpan/i })); });
+    await waitFor(() => expect(overrideLeadDecision)
+      .toHaveBeenCalledWith("d3", expect.any(String), "", ["gamma"]));
+  });
+
+  it("kartu rantai merender status & tombol hanya untuk alur yang masih terbuka", async () => {
+    boot([], [flow(), flow({ id: "f2", status: "selesai", title: "Versi mana?", closeReason: "submit" })]);
+    renderScreen();
+    expect(await screen.findByText("sebagian")).toBeInTheDocument();
+    expect(screen.getByText("selesai")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /^submit$/i })).toHaveLength(1);
+  });
+
+  it("Submit rantai memanggil endpointnya", async () => {
+    boot([], [flow()]);
+    submitLeadFlow.mockResolvedValue(flow({ status: "selesai" }));
+    renderScreen();
+    const btn = await screen.findByRole("button", { name: /^submit$/i });
+    await act(async () => { fireEvent.click(btn); });
+    await waitFor(() => expect(submitLeadFlow).toHaveBeenCalledWith("f1"));
+  });
+
+  // Dashboard bisa lebih baru daripada server yang dilayaninya (paket npm global, ADR-0087).
+  it("respons server lama (tanpa `choices`/`select`/`flows`) tak meruntuhkan panel", async () => {
+    getLeadStatus.mockResolvedValue(STATUS);
+    getLeadDecisions.mockResolvedValue(DECISIONS);
+    getLeadFlows.mockResolvedValue({});
+    renderScreen();
+    expect(await screen.findByText(/Pakai kolom baru atau turunkan/)).toBeInTheDocument();
   });
 });
