@@ -3,6 +3,7 @@ export * from "./enums";
 export * from "./entities";
 export * from "./agent";
 export * from "./custom-agent";
+export * from "./github";
 export * from "./lead";
 export * from "./dto";
 export * from "./api";
