@@ -762,8 +762,12 @@ GET  /api/lead/status      -> { config, projects:[{projectId,name,optIn,paused,d
 #                               queue: SchedulerQueueItem[], deciding:[sessionId], queued:[sessionId],
 #                               waiting:[sessionId], lastPulseAt, gate:{inFlight,queued,capacity} }
 GET  /api/lead/decisions?projectId&specId&sessionId&status&take&skip -> { items: LeadDecisionView[] }
+#    LeadDecisionView: { id, projectId, specId, sessionId, gate, kind, question, answer, reason, refs[],
+#                        confidence, action, choice, choiceIndex, options[], missing[], status, weighty,
+#                        supersededById, createdAt }   # answer/reason PENUH di sini (SPEC-480)
 POST /api/lead/decisions   { projectId, specId?, sessionId?, question, options?[], context? }
-#                          -> 201 { id, decision, reason, refs[], confidence, action }   # PINTU #1 (kontrak eksplisit)
+#                          -> 201 { id, decision, reason, refs[], confidence, action,
+#                                   choice: { index (1-basis), option } | null, missing: string[] }   # PINTU #1
 #                             409 lead tak aktif / project tak opt-in · 404 project · 504 lead gagal memutuskan (AC-4)
 #                             503 { error, retryable:true, queued } + Retry-After  gerbang penuh (SPEC-479)
 POST /api/lead/decisions/:id/override { answer, reason? } -> { old, next, delivered }
@@ -777,6 +781,15 @@ POST /api/lead/decisions/:id/cancel                       -> LeadDecisionView
 > eksternal ber-`AgentToken`. Ia **endpoint TULIS**: capability `lead:read` tak pernah cukup (403
 > `{need:"lead:write"}`). `capabilityForRoute` memetakan prefix `lead` menurut method — bukan
 > memetakan prefix ke izin baca lalu menambah endpoint tulis di bawahnya (kelas bug SPEC-405).
+>
+> **Balasannya terbaca mesin** (SPEC-480 · ADR-0098): saat `options` dikirim, `choice` memuat opsi
+> yang dipilih **sebagai field** — divalidasi server terhadap daftar yang dikirim peminta, dan
+> pilihan di luar daftar **ditolak** (`choice: null`, alasannya dicatat di jejak, operator
+> dinotifikasi). `missing` berisi apa yang kurang bila lead menyatakan konteksnya tak cukup untuk
+> memutuskan; terisi ⇒ `confidence: "ragu"`. **`decision`/`reason` di balasan ini TERPANGKAS**
+> (≤ 240 / ≤ 480 karakter, dipotong di batas kalimat) — prosa penuhnya ada di jejak, lewat
+> `GET /api/lead/decisions`. Pemanggil lama yang hanya membaca `decision` tetap menerima kalimat
+> yang bermakna: itu kompatibilitas mundur yang disengaja.
 >
 > **Pintu #2 — deteksi otomatis** (tanpa endpoint): lead melihat sesi hidup ber-marker keputusan
 > terisi (mekanisme SPEC-184/196 yang sudah ada), `capture-pane`, menyimpulkan pertanyaannya, lalu

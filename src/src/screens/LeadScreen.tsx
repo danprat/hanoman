@@ -127,6 +127,13 @@ function DecisionRow({ d, onOverride, onCancel, busyId }: {
         <Badge tone="neutral" size="sm">{KIND_LABEL[d.kind] ?? d.kind}</Badge>
         <Badge tone="neutral" size="sm">{GATE_LABEL[d.gate] ?? d.gate}</Badge>
         {d.weighty && <Badge tone="warn" size="sm">berbobot</Badge>}
+        {/* SPEC-480 · pilihan sebagai data: operator membacanya sekilas, bukan dari prosanya.
+            `?? []` bukan kehati-hatian berlebih — dashboard bisa lebih baru daripada server yang
+            dilayaninya (paket npm global, ADR-0087), dan baris tanpa field ini akan meruntuhkan
+            SELURUH panel, bukan cuma badge-nya. */}
+        {d.choiceIndex != null && (d.options ?? []).length > 0 &&
+          <Badge tone="brass" size="sm">{`opsi ${d.choiceIndex}/${d.options.length}`}</Badge>}
+        {(d.missing ?? []).length > 0 && <Badge tone="warn" size="sm">kurang konteks</Badge>}
         <span style={{ flex: 1 }} />
         <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{ago(d.createdAt)}</span>
       </div>
@@ -134,7 +141,8 @@ function DecisionRow({ d, onOverride, onCancel, busyId }: {
         {d.question.slice(0, 400)}
       </div>
       <div style={{ marginTop: 4, color: "var(--text-strong)", fontWeight: 500, whiteSpace: "pre-wrap" }}>
-        {d.answer || <em style={{ fontWeight: 400, color: "var(--text-muted)" }}>tak ada jawaban</em>}
+        {/* Label opsi terpilih menang atas prosa: itulah yang benar-benar dikirim ke peminta. */}
+        {d.choice ?? (d.answer || <em style={{ fontWeight: 400, color: "var(--text-muted)" }}>tak ada jawaban</em>)}
       </div>
       <div style={{ marginTop: 4, fontSize: "var(--text-xs)", color: "var(--text-subtle)", whiteSpace: "pre-wrap" }}>
         {d.reason}
@@ -146,6 +154,11 @@ function DecisionRow({ d, onOverride, onCancel, busyId }: {
               color: "var(--text-muted)", border: "1px solid var(--border-hair)",
               borderRadius: "var(--radius-sm)", padding: "1px 6px" }}>{r}</span>
           ))}
+        </div>
+      )}
+      {(d.missing ?? []).length > 0 && (
+        <div style={{ marginTop: 6, fontSize: "var(--text-xs)", color: "var(--text-subtle)" }}>
+          Yang kurang: {d.missing.join(" · ")}
         </div>
       )}
       <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>

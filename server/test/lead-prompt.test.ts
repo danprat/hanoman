@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { LEAD_DEFAULTS } from "@hanoman/shared";
+import { LEAD_DEFAULTS, LEAD_DECISION_MAX, LEAD_REASON_MAX } from "@hanoman/shared";
 import { leadPrompt, type LeadContext, type LeadQuestion } from "../src/services/lead/prompt";
 
 // SPEC-432 · audit `research/audit-spec-432-lead-tak-memutuskan-denyut-spam.md`.
@@ -40,6 +40,53 @@ describe("leadPrompt · anggaran waktu (audit SPEC-432)", () => {
   // Perintah "kumpulkan bukti dulu" tetap ada — yang ditambahkan adalah batasnya, bukan penggantinya.
   it("keeps the evidence-first mandate", () => {
     expect(leadPrompt(q, ctx())).toContain("KUMPULKAN BUKTI DULU");
+  });
+});
+
+// SPEC-480 · ADR-0098 · putusan yang panjang bukan cuma mahal, ia tak terpakai: peminta harus
+// menebak opsi mana yang sebenarnya dipilih, dan `orderReadyWork` bahkan mem-`split` prosanya.
+describe("leadPrompt · putusan ringkas & terstruktur (SPEC-480)", () => {
+  const OPTS = ["Node 20 LTS", "Node 22"];
+
+  it("names the length budget in numbers, not adjectives", () => {
+    const p = leadPrompt(q, ctx());
+    expect(p).toContain(String(LEAD_DECISION_MAX));
+    expect(p).toContain(String(LEAD_REASON_MAX));
+  });
+
+  it("forbids the three things that made past decisions unusable", () => {
+    const p = leadPrompt(q, ctx());
+    expect(p).toMatch(/ringkasan ulang konteks/i);
+    expect(p).toMatch(/latar belakang/i);
+    expect(p).toMatch(/alternatif yang tak diminta/i);
+  });
+
+  it("demands a structured choice whenever options are on the table", () => {
+    const p = leadPrompt({ ...q, options: OPTS }, ctx());
+    expect(p).toContain("1. Node 20 LTS");
+    expect(p).toContain("2. Node 22");
+    expect(p).toMatch(/`choice`/);
+    expect(p).toMatch(/di luar daftar ditolak/i);
+  });
+
+  it("keeps the json shape example carrying both new fields", () => {
+    const p = leadPrompt(q, ctx());
+    expect(p).toContain('"choice"');
+    expect(p).toContain('"missing"');
+  });
+
+  // ADR-0098 mengamandemen AC-22 ADR-0091: larangan "tidak tahu" tetap, tapi kini punya SATU
+  // pengecualian bernama — dan pengecualian itu wajib menyebut apa yang kurang.
+  it("still forbids a bare `tidak tahu` while naming the one narrow exception", () => {
+    const p = leadPrompt(q, ctx());
+    expect(p).toContain("Tidak tahu");
+    expect(p).toMatch(/missing/);
+    expect(p).toMatch(/bisa disediakan seseorang|hal konkret/i);
+  });
+
+  // Yang lama tak boleh hilang: anggaran waktu SPEC-432 adalah alasan lead bisa memutuskan sama sekali.
+  it("keeps the SPEC-432 time budget intact", () => {
+    expect(leadPrompt(q, ctx({ timeoutSec: 300 }))).toContain("300 detik");
   });
 });
 

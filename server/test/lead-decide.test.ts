@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { prisma } from "../src/db";
 import { LEAD_DEFAULTS, type Lead } from "@hanoman/shared";
 import { setLead } from "../src/services/lead/config";
-import { decide, takeReply, type DecideDeps } from "../src/services/lead/decide";
+import { decide, takeDelivery, type DecideDeps } from "../src/services/lead/decide";
 import { LeadBusyError, leadGateStats, __resetLeadGate } from "../src/services/lead/gate";
 import { decidingIds, queuedIds, __resetDeciding } from "../src/services/lead/deciding";
 
@@ -271,15 +271,128 @@ describe("decide · gerbang konkurensi (SPEC-479)", () => {
 
 describe("decide · balasan untuk pane", () => {
   beforeEach(() => setLead(cfg()));
-  it("hands over `reply` once and then forgets it", async () => {
+  it("hands over the delivery once and then forgets it", async () => {
     const row = await decide({ ...ask, sessionId: "s1" }, deps(block({
       decision: "opsi 1", reason: "b", reply: "1",
     })));
-    expect(takeReply(row!.id)).toBe("1");
-    expect(takeReply(row!.id)).toBe("");
+    expect(takeDelivery(row!.id)?.reply).toBe("1");
+    expect(takeDelivery(row!.id)).toBeNull();
   });
-  it("falls back to the decision text when the agent leaves `reply` empty", async () => {
+  it("carries the decision text so a consumer always has something to type", async () => {
     const row = await decide({ ...ask, sessionId: "s1" }, deps(block({ decision: "opsi 1", reason: "b" })));
-    expect(takeReply(row!.id)).toBe("opsi 1");
+    expect(takeDelivery(row!.id)?.decision).toBe("opsi 1");
+  });
+});
+
+// SPEC-480 · ADR-0098 · pilihan sebagai data. Sampai spec ini, satu-satunya jembatan antara "opsi
+// yang dipilih" dan "apa yang dijalankan" adalah harapan bahwa prosa & `action` sepakat.
+describe("decide · pilihan terstruktur (SPEC-480)", () => {
+  beforeEach(() => setLead(cfg()));
+  const OPTS = [
+    "integrate-main — merge branch sesi ini ke main",
+    "stop-session — lepas panenya tanpa mengintegrasikan",
+    "none — biarkan sesinya berdiri",
+  ];
+  const withOpts = { ...ask, options: OPTS };
+
+  it("resolves the chosen option and records it with the menu it came from", async () => {
+    const row = await decide({ ...withOpts }, deps(block({
+      decision: "lepas panenya", reason: "plan tuntas", choice: "2", action: "stop-session",
+    })));
+    expect(row!.choice).toBe(OPTS[1]);
+    expect(row!.choiceIndex).toBe(2);
+    expect(row!.options).toEqual(OPTS);
+    expect(row!.status).toBe("berlaku");
+  });
+
+  it("refuses a choice outside the menu, keeps the row, and notifies", async () => {
+    const notes: Notif[] = [];
+    const row = await decide({ ...withOpts }, deps(block({
+      decision: "rebase saja", reason: "lebih rapi", choice: "rebase",
+    }), notes));
+    expect(row!.choice).toBeNull();
+    expect(row!.choiceIndex).toBeNull();
+    expect(row!.reason).toContain("DITOLAK");
+    expect(row!.reason).toContain("rebase");
+    expect(row!.weighty).toBe(true);
+    expect(notes).toHaveLength(1);
+    // SPEC-432 · `kind` TAK BOLEH ditulis ulang: gerbang idempotensi denyut berkunci padanya.
+    expect(row!.kind).toBe("answer");
+  });
+
+  it("leaves the choice columns null when the caller offered no options at all", async () => {
+    const row = await decide({ ...ask }, deps(block({ decision: "a", reason: "b", choice: "2" })));
+    expect(row!.choice).toBeNull();
+    expect(row!.reason).not.toContain("DITOLAK");
+  });
+
+  it("adopts the action a caller encoded in the chosen option when lead named none", async () => {
+    const row = await decide({ ...withOpts }, deps(block({
+      decision: "integrasikan", reason: "plan tuntas", choice: "1",
+    })));
+    expect(row!.action).toBe("integrate-main");
+    expect(row!.reason).toContain("diturunkan dari opsi");
+  });
+
+  it("never guesses when the stated action contradicts the chosen option", async () => {
+    const notes: Notif[] = [];
+    const row = await decide({ ...withOpts }, deps(block({
+      decision: "hentikan saja", reason: "x", choice: "1", action: "stop-session",
+    }), notes));
+    expect(row!.action).toBe("none");
+    expect(row!.reason).toContain("KONFLIK");
+    expect(row!.weighty).toBe(true);
+    expect(notes).toHaveLength(1);
+  });
+
+  it("keeps a locked action locked even when the chosen option looks harmless", async () => {
+    const row = await decide({ ...withOpts }, deps(block({
+      decision: "deploy dulu", reason: "biar cepat", choice: "1", action: "deploy",
+    })));
+    expect(row!.kind).toBe("refusal");
+    expect(row!.action).toBe("none");
+  });
+
+  it("hands the resolved choice to the delivery channel", async () => {
+    const row = await decide({ ...withOpts }, deps(block({
+      decision: "lepas panenya", reason: "plan tuntas", choice: "stop-session",
+    })));
+    expect(takeDelivery(row!.id)?.choice).toEqual({ index: 2, option: OPTS[1] });
+  });
+});
+
+describe("decide · konteks kurang (SPEC-480)", () => {
+  beforeEach(() => setLead(cfg()));
+  it("forces `ragu`, notifies, and records what is missing", async () => {
+    const notes: Notif[] = [];
+    const row = await decide({ ...ask }, deps(block({
+      decision: "belum bisa diputuskan sampai versi Node produksi diketahui",
+      reason: "tak ada di repo", confidence: "tinggi",
+      missing: ["versi Node yang dipakai produksi"],
+    }), notes));
+    expect(row!.confidence).toBe("ragu");
+    expect(row!.weighty).toBe(true);
+    expect(row!.missing).toEqual(["versi Node yang dipakai produksi"]);
+    expect(row!.reason).toContain("KONTEKS KURANG");
+    expect(notes).toHaveLength(1);
+    // Kompatibilitas mundur: pemanggil yang hanya membaca teks tetap dapat kalimat bermakna.
+    expect(row!.answer).toContain("belum bisa diputuskan");
+  });
+});
+
+describe("decide · ringkas saat dikirim, penuh di jejak (SPEC-480)", () => {
+  beforeEach(() => setLead(cfg()));
+  it("stores the full prose but delivers a clamped copy", async () => {
+    const panjang = "Kalimat pembuka yang bertele-tele. ".repeat(40);
+    const row = await decide({ ...ask }, deps(block({ decision: "pakai opsi 1", reason: panjang })));
+    expect(row!.reason.length).toBeGreaterThan(600);        // jejak PENUH
+    const d = takeDelivery(row!.id)!;
+    expect(d.reason.length).toBeLessThanOrEqual(481);       // yang dikirim terpangkas
+  });
+  it("appends the refusal note AFTER clamping so it can never be cut off", async () => {
+    const panjang = "alasan panjang sekali. ".repeat(40);
+    const row = await decide({ ...ask, options: ["a", "b"] },
+      deps(block({ decision: "d", reason: panjang, choice: "z" })));
+    expect(takeDelivery(row!.id)!.reason).toContain("DITOLAK");
   });
 });

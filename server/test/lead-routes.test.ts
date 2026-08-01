@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterAll } from "vitest";
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
 import { createHash } from "node:crypto";
 import { buildApp } from "../src/app";
 import { prisma } from "../src/db";
@@ -9,6 +9,11 @@ import { recordDecision } from "../src/services/lead/trail";
 import { runGated, __resetLeadGate } from "../src/services/lead/gate";
 
 // SPEC-409 · ADR-0091 · permukaan HTTP hanoman-lead.
+
+// SPEC-480 · agen lead disuntik di titik spawn-nya (`brain.think`) — satu-satunya jalan menguji
+// jalur 201 tanpa men-spawn `claude -p` sungguhan. `leadOutput` diganti per test.
+const { leadOutput } = vi.hoisted(() => ({ leadOutput: { raw: "" } }));
+vi.mock("../src/services/lead/brain", () => ({ think: async () => leadOutput.raw }));
 
 const app = buildApp();
 const clean = async () => {
@@ -267,5 +272,51 @@ describe("GET /api/lead/status", () => {
     });
     const r = await app.inject({ method: "GET", url: "/api/lead/status", headers: { cookie } });
     expect(r.json().projects[0].decisions24h).toBe(1);
+  });
+});
+
+// SPEC-480 · ADR-0098 · pintu #1 harus bisa dibaca MESIN: peminta tak boleh menafsirkan prosa
+// untuk menebak opsi mana yang sebenarnya dipilih.
+describe("POST /api/lead/decisions · balasan terstruktur (SPEC-480)", () => {
+  beforeEach(() => setLead({ ...LEAD_DEFAULTS, enabled: true }));
+
+  it("returns the resolved choice, the missing list, and clamped prose", async () => {
+    const cookie = await login();
+    leadOutput.raw = "```json\n" + JSON.stringify({
+      decision: "Node 22.",
+      choice: "2",
+      reason: `LTS berikutnya sudah dekat. ${"Uraian panjang yang tak diminta. ".repeat(40)}`,
+    }) + "\n```";
+    const r = await app.inject({ method: "POST", url: "/api/lead/decisions", headers: { cookie },
+      payload: { projectId: "demo", question: "Node berapa untuk runtime baru?",
+        options: ["Node 20 LTS", "Node 22"] } });
+    expect(r.statusCode).toBe(201);
+    const b = r.json();
+    expect(b.choice).toEqual({ index: 2, option: "Node 22" });
+    expect(b.missing).toEqual([]);
+    expect(b.decision.length).toBeLessThanOrEqual(241);
+    expect(b.reason.length).toBeLessThanOrEqual(481);
+    // Jejaknya tetap PENUH — yang dipangkas hanya yang dikirim.
+    const row = await prisma.leadDecision.findUniqueOrThrow({ where: { id: b.id } });
+    expect(row.reason.length).toBeGreaterThan(600);
+    expect(row.choice).toBe("Node 22");
+  });
+
+  it("returns a null choice and names what is missing when lead says the context is thin", async () => {
+    const cookie = await login();
+    leadOutput.raw = "```json\n" + JSON.stringify({
+      decision: "Belum bisa diputuskan sampai versi Node produksi diketahui.",
+      reason: "Tak ada di repo.",
+      missing: ["versi Node yang dipakai produksi"],
+    }) + "\n```";
+    const r = await app.inject({ method: "POST", url: "/api/lead/decisions", headers: { cookie },
+      payload: { projectId: "demo", question: "Node berapa?" } });
+    expect(r.statusCode).toBe(201);
+    const b = r.json();
+    expect(b.choice).toBeNull();
+    expect(b.missing).toEqual(["versi Node yang dipakai produksi"]);
+    expect(b.confidence).toBe("ragu");
+    // Kompatibilitas mundur: pemanggil lama yang cuma membaca teks tetap dapat kalimat bermakna.
+    expect(b.decision).toContain("Belum bisa diputuskan");
   });
 });

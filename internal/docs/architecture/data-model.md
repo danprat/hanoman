@@ -397,6 +397,18 @@ akan mengirim rujukan yang tak ada di sana). Tanpa `version`/`notifySynced`, **t
   (`tinggi|sedang|ragu`), `action` (allowlist `shared/src/lead.ts`), `status`
   (`berlaku|ditimpa|dibatalkan|gagal`), `weighty`, `supersededById?`, `actor` (`lead|operator`),
   `createdAt`, `updatedAt`. Index `(projectId, createdAt)`, `(specId)`, `(sessionId)`.
+- **SPEC-480 · [ADR-0098](../adr/0098-putusan-lead-ringkas-terstruktur.md) — pilihan sebagai data:**
+  `choice?` (label opsi terpilih, **verbatim**; null = tak ada opsi / pilihan ditolak), `choiceIndex?`
+  (**1-basis**, sepasang dengan `choice`), `options?` (Json `string[]` — menu yang **dikirim
+  peminta**), `missing?` (Json `string[]` — apa yang kurang bila lead menyatakan konteksnya tak cukup;
+  terisi ⇒ `confidence` dipaksa `ragu` ⇒ weighty). Keempatnya **nullable tanpa default**: baris yang
+  lahir sebelum spec ini sah apa adanya, dan "peminta tak menyodorkan menu" adalah keadaan yang sah.
+  `options` ikut disimpan karena tanpa itu jejaknya **tak bisa dibaca ulang** — `question` tersimpan,
+  menunya tidak, jadi "lead memilih opsi 2" tak bisa diverifikasi enam jam kemudian.
+- **`answer`/`reason` menyimpan prosa lead UTUH** (SPEC-480). Batas panjang `LEAD_DECISION_MAX = 240`
+  / `LEAD_REASON_MAX = 480` ditegakkan di prompt dan dipangkas **saat pengiriman** (balasan pintu #1
+  + teks yang diketik ke pane), bukan di sini: jejak adalah tempat orang mencari kenapa sebuah putusan
+  diambil, dan memangkasnya menukar putusan bertele-tele dengan putusan yang tak bisa diaudit.
 - **`gagal` bukan keputusan** melainkan catatan bahwa lead tak berhasil memutuskan dalam batas waktu
   (AC-4). Ia tetap disimpan: "tak ada barisnya" tak bisa dibedakan dari "tak pernah diminta".
 - **Append-mostly, tak pernah dihapus.** Menimpa (`POST …/override`) menandai baris lama `ditimpa`,

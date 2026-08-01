@@ -36,7 +36,11 @@ const DECISIONS = {
       answer: "Kolom baru.", reason: "Waktu lahir sebuah baris tak bisa dihitung ulang.",
       refs: ["ADR-0090", "internal/docs/architecture/data-model.md"],
       confidence: "tinggi", action: "none", status: "berlaku", weighty: false,
+      choice: null, choiceIndex: null, options: [], missing: [],
       supersededById: null, createdAt: "2026-07-31T00:00:00.000Z" },
+    // SPEC-480 · `d2` sengaja DIBIARKAN tanpa keempat field baru: dashboard bisa lebih baru
+    // daripada server yang dilayaninya (paket npm global, ADR-0087), dan baris berbentuk lama
+    // tak boleh meruntuhkan panelnya.
     { id: "d2", projectId: "a", specId: null, sessionId: null,
       gate: "pulse", kind: "refusal", question: "Deploy sekarang?", answer: "Tidak.",
       reason: "DITOLAK: deploy ke produksi berada di luar permukaan tindakan lead.",
@@ -167,5 +171,42 @@ describe("LeadScreen · keadaan kosong", () => {
     renderScreen();
     expect(await screen.findByText(/Belum ada keputusan/)).toBeInTheDocument();
     expect(screen.getByText(/Tak ada sesi yang menunggu keputusan/)).toBeInTheDocument();
+  });
+});
+
+// SPEC-480 · ADR-0098 · operator harus bisa membaca "opsi mana yang dipilih" tanpa mengurai prosa
+// — persis kemampuan yang dituntut peminta mesin, di permukaan yang dilihat manusia.
+describe("LeadScreen · pilihan terstruktur (SPEC-480)", () => {
+  const row = (over: Record<string, unknown>) => ({
+    ...DECISIONS.items[0], id: "d9",
+    choice: null, choiceIndex: null, options: [], missing: [], ...over,
+  });
+
+  it("shows which option was chosen, out of how many", async () => {
+    getLeadStatus.mockResolvedValue(STATUS);
+    getLeadDecisions.mockResolvedValue({ items: [row({
+      choice: "Node 22", choiceIndex: 2, options: ["Node 20 LTS", "Node 22"],
+    })] });
+    renderScreen();
+    expect(await screen.findByText("opsi 2/2")).toBeInTheDocument();
+    expect(screen.getByText("Node 22")).toBeInTheDocument();
+  });
+
+  it("shows what lead said was missing", async () => {
+    getLeadStatus.mockResolvedValue(STATUS);
+    getLeadDecisions.mockResolvedValue({ items: [row({ missing: ["versi Node produksi"] })] });
+    renderScreen();
+    expect(await screen.findByText("kurang konteks")).toBeInTheDocument();
+    expect(screen.getByText(/versi Node produksi/)).toBeInTheDocument();
+  });
+
+  // Baris tanpa opsi (jawaban bebas, denyut tanpa menu) tak boleh menumbuhkan badge kosong.
+  it("stays quiet when there was no menu at all", async () => {
+    getLeadStatus.mockResolvedValue(STATUS);
+    getLeadDecisions.mockResolvedValue({ items: [row({})] });
+    renderScreen();
+    expect(await screen.findByText("Kolom baru.")).toBeInTheDocument();
+    expect(screen.queryByText(/^opsi \d/)).not.toBeInTheDocument();
+    expect(screen.queryByText("kurang konteks")).not.toBeInTheDocument();
   });
 });

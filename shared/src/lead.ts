@@ -96,6 +96,114 @@ export function isWeightyDecision(o: { kind: LeadKind; action: LeadAction; confi
     || o.action === "stop-session" || o.action === "restart-session";
 }
 
+// ── SPEC-480 · ADR-0098 · putusan yang bisa dipakai mesin ────────────────────────────────────
+//
+// Sampai spec ini, satu-satunya jembatan antara "opsi yang dipilih lead" dan "apa yang dijalankan
+// server" adalah HARAPAN bahwa prosa `decision` dan field `action` sepakat. Modul ini menggantinya
+// dengan pilihan sebagai DATA — divalidasi terhadap daftar opsi yang benar-benar dikirim peminta.
+
+/** Opsi yang terpilih. `index` 1-BASIS: itu nomor yang dilihat manusia & agen di layar. */
+export type LeadChoice = { index: number; option: string };
+export const zLeadChoice = z.object({ index: z.number().int().positive(), option: z.string() });
+
+/** Putusan "sebagaimana dikirim": terpangkas, siap diketik ke pane / dikembalikan ke peminta. */
+export type LeadDelivery = {
+  decision: string;
+  reason: string;
+  reply: string;
+  choice: LeadChoice | null;
+  missing: string[];
+};
+
+/**
+ * Batas panjang putusan. Bukan sopan santun: `reply` masuk ke pane lewat `goalChunks` (potongan
+ * 500 char berjeda 50 ms, ADR-0085), dan seluruh prosa ditulis agen DI DALAM anggaran `timeoutSec`
+ * yang sama yang SPEC-432 buktikan sebagai pembatas nyata (306 dtk → 101 dtk begitu agen tahu
+ * jamnya berdetak).
+ */
+export const LEAD_DECISION_MAX = 240;   // ±1 kalimat
+export const LEAD_REASON_MAX = 480;     // ±3 kalimat
+
+const norm = (s: string): string => s.replace(/\s+/g, " ").trim().toLowerCase();
+/** Kepala label: potongan sebelum pemisah pertama — opsi denyut berbentuk "<action> — <uraian>". */
+const headOf = (s: string): string => norm(s.split(/\s+[—–-]\s+|:/)[0] ?? s);
+
+/**
+ * Petakan `choice` mentah ke salah satu opsi peminta. `null` = TIDAK terpilih, dan itu selalu
+ * jawaban yang sah: ambigu tak pernah ditebak. SPEC-452 mengukur ongkos tebakan yang kelihatan
+ * benar — lead memutuskan Node 22, yang terpilih Node 20, dan jejaknya tetap berstatus `berlaku`.
+ */
+export function resolveChoice(raw: string, options: string[]): LeadChoice | null {
+  const t = (raw ?? "").trim();
+  if (!t || !options.length) return null;
+  const pick = (i: number): LeadChoice | null =>
+    i >= 0 && i < options.length ? { index: i + 1, option: options[i]! } : null;
+
+  // 1 · nomor, dengan atau tanpa label di belakangnya. Label yang IKUT disebut harus sepakat
+  //     dengan nomornya — bertentangan berarti lead sendiri tak konsisten, dan menebak mana yang
+  //     ia maksud persis kesalahan yang spec ini ada untuk menghapusnya.
+  const num = t.match(/^(?:opsi|option|pilihan|#)?\s*(\d{1,2})\s*[.):-]?\s*(.*)$/i);
+  if (num) {
+    const hit = pick(Number(num[1]) - 1);
+    if (!hit) return null;
+    const rest = norm(num[2] ?? "");
+    if (!rest) return hit;
+    const target = norm(hit.option);
+    return target.startsWith(rest) || headOf(hit.option) === rest || target.includes(rest) ? hit : null;
+  }
+
+  const n = norm(t);
+  const exact = options.findIndex((o) => norm(o) === n);
+  if (exact >= 0) return pick(exact);
+
+  const byHead = options.flatMap((o, i) => (headOf(o) === n ? [i] : []));
+  if (byHead.length === 1) return pick(byHead[0]!);
+
+  const byPrefix = options.flatMap((o, i) => (norm(o).startsWith(n) ? [i] : []));
+  if (byPrefix.length === 1) return pick(byPrefix[0]!);
+
+  return null;
+}
+
+/**
+ * Pangkas prosa untuk PENGIRIMAN — jejak menyimpan yang utuh. Memotong di batas kalimat lebih dulu
+ * supaya yang sampai tetap kalimat, bukan penggalan. Spasi dilipat sekalian, dan itu BUKAN
+ * kosmetik: satu baris baru yang lolos ke pane adalah `Enter`, dan `Enter` di tengah dialog
+ * mengirim jawaban yang baru separuh jadi (kelas SPEC-452).
+ */
+export function clampProse(s: string, max: number): string {
+  const t = (s ?? "").replace(/\s+/g, " ").trim();
+  if (t.length <= max) return t;
+  const head = t.slice(0, max);
+  const stop = Math.max(head.lastIndexOf(". "), head.lastIndexOf("! "), head.lastIndexOf("? "));
+  if (stop >= Math.floor(max / 2)) return head.slice(0, stop + 1);
+  const word = head.lastIndexOf(" ");
+  return `${(word > 0 ? head.slice(0, word) : head).trimEnd()}…`;
+}
+
+/**
+ * Nama tindakan yang DIRAKIT PEMINTA di kepala label opsinya ("integrate-main — merge …").
+ * Karena label itu milik pemanggil, bukan lead, hint ini bukan tebakan atas maksud agen — dan
+ * untuk label bebas (opsi dialog `AskUserQuestion`) ia memang mengembalikan `null`.
+ */
+export function optionActionHint(option: string): LeadAction | null {
+  const tok = ((option ?? "").trim().split(/[\s—–:]/)[0] ?? "").toLowerCase();
+  return leadActionAllowed(tok) ? tok : null;
+}
+
+/**
+ * Teks yang benar-benar diketik ke pane. Dirakit deterministik, bukan dipungut dari prosa: kolom
+ * jawaban bebas dialog `AskUserQuestion` adalah kolom TEKS (SPEC-452), dan menyebut label opsi
+ * verbatim adalah cara paling tak ambigu memberitahu model di seberang mana yang dipilih.
+ */
+export function leadReplyText(d: LeadDelivery): string {
+  const budget = LEAD_DECISION_MAX + LEAD_REASON_MAX;
+  if (d.missing.length)
+    return clampProse(`Belum bisa kuputuskan. Yang kurang: ${d.missing.join("; ")}.`, budget);
+  if (d.choice) return clampProse(`Pilih: ${d.choice.option}. ${d.reason}`, budget);
+  return clampProse(d.reply || d.decision, budget);
+}
+
 /**
  * Bentuk jawaban terstruktur yang WAJIB dikembalikan lead (AC-1). `refs` divalidasi ulang di
  * server terhadap repo — rujukan yang tak ada tak boleh dilaporkan sebagai rujukan (AC-6).
@@ -112,6 +220,18 @@ export const zLeadVerdict = z.object({
   // enum yang menyaring di sini, permintaan "deploy ke produksi" hanya akan tampak sebagai
   // keluaran rusak, dan justru peristiwa paling layak dilaporkan itulah yang hilang dari jejak.
   action: z.string().default("none"),
+  /**
+   * SPEC-480 · opsi yang dipilih — nomor ATAU label. Sengaja `string`, bukan enum/number: pilihan
+   * di luar daftar harus BISA MASUK supaya server menolaknya secara sadar & mencatatnya, alasan
+   * yang sama persis dengan `action` di atas.
+   */
+  choice: z.string().default(""),
+  /**
+   * SPEC-480 · apa yang KURANG bila konteksnya memang tak cukup untuk memutuskan. Bukan pengganti
+   * `confidence: "ragu"` (bukti tipis, jawabannya tetap ada) melainkan untuk fakta konkret yang
+   * tak ada di repo maupun konteks. Terisi ⇒ server memaksa `ragu` ⇒ operator dinotifikasi.
+   */
+  missing: z.array(z.string().max(200)).max(10).default([]),
   /** Teks yang benar-benar diketik ke pane sesi (pintu deteksi otomatis). */
   reply: z.string().default(""),
 });

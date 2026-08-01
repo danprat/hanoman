@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { prisma } from "../src/db";
-import { LEAD_DEFAULTS, type Lead } from "@hanoman/shared";
+import { LEAD_DEFAULTS, type Lead, type LeadDelivery } from "@hanoman/shared";
 import type { LeadDecision } from "@prisma/client";
 import { scanAndAnswer, __resetDetect, resetSession, answerCount, failureCount, type DetectDeps } from "../src/services/lead/detect";
 import { recordDecision } from "../src/services/lead/trail";
@@ -48,6 +48,9 @@ function harness(over: Partial<DetectDeps> = {}, conf: Lead = cfg()): Harness {
       });
     }) as unknown as DetectDeps["decide"],
     decideDeps: {} as DetectDeps["decideDeps"],
+    // SPEC-480 · default harness: saluran pengiriman kosong → jatuh ke `row.answer`, yaitu
+    // perilaku persis sebelum spec ini. Test yang memang menguji perakitan teks menimpanya.
+    delivery: () => null,
     optIn: async () => ["demo"],
     notify: async (_id, title) => { notes.push(title); },
     cfg: async () => conf,
@@ -572,5 +575,36 @@ describe("SPEC-479 · banyak sesi menunggu bersamaan", () => {
     const r = await scanAndAnswer(h.deps);
     expect(r.answered).toEqual(["s1"]);
     expect(percobaan).toBe(6);
+  });
+});
+
+// SPEC-480 · ADR-0098 · yang diketik ke kolom jawaban bebas DIRAKIT dari putusan terstruktur.
+// Sebelum spec ini, prosa lead adalah satu-satunya jembatan: model di seberang harus menafsirkan
+// kalimatnya untuk menebak opsi mana yang dipilih — dan SPEC-452 sudah mengukur ongkos salah tebak.
+describe("scanAndAnswer · teks jawaban dirakit dari pilihan (SPEC-480)", () => {
+  const withDelivery = (d: Partial<LeadDelivery>): Partial<DetectDeps> => ({
+    pane: () => ASKQ_PANE,
+    delivery: () => ({ decision: "d", reason: "Redis sudah dipakai modul lain.", reply: "", choice: null, missing: [], ...d }),
+  });
+
+  it("types the chosen option verbatim instead of the raw prose", async () => {
+    const h = harness(withDelivery({ choice: { index: 2, option: "Redis" } }));
+    await scanAndAnswer(h.deps);
+    expect(h.sent[0]!.text).toBe("Pilih: Redis. Redis sudah dipakai modul lain.");
+  });
+
+  it("says what is missing when lead declared the context insufficient", async () => {
+    const h = harness(withDelivery({ missing: ["versi Redis yang dipakai produksi"] }));
+    await scanAndAnswer(h.deps);
+    expect(h.sent[0]!.text).toContain("Belum bisa kuputuskan");
+    expect(h.sent[0]!.text).toContain("versi Redis yang dipakai produksi");
+  });
+
+  // Saluran pengiriman boleh meleset — yang selalu ada adalah `answer`, dan mengetik string kosong
+  // ke pane tak pernah boleh terjadi.
+  it("falls back to the trail answer when the delivery channel misses", async () => {
+    const h = harness({ pane: () => ASKQ_PANE, delivery: () => null });
+    await scanAndAnswer(h.deps);
+    expect(h.sent[0]!.text).toBe("opsi 1");
   });
 });

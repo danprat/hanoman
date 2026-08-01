@@ -396,6 +396,12 @@ model LeadDecision {
   weighty        Boolean   @default(false)     // memicu notifikasi (AC-25)
   supersededById String?   // baris yang menimpanya (jawaban operator, AC-28)
   actor          String    @default("lead")    // lead | operator — siapa yang mengeluarkan baris ini
+  // SPEC-480 · ADR-0098 · pilihan sebagai DATA. Keempatnya nullable tanpa default: baris yang lahir
+  // sebelum spec ini sah apa adanya, dan "tak ada opsi" beda dari "opsi kosong".
+  choice         String?   // label opsi terpilih, verbatim; null = tak ada opsi / pilihan ditolak
+  choiceIndex    Int?      // 1-basis, sepasang dengan `choice`
+  options        Json?     // string[] — daftar opsi yang DIKIRIM peminta, supaya jejak bisa diaudit
+  missing        Json?     // string[] — apa yang kurang bila lead menyatakan konteksnya tak cukup
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 

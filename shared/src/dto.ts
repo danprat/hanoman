@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { zProject, zBriefPayload, zQaPayload, zGoalPayload, zSpec, zScheduler, zAgent, zLead } from "./entities";
-import { zLeadGate, zLeadKind, zLeadConfidence, zLeadAction, zLeadStatus } from "./lead";
+import { zLeadGate, zLeadKind, zLeadConfidence, zLeadAction, zLeadStatus, zLeadChoice } from "./lead";
 import type { Spec, Notification } from "./entities";
 import { zProjectKind, zSpecSource, zPriority, zStage, zTicketCategory, zTicketStatus, zVerifyScope } from "./enums";
 
@@ -147,6 +147,12 @@ export const zLeadDecisionView = z.object({
   question: z.string(), answer: z.string(), reason: z.string(),
   refs: z.array(z.string()),
   confidence: zLeadConfidence, action: zLeadAction,
+  // SPEC-480 · ADR-0098 · pilihan sebagai data. `options` adalah menu yang DIKIRIM peminta, jadi
+  // jejaknya bisa dibaca ulang tanpa peminta ("opsi 2 dari 3").
+  choice: z.string().nullable().default(null),
+  choiceIndex: z.number().nullable().default(null),
+  options: z.array(z.string()).default([]),
+  missing: z.array(z.string()).default([]),
   status: zLeadStatus, weighty: z.boolean(),
   supersededById: z.string().nullable(),
   createdAt: z.string(),
@@ -159,6 +165,11 @@ export const zLeadAnswer = z.object({
   decision: z.string(), reason: z.string(),
   refs: z.array(z.string()),
   confidence: zLeadConfidence, action: zLeadAction,
+  // SPEC-480 · ADR-0098 · inilah yang membuat balasan ini benar-benar terbaca mesin: opsi yang
+  // dipilih sebagai field, bukan sesuatu yang harus ditebak dari `decision`. `decision`/`reason`
+  // di sini TERPANGKAS (jejak penuh ada di `GET /lead/decisions`).
+  choice: zLeadChoice.nullable().default(null),
+  missing: z.array(z.string()).default([]),
 });
 export type LeadAnswer = z.infer<typeof zLeadAnswer>;
 
