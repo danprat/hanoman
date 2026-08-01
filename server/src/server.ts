@@ -11,6 +11,7 @@ import { listSessions } from "./services/pty";
 import { installTelegramGateway } from "./services/telegram/bootstrap";
 import { installWebhooks } from "./services/webhooks/install";
 import { startWebhookEngine } from "./services/webhooks/engine";
+import { startAutoMerge } from "./services/auto-merge";
 import type { AddressInfo } from "node:net";
 
 // SPEC-215 · deteksi update default ON (registry HANOMAN_UPDATE_FETCH="1"), dibaca via resolver
@@ -93,4 +94,8 @@ app.listen({ port, host }).then(async () => {
   // SPEC-481 · ADR-0100 · worker antrean webhook (in-process, cermin scheduler). Idle penuh saat
   // tak ada baris `pending` — biayanya satu query ringan tiap 2 detik.
   startWebhookEngine();
+  // SPEC-486 · ADR-0103 · sweep auto-merge (in-process, cermin scheduler). Idle penuh saat tak
+  // ada backlog selesai dalam 24 jam terakhir: biayanya satu query ringan tiap menit, dan nol
+  // sentuhan git selama tak ada project/spec yang meng-opt-in.
+  startAutoMerge();
 }).catch((err) => { console.error("listen gagal:", err); process.exit(1); });
