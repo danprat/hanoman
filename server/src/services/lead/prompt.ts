@@ -22,6 +22,14 @@ export type LeadContext = {
   priorDecisions?: { question: string; answer: string; reason: string; createdAt: string }[];
   /** Catatan tambahan yang sudah dikumpulkan pemanggil (mis. daftar berkas yang bertabrakan). */
   notes?: string[];
+  /** SPEC-485 · berapa opsi boleh dipilih. Tak ada = single, perilaku sebelum ADR-0102. */
+  select?: { mode: "single" | "multi"; min: number; max: number };
+  /**
+   * SPEC-485 · langkah RANTAI yang sudah dijawab, urut naik. Sengaja terpisah dari
+   * `priorDecisions` (10 terakhir se-project): yang satu urusan tak boleh tenggelam di antara yang
+   * kebetulan berdekatan waktunya — itulah keluhan "konteks hilang di antaranya".
+   */
+  chainSteps?: { question: string; options: string[]; picked: string[] }[];
 };
 
 export type LeadQuestion = {
@@ -77,6 +85,18 @@ export function leadPrompt(q: LeadQuestion, c: LeadContext): string {
     }
     lines.push("");
   }
+  // SPEC-485 · ADR-0102 · rantai: langkah yang sudah dijawab disebut EKSPLISIT, bukan diserahkan ke
+  // daftar `priorDecisions` yang bercampur dengan urusan lain.
+  if (c.chainSteps?.length) {
+    lines.push("## Rantai keputusan ini (langkah yang sudah dijawab)");
+    for (const [i, s] of c.chainSteps.entries()) {
+      lines.push(`${i + 1}. "${s.question.slice(0, 200)}" → ${s.picked.length ? s.picked.join("; ") : "(tanpa pilihan)"}`);
+      if (s.options.length) lines.push(`   opsi saat itu: ${s.options.map((o) => o.slice(0, 80)).join(" · ")}`);
+    }
+    lines.push("");
+    lines.push("Pertanyaan di bawah adalah lanjutan dari rantai itu. Jangan bertentangan dengan yang sudah kamu putuskan di atas, dan jangan mengulang penjelasannya.");
+    lines.push("");
+  }
   lines.push("## Yang harus kamu putuskan");
   lines.push(q.question.trim());
   if (q.options?.length) {
@@ -86,7 +106,14 @@ export function leadPrompt(q: LeadQuestion, c: LeadContext): string {
     // SPEC-480 · ADR-0098 · sampai spec ini, satu-satunya jembatan antara "opsi yang dipilih" dan
     // "apa yang dijalankan" adalah harapan bahwa prosa `decision` dan field `action` sepakat.
     lines.push("");
-    lines.push("Salah satu dari daftar itu WAJIB kamu pilih lewat field `choice` — isi nomornya (\"2\") atau labelnya persis. Pilihan di luar daftar ditolak server, dicatat sebagai penolakan, dan peminta kembali menunggu manusia.");
+    if (c.select?.mode === "multi") {
+      // SPEC-485 · angkanya DISEBUT (pola anggaran waktu SPEC-432): batas yang tak diketahui agen
+      // adalah batas yang ditabraknya, dan jumlah di luar batas membatalkan SELURUH pilihannya.
+      lines.push(`Opsinya TIDAK saling eksklusif. Isi \`choices\` dengan daftar nomor atau label yang kamu pilih (mis. ["1","3"]) — paling sedikit ${c.select.min}, paling banyak ${c.select.max}. Jumlah di luar itu membuat SELURUH pilihanmu dibatalkan, bukan dipangkas.`);
+    } else {
+      lines.push("Salah satu dari daftar itu WAJIB kamu pilih lewat field `choice` — isi nomornya (\"2\") atau labelnya persis.");
+    }
+    lines.push("Pilihan di luar daftar ditolak server, dicatat sebagai penolakan, dan peminta kembali menunggu manusia.");
   }
   lines.push("");
   lines.push("## Batas waktu (BACA INI DULU)");
@@ -113,6 +140,7 @@ export function leadPrompt(q: LeadQuestion, c: LeadContext): string {
   lines.push(JSON.stringify({
     decision: "keputusan yang dipilih, satu kalimat",
     choice: "nomor atau label opsi yang kamu pilih; kosongkan bila tak ada daftar opsi",
+    choices: [],
     reason: "alasannya, dua-tiga kalimat, menyebut bukti",
     refs: ["internal/docs/…", "ADR-00xx"],
     confidence: "tinggi | sedang | ragu",

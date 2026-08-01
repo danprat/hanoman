@@ -804,7 +804,7 @@ git commit -m "feat(485): daur hidup rantai keputusan lead (open/join/step/close
   - `toDecisionView` memancarkan `choices` (diturunkan untuk baris lama)
   - `LeadContext` bertambah `select?`, `chainSteps?: { question: string; options: string[]; picked: string[] }[]`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan ke `server/test/lead-decide.test.ts` (ikuti pola `deps` stub yang sudah ada di berkas itu —
 `think` disuntik, jadi tak ada agen sungguhan yang dijalankan):
@@ -935,14 +935,14 @@ it("SPEC-485 · langkah rantai sebelumnya ikut terbawa, terpisah dari keputusan 
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --no-file-parallelism server/test/lead-decide.test.ts server/test/lead-trail-choice.test.ts server/test/lead-prompt.test.ts
 ```
 Expected: FAIL — `select` bukan properti `DecideRequest`, `row.flowId` undefined.
 
-- [ ] **Step 3: `trail.ts` — tulis & baca kolom baru**
+- [x] **Step 3: `trail.ts` — tulis & baca kolom baru**
 
 Tambahkan ke `TrailInput`:
 
@@ -990,7 +990,7 @@ Di `toDecisionView`, setelah `choiceIndex`:
     flowId: r.flowId, step: r.step,
 ```
 
-- [ ] **Step 4: `prompt.ts` — batas pilihan & konteks rantai**
+- [x] **Step 4: `prompt.ts` — batas pilihan & konteks rantai**
 
 Tambahkan ke `LeadContext`:
 
@@ -1039,7 +1039,7 @@ Dan sebelum blok `## Yang harus kamu putuskan`, sisipkan:
 
 Ubah juga blok json contoh: tambahkan `choices: []` tepat setelah `choice`.
 
-- [ ] **Step 5: `decide.ts` — pilihan jamak, validasi, alur**
+- [x] **Step 5: `decide.ts` — pilihan jamak, validasi, alur**
 
 Tambahkan ke `DecideRequest`:
 
@@ -1189,14 +1189,14 @@ sudah terlanjur dibuka untuknya ditutup di `catch` yang sama:
     if (e instanceof LeadBusyError) { await closeFlow(flow.id, "kedaluwarsa").catch(() => {}); throw e; }
 ```
 
-- [ ] **Step 6: Jalankan test, pastikan LULUS**
+- [x] **Step 6: Jalankan test, pastikan LULUS**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --no-file-parallelism server/test/lead-decide.test.ts server/test/lead-trail-choice.test.ts server/test/lead-prompt.test.ts server/test/lead-flow.test.ts
 ```
 Expected: PASS semua, termasuk test SPEC-480 lama di berkas yang sama.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/services/lead/decide.ts server/src/services/lead/trail.ts server/src/services/lead/prompt.ts server/test/lead-decide.test.ts server/test/lead-trail-choice.test.ts server/test/lead-prompt.test.ts

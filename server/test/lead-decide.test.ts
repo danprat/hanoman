@@ -5,11 +5,13 @@ import { setLead } from "../src/services/lead/config";
 import { decide, takeDelivery, type DecideDeps } from "../src/services/lead/decide";
 import { LeadBusyError, leadGateStats, __resetLeadGate } from "../src/services/lead/gate";
 import { decidingIds, queuedIds, __resetDeciding } from "../src/services/lead/deciding";
+import { LeadFlowClosedError } from "../src/services/lead/flow";
 
 // SPEC-409 · ADR-0091 · satu otak, tiga pintu. Semua deps disuntik: nol tmux, nol git, nol agen.
 
 const clean = async () => {
   await prisma.leadDecision.deleteMany();
+  await prisma.leadFlow.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.spec.deleteMany();
   await prisma.project.deleteMany();
@@ -394,5 +396,114 @@ describe("decide · ringkas saat dikirim, penuh di jejak (SPEC-480)", () => {
     const row = await decide({ ...ask, options: ["a", "b"] },
       deps(block({ decision: "d", reason: panjang, choice: "z" })));
     expect(takeDelivery(row!.id)!.reason).toContain("DITOLAK");
+  });
+});
+
+// SPEC-485 · ADR-0102 · pilihan JAMAK & rantai. Dua hal yang sampai spec ini jatuh ke bentuk kode:
+// "berapa opsi boleh dipilih" (jawabannya selalu satu, karena kolomnya skalar) dan "apakah dua
+// pertanyaan ini satu urusan" (tak ada yang bertanya).
+describe("decide · pilihan jamak & rantai (SPEC-485)", () => {
+  beforeEach(() => setLead(cfg()));
+  const OPTS = ["alpha", "beta", "gamma"];
+  const withOpts = { ...ask, options: OPTS };
+
+  it("menyimpan beberapa pilihan sebagai daftar, dan `choice` jadi turunannya", async () => {
+    const row = await decide(
+      { ...withOpts, select: { mode: "multi", min: 1, max: 3 } },
+      deps(block({ decision: "d", reason: "r", choices: ["1", "3"] })),
+    );
+    expect(row!.choices as unknown[]).toHaveLength(2);
+    expect(row!.choice).toBe("alpha");
+    expect(row!.choiceIndex).toBe(1);
+    expect(row!.select).toEqual({ mode: "multi", min: 1, max: 3 });
+  });
+
+  it("jumlah di luar max MEMBATALKAN seluruh pilihan + weighty, tanpa menulis ulang `kind`", async () => {
+    const row = await decide(
+      { ...withOpts, select: { mode: "multi", min: 0, max: 1 } },
+      deps(block({ decision: "d", reason: "r", choices: ["1", "2"] })),
+    );
+    expect(row!.choices).toBeNull();
+    expect(row!.choice).toBeNull();
+    expect(row!.weighty).toBe(true);
+    expect(row!.kind).toBe("answer");
+    expect(row!.reason).toContain("DITOLAK");
+  });
+
+  it("single tetap satu pilihan meski lead mengirim dua", async () => {
+    const row = await decide({ ...withOpts }, deps(block({ decision: "d", reason: "r", choices: ["1", "2"] })));
+    expect(row!.choices).toBeNull();
+    expect(row!.reason).toMatch(/paling banyak 1/);
+  });
+
+  it("`choice` lama tanpa `choices` tetap terpakai (kompatibilitas ADR-0098)", async () => {
+    const row = await decide({ ...withOpts }, deps(block({ decision: "d", reason: "r", choice: "beta" })));
+    expect(row!.choice).toBe("beta");
+    expect(row!.choices as unknown[]).toHaveLength(1);
+  });
+
+  it("tindakan TIDAK diturunkan dari opsi saat pilihannya lebih dari satu", async () => {
+    const row = await decide(
+      { ...ask, options: ["integrate-main — merge", "stop-session — lepas pane", "none — biarkan"],
+        select: { mode: "multi", min: 1, max: 2 } },
+      deps(block({ decision: "d", reason: "r", choices: ["1", "2"] })),
+    );
+    expect(row!.action).toBe("none");
+    expect(row!.reason).not.toContain("diturunkan dari opsi");
+  });
+
+  it("saluran pengiriman membawa SEMUA pilihan", async () => {
+    const row = await decide(
+      { ...withOpts, sessionId: "s1", select: { mode: "multi", min: 1, max: 3 } },
+      deps(block({ decision: "d", reason: "r", choices: ["beta", "gamma"] })),
+    );
+    expect(takeDelivery(row!.id)!.choices.map((c) => c.option)).toEqual(["beta", "gamma"]);
+  });
+
+  it("permintaan tanpa `chain` melahirkan alur yang LANGSUNG tertutup", async () => {
+    const row = await decide({ ...ask }, deps(block({ decision: "d", reason: "r" })));
+    const flow = await prisma.leadFlow.findUnique({ where: { id: row!.flowId! } });
+    expect(flow!.status).toBe("selesai");
+    expect(flow!.closeReason).toBe("tunggal");
+    expect(row!.step).toBe(1);
+  });
+
+  it("permintaan ber-`chain` membiarkan alurnya terbuka, dan langkah kedua memakai alur yang sama", async () => {
+    const a = await decide({ ...ask, chain: true }, deps(block({ decision: "d", reason: "r" })));
+    const b = await decide({ ...ask, question: "q2", chain: true, flowId: a!.flowId },
+      deps(block({ decision: "d2", reason: "r2" })));
+    expect(b!.flowId).toBe(a!.flowId);
+    expect(b!.step).toBe(2);
+    const flow = await prisma.leadFlow.findUnique({ where: { id: a!.flowId! } });
+    expect(flow!.status).toBe("sebagian");
+    expect(flow!.steps).toBe(2);
+  });
+
+  it("menambah langkah ke alur yang sudah tertutup melempar LeadFlowClosedError", async () => {
+    const a = await decide({ ...ask }, deps(block({ decision: "d", reason: "r" })));
+    await expect(decide({ ...ask, question: "q2", flowId: a!.flowId },
+      deps(block({ decision: "d", reason: "r" })))).rejects.toBeInstanceOf(LeadFlowClosedError);
+  });
+
+  it("baris `gagal` pun duduk di alurnya, dan alur tunggal tetap ditutup", async () => {
+    const row = await decide({ ...ask }, deps(new Error("kehabisan waktu 600000 ms")));
+    expect(row!.status).toBe("gagal");
+    expect(row!.flowId).toBeTruthy();
+    const flow = await prisma.leadFlow.findUnique({ where: { id: row!.flowId! } });
+    expect(flow!.status).toBe("selesai");   // alurnya memang sudah selesai berjalan
+    expect(flow!.steps).toBe(1);
+  });
+
+  it("rantai berantai membawa langkah sebelumnya ke dalam prompt (konteks tak hilang)", async () => {
+    const a = await decide({ ...ask, options: ["alpha", "beta"], chain: true },
+      deps(block({ decision: "d", reason: "r", choice: "beta" })));
+    let seen = "";
+    await decide({ ...ask, question: "q2", chain: true, flowId: a!.flowId }, {
+      ...deps(block({ decision: "d2", reason: "r2" })),
+      think: async (prompt) => { seen = prompt; return block({ decision: "d2", reason: "r2" }); },
+    });
+    expect(seen).toContain("Rantai keputusan ini");
+    expect(seen).toContain(ask.question);
+    expect(seen).toContain("beta");
   });
 });

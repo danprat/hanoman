@@ -1,8 +1,10 @@
 import type { LeadDecision } from "@prisma/client";
 import {
   isWeightyDecision, leadActionAllowed, leadRefusalReason,
-  resolveChoice, clampProse, optionActionHint, LEAD_DECISION_MAX, LEAD_REASON_MAX,
+  resolveChoices, normalizeSelect, checkChoiceCount,
+  clampProse, optionActionHint, LEAD_DECISION_MAX, LEAD_REASON_MAX,
   type Agent, type LeadAction, type LeadDelivery, type LeadGate, type LeadKind,
+  type LeadSelect,
 } from "@hanoman/shared";
 import { prisma } from "../../db";
 import { resolveRepoDir } from "../local-binding";
@@ -15,6 +17,7 @@ import { recordDecision } from "./trail";
 import { think as thinkProd } from "./brain";
 import { markDeciding, clearDeciding, markQueued, clearQueued } from "./deciding";
 import { runGated, LeadBusyError } from "./gate";
+import { openFlow, joinFlow, markFlowStep, closeFlow } from "./flow";
 
 // SPEC-409 · ADR-0091 · SATU otak, dua pintu (G6). Baik kontrak eksplisit (pintu #1) maupun deteksi
 // otomatis (pintu #2) maupun denyut proaktif (pintu #3) lewat `decide()` — jadi hanya ada satu
@@ -32,6 +35,12 @@ export type DecideRequest = {
   options?: string[];
   /** Konteks tambahan dari peminta (mis. isi layar pane, daftar berkas bertabrakan). */
   notes?: string[];
+  /** SPEC-485 · bentuk pilihan yang diminta peminta. Tak ada = single (perilaku sebelum ADR-0102). */
+  select?: LeadSelect;
+  /** `true` = peminta akan bertanya lagi; alurnya dibiarkan terbuka sampai di-submit. */
+  chain?: boolean;
+  /** Lanjutkan rantai. Tertutup/tak ada → `LeadFlowClosedError` (route menerjemahkannya jadi 409). */
+  flowId?: string | null;
 };
 
 export type DecideDeps = {
@@ -72,6 +81,16 @@ export async function decide(req: DecideRequest, deps: DecideDeps = prodDecideDe
   const cfg = await getLead();
   if (!leadActive(cfg, req.projectId)) return null;
 
+  // SPEC-485 · ADR-0102 · alur dipasang di sini karena `decide()` adalah choke point tunggal ketiga
+  // pintu (ADR-0091 G6) — tempat yang sama yang sudah memegang gerbang konkurensi SPEC-479.
+  // Gerbang "alur tertutup" duduk SEBELUM panggilan agen: menolaknya sesudah berarti membakar satu
+  // proses `claude -p` untuk permintaan yang memang tak boleh masuk.
+  const flow = req.flowId ? await joinFlow(req.flowId) : await openFlow({
+    projectId: req.projectId, specId: req.specId, sessionId: req.sessionId,
+    gate: req.gate, title: req.question, ttlMin: cfg.flowTtlMin,
+  });
+  const step = flow.steps + 1;
+
   const project = await prisma.project.findUnique({ where: { id: req.projectId }, select: { name: true } });
   const spec = req.specId
     ? await prisma.spec.findUnique({
@@ -84,6 +103,14 @@ export async function decide(req: DecideRequest, deps: DecideDeps = prodDecideDe
     where: { projectId: req.projectId, status: "berlaku" },
     orderBy: { createdAt: "desc" }, take: 10,
   });
+  // SPEC-485 · langkah rantai ini sendiri — dibaca hanya saat memang melanjutkan, supaya alur
+  // tunggal tak membayar satu query untuk daftar yang pasti kosong.
+  const chainRows = req.flowId
+    ? await prisma.leadDecision.findMany({ where: { flowId: flow.id }, orderBy: { createdAt: "asc" }, take: 10 })
+    : [];
+
+  const options = req.options ?? [];
+  const bounds = normalizeSelect(req.select ?? { mode: "single", min: 0, max: null }, options.length);
 
   const ctx: LeadContext = {
     projectId: req.projectId,
@@ -101,6 +128,14 @@ export async function decide(req: DecideRequest, deps: DecideDeps = prodDecideDe
       question: d.question, answer: d.answer, reason: d.reason, createdAt: d.createdAt.toISOString(),
     })),
     notes: req.notes,
+    select: bounds,
+    chainSteps: chainRows.map((d) => ({
+      question: d.question,
+      options: Array.isArray(d.options) ? (d.options as unknown[]).map(String) : [],
+      picked: Array.isArray(d.choices)
+        ? (d.choices as { option?: unknown }[]).map((c) => String(c?.option ?? "")).filter(Boolean)
+        : (d.choice ? [d.choice] : []),
+    })),
   };
 
   const { agent, model, effort } = await deps.defaults();
@@ -129,8 +164,14 @@ export async function decide(req: DecideRequest, deps: DecideDeps = prodDecideDe
     // menuliskannya sebagai baris `gagal` justru membangun kembali cacat C: pagar SPEC-472 akan
     // membacanya sebagai sebab permanen lalu menutup sesi itu selamanya lewat `failCapped`. Enam
     // call site menanganinya sendiri-sendiri; lihat komentar masing-masing.
-    if (e instanceof LeadBusyError) throw e;
-    return fail(req, deps, `lead tak menghasilkan keputusan: ${(e as Error).message}`);
+    if (e instanceof LeadBusyError) {
+      // SPEC-485 · alur yang terlanjur dibuka untuk permintaan yang DITOLAK gerbang tak boleh
+      // menggantung. Ia ditutup sebagai `kedaluwarsa` (bukan `tunggal`): tak satu langkah pun
+      // pernah dijalankan di dalamnya, dan peminta memang disuruh mencoba lagi dari awal.
+      if (!req.flowId) await closeFlow(flow.id, "kedaluwarsa").catch(() => null);
+      throw e;
+    }
+    return closeAfter(await fail(req, deps, `lead tak menghasilkan keputusan: ${(e as Error).message}`, flow.id, step), flow.id, req.chain);
   } finally {
     if (req.sessionId) clearQueued(req.sessionId);
   }
@@ -138,7 +179,7 @@ export async function decide(req: DecideRequest, deps: DecideDeps = prodDecideDe
   const verdict = parseLeadVerdict(raw);
   // AC-22 melarang keraguan berakhir tanpa keputusan; ini kasus LAIN — agen tak mengembalikan
   // bentuk yang bisa dibaca sama sekali. Menebak isinya lebih berbahaya daripada jatuh ke manusia.
-  if (!verdict) return fail(req, deps, "keluaran lead tak memuat blok json keputusan yang sah");
+  if (!verdict) return closeAfter(await fail(req, deps, "keluaran lead tak memuat blok json keputusan yang sah", flow.id, step), flow.id, req.chain);
 
   const refs = keepExistingRefs(verdict.refs, repoDir);
   const allowed = leadActionAllowed(verdict.action);
@@ -146,9 +187,22 @@ export async function decide(req: DecideRequest, deps: DecideDeps = prodDecideDe
 
   // SPEC-480 · pilihan sebagai DATA. `options` kosong = peminta memang tak menyodorkan menu; di
   // situ `choice` tak punya arti dan tak pernah ditolak.
-  const options = req.options ?? [];
-  const choice = resolveChoice(verdict.choice, options);
-  const choiceRejected = options.length > 0 && verdict.choice.trim() !== "" && !choice;
+  //
+  // SPEC-485 · dan pilihannya SELALU daftar. `choices` kosong + `choice` terisi dibaca sebagai satu
+  // pilihan: keluaran agen berbentuk ADR-0098 harus tetap terpakai, dan menuntut field baru berarti
+  // setiap agen lama mendadak "tak memilih apa pun".
+  const rawChoices = verdict.choices.length ? verdict.choices
+    : (verdict.choice.trim() ? [verdict.choice] : []);
+  const resolved = resolveChoices(rawChoices, options);
+  const countProblem = options.length && resolved.choices.length
+    ? checkChoiceCount(resolved.choices.length, bounds) : null;
+  // Jumlah di luar batas MEMBATALKAN seluruh pilihan, bukan memangkasnya: memilih 3 dari maksimum 2
+  // adalah pertanda lead salah membaca soal, dan mengambil dua di antaranya secara sewenang-wenang
+  // persis tebakan yang ADR-0098 ada untuk menghapusnya.
+  const choices = countProblem ? [] : resolved.choices;
+  const choice = choices[0] ?? null;
+  const choiceRejected = options.length > 0 && rawChoices.length > 0
+    && (resolved.rejected.length > 0 || !!countProblem);
   const missing = verdict.missing.map((m) => m.trim()).filter(Boolean);
 
   // SPEC-480 · tindakan boleh DITURUNKAN dari opsi terpilih, tapi hanya saat lead diam. Label opsi
@@ -157,7 +211,10 @@ export async function decide(req: DecideRequest, deps: DecideDeps = prodDecideDe
   let action: LeadAction = allowed ? (verdict.action as LeadAction) : "none";
   let actionNote = "";
   let conflict = false;
-  if (allowed && choice) {
+  // SPEC-485 · hint hanya berlaku saat pilihannya TEPAT SATU. Menurunkan satu tindakan dari
+  // gabungan beberapa opsi adalah tebakan, dan tebakan yang kelihatan benar sudah pernah membuat
+  // lead memutuskan Node 22 lalu memilih Node 20 (SPEC-452).
+  if (allowed && choices.length === 1 && choice) {
     const hint = optionActionHint(choice.option);
     if (hint && action === "none" && hint !== "none") {
       action = hint;
@@ -175,7 +232,13 @@ export async function decide(req: DecideRequest, deps: DecideDeps = prodDecideDe
 
   const notes: string[] = [];
   if (!allowed) notes.push(`DITOLAK: ${leadRefusalReason(verdict.action)} berada di luar permukaan tindakan lead (ADR-0091 · AC-31/32).`);
-  if (choiceRejected) notes.push(`DITOLAK: pilihan "${verdict.choice.trim().slice(0, 120)}" tidak ada di daftar opsi yang dikirim peminta (SPEC-480 · ADR-0098).`);
+  // `options` kosong = peminta memang tak menyodorkan menu; di situ pilihan tak punya arti dan tak
+  // pernah ditolak (SPEC-480). `resolveChoices` tetap memulangkannya sebagai `rejected` — gerbangnya
+  // di sini, bukan di helper murni itu.
+  if (options.length && resolved.rejected.length)
+    notes.push(`DITOLAK: pilihan ${resolved.rejected.map((r) => `"${r.slice(0, 120)}"`).join(", ")} tidak ada di daftar opsi yang dikirim peminta (SPEC-480 · ADR-0098).`);
+  if (countProblem)
+    notes.push(`DITOLAK: ${countProblem} (SPEC-485 · ADR-0102) — seluruh pilihan dibatalkan, bukan dipangkas.`);
   if (actionNote) notes.push(actionNote);
   if (missing.length) notes.push(`KONTEKS KURANG: ${missing.join("; ")}`);
   const tail = notes.length ? `\n\n${notes.join("\n\n")}` : "";
@@ -191,8 +254,14 @@ export async function decide(req: DecideRequest, deps: DecideDeps = prodDecideDe
     reason: `${verdict.reason}${tail}`,
     refs, confidence, action, weighty,
     choice: choice?.option ?? null, choiceIndex: choice?.index ?? null,
+    choices, select: bounds, flowId: flow.id, step,
     options, missing,
   });
+  // SPEC-485 · alur diurus SESUDAH barisnya ditulis, di satu tempat untuk jalur sukses maupun
+  // gagal (`closeAfter`). Alur tunggal ditutup apa pun status barisnya: baris `gagal` di dalam alur
+  // `selesai` adalah jejak yang jujur, sementara menandainya `dibatalkan` akan mencampur "operator
+  // membatalkan" dengan "lead tak sanggup" (ADR-0102 gotcha 7).
+  await closeAfter(row, flow.id, req.chain);
   if (weighty) {
     await deps.notify(row.id, notifTitle(kind, req.question, verdict.decision, confidence),
       req.projectId, req.specId ?? null, req.sessionId ?? null);
@@ -203,8 +272,19 @@ export async function decide(req: DecideRequest, deps: DecideDeps = prodDecideDe
     decision: clampProse(verdict.decision, LEAD_DECISION_MAX),
     reason: `${clampProse(verdict.reason, LEAD_REASON_MAX)}${tail}`,
     reply: verdict.reply,
-    choices: choice ? [choice] : [], choice, missing,
+    choices, choice, missing,
   });
+  return row;
+}
+
+/**
+ * SPEC-485 · satu tempat yang tahu bahwa alur harus dimajukan dan — bila ia tak berantai — ditutup,
+ * bahkan ketika langkahnya gagal. Dipakai jalur sukses maupun kedua jalur `fail()`; dua salinan
+ * yang tak sepakat adalah kelas bug SPEC-431/448/475 pada bentuknya yang paling licin (efek samping).
+ */
+async function closeAfter(row: LeadDecision, flowId: string, chain: boolean | undefined): Promise<LeadDecision> {
+  await markFlowStep(flowId, row.status === "berlaku");
+  if (!chain) await closeFlow(flowId, "tunggal");
   return row;
 }
 
@@ -229,7 +309,10 @@ export function takeDelivery(decisionId: string): LeadDelivery | null {
  * "Lead gagal memutuskan" — satu keadaan rusak dilaporkan tujuh kali. Begitu satu keputusan
  * berhasil di antaranya, lead terbukti pulih dan kegagalan berikutnya jadi kabar lagi.
  */
-async function fail(req: DecideRequest, deps: DecideDeps, reason: string): Promise<LeadDecision> {
+async function fail(
+  req: DecideRequest, deps: DecideDeps, reason: string,
+  flowId: string | null = null, step: number | null = null,
+): Promise<LeadDecision> {
   const prev = await prisma.leadDecision.findFirst({
     where: { projectId: req.projectId, gate: req.gate, kind: req.kind },
     orderBy: { createdAt: "desc" }, select: { status: true },
@@ -238,6 +321,9 @@ async function fail(req: DecideRequest, deps: DecideDeps, reason: string): Promi
     projectId: req.projectId, specId: req.specId, sessionId: req.sessionId,
     gate: req.gate, kind: req.kind, question: req.question,
     answer: "", reason, refs: [], confidence: "ragu", action: "none",
+    // SPEC-485 · langkah yang gagal tetap duduk di alurnya: alur yang seluruh langkahnya gagal
+    // harus tetap terbaca sebagai satu urusan, bukan sebagai baris yatim.
+    flowId, step,
     status: "gagal", weighty: true,
   });
   if (prev?.status !== "gagal") {
