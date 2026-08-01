@@ -293,7 +293,7 @@ git commit -m "test(490): scanner JSX bersama untuk kontrak placeholder"
 > diharapkan disebut di tiap task berikutnya, jadi kemajuan bisa diverifikasi persis
 > alih-alih "seharusnya lulus". **Jangan** menambal call site di task ini.
 
-- [ ] **Step 1: Write the contract test**
+- [x] **Step 1: Write the contract test**
 
 Buat `src/test/placeholder-contract.test.ts`:
 
@@ -334,7 +334,7 @@ describe("kontrak placeholder", () => {
 });
 ```
 
-- [ ] **Step 2: Run and record the baseline**
+- [x] **Step 2: Run and record the baseline**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run src/test/placeholder-contract.test.ts
@@ -352,7 +352,7 @@ Expected: **2 failed | 2 passed**.
 
 Bila angkanya bukan 23 dan 2, berhenti dan periksa scanner-nya sebelum lanjut — plan ini menghitung mundur dari kedua angka itu.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/test/placeholder-contract.test.ts
@@ -374,7 +374,7 @@ Satu isian di katalog melayani **dua** panel Settings (Config runtime + Kredensi
 - Consumes: `configEntry(key)` (sudah ada, `@hanoman/shared`).
 - Produces: `ConfigEntry.example?: string` — dibaca `SettingsScreen`; **tidak** masuk `ConfigEntryView` (wire contract tak berubah; klien menghitungnya dari katalog yang sudah ter-bundle — semangat ADR-0018).
 
-- [ ] **Step 1: Write the failing catalog test**
+- [x] **Step 1: Write the failing catalog test**
 
 Buat `shared/test/config-registry-example.test.ts`:
 
@@ -403,7 +403,7 @@ describe("CONFIG_REGISTRY.example", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run shared/test/config-registry-example.test.ts
@@ -411,7 +411,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run shared/test/config-registry-examp
 
 Expected: FAIL — TypeScript/runtime menolak `e.example` (properti belum ada) atau daftar 26 key.
 
-- [ ] **Step 3: Tambahkan field ke tipe**
+- [x] **Step 3: Tambahkan field ke tipe**
 
 Di `shared/src/config-registry.ts`, dalam `interface ConfigEntry`, tepat di bawah `patternError`:
 
@@ -422,7 +422,7 @@ Di `shared/src/config-registry.ts`, dalam `interface ConfigEntry`, tepat di bawa
   example?: string;
 ```
 
-- [ ] **Step 4: Isi `example` untuk tiap entri**
+- [x] **Step 4: Isi `example` untuk tiap entri**
 
 Ubah entri berikut di `CONFIG_REGISTRY` — tambahkan `example` pada masing-masing (biarkan properti lain apa adanya):
 
@@ -462,7 +462,7 @@ Contoh bentuk satu entri sesudah diubah:
     help: "Base URL hub tujuan sync (REST + WS). Kosong = instance ini murni HUB." },
 ```
 
-- [ ] **Step 5: Run catalog test to verify it passes**
+- [x] **Step 5: Run catalog test to verify it passes**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run shared/test/config-registry-example.test.ts
@@ -470,7 +470,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run shared/test/config-registry-examp
 
 Expected: PASS — `3 passed`.
 
-- [ ] **Step 6: Pakai katalognya di kedua panel Settings**
+- [x] **Step 6: Pakai katalognya di kedua panel Settings**
 
 Di `src/src/screens/SettingsScreen.tsx`, tambahkan `configEntry` ke import `@hanoman/shared` yang sudah ada (cari baris `import { ... } from "@hanoman/shared";` dan sisipkan `configEntry`).
 
@@ -497,7 +497,7 @@ Di panel **Kredensial Telegram** (cari `tgCreds.fields.map`), ganti prop `placeh
                           : (configEntry(f.key)?.example ?? "belum diisi")}
 ```
 
-- [ ] **Step 7: Verify — typecheck, test terkait, dan hitungan kontrak**
+- [x] **Step 7: Verify — typecheck, test terkait, dan hitungan kontrak**
 
 ```bash
 pnpm --filter ./shared typecheck && pnpm --filter ./src typecheck
@@ -506,7 +506,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run src/test/settings-nav.test.tsx sr
 
 Expected: typecheck bersih; `config-panel`/`settings-nav` PASS; kontrak masih FAIL tapi daftar "punya placeholder" turun **23 → 22** (`SettingsScreen.tsx:343` hilang dari daftar).
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add shared/src/config-registry.ts shared/test/config-registry-example.test.ts src/src/screens/SettingsScreen.tsx
@@ -527,7 +527,7 @@ Satu `<HnTextarea>` di `SpecDetail` merender 3–5 field tergantung `source`. Pl
 - Consumes: —
 - Produces: `BRIEF_FIELDS`/`GOAL_FIELDS`/`QA_FIELDS` bertipe `readonly (readonly [string, string, string])[]` — `[key, label, placeholder]`. Dibaca hanya di berkas ini.
 
-- [ ] **Step 1: Ubah konstantanya jadi triple**
+- [x] **Step 1: Ubah konstantanya jadi triple**
 
 Ganti blok `BRIEF_FIELDS`/`GOAL_FIELDS`/`QA_FIELDS` di `src/src/screens/BacklogScreen.tsx` dengan:
 
@@ -554,7 +554,7 @@ const QA_FIELDS = [
 ] as const;
 ```
 
-- [ ] **Step 2: Perbarui tipe & render**
+- [x] **Step 2: Perbarui tipe & render**
 
 Di `SpecDetail`, ganti baris tipe `fields`:
 
@@ -580,7 +580,7 @@ dan blok baca (tepat di cabang `) : (` sesudahnya) — `ph` tak dipakai, jadi te
         fields.map(([k, label]) => <DetailRow key={k} label={label} value={p[k] ?? ""} />)
 ```
 
-- [ ] **Step 3: Verify**
+- [x] **Step 3: Verify**
 
 ```bash
 pnpm --filter ./src typecheck
@@ -589,7 +589,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run src/test/backlog-board.test.tsx s
 
 Expected: typecheck bersih; test backlog PASS; kontrak "punya placeholder" turun **22 → 21** (`BacklogScreen.tsx:391` hilang).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/src/screens/BacklogScreen.tsx
@@ -611,7 +611,7 @@ git commit -m "feat(490): placeholder payload backlog hidup di katalog BRIEF/GOA
 **Interfaces:**
 - Consumes: — · Produces: —
 
-- [ ] **Step 1: `App.tsx` — modal Edit project (3 field)**
+- [x] **Step 1: `App.tsx` — modal Edit project (3 field)**
 
 Tambahkan `placeholder` pada ketiga `<Input>` di `EditProjectModal` (biarkan prop lain apa adanya):
 
@@ -628,14 +628,14 @@ Tambahkan `placeholder` pada ketiga `<Input>` di `EditProjectModal` (biarkan pro
           placeholder="mis. ERP manufaktur + inventori" style={{ width: "100%" }} />
 ```
 
-- [ ] **Step 2: `BacklogScreen.tsx` — judul spec saat edit**
+- [x] **Step 2: `BacklogScreen.tsx` — judul spec saat edit**
 
 ```tsx
         <Field label="Judul"><Input value={form.title ?? ""} onChange={setField("title")}
           placeholder="mis. Jadwal invoice berulang" style={{ width: "100%" }} /></Field>
 ```
 
-- [ ] **Step 3: `CustomAgentsPanel.tsx` — nama, deskripsi, instruksi**
+- [x] **Step 3: `CustomAgentsPanel.tsx` — nama, deskripsi, instruksi**
 
 ```tsx
             <Input value={editing.draft.name} aria-label="Nama" disabled={Boolean(editing.id)}
@@ -655,7 +655,7 @@ Tambahkan `placeholder` pada ketiga `<Input>` di `EditProjectModal` (biarkan pro
               onChange={(e) => setEditing({ ...editing, draft: { ...editing.draft, instructions: e.target.value } })} />
 ```
 
-- [ ] **Step 4: `TriageScreen.tsx` — judul & detail tiket**
+- [x] **Step 4: `TriageScreen.tsx` — judul & detail tiket**
 
 ```tsx
         <Field label="Judul"><Input value={form.title} placeholder="mis. Tombol Simpan tak berfungsi di HP"
@@ -667,20 +667,20 @@ Tambahkan `placeholder` pada ketiga `<Input>` di `EditProjectModal` (biarkan pro
           onChange={(e) => setForm({ ...form, detail: e.target.value })} /></Field>
 ```
 
-- [ ] **Step 5: `VpsScreen.tsx` — port SSH**
+- [x] **Step 5: `VpsScreen.tsx` — port SSH**
 
 ```tsx
         <Field label="Port"><Input value={f.port} onChange={set("port")} mono placeholder="22" style={{ width: "100%" }} /></Field>
 ```
 
-- [ ] **Step 6: `TerminalScreen.tsx` — nama grup**
+- [x] **Step 6: `TerminalScreen.tsx` — nama grup**
 
 ```tsx
     <input autoFocus aria-label="Nama grup" value={value} placeholder="mis. Rilis"
       onChange={(e) => setValue(e.target.value)}
 ```
 
-- [ ] **Step 7: Verify**
+- [x] **Step 7: Verify**
 
 ```bash
 pnpm --filter ./src typecheck
@@ -689,7 +689,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run src/test/edit-project-id.test.tsx
 
 Expected: typecheck bersih; test PASS; kontrak "punya placeholder" turun **21 → 10**.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/src/App.tsx src/src/screens/BacklogScreen.tsx src/src/screens/CustomAgentsPanel.tsx src/src/screens/TriageScreen.tsx src/src/screens/VpsScreen.tsx src/src/screens/TerminalScreen.tsx
@@ -711,7 +711,7 @@ git commit -m "feat(490): placeholder contoh nilai di field modal & form dashboa
 Field angka memakai nilai default operasionalnya sebagai contoh — itu yang benar-benar
 berguna saat kolomnya dikosongkan (`timeoutSec` 600 datang dari SPEC-432/479).
 
-- [ ] **Step 1: `LeadScreen.tsx` — tiga knob denyut lead**
+- [x] **Step 1: `LeadScreen.tsx` — tiga knob denyut lead**
 
 ```tsx
           <Input type="number" min={1} style={{ width: 76 }} aria-label="denyut lead (menit)"
@@ -726,7 +726,7 @@ berguna saat kolomnya dikosongkan (`timeoutSec` 600 datang dari SPEC-432/479).
             placeholder="3" value={String(cfg.maxAutoAnswers)} disabled={busy}
 ```
 
-- [ ] **Step 2: `SchedulerScreen.tsx` — cap concurrent & cadence**
+- [x] **Step 2: `SchedulerScreen.tsx` — cap concurrent & cadence**
 
 ```tsx
             <Input type="number" min={1} value={String(draft.maxConcurrent)} aria-label="Cap concurrent"
@@ -737,7 +737,7 @@ berguna saat kolomnya dikosongkan (`timeoutSec` 600 datang dari SPEC-432/479).
                 placeholder="30" value={String(draft.sources[k].everyMin)}
 ```
 
-- [ ] **Step 3: `SettingsScreen.tsx` — tiga field password**
+- [x] **Step 3: `SettingsScreen.tsx` — tiga field password**
 
 Ketiganya memakai bentuk, bukan contoh: nilainya rahasia dan tak boleh disarankan.
 
@@ -755,7 +755,7 @@ Ketiganya memakai bentuk, bukan contoh: nilainya rahasia dan tak boleh disaranka
 > `autoComplete` + nama state (`cur` / `next` / `password`), bukan nomor baris — nomor
 > bergeser sesudah Task 3.
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 ```bash
 pnpm --filter ./src typecheck
@@ -764,7 +764,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run src/test/lead-screen.test.tsx src
 
 Expected: typecheck bersih; test PASS; kontrak "punya placeholder" turun **10 → 2**.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/LeadScreen.tsx src/src/screens/SchedulerScreen.tsx src/src/screens/SettingsScreen.tsx
@@ -785,14 +785,14 @@ git commit -m "feat(490): placeholder untuk knob angka lead/scheduler dan field 
 
 Dua dari tiga **sah** tak punya placeholder, dan itu dinyatakan di kodenya — bukan dilewati diam-diam.
 
-- [ ] **Step 1: `DocsWorkspace.tsx` — editor markdown SoT punya satu bentuk, jadi punya contoh**
+- [x] **Step 1: `DocsWorkspace.tsx` — editor markdown SoT punya satu bentuk, jadi punya contoh**
 
 ```tsx
               <textarea value={draft} onChange={(e) => setDraft(e.target.value)} spellCheck={false}
                 placeholder={"# Judul dokumen\n\nParagraf pembuka…"} style={{
 ```
 
-- [ ] **Step 2: `IdeScreen.tsx` — editor berkas: pintu darurat**
+- [x] **Step 2: `IdeScreen.tsx` — editor berkas: pintu darurat**
 
 Sisipkan komentar tepat di atas `<textarea>` editor berkas (yang ber-`minHeight: 560`):
 
@@ -801,7 +801,7 @@ Sisipkan komentar tepat di atas `<textarea>` editor berkas (yang ber-`minHeight:
             <textarea value={draft} onChange={(e) => setDraft(e.target.value)} spellCheck={false} style={{
 ```
 
-- [ ] **Step 3: `PublicHelpApp.tsx` — honeypot: pintu darurat**
+- [x] **Step 3: `PublicHelpApp.tsx` — honeypot: pintu darurat**
 
 Sisipkan komentar tepat di atas input honeypot:
 
@@ -813,7 +813,7 @@ Sisipkan komentar tepat di atas input honeypot:
 > Field ini juga sudah di luar scope lewat `aria-hidden`; komentarnya ada supaya alasannya
 > terbaca di call site, bukan tersembunyi di daftar tipe scanner.
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 ```bash
 pnpm --filter ./src typecheck
@@ -822,7 +822,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run src/test/ide-screen.test.tsx src/
 
 Expected: typecheck bersih; test PASS; kontrak test **`setiap field … punya placeholder` menjadi PASS** (0 tersisa). Yang masih FAIL hanya `placeholder tidak mengulang labelnya` (2 entri).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/DocsWorkspace.tsx src/src/screens/IdeScreen.tsx src/src/public/PublicHelpApp.tsx
@@ -842,7 +842,7 @@ Field-field ini **punya** placeholder, tapi isinya bukan contoh — itu inti kel
 **Interfaces:**
 - Consumes: — · Produces: —
 
-- [ ] **Step 1: Kotak cari — enam permukaan**
+- [x] **Step 1: Kotak cari — enam permukaan**
 
 Ganti **hanya** nilai `placeholder`-nya (biarkan prop lain apa adanya):
 
@@ -856,7 +856,7 @@ Ganti **hanya** nilai `placeholder`-nya (biarkan prop lain apa adanya):
 | `screens/VpsChecklist.tsx` | `"cari item, id, atau kode…"` | `"mis. ssh atau 5.2.1"` |
 | `screens/GitGraph.tsx` (find) | `"cari commit (pesan/author/hash/ref)…"` | `"mis. auto-merge, 3a3e7e0, atau hanoman/spec-490"` |
 
-- [ ] **Step 2: Combobox — kolom cari `MultiSelect`**
+- [x] **Step 2: Combobox — kolom cari `MultiSelect`**
 
 Di `screens/CustomAgentsPanel.tsx`:
 
@@ -868,7 +868,7 @@ Di `screens/CustomAgentsPanel.tsx`:
               emptyText="Belum ada agen lain."
 ```
 
-- [ ] **Step 3: Prosa instruksi → contoh (form brief / QA / PRD / ide project)**
+- [x] **Step 3: Prosa instruksi → contoh (form brief / QA / PRD / ide project)**
 
 `src/src/App.tsx`:
 
@@ -896,7 +896,7 @@ Di `screens/CustomAgentsPanel.tsx`:
 | email (`hc-email`) | `"agar kami bisa menautkan laporan Anda"` | `"nama@contoh.id"` |
 | cek status (`checkKey`) | `"Tempel link / kode status"` | `"mis. a1b2c3d4e5f6 — atau tempel link statusnya"` |
 
-- [ ] **Step 4: Sisanya**
+- [x] **Step 4: Sisanya**
 
 | berkas · field | dari | jadi |
 |---|---|---|
@@ -923,7 +923,7 @@ Dan dua textarea kondisi goal — pertahankan penanda defaultnya, tambahkan cont
               placeholder="Kosong = kondisi bawaan hanoman · mis. semua fase tercatat & plan tanpa - [ ]"
 ```
 
-- [ ] **Step 5: Verify — kontrak HIJAU penuh**
+- [x] **Step 5: Verify — kontrak HIJAU penuh**
 
 ```bash
 pnpm --filter ./src typecheck
@@ -944,7 +944,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run \
 
 Expected: semua PASS. Bila ada test yang mencari field lewat `getByPlaceholderText("…")` teks lama, **perbarui test-nya** ke teks baru — placeholder memang berubah; jangan mengembalikan teks lamanya.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -u src/src
@@ -962,7 +962,7 @@ git commit -m "feat(490): placeholder jadi contoh nilai, bukan pengulangan label
 **Interfaces:**
 - Consumes: — · Produces: —
 
-- [ ] **Step 1: Aturan di design-system**
+- [x] **Step 1: Aturan di design-system**
 
 Tambahkan di akhir `internal/docs/design-system/design-system.md`:
 
@@ -1003,7 +1003,7 @@ Ditegakkan `src/test/placeholder-contract.test.ts` — lihat
 [frontend-implementation](../frontend/frontend-implementation.md).
 ```
 
-- [ ] **Step 2: Tempat penegakannya di frontend-implementation**
+- [x] **Step 2: Tempat penegakannya di frontend-implementation**
 
 Tambahkan section baru di `internal/docs/frontend/frontend-implementation.md`, sesudah
 section "Favicon (SPEC-147)":
@@ -1038,7 +1038,7 @@ label" hanya menyala saat placeholder **dan** namanya sama-sama literal statis �
 placeholder di sini ekspresi kondisional. Ia lantai, bukan seluruh aturan; sisanya editorial.
 ```
 
-- [ ] **Step 3: Verifikasi integritas index docs**
+- [x] **Step 3: Verifikasi integritas index docs**
 
 Kedua dokumen sudah ter-link di `internal/docs/README.md` (bagian `design-system` dan
 `frontend`) — tak ada entri baru yang perlu ditambahkan. Buktikan:
@@ -1049,7 +1049,7 @@ grep -n "design-system/design-system.md\|frontend/frontend-implementation.md" in
 
 Expected: dua baris cocok. Bila salah satu tak ada, tambahkan barisnya.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add internal/docs/design-system/design-system.md internal/docs/frontend/frontend-implementation.md
@@ -1062,7 +1062,7 @@ git commit -m "docs(490): aturan placeholder di design system + tempat penegakan
 
 **Files:** — (tak ada perubahan; hanya pembuktian)
 
-- [ ] **Step 1: Seluruh test yang tersentuh perubahan ini**
+- [x] **Step 1: Seluruh test yang tersentuh perubahan ini**
 
 ```bash
 env -u NODE_ENV TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" \
@@ -1072,7 +1072,7 @@ env -u NODE_ENV TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" \
 Expected: semua PASS. **Pastikan jumlah berkas test yang berjalan > 0** — `--changed`
 menyalakan `passWithNoTests`, jadi nol test terlihat hijau.
 
-- [ ] **Step 2: Typecheck paket yang tersentuh**
+- [x] **Step 2: Typecheck paket yang tersentuh**
 
 ```bash
 pnpm --filter ./shared typecheck && pnpm --filter ./src typecheck
@@ -1080,7 +1080,7 @@ pnpm --filter ./shared typecheck && pnpm --filter ./src typecheck
 
 Expected: keluaran kosong, exit 0. (`server` tak disentuh — jangan `pnpm -r typecheck`.)
 
-- [ ] **Step 3: Bukti akhir dari kontraknya sendiri**
+- [x] **Step 3: Bukti akhir dari kontraknya sendiri**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run src/test/placeholder-contract.test.ts --reporter=verbose
@@ -1089,7 +1089,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run src/test/placeholder-contract.tes
 Expected: 4 test PASS, termasuk `benar-benar memindai field form` (bukti scanner tidak
 memulangkan daftar kosong).
 
-- [ ] **Step 4: Centang plan & commit penutup**
+- [x] **Step 4: Centang plan & commit penutup**
 
 Pastikan seluruh kotak `- [ ]` di berkas plan ini sudah `- [x]` (ADR-0029: `Execute done`
 tak sah selama masih ada kotak kosong), lalu:
@@ -1101,3 +1101,30 @@ git commit -m "chore(490): centang plan + catatan pelaksanaan"
 
 > **Boot server + curl tidak diperlukan.** Perubahan ini tak menyentuh satu pun endpoint,
 > route, atau perilaku runtime server — `server/src` tidak diubah sama sekali.
+
+---
+
+## Catatan pelaksanaan (2026-08-01)
+
+- **Baseline terukur 23, bukan 24.** Honeypot `hc_trap` keluar scope sendiri lewat deteksi
+  `aria-hidden` **telanjang** yang lahir saat Task 1 (satu-satunya koreksi scanner: `hasAttr`
+  menuntut `=`, sementara JSX menulis atribut boolean tanpa nilai). Komentar
+  `placeholder-exempt`-nya tetap dipasang di Task 7 supaya alasannya terbaca di call site.
+- **Turunnya persis seperti direncanakan:** 23 → 22 (Task 3) → 21 (Task 4) → 10 (Task 5) →
+  2 (Task 6) → 0 (Task 7); 2 echo label ditutup Task 8. Kontrak **4/4 hijau**.
+- **Task 8 memecahkan 3 test** yang memegang teks placeholder lewat `getByPlaceholderText`.
+  Diperbaiki dengan memindahkannya ke `getByLabelText` — nama aksesibilitas adalah kontrak
+  yang stabil, salinan placeholder bukan. Satu textarea (kondisi mode goal di Settings)
+  memang **tak punya nama sama sekali** (`SettingRow` bukan `<label>`) → diberi `aria-label`.
+- **Verifikasi akhir:** `vitest --changed <base> --no-file-parallelism` → **2533 lulus, 11
+  gagal**, kesebelasnya terbukti **tak terkait** dengan membandingkan langsung ke
+  `$HANOMAN_BASE_SHA` (`git checkout <base> -- src/src shared/src`, hasil identik):
+  9 × `api.listBranches is not a function` (mock `api` parsial yang basi di
+  `edit-project-gitremote` · `project-detail` · `project-help-center`), 1 × `GET /api/update`
+  (bergantung jaringan), 1 × `review-download.route.test.ts` (lulus sendirian di HEAD **dan**
+  di base — bergantung urutan pada run 290 berkas). Typecheck `shared` + `src` bersih.
+  `prisma generate` perlu dijalankan sekali di worktree ini sebelum test server bisa dikoleksi
+  (158 berkas gagal `@prisma/client did not initialize yet` sebelum itu) — bukan efek perubahan ini.
+- **Boot server + curl dilewati dengan sengaja:** `server/src` tidak disentuh sama sekali;
+  satu-satunya perubahan di luar `src/` adalah field presentasi `example?` di katalog
+  `shared/src/config-registry.ts`, yang tak ikut respons API mana pun.
