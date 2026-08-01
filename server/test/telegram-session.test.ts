@@ -25,6 +25,7 @@ function fakePort(): TelegramSessionPort & { born: Born[]; sent: { id: string; t
       return session;
     },
     sendToPane: async (id, text) => { sent.push({ id, text }); return live.get(id)?.exited === false; },
+    killSession: (id) => { live.delete(id); return true; },
   };
 }
 
@@ -44,6 +45,15 @@ function coordinator(
     store,
     port,
     defaults: async () => defaults,
+    engine: {
+      read: async () => ({
+        enabled: false,
+        effective: defaults,
+        claude: { model: "claude-opus-5", effort: "xhigh" },
+        codex: { model: "gpt-5.6-sol", effort: "xhigh" },
+      }),
+      write: async () => {},
+    },
     personality: async () => ({
       name: "operator-ringkas", description: "Lugas", instructions: "Gunakan Source of Truth.",
     }),

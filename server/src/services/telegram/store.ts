@@ -108,6 +108,16 @@ export class TelegramStore {
     });
   }
 
+  /**
+   * SPEC-492 · cermin baris chat terhadap runtime yang BENAR-BENAR dipakai sesi operator terakhir.
+   * `ensureChat` sengaja tak menyentuh ketiganya (ia hanya menyegarkan `userId`), jadi tanpa ini
+   * `GET /telegram/chats/:chatId/context` — yang dibaca agen operator sendiri — melaporkan
+   * snapshot dari chat pertama, selamanya.
+   */
+  async setChatEngine(chatId: string, engine: { agent: string; model: string; effort: string }): Promise<void> {
+    await this.db.telegramChat.update({ where: { chatId }, data: engine });
+  }
+
   async chatContext(chatId: string): Promise<TelegramChatContext | null> {
     const chat = await this.db.telegramChat.findUnique({ where: { chatId } });
     if (!chat) return null;

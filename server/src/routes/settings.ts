@@ -3,6 +3,7 @@ import { zSetting } from "@hanoman/shared";
 import { prisma } from "../db";
 import { getSetting } from "../services/settings";
 import { reloadTelegramGateway } from "../services/telegram/bootstrap";
+import { telegramReloadNeeded } from "../services/telegram/config";
 export default async function (app: FastifyInstance) {
   app.get("/settings", async () => getSetting());
   app.put("/settings", async (req, reply) => {
@@ -13,7 +14,10 @@ export default async function (app: FastifyInstance) {
       update: { data: parsed.data }, create: { id: 1, data: parsed.data } });
     // SPEC-477 · ADR-0097 · toggle gateway berlaku LANGSUNG, tanpa restart. Dibandingkan dulu
     // supaya PUT settings yang tak menyentuh Telegram tak memutus long-poll yang sedang jalan.
-    if (JSON.stringify(before.telegram) !== JSON.stringify(parsed.data.telegram)) {
+    // SPEC-492 · `telegram.engine` sengaja DIKECUALIKAN dari perbandingan: ia dibaca lazy tiap
+    // sesi operator lahir, jadi menggeser satu dropdown tak boleh memutus long-poll dan
+    // mempertaruhkan `readiness` pada satu panggilan `getMe()`.
+    if (telegramReloadNeeded(before.telegram, parsed.data.telegram)) {
       await reloadTelegramGateway();
     }
     return row.data;

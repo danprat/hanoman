@@ -6,11 +6,12 @@ import { prisma } from "../../db";
 import { effectiveStr } from "../../config";
 import { verifyAgentToken as verifyAgentTokenReal } from "../agent-token";
 import { ensureCodexTrust } from "../codex-trust";
-import { getSetting as getSettingReal, sessionAgentDefaults } from "../settings";
-import { createSession, getSession, sendToPane } from "../pty";
+import { getSetting as getSettingReal } from "../settings";
+import { createSession, getSession, killSession, sendToPane } from "../pty";
 import { TelegramApiClient } from "./client";
+import { setTelegramEngine, telegramAgentDefaults, telegramEngineContext } from "./config";
 import { TelegramGateway } from "./gateway";
-import { TelegramSessionCoordinator } from "./session";
+import { TelegramSessionCoordinator, type TelegramSessionCoordinatorDeps } from "./session";
 import { TelegramStore } from "./store";
 import { registerTelegramRuntimeStop, setTelegramRuntime, stopTelegramRuntime } from "./runtime";
 
@@ -67,14 +68,21 @@ const configuredFrom = (read: ReadConfig): boolean =>
     && read("HANOMAN_TELEGRAM_ALLOWED_USER_IDS")?.trim()
     && read("HANOMAN_TELEGRAM_AGENT_TOKEN")?.trim());
 
-async function productionFactory(input: TelegramGatewayFactoryInput) {
-  const client = new TelegramApiClient(input.botToken);
-  const me = await client.getMe();
-  const store = new TelegramStore(prisma);
-  const coordinator = new TelegramSessionCoordinator({
-    store,
-    port: { getSession, createSession, sendToPane },
-    defaults: sessionAgentDefaults,
+/**
+ * SPEC-492 · deps coordinator diberi nama supaya `defaults` bisa dibuktikan tanpa jaringan —
+ * `productionFactory` memanggil `client.getMe()` di baris pertamanya. Ini menamai sesuatu yang
+ * sudah ada di sana, bukan seam yang diarang demi test.
+ */
+export function telegramSessionDeps(input: {
+  apiBase: string; agentToken: string; store: TelegramStore;
+}): TelegramSessionCoordinatorDeps {
+  return {
+    store: input.store,
+    port: { getSession, createSession, sendToPane, killSession },
+    // SPEC-492 · BUKAN `sessionAgentDefaults`: sesi operator Telegram sebagian besar membaca API
+    // lalu merangkum, bukan menulis kode, jadi ia boleh punya runtime/model/effort sendiri.
+    defaults: telegramAgentDefaults,
+    engine: { read: telegramEngineContext, write: setTelegramEngine },
     personality: async (id, projectId) => {
       if (!id) return null;
       const row = await prisma.customAgent.findUnique({ where: { id } });
@@ -86,7 +94,16 @@ async function productionFactory(input: TelegramGatewayFactoryInput) {
     apiBase: input.apiBase,
     agentToken: input.agentToken,
     ensureDir: (path) => mkdirSync(path, { recursive: true }),
-  });
+  };
+}
+
+async function productionFactory(input: TelegramGatewayFactoryInput) {
+  const client = new TelegramApiClient(input.botToken);
+  const me = await client.getMe();
+  const store = new TelegramStore(prisma);
+  const coordinator = new TelegramSessionCoordinator(telegramSessionDeps({
+    apiBase: input.apiBase, agentToken: input.agentToken, store,
+  }));
   const gateway = new TelegramGateway({
     client,
     store,

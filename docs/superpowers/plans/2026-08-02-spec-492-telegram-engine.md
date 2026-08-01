@@ -426,7 +426,7 @@ tanpa jaringan. Konstruksi deps coordinator-nya karena itu **diberi nama** (`tel
 - Consumes: `telegramAgentDefaults`, `telegramReloadNeeded` (Task 2); `TelegramSessionCoordinatorDeps` dari `./session`.
 - Produces: `telegramSessionDeps(input: { apiBase: string; agentToken: string; store: TelegramStore }): TelegramSessionCoordinatorDeps`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/telegram-engine-bootstrap.test.ts`:
 
@@ -510,14 +510,14 @@ Bila `capabilityForRoute` ternyata memetakan `/settings` ke capability lain, jal
 `/usr/bin/grep -n "settings" server/src/services/agent-capabilities.ts` dan pakai nama yang benar —
 jangan mematikan auth.
 
-- [ ] **Step 2: Jalankan, pastikan GAGAL**
+- [x] **Step 2: Jalankan, pastikan GAGAL**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/telegram-engine-bootstrap.test.ts
 ```
 Expected: FAIL — `telegramSessionDeps is not a function`.
 
-- [ ] **Step 3: Ekstrak `telegramSessionDeps` di bootstrap**
+- [x] **Step 3: Ekstrak `telegramSessionDeps` di bootstrap**
 
 Di `server/src/services/telegram/bootstrap.ts`, tambahkan import:
 
@@ -590,7 +590,7 @@ Hapus `sessionAgentDefaults` dari import `../settings` (biarkan `getSetting as g
 > task ini **setelah** Task 4 dan 5 bila mengeksekusi berurutan, atau untuk sementara hilangkan dua
 > baris itu dan kembalikan di Task 6. Urutan yang disarankan: **Task 1 → 2 → 4 → 5 → 3 → 6 → 7 → 8**.
 
-- [ ] **Step 4: Pakai `telegramReloadNeeded` di route settings**
+- [x] **Step 4: Pakai `telegramReloadNeeded` di route settings**
 
 Ganti `server/src/routes/settings.ts` seluruhnya:
 
@@ -622,14 +622,14 @@ export default async function (app: FastifyInstance) {
 }
 ```
 
-- [ ] **Step 5: Jalankan test, pastikan LULUS**
+- [x] **Step 5: Jalankan test, pastikan LULUS**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/telegram-engine-bootstrap.test.ts server/test/telegram-bootstrap-config.test.ts server/test/settings.test.ts
 ```
 Expected: PASS semua.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/services/telegram/bootstrap.ts server/src/routes/settings.ts server/test/telegram-engine-bootstrap.test.ts
@@ -653,7 +653,7 @@ satu pun penulis lain. Instalasi hidup sudah punya barisnya, jadi tanpa task ini
 - Consumes: `TelegramSessionCoordinatorDeps.defaults()` (sudah ada).
 - Produces: `TelegramStore.setChatEngine(chatId, engine: { agent: string; model: string; effort: string }): Promise<void>`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/telegram-engine-session.test.ts`:
 
@@ -776,7 +776,7 @@ describe("SPEC-492 · sesi operator lahir dari resolver segar", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan GAGAL**
+- [x] **Step 2: Jalankan, pastikan GAGAL**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/telegram-engine-session.test.ts
@@ -784,7 +784,7 @@ TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run -
 Expected: FAIL — test pertama memberi `model: "claude-opus-5"` (nilai beku), bukan `claude-haiku-4-5`;
 plus error tipe karena `engine`/`killSession` belum ada di deps.
 
-- [ ] **Step 3: Tambahkan `setChatEngine` ke store**
+- [x] **Step 3: Tambahkan `setChatEngine` ke store**
 
 Di `server/src/services/telegram/store.ts`, sisipkan tepat setelah `ensureChat`:
 
@@ -800,7 +800,7 @@ Di `server/src/services/telegram/store.ts`, sisipkan tepat setelah `ensureChat`:
   }
 ```
 
-- [ ] **Step 4: Perluas port & deps, lalu pindahkan resolver ke kelahiran sesi**
+- [x] **Step 4: Perluas port & deps, lalu pindahkan resolver ke kelahiran sesi**
 
 Di `server/src/services/telegram/session.ts`, ubah `TelegramSessionPort` dan
 `TelegramSessionCoordinatorDeps`:
@@ -907,7 +907,7 @@ Ganti badan `dispatch` (bagian sesudah blok `live`) menjadi:
   }
 ```
 
-- [ ] **Step 5: Perbaiki fixture test lama**
+- [x] **Step 5: Perbaiki fixture test lama**
 
 `server/test/telegram-session.test.ts` merakit port & deps tanpa `killSession` dan `engine`.
 Tambahkan ke `fakePort()`:
@@ -935,14 +935,14 @@ dan ke objek `new TelegramSessionCoordinator({ … })` di helper `coordinator()`
 > `{ read(): Promise<never>; write(next: AgentEngine): Promise<void> }` lalu perbaiki di Task 5.
 > Cara paling lurus: **kerjakan Task 5 sebelum Task 4**.
 
-- [ ] **Step 6: Jalankan test, pastikan LULUS**
+- [x] **Step 6: Jalankan test, pastikan LULUS**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/telegram-engine-session.test.ts server/test/telegram-session.test.ts server/test/telegram-e2e.test.ts
 ```
 Expected: PASS semua.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/services/telegram/session.ts server/src/services/telegram/store.ts server/test/telegram-engine-session.test.ts server/test/telegram-session.test.ts
@@ -1287,7 +1287,7 @@ git commit -m "feat(492): parser murni command runtime Telegram"
 - Consumes: `parseEngineCommand`, `formatEngineStatus`, `formatEngineApplied`, `TELEGRAM_CONTROL_KIND` (Task 5); `store.enqueueReply`, `store.patchChat` (sudah ada); `port.killSession` (Task 4).
 - Produces: `telegramEngineContext(): Promise<EngineContext>`; `dispatch()` mengembalikan `control?: true`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan ke `server/test/telegram-engine-session.test.ts` (pakai `fakePort`/`coordinator` yang
 sudah ada di berkas itu; tambahkan parameter `write` yang merekam):
@@ -1416,14 +1416,14 @@ describe("SPEC-492 · konteks command runtime", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan GAGAL**
+- [x] **Step 2: Jalankan, pastikan GAGAL**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/telegram-engine-session.test.ts server/test/telegram-engine-config.test.ts
 ```
 Expected: FAIL — `telegramEngineContext is not a function` dan `res.control` `undefined`.
 
-- [ ] **Step 3: Tambahkan `telegramEngineContext` ke config**
+- [x] **Step 3: Tambahkan `telegramEngineContext` ke config**
 
 Di `server/src/services/telegram/config.ts`, tambahkan import dan fungsi:
 
@@ -1448,7 +1448,7 @@ export async function telegramEngineContext(): Promise<EngineContext> {
 }
 ```
 
-- [ ] **Step 4: Cegat command di coordinator**
+- [x] **Step 4: Cegat command di coordinator**
 
 Di `server/src/services/telegram/session.ts`, tambahkan import:
 
@@ -1521,7 +1521,7 @@ Tambahkan metode privat di kelas:
 > `patchChat` melempar bila baris chat belum ada — di sini ia hanya dipanggil saat `alive`, dan
 > pane hidup selalu berarti barisnya ada.
 
-- [ ] **Step 5: Gateway berhenti mengarang balasan ganda**
+- [x] **Step 5: Gateway berhenti mengarang balasan ganda**
 
 Di `server/src/services/telegram/gateway.ts`, ganti blok sesudah `dispatch` berhasil:
 
@@ -1558,7 +1558,7 @@ export type TelegramInputDispatcher = {
 };
 ```
 
-- [ ] **Step 6: Kembalikan dua baris dep di bootstrap**
+- [x] **Step 6: Kembalikan dua baris dep di bootstrap**
 
 Pastikan `telegramSessionDeps` (Task 3) memuat:
 
@@ -1572,7 +1572,7 @@ dan importnya:
 import { setTelegramEngine, telegramAgentDefaults, telegramEngineContext } from "./config";
 ```
 
-- [ ] **Step 7: Jalankan test yang tersentuh**
+- [x] **Step 7: Jalankan test yang tersentuh**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --dir server --no-file-parallelism \
@@ -1582,14 +1582,14 @@ TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run -
 ```
 Expected: PASS semua.
 
-- [ ] **Step 8: Typecheck server**
+- [x] **Step 8: Typecheck server**
 
 ```bash
 pnpm --filter ./server typecheck
 ```
 Expected: keluar 0.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add server/src/services/telegram/session.ts server/src/services/telegram/gateway.ts server/src/services/telegram/config.ts server/src/services/telegram/bootstrap.ts server/test/telegram-engine-session.test.ts server/test/telegram-engine-config.test.ts

@@ -30,7 +30,7 @@ describe("Telegram gateway bootstrap lifecycle (SPEC-476)", () => {
     const factory = vi.fn<TelegramGatewayFactory>();
     await installTelegramGateway(app, {
       apiBase: "http://127.0.0.1:7777", env,
-      getSetting: async () => ({ ...DEFAULT_SETTING, telegram: { enabled: false, progress: true } }),
+      getSetting: async () => ({ ...DEFAULT_SETTING, telegram: { ...DEFAULT_SETTING.telegram, enabled: false, progress: true } }),
       verifyAgentToken: async () => null,
       factory,
     });
@@ -43,7 +43,7 @@ describe("Telegram gateway bootstrap lifecycle (SPEC-476)", () => {
     const app = buildApp({ requireAuth: false });
     await installTelegramGateway(app, {
       apiBase: "http://127.0.0.1:7777", env: { ...env, HANOMAN_TELEGRAM_BOT_TOKEN: undefined },
-      getSetting: async () => ({ ...DEFAULT_SETTING, telegram: { enabled: true, progress: true } }),
+      getSetting: async () => ({ ...DEFAULT_SETTING, telegram: { ...DEFAULT_SETTING.telegram, enabled: true, progress: true } }),
       verifyAgentToken: async () => null,
       factory: vi.fn<TelegramGatewayFactory>(),
     });
@@ -64,7 +64,7 @@ describe("Telegram gateway bootstrap lifecycle (SPEC-476)", () => {
     await installTelegramGateway(app, {
       apiBase: "http://127.0.0.1:7777", env,
       getSetting: async () => ({
-        ...DEFAULT_SETTING, agentAccessEnabled: true, telegram: { enabled: true, progress: true },
+        ...DEFAULT_SETTING, agentAccessEnabled: true, telegram: { ...DEFAULT_SETTING.telegram, enabled: true, progress: true },
       }),
       verifyAgentToken: async () => ({ id: "agent-1", capabilities: [...TELEGRAM_REQUIRED_CAPABILITIES] }),
       factory,
@@ -86,7 +86,7 @@ describe("Telegram gateway bootstrap lifecycle (SPEC-476)", () => {
     await installTelegramGateway(app, {
       apiBase: "http://127.0.0.1:7777", env,
       getSetting: async () => ({
-        ...DEFAULT_SETTING, agentAccessEnabled: true, telegram: { enabled: true, progress: true },
+        ...DEFAULT_SETTING, agentAccessEnabled: true, telegram: { ...DEFAULT_SETTING.telegram, enabled: true, progress: true },
       }),
       verifyAgentToken: async () => ({ id: "agent-1", capabilities: ["telegram:write"] }),
       factory,

@@ -22,7 +22,8 @@ export type TelegramGatewayClient = {
 };
 
 export type TelegramInputDispatcher = {
-  dispatch(input: AcceptedTelegramInput): Promise<{ sessionId: string; created: boolean }>;
+  // SPEC-492 · `control: true` = command runtime yang sudah dijawab coordinator sendiri.
+  dispatch(input: AcceptedTelegramInput): Promise<{ sessionId: string; created: boolean; control?: true }>;
 };
 
 type GatewayDeps = {
@@ -113,12 +114,17 @@ export class TelegramGateway {
       await this.deps.store.markDispatched(input.updateId);
       await this.deps.store.audit({
         chatId: input.chatId, userId: input.userId, updateId: input.updateId,
-        action: "dispatch", outcome: target.created ? "session-created" : "session-reused",
+        action: "dispatch",
+        // SPEC-492 · command runtime dijawab gateway sendiri; jejaknya harus bisa dibedakan dari
+        // pesan yang benar-benar sampai ke sesi operator.
+        outcome: target.control ? "control" : target.created ? "session-created" : "session-reused",
         correlationId: `tg:${input.updateId}`,
       });
       // Fakta server, bukan layar PTY (ADR-0096 §5). Punya `catch` sendiri: dispatch SUDAH
       // berhasil, jadi gagalnya mengantre pemberitahuan tak boleh mengubahnya jadi kegagalan.
-      if (this.deps.progress) {
+      // SPEC-492 · dilewati untuk command runtime: jawabannya sudah diantre coordinator, dan
+      // "Diterima. Diteruskan ke sesi operator." di belakangnya adalah kebohongan kecil.
+      if (this.deps.progress && !target.control) {
         await this.deps.store.enqueueReply({
           chatId: input.chatId, updateId: input.updateId, kind: GATEWAY_PROGRESS_KIND,
           text: target.created

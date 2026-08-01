@@ -3,7 +3,10 @@ import type { AddressInfo } from "node:net";
 import { buildApp } from "../src/app";
 import { prisma } from "../src/db";
 import { issueAgentToken } from "../src/services/agent-token";
-import { sessionAgentDefaults, DEFAULT_SETTING } from "../src/services/settings";
+import { DEFAULT_SETTING } from "../src/services/settings";
+import {
+  setTelegramEngine, telegramAgentDefaults, telegramEngineContext,
+} from "../src/services/telegram/config";
 import { TELEGRAM_REQUIRED_CAPABILITIES } from "../src/services/telegram/bootstrap";
 import { TelegramGateway, type TelegramGatewayClient, type TelegramInputDispatcher } from "../src/services/telegram/gateway";
 import { TelegramSessionCoordinator, type TelegramSessionPort } from "../src/services/telegram/session";
@@ -28,6 +31,7 @@ const port: TelegramSessionPort = {
     return session;
   },
   sendToPane: async (id, text) => { steers.push({ id, text }); return live.has(id); },
+  killSession: (id) => live.delete(id),
 };
 
 const sent: { chatId: string; text: string; replyMarkup?: unknown }[] = [];
@@ -67,7 +71,7 @@ beforeAll(async () => {
   await prisma.setting.create({ data: { id: 1, data: {
     ...DEFAULT_SETTING,
     agentAccessEnabled: true,
-    telegram: { enabled: true, progress: true },
+    telegram: { ...DEFAULT_SETTING.telegram, enabled: true, progress: true },
   } } });
   const token = await issueAgentToken({ name: "telegram-e2e", capabilities: [...TELEGRAM_REQUIRED_CAPABILITIES] });
   bearer = token.token;
@@ -79,7 +83,10 @@ afterAll(async () => { await app.close(); await clean(); });
 
 function coordinator() {
   return new TelegramSessionCoordinator({
-    store, port, defaults: sessionAgentDefaults,
+    store, port, defaults: telegramAgentDefaults,
+    // SPEC-492 · permukaan setelan runtime dari chat. Dipasang dari `config.ts` yang sama dengan
+    // produksi supaya `/engine` & kawan-kawan di e2e ini menempuh jalur yang sungguhan.
+    engine: { read: telegramEngineContext, write: setTelegramEngine },
     personality: async (id) => {
       if (!id) return null;
       const row = await prisma.customAgent.findUnique({ where: { id } });
@@ -191,7 +198,7 @@ describe("Telegram operator live contract E2E (SPEC-476)", () => {
       agentAccessEnabled: true,
       agent: "codex",
       codex: { model: "gpt-5.6-sol", effort: "xhigh" },
-      telegram: { enabled: true, progress: true },
+      telegram: { ...DEFAULT_SETTING.telegram, enabled: true, progress: true },
     } } });
     await gateway().processUpdates([update(23, "status", 8, 84)]);
     expect(births.at(-1)!.agent).toBe("codex");
