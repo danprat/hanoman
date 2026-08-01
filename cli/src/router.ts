@@ -22,6 +22,8 @@ const HELP = `hanoman <command>
     --port <n> --host <h> --db <file> --no-migrate
   doctor                                    periksa prasyarat: node, git, tmux, CLI agen, data dir
   update [--check]                          bandingkan versi dengan registry npm; pasang yang terbaru
+  mcp [--read-only] [--host <url>]          MCP server stdio untuk klien AI (Claude Code/Desktop,
+    [--max-bytes <n>]                       Codex, Cursor, Copilot). Token dari HANOMAN_AGENT_TOKEN.
   migrate-from-postgres --from <url>        pindahkan data Postgres lama ke SQLite
     [--to <file>] [--dry-run] [--force]
   docs scan [--json]                        coverage + laporan per-kategori
@@ -41,7 +43,9 @@ export function route(argv: string[]): { cmd: string; args: string[] } {
   if (argv.includes("--help")) return { cmd: "help", args: [] };
   const [group, sub, ...rest] = argv;
   if (group === undefined || group.startsWith("--")) return { cmd: "start", args: argv };
-  if (group === "start" || group === "doctor" || group === "update") return { cmd: group, args: argv.slice(1) };
+  // SPEC-482 · ADR-0099 · `mcp` = MCP server stdio (klien REST hanoman), bukan sub-flag `start`.
+  if (group === "start" || group === "doctor" || group === "update" || group === "mcp")
+    return { cmd: group, args: argv.slice(1) };
   if (group === "migrate-from-postgres") return { cmd: "migrate-pg", args: argv.slice(1) };
   if (group === "docs" && (sub === "scan" || sub === "index" || sub === "link")) {
     return { cmd: `docs:${sub}`, args: rest };
@@ -59,6 +63,7 @@ export async function run(argv: string[], ctx: Ctx): Promise<number> {
   if (cmd === "start")  return (await import("./commands/start")).default(args, ctx);
   if (cmd === "doctor") return (await import("./commands/doctor")).default(args, ctx);
   if (cmd === "update") return (await import("./commands/update")).default(args, ctx);
+  if (cmd === "mcp")    return (await import("./commands/mcp")).default(args, ctx);
   if (cmd === "migrate-pg") return (await import("./commands/migrate-pg")).default(args, ctx);
   if (cmd === "docs:scan")  return (await import("./commands/docs-scan")).default(args, ctx);
   if (cmd === "docs:index") return (await import("./commands/docs-index")).default(args, ctx);

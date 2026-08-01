@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import { buildMcpServer } from "../src/mcp/server";
-import type { CallResult } from "../src/mcp/client";
+import type { CallResult, Caller } from "../src/mcp/client";
 import type { McpConfig } from "../src/mcp/config";
 
 /** Transport in-memory: `serveStdio` menerima `options.transport`, jadi loop protokol asli diuji. */
@@ -18,7 +18,9 @@ class PairedTransport {
 
 const cfg: McpConfig = { host: "http://h", token: "hnm_agt_secret", readOnly: false, maxBytes: 24576, problems: [] };
 const tick = () => new Promise((r) => setTimeout(r, 40));
-const okCall = () => vi.fn(async (): Promise<CallResult> => ({ ok: true, body: { items: [], total: 0, page: 1, pageSize: 20 } }));
+type CallArgs = Parameters<Caller>;
+const okCall = () =>
+  vi.fn(async (..._a: CallArgs): Promise<CallResult> => ({ ok: true, body: { items: [], total: 0, page: 1, pageSize: 20 } }));
 
 async function boot(over: Partial<McpConfig> = {}, call = okCall()) {
   const t = new PairedTransport();

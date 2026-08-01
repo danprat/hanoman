@@ -25,7 +25,11 @@ export function buildMcpServer(cfg: McpConfig, call: Caller, cliVersion: string)
           : tool.description,
         inputSchema: fromJsonSchema(tool.inputSchema as never),
       },
-      async (args: Record<string, unknown>) => {
+      // `fromJsonSchema` menyerahkan argumen bertipe `unknown` — validasinya sudah dijalankan SDK
+      // terhadap skema di katalog sebelum handler ini dipanggil, jadi penyempitannya di sini murni
+      // urusan tipe, bukan gerbang keamanan yang hilang.
+      async (raw: unknown) => {
+        const args = (raw ?? {}) as Record<string, unknown>;
         if (tool.name === "hanoman_about") {
           return text(renderResult({
             host: cfg.host || "(belum diisi)",
