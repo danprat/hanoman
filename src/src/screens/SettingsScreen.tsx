@@ -739,6 +739,33 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
       const inherited = agent === "codex"
         ? { agent: "codex" as const, model: codex.model, effort: codex.effort }
         : { agent: "claude" as const, model: s.model, effort: s.effort };
+      // SPEC-488 · blok `Setting.lead.engine` — agen yang MENJALANKAN hanoman-lead. `?? LEAD_DEFAULTS`
+      // sama alasannya dengan `?? CONFLICT_DEFAULTS`: respons GET /settings yang ter-cache dari
+      // instance lama belum punya kuncinya, dan layar tak boleh mati `undefined.engine`.
+      const lead = s.lead ?? LEAD_DEFAULTS;
+      const engine = lead.engine ?? LEAD_DEFAULTS.engine;
+      // Kartu ini menulis lewat PUT /lead/config, BUKAN `save()` (PUT /settings) seperti kartu
+      // konflik — dan itu perbedaan sadar. `persist()` mengirim SELURUH objek Setting dari snapshot
+      // yang dimuat sekali saat mount, sementara blok `lead` punya penulis KEDUA: LeadScreen
+      // (rem darurat Pause, denyut, batas waktu, opt-in per project). Urutan "buka Settings →
+      // tekan Pause di layar Lead → ganti model lead di Settings" akan mengembalikan `paused` ke
+      // nilai snapshot, yakni rem darurat yang lepas sendiri tanpa satu pun klik yang mengatakannya.
+      // Karena itu: baca blok lead SEGAR, tempel `engine`-nya, tulis balik lewat endpoint lead.
+      const saveEngine = async (patch: Partial<Setting["lead"]["engine"]>, msg: string) => {
+        const prev = lead;
+        setS({ ...s, lead: { ...lead, engine: { ...engine, ...patch } } });   // optimistis
+        try {
+          const fresh = await api.getLeadConfig();
+          const saved = await api.putLeadConfig({
+            ...fresh, engine: { ...(fresh.engine ?? LEAD_DEFAULTS.engine), ...patch },
+          });
+          setS((p) => (p ? { ...p, lead: saved } : p));
+          onToast?.(msg, "ok", "check-circle-2");
+        } catch {
+          setS((p) => (p ? { ...p, lead: prev } : p));
+          onToast?.("Gagal menyimpan setelan lead", "err", "alert-triangle");
+        }
+      };
       return (
       <>
       {/* SPEC-338 · ADR-0074 · mesin sesi default. Berlaku untuk SEMUA sesi yang men-spawn agen
@@ -852,6 +879,65 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
                   ? codexEfforts(conflict.model).map((v) => ({ value: v, label: v }))
                   : S_EFFORT}
                 onChange={(e) => saveConflict({ effort: e.target.value }, "Effort konflik → " + e.target.value)} />
+            </SettingRow>
+          </>
+        )}
+      </Card>
+      {/* SPEC-488 · agen yang MENJALANKAN hanoman-lead. Bloknya (`Setting.lead.engine`) ada sejak
+          SPEC-409/ADR-0091 tapi tak pernah punya permukaan operator — satu-satunya jalan
+          menyetelnya adalah `curl PUT /api/lead/config` dengan blok `Lead` utuh dirakit tangan.
+          Opt-in seperti kartu konflik: mati = lead memakai default global di atas. */}
+      <Card eyebrow="lead" title="Agen hanoman-lead">
+        <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.5 }}>
+          Mesin yang menjalankan agen pemimpin — panggilan sekali-jalan non-interaktif yang membaca
+          docs, plan, kode, dan riwayat git sebelum memutuskan. Berlaku untuk ketiga pintu lead
+          (kontrak, deteksi otomatis, denyut) dan dipakai putusan berikutnya, tanpa restart. Rem
+          darurat, denyut, dan opt-in per project tetap diurus di layar <b>Lead</b>.
+        </div>
+        <SettingRow title="Pakai setelan sendiri"
+          desc="Mati = ikut default global di atas. Hidup = lead memakai pilihan di bawah.">
+          <Switch aria-label="Override agen lead" checked={engine.enabled}
+            onChange={(v: boolean) => saveEngine({ enabled: v },
+              "Setelan lead" + (v ? " · aktif" : " · ikut default global"))} />
+        </SettingRow>
+        {!engine.enabled ? (
+          <div data-testid="lead-engine-inherited" style={{ fontSize: 12.5, color: "var(--text-muted)", padding: "12px 0 2px", lineHeight: 1.5 }}>
+            hanoman-lead memakai default global: <b>{AGENT_LABEL[inherited.agent]}</b> ·{" "}
+            <code>{inherited.model}</code> · <code>{inherited.effort}</code>.
+          </div>
+        ) : (
+          <>
+            <SettingRow title="Runtime" desc="Mesin yang menjalankan lead. Bisa beda dari agen sesi kerja.">
+              <Select size="sm" aria-label="Runtime lead" value={engine.agent} style={{ width: 190 }}
+                options={[{ value: "claude", label: AGENT_LABEL.claude }, { value: "codex", label: AGENT_LABEL.codex }]}
+                onChange={(e) => {
+                  // Cermin `pickAgent`/kartu konflik: menukar runtime HARUS menukar model+effort
+                  // sekalian, kalau tidak lead lahir dengan `codex -m claude-opus-5`.
+                  const a = e.target.value as "claude" | "codex";
+                  const d = a === "codex" ? codex : { model: s.model, effort: s.effort };
+                  saveEngine({ agent: a, model: d.model,
+                    effort: a === "codex" ? coerceCodexEffort(d.model, d.effort) : d.effort },
+                    "Runtime lead → " + a);
+                }} />
+            </SettingRow>
+            {engine.agent === "codex" && codexNote(engine.model)}
+            <SettingRow title="Model">
+              <Select size="sm" aria-label="Model lead" value={engine.model} style={{ width: 190 }}
+                options={engine.agent === "codex" ? codexOptions(engine.model) : S_MODELS}
+                onChange={(e) => {
+                  const model = e.target.value;
+                  saveEngine({ model, ...(engine.agent === "codex"
+                    ? { effort: coerceCodexEffort(model, engine.effort) } : {}) },
+                    "Model lead → " + model);
+                }} />
+            </SettingRow>
+            <SettingRow title="Effort" last
+              desc="Putusan lead menuntut membaca bukti — SoT, ADR, plan, kode, riwayat git. Effort rendah memangkas kedalamannya.">
+              <Select size="sm" aria-label="Effort lead" value={engine.effort} style={{ width: 130 }}
+                options={engine.agent === "codex"
+                  ? codexEfforts(engine.model).map((v) => ({ value: v, label: v }))
+                  : S_EFFORT}
+                onChange={(e) => saveEngine({ effort: e.target.value }, "Effort lead → " + e.target.value)} />
             </SettingRow>
           </>
         )}
