@@ -46,7 +46,7 @@ tmux/node-pty.
 | `shared/src/entities.ts` (M) | `zLead.flowTtlMin` |
 | `shared/src/api.ts` (M) | path `leadFlows`, `leadFlowSubmit`, `leadFlowCancel` |
 | `server/prisma/schema.prisma` (M) | model `LeadFlow`; `LeadDecision.flowId/step/choices/select` |
-| `server/prisma/migrations/20260801230000_lead_flow/migration.sql` (C) | tabel + kolom aditif |
+| `server/prisma/migrations/20260801234500_lead_flow/migration.sql` (C) | tabel + kolom aditif |
 | `cli/src/commands/migrate-pg.ts` (M) | `LeadFlow` masuk `PG_ORDER` |
 | `server/src/services/lead/flow.ts` (C) | daur hidup alur: `openFlow`/`joinFlow`/`markFlowStep`/`closeFlow`/`expireFlows`/`toFlowView` + `LeadFlowClosedError` |
 | `server/src/services/lead/decide.ts` (M) | resolusi pilihan jamak, validasi, pemasangan alur |
@@ -371,7 +371,7 @@ git commit -m "feat(485): kosakata pilihan jamak + status rantai di shared (ADR-
 
 **Files:**
 - Modify: `server/prisma/schema.prisma`
-- Create: `server/prisma/migrations/20260801230000_lead_flow/migration.sql`
+- Create: `server/prisma/migrations/20260801234500_lead_flow/migration.sql`
 - Modify: `cli/src/commands/migrate-pg.ts`
 - Test: `server/test/lead-flow-schema.test.ts` (baru)
 
@@ -467,7 +467,7 @@ Di dalam `model LeadDecision`, setelah baris `missing`:
 
 - [x] **Step 4: Tulis migration tangan**
 
-`server/prisma/migrations/20260801230000_lead_flow/migration.sql`:
+`server/prisma/migrations/20260801234500_lead_flow/migration.sql`:
 
 ```sql
 -- SPEC-485 · ADR-0102 · rantai keputusan lead + pilihan jamak.
