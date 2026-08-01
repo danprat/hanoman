@@ -1204,7 +1204,7 @@ git commit -m "docs(493): ADR-0104 indikator typing + long-poll adaptif, api-con
 - Consumes: seluruh Task 1-5
 - Produces: —
 
-- [ ] **Step 1: Jalankan seluruh test yang tersentuh, sekali, serial**
+- [x] **Step 1: Jalankan seluruh test yang tersentuh, sekali, serial**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-493
@@ -1229,7 +1229,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism --dir serve
 Harapan: **semua LULUS**, nol berkas "no test files". Jangan menerima `passWithNoTests` sebagai
 bukti — hitung jumlah berkas yang benar-benar berjalan (harus 14).
 
-- [ ] **Step 2: Typecheck paket server**
+- [x] **Step 2: Typecheck paket server**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-493
@@ -1238,7 +1238,7 @@ pnpm --filter ./server typecheck
 
 Harapan: keluar tanpa error. **Jangan** `pnpm -r typecheck`.
 
-- [ ] **Step 3: Smoke runtime — server hidup & gateway tak merusak boot**
+- [x] **Step 3: Smoke runtime — server hidup & gateway tak merusak boot**
 
 Perubahan ini menyentuh perilaku runtime gateway (loop yang dijalankan `server.ts`), jadi sekali di
 akhir buktikan server benar-benar boot dan permukaan Telegram menjawab. **Pakai DB khusus dan port
@@ -1247,15 +1247,23 @@ non-8787** (mesin ini menjalankan sesi lain):
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-493
 SMOKE_HOME="$(mktemp -d)"
-HANOMAN_HOME="$SMOKE_HOME" npx prisma migrate deploy --schema server/prisma/schema.prisma
-HANOMAN_HOME="$SMOKE_HOME" PORT=8811 npx tsx server/src/server.ts &
+HANOMAN_HOME="$SMOKE_HOME" DATABASE_URL="file:$SMOKE_HOME/hanoman.db" \
+  ./server/node_modules/.bin/prisma migrate deploy --schema server/prisma/schema.prisma
+env -u NODE_ENV HANOMAN_HOME="$SMOKE_HOME" DATABASE_URL="file:$SMOKE_HOME/hanoman.db" PORT=8811 \
+  ./cli/node_modules/.bin/tsx server/src/server.ts > /tmp/spec493-smoke.log 2>&1 &
 sleep 6
-curl -s -o /dev/null -w "health=%{http_code}\n" http://127.0.0.1:8811/health
+curl -s -o /dev/null -w "api-health=%{http_code}\n" http://127.0.0.1:8811/api/health
 curl -s -o /dev/null -w "telegram-status=%{http_code}\n" http://127.0.0.1:8811/api/telegram/status
+curl -s -o /dev/null -w "agent-doc=%{http_code}\n" http://127.0.0.1:8811/api/agent-integration.md
 ```
 
-Harapan: `health=200` dan `telegram-status=401` (tanpa cookie auth — 401 adalah **bukti gate hidup**,
-bukan kegagalan). Bunuh **per-PID**:
+> `prisma`/`tsx` dipanggil dari `node_modules` paket, **bukan `npx`**: `npx prisma` mengunduh
+> Prisma **7** yang menolak schema ini, dan `npx tsx` di repo ini mencari script npm bernama `tsx`.
+
+Harapan: `api-health=200` (health duduk di bawah prefix `/api`), `telegram-status=401` (tanpa cookie
+auth — 401 adalah **bukti gate hidup**, bukan kegagalan), dan `agent-doc=200`. Boot yang berhasil
+sekaligus membuktikan **tak ada siklus import** di rantai baru `gateway → typing → client` dan
+`store → protocol`. Bunuh **per-PID**:
 
 ```bash
 lsof -ti:8811 | xargs -r kill
@@ -1263,7 +1271,7 @@ lsof -ti:8811 | xargs -r kill
 
 **JANGAN** `pkill -f node` / `pkill -f tsx` — itu membunuh agen sesi tetangga.
 
-- [ ] **Step 4: Enumerasi ulang nomor ADR tepat sebelum push**
+- [x] **Step 4: Enumerasi ulang nomor ADR tepat sebelum push**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman
@@ -1280,7 +1288,7 @@ berikutnya dan perbarui **seluruh** rujukannya (`internal/docs/README.md`,
 `internal/docs/adr/README.md`, `api-contract.md`, `SKILL.md`, kedua dokumen di
 `docs/superpowers/`, dan komentar `gateway.ts`/`typing.ts`).
 
-- [ ] **Step 5: Pastikan worktree bersih lalu push**
+- [x] **Step 5: Pastikan worktree bersih lalu push**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-493
