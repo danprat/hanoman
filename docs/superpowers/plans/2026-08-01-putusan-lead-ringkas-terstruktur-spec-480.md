@@ -1378,21 +1378,21 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: seluruh task di atas.
 - Produces: bukti hijau sebelum push.
 
-- [ ] **Step 1: Jalankan test yang tersentuh perubahan**
+- [x] **Step 1: Jalankan test yang tersentuh perubahan**
 
 ```bash
 ./node_modules/.bin/vitest --run --changed "$HANOMAN_BASE_SHA" --no-file-parallelism
 ```
 Expected: PASS. **Jebakan:** `--changed` menyalakan `passWithNoTests` — baca jumlah berkas & test yang benar-benar berjalan; "no test files" **bukan** bukti.
 
-- [ ] **Step 2: Typecheck paket yang tersentuh saja**
+- [x] **Step 2: Typecheck paket yang tersentuh saja**
 
 ```bash
 pnpm --filter ./shared typecheck && pnpm --filter ./server typecheck && pnpm --filter ./src typecheck
 ```
 Expected: ketiganya keluar tanpa error. (`pnpm -r typecheck` **dilarang** — satu tsc per paket sekaligus di mesin yang menjalankan beberapa sesi.)
 
-- [ ] **Step 3: Uji endpoint sungguhan sekali di akhir**
+- [x] **Step 3: Uji endpoint sungguhan sekali di akhir**
 
 Task ini menyentuh `POST /api/lead/decisions`, jadi endpointnya diuji nyata sekali:
 
@@ -1407,14 +1407,14 @@ kill %1
 ```
 Expected: server boot tanpa error migrasi (kolom baru terpasang) dan endpoint menjawab `409 lead tidak aktif` — membuktikan rute & skema hidup tanpa membakar giliran agen. Bila lead dinyalakan, balasan `201` memuat `choice`.
 
-- [ ] **Step 4: Pastikan plan ini tak menyisakan kotak**
+- [x] **Step 4: Pastikan plan ini tak menyisakan kotak**
 
 ```bash
 grep -c '^- \[ \]' docs/superpowers/plans/2026-08-01-putusan-lead-ringkas-terstruktur-spec-480.md
 ```
 Expected: `0`.
 
-- [ ] **Step 5: Commit sisa & push**
+- [x] **Step 5: Commit sisa & push**
 
 ```bash
 git status --porcelain
