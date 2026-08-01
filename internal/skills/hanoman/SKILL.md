@@ -517,6 +517,41 @@ Pakai skill lebih sempit saat task cocok:
   Dialog **tanpa tab strip** (trust, prompt izin) tetap tak disentuh: di sana `Enter` = baris 1 =
   "ya". Pintu override operator (`POST /lead/decisions/:id/override`) ikut sembuh lewat
   `sendToPane` yang sama, dan sengaja **tak** mengosongkan marker → sisa rantai dilanjutkan lead.
+- **Lead punya BATAS KONKURENSI, dan batas itu harus dinyatakan** (SPEC-479, tanpa ADR — QA;
+  ADR-0091 ditegakkan, ADR-0024 & ADR-0039 utuh): sebelum spec ini **tak ada satu pun** batas
+  konkurensi di subsistem lead — bukan salah setel, ia tak ada. Karena tak dinyatakan, jawabannya
+  jatuh ke **bentuk kode masing-masing pintu**, dan hasilnya dua kelakuan berlawanan yang sama-sama
+  kebetulan: pintu deteksi `for (const s of sessions) { await … }` → **serial mutlak** (terukur
+  `maxInFlight = 1`, tangga tunggu **0/204/407/614/832/1035 ms** untuk 6 sesi; head-of-line: dua
+  keputusan 20 ms selesai di 1028 & 1053 ms di belakang satu keputusan 1000 ms), sementara
+  `POST /lead/decisions` tanpa pengereman apa pun → **12 permintaan bersamaan = 12 proses
+  `claude -p --effort xhigh`** (terukur) di mesin 8 GB / 8 core yang sudah menanggung sesi pekerja.
+  Jejak nyata membenarkan bentuk serialnya: **jarak minimum 49,2 dtk, nol pasangan tumpang tindih**
+  di 18 baris `LeadDecision`. Dengan `timeoutSec` 600 × `MAX_CHAIN_STEPS` 6 satu sesi berantai boleh
+  memegang pintu deteksi **60,6 menit** sendirian sementara `busyDetect` memulangkan tiap tick 5 dtk,
+  snapshot sesinya diambil **sekali** di awal loop, dan urutan `tmux list-panes -a` **stabil** →
+  ekor daftar selalu di ekor: **kelaparan yang bisa direproduksi**, bukan antrean lambat. M1 (median
+  ≤ 2 mnt) pecah di **N=5** pada keputusan tercepat terukur dan **N=2** pada anggaran penuh.
+  Perbaikannya satu gerbang penerimaan **FIFO** (`services/lead/gate.ts`, kapasitas
+  `lead.maxConcurrent` default **2**, deadline `lead.queueWaitSec` default **120** — keduanya di
+  kolom `Json`, tanpa migration) dipasang di choke point yang **sudah tunggal**, `decide()`; FIFO
+  bukan gaya melainkan syarat, sebab gerbang "siapa cepat" di atas urutan tmux yang stabil
+  melaparkan ekor daftar persis seperti loop yang digantikannya. **Tiga aturan mengikat:**
+  (1) **penuh ≠ gagal** — `LeadBusyError` tak menulis baris jejak dan tak menambah `failures`
+  (pagar SPEC-472 dibuat untuk sebab yang **tak hilang dengan mengulang**; penuh hilang begitu slot
+  bebas, dan menghitungnya membuat tiga lonjakan beban menutup sesi itu **selamanya** karena
+  `failCapped` adalah keadaan **menyerap** — terukur **0 percobaan baru dalam 10 denyut** sesudah
+  bebannya hilang); (2) pintu kontrak menjawab **503 + `Retry-After` + `retryable:true`**, sengaja
+  bukan 409 (lead mati) maupun 504 (sudah mencoba) — keduanya menyuruh peminta menyerah;
+  (3) fan-out pintu deteksi tetap **berbatas** oleh angka yang sama, sebab satu rantai mem-*poll*
+  `capturePane` sampai 20×/langkah dan `tmux()` memakai `execFileSync` yang membekukan event loop
+  **6,28 ms/panggilan** — fan-out tanpa batas menukar kelaparan dengan server tersendat. Hipotesis
+  yang **terbantah** & jangan "diperbaiki": `timeoutSec` 600 > `requestTimeout` Node 300 dtk tidak
+  memutus peminta — **Fastify menyetelnya 0** (terukur dari `buildApp()`), jadi satu-satunya batas
+  tunggu adalah yang kita pasang sendiri. Residu yang **sadar dibiarkan**: `busyDetect` masih
+  menutup pintu deteksi selama satu putaran berjalan, jadi penunggu baru menunggu putaran
+  berikutnya (kini hitungan menit, bukan puluhan menit) — mengubahnya menyentuh semantik
+  re-entrancy `engine.ts` (SPEC-432) dan pantas dapat spec sendiri.
 - **Scope verifikasi per sesi** (SPEC-376/ADR-0080): `verifyScope` (`changed` default | `full`) —
   knob `Setting.verifyScope` (kolom `Json`, **tanpa migration**) + override saat Start. Sesi
   `changed` menguji **berkas yang berubah saja**: `pnpm vitest --run --changed "$HANOMAN_BASE_SHA"`

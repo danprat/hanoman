@@ -1,4 +1,5 @@
 import { prisma } from "../../db";
+import type { LeadDecision } from "@prisma/client";
 import type { Lead, Scheduler } from "@hanoman/shared";
 import { listSessions, sessionFinished } from "../pty";
 import { planComplete } from "../session-phases";
@@ -10,6 +11,7 @@ import { getScheduler } from "../scheduler/config";
 import { recordLeadDecision } from "../notifications";
 import { getLead, leadActive, leadProjects } from "./config";
 import { decide, prodDecideDeps, type DecideDeps } from "./decide";
+import { LeadBusyError } from "./gate";
 import { applyAction } from "./apply";
 import { recordDecision } from "./trail";
 
@@ -101,6 +103,32 @@ export const prodPulseDeps: PulseDeps = {
 
 export type PulseResult = { ordered: number; collisions: number; quality: number };
 
+/**
+ * SPEC-479 (QA) · gerbang lead penuh → lewati pekerjaan INI saja, coba lagi denyut berikutnya.
+ *
+ * SATU definisi untuk keempat call site denyut, bukan empat `try/catch` yang sama — kelas bug
+ * SPEC-431/448/475, yang tiga kali lahir dari perilaku yang disalin alih-alih dibagi.
+ *
+ * `null` dipilih sengaja: keempat pemanggil sudah memperlakukan `null` sebagai "tak ada yang
+ * terjadi, lewati" (itu arti lead-tak-aktif sejak ADR-0091), dan penuh menuntut penanganan yang
+ * persis sama. Melempar ke atas terlihat setara — `pulse()` membungkus tiap sub-pintu dengan
+ * try/catch — tapi tidak: galat yang lolos membatalkan SISA sesi di sub-pintu itu, yaitu
+ * head-of-line yang sama yang sedang diperbaiki, hanya lebih kecil.
+ *
+ * Yang penting ia TIDAK menulis baris jejak: idempotensi denyut memakai jejak (SPEC-432), jadi
+ * baris untuk permintaan yang belum pernah sampai ke agen akan membuat sesi itu dianggap sudah
+ * diputuskan dan pertanyaannya hilang selamanya.
+ */
+async function decideOrSkip(
+  deps: PulseDeps, req: Parameters<typeof decide>[0],
+): Promise<LeadDecision | null> {
+  try { return await deps.decide(req, deps.decideDeps); }
+  catch (e) {
+    if (e instanceof LeadBusyError) return null;
+    throw e;
+  }
+}
+
 // OQ-2 · jangan membakar kuota saat tak ada yang berubah: satu putusan penataan hanya lahir saat
 // himpunan backlog siap-kerja BERBEDA dari yang terakhir ditata. In-memory & sengaja begitu —
 // setelah restart satu penataan ulang jauh lebih murah daripada kolom DB untuk nilai turunan.
@@ -160,7 +188,7 @@ async function followUpFinished(cfg: Lead, optIn: string[], deps: PulseDeps): Pr
     if (seen) continue;
     const why = [bad ? `berakhir dengan kode keluar ${s.exitCode}` : null,
       unfinished ? "plan-nya masih menyisakan kotak `- [ ]`" : null].filter(Boolean).join(" dan ");
-    const row = await deps.decide({
+    const row = await decideOrSkip(deps, {
       projectId: s.projectId, specId: s.specId, sessionId: s.id,
       gate: "pulse", kind: "quality",
       question: `${mark} ${why}. Tindak lanjutnya apa: lanjutkan pekerjaan yang terputus, ulangi dari awal, atau hentikan?`,
@@ -170,7 +198,7 @@ async function followUpFinished(cfg: Lead, optIn: string[], deps: PulseDeps): Pr
         "none — terima apa adanya, sertakan alasannya",
       ],
       notes: [`Worktree sesi: ${s.cwd}`],
-    }, deps.decideDeps);
+    });
     if (!row) continue;
     n++;
     // Lead memutuskan LALU melapor — tindak lanjutnya dijalankan di sini, bukan menunggu operator
@@ -231,7 +259,7 @@ async function followUpComplete(optIn: string[], deps: PulseDeps): Promise<numbe
       where: { sessionId: s.id, gate: "pulse", question: { startsWith: mark } },
     });
     if (seen) continue;
-    const row = await deps.decide({
+    const row = await decideOrSkip(deps, {
       projectId: s.projectId, specId: s.specId, sessionId: s.id,
       gate: "pulse", kind: "quality",
       question: `${mark}: seluruh fasenya tercatat dan plan-nya tak menyisakan kotak \`- [ ]\`. Selama sesinya belum dilepas, ia memegang satu slot concurrency scheduler sehingga backlog lain tak bisa mulai. Integrasikan hasilnya ke main, hentikan sesinya saja, atau biarkan?`,
@@ -247,7 +275,7 @@ async function followUpComplete(optIn: string[], deps: PulseDeps): Promise<numbe
         // prompt lead sendiri. Rebase tetap tindakan operator lewat POST /specs/:id/integrate.
         "Rebase tidak tersedia untukmu; bila hasilnya menuntut rebase, pilih `none` dan katakan begitu.",
       ],
-    }, deps.decideDeps);
+    });
     if (!row) continue;
     n++;
     if (row.status === "berlaku" && row.action !== "none") {
@@ -277,7 +305,7 @@ async function detectCollisions(optIn: string[], deps: PulseDeps): Promise<numbe
       where: { gate: "pulse", question: { contains: key } },
     });
     if (seen) continue;
-    const row = await deps.decide({
+    const row = await decideOrSkip(deps, {
       projectId: c.a.projectId, specId: c.a.specId, sessionId: c.a.sessionId,
       gate: "pulse", kind: "collision",
       question: `Dua pekerjaan menyentuh area yang sama [${key}]: ${c.a.specId} dan ${c.b.specId}. Tunda salah satu, gabungkan, atau biarkan?`,
@@ -289,7 +317,7 @@ async function detectCollisions(optIn: string[], deps: PulseDeps): Promise<numbe
         c.shared.length ? `Berkas yang sama: ${c.shared.slice(0, 20).join(", ")}` : "",
         c.nearby.length ? `Modul yang sama: ${c.nearby.slice(0, 20).join(", ")}` : "",
       ].filter(Boolean),
-    }, deps.decideDeps);
+    });
     if (row) n++;
   }
   return n;
@@ -361,13 +389,13 @@ async function orderProject(projectId: string, deps: PulseDeps): Promise<number>
   if (sig === lastReadySig.get(projectId)) return 0;   // tak berubah → tak ada giliran lead terpakai
   lastReadySig.set(projectId, sig);
 
-  const row = await deps.decide({
+  const row = await decideOrSkip(deps, {
     projectId,
     gate: "pulse", kind: "order",
     question: `Ada ${pending.length} backlog siap dikerjakan. Urutkan mana yang lebih dulu berdasarkan isi pekerjaannya, lalu tuliskan urutan id-nya (dipisah koma) di \`decision\`.`,
     options: pending.map((r) => `${r.id} · [${r.priority}] ${r.title}`),
     notes: pending.map((r) => `${r.id}: ${r.objective.slice(0, 200)}`),
-  }, deps.decideDeps);
+  });
   if (!row || row.status !== "berlaku") return 0;
 
   // Urutan dibaca dari jawabannya; id yang tak dikenal diabaikan, dan sisa yang tak disebut lead

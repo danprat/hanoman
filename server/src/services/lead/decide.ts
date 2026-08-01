@@ -12,7 +12,8 @@ import { leadPrompt, type LeadContext } from "./prompt";
 import { parseLeadVerdict, keepExistingRefs } from "./verdict";
 import { recordDecision } from "./trail";
 import { think as thinkProd } from "./brain";
-import { markDeciding, clearDeciding } from "./deciding";
+import { markDeciding, clearDeciding, markQueued, clearQueued } from "./deciding";
+import { runGated, LeadBusyError } from "./gate";
 
 // SPEC-409 · ADR-0091 · SATU otak, dua pintu (G6). Baik kontrak eksplisit (pintu #1) maupun deteksi
 // otomatis (pintu #2) maupun denyut proaktif (pintu #3) lewat `decide()` — jadi hanya ada satu
@@ -104,14 +105,33 @@ export async function decide(req: DecideRequest, deps: DecideDeps = prodDecideDe
   const { agent, model, effort } = await deps.defaults();
   const prompt = leadPrompt({ kind: req.kind, question: req.question, options: req.options }, ctx);
 
-  if (req.sessionId) markDeciding(req.sessionId);
+  // SPEC-479 (QA) · GERBANG KONKURENSI. Ia duduk di sini dan hanya di sini: `decide()` sudah jadi
+  // choke point tunggal ketiga pintu (ADR-0091 G6), jadi satu gerbang di atasnya menggantikan tiga
+  // batas yang tak pernah dinyatakan. Menyalinnya ke tiap pintu adalah kelas bug SPEC-431/448/475.
+  //
+  // Yang dibungkus HANYA panggilan agennya, bukan pengumpulan buktinya di atas: bukti itu beberapa
+  // query SQLite, sementara slot yang mahal adalah proses `claude -p`. Mengunci slot selama query
+  // berjalan hanya memperkecil kapasitas tanpa menghemat apa pun.
+  if (req.sessionId) markQueued(req.sessionId);
   let raw: string;
   try {
-    raw = await deps.think(prompt, { agent, model, effort, cwd: repoDir ?? undefined, timeoutMs: cfg.timeoutSec * 1000 });
+    raw = await runGated({ capacity: cfg.maxConcurrent, waitMs: cfg.queueWaitSec * 1000 }, async () => {
+      if (req.sessionId) { clearQueued(req.sessionId); markDeciding(req.sessionId); }
+      try {
+        return await deps.think(prompt, { agent, model, effort, cwd: repoDir ?? undefined, timeoutMs: cfg.timeoutSec * 1000 });
+      } finally {
+        if (req.sessionId) clearDeciding(req.sessionId);
+      }
+    });
   } catch (e) {
+    // `LeadBusyError` DILEWATKAN apa adanya — ia bukan kegagalan lead melainkan backpressure, dan
+    // menuliskannya sebagai baris `gagal` justru membangun kembali cacat C: pagar SPEC-472 akan
+    // membacanya sebagai sebab permanen lalu menutup sesi itu selamanya lewat `failCapped`. Enam
+    // call site menanganinya sendiri-sendiri; lihat komentar masing-masing.
+    if (e instanceof LeadBusyError) throw e;
     return fail(req, deps, `lead tak menghasilkan keputusan: ${(e as Error).message}`);
   } finally {
-    if (req.sessionId) clearDeciding(req.sessionId);
+    if (req.sessionId) clearQueued(req.sessionId);
   }
 
   const verdict = parseLeadVerdict(raw);

@@ -3,6 +3,7 @@ import { prisma } from "../src/db";
 import { LEAD_DEFAULTS, SCHEDULER_DEFAULTS, type Lead } from "@hanoman/shared";
 import { pulse, findCollisions, __resetPulse, type PulseDeps, type WorkArea } from "../src/services/lead/pulse";
 import { recordDecision } from "../src/services/lead/trail";
+import { LeadBusyError } from "../src/services/lead/gate";
 
 // SPEC-409 · ADR-0091 · pintu #3 (denyut proaktif): mutu hasil, tabrakan area kerja, urutan kerja.
 
@@ -472,5 +473,67 @@ describe("pulse · tabrakan (AC-14)", () => {
       areas: async (s) => (s.specId === "spec-1" ? ["server/src/x.ts"] : ["src/src/y.tsx"]),
     });
     expect((await pulse(h.deps)).collisions).toBe(0);
+  });
+});
+
+// SPEC-479 (QA) · denyut proaktif berbagi gerbang konkurensi yang sama dengan dua pintu lain.
+// Ia berjalan BERBARENGAN dengan pintu deteksi (`engine.ts` menjalankan keduanya dalam satu
+// `Promise.all`, penjaga re-entrancy terpisah sejak SPEC-432), jadi tanpa gerbang bersama ia
+// menambah beban tanpa masuk hitungan siapa pun.
+describe("pulse · gerbang penuh (SPEC-479)", () => {
+  const failed = [{ id: "s1", projectId: "demo", specId: "spec-1", cwd: "/wt", exited: true, exitCode: 1 }];
+
+  it("melewati pekerjaan saat gerbang penuh, tanpa menjatuhkan denyutnya", async () => {
+    const h = harness({
+      sessions: () => failed,
+      decide: (async () => { throw new LeadBusyError(120_000, 3); }) as unknown as PulseDeps["decide"],
+    });
+    const r = await pulse(h.deps);
+    expect(r.quality).toBe(0);
+    expect(await prisma.leadDecision.count()).toBe(0);   // tak ada jejak menyesatkan
+  });
+
+  it("penuh untuk SATU sesi tak membatalkan sesi lain di pintu yang sama", async () => {
+    // `pulse()` membungkus tiap sub-pintu dengan try/catch, jadi galat yang lolos dari satu sesi
+    // MEMBATALKAN sisa sesi di sub-pintu itu — head-of-line yang sama, hanya lebih kecil. Yang
+    // penuh cuma satu slot, bukan seluruh denyut.
+    const dua = [
+      { id: "s1", projectId: "demo", specId: "spec-1", cwd: "/wt1", exited: true, exitCode: 1 },
+      { id: "s2", projectId: "demo", specId: "spec-2", cwd: "/wt2", exited: true, exitCode: 1 },
+    ];
+    const h = harness({
+      sessions: () => dua,
+      decide: (async (req: { projectId: string; specId?: string | null; sessionId?: string | null; question: string }) => {
+        if (req.sessionId === "s1") throw new LeadBusyError(120_000, 1);
+        return recordDecision({
+          projectId: req.projectId, specId: req.specId, sessionId: req.sessionId,
+          gate: "pulse", kind: "quality", question: req.question,
+          answer: "resume-session", reason: "r", refs: [], confidence: "tinggi", action: "none",
+        });
+      }) as unknown as PulseDeps["decide"],
+    });
+    expect((await pulse(h.deps)).quality).toBe(1);
+    expect(await prisma.leadDecision.count({ where: { sessionId: "s2" } })).toBe(1);
+  });
+
+  it("mencoba lagi denyut berikutnya — penuh tak boleh jadi keputusan yang sudah 'pernah ditanyakan'", async () => {
+    // Idempotensi denyut memakai JEJAK (SPEC-432). Kalau penuh sampai menulis baris, sesi ini akan
+    // dianggap sudah diputuskan dan pertanyaannya HILANG selamanya — persis "permintaan yang
+    // hilang" yang diminta keluhan untuk dihapus.
+    let penuh = true;
+    const h = harness({
+      sessions: () => failed,
+      decide: (async (req: { projectId: string; specId?: string | null; sessionId?: string | null; kind: string; question: string }) => {
+        if (penuh) throw new LeadBusyError(120_000, 3);
+        return recordDecision({
+          projectId: req.projectId, specId: req.specId, sessionId: req.sessionId,
+          gate: "pulse", kind: "quality", question: req.question,
+          answer: "resume-session", reason: "r", refs: [], confidence: "tinggi", action: "none",
+        });
+      }) as unknown as PulseDeps["decide"],
+    });
+    expect((await pulse(h.deps)).quality).toBe(0);
+    penuh = false;
+    expect((await pulse(h.deps)).quality).toBe(1);
   });
 });

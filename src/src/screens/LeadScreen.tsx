@@ -249,6 +249,10 @@ export function LeadScreen({ projects, onProjectChanged, onToast, onGotoTerminal
   const optIn = new Set(state.projects.map((p) => p.projectId));
   const waiting = state.waiting;
   const deciding = new Set(state.deciding);
+  // SPEC-479 · `queued`/`gate` punya default di `zLeadStatusView`, tapi respons instance lama
+  // (atau hub yang belum di-update) tetap bisa datang tanpa keduanya — jangan andalkan zod di sini.
+  const queued = new Set(state.queued ?? []);
+  const gate = state.gate ?? { inFlight: 0, queued: 0, capacity: 1 };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, minHeight: 0 }}>
@@ -284,16 +288,30 @@ export function LeadScreen({ projects, onProjectChanged, onToast, onGotoTerminal
 
       <Section title="Sesi menunggu keputusan" count={waiting.length}
         empty="Tak ada sesi yang menunggu keputusan.">
-        {waiting.map((id) => (
-          <RowShell key={id}>
-            <Icon name={deciding.has(id) ? "loader" : "help-circle"} />
-            <span style={{ flex: 1, fontFamily: "var(--font-mono)", color: "var(--text-strong)" }}>{id}</span>
-            <Badge tone={deciding.has(id) ? "ok" : "warn"} size="sm">
-              {deciding.has(id) ? "sedang diputuskan" : "menunggu"}
-            </Badge>
-            <Button size="sm" variant="ghost" leftIcon="terminal" onClick={() => onGotoTerminal(id)}>Ambil alih</Button>
-          </RowShell>
-        ))}
+        {/* SPEC-479 · gerbang konkurensi. Ditampilkan hanya saat ia benar-benar mengikat: batas
+            yang diam tak perlu diumumkan, batas yang menahan antrean wajib. Tanpa baris ini
+            "lead sedang penuh" tak terbedakan dari "lead diam" — salah baca yang melahirkan
+            tiket SPEC-479. */}
+        {gate.queued > 0 && (
+          <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginBottom: 8 }}>
+            Gerbang lead: {gate.inFlight}/{gate.capacity} diputuskan · {gate.queued} antre menunggu slot.
+          </div>
+        )}
+        {waiting.map((id) => {
+          // TIGA keadaan, bukan dua. Di pane ketiganya terlihat sama — marker terisi, agen diam —
+          // tapi hanya "menunggu" yang benar-benar butuh manusia.
+          const state = deciding.has(id) ? "sedang diputuskan"
+            : queued.has(id) ? "antre"
+            : "menunggu";
+          return (
+            <RowShell key={id}>
+              <Icon name={state === "sedang diputuskan" ? "loader" : state === "antre" ? "clock" : "help-circle"} />
+              <span style={{ flex: 1, fontFamily: "var(--font-mono)", color: "var(--text-strong)" }}>{id}</span>
+              <Badge tone={state === "menunggu" ? "warn" : "ok"} size="sm">{state}</Badge>
+              <Button size="sm" variant="ghost" leftIcon="terminal" onClick={() => onGotoTerminal(id)}>Ambil alih</Button>
+            </RowShell>
+          );
+        })}
       </Section>
 
       <Card eyebrow="lead · jejak keputusan" title={`Keputusan (${decisions.length})`}

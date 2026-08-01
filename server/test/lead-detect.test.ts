@@ -4,6 +4,7 @@ import { LEAD_DEFAULTS, type Lead } from "@hanoman/shared";
 import type { LeadDecision } from "@prisma/client";
 import { scanAndAnswer, __resetDetect, resetSession, answerCount, failureCount, type DetectDeps } from "../src/services/lead/detect";
 import { recordDecision } from "../src/services/lead/trail";
+import { LeadBusyError } from "../src/services/lead/gate";
 
 // SPEC-409 · ADR-0091 · pintu #2 (deteksi otomatis). Semua deps disuntik: nol tmux, nol agen.
 
@@ -481,5 +482,95 @@ describe("scanAndAnswer · rantai dialog sampai submit (SPEC-474)", () => {
     expect(counter.n).toBe(1);
     expect(h.submits).toEqual([]);
     expect(cleared).toEqual(["/marker"]);
+  });
+});
+
+// SPEC-479 (QA) · pintu deteksi melayani sesi BERBARENGAN, berbatas.
+//
+// Sebelum ini loop-nya `for (const s of sessions) { await … }` — serial mutlak, terukur
+// `maxInFlight = 1` dengan tangga tunggu linier 0/204/407/614/832/1035 ms untuk 6 sesi. Karena
+// urutan `tmux list-panes -a` stabil, ekor daftar selalu di ekor: kelaparan yang bisa
+// direproduksi, bukan antrean yang kebetulan lambat.
+describe("SPEC-479 · banyak sesi menunggu bersamaan", () => {
+  const many = (n: number) => Array.from({ length: n }, (_, i) => ({
+    id: `s${i}`, specId: `spec-${i}`, projectId: "demo", decisionFile: `/marker-${i}`,
+  }));
+
+  it("melayani beberapa sesi sekaligus, dibatasi maxConcurrent", async () => {
+    let inFlight = 0, max = 0;
+    const h = harness({
+      live: () => many(6),
+      decide: (async (req: { question: string; projectId: string; specId?: string | null; sessionId?: string | null }) => {
+        inFlight++; max = Math.max(max, inFlight);
+        await new Promise((r) => setTimeout(r, 30));
+        inFlight--;
+        return recordDecision({
+          projectId: req.projectId, specId: req.specId, sessionId: req.sessionId,
+          gate: "detected", kind: "answer", question: req.question,
+          answer: "opsi 1", reason: "r", refs: [], confidence: "tinggi", action: "none",
+        });
+      }) as unknown as DetectDeps["decide"],
+    }, cfg({ maxConcurrent: 3 }));
+
+    const r = await scanAndAnswer(h.deps);
+    expect(r.answered.sort()).toEqual(["s0", "s1", "s2", "s3", "s4", "s5"]);
+    expect(max).toBe(3);          // bukan 1 (serial) dan bukan 6 (tanpa batas)
+  });
+
+  it("satu sesi lambat tak lagi menahan sesi di belakangnya (head-of-line)", async () => {
+    const done = new Map<string, number>();
+    const t0 = Date.now();
+    const h = harness({
+      live: () => [
+        { id: "lambat", specId: "spec-a", projectId: "demo", decisionFile: "/m0" },
+        { id: "cepat", specId: "spec-b", projectId: "demo", decisionFile: "/m1" },
+      ],
+      decide: (async (req: { question: string; projectId: string; specId?: string | null; sessionId?: string | null }) => {
+        await new Promise((r) => setTimeout(r, req.sessionId === "lambat" ? 300 : 10));
+        done.set(req.sessionId!, Date.now() - t0);
+        return recordDecision({
+          projectId: req.projectId, specId: req.specId, sessionId: req.sessionId,
+          gate: "detected", kind: "answer", question: req.question,
+          answer: "opsi 1", reason: "r", refs: [], confidence: "tinggi", action: "none",
+        });
+      }) as unknown as DetectDeps["decide"],
+    }, cfg({ maxConcurrent: 2 }));
+
+    await scanAndAnswer(h.deps);
+    // Sebelum perbaikan: `cepat` selesai SESUDAH `lambat` (terukur 1028 ms di belakang 1003 ms).
+    expect(done.get("cepat")!).toBeLessThan(done.get("lambat")!);
+  });
+
+  it("gerbang penuh BUKAN kegagalan lead: tak menambah penghitung, sesinya tetap layak dicoba lagi", async () => {
+    // Inti temuan C: `failures`/`failCapped` SPEC-472 dibuat untuk sebab yang tak hilang dengan
+    // mengulang. Penuh adalah kebalikannya — ia hilang begitu slot bebas. Menghitungnya membuat
+    // tiga lonjakan beban menutup lead bagi sesi itu SELAMANYA (keadaan menyerap, terukur).
+    let penuh = true;
+    let percobaan = 0;
+    const h = harness({
+      decide: (async (req: { question: string; projectId: string; specId?: string | null; sessionId?: string | null }) => {
+        percobaan++;
+        if (penuh) throw new LeadBusyError(120_000, 4);
+        return recordDecision({
+          projectId: req.projectId, specId: req.specId, sessionId: req.sessionId,
+          gate: "detected", kind: "answer", question: req.question,
+          answer: "opsi 1", reason: "r", refs: [], confidence: "tinggi", action: "none",
+        });
+      }) as unknown as DetectDeps["decide"],
+    });
+
+    for (let i = 0; i < 5; i++) {
+      const r = await scanAndAnswer(h.deps);
+      expect(r.answered).toEqual([]);
+      expect(r.skipped[0]!.reason).toContain("penuh");
+    }
+    expect(failureCount("s1")).toBe(0);
+    expect(await prisma.leadDecision.count()).toBe(0);   // tak ada jejak `gagal` yang menyesatkan
+
+    // Beban hilang → sesi yang sama langsung terlayani lagi, tanpa campur tangan operator.
+    penuh = false;
+    const r = await scanAndAnswer(h.deps);
+    expect(r.answered).toEqual(["s1"]);
+    expect(percobaan).toBe(6);
   });
 });
