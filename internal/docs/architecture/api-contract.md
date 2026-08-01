@@ -856,7 +856,29 @@ POST   /api/terminal/sessions/:id/steer { text }
 POST   /api/terminal/sessions/:id/interrupt
 ```
 
-Prefix `telegram` memakai capability `telegram:read|write` menurut method. Request dari identitas
+### Kredensial dari Settings (SPEC-477 · ADR-0097) — **COOKIE_ONLY**
+
+```text
+GET    /api/telegram/settings      → { fields: [{ key, label, help?, kind, source, hasValue, masked?, value? }] }
+PUT    /api/telegram/settings      { HANOMAN_TELEGRAM_BOT_TOKEN?, HANOMAN_TELEGRAM_AGENT_TOKEN?,
+                                     HANOMAN_TELEGRAM_ALLOWED_USER_IDS?, HANOMAN_TELEGRAM_TARGET_CHAT_ID? }
+POST   /api/telegram/test          → { ok: true, botUsername, chatId } | { ok: false, error }
+DELETE /api/telegram/credentials   → { cleared: string[], envFallback: string[] }
+```
+
+Keempat nilai adalah entri `CONFIG_REGISTRY` grup `telegram`, jadi resolvernya tetap **DB → env →
+default** (ADR-0049) dan `source` per field memberi tahu mana yang masih datang dari `.env`
+(deprecated). Nilai `kind: "secret"` disimpan **terenkripsi** di `RuntimeConfig` dan **tak pernah**
+dikembalikan utuh — hanya `masked` + `hasValue`. `PUT` menerima subset; secret bernilai string
+kosong = **pertahankan nilai lama**, dan seluruh patch divalidasi sebelum satu pun ditulis. `POST
+/telegram/test` memakai klien sekali pakai ber-timeout **10 detik** (tujuan = target chat id, atau
+satu-satunya id di allowlist) dan pesan galatnya sudah lewat redaksi token. `DELETE` hanya menghapus
+baris DB; bila `.env` lama masih terisi, resolver memakainya lagi — itu isi `envFallback`. Ketiga
+sub-path ini `COOKIE_ONLY`: agent token mana pun ditolak **403**, termasuk AgentToken gateway
+Telegram sendiri yang wajib memegang `settings:write`. Sama halnya, `PUT`/`DELETE /config` untuk
+entri berkategori `credential` menolak identitas agent token.
+
+Prefix `telegram` selebihnya memakai capability `telegram:read|write` menurut method. Request dari identitas
 `HANOMAN_TELEGRAM_AGENT_TOKEN` wajib membawa `x-hanoman-telegram-update`; reply body wajib cocok
 header dan update/chat binding. Aksi sulit dibatalkan juga wajib
 `x-hanoman-telegram-confirmation` approved yang cocok method/path dan dikonsumsi single-use.

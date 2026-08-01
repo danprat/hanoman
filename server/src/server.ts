@@ -64,11 +64,17 @@ app.listen({ port, host }).then(async () => {
   // SPEC-477 · ADR-0097 · WAJIB sebelum installTelegramGateway: gateway kini membaca kredensialnya
   // lewat resolver config, dan cache config yang masih kosong membuatnya diam-diam jatuh ke env
   // saja — kegagalan yang SENYAP dan tampak benar (gateway berperilaku persis seperti sebelumnya).
-  {
+  // Di-`await` tapi TIDAK boleh fatal: sebelum SPEC-477 ia fire-and-forget, jadi DB yang kedip di
+  // sini dulu hanya mencetak unhandledRejection. Membiarkannya melempar berarti `listen gagal` →
+  // `process.exit(1)` untuk seluruh orchestrator (cermin kebijakan "log, jangan crash" di atas).
+  // Degradasinya benar: tanpa cache config, gateway jatuh ke env — perilaku pra-SPEC-477.
+  try {
     const { loadConfig } = await import("./config");
     const { applyConfigOnBoot } = await import("./services/config-apply");
     await loadConfig();
     await applyConfigOnBoot();
+  } catch (e) {
+    console.error("config runtime gagal dimuat — memakai env/default:", e);
   }
   const boundPort = (app.server.address() as AddressInfo).port;
   await installTelegramGateway(app, { apiBase: `http://127.0.0.1:${boundPort}` });

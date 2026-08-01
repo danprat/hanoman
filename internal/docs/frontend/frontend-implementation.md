@@ -525,13 +525,24 @@ icon `inbox`; `NotificationBell` per-tipe (icon/warna brass, label "keluhan baru
 `notifTarget` → `{ section: "triage", projectFilter }`. Server menotifikasi **setiap** tiket baru (dedup `key`),
 tersiar lewat grup `notifications` WS existing.
 
-## Settings → Telegram (SPEC-476 · ADR-0096)
+## Settings → Telegram (SPEC-476 · ADR-0096 · kredensial SPEC-477 · ADR-0097)
 
 Tab Telegram memakai pola Settings existing: state loading/error tidak pernah jatuh ke default yang
-dapat menimpa setelan server. Kartu **Kendali & readiness** memuat toggle non-secret
-`Setting.telegram.enabled`, bot username, poller, allowlist count, capability readiness, offset/update
-terakhir, binding, pending/uncertain outbox, dan error terakhir. Kartu **Onboarding** mengeja tiga nama
-env dan alur membuat AgentToken; UI tidak punya input token dan tidak merender masked prefix/value.
+dapat menimpa setelan server. Tiga kartu:
+
+1. **Kredensial** — empat field dari `GET /api/telegram/settings`. Bot token & AgentToken
+   `type="password"` dengan **placeholder = nilai masked** (`••••` + 4 karakter terakhir), sehingga
+   kosong berarti "pertahankan yang lama" dan nilai utuh tak pernah dirender. Allowlist & Chat /
+   Channel ID target teks biasa. Tiap field diberi badge sumber: `tersimpan` (`source==="db"`),
+   `dari .env · deprecated` (`"env"`), `belum diisi` (`"default"`). Tombol **Simpan kredensial**
+   hanya mengirim field yang benar-benar diisi.
+2. **Uji koneksi & hapus** — **Test Connection** (`POST /api/telegram/test`) menampilkan `Callout`
+   `ok`/`err`; tombolnya `disabled` selama menunggu dan server membatasi 10 detik, jadi UI tak
+   pernah menggantung. **Hapus kredensial** lewat `ConfirmDialog`, lalu memuat ulang kartu &
+   status — toast menyebut bila ada nilai `.env` yang kembali dipakai.
+3. **Gateway** — toggle `Setting.telegram.enabled`/`progress` (berlaku seketika, tanpa restart),
+   readiness, bot username, allowlist count, capability kurang, dan onboarding lima langkah yang
+   kini seluruhnya di dalam dashboard.
 
 Status memakai `GET /api/telegram/status` saat tab dibuka + refresh eksplisit; tidak menambah WebSocket
 baru. Toggle mati menghentikan poll, bukan membunuh tmux/memory. Layout tetap editorial/bone paper/brass;

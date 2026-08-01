@@ -95,8 +95,9 @@
   - **Purge manual ber-scope** (`projectId` dan/atau `before`, minimal satu) adalah satu-satunya
     penghapusan, dan ia ikut membuang berkas transkripnya — tak ada retensi otomatis.
 - **Telegram gateway (SPEC-476, [ADR-0096](../adr/0096-telegram-gateway-session-operator-persisten.md))**:
-  - Bot token, allowlist, dan plaintext AgentToken hanya dari env; bot token tak pernah masuk session,
-    dan tidak ada secret plaintext di DB/log/prompt/transkrip/memory/audit/respons.
+  - Bot token tak pernah masuk session, dan tidak ada secret plaintext di
+    log/prompt/transkrip/memory/audit/respons. Sejak SPEC-477 ia boleh hidup di DB, **terenkripsi**
+    (butir di bawah) — sebelumnya env-only.
   - Hanya private chat + numeric user id allowlisted; inbound divalidasi, ber-rate-limit durable,
     idempoten `update_id`, dan tidak disimpan isi teksnya (audit memakai digest).
   - Session operator memakai API existing dengan AgentToken/capability. Identitas token gateway wajib
@@ -106,3 +107,19 @@
     endpoint existing tetap ditegakkan sesudahnya.
   - Reply hanya amplop eksplisit tersanitasi; raw PTY/capture-pane dilarang menjadi chat meski ANSI
     sudah dibuang, karena tetap dapat memuat reasoning, command echo, atau credential.
+- **Secret config at-rest & pagar kredensial (SPEC-477, [ADR-0097](../adr/0097-kredensial-telegram-di-settings-terenkripsi.md))**:
+  - Setiap nilai `RuntimeConfig` yang entrinya ber-`kind: "secret"` disimpan **terenkripsi
+    AES-256-GCM** (`enc:v1:<iv>:<tag>:<ciphertext>`). Kuncinya 32 byte di
+    `<HANOMAN_HOME>/secret.key` mode `0600`, dibuat otomatis; `HANOMAN_SECRET_KEY` adalah override
+    opsional. Berlaku untuk bot token & AgentToken Telegram, `SYNC_DEVICE_TOKEN`, `GITHUB_TOKEN`,
+    `ANTHROPIC_API_KEY`, dan `CLAUDE_CODE_OAUTH_TOKEN`. Cache in-memory memegang plaintext; DB tidak.
+  - Baris plaintext yang ditulis sebelum SPEC-477 tetap terbaca dan naik kelas saat ditulis ulang.
+    Ciphertext yang tak bisa didekripsi diperlakukan **absen** (fail-soft), bukan fatal saat boot.
+  - `PUT`/`DELETE /api/config` untuk entri berkategori `credential` **menolak agent token (403)** —
+    hanya sesi cookie admin. Demikian pula `/api/telegram/{settings,test,credentials}` yang
+    `COOKIE_ONLY`. Ini menutup jalur nyata: AgentToken gateway Telegram wajib memegang
+    `settings:write`, sehingga tanpa pagar itu sesi operator bisa menulis ulang kredensialnya sendiri.
+  - `GET` kredensial tak pernah mengembalikan secret utuh — hanya `masked` (`••••` + 4 karakter
+    terakhir) + `hasValue`. Galat Test Connection dilewatkan redaksi token dua lapis.
+  - `secret.key` wajib ikut dicadangkan bersama berkas DB; kehilangannya membuat secret tersimpan
+    tak terbaca (instance tetap boot, nilainya harus diisi ulang).

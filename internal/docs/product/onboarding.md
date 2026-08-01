@@ -7,12 +7,20 @@ Operator baru harus bisa memantau dalam < 10 menit.
 3. Buka backlog, mulai sesi untuk sebuah item (atau ambil dari Terminal).
 4. Pantau di Overview & Terminal; review & rebase/merge branch saat backlog `done`.
 
-## Telegram (opsional · SPEC-476/ADR-0096)
+## Telegram (opsional · SPEC-476/ADR-0096 · kredensial SPEC-477/ADR-0097)
 
-1. Buat satu bot di BotFather; simpan token hanya sebagai `HANOMAN_TELEGRAM_BOT_TOKEN`.
-2. Isi `HANOMAN_TELEGRAM_ALLOWED_USER_IDS` dengan numeric user id private-chat yang diizinkan.
-3. Di Settings → Akses AI Agent, hidupkan master switch dan buat AgentToken dengan capability yang
-   memang boleh dipakai operator; simpan plaintext sekali itu sebagai `HANOMAN_TELEGRAM_AGENT_TOKEN`.
-4. Restart service, buka Settings → Telegram, pastikan readiness hijau, lalu nyalakan gateway.
+Seluruhnya dari dashboard — tanpa mengedit `.env`, tanpa restart.
+
+1. Buat satu bot di BotFather; salin token-nya.
+2. Di Settings → Akses AI Agent, hidupkan master switch dan buat AgentToken dengan capability yang
+   ditampilkan kartu status Telegram; salin plaintext-nya sekali itu.
+3. Di Settings → Telegram, kartu **Kredensial**, isi Bot token, AgentToken gateway, Allowlist user id
+   (numeric user id private-chat yang diizinkan), dan Chat / Channel ID target — lalu **Simpan**.
+   Bot token & AgentToken disimpan terenkripsi dan tak pernah ditampilkan kembali utuh.
+4. Tekan **Test Connection** sampai hijau, lalu nyalakan gateway. Berlaku seketika.
 5. Kirim `/status`. Chat diikat ke satu session operator tmux dan pesan berikutnya kembali ke session
-   yang sama. Token tidak pernah diisikan atau ditampilkan di UI/Telegram.
+   yang sama. Token tidak pernah diisikan atau ditampilkan di Telegram.
+
+Instance lama yang masih memakai `HANOMAN_TELEGRAM_*` di `.env` tetap bekerja: nilai dari env dipakai
+selama field-nya kosong, ditandai **`dari .env · deprecated`**. Isi field-nya untuk memindahkannya;
+tombol **Hapus kredensial** mengosongkan baris DB (dan mengembalikan `.env` bila masih terisi).

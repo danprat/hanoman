@@ -647,6 +647,37 @@ Pakai skill lebih sempit saat task cocok:
   secret). Aksi sulit dibatalkan membutuhkan confirmation inline single-use sebagai kondisi tambahan
   token gateway; capability/pagar route existing tetap menang. Personality memakai `CustomAgent`,
   memory+summary dikurasi session yang sama, dan claude/codex mewarisi `sessionAgentDefaults()`.
+  **Kredensialnya tak lagi env-only** sejak SPEC-477/ADR-0097 — lihat butir berikut.
+- **Kredensial Telegram = entri config terenkripsi, bukan `.env`** (SPEC-477/ADR-0097, mengamandemen
+  ADR-0096; memperluas ADR-0049 & ADR-0065): keempat nilai (`HANOMAN_TELEGRAM_BOT_TOKEN` ·
+  `_AGENT_TOKEN` · `_ALLOWED_USER_IDS` · `_TARGET_CHAT_ID`) menjadi entri **`CONFIG_REGISTRY` grup
+  `telegram`**, **bukan** store kredensial kedua — resolver ADR-0049 (**DB → env → default** +
+  `sourceOf()`) sudah persis semantik "DB kosong → pakai `.env` → tandai deprecated", jadi fallback
+  dan penanda deprecated didapat **tanpa satu baris kode fallback**. `kind` menentukan masking,
+  **`category` menentukan pagar tulis** (allowlist `string` tapi `credential`: harus terbaca kembali,
+  tetap terpagari). Enkripsi at-rest berlaku untuk **semua** `kind: "secret"` (`services/secret-box.ts`,
+  AES-256-GCM `node:crypto`, kunci `<HANOMAN_HOME>/secret.key` mode `0600` dibuat otomatis;
+  `HANOMAN_SECRET_KEY` override **opsional** — mewajibkannya menghidupkan lagi ketergantungan `.env`
+  yang justru dicabut). Batasnya di `setConfig`/`loadConfig` → **cache memegang plaintext, DB memegang
+  ciphertext**, sehingga tak satu pun pemakai `effectiveStr`/`rawDbValue` berubah; baris tanpa prefix
+  `enc:v1:` = plaintext lama, naik kelas saat ditulis ulang → **tanpa migration**, dan gagal-dekripsi
+  = **absen** (fail-soft, boot tak mati). Tiga endpoint `/telegram/{settings,test,credentials}`
+  **COOKIE_ONLY** + `PUT`/`DELETE /config` kategori `credential` menolak `req.agent` — jalur nyata,
+  bukan hipotetis: AgentToken gateway Telegram **wajib** memegang `settings:write`, jadi tanpa itu
+  sesi operator bisa menulis ulang kredensialnya sendiri lewat percakapan (pagar di **handler**, sebab
+  `capabilityForRoute` tak pernah melihat `body.key`). Berlaku-tanpa-restart lewat
+  `reloadTelegramGateway()` dari `applyConfigSideEffect` + `PUT /settings` (hanya bila blok `telegram`
+  berubah). **Tiga gotcha mengikat:** (1) `loadConfig()` **wajib** mendahului
+  `installTelegramGateway` di `server.ts` — urutan lama membuat gateway lahir dengan cache config
+  kosong dan diam-diam jatuh ke env, kegagalan **senyap yang tampak benar** — **tapi wajib di dalam
+  `try/catch`**: dulu ia fire-and-forget, di posisi barunya lemparan yang sama jadi `listen gagal` →
+  `process.exit(1)` seluruh orchestrator (terbukti in-vivo saat smoke, `P2021`); (2) chat id
+  channel/supergroup **NEGATIF** → `^\d+$` menolak persis kasus "Channel ID" yang diminta, sedangkan
+  allowlist **user** id tetap non-negatif (dua pola, jangan disatukan); (3) Test Connection memakai
+  **klien sekali pakai** ber-`AbortSignal` 10 dtk — klien gateway memegang `AbortController` loop
+  `getUpdates`-nya, jadi menumpang di sana menukar "uji koneksi" dengan "putuskan polling". Nilai dari
+  `.env` **tak divalidasi pola** (validasi = gerbang tulis, bukan gerbang baca), dan bot token
+  **tetap tak pernah masuk sesi** (ADR-0096 gotcha 4 utuh).
 - Stage bergerak **maju** hanya lewat fase yang dilaporkan sesi; **mundur** hanya lewat aksi human eksplisit `PATCH /specs/:id { stage }` (backward-only, ADR-0027). `executing` **tertahan** (tak jadi `done`) selama plan `docs/superpowers/plans/**` masih punya `- [ ]` (ADR-0029).
 - Biaya bersifat **estimasi dan tidak menggerakkan apa pun** (ADR-0012): tak ada `dailyBudget`/budget flag. Indikator limit dibaca dari OAuth usage API Anthropic (`services/limits.ts`), bukan parsing output terminal.
 - **Jangan pernah menjalankan run/sesi di working tree utama** — selalu worktree terpisah. Jangan menyentuh worktree sesi lain.

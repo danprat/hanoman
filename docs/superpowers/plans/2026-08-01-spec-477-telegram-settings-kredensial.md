@@ -1621,7 +1621,7 @@ git commit -m "feat(477): tab Settings Telegram — isi, uji, dan hapus kredensi
 - Consumes: seluruh keputusan Task 1–7
 - Produces: dokumentasi; tak ada simbol kode
 
-- [ ] **Step 1: Tulis ADR-0097**
+- [x] **Step 1: Tulis ADR-0097**
 
 Create `internal/docs/adr/0097-kredensial-telegram-di-settings-terenkripsi.md` dengan bagian: Status/Tanggal/SPEC/Terkait · Konteks · Keputusan (7 butir, cermin bagian "Keputusan" di
 `docs/superpowers/specs/2026-08-01-spec-477-telegram-settings-kredensial-design.md`) · Konsekuensi · Gotcha (8 butir dari design doc) · Alternatif yang ditolak (tabel terenkripsi terpisah; `Setting.telegram.botToken`; enkripsi hanya bot token).
@@ -1641,7 +1641,7 @@ Header wajib:
   ADR-0037 & ADR-0086 utuh.
 ```
 
-- [ ] **Step 2: Tautkan di kedua index**
+- [x] **Step 2: Tautkan di kedua index**
 
 Di `internal/docs/README.md`, tambahkan **di atas** baris 0096 pada bagian `## adr`:
 
@@ -1651,7 +1651,7 @@ Di `internal/docs/README.md`, tambahkan **di atas** baris 0096 pada bagian `## a
 
 Di `internal/docs/adr/README.md`, tambahkan narasi ADR-0097 di posisi yang sama (paling atas daftar), memuat: apa yang diamandemen, mengapa store config dipilih ketimbang tabel kedua, dan tiga gotcha terpenting (urutan boot `loadConfig`, cache plaintext vs DB ciphertext, chat id negatif).
 
-- [ ] **Step 3: Perbarui doc SoT yang tersentuh**
+- [x] **Step 3: Perbarui doc SoT yang tersentuh**
 
 `internal/docs/architecture/api-contract.md` — tambahkan di bagian Telegram:
 
@@ -1670,7 +1670,7 @@ Di `internal/docs/adr/README.md`, tambahkan narasi ADR-0097 di posisi yang sama 
 
 `internal/skills/hanoman/SKILL.md` — tambahkan satu butir permanen di bagian "Aturan Arsitektur", setelah butir ADR-0096, memuat: entri config Telegram, enkripsi at-rest untuk semua `kind:"secret"`, pagar `credential` cookie-only, reload tanpa restart, dan **gotcha urutan `loadConfig` sebelum `installTelegramGateway`**.
 
-- [ ] **Step 4: Verifikasi akhir — test yang tersentuh + typecheck paket tersentuh**
+- [x] **Step 4: Verifikasi akhir — test yang tersentuh + typecheck paket tersentuh**
 
 ```bash
 ./node_modules/.bin/vitest run --no-file-parallelism \
@@ -1694,7 +1694,7 @@ pnpm --filter ./src typecheck
 Expected: seluruh test PASS (bukan "no test files"), tiga typecheck exit 0.
 **Jangan** jalankan `pnpm -r typecheck`, suite penuh, atau build penuh.
 
-- [ ] **Step 5: Smoke endpoint nyata (sekali di akhir — task ini menyentuh endpoint)**
+- [x] **Step 5: Smoke endpoint nyata (sekali di akhir — task ini menyentuh endpoint)**
 
 ```bash
 # DB khusus smoke, bukan DB test bersama (run tetangga menghapusnya di tengah jalan).
@@ -1714,14 +1714,14 @@ Verifikasi manual yang wajib terlihat:
 4. `ls -l "$HANOMAN_HOME/secret.key"` → `-rw-------`.
 5. `POST /api/telegram/test` dengan token palsu → `{"ok":false,…}` dalam < 11 detik, **tanpa** token di `error`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/docs internal/skills docs/superpowers
 git commit -m "docs(477): ADR-0097 kredensial Telegram di Settings + docs SoT tersentuh"
 ```
 
-- [ ] **Step 7: Push**
+- [x] **Step 7: Push**
 
 ```bash
 git push origin HEAD:refs/heads/hanoman/spec-477
