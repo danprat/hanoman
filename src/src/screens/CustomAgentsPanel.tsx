@@ -7,30 +7,31 @@
    bukan ketikan operator — jadi pencabutan `Task` untuk agen daun TERLIHAT, bukan tersembunyi.
    Itu lapis 2 anti-loop, dan lapis yang tak terlihat adalah lapis yang dikira tak ada. */
 import React from "react";
-import { Card, Button, Badge, Input, Switch, Checkbox, Field, HnTextarea, StateBlock, Callout } from "../ds";
+import { Card, Button, Badge, Input, Switch, MultiSelect, Select, Field, HnTextarea, StateBlock, Callout } from "../ds";
 import { api, ApiError } from "../api/client";
-import { AGENT_NAME_RE, DEFAULT_AGENT_TOOLS, resolveTools, type CustomAgentView } from "@hanoman/shared";
+import {
+  AGENT_NAME_RE, DEFAULT_AGENT_TOOLS, ALL_TOOLS, resolveTools, modelsForRuntime,
+  type CustomAgentView, type AgentCatalogView, type AgentRuntime,
+} from "@hanoman/shared";
 
+// SPEC-484 · ADR-0101 · tools/model/mention/runtime memakai KONTROL PILIHAN bersumber API. Ketikan
+// bebas untuk ketiganya adalah kelas kegagalan yang sudah diukur ADR-0094 M4: nama tool tak dikenal
+// DIBUANG claude tanpa satu pun pesan, jadi salah ketik baru terbaca saat agen sudah berjalan.
 type Draft = {
   name: string; description: string; instructions: string;
-  tools: string; model: string; mentions: string[]; enabled: boolean;
+  tools: string[]; model: string; mentions: string[]; runtime: string; enabled: boolean;
 };
 
 const emptyDraft = (): Draft => ({
-  name: "", description: "", instructions: "", tools: "", model: "", mentions: [], enabled: true,
+  name: "", description: "", instructions: "", tools: [], model: "", mentions: [],
+  runtime: "", enabled: true,
 });
 
 const draftOf = (a: CustomAgentView): Draft => ({
   name: a.name, description: a.description, instructions: a.instructions,
-  tools: (a.tools ?? []).join(", "), model: a.model ?? "",
-  mentions: a.mentions, enabled: a.enabled,
+  tools: a.tools ?? [], model: a.model ?? "",
+  mentions: a.mentions, runtime: a.runtime ?? "", enabled: a.enabled,
 });
-
-/** "Read, Bash" → ["Read","Bash"]; kosong → null (= pakai DEFAULT_AGENT_TOOLS). */
-const parseTools = (s: string): string[] | null => {
-  const list = s.split(",").map((t) => t.trim()).filter(Boolean);
-  return list.length ? list : null;
-};
 
 /**
  * Terjemahkan penolakan server jadi kalimat yang bisa ditindaklanjuti. 409 bersiklus membawa
@@ -38,12 +39,22 @@ const parseTools = (s: string): string[] | null => {
  */
 function errorText(e: unknown): string {
   if (!(e instanceof ApiError)) return (e as Error)?.message ?? "gagal";
-  const d = (e.detail ?? {}) as { error?: unknown; cycle?: string[]; scope?: string; unknown?: string[] };
+  const d = (e.detail ?? {}) as {
+    error?: unknown; cycle?: string[]; scope?: string; unknown?: string[];
+    unknownTools?: string[]; model?: string; runtime?: string | null;
+  };
   if (Array.isArray(d.cycle) && d.cycle.length) {
     return `Mention membentuk siklus di scope ${d.scope ?? "?"}: ${d.cycle.join(" → ")}`;
   }
   if (Array.isArray(d.unknown) && d.unknown.length) {
     return `Mention tak dikenal: ${d.unknown.join(", ")}`;
+  }
+  // SPEC-484 · penolakan katalog membawa nilainya — "400" saja tak bisa ditindaklanjuti.
+  if (Array.isArray(d.unknownTools) && d.unknownTools.length) {
+    return `Tool tak dikenal di mesin ini: ${d.unknownTools.join(", ")}`;
+  }
+  if (typeof d.model === "string") {
+    return `Model "${d.model}" tak tersedia untuk runtime ${d.runtime ?? "warisi"}.`;
   }
   if (typeof d.error === "string") return d.error;
   return `Gagal (${e.status})`;
@@ -56,6 +67,7 @@ export type CustomAgentsPanelProps = {
 
 export function CustomAgentsPanel({ projectId, onToast }: CustomAgentsPanelProps) {
   const [rows, setRows] = React.useState<CustomAgentView[] | null>(null);
+  const [catalog, setCatalog] = React.useState<AgentCatalogView | null>(null);
   const [err, setErr] = React.useState<string>("");
   const [editing, setEditing] = React.useState<{ id: string | null; draft: Draft } | null>(null);
   const [busy, setBusy] = React.useState(false);
@@ -63,6 +75,10 @@ export function CustomAgentsPanel({ projectId, onToast }: CustomAgentsPanelProps
   const load = React.useCallback(async () => {
     try { setRows(await api.listCustomAgents(projectId ?? undefined)); }
     catch (e) { setErr(errorText(e)); setRows([]); }
+    // Katalog gagal dimuat TIDAK boleh menyembunyikan daftar agen: ia jatuh ke katalog kosong, dan
+    // setiap nilai tersimpan lalu tampil sebagai chip bertanda — terlihat, bukan hilang senyap.
+    try { setCatalog(await api.getCustomAgentCatalog(projectId ?? undefined)); }
+    catch { setCatalog({ tools: [], models: [], runtimes: [] }); }
   }, [projectId]);
 
   React.useEffect(() => { void load(); }, [load]);
@@ -71,6 +87,42 @@ export function CustomAgentsPanel({ projectId, onToast }: CustomAgentsPanelProps
   const mentionable = (rows ?? []).filter((a) => a.name !== editing?.draft.name);
   const nameValid = !editing?.draft.name || AGENT_NAME_RE.test(editing.draft.name);
 
+  // Runtime menyetir daftar model: `null` (warisi) = gabungan kedua katalog, cermin server.
+  const runtime = (editing?.draft.runtime || null) as AgentRuntime | null;
+  const catalogToolIds = (catalog?.tools ?? []).map((t) => t.id);
+  const toolOptions = (catalog?.tools ?? []).map((t) => ({
+    value: t.id, label: t.label, ...(t.group === "mcp" ? { group: "MCP" } : {}),
+  }));
+  const modelOptions = modelsForRuntime(runtime)
+    .filter((m) => !catalog || catalog.models.length === 0 || catalog.models.some((c) => c.id === m.id))
+    .map((m) => ({ value: m.id, label: runtime ? m.label : `${m.label} · ${m.runtime}` }));
+  const mentionOptions = mentionable.map((m) => ({ value: m.name, label: m.name }));
+  const invalidTools = (editing?.draft.tools ?? []).filter((t) => !catalogToolIds.includes(t));
+  const invalidMentions = (editing?.draft.mentions ?? [])
+    .filter((m) => !mentionOptions.some((o) => o.value === m));
+  const modelInvalid = Boolean(editing?.draft.model)
+    && !modelOptions.some((o) => o.value === editing!.draft.model);
+  // Validasi server KERAS (ADR-0101 keputusan 5): nilai lama yang tak lagi ada di katalog TETAP
+  // terbaca, tapi tak bisa disimpan ulang apa adanya. Menguncinya di sini = operator melihat
+  // sebabnya sebelum menekan Simpan, bukan sesudah menerima 400.
+  const blocked = invalidTools.length > 0 || invalidMentions.length > 0 || modelInvalid;
+
+  /** `*` dan nama eksplisit saling meniadakan — cermin aturan server, ditegakkan di kontrol. */
+  const setTools = (next: string[]) => {
+    if (!editing) return;
+    const justAddedAll = next.includes(ALL_TOOLS) && !editing.draft.tools.includes(ALL_TOOLS);
+    const clean = justAddedAll ? [ALL_TOOLS] : next.filter((t) => t !== ALL_TOOLS);
+    setEditing({ ...editing, draft: { ...editing.draft, tools: clean } });
+  };
+
+  /** Menukar runtime yang membuat model terpilih tak sah MENGOSONGKANNYA — bukan mengirim 400. */
+  const setRuntime = (next: string) => {
+    if (!editing) return;
+    const allowed = modelsForRuntime((next || null) as AgentRuntime | null).map((m) => m.id);
+    const model = allowed.includes(editing.draft.model) ? editing.draft.model : "";
+    setEditing({ ...editing, draft: { ...editing.draft, runtime: next, model } });
+  };
+
   async function save() {
     if (!editing) return;
     const d = editing.draft;
@@ -78,8 +130,10 @@ export function CustomAgentsPanel({ projectId, onToast }: CustomAgentsPanelProps
     try {
       const payload = {
         description: d.description, instructions: d.instructions,
-        tools: parseTools(d.tools), model: d.model || null,
-        mentions: d.mentions, enabled: d.enabled,
+        // Kosong → `null` = pakai DEFAULT_AGENT_TOOLS (bukan `[]`, yang berarti TANPA tool).
+        tools: d.tools.length ? d.tools : null, model: d.model || null,
+        mentions: d.mentions, runtime: (d.runtime || null) as AgentRuntime | null,
+        enabled: d.enabled,
       };
       if (editing.id) await api.updateCustomAgent(editing.id, payload);
       else await api.createCustomAgent({ ...payload, name: d.name, projectId });
@@ -125,7 +179,12 @@ export function CustomAgentsPanel({ projectId, onToast }: CustomAgentsPanelProps
       )}
 
       {rows.map((a) => {
-        const tools = resolveTools({ tools: a.tools, mentions: a.mentions });
+        // `*` ikut ter-expand secara TAMPILAN: kartu harus memperlihatkan apa yang benar-benar
+        // diterima agen, bukan pintasannya (cermin ekspansi di `agentDefsFor`).
+        const shownTools = (a.tools ?? []).includes(ALL_TOOLS)
+          ? (catalog?.tools ?? []).map((t) => t.id).filter((id) => id !== ALL_TOOLS)
+          : a.tools;
+        const tools = resolveTools({ tools: shownTools, mentions: a.mentions });
         const readOnly = Boolean(projectId && a.inherited);
         return (
           <Card key={a.id} padding={14}>
@@ -133,6 +192,7 @@ export function CustomAgentsPanel({ projectId, onToast }: CustomAgentsPanelProps
               <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text-strong)" }}>{a.name}</span>
               {readOnly && <Badge tone="neutral" size="sm">warisan global</Badge>}
               {!a.enabled && <Badge tone="warn" size="sm">nonaktif</Badge>}
+              {a.runtime && <Badge tone="neutral" size="sm" data-testid={`runtime-${a.name}`}>{a.runtime}</Badge>}
               <span style={{ flex: 1 }} />
               <Switch checked={a.enabled} disabled={readOnly} aria-label={`Aktifkan ${a.name}`}
                 onChange={(on) => void toggleEnabled(a, on)} />
@@ -175,30 +235,38 @@ export function CustomAgentsPanel({ projectId, onToast }: CustomAgentsPanelProps
               onChange={(e) => setEditing({ ...editing, draft: { ...editing.draft, instructions: e.target.value } })} />
           </Field>
           <Field label="Tools" hint={`Kosongkan untuk memakai default: ${DEFAULT_AGENT_TOOLS.join(", ")}. Alat delegasi (Task) diatur otomatis dari Mention.`}>
-            <Input value={editing.draft.tools} aria-label="Tools" mono
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setEditing({ ...editing, draft: { ...editing.draft, tools: e.target.value } })} />
+            <MultiSelect aria-label="Tools" options={toolOptions} value={editing.draft.tools}
+              invalidValues={invalidTools} onChange={setTools}
+              placeholder="Pilih tools…" searchPlaceholder="Cari tool…" />
+          </Field>
+          <Field label="Runtime agent" hint="Mesin sesi yang memakai agen ini. Kosongkan untuk ikut sesi induk — dipakai sesi claude maupun codex.">
+            <Select aria-label="Runtime agent" value={editing.draft.runtime}
+              options={[{ value: "", label: "Ikut sesi induk" },
+                ...(catalog?.runtimes ?? []).map((r) => ({ value: r.id, label: r.label }))]}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRuntime(e.target.value)} />
           </Field>
           <Field label="Model" hint="Kosongkan untuk mewarisi model sesi.">
-            <Input value={editing.draft.model} aria-label="Model" mono
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            <Select aria-label="Model" value={editing.draft.model} invalid={modelInvalid}
+              options={[{ value: "", label: "Ikut sesi induk" }, ...modelOptions,
+                ...(modelInvalid ? [{ value: editing.draft.model, label: `⚠ ${editing.draft.model} — tak ada di katalog` }] : [])]}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
                 setEditing({ ...editing, draft: { ...editing.draft, model: e.target.value } })} />
           </Field>
           <Field label="Mention" hint="Agen yang boleh dipanggil agen ini. Graf mention wajib asiklik — server menolak yang membentuk lingkaran.">
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              {mentionable.length === 0 && <span style={{ fontSize: "var(--text-xs)", color: "var(--text-subtle)" }}>Belum ada agen lain.</span>}
-              {mentionable.map((m) => (
-                <Checkbox key={m.id} label={m.name} aria-label={`Mention ${m.name}`}
-                  checked={editing.draft.mentions.includes(m.name)}
-                  onChange={(on) => setEditing({ ...editing, draft: { ...editing.draft,
-                    mentions: on
-                      ? [...editing.draft.mentions, m.name]
-                      : editing.draft.mentions.filter((x) => x !== m.name) } })} />
-              ))}
-            </div>
+            <MultiSelect aria-label="Mention" options={mentionOptions} value={editing.draft.mentions}
+              invalidValues={invalidMentions}
+              onChange={(mentions: string[]) => setEditing({ ...editing, draft: { ...editing.draft, mentions } })}
+              placeholder="Pilih agen…" searchPlaceholder="Cari agen…"
+              emptyText="Belum ada agen lain." />
           </Field>
+          {blocked && (
+            <Callout tone="warn">
+              Ada nilai yang tak ada di katalog mesin ini (ditandai ⚠). Buang dulu sebelum menyimpan —
+              server menolak nilai yang tak dikenal.
+            </Callout>
+          )}
           <div style={{ display: "flex", gap: 8 }}>
-            <Button onClick={() => void save()} loading={busy} disabled={!nameValid}>Simpan</Button>
+            <Button onClick={() => void save()} loading={busy} disabled={!nameValid || blocked}>Simpan</Button>
             <Button variant="ghost" onClick={() => { setEditing(null); setErr(""); }}>Batal</Button>
           </div>
         </Card>

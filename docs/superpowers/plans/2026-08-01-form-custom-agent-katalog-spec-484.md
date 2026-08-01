@@ -1507,7 +1507,7 @@ git commit -m "feat(484): komponen DS MultiSelect (pencarian, chip, chip invalid
 - Consumes: `api.getCustomAgentCatalog` (Task 5), `MultiSelect` (Task 7), `modelsForRuntime`, `ALL_TOOLS`, `AGENT_RUNTIME_LABELS`, `AgentCatalogView` (Task 1).
 - Produces: form yang mengirim `{ description, instructions, tools: string[]|null, model: string|null, mentions: string[], runtime: AgentRuntime|null, enabled }`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Ganti isi mock api di `src/test/custom-agents-panel.test.tsx` agar memuat katalog, lalu tambahkan test:
 
@@ -1619,12 +1619,12 @@ describe("CustomAgentsPanel · kontrol pilihan (SPEC-484)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV ./node_modules/.bin/vitest run --dir src src/test/custom-agents-panel.test.tsx`
 Expected: FAIL — `getCustomAgentCatalog is not a function`, `getByLabelText("Runtime agent")` tak ditemukan.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Ubah `src/src/screens/CustomAgentsPanel.tsx`:
 
@@ -1780,7 +1780,7 @@ Ubah baris resolusi tools di kartu agar `*` ikut ter-expand secara tampilan:
         const tools = resolveTools({ tools: shownTools, mentions: a.mentions });
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run:
 ```bash
@@ -1789,7 +1789,7 @@ pnpm --filter ./src typecheck
 ```
 Expected: PASS semua; typecheck bersih.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/CustomAgentsPanel.tsx src/test/custom-agents-panel.test.tsx

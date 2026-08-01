@@ -5,6 +5,7 @@ const listCustomAgents = vi.fn();
 const createCustomAgent = vi.fn();
 const updateCustomAgent = vi.fn();
 const deleteCustomAgent = vi.fn();
+const getCustomAgentCatalog = vi.fn();
 
 // `vi.mock` di-hoist ke atas berkas, jadi kelas yang dideklarasikan di scope modul masih TDZ
 // saat factory-nya jalan → "Cannot access before initialization". `vi.hoisted` ikut terangkat.
@@ -20,6 +21,7 @@ vi.mock("../src/api/client", () => ({
     createCustomAgent: (b: unknown) => createCustomAgent(b),
     updateCustomAgent: (id: string, b: unknown) => updateCustomAgent(id, b),
     deleteCustomAgent: (id: string) => deleteCustomAgent(id),
+    getCustomAgentCatalog: (p?: string) => getCustomAgentCatalog(p),
   },
   ApiError: FakeApiError,
 }));
@@ -28,20 +30,36 @@ import { CustomAgentsPanel } from "../src/screens/CustomAgentsPanel";
 
 const rows = [
   { id: "global:rev", projectId: null, name: "rev", description: "tinjau", instructions: "i",
-    tools: null, model: null, mentions: ["tes"], enabled: true, inherited: true },
+    tools: null, model: null, mentions: ["tes"], runtime: null, enabled: true, inherited: true },
   { id: "p1:tes", projectId: "p1", name: "tes", description: "uji", instructions: "i",
-    tools: null, model: null, mentions: [], enabled: true, inherited: false },
+    tools: null, model: null, mentions: [], runtime: null, enabled: true, inherited: false },
 ];
+
+// SPEC-484 · ADR-0101 · katalog datang dari API, bukan hardcode di komponen.
+const catalog = {
+  tools: [
+    { id: "*", label: "Semua tools", group: "shortcut" },
+    { id: "Read", label: "Read", group: "builtin" },
+    { id: "Bash", label: "Bash", group: "builtin" },
+    { id: "mcp__context7__*", label: "context7 — semua tool", group: "mcp" },
+  ],
+  models: [
+    { id: "claude-opus-5", label: "Opus 5", runtime: "claude" },
+    { id: "gpt-5.6-sol", label: "GPT-5.6 Sol", runtime: "codex" },
+  ],
+  runtimes: [{ id: "claude", label: "Claude Code" }, { id: "codex", label: "Codex CLI" }],
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
   listCustomAgents.mockResolvedValue(rows);
+  getCustomAgentCatalog.mockResolvedValue(catalog);
 });
 
-// `Checkbox`/`Switch` design system BUKAN <input>: onClick hidup di <span> di dalam <label>,
-// jadi mengklik label = no-op dan test yang melakukannya "lulus" tanpa terjadi apa-apa
-// (pelajaran SPEC-299/360/447).
-const pick = (name: string) => fireEvent.click(screen.getByLabelText(name).firstElementChild!);
+// SPEC-484 · helper `pick` (klik <span> di dalam <label> DS) DICABUT bersama Checkbox mention:
+// `MultiSelect` memakai <button role="option"> justru supaya jebakan itu tak terulang —
+// `Checkbox`/`Switch` DS bukan <input>, jadi mengklik labelnya no-op dan test yang melakukannya
+// "lulus" tanpa terjadi apa-apa (pelajaran SPEC-299/360/447).
 
 describe("CustomAgentsPanel", () => {
   it("menampilkan agen efektif project", async () => {
@@ -107,12 +125,14 @@ describe("CustomAgentsPanel", () => {
     fireEvent.change(screen.getByLabelText("Nama"), { target: { value: "agn-baru" } });
     fireEvent.change(screen.getByLabelText("Deskripsi"), { target: { value: "d" } });
     fireEvent.change(screen.getByLabelText("Instruksi"), { target: { value: "i" } });
-    pick("Mention rev");
+    fireEvent.click(screen.getByRole("button", { name: "Mention" }));
+    fireEvent.click(screen.getByRole("option", { name: /rev/ }));
     fireEvent.click(screen.getByRole("button", { name: /simpan/i }));
 
     await waitFor(() => expect(createCustomAgent).toHaveBeenCalled());
     expect(createCustomAgent.mock.calls[0]![0]).toMatchObject({
-      name: "agn-baru", projectId: null, tools: null, mentions: ["rev"], enabled: true,
+      name: "agn-baru", projectId: null, tools: null, mentions: ["rev"],
+      runtime: null, enabled: true,
     });
   });
 
@@ -128,5 +148,95 @@ describe("CustomAgentsPanel", () => {
     fireEvent.click(await screen.findByRole("button", { name: /agen baru/i }));
     fireEvent.change(screen.getByLabelText("Nama"), { target: { value: "Rev" } });
     expect((screen.getByRole("button", { name: /simpan/i }) as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SPEC-484 · ADR-0101 · kontrol pilihan menggantikan teks bebas
+// ═══════════════════════════════════════════════════════════════════════════════
+describe("CustomAgentsPanel · kontrol pilihan (SPEC-484)", () => {
+  it("Tools memakai MultiSelect bersumber katalog API, bukan teks bebas", async () => {
+    render(<CustomAgentsPanel projectId={null} />);
+    fireEvent.click(await screen.findByRole("button", { name: /agen baru/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Tools" }));
+    const names = screen.getAllByRole("option").map((o) => o.textContent);
+    expect(names.some((n) => n?.includes("Semua tools"))).toBe(true);
+    expect(names.some((n) => n?.includes("context7"))).toBe(true);
+    expect(getCustomAgentCatalog).toHaveBeenCalled();
+  });
+
+  it("memilih 'Semua tools (*)' MENGOSONGKAN pilihan lain, dan sebaliknya", async () => {
+    render(<CustomAgentsPanel projectId={null} />);
+    fireEvent.click(await screen.findByRole("button", { name: /agen baru/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Tools" }));
+    fireEvent.click(screen.getByRole("option", { name: /^Read/ }));
+    fireEvent.click(screen.getByRole("option", { name: /Semua tools/ }));
+    expect(screen.queryByTestId("chip-Read")).toBeNull();
+    expect(screen.getByTestId("chip-*")).toBeTruthy();
+    fireEvent.click(screen.getByRole("option", { name: /^Bash/ }));
+    expect(screen.queryByTestId("chip-*")).toBeNull();
+    expect(screen.getByTestId("chip-Bash")).toBeTruthy();
+  });
+
+  it("Model menyusut mengikuti Runtime", async () => {
+    render(<CustomAgentsPanel projectId={null} />);
+    fireEvent.click(await screen.findByRole("button", { name: /agen baru/i }));
+    const model = () => screen.getByLabelText("Model") as HTMLSelectElement;
+    expect([...model().options].map((o) => o.value)).toContain("gpt-5.6-sol");
+    fireEvent.change(screen.getByLabelText("Runtime agent"), { target: { value: "claude" } });
+    expect([...model().options].map((o) => o.value)).not.toContain("gpt-5.6-sol");
+    expect([...model().options].map((o) => o.value)).toContain("claude-opus-5");
+  });
+
+  it("menukar runtime yang membuat model terpilih tak sah akan MENGOSONGKAN model", async () => {
+    render(<CustomAgentsPanel projectId={null} />);
+    fireEvent.click(await screen.findByRole("button", { name: /agen baru/i }));
+    fireEvent.change(screen.getByLabelText("Model"), { target: { value: "gpt-5.6-sol" } });
+    expect((screen.getByLabelText("Model") as HTMLSelectElement).value).toBe("gpt-5.6-sol");
+    fireEvent.change(screen.getByLabelText("Runtime agent"), { target: { value: "claude" } });
+    expect((screen.getByLabelText("Model") as HTMLSelectElement).value).toBe("");
+  });
+
+  it("mengirim runtime & tools sebagai array saat simpan", async () => {
+    createCustomAgent.mockResolvedValue(rows[0]);
+    render(<CustomAgentsPanel projectId={null} />);
+    fireEvent.click(await screen.findByRole("button", { name: /agen baru/i }));
+    fireEvent.change(screen.getByLabelText("Nama"), { target: { value: "agn-baru" } });
+    fireEvent.change(screen.getByLabelText("Deskripsi"), { target: { value: "d" } });
+    fireEvent.change(screen.getByLabelText("Instruksi"), { target: { value: "i" } });
+    fireEvent.change(screen.getByLabelText("Runtime agent"), { target: { value: "codex" } });
+    fireEvent.click(screen.getByRole("button", { name: "Tools" }));
+    fireEvent.click(screen.getByRole("option", { name: /^Read/ }));
+    fireEvent.click(screen.getByRole("button", { name: /simpan/i }));
+    await waitFor(() => expect(createCustomAgent).toHaveBeenCalled());
+    expect(createCustomAgent.mock.calls[0]![0]).toMatchObject({
+      name: "agn-baru", runtime: "codex", tools: ["Read"],
+    });
+  });
+
+  // Validasi server KERAS (ADR-0101 keputusan 5): nilai lama tetap TERBACA, tapi tak bisa
+  // disimpan ulang apa adanya — dan operator melihat sebabnya sebelum menekan Simpan.
+  it("nilai lama di luar katalog jadi chip BERTANDA dan mengunci Simpan", async () => {
+    listCustomAgents.mockResolvedValue([{
+      id: "global:lawas", projectId: null, name: "lawas", description: "d", instructions: "i",
+      tools: ["ToolHilang"], model: null, mentions: [], runtime: null, enabled: true,
+    }]);
+    render(<CustomAgentsPanel projectId={null} />);
+    fireEvent.click(await screen.findByRole("button", { name: /ubah/i }));
+    expect(screen.getByTestId("chip-ToolHilang").getAttribute("title")).toMatch(/tak ada di katalog/i);
+    expect((screen.getByRole("button", { name: /simpan/i }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("kartu agen menampilkan pil runtime; warisi tak menampilkan apa pun", async () => {
+    listCustomAgents.mockResolvedValue([
+      { id: "global:aa", projectId: null, name: "aa", description: "d", instructions: "i",
+        tools: null, model: null, mentions: [], runtime: "codex", enabled: true },
+      { id: "global:bb", projectId: null, name: "bb", description: "d", instructions: "i",
+        tools: null, model: null, mentions: [], runtime: null, enabled: true },
+    ]);
+    render(<CustomAgentsPanel projectId={null} />);
+    await screen.findByText("aa");
+    expect(screen.getByTestId("runtime-aa").textContent).toContain("codex");
+    expect(screen.queryByTestId("runtime-bb")).toBeNull();
   });
 });
