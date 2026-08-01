@@ -1,4 +1,4 @@
-import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type SessionHistoryView, type ConfigResponse, type ConfigEntryView, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView, type Agent, type AuditEscalationView, type VerifyScope, type Lead, type LeadStatusView, type LeadDecisionView, type CustomAgentView, type CreateCustomAgent, type UpdateCustomAgent, type GithubIssueView, type TelegramGatewayStatus, type TelegramCredentialsView, type TelegramTestResult, type TelegramClearResult } from "@hanoman/shared";
+import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type SessionHistoryView, type ConfigResponse, type ConfigEntryView, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView, type Agent, type AuditEscalationView, type VerifyScope, type Lead, type LeadStatusView, type LeadDecisionView, type CustomAgentView, type CreateCustomAgent, type UpdateCustomAgent, type GithubIssueView, type TelegramGatewayStatus, type TelegramCredentialsView, type TelegramTestResult, type TelegramClearResult, type WebhookEndpointView, type WebhookDeliveryView, type WebhookTestResult, type CreateWebhookEndpoint, type UpdateWebhookEndpoint } from "@hanoman/shared";
 // SPEC-450 · `detail` = body JSON respons galat (best-effort, null bila bukan JSON). Ditambahkan
 // karena penolakan custom agent membawa informasi yang HARUS sampai ke operator — jalur siklus
 // (`cycle`/`scope`) dan daftar mention tak dikenal (`unknown`); "409" saja tak bisa ditindaklanjuti.
@@ -419,4 +419,16 @@ export const api = {
   updateCustomAgent: (id: string, b: UpdateCustomAgent) =>
     j<CustomAgentView>(paths.customAgent(id), { method: "PATCH", ...body(b) }),
   deleteCustomAgent: (id: string) => j<void>(paths.customAgent(id), { method: "DELETE" }),
+  // SPEC-481 · ADR-0099 · webhook keluar. Semua cookie-only; tak ada jalur agent token.
+  listWebhooks: () => j<{ endpoints: WebhookEndpointView[]; eventTypes: string[] }>(paths.webhooks),
+  createWebhook: (b: CreateWebhookEndpoint) =>
+    j<WebhookEndpointView>(paths.webhooks, { method: "POST", ...body(b) }),
+  updateWebhook: (id: string, b: UpdateWebhookEndpoint) =>
+    j<WebhookEndpointView>(paths.webhook(id), { method: "PATCH", ...body(b) }),
+  deleteWebhook: (id: string) => j<void>(paths.webhook(id), { method: "DELETE" }),
+  testWebhook: (id: string) => j<WebhookTestResult>(paths.webhookTest(id), { method: "POST", ...body({}) }),
+  listWebhookDeliveries: (id: string, limit = 50) =>
+    j<{ items: WebhookDeliveryView[] }>(paths.webhookDeliveries(id) + qs({ limit })),
+  retryWebhookDelivery: (id: string) =>
+    j<WebhookDeliveryView>(paths.webhookDeliveryRetry(id), { method: "POST", ...body({}) }),
 };

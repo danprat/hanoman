@@ -48,6 +48,36 @@ export function isBlockedAddress(ip: string): boolean {
   return false;
 }
 
+/**
+ * Gerbang SAAT SIMPAN: bentuk URL + host yang sudah berupa IP literal. Sengaja TIDAK menyentuh
+ * DNS — menaruh resolusi jaringan di jalur tulis CRUD membuat pendaftaran endpoint gagal saat
+ * DNS lambat/mati (dan fail-closed di sana berarti operator tak bisa mendaftar apa pun secara
+ * offline). Gerbang yang sebenarnya adalah `checkDestination`, yang jalan di SETIAP percobaan
+ * kirim; ini hanya umpan balik cepat untuk kasus yang tak butuh jaringan untuk diketahui salah.
+ */
+export function checkUrlShape(
+  raw: string, allowPrivate: boolean,
+): { ok: true; url: URL } | { ok: false; error: string } {
+  const parsed = validateWebhookUrl(raw);
+  if (!parsed.ok) return parsed;
+  if (allowPrivate) return parsed;
+  const host = parsed.url.hostname.replace(/^\[|\]$/g, "");
+  const literal = isIPv4(host) || host.includes(":");
+  if (literal && isBlockedAddress(host))
+    return {
+      ok: false,
+      error: `alamat internal ditolak (${host}) — nyalakan "izinkan alamat internal" bila memang disengaja`,
+    };
+  // `localhost` bukan IP literal tapi semua orang menganggapnya begitu; menolaknya di sini
+  // menghemat satu percobaan kirim yang sudah pasti gagal.
+  if (host === "localhost" || host.endsWith(".localhost"))
+    return {
+      ok: false,
+      error: `alamat internal ditolak (${host}) — nyalakan "izinkan alamat internal" bila memang disengaja`,
+    };
+  return parsed;
+}
+
 export type Lookup = (host: string) => Promise<{ address: string }[]>;
 const defaultLookup: Lookup = (host) => dnsLookup(host, { all: true });
 

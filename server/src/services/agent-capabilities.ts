@@ -40,6 +40,10 @@ export function capabilityForRoute(method: string, path: string): Resolved {
     if (sub === "settings" || sub === "test" || sub === "credentials") return "COOKIE_ONLY";
     return rw("telegram");
   }
+  // SPEC-481 · ADR-0099 · pengelolaan webhook memegang SECRET penandatanganan dan menentukan ke
+  // mana data workspace mengalir keluar. Tak ada capability yang cukup untuk itu — cookie-only,
+  // apa pun methodnya (preseden /telegram/{settings,test,credentials}, ADR-0097).
+  if (top === "webhooks") return "COOKIE_ONLY";
   if (top === "settings" || top === "config") return rw("settings");
   if (top === "specs") return rw("backlog");
   if (top === "notifications") return rw("notifications");

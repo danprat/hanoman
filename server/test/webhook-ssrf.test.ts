@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { validateWebhookUrl, isBlockedAddress, checkDestination } from "../src/services/webhooks/ssrf";
+import {
+  validateWebhookUrl, isBlockedAddress, checkDestination, checkUrlShape,
+} from "../src/services/webhooks/ssrf";
 
 describe("validateWebhookUrl", () => {
   it("menerima http & https", () => {
@@ -56,5 +58,33 @@ describe("checkDestination", () => {
     const boom = async () => { throw new Error("ENOTFOUND"); };
     const r = await checkDestination(new URL("https://hantu.id/h"), false, boom);
     expect(r.ok).toBe(false);
+  });
+});
+
+describe("checkUrlShape (gerbang saat SIMPAN)", () => {
+  it("meloloskan hostname biasa TANPA menyentuh DNS", () => {
+    // Penting: pendaftaran endpoint tak boleh gagal saat DNS lambat/mati. Gerbang sungguhannya
+    // `checkDestination`, yang jalan tiap percobaan kirim.
+    expect(checkUrlShape("https://contoh.id/hook", false).ok).toBe(true);
+    expect(checkUrlShape("https://hostname-yang-belum-ada-9f2c.id/h", false).ok).toBe(true);
+  });
+  it("menolak IP literal internal", () => {
+    for (const u of ["http://127.0.0.1:9000/h", "http://10.0.0.5/h", "http://169.254.169.254/latest",
+      "http://[::1]:9000/h"]) {
+      const r = checkUrlShape(u, false);
+      expect(r.ok, u).toBe(false);
+      if (!r.ok) expect(r.error).toContain("internal");
+    }
+  });
+  it("menolak localhost meski bukan IP literal", () => {
+    expect(checkUrlShape("http://localhost:9000/h", false).ok).toBe(false);
+    expect(checkUrlShape("http://api.localhost/h", false).ok).toBe(false);
+  });
+  it("allowPrivate membuka semuanya", () => {
+    expect(checkUrlShape("http://127.0.0.1:9000/h", true).ok).toBe(true);
+    expect(checkUrlShape("http://localhost:9000/h", true).ok).toBe(true);
+  });
+  it("tetap menolak bentuk URL yang salah walau allowPrivate", () => {
+    expect(checkUrlShape("file:///etc/passwd", true).ok).toBe(false);
   });
 });
