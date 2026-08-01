@@ -1284,7 +1284,7 @@ git commit -m "feat(484): penyaring runtime + ekspansi * di agentDefsFor, sumber
   export function MultiSelect(props: MultiSelectProps): JSX.Element;
   ```
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Create `src/test/ds-multiselect.test.tsx`:
 
@@ -1358,12 +1358,12 @@ describe("MultiSelect", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `env -u NODE_ENV ./node_modules/.bin/vitest run --dir src src/test/ds-multiselect.test.tsx`
 Expected: FAIL — `MultiSelect is not exported`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Tambahkan di akhir `src/src/ds/components/forms.tsx`:
 
@@ -1483,12 +1483,12 @@ export { Button, IconButton, Input, Select, Checkbox, Switch, MultiSelect } from
 
 (Sesuaikan nama modul dengan yang sudah tertulis di baris itu — jangan mengubah path-nya.)
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run: `env -u NODE_ENV ./node_modules/.bin/vitest run --dir src src/test/ds-multiselect.test.tsx`
 Expected: PASS, 7 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/ds/components/forms.tsx src/src/ds/index.ts src/test/ds-multiselect.test.tsx

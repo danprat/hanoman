@@ -214,3 +214,109 @@ export function Switch({ checked, defaultChecked, onChange, size = "md", disable
   }, rest), track, React.createElement("span", { style: { fontSize: "var(--text-md)", color: "var(--text-strong)",
     userSelect: "none" } }, label));
 }
+
+// SPEC-484 · ADR-0101 · pilihan jamak ber-pencarian + chip. SENGAJA INLINE, bukan portal/popover:
+// portal menuntut outside-click & focus-trap, dan opsinya harus bisa diuji lewat `getByRole`
+// alih-alih menembak <span> di dalam <label> seperti Checkbox/Switch DS (jebakan SPEC-299/360/447).
+export type MultiOption = { value: string; label: string; group?: string };
+export type MultiSelectProps = {
+  options: MultiOption[];
+  value: string[];
+  onChange: (next: string[]) => void;
+  placeholder?: string;
+  searchPlaceholder?: string;
+  emptyText?: string;
+  /** Nilai yang TAK ada di katalog — dirender sebagai chip bertanda, bukan dibuang senyap. */
+  invalidValues?: string[];
+  disabled?: boolean;
+  style?: React.CSSProperties;
+} & Record<string, any>;
+
+export function MultiSelect({
+  options, value, onChange, placeholder = "Pilih…", searchPlaceholder = "Cari…",
+  emptyText = "Tak ada yang cocok.", invalidValues = [], disabled = false, style = {}, ...rest
+}: MultiSelectProps) {
+  const [open, setOpen] = React.useState(false);
+  const [q, setQ] = React.useState("");
+  const label = (rest["aria-label"] as string) ?? placeholder;
+  const labelOf = (v: string) => options.find((o) => o.value === v)?.label ?? v;
+  const needle = q.trim().toLowerCase();
+  const shown = needle
+    ? options.filter((o) => `${o.label} ${o.value} ${o.group ?? ""}`.toLowerCase().includes(needle))
+    : options;
+
+  const toggle = (v: string) =>
+    onChange(value.includes(v) ? value.filter((x) => x !== v) : [...value, v]);
+
+  return React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6, ...style } },
+    value.length > 0 && React.createElement("div",
+      { style: { display: "flex", flexWrap: "wrap", gap: 6 } },
+      value.map((v) => {
+        const bad = invalidValues.includes(v);
+        return React.createElement("span", {
+          key: v, "data-testid": `chip-${v}`,
+          title: bad ? "tak ada di katalog mesin ini" : undefined,
+          style: {
+            display: "inline-flex", alignItems: "center", gap: 6, padding: "2px 8px",
+            borderRadius: "var(--radius-pill)", fontSize: "var(--text-xs)",
+            fontFamily: "var(--font-mono)",
+            background: "var(--bone-200)",
+            color: bad ? "var(--status-err)" : "var(--text-strong)",
+            border: `1px solid ${bad ? "var(--status-err)" : "var(--border-strong)"}`,
+          },
+        },
+          bad ? "⚠ " : null,
+          labelOf(v),
+          React.createElement("button", {
+            type: "button", "aria-label": `Hapus ${v}`, disabled,
+            onClick: () => onChange(value.filter((x) => x !== v)),
+            style: { border: "none", background: "transparent", cursor: "pointer",
+              color: "inherit", padding: 0, lineHeight: 1, fontSize: "var(--text-sm)" },
+          }, "×"));
+      })),
+    React.createElement(Button, {
+      variant: "secondary", size: "sm", disabled,
+      "aria-label": label, "aria-expanded": open,
+      onClick: () => setOpen((v) => !v),
+      rightIcon: open ? "chevron-up" : "chevron-down",
+    }, value.length ? `${value.length} dipilih` : placeholder),
+    open && React.createElement("div", {
+      style: {
+        display: "flex", flexDirection: "column", gap: 6, padding: 8,
+        border: "1px solid var(--border-strong)", borderRadius: "var(--radius-sm)",
+        background: "var(--surface-card)",
+      },
+    },
+      React.createElement(Input, {
+        type: "search", role: "searchbox", size: "sm", value: q,
+        placeholder: searchPlaceholder, "aria-label": `Cari ${label}`,
+        onChange: (e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value),
+      }),
+      React.createElement("div", {
+        role: "listbox", "aria-multiselectable": true,
+        style: { display: "flex", flexDirection: "column", maxHeight: 220, overflowY: "auto" },
+      },
+        shown.length === 0
+          ? React.createElement("span", {
+              style: { fontSize: "var(--text-xs)", color: "var(--text-subtle)", padding: "6px 4px" },
+            }, emptyText)
+          : shown.map((o) => React.createElement("button", {
+              key: o.value, type: "button", role: "option",
+              "aria-selected": value.includes(o.value), disabled,
+              onClick: () => toggle(o.value),
+              style: {
+                display: "flex", alignItems: "center", gap: 8, padding: "6px 4px",
+                border: "none", background: "transparent", cursor: "pointer", textAlign: "left",
+                font: `var(--weight-medium) var(--text-sm)/1.3 var(--font-ui)`,
+                color: value.includes(o.value) ? "var(--text-strong)" : "var(--text-body)",
+              },
+            },
+              React.createElement(Icon, {
+                name: value.includes(o.value) ? "check" : "circle", size: 14,
+                color: value.includes(o.value) ? "var(--accent)" : "var(--text-subtle)",
+              }),
+              React.createElement("span", null, o.label),
+              o.group && React.createElement("span", {
+                style: { marginLeft: "auto", fontSize: "var(--text-xs)", color: "var(--text-subtle)" },
+              }, o.group))))));
+}
