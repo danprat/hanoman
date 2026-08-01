@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { chmodSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { leadArgv, leadEnv, think } from "../src/services/lead/brain";
+import { leadArgv, leadEnv, leadFailureReason, think } from "../src/services/lead/brain";
 
 // SPEC-448 (QA) · `brain.ts` adalah titik spawn agen KEDUA di hanoman — satu-satunya di luar
 // `services/pty.ts` — dan sampai spec ini ia tak punya satu pun test. Dua kegagalan yang membuat
@@ -19,8 +19,18 @@ import { leadArgv, leadEnv, think } from "../src/services/lead/brain";
 //       menetapkan `User=root`) claude mencetak "--dangerously-skip-permissions cannot be used
 //       with root/sudo privileges" lalu `process.exit(1)` — lead exit tanpa keluaran, SETIAP kali.
 
+// SPEC-472 (QA) · lead yang GAGAL harus mengatakan kenapa. Sebelum spec ini alasannya disusun dari
+// `(stderr || err.message).trim().slice(0, 500)`, dan untuk kegagalan yang paling sering terjadi di
+// lapangan — kunci API ditolak 401 — ketiga bagian itu meleset sekaligus: Claude Code menaruh
+// penjelasannya di **stdout** (terukur: `stderr === ""`), `err.message` `execFile` diawali SELURUH
+// argv yang argumen terakhirnya adalah prompt lead (9 856 B di instance produksi), dan potongan 500
+// char karena itu hanya memuat pembuka prompt. Terukur: 152 baris jejak `gagal` berturut-turut,
+// semuanya sepanjang 552 char, semuanya berbunyi sama, nol informasi diagnostik.
+
 const FAKE_AGENT = fileURLToPath(new URL("./fixtures/fake-lead-agent.sh", import.meta.url));
+const FAKE_REFUSING = fileURLToPath(new URL("./fixtures/fake-lead-invalid-key.sh", import.meta.url));
 chmodSync(FAKE_AGENT, 0o755);
+chmodSync(FAKE_REFUSING, 0o755);
 
 const withBin = (key: "HANOMAN_CLAUDE_BIN" | "HANOMAN_CODEX_BIN") => {
   process.env[key] = FAKE_AGENT;
@@ -67,6 +77,74 @@ describe("think · stdin ditutup, env sampai ke proses", () => {
     withBin("HANOMAN_CODEX_BIN");
     const out = await think("halo", { agent: "codex", model: "", effort: "", timeoutMs: 1500 });
     expect(out).toContain("stdin: EOF");
+  });
+});
+
+describe("leadFailureReason · alasan gagal yang bisa dibaca (SPEC-472)", () => {
+  const fail = (over: Partial<Parameters<typeof leadFailureReason>[2]> = {}) =>
+    ({ message: "Command failed: claude -p …", code: 1, ...over }) as Parameters<typeof leadFailureReason>[2];
+
+  it("mengambil keterangan CLI dari stdout saat stderr kosong", () => {
+    const r = leadFailureReason("claude", 600_000, fail(), "Invalid API key · Fix external API key\n", "");
+    expect(r).toContain("Invalid API key · Fix external API key");
+  });
+
+  // Terukur in-vivo: dengan kunci API yang ditolak, claude menaruh nasihat yang PALING berguna di
+  // stderr ("ANTHROPIC_API_KEY … takes precedence over your claude.ai login · Unset it") dan
+  // vonisnya di stdout ("Invalid API key"). Membuang salah satunya mengulang bug ini dalam bentuk
+  // kecil, jadi keduanya disimpan — stderr dulu, karena di sanalah galat yang biasanya lebih spesifik.
+  it("menyimpan KEDUA stream saat keduanya berisi, stderr lebih dulu", () => {
+    const r = leadFailureReason("claude", 600_000, fail(), "Invalid API key", "⚠ ANTHROPIC_API_KEY … Unset it");
+    expect(r).toContain("⚠ ANTHROPIC_API_KEY … Unset it");
+    expect(r).toContain("Invalid API key");
+    expect(r.indexOf("Unset it")).toBeLessThan(r.indexOf("Invalid API key"));
+  });
+
+  // Inti bugnya: `err.message` execFile = `Command failed: <bin> <argv…>`, dan argumen terakhirnya
+  // adalah prompt lead. Ia tak boleh dipotong — ia tak boleh DIPAKAI.
+  it("tak pernah menggemakan pesan execFile yang memuat argv (prompt hidup di sana)", () => {
+    const message = `Command failed: claude -p --dangerously-skip-permissions ${"Kamu adalah **hanoman-lead**: ".repeat(200)}`;
+    const r = leadFailureReason("claude", 600_000, fail({ message }), "", "");
+    expect(r).not.toContain("hanoman-lead");
+    expect(r).not.toContain("Command failed");
+    expect(r).toContain("tanpa keluaran");
+  });
+
+  it("menyebut exit code sehingga keluar-diam pun tetap terbaca", () => {
+    expect(leadFailureReason("claude", 600_000, fail({ code: 1 }), "", "")).toContain("exit 1");
+  });
+
+  it("menyebut sinyal saat anak mati karena sinyal", () => {
+    const r = leadFailureReason("codex", 600_000, fail({ code: undefined, signal: "SIGKILL" }), "", "");
+    expect(r).toContain("SIGKILL");
+  });
+
+  // Kegagalan spawn membawa kode string dan pesannya TIDAK memuat argv — itu satu-satunya pesan
+  // execFile yang aman dipakai apa adanya.
+  it("mempertahankan galat spawn yang informatif", () => {
+    const r = leadFailureReason("claude", 600_000, fail({ message: "spawn claude ENOENT", code: "ENOENT" }), "", "");
+    expect(r).toContain("ENOENT");
+  });
+
+  it("kehabisan waktu tetap dilaporkan sebagai kehabisan waktu", () => {
+    expect(leadFailureReason("claude", 1_234, fail({ killed: true }), "", "")).toBe("lead claude kehabisan waktu 1234 ms");
+  });
+
+  // Pesan galat hidup di EKOR keluaran (cermin transcript-store, ADR-0079). Memotong kepala adalah
+  // persis kesalahan yang membuat bug ini tak terbaca.
+  it("menyimpan ekor keluaran panjang, bukan kepalanya", () => {
+    const out = `${"x".repeat(4000)}\nAPI Error: 401 unauthorized`;
+    const r = leadFailureReason("claude", 600_000, fail(), out, "");
+    expect(r).toContain("API Error: 401 unauthorized");
+    expect(r.length).toBeLessThan(700);
+  });
+});
+
+describe("think · agen yang menolak menjawab", () => {
+  it("meneruskan penolakan stdout-saja sampai ke pesan galatnya", async () => {
+    process.env.HANOMAN_CLAUDE_BIN = FAKE_REFUSING;
+    await expect(think("halo", { agent: "claude", model: "", effort: "", timeoutMs: 5_000 }))
+      .rejects.toThrow(/Invalid API key/);
   });
 });
 

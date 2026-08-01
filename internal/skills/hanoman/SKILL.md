@@ -455,6 +455,34 @@ Pakai skill lebih sempit saat task cocok:
   liar** ke sesi yang sedang bekerja, sampai `maxAutoAnswers`. Opsi dialog sekalian disodorkan ke
   `leadPrompt.options` — field yang ada sejak ADR-0091 dan tak pernah diisi pintu deteksi. Pintu
   override operator (`POST /lead/decisions/:id/override`) ikut sembuh lewat `sendToPane` yang sama.
+- **Lead yang gagal WAJIB mengatakan kenapa, dan wajib punya ujung** (SPEC-472, tanpa ADR — QA;
+  ADR-0091 ditegakkan, ADR-0037 utuh). Dua aturan yang lahir dari satu kejadian: `claude -p` milik
+  lead ditolak **401** karena `think()` meneruskan seluruh `process.env` server, dan di sana ada
+  **`ANTHROPIC_API_KEY`** yang disuntik `services/config-apply.ts` dari `RuntimeConfig` — kunci API
+  eksplisit **mengalahkan** `CLAUDE_CODE_OAUTH_TOKEN`, jadi satu nilai salah di Settings mematikan
+  seluruh lead. Ia **tak terlihat di `/proc/<pid>/environ`** (itu env saat exec, bukan `process.env`
+  yang sudah dimutasi runtime): bandingkan jumlah var, atau `strace -v -e trace=execve`. Sesi
+  interaktif **tak** ikut kena karena lahir lewat **tmux**, yang env-nya membeku saat daemon lahir —
+  jadi `inheritEnv: true` di `config-registry.ts` hari ini hanya sampai ke anak yang di-`spawn`
+  LANGSUNG oleh proses server. **(A) Alasan gagal.** `leadFailureReason()` (murni, di `brain.ts`)
+  membaca **KEDUA stream** (stderr dulu, lalu stdout), menyebut exit code/sinyal, dan menyimpan
+  **ekor** keluaran (cermin cap transkrip ADR-0079). Tiga jebakan yang membuat
+  `(stderr || err.message).slice(0, 500)` gagal total: agen CLI **tak sepakat soal stream** — dengan
+  env ramping penolakan kunci mendarat di **stdout** (`stderr === ""`), dengan env server penuh
+  nasihat yang paling berguna ("ANTHROPIC_API_KEY … takes precedence · Unset it") justru di
+  **stderr** dan vonisnya tetap di stdout, jadi mana yang terbuang **bergantung env**;
+  `err.message` `execFile` berbentuk `Command failed: <bin> <argv…>` yang argumen terakhirnya adalah
+  **prompt lead ±10 KB**, jadi ia tak boleh dipotong melainkan **tak boleh dipakai** (galat `spawn …
+  ENOENT` berbentuk lain dan tetap berguna); dan pesan galat hidup di **ekor**, jadi memotong kepala
+  membuang persis yang dicari. Gejalanya: 152 baris jejak `gagal` beruntun, semuanya **552 char**,
+  semuanya identik, dan `journalctl` bisu karena `decide()` memang menjadikannya baris jejak, bukan
+  `console.error`. **(B) Ujung.** `detect.ts` punya penghitung **kedua** (`failures`, ambang
+  `maxAutoAnswers` yang sama) karena pagar AC-11 mengukur jawaban yang BERHASIL diberikan dan karena
+  itu tak pernah bergerak untuk sesi yang keputusannya selalu gagal — `engine.ts` `TICK_MS = 5_000`
+  lalu men-spawn agen lead baru selamanya (terukur 152 percobaan / ±13 menit atas tiga sesi, kuota
+  langganan yang sama dengan sesi pekerja). Gerbangnya **sebelum** `decide()` — yang mahal adalah
+  panggilannya. `null` dari `decide()` (lead dijeda di tengah panggilan) **bukan** kegagalan dan tak
+  dihitung; keberhasilan mengosongkan rantainya ("beruntun"), begitu pula `resetSession`/`sweep`.
 - **Scope verifikasi per sesi** (SPEC-376/ADR-0080): `verifyScope` (`changed` default | `full`) —
   knob `Setting.verifyScope` (kolom `Json`, **tanpa migration**) + override saat Start. Sesi
   `changed` menguji **berkas yang berubah saja**: `pnpm vitest --run --changed "$HANOMAN_BASE_SHA"`

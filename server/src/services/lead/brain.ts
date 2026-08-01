@@ -76,6 +76,56 @@ export type ThinkOpts = {
   cwd?: string; timeoutMs: number;
 };
 
+/** Bentuk galat `execFile` yang benar-benar dibaca — bukan seluruh `ErrnoException`. */
+export type ExecFailure = {
+  message: string;
+  code?: number | string;
+  signal?: NodeJS.Signals | null;
+  killed?: boolean;
+};
+
+/** Sebab gagal hidup di EKOR keluaran (cermin cap transkrip ADR-0079), bukan di kepalanya. */
+const EXPLAIN_MAX = 500;
+const tail = (s: string): string => {
+  const t = s.trim();
+  return t.length > EXPLAIN_MAX ? `…${t.slice(-EXPLAIN_MAX)}` : t;
+};
+
+/**
+ * SPEC-472 (QA) · alasan gagal yang bisa DIBACA operator. Murni supaya bentuknya bisa dites tanpa
+ * men-spawn apa pun; `think()` di bawah cuma menyalurkan hasilnya.
+ *
+ * Tiga keputusan, semuanya lahir dari satu kegagalan lapangan yang sama (152 baris jejak `gagal`
+ * beruntun yang tak memberi satu pun petunjuk):
+ *
+ * 1. **KEDUA stream dibaca, stderr dulu.** Agen CLI tak sepakat soal stream: `claude -p` yang
+ *    kuncinya ditolak mencetak "Invalid API key · Fix external API key" di **stdout** lalu `exit(1)`
+ *    (terukur pada 2.1.220 dengan env ramping: `stderr === ""`), sementara dengan env server penuh
+ *    nasihat yang justru paling berguna — "ANTHROPIC_API_KEY … takes precedence over your claude.ai
+ *    login · Unset it" — datang di **stderr** dan vonisnya tetap di stdout. `stderr || …` membuang
+ *    salah satunya, dan mana yang terbuang bergantung env; menyimpan keduanya menutup dua-duanya.
+ * 2. **`err.message` tak pernah dipakai saat ia memuat argv.** `execFile` menyusunnya sebagai
+ *    `Command failed: <bin> <args…>` dan argumen terakhir lead adalah PROMPT-nya (±10 KB), jadi
+ *    memakainya berarti menyimpan prompt ke jejak alih-alih sebabnya. Galat spawn (`spawn … ENOENT`)
+ *    tak berbentuk itu dan tetap berguna, jadi ia lolos.
+ * 3. **Ekor, bukan kepala.** Pesan galat datang di akhir keluaran; `slice(0, 500)` pada keluaran
+ *    panjang membuang persis bagian yang dicari.
+ *
+ * Kode keluar/sinyal selalu disebut: proses yang mati tanpa mengatakan apa-apa pun tetap harus bisa
+ * dibedakan dari proses yang tak pernah lahir.
+ */
+export function leadFailureReason(
+  agent: Agent, timeoutMs: number, err: ExecFailure, stdout: string, stderr: string,
+): string {
+  if (err.killed) return `lead ${agent} kehabisan waktu ${timeoutMs} ms`;
+  // `Command failed:` = pesan rakitan execFile yang memuat seluruh argv → buang, bukan potong.
+  const fromErr = err.message.startsWith("Command failed:") ? "" : err.message;
+  const detail = [tail(stderr), tail(stdout)].filter(Boolean).join(" · ")
+    || tail(fromErr) || "tanpa keluaran";
+  const how = err.signal ? `sinyal ${err.signal}` : `exit ${err.code ?? "?"}`;
+  return `lead ${agent} gagal (${how}): ${detail}`;
+}
+
 /**
  * Jalankan lead sekali dan kembalikan keluaran mentahnya. Melempar saat proses gagal/kehabisan
  * waktu — pemanggil (decide.ts) yang menerjemahkannya jadi baris jejak `gagal` + notifikasi (AC-4).
@@ -92,8 +142,7 @@ export function think(prompt: string, o: ThinkOpts): Promise<string> {
       env: leadEnv(o.agent), encoding: "utf8", killSignal: "SIGTERM",
     }, (err, stdout, stderr) => {
       if (err) {
-        const killed = (err as NodeJS.ErrnoException & { killed?: boolean }).killed;
-        reject(new Error(killed ? `lead ${o.agent} kehabisan waktu ${o.timeoutMs} ms` : `lead ${o.agent} gagal: ${(stderr || err.message).trim().slice(0, 500)}`));
+        reject(new Error(leadFailureReason(o.agent, o.timeoutMs, err as unknown as ExecFailure, stdout, stderr)));
         return;
       }
       resolve(stdout);

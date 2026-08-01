@@ -26,9 +26,33 @@ import { recordDecision } from "./trail";
  */
 const answers = new Map<string, number>();
 const capped = new Set<string>();
-export function resetSession(sessionId: string): void { answers.delete(sessionId); capped.delete(sessionId); }
-export function __resetDetect(): void { answers.clear(); capped.clear(); }
+
+/**
+ * SPEC-472 (QA) · berapa keputusan BERTURUT-TURUT gagal disusun untuk satu sesi.
+ *
+ * Penghitung KEDUA, sengaja terpisah dari `answers`: pagar AC-11 mengukur "sudah dijawab berapa
+ * kali" dan karena itu tak pernah bergerak untuk sesi yang keputusannya tak pernah jadi. Tanpa
+ * pagar sendiri, satu penyebab yang tak kunjung hilang (kunci API ditolak, kuota habis, agen tak
+ * terpasang) membuat denyut 5 detik men-spawn agen lead baru untuk sesi yang sama tanpa ujung —
+ * terukur 152 percobaan dalam ±13 menit, masing-masing satu proses agen dan satu baris jejak yang
+ * sama. Ambangnya ikut `maxAutoAnswers`: knob itu sudah berarti "berapa kali lead boleh mencoba
+ * sendiri sebelum menyerah ke operator", dan kegagalan adalah percobaan juga.
+ *
+ * Dikosongkan oleh keputusan yang BERHASIL (lead terbukti sanggup lagi), oleh campur tangan
+ * operator (`resetSession`), dan oleh sesi yang berakhir (`sweep`) — sama seperti `answers`.
+ */
+const failures = new Map<string, number>();
+const failCapped = new Set<string>();
+
+export function resetSession(sessionId: string): void {
+  answers.delete(sessionId); capped.delete(sessionId);
+  failures.delete(sessionId); failCapped.delete(sessionId);
+}
+export function __resetDetect(): void {
+  answers.clear(); capped.clear(); failures.clear(); failCapped.clear();
+}
 export function answerCount(sessionId: string): number { return answers.get(sessionId) ?? 0; }
+export function failureCount(sessionId: string): number { return failures.get(sessionId) ?? 0; }
 
 export type DetectDeps = {
   live: () => { id: string; specId?: string; projectId: string; decisionFile: string }[];
@@ -111,6 +135,26 @@ export async function scanAndAnswer(deps: DetectDeps = prodDetectDeps): Promise<
       continue;
     }
 
+    // SPEC-472 · pagar kedua: menyerah sesudah sederet kegagalan. Ditempatkan SEBELUM `decide()`
+    // karena yang mahal justru panggilannya — satu proses agen per percobaan.
+    if ((failures.get(s.id) ?? 0) >= cfg.maxAutoAnswers) {
+      if (!failCapped.has(s.id)) {
+        failCapped.add(s.id);
+        const row = await recordDecision({
+          projectId: s.projectId, specId: s.specId, sessionId: s.id,
+          gate: "detected", kind: "quality",
+          question: `Keputusan untuk sesi ${s.id} gagal disusun ${cfg.maxAutoAnswers}× berturut-turut.`,
+          answer: "Berhenti mencoba; serahkan ke operator.",
+          reason: "Kegagalan beruntun menandakan sebab yang tak hilang dengan mengulang (kunci/kuota agen, biner tak terpasang) — mencoba lagi tiap denyut hanya membakar kuota. Alasan percobaan terakhir ada di baris jejak `gagal` tepat di atas ini.",
+          refs: [], confidence: "tinggi", action: "none", weighty: true,
+        });
+        await deps.notify(row.id, `Lead berhenti mencoba sesi ${s.id} (${cfg.maxAutoAnswers}× gagal berturut-turut)`,
+          s.projectId, s.specId ?? null, s.id);
+      }
+      skip("batas kegagalan beruntun tercapai");
+      continue;
+    }
+
     const agent = deps.agentOf(s.id) ?? "claude";
     const read = readPaneQuestion(deps.pane(s.id), agent);
     if (!read.asking) { skip(read.reason); continue; }        // AC-9
@@ -129,7 +173,14 @@ export async function scanAndAnswer(deps: DetectDeps = prodDetectDeps): Promise<
       options: read.choices.length ? read.choices : undefined,
       notes,
     }, deps.decideDeps);
-    if (!row || row.status !== "berlaku") { skip("lead tak menghasilkan keputusan yang berlaku"); continue; }
+    // `null` = lead baru saja dijeda/dimatikan di tengah panggilan — bukan kegagalan lead, jadi tak
+    // dihitung. Baris ber-status `gagal` ADALAH kegagalan: ia yang harus punya ujung (SPEC-472).
+    if (!row) { skip("lead tak menghasilkan keputusan yang berlaku"); continue; }
+    if (row.status !== "berlaku") {
+      failures.set(s.id, (failures.get(s.id) ?? 0) + 1);
+      skip("lead tak menghasilkan keputusan yang berlaku");
+      continue;
+    }
 
     // `reply` adalah penghalusan opsional dari jawaban — teks yang enak diketik ke TUI ("1")
     // dibanding kalimat keputusannya. Ia hidup di saluran samping berumur pendek (bukan kolom DB),
@@ -143,6 +194,7 @@ export async function scanAndAnswer(deps: DetectDeps = prodDetectDeps): Promise<
     // sesi yang sebenarnya masih menunggu manusia.
     deps.clearMarker(s.decisionFile);
     answers.set(s.id, (answers.get(s.id) ?? 0) + 1);
+    failures.delete(s.id);   // SPEC-472 · "beruntun" — satu keberhasilan memutus rantainya
     out.answered.push(s.id);
   }
   return out;
@@ -153,4 +205,6 @@ function sweep(liveIds: string[]): void {
   const live = new Set(liveIds);
   for (const id of [...answers.keys()]) if (!live.has(id)) answers.delete(id);
   for (const id of [...capped]) if (!live.has(id)) capped.delete(id);
+  for (const id of [...failures.keys()]) if (!live.has(id)) failures.delete(id);
+  for (const id of [...failCapped]) if (!live.has(id)) failCapped.delete(id);
 }
