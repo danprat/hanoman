@@ -13,6 +13,7 @@ import { branchOptions } from "./branch";
 import type { Spec } from "./types";
 import type { ProjectVM } from "./types";
 import type { AuditEscalation } from "@hanoman/shared";
+import { AUTO_MERGE_OFF, autoMergeSummary, resolveAutoMerge, type AutoMerge } from "@hanoman/shared";
 
 // Kosakata stage frontend (key → label). Di-reuse oleh BacklogPicker di TerminalScreen (SPEC-179).
 export const B_STAGES = [
@@ -120,7 +121,7 @@ const escVariant = (e: AuditEscalation | null, target: string): "primary" | "sec
 // Source yang berujung dokumen audit — berhak atas ketiga pintu eskalasi.
 const isAuditSource = (source: string) => source === "audit";
 
-function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, onStart, onIntegrate, onEditSpec, onPromoteToQa, onPromoteToBrief, onPromoteToPrd, onEditDeps, allSpecs }:
+function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, onStart, onIntegrate, onEditSpec, onPromoteToQa, onPromoteToBrief, onPromoteToPrd, onEditDeps, onEditAutoMerge, projectPolicy, allSpecs }:
   {
     spec: Spec | null; onClose: () => void; onEditBranch?: (s: Spec, b: string | null) => void;
     onRevertStage?: (s: Spec, target: string, confirmDelete?: boolean) => Promise<any>;
@@ -136,6 +137,10 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
     // SPEC-447 · ADR-0093 · dependency bisa diperbaiki kapan saja (termasuk sesudah item dimulai):
     // gerbangnya soal peluncuran BERIKUTNYA, bukan konten yang sedang dikerjakan sesi hidup.
     onEditDeps?: (s: Spec, ids: string[]) => void;
+    // SPEC-486 · ADR-0103 · override kebijakan auto-merge item ini (null = kembali ikut project).
+    // Alasan yang sama dengan onEditDeps: ia menggerbangi apa yang terjadi SESUDAH kerja.
+    onEditAutoMerge?: (s: Spec, v: AutoMerge | null) => void;
+    projectPolicy?: unknown;   // Project.autoMerge — untuk label "Ikut project (…)"
     allSpecs?: Spec[];
   }) {
   // Hook HARUS mendahului early-return `if (!spec)` — rules-of-hooks.
@@ -289,6 +294,39 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
           </div>
         )}
       </div>
+      {/* SPEC-486 · ADR-0103 · override kebijakan auto-merge untuk item ini. Pilihan pertama
+          menyebut kebijakan project apa adanya supaya tak pernah ada pertanyaan "lalu ini pakai apa". */}
+      {onEditAutoMerge && (
+        <div style={{ marginBottom: 14 }}>
+          <div className="hn-eyebrow" style={{ marginBottom: 4 }}>Auto-merge saat selesai</div>
+          <Select size="sm" aria-label="Auto-merge item ini"
+            value={spec.autoMerge ? spec.autoMerge.mode : "inherit"}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === "inherit") return onEditAutoMerge(spec, null);
+              if (v === "off") return onEditAutoMerge(spec, { ...AUTO_MERGE_OFF });
+              onEditAutoMerge(spec, {
+                ...(spec.autoMerge ?? AUTO_MERGE_OFF),
+                mode: v as AutoMerge["mode"],
+                branch: v === "branch" ? (spec.autoMerge?.branch ?? branches[0] ?? null) : null,
+              });
+            }}
+            options={[
+              { value: "inherit", label: `Ikut project (${autoMergeSummary(resolveAutoMerge(projectPolicy, null))})` },
+              { value: "off", label: "Tanpa auto-merge untuk item ini" },
+              { value: "default-branch", label: "Auto-merge ke default branch repo" },
+              { value: "branch", label: "Auto-merge ke branch tujuan…" },
+            ]} />
+          {spec.autoMerge?.mode === "branch" && (
+            <div style={{ marginTop: 6 }}>
+              <Select size="sm" aria-label="Branch tujuan item ini" value={spec.autoMerge.branch ?? ""}
+                onChange={(e) => onEditAutoMerge(spec, { ...spec.autoMerge!, branch: e.target.value || null })}
+                options={[{ value: "", label: "Pilih branch…" },
+                  ...branches.map((b) => ({ value: b, label: b }))]} />
+            </div>
+          )}
+        </div>
+      )}
       {editing ? (
         <Field label="Judul"><Input value={form.title ?? ""} onChange={setField("title")} style={{ width: "100%" }} /></Field>
       ) : (
@@ -649,7 +687,7 @@ const VIEWS = [
   { value: "board", label: "Board", icon: "kanban" },
 ];
 
-export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onOpenReview, onNew, onEditBranch, onRevertStage, onIntegrate, onEditSpec, onEditDeps, onPromoteToQa, onPromoteToBrief, onPromoteToPrd, projectFilter, onProjectFilter, dataVersion, onToast, initialDetailId }:
+export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activeSpecs, onDelete, onOpenRun, onOpenReview, onNew, onEditBranch, onRevertStage, onIntegrate, onEditSpec, onEditDeps, onEditAutoMerge, onPromoteToQa, onPromoteToBrief, onPromoteToPrd, projectFilter, onProjectFilter, dataVersion, onToast, initialDetailId }:
   {
     backlog: Spec[]; projects: ProjectVM[]; pageSize?: number;
     onStart?: (s: Spec) => void; activeSpecs?: Set<string>;
@@ -660,6 +698,8 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
     onEditSpec?: (s: Spec, patch: { title?: string; priority?: string; payload?: unknown }) => void;
     // SPEC-447 · ADR-0093 · ubah dependency item (di luar gerbang edit SPEC-186).
     onEditDeps?: (s: Spec, ids: string[]) => void;
+    // SPEC-486 · ADR-0103 · ubah kebijakan auto-merge item (null = kembali ikut project).
+    onEditAutoMerge?: (s: Spec, v: AutoMerge | null) => void;
     // SPEC-237 · naikkan audit → Finding QA. SPEC-340 · ADR-0076 · + feature brief & PRD;
     // argumen kedua = rekomendasi hanoman yang terbaca dari dokumen audit (bisa null).
     onPromoteToQa?: (s: Spec, e: AuditEscalation | null) => void;
@@ -805,7 +845,9 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
       <SpecDetail spec={backlog.find((s) => s.id === detailId) || null} onClose={() => setDetailId(null)}
         onEditBranch={onEditBranch} onRevertStage={onRevertStage} onOpenReview={onOpenReview} onStart={onStart} onIntegrate={onIntegrate} onEditSpec={onEditSpec} onPromoteToQa={onPromoteToQa}
         onPromoteToBrief={onPromoteToBrief} onPromoteToPrd={onPromoteToPrd}
-        onEditDeps={onEditDeps} allSpecs={backlog} />
+        onEditDeps={onEditDeps} onEditAutoMerge={onEditAutoMerge}
+        projectPolicy={(projects.find((x) => x.id === backlog.find((s) => s.id === detailId)?.projectId) as { autoMerge?: unknown } | undefined)?.autoMerge}
+        allSpecs={backlog} />
     </div>
   );
 }

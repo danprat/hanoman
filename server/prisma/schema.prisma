@@ -21,6 +21,9 @@ model Project {
   helpEnabled Boolean @default(false) // SPEC-253 · opt-in Help Center publik
   schedulerOptIn Boolean @default(false) // SPEC-294 · ADR-0072 · opt-in scheduler otonom (LOCAL — tak masuk FIELDS sync)
   leadOptIn      Boolean @default(false) // SPEC-409 · ADR-0091 · opt-in hanoman-lead (LOCAL — cermin schedulerOptIn)
+  // SPEC-486 · ADR-0103 · kebijakan auto-merge saat backlog item selesai (LOCAL — tak masuk
+  // FIELDS sync, cermin repoDir/schedulerOptIn). null = tanpa auto-merge (default, nol backfill).
+  autoMerge      Json?
   specs        Spec[]
   tickets      Ticket[]
   customAgents CustomAgent[] // SPEC-450 · ADR-0094 · custom agent milik project ini
@@ -54,6 +57,9 @@ model Spec {
   // dan kolom ikut FIELDS.spec sync apa adanya. Integritas ditegakkan di boundary route +
   // pembersihan saat spec dihapus, bukan FK.
   dependsOn  Json?
+  // SPEC-486 · ADR-0103 · override kebijakan auto-merge untuk item ini. null = warisi project.
+  // `Json?` dengan alasan yang sama seperti dependsOn: blok dibaca utuh, tak pernah difilter.
+  autoMerge  Json?
   updatedAt  DateTime @updatedAt
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }

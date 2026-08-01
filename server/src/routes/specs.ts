@@ -17,6 +17,8 @@ import { listSpecDocs, resolveDir } from "../services/spec-docs";
 import { readEscalation } from "../services/audit-escalation";
 import { resolveRepoDir } from "../services/local-binding";
 import { validateDependsOn, dependsOnOf } from "../services/spec-deps";
+import { checkAutoMerge } from "../services/auto-merge-gate";
+import { Prisma } from "@prisma/client";
 import { readDocFile } from "../services/scan";
 import { downloadFormat, sendDocDownload, sendReviewDownload } from "../services/doc-export";
 import { paginate } from "../services/paginate";
@@ -188,7 +190,7 @@ export default async function (app: FastifyInstance) {
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
     const spec = await prisma.spec.findUnique({ where: { id } });
     if (!spec) return reply.code(404).send({ error: "not found" });
-    const { branchFrom, stage, confirmDelete, title, priority: newPriority, payload, dependsOn } = parsed.data;
+    const { branchFrom, stage, confirmDelete, title, priority: newPriority, payload, dependsOn, autoMerge } = parsed.data;
     const editingContent = title !== undefined || newPriority !== undefined || payload !== undefined;
     // SPEC-186 · konten hanya boleh diubah selagi item masih di backlog & belum dimulai.
     if (editingContent && (spec.stage !== "brainstorming" || spec.baseSha !== null))
@@ -207,6 +209,12 @@ export default async function (app: FastifyInstance) {
       if (!d.ok) return reply.code(400).send({ error: d.error });
       depIds = d.ids;
     }
+    // SPEC-486 · ADR-0103 · cermin dependsOn: di luar gerbang `editingContent`, divalidasi
+    // terhadap repo efektif project item ini.
+    if ("autoMerge" in parsed.data) {
+      const gate = await checkAutoMerge(await resolveRepoDir(spec.projectId), autoMerge);
+      if (!gate.ok) return reply.code(gate.code).send({ error: gate.error });
+    }
     if (stage !== undefined) {
       if (STAGES.indexOf(stage) >= STAGES.indexOf(spec.stage as Stage))
         return reply.code(422).send({ error: "stage hanya boleh dikembalikan mundur" });
@@ -215,9 +223,11 @@ export default async function (app: FastifyInstance) {
         return reply.send({ pending: true, stage, wouldDelete });
       for (const rel of wouldDelete) await deleteDoc(spec.projectId, rel).catch(() => { });
     }
-    const data: { branchFrom?: string | null; stage?: string; title?: string; priority?: string; objective?: string; payload?: any; dependsOn?: string[] } = {};
+    const data: { branchFrom?: string | null; stage?: string; title?: string; priority?: string; objective?: string; payload?: any; dependsOn?: string[]; autoMerge?: any } = {};
     if (branchFrom !== undefined) data.branchFrom = branchFrom;
     if (depIds !== undefined) data.dependsOn = depIds;   // SPEC-447 · ADR-0093
+    // SPEC-486 · Prisma `Json?` menolak `null` polos — `Prisma.DbNull` yang mengosongkan kolomnya.
+    if ("autoMerge" in parsed.data) data.autoMerge = autoMerge === null ? Prisma.DbNull : autoMerge;
     if (stage !== undefined) data.stage = stage;
     if (editingContent) {
       const effPayload = payload ?? spec.payload;

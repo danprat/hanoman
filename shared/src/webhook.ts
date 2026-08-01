@@ -87,7 +87,7 @@ export const WEBHOOK_ENTITIES: WebhookEntityDef[] = [
   {
     entity: "spec", model: "Spec", label: "Backlog item",
     fields: ["id", "projectId", "title", "source", "stage", "priority", "author", "objective",
-      "branchFrom", "baseSha", "headSha", "dependsOn", "createdAt", "startedAt", "updatedAt"],
+      "branchFrom", "baseSha", "headSha", "dependsOn", "autoMerge", "createdAt", "startedAt", "updatedAt"],
     projectIdField: "projectId",
     events: {
       created: { type: "spec.created", label: "Backlog dibuat", when: "Sebuah item backlog difilekan — lewat UI, POST /specs, breakdown PRD, triase tiket, atau tarik issue GitHub." },
@@ -103,7 +103,7 @@ export const WEBHOOK_ENTITIES: WebhookEntityDef[] = [
       source: "brief", stage: "executing", priority: "sedang", author: "dena@nafanesia.id",
       objective: "hanoman mengirim webhook HTTP POST ke endpoint yang didaftarkan pengguna.",
       branchFrom: null, baseSha: "5117298c5a3e63af76cbadaa46e2edfa50921d7", headSha: null,
-      dependsOn: null,
+      dependsOn: null, autoMerge: null,
       createdAt: "2026-08-01T02:10:00.000Z", startedAt: "2026-08-01T02:12:31.000Z",
       updatedAt: "2026-08-01T09:41:22.000Z",
     },
@@ -111,7 +111,7 @@ export const WEBHOOK_ENTITIES: WebhookEntityDef[] = [
   {
     entity: "project", model: "Project", label: "Project",
     fields: ["id", "name", "desc", "kind", "gitRemote", "stack", "helpEnabled",
-      "schedulerOptIn", "leadOptIn", "createdAt", "updatedAt"],
+      "schedulerOptIn", "leadOptIn", "autoMerge", "createdAt", "updatedAt"],
     projectIdField: "id",
     cascade: ["spec", "ticket", "customAgent", "githubIssue"],
     events: {
@@ -122,7 +122,7 @@ export const WEBHOOK_ENTITIES: WebhookEntityDef[] = [
     sample: {
       id: "hanoman", name: "hanoman", desc: "Orchestrator + dashboard docs-driven",
       kind: "web", gitRemote: "git@github.com:nafanesia/hanoman.git", stack: "ts",
-      helpEnabled: false, schedulerOptIn: true, leadOptIn: false,
+      helpEnabled: false, schedulerOptIn: true, leadOptIn: false, autoMerge: null,
       createdAt: "2026-05-02T04:00:00.000Z", updatedAt: "2026-08-01T09:00:00.000Z",
     },
   },

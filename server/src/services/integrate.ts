@@ -178,9 +178,18 @@ async function resolveGraphSource(repoDir: string, source: string): Promise<stri
   return null;
 }
 
+// SPEC-486 · ADR-0103 · dipakai juga sweep auto-merge untuk MEMBUANG worktree konflik yang
+// tertinggal: auto-merge sengaja TIDAK melahirkan sesi agen (kontrak ADR-0031 mengharapkannya,
+// tapi membakar kuota tanpa diminta bukan yang diminta operator), jadi ia harus membereskannya.
+export async function discardMergeWorktree(repoDir: string, wt: string): Promise<void> {
+  await reclaim(repoDir, wt);
+}
+
 // Hapus branch yang baru di-merge (best-effort): local -D lalu origin --delete bila ada. Merge sudah
 // landed; kegagalan hapus TIDAK me-rollback (beda dari afterMergeDelete git-ide yang gagal-keras).
-async function deleteMergedBranch(repoDir: string, branch: string): Promise<void> {
+// SPEC-486 · pemanggil KEDUA: sweep auto-merge, hanya sesudah `status === "clean"` (batasan
+// "tidak boleh menghapus branch kerja sebelum merge sukses").
+export async function deleteMergedBranch(repoDir: string, branch: string): Promise<void> {
   await sh(repoDir, ["branch", "-D", "--end-of-options", branch]);
   if (await refExists(repoDir, `refs/remotes/origin/${branch}`))
     await sh(repoDir, ["push", "origin", "--delete", "--end-of-options", branch]);

@@ -59,6 +59,17 @@ tiap berkas.
   gerbang kelayakan **hanoman-lead** (cermin persis `schedulerOptIn`). Project non-opt-in tak pernah
   dijawab, ditata, maupun ditindaklanjuti lead. Additive; diekspos `toProjectView` sebagai `leadOptIn`,
   editable via `PATCH /projects/:id`. **Tidak** masuk whitelist `FIELDS` sync → lokal per-instance.
+- `autoMerge` (Json?, SPEC-486 · [ADR-0103](../adr/0103-auto-merge-saat-sesi-selesai.md)) — kebijakan
+  **auto-merge saat backlog item selesai**, bentuknya `{mode:"off"|"default-branch"|"branch", dest:"local"|"origin",
+  branch:string|null, deleteBranch:boolean}` (`zAutoMerge`, `@hanoman/shared`). `null` = **tanpa
+  auto-merge** — default, nol backfill, project lama tak berubah perilaku. `dest`+`branch` memakai
+  kosakata target yang sama dengan `POST /specs/:id/integrate` (ADR-0031). Sengaja **satu blok `Json`**,
+  bukan empat kolom skalar: ia dibaca utuh, tak pernah difilter/di-`orderBy`, dan empat kolom akan
+  mengizinkan keadaan tak masuk akal (`mode:"off"` ber-`branch`) tanpa tipe yang mencegahnya (preseden
+  `Setting.conflict` ADR-0081, `Spec.dependsOn` ADR-0093). Diekspos `toProjectView` sebagai `autoMerge`,
+  editable via `PATCH /projects/:id` (digerbangi `checkAutoMerge`: 409 tanpa repoDir efektif, 400 branch
+  karangan). **Tidak** masuk whitelist `FIELDS` sync → lokal per-instance (nama branch tujuan properti
+  checkout mesin ini, cermin `repoDir`); **masuk** allowlist `WEBHOOK_ENTITIES`.
 - `docStatus` ("ok" | "drift" | "broken") + `coverage` (0–100) **bukan kolom** — diturunkan dari disk tiap `toProjectView` (ADR-0018).
 
 ## Spec (backlog item)
@@ -131,6 +142,15 @@ tiap berkas.
   **mencabut** id itu dari `dependsOn` seluruh dependent-nya; tanpa itu menghapus satu item mengunci
   tetangganya selamanya. `dependsOn` sengaja **di luar** gerbang edit SPEC-186 (`stage=brainstorming
   ∧ baseSha=null`) — ia menggerbangi peluncuran *berikutnya*, bukan konten sesi berjalan.
+- `autoMerge` (Json?, SPEC-486 · [ADR-0103](../adr/0103-auto-merge-saat-sesi-selesai.md)) — **override**
+  kebijakan auto-merge project untuk item ini; bentuk yang sama persis (`zAutoMerge`). `null` = **warisi
+  project**, dan `{mode:"off"}` = matikan auto-merge di item ini saja — dua keadaan yang berbeda, karena
+  itu nullable. Resolusinya satu fungsi murni `resolveAutoMerge(project, spec)` (spec menang → project →
+  OFF) yang dipakai server **dan** UI. Sengaja **di luar** gerbang edit SPEC-186 seperti `dependsOn`:
+  ia menggerbangi apa yang terjadi *sesudah* kerja, bukan konten sesi berjalan. **Tidak** masuk
+  `FIELDS.spec` sync (lokal per-instance, cermin `Project.autoMerge`); **masuk** `WEBHOOK_ENTITIES`.
+  Kolom nullable tanpa default → spec asal-hub mendarat `null` = warisi project, bukan default palsu
+  (jebakan ADR-0090 tak berlaku justru karena nullable).
   **`blockedBy` bukan kolom**: nilai turunan yang dihitung `liveSpecs()` dari `stage` dependency +
   `git merge-base --is-ancestor` (memo 15 dtk), ikut ADR-0018/0019.
   **SPEC-475 · "ujung kerja" dependency = `headSha` ?? tip branch sesinya** (`workTip`,

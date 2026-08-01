@@ -41,6 +41,19 @@ export async function recordFailure(specId: string, title: string, projectId: st
   }).catch(() => { /* P2002: sudah ada */ });
 }
 
+// SPEC-486 · ADR-0103 · hasil auto-merge sebuah backlog item. Baris ini merangkap DUA peran:
+// laporan ke operator DAN penanda idempotensi durable — `key` unik membuat sweep berikutnya
+// (dan sweep sesudah restart) tak pernah mencoba item yang sama dua kali. Pola yang sama dipakai
+// `recordCompletion`; ADR-0091 sudah menetapkan idempotensi lewat jejak DB, bukan `Set` memori.
+export async function recordAutoMerge(
+  specId: string, projectId: string | null, title: string,
+): Promise<void> {
+  const sessionId = specId.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+  await prisma.notification.create({
+    data: { type: "automerge", key: `automerge:${specId}`, specId, sessionId, title, projectId },
+  }).catch(() => { /* P2002: sudah ada — sweep lain sudah menyelesaikannya */ });
+}
+
 // SPEC-253 · ADR-0062 · notif saat tiket Help Center baru masuk. Dedup `key: ticket:<ticketId>`
 // idempoten (insert kedua kena P2002, diabaikan). Setiap tiket baru menotifikasi — volume
 // manusiawi, dijaga rate-limit di endpoint publik.

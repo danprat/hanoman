@@ -45,15 +45,25 @@ GET  /projects?q=&page=&limit=      # -> { items: ProjectView[], total, page, pa
 POST /projects            { name, kind, repoDir?, desc, gitRemote? }   # repoDir OPSIONAL (SPEC-217)
 #   SPEC-222 · kind "from-scratch" + repoDir → hanoman `git init` + commit awal (siap scaffold); gagal init → 400
 GET  /projects/:id        # view memuat `repoDir` (default project) + `binding` (override per-mesin | null)
-PATCH /projects/:id       { name?, desc?, gitRemote?, repoDir? }   # 200 view; 400 name kosong; 404 tak ada.
+PATCH /projects/:id       { name?, desc?, gitRemote?, repoDir?, schedulerOptIn?, leadOptIn?, autoMerge? }   # 200 view; 400 name kosong; 404 tak ada.
 #   `id` tak tersentuh oleh PATCH — rename lewat endpoint khusus di bawah (SPEC-255/ADR-0064).
 #   SPEC-217 · `repoDir` (path default/server) kini editable; `null` mengosongkan.
+#   SPEC-486 · ADR-0103 · `autoMerge` = kebijakan auto-merge saat backlog selesai
+#   ({mode:"off"|"default-branch"|"branch", dest:"local"|"origin", branch, deleteBranch}); `null`
+#   mengosongkan → tanpa auto-merge. Digerbangi `checkAutoMerge` terhadap repo EFEKTIF:
+#   409 bila mode≠off sementara project belum punya repoDir; 400 bila mode "branch" tanpa branch,
+#   branch tak ada di daftar `dest`-nya (daftar yang memasok dropdown = daftar yang menjaga gerbang,
+#   SPEC-143/ADR-0032), atau mode "default-branch" sementara default branch tak bisa diresolve.
+#   Mematikan (mode "off" / null) SELALU boleh — jangan kunci pintu keluar.
 POST /projects/:id/rename { newId }   # 200 { id, helpUrl?, affected } · rename slug (SPEC-255/ADR-0064).
 #   Transaksional: Project.id + cascade FK OTOMATIS (spec/ticket sudah ON UPDATE CASCADE) + update manual ref longgar
 #   (notification/sessionResult/ticketAttachment) + pindah LocalBinding + naikkan version. Merambat ke
 #   hub sync (penanda renamedFrom) → Help /help/<id> ikut ganti. `affected` = jumlah record
 #   tersentuh per tabel. 400 slug invalid (^[a-z0-9][a-z0-9-]*$); 404 project; 409 id terpakai / ada sesi aktif.
-GET  /projects/:id/branches  -> { branches: string[], remotes: string[] }   # dari path EFEKTIF (resolveRepoDir). [] bila tanpa repo. 404 project tak ada. remotes memasok target rebase/merge (SPEC-175).
+GET  /projects/:id/branches  -> { branches: string[], remotes: string[], defaultBranch: string|null }   # dari path EFEKTIF (resolveRepoDir). [] bila tanpa repo. 404 project tak ada. remotes memasok target rebase/merge (SPEC-175).
+#   SPEC-486 · ADR-0103 · `defaultBranch` = origin/HEAD → main → master → null (JANGAN hardcode
+#   "main", SPEC-227/ADR-0077). Memasok label opsi "default branch repo" di kartu auto-merge;
+#   nilai sebenarnya tetap diresolve ULANG saat sweep berjalan, bukan dibekukan ke setting.
 DELETE /projects/:id      # 409 bila ada sesi tmux aktif milik project; cascade ke spec.
 #   Worktree on-disk di <repoDir>/.worktrees/ tidak ikut dibersihkan.
 
@@ -118,7 +128,7 @@ POST /specs/batch         { project, items:[BreakdownItem], branchFrom?, prdPath
 #   SPEC-447 · ADR-0093 · `dependsOn?: string[]` — backlog yang harus selesai & ter-merge lebih dulu.
 #   Divalidasi di boundary (tak ada FK untuk kolom Json): id harus ADA, berada di PROJECT YANG SAMA,
 #   bukan diri sendiri → 400 dengan alasannya. Siklus mustahil di POST (spec baru belum bisa dirujuk).
-PATCH /specs/:id          { branchFrom?: string|null, stage?, confirmDelete?, dependsOn? }   -> Spec
+PATCH /specs/:id          { branchFrom?: string|null, stage?, confirmDelete?, dependsOn?, autoMerge? }   -> Spec
 #   branchFrom null = kembali ke default project (main); menentukan basis sesi BERIKUTNYA. Lihat ADR-0032.
 #   stage = revert backward-only atas perintah human (SPEC-167/ADR-0027): 422 bila maju/sama,
 #   400 bila stage tak dikenal. Bila mundur menghapus artefak docs & confirmDelete≠true →
@@ -129,6 +139,10 @@ PATCH /specs/:id          { branchFrom?: string|null, stage?, confirmDelete?, de
 #   SPEC-186 (`stage=brainstorming ∧ baseSha=null`): ia menggerbangi peluncuran BERIKUTNYA, bukan
 #   konten sesi berjalan — menguncinya membuat item yang terlanjur terblokir salah tulis hanya bisa
 #   dibebaskan dengan menghapusnya.
+#   SPEC-486 · ADR-0103 · `autoMerge?` = override kebijakan auto-merge item ini; `null` mengembalikan
+#   ke WARISAN PROJECT, sedangkan `{mode:"off"}` MEMATIKANNYA untuk item ini saja — dua keadaan
+#   berbeda. Gerbang & kode galat sama persis dengan PATCH /projects/:id. Juga di luar gerbang edit
+#   SPEC-186, alasan yang sama dengan dependsOn.
 DELETE /specs/:id
 #   SPEC-447 · ADR-0093 · id yang dihapus juga DICABUT dari `dependsOn` seluruh spec lain di project
 #   yang sama (+ antre sync per baris yang berubah). Tanpa itu, dependent-nya terkunci selamanya
@@ -349,7 +363,11 @@ GET      /limits/codex                  # CodexLimitsDTO { status, windows[], fe
 #   `fetchedAt` = waktu SNAPSHOT (bukan waktu baca) — beda semantik dari /limits milik claude.
 GET      /notifications                 # { items:Notification[] (≤50 terbaru dulu), unread:int }  (SPEC-180)
 #   Notification dibuat server-side saat backlog masuk `done` (advanceStage + write-through GET /specs).
-#   type ∈ done|decision|drift|error|ticket|fail (fail SPEC-298 = sesi scheduler gagal/limit, rekonsil akhir sesi).
+#   type ∈ done|decision|drift|error|ticket|fail|lead|webhook|automerge (fail SPEC-298 = sesi scheduler gagal/limit,
+#   rekonsil akhir sesi). SPEC-486 · ADR-0103 · `automerge` (key `automerge:<specId>`) merangkap DUA peran:
+#   laporan hasil auto-merge (bersih / konflik / galat / dilewati, berikut alasannya) DAN penanda
+#   idempotensi durable — `key` unik itulah yang membuat sweep tak pernah mencoba item yang sama dua kali,
+#   lintas restart sekalipun. Ber-`specId`, jadi `notifTarget` mengarahkannya ke Backlog tanpa perubahan UI.
 POST     /notifications/read            # 204; tandai semua unread jadi terbaca
 DELETE   /notifications                 # 204; clear semua
 GET      /limits                        # { …usage } dari OAuth usage API Anthropic (cache 30s, stale/unavailable fallback) — SPEC-181/ADR-0024

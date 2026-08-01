@@ -1,4 +1,4 @@
-import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type SessionHistoryView, type ConfigResponse, type ConfigEntryView, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView, type Agent, type AuditEscalationView, type VerifyScope, type Lead, type LeadStatusView, type LeadDecisionView, type LeadFlowView, type CustomAgentView, type CreateCustomAgent, type UpdateCustomAgent, type AgentCatalogView, type GithubIssueView, type TelegramGatewayStatus, type TelegramCredentialsView, type TelegramTestResult, type TelegramClearResult, type WebhookEndpointView, type WebhookDeliveryView, type WebhookTestResult, type CreateWebhookEndpoint, type UpdateWebhookEndpoint } from "@hanoman/shared";
+import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type SessionHistoryView, type ConfigResponse, type ConfigEntryView, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView, type Agent, type AuditEscalationView, type VerifyScope, type Lead, type LeadStatusView, type LeadDecisionView, type LeadFlowView, type CustomAgentView, type CreateCustomAgent, type UpdateCustomAgent, type AgentCatalogView, type GithubIssueView, type TelegramGatewayStatus, type TelegramCredentialsView, type TelegramTestResult, type TelegramClearResult, type WebhookEndpointView, type WebhookDeliveryView, type WebhookTestResult, type CreateWebhookEndpoint, type UpdateWebhookEndpoint, type AutoMerge } from "@hanoman/shared";
 // SPEC-450 · `detail` = body JSON respons galat (best-effort, null bila bukan JSON). Ditambahkan
 // karena penolakan custom agent membawa informasi yang HARUS sampai ke operator — jalur siklus
 // (`cycle`/`scope`) dan daftar mention tak dikenal (`unknown`); "409" saja tak bisa ditindaklanjuti.
@@ -121,7 +121,8 @@ export const api = {
   deleteProject: (id: string) => j<void>(paths.project(id), { method: "DELETE" }),
   // SPEC-146 · hanya label. `id` tak pernah berubah, jadi respons selalu punya `id` yang sama.
   // SPEC-217 · `repoDir` = path default/server editable (null = kosongkan).
-  updateProject: (id: string, b: { name?: string; desc?: string; gitRemote?: string; repoDir?: string | null; schedulerOptIn?: boolean; leadOptIn?: boolean }) =>
+  updateProject: (id: string, b: { name?: string; desc?: string; gitRemote?: string; repoDir?: string | null; schedulerOptIn?: boolean; leadOptIn?: boolean;
+    autoMerge?: AutoMerge | null }) =>   // SPEC-486 · ADR-0103 · null = tanpa auto-merge
     j<ProjectView>(paths.project(id), { method: "PATCH", ...body(b) }),
   // SPEC-255 · ADR-0064 · rename slug project. Balik: id baru + DSN/Help URL baru (bila aktif) + affected.
   renameProject: (id: string, newId: string) =>
@@ -139,14 +140,16 @@ export const api = {
   deleteSpec: (id: string) => j<void>(paths.spec(id), { method: "DELETE" }),
   // SPEC-143 · branch sumber worktree milik backlog item. `null` = default project (main).
   // SPEC-175 · `remotes` = branch origin, target rebase/merge.
-  listBranches: (id: string) => j<{ branches: string[]; remotes: string[] }>(paths.branches(id)),
+  // SPEC-486 · ADR-0103 · `defaultBranch` memasok label opsi "default branch repo".
+  listBranches: (id: string) => j<{ branches: string[]; remotes: string[]; defaultBranch?: string | null }>(paths.branches(id)),
   // SPEC-175 · rebase/merge branch hasil done spec.
   integrateSpec: (id: string, op: "merge" | "rebase", target: string) =>
     j<{ status: "clean"; detail: string } | { status: "conflict"; sessionId: string }>(
       paths.specIntegrate(id), { method: "POST", ...body({ op, target }) }),
   patchSpec: (id: string, b: { branchFrom?: string | null; stage?: string; confirmDelete?: boolean;
     title?: string; priority?: string; payload?: unknown;
-    dependsOn?: string[] }) =>   // SPEC-447 · ADR-0093 · divalidasi server (400 bila tak sah)
+    dependsOn?: string[];   // SPEC-447 · ADR-0093 · divalidasi server (400 bila tak sah)
+    autoMerge?: AutoMerge | null }) =>   // SPEC-486 · ADR-0103 · null = kembali ikut project
     j<Spec | RevertPending>(paths.spec(id), { method: "PATCH", ...body(b) }),
   // SPEC-171 · all files + file changed dari worktree backlog item.
   specReview: (id: string) => j<SpecReview>(paths.specReview(id)),

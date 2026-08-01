@@ -144,6 +144,32 @@ Pakai skill lebih sempit saat task cocok:
   **COOKIE_ONLY** (memegang secret + menentukan ke mana data mengalir), secret terenkripsi lewat
   `secret-box.ts` dan ditampilkan sekali, SSRF diperiksa saat simpan (bentuk + IP literal, **tanpa
   DNS**) dan lagi di **tiap percobaan kirim** (resolve DNS, fail-closed).
+- **Auto-merge saat sesi selesai — kebijakan per project/spec, dieksekusi SWEEP tanpa call site**
+  (SPEC-486/**ADR-0103**, memperluas ADR-0031; ADR-0002/0030/0033/0072/0100 utuh): `Project.autoMerge`
+  (default) + `Spec.autoMerge` (override; `null` = warisi, `{mode:"off"}` = matikan untuk item ini)
+  bertipe **`Json?`** — `{mode:"off"|"default-branch"|"branch", dest:"local"|"origin", branch,
+  deleteBranch}`, resolver murni `resolveAutoMerge()` di `@hanoman/shared` dipakai server **dan** UI.
+  Target memakai kosakata `local:<b>`/`origin:<b>` yang **sama** dengan `POST /specs/:id/integrate`,
+  dan mesin merge-nya `integrate()` ADR-0031 apa adanya. **LOCAL-only** (tak di `FIELDS` sync, cermin
+  `repoDir`), **masuk** `WEBHOOK_ENTITIES`. Pemicunya **`services/auto-merge.ts` → `sweepAutoMerge()`**,
+  `setInterval` 60 dtk dari `server.ts` saja: `stage="done"` dipersist di **TIGA** jalur dan menyalin
+  efek samping ke ketiganya adalah kelas bug SPEC-431/448/475/481 — tapi yang lebih menentukan, **tak
+  satu pun aman sebagai pemicu**, karena prompt sesi menulis baris fase terakhir SEBELUM `git push`
+  sehingga `liveSpecs` bisa mencapai `done` beberapa detik sebelum `hanoman/<spec>` ada di origin.
+  Kandidat = notifikasi **`done:<specId>`** (stempel selesai yang sudah ada di ketiga jalur → nol tabel
+  baru) dalam **window 24 jam**, tanpa penanda `automerge:<specId>`; kesiapan = `headSha` sudah jadi
+  **leluhur** tip branch (`merge-base --is-ancestor`), belum siap dalam **grace 15 mnt** → diam & ulangi,
+  lewat grace → menyerah **dengan suara**. **Tujuh gotcha wajib:** (1) reopen-lalu-selesai-lagi TAK
+  di-auto-merge ulang (`recordCompletion` idempoten — cermin batasan ADR-0033); (2) window 24 jam
+  satu-satunya pagar yang mencegah "menyalakan setting = menggabungkan seluruh sejarah project";
+  (3) kesiapan wajib `headSha ⊆ tip`, bukan sekadar "branch ada"; (4) `integrate` **meninggalkan**
+  worktree konflik by design → pemanggil yang tak melahirkan sesi WAJIB `discardMergeWorktree()`;
+  (5) **`Prisma.DbNull`** bukan `null` polos untuk mengosongkan kolom `Json?`; (6) sweep dipasang dari
+  `server.ts` SAJA (`app.ts` bebas-timer); (7) default branch diresolve **saat eksekusi** dan **tak
+  pernah** di-hardcode `"main"` (`origin/HEAD` → main → master → **null**). Operasi **terkunci `merge`**
+  (rebase = force-push, dilarang) dan branch kerja tak pernah dihapus sebelum hasil `clean`
+  (`deleteBranch` opt-in, default mati). Konflik **tidak** melahirkan sesi agen — notifikasi + branch
+  utuh, lalu tombol Rebase/Merge ADR-0031 tetap memberi jalur konflik yang lengkap.
 - **MCP server = `hanoman mcp`, KLIEN REST, bukan permukaan kedua** (SPEC-482/ADR-0099, memperluas
   ADR-0065): subcommand stdio di CLI yang memanggil `/api` dengan agent token yang sama, sehingga
   gate `onRequest` tetap satu-satunya otorisasi dan route cookie-only tak terjangkau **secara
