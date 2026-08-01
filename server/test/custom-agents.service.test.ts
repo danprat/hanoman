@@ -71,7 +71,7 @@ describe("validateGraph — lapis 1 anti-loop, LINTAS SCOPE (ADR-0094 gotcha 2)"
   const row = (projectId: string | null, name: string, mentions: string[]) => ({
     id: customAgentId(projectId, name), projectId, name,
     description: "d", instructions: "i", tools: null, model: null,
-    mentions, enabled: true,
+    mentions, runtime: null, enabled: true,
   });
 
   it("graf asiklik → null", () => {
@@ -108,7 +108,7 @@ describe("validateGraph — lapis 1 anti-loop, LINTAS SCOPE (ADR-0094 gotcha 2)"
 describe("unknownMentions", () => {
   const row = (projectId: string | null, name: string, mentions: string[]) => ({
     id: customAgentId(projectId, name), projectId, name,
-    description: "d", instructions: "i", tools: null, model: null, mentions, enabled: true,
+    description: "d", instructions: "i", tools: null, model: null, mentions, runtime: null, enabled: true,
   });
 
   it("agen global hanya boleh menyebut agen global", () => {
@@ -136,7 +136,7 @@ describe("toDef", () => {
   it("memetakan baris DB ke bentuk render runner", () => {
     const d = toDef({
       id: "global:a", projectId: null, name: "a", description: "desc",
-      instructions: "ins", tools: ["Read"], model: "haiku", mentions: ["b"], enabled: true,
+      instructions: "ins", tools: ["Read"], model: "haiku", mentions: ["b"], runtime: null, enabled: true,
     });
     expect(d).toEqual({
       name: "a", description: "desc", instructions: "ins",

@@ -691,7 +691,7 @@ git commit -m "feat(484): penemuan server MCP dari tiga berkas konfigurasi (gaga
   - 400 `{ error, unknownTools: string[] }` · 400 `{ error, model, runtime }`
   - `api.getCustomAgentCatalog(projectId?)` di klien web
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `server/test/custom-agents.route.test.ts`:
 
@@ -715,19 +715,19 @@ describe("GET /api/custom-agents/catalog", () => {
 
 describe("validasi keras katalog (ADR-0101 keputusan 5)", () => {
   it("menolak 400 tool di luar katalog, menyebut nilainya", async () => {
-    const r = await post({ name: "a", description: "d", instructions: "i", tools: ["Read", "read"] });
+    const r = await post({ name: "aa", description: "d", instructions: "i", tools: ["Read", "read"] });
     expect(r.statusCode).toBe(400);
     expect(r.json().unknownTools).toEqual(["read"]);
   });
 
   it("menerima tool bawaan", async () => {
-    const r = await post({ name: "a", description: "d", instructions: "i", tools: ["Read", "Bash"] });
+    const r = await post({ name: "aa", description: "d", instructions: "i", tools: ["Read", "Bash"] });
     expect(r.statusCode).toBe(201);
     expect(r.json().tools).toEqual(["Read", "Bash"]);
   });
 
   it("menerima ['*'] sebagai satu-satunya entri", async () => {
-    const r = await post({ name: "a", description: "d", instructions: "i", tools: ["*"] });
+    const r = await post({ name: "aa", description: "d", instructions: "i", tools: ["*"] });
     expect(r.statusCode).toBe(201);
     expect(r.json().tools).toEqual(["*"]);
   });
@@ -735,29 +735,29 @@ describe("validasi keras katalog (ADR-0101 keputusan 5)", () => {
   // GOTCHA ADR-0101 #3 · "semua tool DAN Read" tak punya makna berbeda dari "semua tool";
   // menerimanya berarti dua representasi untuk satu keadaan.
   it("menolak 400 '*' yang bercampur nama lain", async () => {
-    const r = await post({ name: "a", description: "d", instructions: "i", tools: ["*", "Read"] });
+    const r = await post({ name: "aa", description: "d", instructions: "i", tools: ["*", "Read"] });
     expect(r.statusCode).toBe(400);
   });
 
   it("menolak 400 model di luar katalog runtime-nya", async () => {
-    const r = await post({ name: "a", description: "d", instructions: "i", runtime: "claude", model: "gpt-5.6-sol" });
+    const r = await post({ name: "aa", description: "d", instructions: "i", runtime: "claude", model: "gpt-5.6-sol" });
     expect(r.statusCode).toBe(400);
     expect(r.json().model).toBe("gpt-5.6-sol");
   });
 
   it("menerima model codex untuk runtime codex", async () => {
-    const r = await post({ name: "a", description: "d", instructions: "i", runtime: "codex", model: "gpt-5.6-sol" });
+    const r = await post({ name: "aa", description: "d", instructions: "i", runtime: "codex", model: "gpt-5.6-sol" });
     expect(r.statusCode).toBe(201);
     expect(r.json().runtime).toBe("codex");
   });
 
   it("runtime null (warisi) menerima model kedua katalog", async () => {
-    expect((await post({ name: "a", description: "d", instructions: "i", model: "claude-opus-5" })).statusCode).toBe(201);
-    expect((await post({ name: "b", description: "d", instructions: "i", model: "gpt-5.6-sol" })).statusCode).toBe(201);
+    expect((await post({ name: "aa", description: "d", instructions: "i", model: "claude-opus-5" })).statusCode).toBe(201);
+    expect((await post({ name: "bb", description: "d", instructions: "i", model: "gpt-5.6-sol" })).statusCode).toBe(201);
   });
 
   it("menolak 400 runtime di luar {claude,codex}", async () => {
-    const r = await post({ name: "a", description: "d", instructions: "i", runtime: "gemini" });
+    const r = await post({ name: "aa", description: "d", instructions: "i", runtime: "gemini" });
     expect(r.statusCode).toBe(400);
   });
 });
@@ -799,7 +799,7 @@ describe("PATCH · validasi HANYA atas field yang ada di payload", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run:
 ```bash
@@ -807,7 +807,7 @@ TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run -
 ```
 Expected: FAIL — `GET /catalog` 404, dan seluruh test validasi keras.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Ganti bagian atas `server/src/routes/custom-agents.ts` (import + `view`) menjadi:
 
@@ -979,7 +979,7 @@ Tambahkan `runtime: unknown` ke `CustomAgentRow` di `server/src/services/custom-
 
 …dan tambahkan `AgentCatalogView` ke daftar `import type { … } from "@hanoman/shared"` di baris 1.
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run:
 ```bash
@@ -988,7 +988,7 @@ pnpm --filter ./server typecheck
 ```
 Expected: PASS semua; typecheck bersih.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/routes/custom-agents.ts server/src/services/custom-agents.ts shared/src/api.ts src/src/api/client.ts server/test/custom-agents.route.test.ts

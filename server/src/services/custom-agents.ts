@@ -1,6 +1,6 @@
 import { prisma } from "../db";
 import {
-  effectiveAgents, detectCycle, mentionsOf, toolsOf, GLOBAL_SCOPE,
+  effectiveAgents, detectCycle, mentionsOf, toolsOf, runtimeOf, GLOBAL_SCOPE,
   type CustomAgent, type AgentNode,
 } from "@hanoman/shared";
 import type { AgentDef } from "@hanoman/runner";
@@ -24,6 +24,8 @@ export type CustomAgentRow = {
   tools: unknown;
   model: string | null;
   mentions: unknown;
+  /** SPEC-484 · ADR-0101 · dibaca `runtimeOf` — nilai asing dari sync = null (warisi). */
+  runtime: unknown;
   enabled: boolean;
 };
 
@@ -33,6 +35,7 @@ const asCustomAgent = (r: CustomAgentRow): CustomAgent => ({
   id: r.id, projectId: r.projectId, name: r.name,
   description: r.description, instructions: r.instructions,
   tools: toolsOf(r.tools), model: r.model, mentions: mentionsOf(r.mentions),
+  runtime: runtimeOf(r.runtime),
   enabled: r.enabled,
   createdAt: "", updatedAt: "",   // tak dipakai lapis ini
 });

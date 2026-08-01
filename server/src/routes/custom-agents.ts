@@ -1,15 +1,20 @@
 import type { FastifyInstance } from "fastify";
 import {
-  zCreateCustomAgent, zUpdateCustomAgent, customAgentId, mentionsOf, toolsOf,
+  zCreateCustomAgent, zUpdateCustomAgent, customAgentId, mentionsOf, toolsOf, runtimeOf,
+  modelsForRuntime, ALL_TOOLS, AGENT_RUNTIMES, AGENT_RUNTIME_LABELS,
+  type AgentRuntime, type AgentCatalogView,
 } from "@hanoman/shared";
 import { prisma } from "../db";
 import { notifySynced } from "../services/sync-notify";
+import { resolveRepoDir } from "../services/local-binding";
+import { agentToolCatalog, agentToolIds } from "../services/agent-tool-catalog";
 import {
   loadCustomAgents, validateGraph, unknownMentions, type CustomAgentRow,
 } from "../services/custom-agents";
 
 // SPEC-450 · ADR-0094 · CRUD katalog custom agent. Integritas ditegakkan DI BOUNDARY (rujukan,
 // siklus, duplikat) karena kolom `mentions` adalah `Json` tanpa FK — pola `dependsOn` (ADR-0093).
+// SPEC-484 · ADR-0101 · ditambah gerbang KATALOG (tools/model/runtime) di boundary yang sama.
 
 const rowsOf = async (): Promise<CustomAgentRow[]> =>
   (await prisma.customAgent.findMany()) as unknown as CustomAgentRow[];
@@ -19,11 +24,51 @@ const view = (r: CustomAgentRow, projectId?: string) => ({
   id: r.id, projectId: r.projectId, name: r.name,
   description: r.description, instructions: r.instructions,
   tools: toolsOf(r.tools), model: r.model, mentions: mentionsOf(r.mentions),
+  runtime: runtimeOf(r.runtime),
   enabled: r.enabled,
   ...(projectId ? { inherited: r.projectId === null } : {}),
 });
 
+/** repoDir project (bila ada) — sumber `<repoDir>/.mcp.json` & `~/.claude.json` projects[<repoDir>]. */
+const repoDirOf = async (projectId?: string | null): Promise<string | null> =>
+  projectId ? await resolveRepoDir(projectId) : null;
+
+/**
+ * SPEC-484 · ADR-0101 keputusan 5 · gerbang katalog. Mengembalikan bentuk respons galat atau null.
+ * Dipanggil HANYA atas field yang ada di payload — `PATCH {enabled}` pada baris warisan tak boleh
+ * ikut terkunci oleh nilai yang tak lagi ada di katalog mesin ini.
+ */
+function toolsProblem(tools: string[] | null | undefined, catalogIds: string[]) {
+  if (!tools || tools.length === 0) return null;
+  if (tools.includes(ALL_TOOLS) && tools.length > 1) {
+    // GOTCHA #3 · "semua tool DAN Read" bukan keadaan yang berbeda dari "semua tool"; menerimanya
+    // berarti dua representasi untuk satu keadaan — yang satu ter-expand, yang lain tidak.
+    return { error: "pintasan * harus jadi satu-satunya pilihan tools", unknownTools: [] as string[] };
+  }
+  const unknownTools = tools.filter((t) => !catalogIds.includes(t));
+  return unknownTools.length ? { error: "tool tak dikenal di mesin ini", unknownTools } : null;
+}
+
+function modelProblem(model: string | null | undefined, runtime: AgentRuntime | null) {
+  if (!model) return null;
+  const ok = modelsForRuntime(runtime).some((m) => m.id === model);
+  return ok ? null : { error: "model tak dikenal untuk runtime ini", model, runtime };
+}
+
 export default async function (app: FastifyInstance) {
+  // SPEC-484 · ADR-0101 · sumber daftar tools/model/runtime untuk form. Daftar MENTION sengaja tak
+  // di sini: ia sudah hidup di `GET /custom-agents?projectId=` lengkap dengan aturan
+  // project-menimpa-global, dan dua sumber untuk satu daftar adalah cara dua daftar mulai berbeda.
+  // Didaftarkan SEBELUM route lain hanya demi keterbacaan — `PATCH /:id` beda method, tak bentrok.
+  app.get("/custom-agents/catalog", async (req): Promise<AgentCatalogView> => {
+    const projectId = (req.query as { projectId?: string }).projectId;
+    return {
+      tools: agentToolCatalog(await repoDirOf(projectId)),
+      models: modelsForRuntime(null),
+      runtimes: AGENT_RUNTIMES.map((id) => ({ id, label: AGENT_RUNTIME_LABELS[id] })),
+    };
+  });
+
   app.get("/custom-agents", async (req) => {
     const projectId = (req.query as { projectId?: string }).projectId;
     const rows = await prisma.customAgent.findMany({
@@ -49,6 +94,11 @@ export default async function (app: FastifyInstance) {
     if (projectId && !(await prisma.project.findUnique({ where: { id: projectId } })))
       return reply.code(400).send({ error: "project tak ditemukan", projectId });
 
+    const tp = toolsProblem(p.tools ?? null, agentToolIds(await repoDirOf(projectId)));
+    if (tp) return reply.code(400).send(tp);
+    const mp = modelProblem(p.model ?? null, p.runtime ?? null);
+    if (mp) return reply.code(400).send(mp);
+
     const id = customAgentId(projectId, p.name);
     if (await prisma.customAgent.findUnique({ where: { id } }))
       return reply.code(409).send({ error: "nama sudah dipakai di scope ini", id });
@@ -56,6 +106,7 @@ export default async function (app: FastifyInstance) {
     const candidate: CustomAgentRow = {
       id, projectId, name: p.name, description: p.description, instructions: p.instructions,
       tools: p.tools ?? null, model: p.model ?? null, mentions: p.mentions ?? [],
+      runtime: p.runtime ?? null,
       enabled: p.enabled ?? true,
     };
     const all = [...(await rowsOf()), candidate];
@@ -67,7 +118,8 @@ export default async function (app: FastifyInstance) {
     const row = await prisma.customAgent.create({ data: {
       id, projectId, name: p.name, description: p.description, instructions: p.instructions,
       tools: candidate.tools as never, model: candidate.model,
-      mentions: candidate.mentions as never, enabled: candidate.enabled,
+      mentions: candidate.mentions as never, runtime: candidate.runtime as string | null,
+      enabled: candidate.enabled,
     } });
     // Cache WAJIB di-refresh tiap mutasi: tanpa itu sesi yang lahir sesudahnya memakai katalog
     // basi, dan gejalanya senyap (agen lama tetap muncul, agen baru tak pernah).
@@ -92,11 +144,31 @@ export default async function (app: FastifyInstance) {
     if (!existing) return reply.code(404).send({ error: "not found" });
     const before = existing as unknown as CustomAgentRow;
 
+    // GOTCHA ADR-0101 #4 · runtime EFEKTIF, bukan `parsed.data.runtime ?? null`: tanpa ini setiap
+    // PATCH {model} pada agen ber-runtime codex divalidasi terhadap GABUNGAN katalog dan lolos
+    // untuk model claude. `"runtime" in parsed.data` membedakan "tak dikirim" dari "dikirim null".
+    const effRuntime: AgentRuntime | null =
+      "runtime" in parsed.data ? (parsed.data.runtime ?? null) : runtimeOf(before.runtime);
+    if (parsed.data.tools !== undefined) {
+      const tp = toolsProblem(parsed.data.tools, agentToolIds(await repoDirOf(before.projectId)));
+      if (tp) return reply.code(400).send(tp);
+    }
+    // `model` diperiksa juga saat HANYA runtime yang berubah — menukar runtime bisa membuat model
+    // tersimpan jadi tak sah, dan menerimanya diam-diam mengembalikan bug yang spec ini tutup.
+    if (parsed.data.model !== undefined || "runtime" in parsed.data) {
+      const mp = modelProblem(
+        parsed.data.model !== undefined ? parsed.data.model : before.model,
+        effRuntime,
+      );
+      if (mp) return reply.code(400).send(mp);
+    }
+
     const candidate: CustomAgentRow = {
       ...before,
       ...parsed.data,
       mentions: parsed.data.mentions ?? mentionsOf(before.mentions),
       tools: parsed.data.tools !== undefined ? parsed.data.tools : toolsOf(before.tools),
+      runtime: effRuntime,
     };
     const all = (await rowsOf()).map((r) => (r.id === id ? candidate : r));
     const unknown = unknownMentions(candidate, all);
@@ -107,7 +179,8 @@ export default async function (app: FastifyInstance) {
     const row = await prisma.customAgent.update({ where: { id }, data: {
       description: candidate.description, instructions: candidate.instructions,
       tools: candidate.tools as never, model: candidate.model,
-      mentions: candidate.mentions as never, enabled: candidate.enabled,
+      mentions: candidate.mentions as never, runtime: candidate.runtime as string | null,
+      enabled: candidate.enabled,
     } });
     await loadCustomAgents();
     await notifySynced("customAgent", id);

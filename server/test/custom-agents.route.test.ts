@@ -181,3 +181,109 @@ describe("cache di-invalidasi tiap mutasi", () => {
     expect(agentDefsFor("p1").map((a) => a.name)).not.toContain("baru");
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SPEC-484 · ADR-0101 · katalog + validasi keras
+// ═══════════════════════════════════════════════════════════════════════════════
+
+describe("GET /api/custom-agents/catalog", () => {
+  it("mengembalikan tools, models, dan runtimes", async () => {
+    const r = await app.inject({ method: "GET", url: "/api/custom-agents/catalog" });
+    expect(r.statusCode).toBe(200);
+    const b = r.json();
+    expect(b.tools[0].id).toBe("*");
+    expect(b.tools.map((t: { id: string }) => t.id)).toContain("Read");
+    expect(b.models.map((m: { id: string }) => m.id)).toContain("claude-opus-5");
+    expect(b.models.map((m: { id: string }) => m.id)).toContain("gpt-5.6-sol");
+    expect(b.runtimes.map((x: { id: string }) => x.id)).toEqual(["claude", "codex"]);
+  });
+
+  it("dipetakan ke agents:read (baca, bukan tulis)", () => {
+    expect(capabilityForRoute("GET", "/api/custom-agents/catalog")).toBe("agents:read");
+  });
+});
+
+describe("validasi keras katalog (ADR-0101 keputusan 5)", () => {
+  it("menolak 400 tool di luar katalog, menyebut nilainya", async () => {
+    const r = await post({ name: "aa", description: "d", instructions: "i", tools: ["Read", "read"] });
+    expect(r.statusCode).toBe(400);
+    expect(r.json().unknownTools).toEqual(["read"]);
+  });
+
+  it("menerima tool bawaan", async () => {
+    const r = await post({ name: "aa", description: "d", instructions: "i", tools: ["Read", "Bash"] });
+    expect(r.statusCode).toBe(201);
+    expect(r.json().tools).toEqual(["Read", "Bash"]);
+  });
+
+  it("menerima ['*'] sebagai satu-satunya entri", async () => {
+    const r = await post({ name: "aa", description: "d", instructions: "i", tools: ["*"] });
+    expect(r.statusCode).toBe(201);
+    expect(r.json().tools).toEqual(["*"]);
+  });
+
+  // GOTCHA ADR-0101 #3 · "semua tool DAN Read" tak punya makna berbeda dari "semua tool";
+  // menerimanya berarti dua representasi untuk satu keadaan.
+  it("menolak 400 '*' yang bercampur nama lain", async () => {
+    const r = await post({ name: "aa", description: "d", instructions: "i", tools: ["*", "Read"] });
+    expect(r.statusCode).toBe(400);
+  });
+
+  it("menolak 400 model di luar katalog runtime-nya", async () => {
+    const r = await post({ name: "aa", description: "d", instructions: "i", runtime: "claude", model: "gpt-5.6-sol" });
+    expect(r.statusCode).toBe(400);
+    expect(r.json().model).toBe("gpt-5.6-sol");
+  });
+
+  it("menerima model codex untuk runtime codex", async () => {
+    const r = await post({ name: "aa", description: "d", instructions: "i", runtime: "codex", model: "gpt-5.6-sol" });
+    expect(r.statusCode).toBe(201);
+    expect(r.json().runtime).toBe("codex");
+  });
+
+  it("runtime null (warisi) menerima model kedua katalog", async () => {
+    expect((await post({ name: "aa", description: "d", instructions: "i", model: "claude-opus-5" })).statusCode).toBe(201);
+    expect((await post({ name: "bb", description: "d", instructions: "i", model: "gpt-5.6-sol" })).statusCode).toBe(201);
+  });
+
+  it("menolak 400 runtime di luar {claude,codex}", async () => {
+    const r = await post({ name: "aa", description: "d", instructions: "i", runtime: "gemini" });
+    expect(r.statusCode).toBe(400);
+  });
+});
+
+describe("PATCH · validasi HANYA atas field yang ada di payload", () => {
+  // ADR-0101 keputusan 5 klausa kedua: tanpa ini gerbang keras mengunci saklar aktif/nonaktif
+  // SETIAP baris warisan yang nilainya tak lagi ada di katalog mesin ini.
+  it("PATCH {enabled} pada baris ber-model asing tetap 200", async () => {
+    const id = customAgentId(null, "lawas");
+    await prisma.customAgent.create({ data: {
+      id, projectId: null, name: "lawas", description: "d", instructions: "i",
+      tools: ["ToolYangSudahTiada"] as never, model: "model-yang-sudah-tiada", mentions: [] as never,
+    } });
+    const r = await app.inject({ method: "PATCH", url: `/api/custom-agents/${id}`, payload: { enabled: false } });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().enabled).toBe(false);
+  });
+
+  // GOTCHA ADR-0101 #4 · runtime EFEKTIF = payload.runtime bila ada, selain itu nilai baris.
+  it("PATCH {model} divalidasi terhadap runtime BARIS, bukan gabungan", async () => {
+    const id = customAgentId(null, "cdx");
+    await prisma.customAgent.create({ data: {
+      id, projectId: null, name: "cdx", description: "d", instructions: "i", mentions: [] as never,
+      runtime: "codex",
+    } });
+    const r = await app.inject({ method: "PATCH", url: `/api/custom-agents/${id}`, payload: { model: "claude-opus-5" } });
+    expect(r.statusCode).toBe(400);
+  });
+
+  it("PATCH {runtime} saja tetap memvalidasi model yang SUDAH tersimpan", async () => {
+    const id = customAgentId(null, "sw");
+    await prisma.customAgent.create({ data: {
+      id, projectId: null, name: "sw", description: "d", instructions: "i", mentions: [] as never,
+      model: "claude-opus-5",
+    } });
+    const r = await app.inject({ method: "PATCH", url: `/api/custom-agents/${id}`, payload: { runtime: "codex" } });
+    expect(r.statusCode).toBe(400);
+  });
+});
