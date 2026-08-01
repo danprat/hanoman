@@ -3,6 +3,7 @@ import { mkdirSync } from "node:fs";
 import { resolveHome } from "@hanoman/runner";
 import type { Setting } from "@hanoman/shared";
 import { prisma } from "../../db";
+import { effectiveStr } from "../../config";
 import { verifyAgentToken as verifyAgentTokenReal } from "../agent-token";
 import { ensureCodexTrust } from "../codex-trust";
 import { getSetting as getSettingReal, sessionAgentDefaults } from "../settings";
@@ -11,7 +12,7 @@ import { TelegramApiClient } from "./client";
 import { TelegramGateway } from "./gateway";
 import { TelegramSessionCoordinator } from "./session";
 import { TelegramStore } from "./store";
-import { registerTelegramRuntimeStop, setTelegramRuntime } from "./runtime";
+import { registerTelegramRuntimeStop, setTelegramRuntime, stopTelegramRuntime } from "./runtime";
 
 export const TELEGRAM_REQUIRED_CAPABILITIES = [
   "projects:read", "projects:write", "backlog:read", "backlog:write",
@@ -39,6 +40,13 @@ export type TelegramGatewayFactory = (input: TelegramGatewayFactoryInput) => Pro
 
 type BootstrapOptions = {
   apiBase: string;
+  /**
+   * SPEC-477 · ADR-0097 · kredensial datang dari resolver config (DB → env → default), BUKAN
+   * `process.env` langsung. Itulah yang membuat Settings menang atas `.env` sekaligus menjaga
+   * instance lama tetap hidup. `env` (seam SPEC-476) tetap didukung dan berarti
+   * "baca dari peta ini".
+   */
+  read?: (key: string) => string | undefined;
   env?: Record<string, string | undefined>;
   getSetting?: () => Promise<Setting>;
   verifyAgentToken?: (token: string) => Promise<RuntimeAgent | null>;
@@ -52,10 +60,12 @@ export function parseTelegramAllowedUserIds(raw: string): Set<string> {
   return new Set(ids);
 }
 
-const configuredFrom = (env: Record<string, string | undefined>): boolean =>
-  Boolean(env.HANOMAN_TELEGRAM_BOT_TOKEN?.trim()
-    && env.HANOMAN_TELEGRAM_ALLOWED_USER_IDS?.trim()
-    && env.HANOMAN_TELEGRAM_AGENT_TOKEN?.trim());
+type ReadConfig = (key: string) => string | undefined;
+
+const configuredFrom = (read: ReadConfig): boolean =>
+  Boolean(read("HANOMAN_TELEGRAM_BOT_TOKEN")?.trim()
+    && read("HANOMAN_TELEGRAM_ALLOWED_USER_IDS")?.trim()
+    && read("HANOMAN_TELEGRAM_AGENT_TOKEN")?.trim());
 
 async function productionFactory(input: TelegramGatewayFactoryInput) {
   const client = new TelegramApiClient(input.botToken);
@@ -91,16 +101,19 @@ async function productionFactory(input: TelegramGatewayFactoryInput) {
 
 /** Dipanggil dari server.ts sesudah listen, custom-agent cache, dan history hook siap. */
 export async function installTelegramGateway(_app: FastifyInstance, options: BootstrapOptions): Promise<void> {
-  const env = options.env ?? process.env;
+  lastBootstrap = { app: _app, options };
+  const env = options.env;
+  // Tanpa `read` maupun `env` eksplisit, sumbernya resolver config — BUKAN `process.env`.
+  const read: ReadConfig = options.read ?? (env ? (key) => env[key] : effectiveStr);
   const setting = await (options.getSetting ?? getSettingReal)();
-  const configured = configuredFrom(env);
+  const configured = configuredFrom(read);
   const base = {
     configured,
     enabled: setting.telegram.enabled,
     running: false,
     botUsername: null,
     allowlistCount: 0,
-    agentTokenConfigured: Boolean(env.HANOMAN_TELEGRAM_AGENT_TOKEN?.trim()),
+    agentTokenConfigured: Boolean(read("HANOMAN_TELEGRAM_AGENT_TOKEN")?.trim()),
     missingCapabilities: [] as string[],
     lastUpdateAt: null,
     lastError: null,
@@ -110,19 +123,19 @@ export async function installTelegramGateway(_app: FastifyInstance, options: Boo
     return;
   }
   if (!configured) {
-    setTelegramRuntime({ status: { ...base, readiness: "misconfigured", lastError: "environment Telegram belum lengkap" } });
+    setTelegramRuntime({ status: { ...base, readiness: "misconfigured", lastError: "kredensial Telegram belum lengkap" } });
     return;
   }
 
   let allowedUserIds: Set<string>;
   try {
-    allowedUserIds = parseTelegramAllowedUserIds(env.HANOMAN_TELEGRAM_ALLOWED_USER_IDS!);
+    allowedUserIds = parseTelegramAllowedUserIds(read("HANOMAN_TELEGRAM_ALLOWED_USER_IDS")!);
   } catch (error) {
     setTelegramRuntime({ status: { ...base, readiness: "misconfigured", lastError: (error as Error).message } });
     return;
   }
   const verify = options.verifyAgentToken ?? verifyAgentTokenReal;
-  const agent = setting.agentAccessEnabled ? await verify(env.HANOMAN_TELEGRAM_AGENT_TOKEN!) : null;
+  const agent = setting.agentAccessEnabled ? await verify(read("HANOMAN_TELEGRAM_AGENT_TOKEN")!) : null;
   const missing = agent
     ? TELEGRAM_REQUIRED_CAPABILITIES.filter((capability) => !agent.capabilities.includes(capability))
     : [...TELEGRAM_REQUIRED_CAPABILITIES];
@@ -143,8 +156,8 @@ export async function installTelegramGateway(_app: FastifyInstance, options: Boo
   try {
     const built = await (options.factory ?? productionFactory)({
       apiBase: options.apiBase,
-      botToken: env.HANOMAN_TELEGRAM_BOT_TOKEN!,
-      agentToken: env.HANOMAN_TELEGRAM_AGENT_TOKEN!,
+      botToken: read("HANOMAN_TELEGRAM_BOT_TOKEN")!,
+      agentToken: read("HANOMAN_TELEGRAM_AGENT_TOKEN")!,
       allowedUserIds,
       progress: setting.telegram.progress,
     });
@@ -174,4 +187,19 @@ export async function installTelegramGateway(_app: FastifyInstance, options: Boo
       },
     });
   }
+}
+
+// Pemasangan terakhir, supaya reload bisa memakai apiBase & seam yang sama tanpa server.ts
+// menyimpannya sendiri.
+let lastBootstrap: { app: FastifyInstance; options: BootstrapOptions } | null = null;
+
+/**
+ * SPEC-477 · ADR-0097 · terapkan perubahan kredensial/toggle TANPA restart proses.
+ * Menghentikan gateway lama dulu: satu bot hanya boleh dipoll satu proses (ADR-0096 konsekuensi 1),
+ * dan dua loop `getUpdates` atas token yang sama akan saling mencuri update (Telegram 409).
+ */
+export async function reloadTelegramGateway(): Promise<void> {
+  if (!lastBootstrap) return;
+  await stopTelegramRuntime();
+  await installTelegramGateway(lastBootstrap.app, lastBootstrap.options);
 }

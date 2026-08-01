@@ -23,6 +23,12 @@ function mirrorInheritEnv(key: string): void {
 // Dispatch side-effect untuk satu key yang berubah (set/clear).
 export async function applyConfigSideEffect(key: string): Promise<void> {
   if (SYNC_KEYS.has(key)) { await applySyncConfig(); return; }
+  // SPEC-477 · ADR-0097 · kredensial Telegram berlaku langsung: gateway dipasang ulang in-process.
+  if (configEntry(key)?.group === "telegram") {
+    const { reloadTelegramGateway } = await import("./telegram/bootstrap");
+    await reloadTelegramGateway();
+    return;
+  }
   if (configEntry(key)?.inheritEnv) mirrorInheritEnv(key);
 }
 

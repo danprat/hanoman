@@ -60,6 +60,16 @@ app.listen({ port, host }).then(async () => {
   // SPEC-476 · ADR-0096 · gateway baru boleh polling sesudah server menerima request, katalog
   // custom agent terpasang, dan hook history siap. API base selalu loopback: session operator
   // berjalan di proses lokal walau HTTP publik bind ke alamat lain.
+  // SPEC-215 · config runtime: muat override DB lalu terapkan (mirror kredensial + init sync client).
+  // SPEC-477 · ADR-0097 · WAJIB sebelum installTelegramGateway: gateway kini membaca kredensialnya
+  // lewat resolver config, dan cache config yang masih kosong membuatnya diam-diam jatuh ke env
+  // saja — kegagalan yang SENYAP dan tampak benar (gateway berperilaku persis seperti sebelumnya).
+  {
+    const { loadConfig } = await import("./config");
+    const { applyConfigOnBoot } = await import("./services/config-apply");
+    await loadConfig();
+    await applyConfigOnBoot();
+  }
   const boundPort = (app.server.address() as AddressInfo).port;
   await installTelegramGateway(app, { apiBase: `http://127.0.0.1:${boundPort}` });
   startVpsMonitor(); // healthcheck 5 menit + audit harian (SPEC-164)
@@ -69,12 +79,4 @@ app.listen({ port, host }).then(async () => {
   // SPEC-409 · ADR-0091 · denyut hanoman-lead (in-process, cermin scheduler). Master switch default
   // MATI: tick pertama membaca Setting dan langsung kembali bila lead tak dinyalakan operator (AC-30).
   startLead();
-  // SPEC-215 · config runtime: muat override DB lalu terapkan (mirror kredensial + init sync client).
-  // Tanpa config sync efektif → peran HUB murni (perilaku lama, backward-compatible).
-  void (async () => {
-    const { loadConfig } = await import("./config");
-    const { applyConfigOnBoot } = await import("./services/config-apply");
-    await loadConfig();
-    await applyConfigOnBoot();
-  })();
 }).catch((err) => { console.error("listen gagal:", err); process.exit(1); });

@@ -617,7 +617,7 @@ git commit -m "feat(477): entri config Telegram + validasi pola di parseConfigVa
   - `installTelegramGateway(app, options)` — `options.read?: (key: string) => string | undefined` (default `effectiveStr`)
   - `reloadTelegramGateway(): Promise<void>`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `server/test/telegram-bootstrap-config.test.ts`:
 
@@ -715,12 +715,12 @@ describe("SPEC-477 · bootstrap Telegram membaca store config", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `./node_modules/.bin/vitest run --no-file-parallelism server/test/telegram-bootstrap-config.test.ts`
 Expected: FAIL — `reloadTelegramGateway is not a function`; test pertama juga gagal karena `botToken` masih `TOKEN_ENV`
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Di `server/src/services/telegram/bootstrap.ts`:
 
@@ -854,12 +854,12 @@ Di `server/src/server.ts`, **naikkan** blok config ke atas `installTelegramGatew
 
 …dan **hapus** blok `void (async () => { … loadConfig … applyConfigOnBoot … })()` yang lama di akhir.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `./node_modules/.bin/vitest run --no-file-parallelism server/test/telegram-bootstrap-config.test.ts server/test/telegram-lifecycle.test.ts server/test/config-apply.test.ts`
 Expected: PASS — semua hijau
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/telegram/bootstrap.ts server/src/services/config-apply.ts server/src/server.ts server/test/telegram-bootstrap-config.test.ts
