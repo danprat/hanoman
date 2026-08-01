@@ -3,7 +3,7 @@ import {
   type WebhookAction, type WebhookEntityDef,
 } from "@hanoman/shared";
 
-// SPEC-481 · ADR-0099 · SATU choke point untuk seluruh peristiwa perubahan.
+// SPEC-481 · ADR-0100 · SATU choke point untuk seluruh peristiwa perubahan.
 //
 // Kenapa di layer Prisma dan bukan di call site: hanoman sudah tiga kali kena kelas bug "satu
 // definisi, N call site" (SPEC-431 predikat, SPEC-448 env spawn, SPEC-475 efek samping), dan

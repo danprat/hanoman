@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { SYSTEM_ACTOR, type WebhookActor } from "@hanoman/shared";
 
-// SPEC-481 · ADR-0099 · amplop menjanjikan SIAPA yang memicu, tapi identitas itu hanya hidup di
+// SPEC-481 · ADR-0100 · amplop menjanjikan SIAPA yang memicu, tapi identitas itu hanya hidup di
 // request sementara tap berjalan di layer Prisma. AsyncLocalStorage menjembataninya tanpa mengoper
 // argumen lewat setiap penulis. Di luar konteks mana pun jawabannya `system` — jujur, bukan tebakan.
 const als = new AsyncLocalStorage<WebhookActor>();

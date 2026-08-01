@@ -3,7 +3,7 @@ import { matchesEvent, type WebhookEndpointView } from "@hanoman/shared";
 import { prisma } from "../../db";
 import { decryptSecret, encryptSecret } from "../secret-box";
 
-// SPEC-481 · ADR-0099 · daftar endpoint aktif dipegang di MEMORI dan disegarkan tiap mutasi.
+// SPEC-481 · ADR-0100 · daftar endpoint aktif dipegang di MEMORI dan disegarkan tiap mutasi.
 // Alasannya bukan kecepatan query melainkan gerbang tap: `webhooksActive()` dibaca pada SETIAP
 // tulisan Prisma, dan default hanoman adalah nol endpoint. Cache sinkron (cermin katalog custom
 // agent ADR-0094) karena tap tak boleh menunggu Prisma untuk memutuskan "tak ada apa-apa di sini".

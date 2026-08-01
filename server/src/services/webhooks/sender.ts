@@ -3,7 +3,7 @@ import { signedHeaders } from "./sign";
 import { checkDestination, validateWebhookUrl, type Lookup } from "./ssrf";
 import { secretOf, type Endpoint } from "./endpoints";
 
-// SPEC-481 · ADR-0099 · satu pengiriman HTTP. Murni terhadap DB — pemanggilnya yang membukukan
+// SPEC-481 · ADR-0100 · satu pengiriman HTTP. Murni terhadap DB — pemanggilnya yang membukukan
 // hasilnya, supaya jalur ini bisa dites tanpa jaringan maupun tabel.
 
 export type Fetcher = (url: string, init: {

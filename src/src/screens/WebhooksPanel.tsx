@@ -5,7 +5,7 @@ import { api } from "../api/client";
 import { WEBHOOK_ENTITIES, WEBHOOK_EVENTS, WEBHOOK_PING_TYPE } from "@hanoman/shared";
 import type { WebhookDeliveryView, WebhookEndpointView, WebhookTestResult } from "@hanoman/shared";
 
-// SPEC-481 · ADR-0099 · pengelolaan endpoint webhook. Daftar jenis peristiwa dibaca dari KATALOG
+// SPEC-481 · ADR-0100 · pengelolaan endpoint webhook. Daftar jenis peristiwa dibaca dari KATALOG
 // (@hanoman/shared) — sumber yang sama dengan pengirimnya, jadi pilihan di sini tak bisa basi.
 
 type Draft = {

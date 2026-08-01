@@ -131,7 +131,7 @@ export const paths = {
   leadDecisionCancel: (id: string) => `${API}/lead/decisions/${encodeURIComponent(id)}/cancel`,
   // SPEC-450 · ADR-0094 · katalog custom agent. `?projectId=` → himpunan EFEKTIF (global+project).
   customAgents: `${API}/custom-agents`,
-  // SPEC-481 · ADR-0099 · webhook keluar (cookie-only)
+  // SPEC-481 · ADR-0100 · webhook keluar (cookie-only)
   webhooks: `${API}/webhooks`,
   webhook: (id: string) => `${API}/webhooks/${encodeURIComponent(id)}`,
   webhookTest: (id: string) => `${API}/webhooks/${encodeURIComponent(id)}/test`,

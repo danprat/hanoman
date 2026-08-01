@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { WEBHOOK_HEADERS, WEBHOOK_USER_AGENT } from "@hanoman/shared";
 
-// SPEC-481 · ADR-0099 · tanda tangan v1 = HMAC-SHA256 atas `<timestamp>.<raw body>`.
+// SPEC-481 · ADR-0100 · tanda tangan v1 = HMAC-SHA256 atas `<timestamp>.<raw body>`.
 //
 // Timestamp IKUT ditandatangani: tanpa itu penerima tak punya cara menolak replay — badan yang
 // sama akan selamanya lolos verifikasi. Penerima diminta menolak selisih > WEBHOOK_TOLERANCE_SEC.

@@ -41,7 +41,7 @@ export const prodApplyDeps: ApplyDeps = {
   notify: recordLeadDecision,
 };
 
-// SPEC-481 · ADR-0099 · tindakan lead adalah satu-satunya penulis latar yang punya identitas
+// SPEC-481 · ADR-0100 · tindakan lead adalah satu-satunya penulis latar yang punya identitas
 // sendiri. Dibungkus di SATU titik terluar, bukan per tindakan: membungkus tiap `case` adalah N
 // call site untuk satu keputusan — kelas bug SPEC-475. Tanpa ini integrate/stop yang dilakukan
 // lead terbaca `system` di amplop webhook.

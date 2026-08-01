@@ -1,4 +1,4 @@
--- SPEC-481 · ADR-0099 · webhook keluar: endpoint + antrean/riwayat pengiriman.
+-- SPEC-481 · ADR-0100 · webhook keluar: endpoint + antrean/riwayat pengiriman.
 --
 -- Dua tabel BARU → `CREATE TABLE` polos; tak ada redefinisi tabel seperti migration SPEC-408.
 -- Keduanya LOCAL-only (tanpa kolom `version`): barisnya memegang secret dan menunjuk pengiriman

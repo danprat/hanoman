@@ -18,7 +18,7 @@ if (notice) console.warn(notice);
 const url = resolveDbUrl(process.env, schemaDir);
 process.env.DATABASE_URL = url;
 mkdirSync(dirname(dbFilePath(url)), { recursive: true }); // SQLite tak membuat direktori sendiri
-// SPEC-481 · ADR-0099 · tap webhook dipasang DI SINI, satu-satunya tempat klien Prisma lahir.
+// SPEC-481 · ADR-0100 · tap webhook dipasang DI SINI, satu-satunya tempat klien Prisma lahir.
 // `base` dipakai tap untuk membaca keadaan sebelum/sesudah TANPA melewati extension lagi
 // (rekursi), sekaligus berbagi engine & koneksi yang sama dengan klien yang diekspor.
 const base = new PrismaClient();

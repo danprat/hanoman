@@ -6,7 +6,7 @@ import {
   WEBHOOK_TOLERANCE_SEC, sampleEnvelope,
 } from "@hanoman/shared";
 
-// SPEC-481 · ADR-0099 · dokumentasi webhook DI DALAM aplikasi, dibangun dari katalog yang sama
+// SPEC-481 · ADR-0100 · dokumentasi webhook DI DALAM aplikasi, dibangun dari katalog yang sama
 // dengan pengirimnya. Tak ada daftar jenis peristiwa yang ditulis tangan di berkas ini — brief
 // mensyaratkan dokumentasi yang tak bisa basi saat peristiwa baru ditambahkan.
 

@@ -1,7 +1,7 @@
 import { lookup as dnsLookup } from "node:dns/promises";
 import { isIPv4 } from "node:net";
 
-// SPEC-481 · ADR-0099 · pagar SSRF. Dua lapis dengan pertanyaan berbeda:
+// SPEC-481 · ADR-0100 · pagar SSRF. Dua lapis dengan pertanyaan berbeda:
 //   validateWebhookUrl  — bentuk URL, ditegakkan saat DISIMPAN.
 //   checkDestination    — alamat yang benar-benar akan dihubungi, ditegakkan SETIAP percobaan.
 // Lapis kedua wajib per-percobaan: host publik hari ini bisa menunjuk 127.0.0.1 besok. Ini

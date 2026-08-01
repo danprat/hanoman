@@ -3745,7 +3745,7 @@ git commit -m "feat(481): halaman dokumentasi webhook in-app dari katalog"
 - Modify: `internal/docs/security/security-standard.md`
 - Modify: `internal/skills/hanoman/SKILL.md`
 
-- [ ] **Step 1: Klaim nomor ADR (enumerasi lintas branch — ADR-0021)**
+- [x] **Step 1: Klaim nomor ADR (enumerasi lintas branch — ADR-0021)**
 
 ```bash
 git worktree list
@@ -3757,7 +3757,7 @@ for w in ../*/internal/docs/adr; do ls "$w" 2>/dev/null | tail -2; done
 Expected: tertinggi `0098`. Bila sudah ada `0099` di worktree/branch tetangga, **pakai nomor
 berikutnya** dan ganti seluruh rujukan `0099` di spec, plan, dan kode komentar.
 
-- [ ] **Step 2: Tulis ADR**
+- [x] **Step 2: Tulis ADR**
 
 Buat `internal/docs/adr/0100-webhook-keluar-peristiwa.md` dengan bagian:
 **Status** (Diterima, 2026-08-01, SPEC-481) · **Konteks** (polling itu boros & selalu terlambat;
@@ -3790,7 +3790,7 @@ call site (menghidupkan kembali kelas bug SPEC-475), polling diff periodik (chan
 menumpang `SyncLog` (role-dependent: peran client tak menulis changefeed, jadi before/after hilang
 justru di separuh topologi).
 
-- [ ] **Step 3: Tautkan di kedua index**
+- [x] **Step 3: Tautkan di kedua index**
 
 `internal/docs/README.md` — di seksi `## adr`, **di atas** baris 0098:
 
@@ -3807,7 +3807,7 @@ dan di seksi `## integrasi (untuk project yang memakai hanoman)`:
 `internal/docs/adr/README.md` — tambahkan narasi ADR-0100 di posisi paling atas daftar, mengikuti
 gaya entri 0098 (apa yang diperluas/diamandemen + gotcha-nya).
 
-- [ ] **Step 4: Perbarui doc arsitektur & keamanan**
+- [x] **Step 4: Perbarui doc arsitektur & keamanan**
 
 - `architecture/api-contract.md` — tujuh endpoint `/webhooks` (method, path, body, respons, catatan
   cookie-only + "secret hanya sekali").
@@ -3820,7 +3820,7 @@ gaya entri 0098 (apa yang diperluas/diamandemen + gotcha-nya).
   choke point + gerbang cache + empat konsekuensi + kebijakan crash yang berlawanan dengan
   ADR-0096 + "notifikasi `webhook` tak difan-out".
 
-- [ ] **Step 5: Verifikasi integritas index**
+- [x] **Step 5: Verifikasi integritas index**
 
 ```bash
 node cli/dist/index.js docs index --check 2>/dev/null || pnpm --filter ./cli exec tsx src/index.ts docs index --check
@@ -3828,7 +3828,7 @@ node cli/dist/index.js docs index --check 2>/dev/null || pnpm --filter ./cli exe
 Expected: tak ada doc yatim. Bila CLI belum ter-build, cukup pastikan setiap berkas baru ter-link
 dari `internal/docs/README.md`.
 
-- [ ] **Step 6: Smoke end-to-end sungguhan (sekali, di akhir)**
+- [x] **Step 6: Smoke end-to-end sungguhan (sekali, di akhir)**
 
 Task ini menyentuh endpoint **dan** perilaku runtime, jadi wajib diuji nyata (bukan hanya unit).
 
@@ -3900,7 +3900,7 @@ Yang harus terlihat:
 Bereskan: `kill <pid>` per-PID (`lsof -ti:8801`, `lsof -ti:9911`). **Jangan** `pkill -f node` —
 itu membunuh sesi tetangga (SPEC-402).
 
-- [ ] **Step 7: Jalankan seluruh test yang tersentuh spec ini**
+- [x] **Step 7: Jalankan seluruh test yang tersentuh spec ini**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism --dir server \
@@ -3918,7 +3918,7 @@ pnpm --filter ./server typecheck && pnpm --filter ./shared typecheck && pnpm --f
 ```
 Expected: semuanya hijau.
 
-- [ ] **Step 8: Commit & push**
+- [x] **Step 8: Commit & push**
 
 ```bash
 git add internal/docs internal/skills

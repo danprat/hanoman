@@ -477,7 +477,7 @@ const S_SECTIONS = [
   { key: "aktivitas", label: "Aktivitas", icon: "activity" },    // SPEC-213 · activity log
   { key: "konfigurasi", label: "Konfigurasi", icon: "sliders" }, // SPEC-215 · env runtime
   { key: "telegram", label: "Telegram", icon: "send" },          // SPEC-476 · operator gateway
-  { key: "webhook", label: "Webhook", icon: "webhook" },         // SPEC-481 · ADR-0099 · webhook keluar
+  { key: "webhook", label: "Webhook", icon: "webhook" },         // SPEC-481 · ADR-0100 · webhook keluar
   { key: "umum", label: "Umum", icon: "sliders-horizontal" },
   { key: "model", label: "Model sesi", icon: "cpu" },
   { key: "sesi", label: "Sesi", icon: "bell" },

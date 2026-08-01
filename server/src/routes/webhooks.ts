@@ -12,7 +12,7 @@ import {
 import { checkUrlShape } from "../services/webhooks/ssrf";
 import { sendOnce } from "../services/webhooks/sender";
 
-// SPEC-481 · ADR-0099 · pengelolaan endpoint webhook. COOKIE_ONLY ditegakkan
+// SPEC-481 · ADR-0100 · pengelolaan endpoint webhook. COOKIE_ONLY ditegakkan
 // `capabilityForRoute`; route ini tak perlu memeriksanya lagi.
 
 const KNOWN = new Set(webhookEventTypes());

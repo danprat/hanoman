@@ -419,7 +419,7 @@ export const api = {
   updateCustomAgent: (id: string, b: UpdateCustomAgent) =>
     j<CustomAgentView>(paths.customAgent(id), { method: "PATCH", ...body(b) }),
   deleteCustomAgent: (id: string) => j<void>(paths.customAgent(id), { method: "DELETE" }),
-  // SPEC-481 · ADR-0099 · webhook keluar. Semua cookie-only; tak ada jalur agent token.
+  // SPEC-481 · ADR-0100 · webhook keluar. Semua cookie-only; tak ada jalur agent token.
   listWebhooks: () => j<{ endpoints: WebhookEndpointView[]; eventTypes: string[] }>(paths.webhooks),
   createWebhook: (b: CreateWebhookEndpoint) =>
     j<WebhookEndpointView>(paths.webhooks, { method: "POST", ...body(b) }),

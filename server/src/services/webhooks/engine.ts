@@ -5,7 +5,7 @@ import { prisma } from "../../db";
 import { normalize, refreshWebhookCache, type EndpointRow } from "./endpoints";
 import { sendOnce, type SenderDeps } from "./sender";
 
-// SPEC-481 · ADR-0099 · worker antrean in-process. Bukan message queue (ADR-0024 utuh): tabel
+// SPEC-481 · ADR-0100 · worker antrean in-process. Bukan message queue (ADR-0024 utuh): tabel
 // durable + `setInterval` yang di-start dari `server.ts`, persis pola governor scheduler
 // (ADR-0072) dan outbox Telegram (ADR-0096).
 

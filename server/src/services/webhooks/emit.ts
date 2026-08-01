@@ -8,7 +8,7 @@ import { prisma } from "../../db";
 import { currentActor } from "./actor";
 import { matchingEndpoints, webhooksActive, type Endpoint } from "./endpoints";
 
-// SPEC-481 · ADR-0099 · dari "sebuah baris berubah" menjadi "n baris antrean". Dipanggil
+// SPEC-481 · ADR-0100 · dari "sebuah baris berubah" menjadi "n baris antrean". Dipanggil
 // fire-and-forget oleh tap: apa pun yang salah di sini TIDAK boleh menggagalkan tulisan yang
 // memicunya — janji "endpoint lambat tak memperlambat hanoman" dimulai di titik ini.
 

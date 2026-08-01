@@ -1,4 +1,4 @@
-// SPEC-481 · ADR-0099 · sumber TUNGGAL peristiwa webhook: katalog ini menyetir tap Prisma
+// SPEC-481 · ADR-0100 · sumber TUNGGAL peristiwa webhook: katalog ini menyetir tap Prisma
 // (server/src/services/webhooks/tap.ts) DAN halaman dokumentasi in-app. Menambah peristiwa =
 // menambah entri di sini; tak ada jalan lain, jadi dokumentasi tak bisa basi.
 import { z } from "zod";
@@ -175,7 +175,7 @@ export const WEBHOOK_ENTITIES: WebhookEntityDef[] = [
       id: "cld3a9f1b2c4d5e6f7", projectId: "hanoman", specId: "SPEC-481", sessionId: "spec_481",
       gate: "detected", kind: "answer", question: "Pakai tap Prisma atau emit manual?",
       answer: "Tap Prisma — satu choke point.", reason: "Kelas bug SPEC-431/448/475.",
-      refs: ["internal/docs/adr/0099-webhook-keluar-peristiwa.md"], confidence: "tinggi",
+      refs: ["internal/docs/adr/0100-webhook-keluar-peristiwa.md"], confidence: "tinggi",
       action: "none", status: "berlaku", weighty: false, choice: "Tap di layer Prisma",
       choiceIndex: 1, missing: null, createdAt: "2026-08-01T03:00:00.000Z",
     },

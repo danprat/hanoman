@@ -123,7 +123,7 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
     // Cookie dan AgentToken biasa lewat apa adanya; hanya token gateway runtime yang wajib correlation
     // dan confirmation untuk aksi sulit dibatalkan.
     api.addHook("preHandler", guardTelegramGatewayRequest);
-    // SPEC-481 · ADR-0099 · stempel aktor untuk amplop webhook. Dipasang di `preHandler` (bukan
+    // SPEC-481 · ADR-0100 · stempel aktor untuk amplop webhook. Dipasang di `preHandler` (bukan
     // `onRequest`) supaya `req.user`/`req.agent` sudah terisi gate auth di atas; tanpa itu setiap
     // peristiwa yang lahir dari request akan berkata `system` dan riwayatnya kehilangan pelakunya.
     api.addHook("preHandler", async (req) => {
@@ -159,7 +159,7 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
     await api.register(customAgents); // SPEC-450 · ADR-0094 · katalog custom agent (capability `agents`)
     await api.register(githubIssues); // SPEC-471 · ADR-0095 · tarik & triase issue GitHub (capability `support`)
     await api.register(telegram);     // SPEC-476 · ADR-0096 · context/memory/reply/audit Telegram
-    await api.register(webhooks);     // SPEC-481 · ADR-0099 · webhook keluar (cookie-only)
+    await api.register(webhooks);     // SPEC-481 · ADR-0100 · webhook keluar (cookie-only)
   }, { prefix: "/api" });
 
   // Prod: serve the built dashboard from one process; SPA-fallback to
