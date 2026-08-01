@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { prisma } from "../src/db";
 import { LEAD_DEFAULTS, type Lead } from "@hanoman/shared";
 import type { LeadDecision } from "@prisma/client";
-import { scanAndAnswer, __resetDetect, resetSession, answerCount, type DetectDeps } from "../src/services/lead/detect";
+import { scanAndAnswer, __resetDetect, resetSession, answerCount, failureCount, type DetectDeps } from "../src/services/lead/detect";
 import { recordDecision } from "../src/services/lead/trail";
 
 // SPEC-409 · ADR-0091 · pintu #2 (deteksi otomatis). Semua deps disuntik: nol tmux, nol agen.
@@ -117,6 +117,80 @@ describe("scanAndAnswer · menjawab (AC-7/AC-8)", () => {
     });
     expect((await scanAndAnswer(h.deps)).answered).toEqual([]);
     expect(h.sent).toEqual([]);
+  });
+});
+
+// SPEC-472 (QA) · pagar AC-11 menghitung jawaban yang BERHASIL diberikan, jadi sesi yang
+// keputusannya selalu gagal tak pernah mendekatinya: `engine.ts` TICK_MS = 5 dtk menjadwalkan
+// percobaan berikutnya, selamanya. Terukur di produksi — 152 keputusan `gagal` untuk tiga sesi yang
+// sama dalam ±13 menit, satu proses agen (dan kuota langganan yang sama dengan sesi pekerja) untuk
+// masing-masing, tanpa satu pun jalan berhenti.
+describe("scanAndAnswer · batas kegagalan beruntun (SPEC-472)", () => {
+  const failing = (): Partial<DetectDeps> => ({
+    decide: (async (req: { projectId: string; specId?: string | null; sessionId?: string | null; question: string }) =>
+      recordDecision({
+        projectId: req.projectId, specId: req.specId, sessionId: req.sessionId,
+        gate: "detected", kind: "answer", question: req.question,
+        answer: "", reason: "lead claude gagal (exit 1): Invalid API key · Fix external API key",
+        refs: [], confidence: "ragu", action: "none", status: "gagal",
+      })) as unknown as DetectDeps["decide"],
+  });
+
+  it("berhenti memanggil agen setelah maxAutoAnswers kegagalan beruntun", async () => {
+    let calls = 0;
+    const base = failing();
+    const h = harness({
+      decide: (async (...a: Parameters<DetectDeps["decide"]>) => { calls++; return (base.decide as DetectDeps["decide"])(...a); }) as DetectDeps["decide"],
+    }, cfg({ maxAutoAnswers: 2 }));
+    await scanAndAnswer(h.deps);
+    await scanAndAnswer(h.deps);
+    expect(calls).toBe(2);
+    expect(failureCount("s1")).toBe(2);
+
+    const third = await scanAndAnswer(h.deps);
+    expect(calls).toBe(2);                       // tak ada agen ketiga yang di-spawn
+    expect(third.answered).toEqual([]);
+    expect(third.skipped[0]!.reason).toContain("gagal");
+  });
+
+  it("menotifikasi operator tepat sekali saat menyerah", async () => {
+    const h = harness(failing(), cfg({ maxAutoAnswers: 1 }));
+    await scanAndAnswer(h.deps);
+    await scanAndAnswer(h.deps);
+    await scanAndAnswer(h.deps);
+    expect(h.notes.filter((t) => t.includes("gagal"))).toHaveLength(1);
+  });
+
+  // Kegagalan harus BERUNTUN: satu keputusan yang berhasil membuktikan lead masih sanggup.
+  it("keputusan yang berhasil mengosongkan penghitung kegagalan", async () => {
+    let broken = true;
+    const base = failing();
+    const h = harness({
+      decide: (async (...a: Parameters<DetectDeps["decide"]>) =>
+        broken ? (base.decide as DetectDeps["decide"])(...a) : harness().deps.decide(...a)) as DetectDeps["decide"],
+    }, cfg({ maxAutoAnswers: 2 }));
+    await scanAndAnswer(h.deps);
+    expect(failureCount("s1")).toBe(1);
+    broken = false;
+    expect((await scanAndAnswer(h.deps)).answered).toEqual(["s1"]);
+    expect(failureCount("s1")).toBe(0);
+  });
+
+  it("campur tangan operator memulihkan sesi yang sudah menyerah", async () => {
+    const h = harness(failing(), cfg({ maxAutoAnswers: 1 }));
+    await scanAndAnswer(h.deps);
+    expect((await scanAndAnswer(h.deps)).skipped[0]!.reason).toContain("gagal");
+    resetSession("s1");
+    expect(failureCount("s1")).toBe(0);
+  });
+
+  it("melupakan penghitung begitu sesinya tak ada lagi", async () => {
+    const h = harness(failing(), cfg({ maxAutoAnswers: 2 }));
+    await scanAndAnswer(h.deps);
+    expect(failureCount("s1")).toBe(1);
+    const gone = harness({ ...failing(), live: () => [] }, cfg({ maxAutoAnswers: 2 }));
+    await scanAndAnswer(gone.deps);
+    expect(failureCount("s1")).toBe(0);
   });
 });
 
