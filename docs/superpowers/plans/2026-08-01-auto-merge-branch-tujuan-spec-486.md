@@ -40,7 +40,7 @@
   - `autoMergeTargetOf(p: AutoMerge, defaultBranch: string | null): string | null`
   - `autoMergeSummary(p: AutoMerge): string`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `shared/src/auto-merge.test.ts`:
 
@@ -127,12 +127,12 @@ describe("autoMergeSummary", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `./node_modules/.bin/vitest --run shared/src/auto-merge.test.ts`
 Expected: FAIL — `Failed to resolve import "./auto-merge"`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Create `shared/src/auto-merge.ts`:
 
@@ -205,12 +205,12 @@ Modify `shared/src/index.ts` — tambahkan satu baris sesudah `export * from "./
 export * from "./auto-merge";
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `./node_modules/.bin/vitest --run shared/src/auto-merge.test.ts`
 Expected: PASS — 17 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add shared/src/auto-merge.ts shared/src/auto-merge.test.ts shared/src/index.ts
@@ -231,7 +231,7 @@ git commit -m "feat(486): kebijakan auto-merge sebagai data murni di shared"
 - Consumes: —
 - Produces: kolom `Project.autoMerge` & `Spec.autoMerge` bertipe `Json?` di klien Prisma.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `server/test/auto-merge-schema.test.ts`:
 
@@ -284,12 +284,12 @@ describe("kolom autoMerge (SPEC-486 · ADR-0103)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism server/test/auto-merge-schema.test.ts`
 Expected: FAIL — `Unknown argument 'autoMerge'`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Modify `server/prisma/schema.prisma`, di model `Project` sesudah baris `leadOptIn`:
 
@@ -330,12 +330,12 @@ cd server && npx prisma generate && npx prisma migrate deploy
 
 (Jangan `migrate dev` — worktree tetangga bisa membuat drift dan `migrate dev` akan me-reset DB bersama.)
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism server/test/auto-merge-schema.test.ts server/test/webhook-catalog-dmmf.test.ts`
 Expected: PASS — kedua berkas hijau (DMMF membuktikan nama kolom di katalog webhook memang ada di skema).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/prisma/schema.prisma server/prisma/migrations/20260801230000_auto_merge shared/src/webhook.ts server/test/auto-merge-schema.test.ts
@@ -354,7 +354,7 @@ git commit -m "feat(486): kolom autoMerge di Project & Spec (migration + katalog
 - Consumes: `listRepoBranches`, `listRepoRemoteBranches` (sudah ada di berkas yang sama)
 - Produces: `defaultBranch(repoDir: string | null): Promise<string | null>`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Tambahkan ke `server/test/branches.test.ts` (import `defaultBranch` dari `../src/services/branches`, dan `mkdtempSync`/`spawnSync` bila belum ada di berkas itu):
 
@@ -397,12 +397,12 @@ describe("defaultBranch (SPEC-486)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism server/test/branches.test.ts`
 Expected: FAIL — `defaultBranch is not a function` / import tak ditemukan.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Tambahkan di akhir `server/src/services/branches.ts`:
 
@@ -430,12 +430,12 @@ export async function defaultBranch(repoDir: string | null): Promise<string | nu
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism server/test/branches.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/branches.ts server/test/branches.test.ts
@@ -458,7 +458,7 @@ git commit -m "feat(486): defaultBranch(repoDir) — origin/HEAD → main → ma
 - Consumes: `zAutoMerge`, `autoMergeOf` (Task 1); `defaultBranch`, `listRepoBranches`, `listRepoRemoteBranches` (Task 3)
 - Produces: `checkAutoMerge(repoDir: string | null, raw: unknown): Promise<{ ok: true } | { ok: false; code: 400 | 409; error: string }>`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `server/test/auto-merge.route.test.ts`:
 
@@ -580,12 +580,12 @@ describe("override per-spec (SPEC-486)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism server/test/auto-merge.route.test.ts`
 Expected: FAIL — `autoMerge` dibuang zod (non-strict) sehingga respons tak memuatnya; test 409/400 gagal karena status 200.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Create `server/src/services/auto-merge-gate.ts`:
 
@@ -748,12 +748,12 @@ Modify `src/src/api/client.ts` (kontrak klien ikut di task ini supaya tak ada dr
 
 dan pada `updateProject` tambahkan `autoMerge?: AutoMerge | null;` ke tipe body, serta pada `patchSpec` tambahkan `autoMerge?: AutoMerge | null;` — dengan `AutoMerge` diimpor dari `@hanoman/shared` di kepala berkas.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism server/test/auto-merge.route.test.ts server/test/branches.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add shared/src/dto.ts server/src/services/auto-merge-gate.ts server/src/services/project-view.ts server/src/routes/projects.ts server/src/routes/specs.ts src/src/api/client.ts server/test/auto-merge.route.test.ts
@@ -780,7 +780,7 @@ git commit -m "feat(486): gerbang tulis kebijakan auto-merge di route project & 
   - `discardMergeWorktree(repoDir, wt)` & `deleteMergedBranch(repoDir, branch)` diekspor dari `integrate.ts`
   - `recordAutoMerge(specId, projectId, title)` di `notifications.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `server/test/auto-merge.service.test.ts`:
 
@@ -1000,12 +1000,12 @@ describe("sweepAutoMerge — hasil", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism server/test/auto-merge.service.test.ts`
 Expected: FAIL — `Failed to resolve import "../src/services/auto-merge"`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Modify `server/src/services/integrate.ts` — ubah dua fungsi privat jadi ekspor bernama (isi tak berubah), dan beri komentar alasannya:
 
@@ -1211,12 +1211,12 @@ export function startAutoMerge(): void {
 export function stopAutoMerge(): void { if (timer) clearInterval(timer); timer = undefined; }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism server/test/auto-merge.service.test.ts`
 Expected: PASS — 18 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/auto-merge.ts server/src/services/integrate.ts server/src/services/notifications.ts server/test/auto-merge.service.test.ts
@@ -1235,7 +1235,7 @@ git commit -m "feat(486): sweep auto-merge — kandidat, kesiapan branch, hasil 
 - Consumes: `startAutoMerge`, `stopAutoMerge`, `tick` (Task 5)
 - Produces: —
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `server/test/auto-merge-timer.test.ts`:
 
@@ -1266,12 +1266,12 @@ describe("timer sweep auto-merge (SPEC-486)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism server/test/auto-merge-timer.test.ts`
 Expected: FAIL — `server.ts` tak memuat `startAutoMerge`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Modify `server/src/server.ts`:
 
@@ -1290,12 +1290,12 @@ import { startAutoMerge } from "./services/auto-merge";
   startAutoMerge();
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism server/test/auto-merge-timer.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/server.ts server/test/auto-merge-timer.test.ts
@@ -1315,7 +1315,7 @@ git commit -m "feat(486): jalankan sweep auto-merge dari server.ts"
 - Consumes: `AutoMerge`, `AUTO_MERGE_OFF`, `autoMergeSummary` (Task 1); `api.listBranches`, `api.updateProject` (Task 4)
 - Produces: `<AutoMergeCard p={ProjectVM} onToast={…} onProjectChanged={…} />`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/src/screens/AutoMergeCard.test.tsx`:
 
@@ -1394,12 +1394,12 @@ describe("AutoMergeCard", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `env -u NODE_ENV ./node_modules/.bin/vitest --run src/src/screens/AutoMergeCard.test.tsx`
 Expected: FAIL — `Failed to resolve import "./AutoMergeCard"`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Create `src/src/screens/AutoMergeCard.tsx`:
 
@@ -1528,12 +1528,12 @@ Modify `src/src/screens/ProjectDetailScreen.tsx`:
       <AutoMergeCard p={p} onToast={onToast} onProjectChanged={onProjectChanged} />
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `env -u NODE_ENV ./node_modules/.bin/vitest --run src/src/screens/AutoMergeCard.test.tsx`
 Expected: PASS — 5 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/AutoMergeCard.tsx src/src/screens/AutoMergeCard.test.tsx src/src/screens/ProjectDetailScreen.tsx
@@ -1554,7 +1554,7 @@ git commit -m "feat(486): kartu auto-merge di Settings project"
 - Consumes: `AutoMerge`, `AUTO_MERGE_OFF`, `autoMergeSummary`, `resolveAutoMerge` (Task 1); `api.patchSpec` (Task 4)
 - Produces: prop `onEditAutoMerge?: (s: Spec, v: AutoMerge | null) => void` pada `BacklogScreen` & `SpecDetail`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/src/screens/BacklogAutoMerge.test.tsx`:
 
@@ -1627,12 +1627,12 @@ describe("override auto-merge per backlog item (SPEC-486)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `env -u NODE_ENV ./node_modules/.bin/vitest --run src/src/screens/BacklogAutoMerge.test.tsx`
 Expected: FAIL — `Unable to find a label with the text of: Auto-merge item ini`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Modify `shared/src/entities.ts` — di `zSpec`, sesudah `blockedBy`:
 
@@ -1724,12 +1724,12 @@ Modify `src/src/App.tsx` — tambahkan handler di sebelah `editDeps` (cari `cons
 
 (Gunakan nama fungsi refresh & toast yang sudah dipakai `editDeps` di berkas itu — jangan memperkenalkan yang baru. Impor `type AutoMerge` dari `@hanoman/shared`.)
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `env -u NODE_ENV ./node_modules/.bin/vitest --run src/src/screens/BacklogAutoMerge.test.tsx`
 Expected: PASS — 3 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add shared/src/entities.ts src/src/screens/BacklogScreen.tsx src/src/screens/BacklogAutoMerge.test.tsx src/src/App.tsx
@@ -1752,7 +1752,7 @@ git commit -m "feat(486): override auto-merge per backlog item"
 - Consumes: seluruh keputusan Task 1–8
 - Produces: dokumentasi SoT yang tertaut di index
 
-- [ ] **Step 1: Verifikasi nomor ADR masih bebas**
+- [x] **Step 1: Verifikasi nomor ADR masih bebas**
 
 Jalankan — nomor 0103 harus tak muncul di mana pun:
 
@@ -1764,7 +1764,7 @@ for b in $(git branch -a --format='%(refname:short)'); do git ls-tree --name-onl
 
 Expected: `0103` TIDAK muncul. Bila muncul, naikkan ke nomor bebas berikutnya dan pakai nomor itu di seluruh berkas task ini.
 
-- [ ] **Step 2: Tulis ADR**
+- [x] **Step 2: Tulis ADR**
 
 Create `internal/docs/adr/0103-auto-merge-saat-sesi-selesai.md` dengan struktur ADR repo ini (Status/Date/Spec/Terkait · Context · Decision · Alternatif ditolak · Consequences). Isi wajib:
 
@@ -1779,7 +1779,7 @@ Create `internal/docs/adr/0103-auto-merge-saat-sesi-selesai.md` dengan struktur 
   5. `Prisma.DbNull` (bukan `null` polos) untuk mengosongkan kolom `Json?`.
   6. Sweep dipasang dari `server.ts` saja — `app.ts` bebas-timer (ADR-0072).
 
-- [ ] **Step 3: Tautkan & perbarui doc yang tersentuh**
+- [x] **Step 3: Tautkan & perbarui doc yang tersentuh**
 
 `internal/docs/README.md` — tambahkan baris paling atas di daftar `## adr`:
 
@@ -1795,12 +1795,12 @@ Create `internal/docs/adr/0103-auto-merge-saat-sesi-selesai.md` dengan struktur 
 
 `internal/skills/hanoman/SKILL.md` — tambahkan butir "Auto-merge saat sesi selesai (SPEC-486/ADR-0103)" di bagian Aturan Arsitektur, memuat inti keputusan + enam gotcha di atas.
 
-- [ ] **Step 4: Verifikasi integritas index**
+- [x] **Step 4: Verifikasi integritas index**
 
 Run: `node cli/dist/index.js docs index --check 2>/dev/null || npx tsx cli/src/index.ts docs index --check`
 Expected: tak ada berkas yatim yang baru; bila CLI belum ter-build, cukup pastikan tautan `0103` muncul di **kedua** README (`internal/docs/README.md` dan `internal/docs/adr/README.md`) — jebakan SPEC-386.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/docs internal/skills
@@ -1818,7 +1818,7 @@ git commit -m "docs(486): ADR-0103 auto-merge saat sesi selesai + docs SoT terse
 - Consumes: seluruh task sebelumnya
 - Produces: bukti hijau
 
-- [ ] **Step 1: Jalankan seluruh test yang tersentuh**
+- [x] **Step 1: Jalankan seluruh test yang tersentuh**
 
 ```bash
 export TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db"
@@ -1836,7 +1836,7 @@ export TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db"
 
 Expected: seluruh berkas PASS, dan jumlah test **> 0** di tiap berkas (`--changed` menyalakan `passWithNoTests`; "no test files" BUKAN bukti).
 
-- [ ] **Step 2: Jalankan test web yang tersentuh**
+- [x] **Step 2: Jalankan test web yang tersentuh**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest --run \
@@ -1846,7 +1846,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest --run \
 
 Expected: PASS. (`NODE_ENV=production` di env sesi membuat RTL `act` gagal massal — SPEC-293.)
 
-- [ ] **Step 3: Typecheck paket yang tersentuh**
+- [x] **Step 3: Typecheck paket yang tersentuh**
 
 ```bash
 pnpm --filter ./shared typecheck && pnpm --filter ./server typecheck && pnpm --filter ./src typecheck
@@ -1854,7 +1854,7 @@ pnpm --filter ./shared typecheck && pnpm --filter ./server typecheck && pnpm --f
 
 Expected: exit 0 ketiganya. (Bukan `pnpm -r typecheck` — itu menyalakan satu tsc per paket sekaligus di mesin yang sedang menjalankan sesi lain.)
 
-- [ ] **Step 4: Smoke endpoint nyata**
+- [x] **Step 4: Smoke endpoint nyata**
 
 Task ini menyentuh endpoint (`PATCH /projects/:id`, `PATCH /specs/:id`, `GET /projects/:id/branches`), jadi sekali di akhir:
 
@@ -1882,7 +1882,7 @@ curl -s localhost:8799/api/projects/smoke                                 # → 
 Expected: `defaultBranch: "main"`; branch karangan **400**; branch nyata **200** dan terbaca kembali di `GET /projects/smoke`.
 Bereskan: cari PID-nya (`lsof -ti:8799`) lalu `kill <pid>` — **jangan** `pkill -f node` (mematikan agen sesi tetangga, SPEC-402).
 
-- [ ] **Step 5: Centang plan, commit, push**
+- [x] **Step 5: Centang plan, commit, push**
 
 ```bash
 git add -u && git commit -m "chore(486): verifikasi akhir — test tersentuh, typecheck, smoke endpoint"
@@ -1898,3 +1898,41 @@ git push origin HEAD:refs/heads/hanoman/spec-486
 **Placeholder scan:** tak ada TBD/TODO; setiap step yang mengubah kode memuat kodenya. Satu-satunya instruksi "sesuaikan nama variabel" ada di Task 8 langkah 3/4 (App.tsx & BacklogScreen), karena nama state refresh/toast di berkas itu ditentukan kode yang sudah ada — pelaksana membacanya di tempat.
 
 **Type consistency:** `AutoMerge`/`autoMergeOf`/`resolveAutoMerge`/`autoMergeTargetOf`/`autoMergeSummary`/`AUTO_MERGE_OFF` dipakai dengan nama & tanda tangan yang sama di Task 1, 4, 5, 7, 8. `AutoMergeDeps` di Task 5 cocok dengan `deps()` di test-nya. `checkAutoMerge` mengembalikan `{ok:true} | {ok:false; code; error}` dan dipakai persis begitu di kedua route. `discardMergeWorktree`/`deleteMergedBranch` diekspor Task 5 dan dipakai sebagai `discardWorktree`/`deleteBranch` di `prodAutoMergeDeps` — nama field deps sengaja berbeda dari nama fungsi, dan konsisten di test.
+
+---
+
+## Catatan pelaksanaan (deviasi dari rencana)
+
+Semua 10 task selesai. Empat hal berbeda dari yang tertulis di atas, semuanya dicatat di sini
+alih-alih diam-diam:
+
+1. **Task 4 menambah satu berkas test yang tak direncanakan.** `server/test/projects.route.test.ts`
+   mengunci bentuk respons `GET /projects/:id/branches` dengan `toEqual` yang ketat, jadi
+   menambahkan `defaultBranch` membuatnya merah. Diperbaiki dengan memasukkan field baru ke
+   ekspektasi (commit `test(486): amplop /branches kini memuat defaultBranch`). Ini **tak
+   tertangkap** oleh scope test yang direncanakan — ia baru muncul saat scope diperluas ke seluruh
+   suite server yang menyentuh spec/project/sync/webhook (60 berkas, 623 test).
+
+2. **`zSpec` yang bertambah field memaksa fixture lama.** `autoMerge` masuk ke tipe **output** zod
+   sebagai wajib (sama seperti `dependsOn`/`blockedBy` sebelumnya), jadi tiga fixture di
+   `src/test/terminal-screen.test.tsx` harus menyebutkannya. Ketahuan dari `tsc --noEmit`, bukan
+   dari test.
+
+3. **Dua bug di test yang ditulis lebih dulu** — keduanya diperbaiki di test, bukan dengan
+   melonggarkan kode produksi: `vi.fn()` polos mengembalikan `undefined` sehingga melanggar kontrak
+   `Promise<void>` milik `AutoMergeDeps`, dan helper `seed()` memakai `opts.headSha ?? "aaa"` yang
+   **menelan** `headSha: null` — justru kasus yang sedang diuji. Di sisi web, assertion
+   `findByText(/tanpa auto-merge/i)` cocok GANDA (badge + label `<option>`) → dipersempit ke
+   pencocokan persis, dan mock `GET /specs` harus mengembalikan amplop paginasi utuh (`{}` polos
+   membuat `data.items` undefined → seluruh pohon crash sebagai `undefined.map`).
+
+4. **Smoke (Task 10 langkah 4) lebih jauh dari yang direncanakan.** `tsx` tak ter-hoist ke root
+   (`./server/node_modules/.bin/tsx`), dan server menuntut cookie sesi (`POST /api/auth/setup`).
+   Selain gerbang route, sweep-nya sendiri dijalankan **end-to-end di atas git sungguhan** — itu
+   tak ada di rencana dan seharusnya ada:
+   - merge bersih → `develop` maju, `fitur.txt` mendarat, notifikasi `automerge:SPEC-141` bersih;
+   - sweep kedua → **0 diselesaikan** (penanda idempotensi bekerja);
+   - konflik nyata → `develop` **tak bergerak**, branch kerja `hanoman/spec-142` **utuh walau
+     `deleteBranch=true`**, `.worktrees/` bersih (worktree konflik dibuang), notifikasi menyebut
+     alasannya;
+   - merge bersih + `deleteBranch=true` → `hanoman/spec-143` terhapus, `lain.txt` mendarat.
