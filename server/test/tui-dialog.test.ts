@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { readChoiceDialog, freeTextFilled, answerChoiceDialog, type PaneIO } from "../src/services/tui-dialog";
+import {
+  readChoiceDialog, freeTextFilled, answerChoiceDialog, readDialogScreen, readReviewScreen,
+  dialogKey, answerNotesDialog, submitReview, notesFilled, type PaneIO,
+} from "../src/services/tui-dialog";
 
 // SPEC-452 · dialog pilihan claude (`AskUserQuestion`) BUKAN kolom teks: burst apa pun yang lebih
 // dari satu karakter ditelan, dan `Enter` memilih baris yang sedang disorot. Parser ini yang
@@ -72,6 +75,83 @@ const DIALOG_TRUST = `
    2. No, exit
 
  Enter to confirm · Esc to cancel
+`;
+
+// SPEC-474 · dialog `AskUserQuestion` BERANTAI: satu tool call, beberapa pertanyaan berturut-turut.
+// Fixture di bawah juga tangkapan `capture-pane -p -J` sungguhan (claude 2.1.220, 2026-08-01):
+// tab strip di atas pertanyaan, footer `Tab/Arrow keys to navigate` (satu pertanyaan: `↑/↓`).
+const RANTAI_Q1 = `
+────────────────────────────────────────────────────────────────────────────────
+←  ☐ Warna  ☐ Ukuran  ✔ Submit  →
+
+Pilih warna tema?
+
+❯ 1. Merah
+     tema merah
+  2. Biru
+     tema biru
+  3. Type something.
+────────────────────────────────────────────────────────────────────────────────
+  4. Chat about this
+
+Enter to select · Tab/Arrow keys to navigate · Esc to cancel
+`;
+
+/** Layar sesudah pertanyaan pertama dijawab: dialog MAJU, tak ada yang ter-submit. */
+const RANTAI_Q2 = `
+────────────────────────────────────────────────────────────────────────────────
+←  ☒ Warna  ☐ Ukuran  ✔ Submit  →
+
+Pilih ukuran font?
+
+❯ 1. Kecil
+     font kecil
+  2. Besar
+     font besar
+  3. Type something.
+────────────────────────────────────────────────────────────────────────────────
+  4. Chat about this
+
+Enter to select · Tab/Arrow keys to navigate · Esc to cancel
+`;
+
+// Layar rekap terakhir. Yang menentukan: ia TIDAK punya baris footer chord sama sekali — itulah
+// sebabnya parser SPEC-452 (yang berpangkal pada footer) tak pernah melihatnya.
+const RANTAI_REVIEW = `
+────────────────────────────────────────────────────────────────────────────────
+←  ☒ Warna  ☒ Ukuran  ✔ Submit  →
+
+Review your answers
+
+ ● Pilih warna tema?
+   → Merah, karena kontrasnya paling tinggi di layar terang.
+ ● Pilih ukuran font?
+   → Besar, supaya terbaca dari jauh.
+
+Ready to submit your answers?
+
+❯ 1. Submit answers
+  2. Cancel
+`;
+
+// Varian yang opsinya ber-`preview`: hanya opsi yang bernomor, TANPA baris `Type something.`,
+// `Chat about this` tanpa nomor, dan prosa masuk lewat kolom catatan (tombol `n`).
+const DIALOG_PREVIEW = `
+────────────────────────────────────────────────────────────────────────────────
+←  ☐ Loop  ☐ Nama  ✔ Submit  →
+
+Pakai for atau map?
+
+❯ 1. for                          ┌──────────────────────────────┐
+  2. map                          │ for (const x of xs) f(x)     │
+                                  └──────────────────────────────┘
+
+                                  Notes: press n to add notes
+
+────────────────────────────────────────────────────────────────────────────────
+  Chat about this
+
+Enter to select · ↑/↓ to navigate · n to add notes · Tab to switch questions · Esc to cancel
 `;
 
 describe("readChoiceDialog · mengenali dialog pilihan", () => {
@@ -224,5 +304,87 @@ describe("answerChoiceDialog · menjawab seperti manusia", () => {
     expect(await answerChoiceDialog(t.io, 4, JAWABAN, 0)).toBe(false);
     expect(t.pickedRow).toBeNull();
     expect(t.submitted).toBeNull();
+  });
+});
+
+// ── SPEC-474 · bentuk layar dialog ──────────────────────────────────────────────────────────────
+//
+// SPEC-452 hanya mengenal satu bentuk: "dialog pilihan berkolom bebas". Dialog berantai punya dua
+// bentuk lagi yang harus dibedakan sebelum satu tombol pun ditekan — pertanyaan berikutnya, dan
+// layar rekap yang tinggal di-submit.
+
+describe("readDialogScreen · bentuk layar dialog", () => {
+  it("membaca tab strip berikut status terjawabnya", () => {
+    const s = readDialogScreen(RANTAI_Q1);
+    expect(s?.kind).toBe("question");
+    expect(s!.kind === "question" && s!.tabs).toEqual([
+      { header: "Warna", answered: false },
+      { header: "Ukuran", answered: false },
+    ]);
+  });
+
+  it("membaca ☒ sebagai pertanyaan yang sudah dijawab", () => {
+    const s = readDialogScreen(RANTAI_Q2);
+    expect(s!.kind === "question" && s!.tabs.map((t) => t.answered)).toEqual([true, false]);
+  });
+
+  // Dialog satu pertanyaan (SPEC-452) tetap terbaca persis seperti sebelumnya; strip-nya cuma
+  // satu tab tanpa `✔ Submit` karena claude menyembunyikannya untuk dialog satu pertanyaan.
+  it("dialog satu pertanyaan tetap terbaca dan kolom bebasnya tak bergeser", () => {
+    const s = readDialogScreen(ASKQ_TIGA_OPSI);
+    expect(s!.kind === "question" && s!.freeIndex).toBe(4);
+    expect(s!.kind === "question" && s!.tabs).toEqual([{ header: "Strategi Cache", answered: false }]);
+  });
+
+  it("mengenali layar review meski TANPA footer chord", () => {
+    expect(readDialogScreen(RANTAI_REVIEW)).toEqual({ kind: "review", submitRow: 1 });
+    expect(readReviewScreen(RANTAI_REVIEW)).toEqual({ submitRow: 1 });
+  });
+
+  // Scrollback memuat layar-layar lama. Yang berlaku selalu yang PALING BAWAH — dua arah.
+  it("dialog baru di bawah review lama tetap terbaca sebagai pertanyaan", () => {
+    const s = readDialogScreen(`${RANTAI_REVIEW}\n⏺ Selesai.\n${RANTAI_Q1}`);
+    expect(s?.kind).toBe("question");
+  });
+
+  it("review di bawah dialog lama tetap terbaca sebagai review", () => {
+    expect(readDialogScreen(`${RANTAI_Q1}\n${RANTAI_REVIEW}`)?.kind).toBe("review");
+  });
+
+  it("menandai varian preview sebagai dialog ber-kolom-catatan, bukan dialog tanpa jalan masuk", () => {
+    const s = readDialogScreen(DIALOG_PREVIEW);
+    expect(s!.kind === "question" && s!.freeIndex).toBeNull();
+    expect(s!.kind === "question" && s!.notes).toBe(true);
+    expect(s!.kind === "question" && s!.options).toEqual(["for", "map"]);
+  });
+
+  // Dialog trust tak punya tab strip DAN tak punya kolom catatan → pemanggil wajib jatuh ke
+  // jalur lama, tempat `Enter` memilih baris 1 yang memang berarti "ya".
+  it("dialog trust tetap tanpa tab strip dan tanpa kolom catatan", () => {
+    const s = readDialogScreen(DIALOG_TRUST);
+    expect(s!.kind === "question" && s!.tabs).toEqual([]);
+    expect(s!.kind === "question" && s!.notes).toBe(false);
+  });
+
+  it("diam untuk kolom chat biasa", () => {
+    expect(readDialogScreen(KOLOM_CHAT)).toBeNull();
+  });
+});
+
+describe("dialogKey · kunci anti-loop", () => {
+  it("berubah saat rantai maju ke pertanyaan berikutnya", () => {
+    expect(dialogKey(RANTAI_Q1)).not.toBe(dialogKey(RANTAI_Q2));
+  });
+
+  // Kunci sengaja tak memuat label baris kolom-bebas: begitu prosa lead mendarat di sana labelnya
+  // berubah TANPA satu pun pertanyaan berpindah, dan kunci yang ikut berubah akan membaca layar
+  // yang MACET sebagai layar yang maju.
+  it("TIDAK berubah saat kolom bebas terisi tanpa layar berpindah", () => {
+    expect(dialogKey(ASKQ_TIGA_OPSI)).toBe(dialogKey(ASKQ_TIGA_OPSI_TERISI));
+  });
+
+  it("membedakan review dari pertanyaan dan dari layar bukan-dialog", () => {
+    expect(dialogKey(RANTAI_REVIEW)).toBe("review");
+    expect(dialogKey(KOLOM_CHAT)).toBe("none");
   });
 });

@@ -56,7 +56,7 @@
   export function dialogKey(paneText: string): string;
   ```
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `server/test/tui-dialog.test.ts`, tepat sesudah blok fixture yang sudah ada:
 
@@ -210,12 +210,12 @@ describe("dialogKey · kunci anti-loop", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan GAGAL**
+- [x] **Step 2: Jalankan test — pastikan GAGAL**
 
 Run: `pnpm vitest run --no-file-parallelism server/test/tui-dialog.test.ts`
 Expected: FAIL — `readDialogScreen is not a function` (import tak ada).
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Di `server/src/services/tui-dialog.ts`, tambahkan sesudah `readChoiceDialog`:
 
@@ -318,12 +318,12 @@ export function dialogKey(paneText: string): string {
 }
 ```
 
-- [ ] **Step 4: Jalankan test — pastikan LULUS**
+- [x] **Step 4: Jalankan test — pastikan LULUS**
 
 Run: `pnpm vitest run --no-file-parallelism server/test/tui-dialog.test.ts`
 Expected: PASS — seluruh test lama SPEC-452 tetap hijau, test SPEC-474 baru hijau.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/tui-dialog.ts server/test/tui-dialog.test.ts

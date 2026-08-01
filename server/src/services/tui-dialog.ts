@@ -45,6 +45,12 @@ const ROW = /^\s*[❯>›]?\s*(\d{1,2})\.\s+(\S.*)$/;
 const PLACEHOLDER = /^(?:type something\.?|other)$/i;
 const CHAT_ROW = /^chat about this$/i;
 
+// SPEC-474 · varian ber-`preview` menaruh panel pratinjau di KOLOM YANG SAMA dengan baris opsi
+// (`  2. map                        │ xs.map(f) │`), jadi label mentahnya ikut menyeret ornamen
+// kotak. Potong di batas kolomnya — tanpa ini opsi yang disodorkan ke lead penuh garis kotak.
+const SIDE_PANEL = /\s{2,}[│┃┌┐└┘├┤╭╮╰╯─━].*$/;
+const cleanLabel = (s: string): string => s.replace(SIDE_PANEL, "").trim();
+
 /**
  * Turunkan bentuk dialog dari layar pane. `null` = ini bukan layar dialog, dan pemanggil harus
  * berperilaku persis seperti sebelum SPEC-452 (prosa + Enter ke kolom chat).
@@ -65,7 +71,7 @@ export function readChoiceDialog(paneText: string): ChoiceDialog | null {
   const found: { n: number; label: string }[] = [];
   for (const line of lines.slice(0, footer)) {
     const m = ROW.exec(line);
-    if (m) found.push({ n: Number(m[1]), label: (m[2] ?? "").trim() });
+    if (m) found.push({ n: Number(m[1]), label: cleanLabel(m[2] ?? "") });
   }
   if (found.length < 2) return null;
 
@@ -90,6 +96,128 @@ export function readChoiceDialog(paneText: string): ChoiceDialog | null {
     freeIndex: rows.find((r) => r.free)?.n ?? null,
     options: rows.filter((r) => !r.free && !r.chat).map((r) => r.label),
   };
+}
+
+/** Satu tab pertanyaan di strip atas dialog berantai: `☐ Warna` (belum) / `☒ Warna` (sudah). */
+export type DialogTab = { header: string; answered: boolean };
+
+/**
+ * SPEC-474 · bentuk layar dialog yang sedang tampil.
+ *
+ * `question` = masih ada yang harus dijawab. `review` = seluruh pertanyaan sudah dijawab dan
+ * dialognya tinggal ditutup — bentuk yang SELALU muncul untuk dialog berantai dan tak pernah
+ * dikenali SPEC-452, sehingga rantai berhenti setengah jalan tanpa gejala.
+ */
+export type DialogScreen =
+  | { kind: "question"; rows: ChoiceRow[]; freeIndex: number | null; notes: boolean;
+      options: string[]; tabs: DialogTab[]; title: string }
+  | { kind: "review"; submitRow: number };
+
+// Layar review TIDAK punya footer chord (terukur: 40 baris pane, delapan baris terakhir kosong),
+// jadi ia tak bisa dikenali lewat FOOTER seperti dialog lain. Dua penanda di bawah dipakai
+// bersama-sama supaya kalimat yang kebetulan lewat di transkrip tak cukup untuk mengaku review.
+const REVIEW_PROMPT = /^\s*ready to submit your answers\?\s*$/i;
+const SUBMIT_ROW = /^\s*[❯>›]?\s*(\d{1,2})\.\s+submit answers\s*$/i;
+// Varian ber-`preview` tak punya baris kolom-bebas; jalan masuk prosanya kolom catatan (tombol `n`).
+const NOTES_FOOTER = /\bn to add notes\b/i;
+const TAB_BOX = /^([☐☒])\s*(.+)$/;
+
+const lastIndexOf = (lines: string[], re: RegExp): number => {
+  for (let i = lines.length - 1; i >= 0; i--) if (re.test(lines[i] ?? "")) return i;
+  return -1;
+};
+
+/**
+ * Tab strip dialog `AskUserQuestion`: `←  ☐ Warna  ☐ Ukuran  ✔ Submit  →`.
+ *
+ * Kosong berarti layar ini BUKAN `AskUserQuestion` — dialog trust & prompt izin tak punya strip.
+ * Itu pembeda yang memisahkan "boleh dijawab bebas" dari "Enter = baris 1 = ya".
+ */
+function readTabs(lines: string[]): { tabs: DialogTab[]; at: number } {
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i] ?? "";
+    if (!/[☐☒]/.test(line)) continue;
+    const tabs: DialogTab[] = [];
+    for (const tok of line.split(/\s{2,}/)) {
+      const m = TAB_BOX.exec(tok.trim());
+      if (m) tabs.push({ header: (m[2] ?? "").trim(), answered: m[1] === "☒" });
+    }
+    if (tabs.length) return { tabs, at: i };
+  }
+  return { tabs: [], at: -1 };
+}
+
+// Garis pemisah TUI: baris yang isinya hanya ornamen kotak.
+const RULE = /^[\s─━╌╍_=]*$/;
+
+/**
+ * Judul pertanyaan yang sedang tampil = baris berisi PERTAMA di bawah tab strip.
+ *
+ * Dipakai sebagai identitas layar (`dialogKey`), bukan sekadar hiasan: label baris kolom-bebas
+ * berubah begitu prosa lead mendarat di sana, jadi identitas yang bersumber pada label baris akan
+ * membaca layar yang MACET sebagai layar yang sudah maju. Judul tak tersentuh oleh pengetikan.
+ */
+function readTitle(lines: string[], stripAt: number, footer: number): string {
+  if (stripAt < 0) return "";
+  for (let i = stripAt + 1; i < footer; i++) {
+    const line = (lines[i] ?? "").trim();
+    if (!line || RULE.test(line)) continue;
+    return ROW.test(lines[i] ?? "") ? "" : line;   // langsung ketemu opsi = dialog tanpa judul
+  }
+  return "";
+}
+
+/** Layar rekap terakhir sebuah dialog berantai, atau `null` bila bukan layar itu. */
+export function readReviewScreen(paneText: string): { submitRow: number } | null {
+  const lines = paneText.split("\n").map((l) => l.trimEnd());
+  const at = lastIndexOf(lines, REVIEW_PROMPT);
+  if (at < 0) return null;
+  for (const line of lines.slice(at)) {
+    const m = SUBMIT_ROW.exec(line);
+    if (m) return { submitRow: Number(m[1]) };
+  }
+  return null;
+}
+
+/**
+ * Bentuk layar dialog yang sedang tampil. `null` = bukan layar dialog, dan pemanggil harus
+ * berperilaku persis seperti sebelum SPEC-452 (prosa + Enter ke kolom chat).
+ *
+ * Urutannya mengikat: layar review dinilai lebih dulu, TAPI hanya bila ia berada di bawah footer
+ * dialog terakhir. Scrollback memuat rekap-rekap lama, dan yang berlaku selalu yang paling bawah.
+ */
+export function readDialogScreen(paneText: string): DialogScreen | null {
+  const lines = paneText.split("\n").map((l) => l.trimEnd());
+  const footer = lastIndexOf(lines, FOOTER);
+  if (lastIndexOf(lines, REVIEW_PROMPT) > footer) {
+    const review = readReviewScreen(paneText);
+    if (review) return { kind: "review", submitRow: review.submitRow };
+  }
+  const d = readChoiceDialog(paneText);
+  if (!d) return null;
+  const { tabs, at } = readTabs(lines.slice(0, footer));
+  return {
+    kind: "question", rows: d.rows, freeIndex: d.freeIndex, options: d.options,
+    notes: d.freeIndex === null && NOTES_FOOTER.test(lines[footer] ?? ""),
+    tabs, title: readTitle(lines, at, footer),
+  };
+}
+
+/**
+ * Kunci layar untuk gerbang anti-loop dan penanda "rantai sudah maju".
+ *
+ * Sengaja TIDAK memuat label baris kolom-bebas: begitu prosa lead mendarat di sana labelnya
+ * berubah tanpa satu pun pertanyaan berpindah, dan kunci yang ikut berubah akan membaca layar
+ * yang MACET sebagai layar yang maju.
+ */
+export function dialogKey(paneText: string): string {
+  const s = readDialogScreen(paneText);
+  if (!s) return "none";
+  if (s.kind === "review") return "review";
+  const tabs = s.tabs.map((t) => `${t.answered ? "x" : "o"}${t.header}`).join(",");
+  // Judul dipakai bila ada; hanya dialog tanpa tab strip (trust, prompt izin) yang jatuh ke
+  // label opsi — dan di sana rantai memang tak pernah berjalan.
+  return `q|${tabs}|${s.title || s.options.join("|")}`;
 }
 
 /**
