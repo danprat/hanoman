@@ -389,7 +389,7 @@ Ini jantung spec-nya. `gh issue list` mengembalikan issue murni; REST `/issues` 
 - Consumes: `NormalIssue` dari `@hanoman/shared`
 - Produces: `issueFromGh(raw: GhRaw): NormalIssue`, `issuesFromRest(raw: RestRaw[]): { issues: NormalIssue[]; skippedPullRequests: number }`
 
-- [ ] **Step 1: Buat fixture terekam**
+- [x] **Step 1: Buat fixture terekam**
 
 `server/test/fixtures/github/gh-list.json` — bentuk `gh issue list --json …` apa adanya (perhatikan `state` KAPITAL, `author.login`, `url`):
 
@@ -464,7 +464,7 @@ Ini jantung spec-nya. `gh issue list` mengembalikan issue murni; REST `/issues` 
 ]
 ```
 
-- [ ] **Step 2: Tulis test yang gagal**
+- [x] **Step 2: Tulis test yang gagal**
 
 `server/test/github-fetch.test.ts`:
 
@@ -520,12 +520,12 @@ describe("SPEC-471 · normalizer dua jalur", () => {
 });
 ```
 
-- [ ] **Step 3: Jalankan, pastikan MERAH**
+- [x] **Step 3: Jalankan, pastikan MERAH**
 
 Run: `./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/github-fetch.test.ts`
 Expected: FAIL — `Cannot find module '../src/services/github-fetch'`
 
-- [ ] **Step 4: Implementasi minimal**
+- [x] **Step 4: Implementasi minimal**
 
 `server/src/services/github-fetch.ts` (bagian normalizer saja; jalur IO menyusul di Task 4):
 
@@ -594,12 +594,12 @@ export function issuesFromRest(raw: RestRaw[]): { issues: NormalIssue[]; skipped
 }
 ```
 
-- [ ] **Step 5: Jalankan, pastikan HIJAU**
+- [x] **Step 5: Jalankan, pastikan HIJAU**
 
 Run: `./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/github-fetch.test.ts`
 Expected: PASS — 5 test
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/services/github-fetch.ts server/test/github-fetch.test.ts server/test/fixtures/github

@@ -1,0 +1,24 @@
+[
+  {
+    "number": 9,
+    "title": "[Moderate][Handoff] Reconciled crash/reboot sessions are shown as successful completion",
+    "body": "## Severity\nModerate\n\n## Location\n- `server/src/...`",
+    "author": { "id": "U_kgDOEDU0PA", "is_bot": false, "login": "wulanrlestari", "name": "Wulan R Lestari" },
+    "labels": [],
+    "url": "https://github.com/denameidina/hanoman/issues/9",
+    "state": "OPEN",
+    "createdAt": "2026-07-30T11:57:43Z",
+    "updatedAt": "2026-07-30T11:57:43Z"
+  },
+  {
+    "number": 6,
+    "title": "[UX/A11y] 15 destructive flow melewati ConfirmDialog dan memakai window.confirm",
+    "body": "Detail keluhan.",
+    "author": { "login": "RamaAditya49" },
+    "labels": [{ "id": "L_1", "name": "bug", "description": "", "color": "d73a4a" }],
+    "url": "https://github.com/denameidina/hanoman/issues/6",
+    "state": "OPEN",
+    "createdAt": "2026-07-30T11:46:25Z",
+    "updatedAt": "2026-07-30T11:46:25Z"
+  }
+]
