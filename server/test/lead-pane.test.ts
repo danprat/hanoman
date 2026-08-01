@@ -89,3 +89,49 @@ describe("readPaneQuestion · opsi dialog (SPEC-452)", () => {
     expect(readPaneQuestion(ASKQ, "codex").choices).toEqual(["In-memory", "Redis", "Tanpa cache"]);
   });
 });
+
+// SPEC-487 (QA) · marker claude adalah PEMBERITAHUAN, bukan keadaan: ia menyala untuk
+// `idle|permission|waiting for|needs.?input`, tak pernah padam sendiri, dan `readPaneQuestion`
+// menerimanya bulat-bulat. Terukur di DB hidup: 6 dari 22 keputusan pintu deteksi diambil untuk
+// sesi yang GILIRANNYA SEDANG BERJALAN — pemisahan sempurna 6/6 vs 0/16 lewat baris spinner
+// ber-timer. Lima di antaranya benar-benar diketik ke pane sesi yang sedang bekerja (satu di
+// antaranya sudah berjalan 91 menit), dan tiap pesan liar itu membakar satu jatah `maxAutoAnswers`
+// yang seharusnya menjawab dialog sungguhan berikutnya.
+describe("readPaneQuestion · baris giliran claude (SPEC-487)", () => {
+  // Keenamnya verbatim dari kolom `question` baris jejak produksi: lima giliran yang BARU SELESAI
+  // (`for Nm Ns` tetap di layar) dan satu yang MASIH BERJALAN (`… (Ns · ↓ N tokens)`). Isi keenamnya
+  // diperiksa satu per satu — semuanya laporan akhir giliran, nol pertanyaan.
+  const BEKERJA = [
+    "✻ Sautéed for 38m 55s",
+    "✻ Cooked for 40m 4s",
+    "✻ Baked for 1h 6m 11s",
+    "✻ Crunched for 1h 31m 43s",
+    "✻ Churned for 31m 47s",
+    "✳ Scurrying… (3m 24s · ↓ 12.5k tokens)",
+  ];
+  for (const spinner of BEKERJA) {
+    it(`diam saat layar claude menampilkan "${spinner}"`, () => {
+      const r = readPaneQuestion(`⏺ Bash(pnpm vitest --run)\n  ⎿  262 passed\n${spinner}\n  ⏵⏵ bypass permissions on (shift+tab to cycle)`, "claude");
+      expect(r.asking).toBe(false);
+      expect(r.reason).toContain("giliran agen");
+    });
+  }
+
+  it("dialog di layar MENANG atas baris spinner yang tersisa di scrollback", () => {
+    // `capturePane` menyeret 200 baris riwayat; spinner giliran sebelumnya bisa ikut terbawa.
+    // Dialog adalah bukti langsung dan tak boleh kalah oleh sisa layar lama.
+    const r = readPaneQuestion(`✻ Cooked for 40m 4s\n${ASKQ}`, "claude");
+    expect(r.asking).toBe(true);
+    expect(r.choices).toEqual(["In-memory", "Redis", "Tanpa cache"]);
+  });
+
+  // Pertanyaan prosa yang gilirannya BELUM berakhir tak punya baris giliran di layar, jadi
+  // kemampuan menjawabnya tak ikut tercabut.
+  it("pertanyaan prosa tanpa baris giliran tetap dilayani seperti sebelumnya", () => {
+    expect(readPaneQuestion(CLAUDE_ASKING, "claude").asking).toBe(true);
+  });
+
+  it("penanda yang sama juga membungkam jalur codex", () => {
+    expect(readPaneQuestion("Menulis services/date-range.ts\nApakah lanjut?\n✻ Cooked for 2m 1s", "codex").asking).toBe(false);
+  });
+});
