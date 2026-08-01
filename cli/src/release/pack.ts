@@ -22,6 +22,10 @@ export const RUNTIME_DEPS = [
 export const REQUIRED_ARTIFACTS = [
   "package.json", "bin/hanoman.mjs", "dist/cli.js", "dist/server.js",
   "prisma/schema.prisma", "web/index.html", "README.md", "LICENSE",
+  // SPEC-489 · naskah panduan AI agent — dibaca runtime & disajikan di GET /api/agent-integration.md.
+  // Tanpa gerbang ini paket bisa terbit tanpa dokumen dan endpoint-nya 404 di SETIAP instalasi npm,
+  // sementara checkout dev terlihat sehat.
+  "docs/agent-integration.md",
 ] as const;
 
 export function packageJsonFor(version: string, deps: Record<string, string>): object {
@@ -46,7 +50,7 @@ export function packageJsonFor(version: string, deps: Record<string, string>): o
       prepublishOnly: "node dist/cli.js __verify",
     },
     engines: { node: ">=20" },
-    files: ["bin", "dist", "web", "prisma", "README.md", "LICENSE"],
+    files: ["bin", "dist", "web", "prisma", "docs", "README.md", "LICENSE"],
     dependencies: deps,
     // MIT: paket ini didistribusikan publik supaya orang `npm i -g`. `UNLICENSED` berarti "tak ada
     // izin pakai" — 0.1.0 terbit dengan kontradiksi itu, dan versi terbit tak bisa diperbaiki.
@@ -75,6 +79,9 @@ export function copyPlan(repo: string): Array<{ from: string; to: string; dir?: 
     { from: join(repo, "server/prisma/schema.prisma"), to: "prisma/schema.prisma" },
     { from: join(repo, "server/prisma/migrations"), to: "prisma/migrations", dir: true },
     { from: join(repo, "internal/docs/operations/npm-readme.md"), to: "README.md" },
+    // SPEC-489 · dibaca runtime oleh pickGuideFile (kandidat `<pkg>/docs/…`). Bukan README:
+    // README paket adalah npm-readme.md (berhadapan-MANUSIA), ini naskah berhadapan-AGEN.
+    { from: join(repo, "docs/agent-integration.md"), to: "docs/agent-integration.md" },
     { from: join(repo, "LICENSE"), to: "LICENSE" },
   ];
 }

@@ -22,6 +22,11 @@ describe("packageJsonFor", () => {
   it("files memuat seluruh artefak runtime", () => {
     for (const f of ["bin", "dist", "web", "prisma"]) expect(pkg.files).toContain(f);
   });
+  // SPEC-489 · tanpa "docs" di files, npm membuang naskah panduan dan `GET /api/agent-integration.md`
+  // menjawab 404 di setiap instalasi npm — sementara di checkout dev semuanya terlihat sehat.
+  it("files memuat docs (naskah panduan AI agent)", () => {
+    expect(pkg.files).toContain("docs");
+  });
   // Paket ini didistribusikan publik supaya orang `npm i -g` — "UNLICENSED" berarti "tak ada izin
   // pakai", yang bertentangan dengan maksudnya. 0.1.0 terbit dengan kesalahan itu; dipagari agar
   // tak terulang.
@@ -73,6 +78,12 @@ describe("copyPlan", () => {
   it("tak ada tujuan ganda", () => {
     expect(new Set(to).size).toBe(to.length);
   });
+  it("menyalin naskah panduan AI agent ke root paket", () => {
+    const doc = plan.find((i) => i.to === "docs/agent-integration.md");
+    expect(doc).toBeDefined();
+    expect(doc!.from).toBe("/repo/docs/agent-integration.md");
+    expect(doc!.dir).toBeUndefined();   // berkas, bukan direktori
+  });
 });
 
 describe("RUNTIME_DEPS", () => {
@@ -95,5 +106,10 @@ describe("REQUIRED_ARTIFACTS", () => {
   });
   it("menuntut LICENSE ada — paket publik tanpa berkas lisensi tak boleh terbit lagi", () => {
     expect(REQUIRED_ARTIFACTS).toContain("LICENSE");
+  });
+  // SPEC-489 · gerbang rilis: `hanoman __pack` memeriksa daftar ini sesudah menyalin. Naskah yang
+  // hilang harus menggagalkan pack, bukan diam-diam terbit sebagai paket tanpa dokumentasi agen.
+  it("menuntut naskah panduan AI agent ada", () => {
+    expect(REQUIRED_ARTIFACTS).toContain("docs/agent-integration.md");
   });
 });
