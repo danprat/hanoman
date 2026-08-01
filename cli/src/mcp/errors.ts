@@ -28,8 +28,17 @@ function flatten(err: unknown): string | null {
   return null;
 }
 
+/**
+ * `fetch` Node membungkus kegagalan jaringan sebagai `TypeError: fetch failed` dengan sebabnya di
+ * `cause`. Untuk host yang punya A **dan** AAAA (mis. `localhost`) sebabnya adalah `AggregateError`
+ * — `cause.code` terisi, tapi jangan bergantung padanya sendirian: `cause.errors[]` adalah tempat
+ * kode aslinya pasti ada. Kasus yang TAK punya kode sama sekali (mis. undici menolak port terlarang
+ * dengan pesan "bad port") jatuh ke cabang terakhir, yang karenanya wajib tetap menyebut
+ * HANOMAN_HOST — di situlah kesalahannya hampir selalu berada.
+ */
 export function explainNetworkError(err: unknown, ctx: { host: string }): string {
-  const code = (err as { cause?: { code?: string }; code?: string })?.cause?.code
+  const cause = (err as { cause?: { code?: string; message?: string; errors?: { code?: string }[] } })?.cause;
+  const code = cause?.code ?? cause?.errors?.find((e) => e?.code)?.code
     ?? (err as { code?: string })?.code ?? "";
   if (code === "ECONNREFUSED")
     return `Tidak ada hanoman di ${ctx.host} — sambungan tidak diterima. Pastikan \`hanoman start\` sedang jalan di sana, atau perbaiki HANOMAN_HOST di konfigurasi klien MCP ini.`;
@@ -37,7 +46,8 @@ export function explainNetworkError(err: unknown, ctx: { host: string }): string
     return `Nama host ${ctx.host} tak ditemukan. Periksa ejaan HANOMAN_HOST di konfigurasi klien MCP ini.`;
   if (code === "ECONNRESET" || code === "UND_ERR_CONNECT_TIMEOUT" || code === "ETIMEDOUT")
     return `Sambungan ke ${ctx.host} putus atau kehabisan waktu. Periksa jaringan dan reverse proxy di depan instance itu.`;
-  return `Gagal menghubungi ${ctx.host}: ${tail(String((err as Error)?.message ?? err))}`;
+  const detail = tail(String(cause?.message ?? (err as Error)?.message ?? err));
+  return `Gagal menghubungi ${ctx.host}: ${detail}. Periksa HANOMAN_HOST di konfigurasi klien MCP ini — alamatnya harus lengkap dengan skema dan port, mis. "http://localhost:8787".`;
 }
 
 export function explainHttpError(status: number, body: unknown, ctx: ErrorCtx): string {

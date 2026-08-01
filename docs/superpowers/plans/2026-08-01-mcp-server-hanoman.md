@@ -58,7 +58,7 @@
 - Consumes: `shared/src/enums.ts` (hanya sebagai rujukan nilai — jangan impor zod di berkas ini).
 - Produces: `type JsonSchemaNode`, `type JsonSchemaObject`, konstanta `PRIORITY_ENUM`, `SOURCE_ENUM`, `SEVERITY_ENUM`, `STAGE_ENUM`, skema `BRIEF_PAYLOAD`, `QA_PAYLOAD`, `GOAL_PAYLOAD`, `SPEC_PAYLOAD_ONEOF`, `SOURCE_PAYLOAD_ALLOF`, helper `str()`, `enumStr()`, `boolean()`, `int()`, `obj()`, `PAGE_PARAMS`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 ```ts
 // shared/src/mcp-schema.test.ts
@@ -112,12 +112,12 @@ describe("mcp-schema", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan MERAH**
+- [x] **Step 2: Jalankan test — pastikan MERAH**
 
 Run: `./node_modules/.bin/vitest run --dir shared shared/src/mcp-schema.test.ts`
 Expected: FAIL — `Failed to resolve import "./mcp-schema"`.
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 ```ts
 // shared/src/mcp-schema.ts
@@ -259,12 +259,12 @@ export const DATE_PARAMS: Record<string, JsonSchemaNode> = {
 };
 ```
 
-- [ ] **Step 4: Jalankan test — pastikan HIJAU**
+- [x] **Step 4: Jalankan test — pastikan HIJAU**
 
 Run: `./node_modules/.bin/vitest run --dir shared shared/src/mcp-schema.test.ts`
 Expected: PASS, 5 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add shared/src/mcp-schema.ts shared/src/mcp-schema.test.ts
@@ -283,7 +283,7 @@ git commit -m "feat(482): fragmen JSON Schema katalog tool MCP"
 - Consumes: —
 - Produces: `clip(text, max)`, `pickFields(row, fields)`, `shapeProject`, `shapeProjectDetail`, `shapeSpec`, `shapeSpecDetail`, `shapeSession`, `shapeNotification`, `shapeTicket`, `shapeGithubIssue`, `shapeLeadDecision`, `paginateLocal(items, page, limit)`, `renderResult(value, maxBytes)`, konstanta `DEFAULT_MAX_BYTES = 24 * 1024`, `DEFAULT_LIMIT = 20`, `MAX_LIMIT = 100`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 ```ts
 // shared/src/mcp-shape.test.ts
@@ -388,12 +388,12 @@ describe("renderResult", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan MERAH**
+- [x] **Step 2: Jalankan test — pastikan MERAH**
 
 Run: `./node_modules/.bin/vitest run --dir shared shared/src/mcp-shape.test.ts`
 Expected: FAIL — `Failed to resolve import "./mcp-shape"`.
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 ```ts
 // shared/src/mcp-shape.ts
@@ -517,12 +517,12 @@ export function renderResult(value: unknown, maxBytes: number): string {
 }
 ```
 
-- [ ] **Step 4: Jalankan test — pastikan HIJAU**
+- [x] **Step 4: Jalankan test — pastikan HIJAU**
 
 Run: `./node_modules/.bin/vitest run --dir shared shared/src/mcp-shape.test.ts`
 Expected: PASS, 11 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add shared/src/mcp-shape.ts shared/src/mcp-shape.test.ts
@@ -584,7 +584,7 @@ git commit -m "feat(482): pemadat balasan + paginasi + plafon byte tool MCP"
 
 `*` = wajib. Nama parameter sengaja `project`/`spec`/`ticket`/`session` (bukan `id`/`projectId`) supaya panggilan terbaca sendiri di transkrip agen.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 ```ts
 // shared/src/mcp-catalog.test.ts
@@ -693,12 +693,12 @@ describe("katalog tool MCP", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan MERAH**
+- [x] **Step 2: Jalankan test — pastikan MERAH**
 
 Run: `./node_modules/.bin/vitest run --dir shared shared/src/mcp-catalog.test.ts`
 Expected: FAIL — `Failed to resolve import "./mcp"`.
 
-- [ ] **Step 3: Implementasi katalog**
+- [x] **Step 3: Implementasi katalog**
 
 ```ts
 // shared/src/mcp-catalog.ts
@@ -1063,7 +1063,7 @@ export const MCP_TOOLS: readonly McpToolDef[] = [
 ];
 ```
 
-- [ ] **Step 4: Implementasi `shared/src/mcp.ts` + ekspor**
+- [x] **Step 4: Implementasi `shared/src/mcp.ts` + ekspor**
 
 ```ts
 // shared/src/mcp.ts
@@ -1105,17 +1105,17 @@ Lalu di `shared/src/index.ts`, tambahkan **satu baris** setelah `export * from "
 export * from "./mcp";
 ```
 
-- [ ] **Step 5: Jalankan test — pastikan HIJAU**
+- [x] **Step 5: Jalankan test — pastikan HIJAU**
 
 Run: `./node_modules/.bin/vitest run --dir shared shared/src/mcp-catalog.test.ts shared/src/mcp-schema.test.ts shared/src/mcp-shape.test.ts`
 Expected: PASS, 12 test di berkas katalog.
 
-- [ ] **Step 6: Typecheck shared**
+- [x] **Step 6: Typecheck shared**
 
 Run: `pnpm --filter ./shared typecheck`
 Expected: keluar 0, tanpa keluaran.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add shared/src/mcp-catalog.ts shared/src/mcp.ts shared/src/mcp-catalog.test.ts shared/src/index.ts
@@ -1135,7 +1135,7 @@ git commit -m "feat(482): katalog 17 tool MCP + versi skema"
 
 Ini pengganti **mekanis** untuk janji "jangan ada cara memutar capability". `capabilityForRoute` hanya hidup di server, jadi ujinya harus di sini.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 ```ts
 // server/test/mcp-capability.test.ts
@@ -1193,7 +1193,7 @@ describe("kontrak capability katalog MCP", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan MERAH lalu HIJAU**
+- [x] **Step 2: Jalankan test — pastikan MERAH lalu HIJAU**
 
 Run:
 ```bash
@@ -1201,7 +1201,7 @@ TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run -
 ```
 Expected: pertama kali MERAH bila ada `samplePath` yang salah tulis di katalog — perbaiki **katalognya**, bukan testnya. Sesudah itu PASS, 5 test.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add server/test/mcp-capability.test.ts
@@ -1225,7 +1225,7 @@ git commit -m "test(482): kontrak capability katalog MCP vs capabilityForRoute"
   export function redactToken(text: string, token: string): string;
   ```
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 ```ts
 // cli/test/mcp-redact.test.ts
@@ -1308,12 +1308,12 @@ describe("resolveMcpConfig", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan MERAH**
+- [x] **Step 2: Jalankan test — pastikan MERAH**
 
 Run: `./node_modules/.bin/vitest run --dir cli cli/test/mcp-config.test.ts cli/test/mcp-redact.test.ts`
 Expected: FAIL — modul belum ada.
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 ```ts
 // cli/src/mcp/redact.ts
@@ -1391,12 +1391,12 @@ export function resolveMcpConfig(
 }
 ```
 
-- [ ] **Step 4: Jalankan test — pastikan HIJAU**
+- [x] **Step 4: Jalankan test — pastikan HIJAU**
 
 Run: `./node_modules/.bin/vitest run --dir cli cli/test/mcp-config.test.ts cli/test/mcp-redact.test.ts`
 Expected: PASS, 13 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add cli/src/mcp/config.ts cli/src/mcp/redact.ts cli/test/mcp-config.test.ts cli/test/mcp-redact.test.ts
@@ -1420,7 +1420,7 @@ git commit -m "feat(482): konfigurasi hanoman mcp + redaksi token"
   export function explainNetworkError(err: unknown, ctx: { host: string }): string;
   ```
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 ```ts
 // cli/test/mcp-errors.test.ts
@@ -1514,12 +1514,12 @@ describe("explainHttpError", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan MERAH**
+- [x] **Step 2: Jalankan test — pastikan MERAH**
 
 Run: `./node_modules/.bin/vitest run --dir cli cli/test/mcp-errors.test.ts`
 Expected: FAIL — modul belum ada.
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 ```ts
 // cli/src/mcp/errors.ts
@@ -1612,12 +1612,12 @@ export function explainHttpError(status: number, body: unknown, ctx: ErrorCtx): 
 }
 ```
 
-- [ ] **Step 4: Jalankan test — pastikan HIJAU**
+- [x] **Step 4: Jalankan test — pastikan HIJAU**
 
 Run: `./node_modules/.bin/vitest run --dir cli cli/test/mcp-errors.test.ts`
 Expected: PASS, 13 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add cli/src/mcp/errors.ts cli/test/mcp-errors.test.ts
@@ -1641,7 +1641,7 @@ git commit -m "feat(482): pemetaan galat MCP jadi kalimat yang bisa ditindaklanj
   export function createCaller(cfg: McpConfig, fetchImpl: typeof fetch): Caller;
   ```
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 ```ts
 // cli/test/mcp-client.test.ts
@@ -1715,12 +1715,12 @@ describe("createCaller", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan MERAH**
+- [x] **Step 2: Jalankan test — pastikan MERAH**
 
 Run: `./node_modules/.bin/vitest run --dir cli cli/test/mcp-client.test.ts`
 Expected: FAIL — modul belum ada.
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 ```ts
 // cli/src/mcp/client.ts
@@ -1787,12 +1787,12 @@ export function createCaller(cfg: McpConfig, fetchImpl: typeof fetch): Caller {
 }
 ```
 
-- [ ] **Step 4: Jalankan test — pastikan HIJAU**
+- [x] **Step 4: Jalankan test — pastikan HIJAU**
 
 Run: `./node_modules/.bin/vitest run --dir cli cli/test/mcp-client.test.ts`
 Expected: PASS, 7 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add cli/src/mcp/client.ts cli/test/mcp-client.test.ts
@@ -1818,14 +1818,14 @@ Catatan implementasi yang sudah **diverifikasi lewat spike** dan tak boleh diteb
 sah — termasuk cabang `allOf`/`if`/`then`, sehingga kombinasi `source`+`payload` yang salah ditolak
 di sisi klien dan tak pernah menjadi 400 di server.
 
-- [ ] **Step 1: Tambahkan dependency**
+- [x] **Step 1: Tambahkan dependency**
 
 ```bash
 pnpm --filter ./cli add @modelcontextprotocol/server@^2.0.0
 ```
 Expected: `cli/package.json` bertambah `"@modelcontextprotocol/server": "^2.0.0"` di `dependencies`.
 
-- [ ] **Step 2: Tulis test yang gagal**
+- [x] **Step 2: Tulis test yang gagal**
 
 ```ts
 // cli/test/mcp-server.test.ts
@@ -1947,12 +1947,12 @@ describe("buildMcpServer", () => {
 });
 ```
 
-- [ ] **Step 3: Jalankan test — pastikan MERAH**
+- [x] **Step 3: Jalankan test — pastikan MERAH**
 
 Run: `./node_modules/.bin/vitest run --dir cli cli/test/mcp-server.test.ts`
 Expected: FAIL — `Failed to resolve import "../src/mcp/server"`.
 
-- [ ] **Step 4: Implementasi**
+- [x] **Step 4: Implementasi**
 
 ```ts
 // cli/src/mcp/server.ts
@@ -2009,12 +2009,12 @@ export function buildMcpServer(cfg: McpConfig, call: Caller, cliVersion: string)
 }
 ```
 
-- [ ] **Step 5: Jalankan test — pastikan HIJAU**
+- [x] **Step 5: Jalankan test — pastikan HIJAU**
 
 Run: `./node_modules/.bin/vitest run --dir cli cli/test/mcp-server.test.ts`
 Expected: PASS, 9 test.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add cli/src/mcp/server.ts cli/test/mcp-server.test.ts cli/package.json pnpm-lock.yaml
@@ -2034,7 +2034,7 @@ git commit -m "feat(482): rakit McpServer hanoman dari katalog tool"
 - Consumes: Task 5 (`resolveMcpConfig`), Task 7 (`createCaller`), Task 8 (`buildMcpServer`), `currentVersion()` dari `cli/src/router.ts`.
 - Produces: `export default async function mcp(argv: string[], ctx: Ctx): Promise<number>`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 ```ts
 // cli/test/mcp-cmd.test.ts
@@ -2080,12 +2080,12 @@ Tambahkan juga di `cli/test/route.test.ts` (di dalam `describe` yang sudah ada):
   });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan MERAH**
+- [x] **Step 2: Jalankan test — pastikan MERAH**
 
 Run: `./node_modules/.bin/vitest run --dir cli cli/test/mcp-cmd.test.ts cli/test/route.test.ts`
 Expected: FAIL — `route(["mcp"])` mengembalikan `{cmd:"unknown"}` dan modul perintah belum ada.
 
-- [ ] **Step 3: Implementasi perintah**
+- [x] **Step 3: Implementasi perintah**
 
 ```ts
 // cli/src/commands/mcp.ts
@@ -2138,7 +2138,7 @@ export default async function mcp(argv: string[], ctx: Ctx): Promise<number> {
 }
 ```
 
-- [ ] **Step 4: Daftarkan di router**
+- [x] **Step 4: Daftarkan di router**
 
 Di `cli/src/router.ts`, pada `HELP`, sisipkan **setelah** baris `update [--check]`:
 
@@ -2160,12 +2160,12 @@ Di `run()`, sisipkan setelah baris `update`:
   if (cmd === "mcp")    return (await import("./commands/mcp")).default(args, ctx);
 ```
 
-- [ ] **Step 5: Jalankan test — pastikan HIJAU**
+- [x] **Step 5: Jalankan test — pastikan HIJAU**
 
 Run: `./node_modules/.bin/vitest run --dir cli cli/test/mcp-cmd.test.ts cli/test/route.test.ts cli/test/router.cmd.test.ts`
 Expected: PASS.
 
-- [ ] **Step 6: Typecheck & build CLI, lalu buktikan bundle-nya bicara MCP**
+- [x] **Step 6: Typecheck & build CLI, lalu buktikan bundle-nya bicara MCP**
 
 ```bash
 pnpm --filter ./cli typecheck
@@ -2178,7 +2178,7 @@ printf '%s\n' \
 ```
 Expected: `serverInfo hanoman | tools 17`
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add cli/src/commands/mcp.ts cli/src/router.ts cli/test/mcp-cmd.test.ts cli/test/route.test.ts
@@ -2202,7 +2202,7 @@ Snippet dirender untuk empat klien. **Token selalu placeholder** `hnm_agt_…` �
 punya aksesnya (server hanya menyimpan sha256), dan batasan SPEC-482 melarangnya muncul di contoh
 pemasangan.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 ```tsx
 // src/test/mcp-panel.test.tsx
@@ -2253,12 +2253,12 @@ describe("McpPanel", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan MERAH**
+- [x] **Step 2: Jalankan test — pastikan MERAH**
 
 Run: `env -u NODE_ENV ./node_modules/.bin/vitest run --dir src src/test/mcp-panel.test.tsx`
 Expected: FAIL — `Failed to resolve import "../src/screens/McpPanel"`.
 
-- [ ] **Step 3: Implementasi panel**
+- [x] **Step 3: Implementasi panel**
 
 ```tsx
 // src/src/screens/McpPanel.tsx
@@ -2383,7 +2383,7 @@ export function McpPanel(): JSX.Element {
 }
 ```
 
-- [ ] **Step 4: Pasang di SettingsScreen**
+- [x] **Step 4: Pasang di SettingsScreen**
 
 Di `src/src/screens/SettingsScreen.tsx`:
 
@@ -2397,17 +2397,17 @@ import { McpPanel } from "./McpPanel";
 ```
 Bila `AgentAccessPanel` mengembalikan satu elemen tanpa fragment, bungkus isinya dengan `<>…</>` lebih dulu.
 
-- [ ] **Step 5: Jalankan test — pastikan HIJAU**
+- [x] **Step 5: Jalankan test — pastikan HIJAU**
 
 Run: `env -u NODE_ENV ./node_modules/.bin/vitest run --dir src src/test/mcp-panel.test.tsx src/test/agent-tokens.test.tsx`
 Expected: PASS. Bila `Button` tak menerima `variant="ghost"`, pakai varian yang memang ada di `src/src/ds` — periksa `ds/index.ts` lebih dulu, jangan mengarang prop.
 
-- [ ] **Step 6: Typecheck web**
+- [x] **Step 6: Typecheck web**
 
 Run: `pnpm --filter ./src typecheck`
 Expected: keluar 0.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/src/screens/McpPanel.tsx src/src/screens/SettingsScreen.tsx src/test/mcp-panel.test.tsx
@@ -2424,7 +2424,7 @@ git commit -m "feat(482): panel Settings — pemasangan MCP siap salin + tabel t
 
 **Interfaces:** — (dokumentasi)
 
-- [ ] **Step 1: Pastikan nomor ADR belum diklaim di mana pun**
+- [x] **Step 1: Pastikan nomor ADR belum diklaim di mana pun**
 
 ```bash
 for r in $(git for-each-ref --format='%(refname)' refs/heads refs/remotes); do
@@ -2434,7 +2434,7 @@ for w in $(git worktree list --porcelain | awk '/^worktree /{print $2}'); do ls 
 ```
 Expected: nol kecocokan. Bila ada, pakai nomor berikutnya yang bebas dan sesuaikan seluruh rujukan.
 
-- [ ] **Step 2: Tulis ADR-0099**
+- [x] **Step 2: Tulis ADR-0099**
 
 `internal/docs/adr/0099-mcp-server-hanoman.md` — struktur mengikuti ADR lain di repo (Status · Konteks · Keputusan · Konsekuensi · Alternatif ditolak · Gotcha). Isi yang **wajib** ada:
 
@@ -2458,7 +2458,7 @@ Expected: nol kecocokan. Bila ada, pakai nomor berikutnya yang bebas dan sesuaik
   8. **Pemotongan harus tetap JSON sah.** JSON terpotong di tengah dibaca agen sebagai galat parsing, bukan batas ukuran.
 - **Alternatif ditolak:** (a) endpoint MCP HTTP di Fastify — menjahit ulang jalur otorisasi, dukungan klien belum merata; (b) paket npm terpisah `hanoman-mcp` — artefak publish kedua yang versinya melenceng (pelajaran ADR-0092); (c) `@modelcontextprotocol/sdk@1` — menarik express, hono, jose, ajv, eventsource untuk sebuah server stdio; (d) tool `errors` — permukaannya sudah tak ada.
 
-- [ ] **Step 3: Taut ADR di DUA tempat**
+- [x] **Step 3: Taut ADR di DUA tempat**
 
 `internal/docs/README.md` — sisipkan sebagai baris **pertama** daftar ADR:
 ```markdown
@@ -2466,7 +2466,7 @@ Expected: nol kecocokan. Bila ada, pakai nomor berikutnya yang bebas dan sesuaik
 ```
 `internal/docs/adr/README.md` — tambahkan narasi ADR-0099 mengikuti gaya entri di sana (apa yang diperluas, gotcha-nya).
 
-- [ ] **Step 4: Perbarui `docs/agent-integration.md`**
+- [x] **Step 4: Perbarui `docs/agent-integration.md`**
 
 1. Ganti blok kutipan di §awal:
 ```markdown
@@ -2477,7 +2477,7 @@ Expected: nol kecocokan. Bila ada, pakai nomor berikutnya yang bebas dan sesuaik
 2. Tambahkan bagian baru `## 8. MCP server (SPEC-482 · ADR-0099)` berisi: satu paragraf apa itu, blok konfigurasi Claude Code/Desktop + Codex, catatan `--read-only`, catatan bahwa tool yang mengeksekusi tidak ikut, dan bahwa capability-nya sama persis dengan tabel §3.
 3. Di tabel domain §3, **hapus** baris `errors` bila masih ada dan pastikan `support` berbunyi `/api/tickets*` saja.
 
-- [ ] **Step 5: Perbarui dokumen sisanya**
+- [x] **Step 5: Perbarui dokumen sisanya**
 
 - `internal/docs/architecture/api-contract.md` — tambahkan satu paragraf di bagian pembuka: MCP server adalah **klien** kontrak ini, bukan permukaan kedua; tak ada endpoint yang lahir untuknya; katalog toolnya di `shared/src/mcp-catalog.ts` dan diikat ke `capabilityForRoute` oleh `server/test/mcp-capability.test.ts`.
 - `internal/docs/operations/npm-readme.md` — tambahkan `hanoman mcp` ke daftar perintah + contoh konfigurasi klien.
@@ -2488,12 +2488,12 @@ Expected: nol kecocokan. Bila ada, pakai nomor berikutnya yang bebas dan sesuaik
 - `internal/skills/hanoman/SKILL.md` — satu butir di "Aturan Arsitektur" yang menyebut ADR-0099, bentuk stdio-klien-REST, katalog di shared, batas tool, dan gotcha 1–3 di atas.
 - `internal/docs/frontend/frontend-implementation.md` — sebut `McpPanel` di tab Akses AI Agent.
 
-- [ ] **Step 6: Verifikasi integritas index**
+- [x] **Step 6: Verifikasi integritas index**
 
 Run: `node cli/dist/hanoman.js docs index --check`
 Expected: keluar 0. Bila mengeluh dokumen tak ter-link, tautkan di `internal/docs/README.md`.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add internal/docs docs/agent-integration.md AGENTS.md internal/skills
@@ -2508,7 +2508,7 @@ git commit -m "docs(482): ADR-0099 MCP server + perbarui docs yang tersentuh"
 
 **Interfaces:** Consumes semua task sebelumnya.
 
-- [ ] **Step 1: Boot server di DB & port terpisah**
+- [x] **Step 1: Boot server di DB & port terpisah**
 
 ```bash
 export SMOKE_HOME="$(mktemp -d)"
@@ -2520,7 +2520,7 @@ echo $! > "$SMOKE_HOME/pid"
 Bila `server/dist/server.js` belum ada: `pnpm --filter ./server build` lebih dulu.
 Expected: `curl -s localhost:8799/api/health` → `{"ok":true}`.
 
-- [ ] **Step 2: Buat user + agent token lewat sesi cookie**
+- [x] **Step 2: Buat user + agent token lewat sesi cookie**
 
 ```bash
 curl -s -X POST localhost:8799/api/auth/setup -H 'content-type: application/json' \
@@ -2533,7 +2533,7 @@ test -n "$TOKEN" && echo "token diterbitkan"
 ```
 Bila bentuk body endpoint berbeda dari tebakan di atas, baca `server/src/routes/agent-tokens.ts` dan `settings.ts` lalu sesuaikan — **jangan** melewati langkah ini.
 
-- [ ] **Step 3: Jalankan MCP server sungguhan lewat stdio dan panggil tool**
+- [x] **Step 3: Jalankan MCP server sungguhan lewat stdio dan panggil tool**
 
 ```bash
 printf '%s\n' \
@@ -2551,7 +2551,7 @@ Expected, diperiksa satu per satu:
 - id 5 → `isError: true` dengan pesan yang menyebut **`backlog:write`** — token smoke sengaja tak punya capability itu.
 - `$SMOKE_HOME/err` **tak memuat** nilai `$TOKEN`.
 
-- [ ] **Step 4: Buktikan instance salah terbaca sebagai instance salah**
+- [x] **Step 4: Buktikan instance salah terbaca sebagai instance salah**
 
 ```bash
 printf '%s\n' \
@@ -2561,7 +2561,7 @@ printf '%s\n' \
 ```
 Expected: `isError: true`, pesannya menyebut **per-instance** dan **Settings → Akses AI Agent**, bukan "401".
 
-- [ ] **Step 5: Buktikan mode baca-saja menyembunyikan tool tulis**
+- [x] **Step 5: Buktikan mode baca-saja menyembunyikan tool tulis**
 
 ```bash
 printf '%s\n' \
@@ -2572,14 +2572,14 @@ printf '%s\n' \
 ```
 Expected: `13 false`
 
-- [ ] **Step 6: Matikan server smoke PER-PID (jangan `pkill -f`)**
+- [x] **Step 6: Matikan server smoke PER-PID (jangan `pkill -f`)**
 
 ```bash
 kill "$(cat "$SMOKE_HOME/pid")"
 rm -rf "$SMOKE_HOME"
 ```
 
-- [ ] **Step 7: Jalankan seluruh test yang tersentuh**
+- [x] **Step 7: Jalankan seluruh test yang tersentuh**
 
 ```bash
 env -u NODE_ENV TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" \
@@ -2593,14 +2593,14 @@ env -u NODE_ENV TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" \
 ```
 Expected: seluruh berkas HIJAU, dan jumlah test yang **berjalan** > 0 — `--changed` menyalakan `passWithNoTests`, jadi "no test files" **bukan** bukti.
 
-- [ ] **Step 8: Typecheck paket yang tersentuh (satu per satu, bukan `-r`)**
+- [x] **Step 8: Typecheck paket yang tersentuh (satu per satu, bukan `-r`)**
 
 ```bash
 pnpm --filter ./shared typecheck && pnpm --filter ./cli typecheck && pnpm --filter ./server typecheck && pnpm --filter ./src typecheck
 ```
 Expected: keempatnya keluar 0.
 
-- [ ] **Step 9: Commit akhir & push**
+- [x] **Step 9: Commit akhir & push**
 
 ```bash
 git add -A

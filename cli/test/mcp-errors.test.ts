@@ -16,6 +16,25 @@ describe("explainNetworkError", () => {
     expect(msg).toMatch(/belum jalan|tidak diterima/);
     expect(msg).toContain("HANOMAN_HOST");
   });
+  it("AggregateError (host ber-A dan AAAA seperti localhost) tetap terbaca ECONNREFUSED", () => {
+    // Bentuk NYATA dari `fetch` Node saat `localhost` punya IPv4 & IPv6: sebabnya AggregateError,
+    // dan kode aslinya ada di `cause.errors[]`.
+    const agg = Object.assign(new Error("fetch failed"), {
+      cause: Object.assign(new AggregateError([{ code: "ECONNREFUSED" }, { code: "ECONNREFUSED" }], "")),
+    });
+    (agg.cause as { errors?: unknown[] }).errors = [{ code: "ECONNREFUSED" }, { code: "ECONNREFUSED" }];
+    expect(explainNetworkError(agg, { host: "http://localhost:8798" })).toMatch(/tidak diterima/);
+  });
+
+  it("kegagalan tanpa kode apa pun tetap menyebut HANOMAN_HOST", () => {
+    const msg = explainNetworkError(
+      Object.assign(new Error("fetch failed"), { cause: new Error("bad port") }),
+      { host: "http://localhost:9" },
+    );
+    expect(msg).toContain("HANOMAN_HOST");
+    expect(msg).toContain("bad port");
+  });
+
   it("nama host tak ketemu disebut sebagai salah tulis host", () => {
     const msg = explainNetworkError(
       Object.assign(new Error("fetch failed"), { cause: { code: "ENOTFOUND" } }),
