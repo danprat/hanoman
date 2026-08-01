@@ -3,7 +3,7 @@
 import React from "react";
 import { Card, Switch, Select, Button, Input, Field, HnTextarea, Icon, StateBlock, Badge, Callout, ConfirmDialog } from "../ds";
 import { api, ApiError } from "../api/client";
-import { CAPABILITY_DOMAINS, SCHEDULER_DEFAULTS, GOAL_DEFAULTS, CODEX_DEFAULTS, CONFLICT_DEFAULTS, LEAD_DEFAULTS, TELEGRAM_DEFAULTS, CODEX_MODELS, MODELS, EFFORTS, codexEfforts, coerceCodexEffort, codexModel, codexClientTooOld } from "@hanoman/shared";
+import { CAPABILITY_DOMAINS, SCHEDULER_DEFAULTS, GOAL_DEFAULTS, CODEX_DEFAULTS, CONFLICT_DEFAULTS, LEAD_DEFAULTS, TELEGRAM_DEFAULTS, CODEX_MODELS, MODELS, EFFORTS, codexEfforts, coerceCodexEffort, codexModel, codexClientTooOld, configEntry } from "@hanoman/shared";
 import type { Setting, UserView, DeviceTokenView, SessionResultView, ConfigResponse, ConfigEntryView, AgentTokenView, CapabilityInfo, TelegramGatewayStatus, TelegramCredentialsView, TelegramTestResult } from "@hanoman/shared";
 import type { ShowToast } from "../ds";
 import { playNotifySound, type NotifySound } from "../notifications/sound";
@@ -327,7 +327,8 @@ function ConfigField({ entry, draft, onDraft, onSave, onReset }: {
         ? <><code style={{ fontSize: 12 }}>{entry.masked}</code>
             <Button size="sm" variant="ghost" leftIcon="pencil" onClick={() => onDraft("")}>Ganti</Button>
             <Button size="sm" variant="ghost" leftIcon="trash-2" onClick={onReset}>Hapus</Button></>
-        : <><Input aria-label={entry.label} type="password" placeholder={entry.hasValue ? "biarkan kosong = pertahankan" : "tempel token…"}
+        : <><Input aria-label={entry.label} type="password"
+              placeholder={entry.hasValue ? "biarkan kosong = pertahankan" : (configEntry(entry.key)?.example ?? "tempel token…")}
               value={draft ?? ""} onChange={(ev: React.ChangeEvent<HTMLInputElement>) => onDraft(ev.target.value)} style={{ width: 240 }} />
             <Button size="sm" leftIcon="save" onClick={onSave}>Simpan</Button></>}
     </div>;
@@ -341,6 +342,7 @@ function ConfigField({ entry, draft, onDraft, onSave, onReset }: {
   // url | int | string | path
   return <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{badge}
     <Input aria-label={entry.label} type={entry.kind === "int" ? "number" : "text"}
+      placeholder={configEntry(entry.key)?.example}
       value={draft ?? entry.value ?? ""} onChange={(ev: React.ChangeEvent<HTMLInputElement>) => onDraft(ev.target.value)} style={{ width: 240 }} />
     <Button size="sm" leftIcon="save" onClick={onSave}>Simpan</Button>
     {entry.source === "db" && <Button size="sm" variant="ghost" leftIcon="rotate-ccw" onClick={onReset}>Reset</Button>}</div>;
@@ -594,7 +596,9 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
                         aria-label={f.label}
                         mono
                         type={f.kind === "secret" ? "password" : "text"}
-                        placeholder={f.kind === "secret" ? (f.masked ?? "belum diisi") : "belum diisi"}
+                        placeholder={f.kind === "secret"
+                          ? (f.masked ?? configEntry(f.key)?.example ?? "belum diisi")
+                          : (configEntry(f.key)?.example ?? "belum diisi")}
                         value={tgDraft[f.key] ?? (f.kind === "secret" ? "" : (f.value ?? ""))}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                           setTgDraft((d) => ({ ...d, [f.key]: e.target.value }))}
