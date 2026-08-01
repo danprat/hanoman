@@ -2149,7 +2149,7 @@ git commit -m "feat(471): tab Issue GitHub di layar Triase — tarik, terima mas
 - Modify: `internal/docs/architecture/data-model.md`
 - Modify: `internal/docs/architecture/api-contract.md`
 
-- [ ] **Step 1: Verifikasi ulang nomor ADR bebas**
+- [x] **Step 1: Verifikasi ulang nomor ADR bebas**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman
@@ -2160,7 +2160,7 @@ git branch -a --format='%(refname:short)' | while read b; do \
 
 Expected: kosong. Bila terisi, naikkan ke nomor bebas berikutnya **di seluruh berkas plan & kode**.
 
-- [ ] **Step 2: Tulis ADR-0095**
+- [x] **Step 2: Tulis ADR-0095**
 
 `internal/docs/adr/0095-tarik-issue-github-ke-backlog.md` — struktur wajib (ikuti gaya ADR-0094):
 judul, **Status: accepted**, tanggal, **Konteks** (kutip angka audit: 9 issue · 36 j 37 m · 284 Spec ·
@@ -2183,7 +2183,7 @@ menghidupkannya (tak ada GitHub App, tak ada webhook, tak ada trigger; arah tuli
 tertutup); ADR-0024 utuh — yang dicabutnya adalah eksekusi tanpa penunggu, dan tarik issue tetap
 dipicu manusia.
 
-- [ ] **Step 3: Taut ADR di DUA index**
+- [x] **Step 3: Taut ADR di DUA index**
 
 `internal/docs/README.md` — baris pertama daftar `## adr`:
 
@@ -2196,7 +2196,7 @@ dipicu manusia.
 sebagai jawaban **otoritatif** yang tak boleh di-fallback, `--limit` default 30, `GH_TOKEN`
 mengalahkan keyring, dan `status`/`specId` yang harus kebal tarik-ulang.
 
-- [ ] **Step 4: Perbarui doc arsitektur**
+- [x] **Step 4: Perbarui doc arsitektur**
 
 `internal/docs/architecture/data-model.md` — tambahkan `GithubIssue` mengikuti format model lain
 (kolom, id deterministik, `specId` tanpa FK + alasannya, ikut sync).
@@ -2204,7 +2204,7 @@ mengalahkan keyring, dan `status`/`specId` yang harus kebal tarik-ulang.
 `internal/docs/architecture/api-contract.md` — tambahkan enam endpoint Task 8 dengan
 method/path/body/response dan pemetaan capability `support`.
 
-- [ ] **Step 5: Verifikasi integritas index**
+- [x] **Step 5: Verifikasi integritas index**
 
 ```bash
 node cli/dist/index.js docs index --check 2>/dev/null || pnpm --filter ./cli exec tsx src/index.ts docs index --check
@@ -2212,7 +2212,7 @@ node cli/dist/index.js docs index --check 2>/dev/null || pnpm --filter ./cli exe
 
 Expected: tak ada doc yatim.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/docs

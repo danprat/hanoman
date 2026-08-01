@@ -658,6 +658,39 @@ DELETE /tickets/:id                       # 200 { ok:true } — hapus tiket; Tic
 > `main.tsx`) tanpa auth; fallback `index.html` existing → nol perubahan server untuk menyajikan halaman.
 > Realtime area Triase = **HTTP polling** (pola GitGraph), bukan kanal WS baru (ADR-0039).
 
+## Issue GitHub (SPEC-471 · ADR-0095)
+```
+# Di belakang gate cookie; agent-token → domain `support` (satu domain dengan /tickets — keduanya
+# permukaan triase masuk), dipetakan MENURUT METHOD lewat rw(), bukan prefix (kelas bug SPEC-405).
+# hanoman HANYA MEMBACA GitHub — tak ada endpoint komentar/close di sini, dan itu keputusan (ADR-0095 §7).
+POST /api/projects/:id/github/pull  { state?:"open"|"all", limit?:1..1000 }
+#   -> 200 { repo, pulled, created, updated, via:"gh"|"rest", skippedPullRequests }
+#   Repo diturunkan `Project.gitRemote ?? origin(repoDir)`; TIDAK mensyaratkan repoDir ada.
+#   Ambil: `gh issue list --json …` dulu (env GH_TOKEN = GITHUB_TOKEN bila diisi), fallback HTTPS
+#   ke api.github.com HANYA bila gh tak bisa dieksekusi / tak terautentikasi — kegagalan gh yang lain
+#   adalah jawaban OTORITATIF (ADR-0095 §3). Jalur REST membuang tiap item ber-`pull_request` dan
+#   memeriksa has_issues lebih dulu; `skippedPullRequests` melaporkan berapa yang dibuang.
+#   Upsert id deterministik "<projectId>:<slug>#<n>"; update TAK PERNAH menyentuh status/specId.
+#   400 no-remote | not-github (pesan menyebut hostnya) | issues-disabled · 404 project/repo tak ada
+#   401 kredensial ditolak · 502 GitHub menjawab lain-lain.
+GET  /api/projects/:id/github/issues?status=  -> { items: GithubIssueView[] }   # urut number desc · 404
+POST /api/github-issues/accept  { ids:[…≤100], priority?, source? }
+#   -> 201 { created: Spec[], failed:[{id,error}] } — SATU Spec per issue (ADR-0015). Satu issue gagal
+#   tak menghentikan sisanya (cermin checkTriase).
+POST /api/github-issues/:id/accept  { priority?, source? }
+#   -> 201 { spec } — buat Spec + tandai issue accepted + specId (tautan dua arah).
+#   source default dari label: bug-ish→qa, fitur-ish→brief, tanya/docs→audit, TANPA LABEL→qa
+#   (sengaja beda dari SPEC-291 yang default brief — lihat ADR-0095). Idempoten: sudah promoted →
+#   200 { alreadyPromoted:true, spec }. 404.
+POST /api/github-issues/:id/reject  -> 200 { id, status:"rejected" } · 404
+POST /api/github-issues/:id/unlink  -> 200 { id, status:"new", specId:null } · 404   # kebalikan accept
+```
+> **Sync:** `githubIssue` masuk `SYNCED` (ADR-0045) dengan **seluruh** kolom bermakna di `FIELDS`,
+> termasuk `status` & `specId` — keputusan triase harus terlihat sama di semua mesin, dan kolom yang
+> terlewat mendarat sebagai default palsu tanpa satu pun error. **Config:** `GITHUB_TOKEN`
+> (`kind: secret`, melayani jalur `gh` **dan** REST) + `HANOMAN_GH_BIN` (default `gh`); `hanoman doctor`
+> melaporkan `gh` sebagai probe **non-fatal**. **UI:** tab kedua di layar Triase, bukan layar baru.
+
 ## Scheduler (SPEC-294 · ADR-0072) — LOCAL per-instance
 ```
 # Fondasi scheduler otonom (di belakang gate cookie; agent-token → domain `settings`). Semua default MATI.

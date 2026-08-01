@@ -427,6 +427,35 @@ semua project); terisi = milik satu project, dan agen project **menimpa** agen g
   `mentions` agen lain — cermin `dependsOn` (ADR-0093). Kolomnya dibaca **defensif** (`mentionsOf`/
   `toolsOf`) karena bisa datang dari client versi lain.
 
+## GithubIssue (SPEC-471 · [ADR-0095](../adr/0095-tarik-issue-github-ke-backlog.md))
+
+Cermin lokal issue GitHub sebuah project — **pola `Ticket`** (ADR-0062): sistem luar → record lokal
+→ jembatan `accept` idempoten → `Spec`. hanoman **hanya membaca**; tak pernah menulis balik.
+
+| Kolom | Tipe | Catatan |
+|---|---|---|
+| `id` | `String @id` | **Deterministik** `"<projectId>:<owner>/<repo>#<number>"` — bukan cuid. |
+| `projectId` | `String` | FK `onDelete: Cascade`. Ikut di dalam `id` karena dua project boleh menunjuk repo yang sama. |
+| `repoSlug` · `number` | `String` · `Int` | Asal issue di GitHub. |
+| `title` · `body` · `authorLogin` · `labels` · `url` | | Konten issue; **disegarkan** tiap tarikan. `labels` = `Json` array string. |
+| `issueState` | `String` | `open` \| `closed` — keadaan **di GitHub** saat ditarik. Berbeda dari `status`. |
+| `status` | `String` | `new` \| `accepted` \| `rejected` — keputusan **triase operator**. |
+| `specId` | `String?` | Soft-link `Spec`. **Tanpa FK** (cermin `Ticket.specId`). |
+| `issueCreatedAt` · `issueUpdatedAt` · `pulledAt` | `DateTime` | Dua yang pertama milik GitHub; `pulledAt` milik hanoman. |
+| `version` | `Int` | Version-stamp sync (ADR-0045). Ikut `SYNCED`/`FIELDS`/`DATE_FIELDS`. |
+
+- **Kenapa `id` deterministik.** Alasan yang sama dengan `CustomAgent`: baris ini menyeberang
+  changefeed, dan dengan id acak dua mesin yang menarik repo yang sama melahirkan **dua baris**
+  untuk satu issue. Dengan id deterministik keduanya baris yang **sama**.
+- **Kenapa `specId` tanpa FK.** Changefeed bisa memancarkan `GithubIssue` **sebelum** `Spec`-nya
+  mendarat; FK akan menolaknya (kelas SPEC-382). Integritasnya ditegakkan di jalur `accept`.
+- **`status` & `specId` KEBAL tarik-ulang.** `pullIssues` hanya memperbarui kolom konten. Bila
+  keduanya ikut di-`update`, issue yang sudah diterima kembali `new` dan accept berikutnya
+  melahirkan **`Spec` kedua** untuk issue yang sama — inti jaminan "1 per 1".
+- **Keduanya ikut `FIELDS.githubIssue`** justru supaya keputusan triase terlihat sama di semua
+  mesin. Kolom yang terlewat di `FIELDS` mendarat sebagai **default palsu** tanpa satu pun error
+  (kelas ADR-0090/0093/0094).
+
 ## Docs (Source of Truth) — TIDAK dipersist
 Docs bukan entitas DB. Tabel `DocFile` sudah di-drop (ADR-0011). Docs dibaca **live dari path
 efektif** (`resolveRepoDir` = binding per-mesin ?? `Project.repoDir` — SPEC-217): korpus = semua
