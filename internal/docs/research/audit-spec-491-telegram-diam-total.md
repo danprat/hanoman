@@ -159,5 +159,22 @@ memasang apa yang keduanya sudah putuskan. Dokumen ini menjadi doc-of-record per
   ulang. Yang ditambahkan hanya pemberitahuannya.
 - Tidak mengendurkan `TELEGRAM_REQUIRED_CAPABILITIES`. 23 capability itu memang cakupan kerja
   session operator; yang salah adalah operator tak pernah diberi tahu mana yang kurang **saat ia
-  masih bisa memperbaikinya**.
+  masih bisa memperbaikinya**. Gerbang baru sengaja memakai `includes` biasa — **persis** seperti
+  `bootstrap.ts:140`, yang berarti `sessions:write` tidak menggantikan `sessions:read` meski
+  `grantsCapability` mengizinkannya di gate route. Membuat gerbang simpan lebih longgar daripada
+  gerbang bootstrap akan melahirkan ulang kelas bug yang sama: token yang lolos disimpan lalu
+  tetap ditolak saat gateway lahir, diam-diam.
+
+## Pembuktian akhir di server hidup (DB & `HANOMAN_HOME` khusus, port 8931)
+
+Tangga readiness maju satu anak tangga tiap kali penghalangnya dibereskan — informasi yang selama
+ini tak pernah sampai ke operator:
+
+| Langkah | Hasil |
+|---|---|
+| simpan token 64-hex **persis nilai produksi** | **400** · "AgentToken tidak dikenal atau sudah dicabut — salin plaintext `hnm_agt_…` …" |
+| simpan token sah, capability kurang | **400** · "AgentToken kurang 21 capability. Kurang: projects:read, … telegram:read." |
+| simpan token sah + 23 capability | **200** |
+| Test Connection, master switch mati | `inbound.reason` = "Akses agent mati — nyalakan master switch di Akses AI Agent." |
+| Test Connection, master switch hidup | `inbound.reason` = "Kredensial sudah sah tapi gateway belum polling — nyalakan “Gateway aktif”." |
 - Tidak membentuk reply dari `capturePane()` (ADR-0096 §5 tetap utuh).
