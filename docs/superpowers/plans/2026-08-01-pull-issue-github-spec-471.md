@@ -201,7 +201,7 @@ git commit -m "feat(471): kontrak NormalIssue + peta label issue → source Spec
 - Consumes: `listRemotes()` dari `services/git-remotes.ts`, `resolveRepoDir()` dari `services/local-binding.ts`, `prisma`
 - Produces: `type GithubRepo = { owner: string; repo: string; slug: string }`, `githubSlugFromUrl(url: string): GithubRepo | null`, `resolveGithubRepo(projectId: string): Promise<{ ok: true; repo: GithubRepo } | { ok: false; kind: "no-project" | "no-remote" | "not-github"; error: string }>`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 `server/test/github-repo.test.ts`:
 
@@ -296,12 +296,12 @@ describe("SPEC-471 · resolveGithubRepo", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan MERAH**
+- [x] **Step 2: Jalankan, pastikan MERAH**
 
 Run: `./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/github-repo.test.ts`
 Expected: FAIL — `Cannot find module '../src/services/github-repo'`
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 `server/src/services/github-repo.ts`:
 
@@ -361,12 +361,12 @@ export async function resolveGithubRepo(projectId: string): Promise<RepoResoluti
 }
 ```
 
-- [ ] **Step 4: Jalankan, pastikan HIJAU**
+- [x] **Step 4: Jalankan, pastikan HIJAU**
 
 Run: `./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/github-repo.test.ts`
-Expected: PASS — 11 test
+Expected: PASS — 10 test
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/github-repo.ts server/test/github-repo.test.ts
