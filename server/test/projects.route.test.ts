@@ -145,7 +145,11 @@ describe("projects routes", () => {
     await makeProject({ id: "pbr", repoDir });
     const res = await app.inject({ url: "/api/projects/pbr/branches" });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ branches: ["hanoman/spec-1", "main"], remotes: ["hanoman/spec-1", "main"] });
+    // SPEC-486 · ADR-0103 · `defaultBranch` ikut di amplop yang sama (memasok opsi "default branch
+    // repo" di kartu auto-merge). Repo fixture ber-`main`, jadi origin/HEAD/main yang menang.
+    expect(res.json()).toEqual({
+      branches: ["hanoman/spec-1", "main"], remotes: ["hanoman/spec-1", "main"], defaultBranch: "main",
+    });
   });
   it("GET /projects/:id/branches: no repoDir → []", async () => {
     await makeProject({ id: "pn", repoDir: null });
