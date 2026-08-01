@@ -1309,7 +1309,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: keputusan Task 1-7.
 - Produces: —
 
-- [ ] **Step 1: Verifikasi nomor ADR masih bebas**
+- [x] **Step 1: Verifikasi nomor ADR masih bebas**
 
 ```bash
 ls internal/docs/adr | tail -3
@@ -1318,7 +1318,7 @@ git branch -a --format='%(refname:short)' | while read b; do git ls-tree --name-
 ```
 Expected: `0097-kredensial-telegram-…` muncul (milik worktree `spec-477`), `0098` **tidak** muncul di mana pun. Bila 0098 ternyata terpakai, naikkan ke nomor bebas berikutnya dan perbarui seluruh rujukan `ADR-0098` di kode & doc.
 
-- [ ] **Step 2: Tulis ADR-0098**
+- [x] **Step 2: Tulis ADR-0098**
 
 Buat `internal/docs/adr/0098-putusan-lead-ringkas-terstruktur.md` dengan bentuk ADR repo ini (lihat `0093-dependency-antar-backlog.md` sebagai contoh: Status · Konteks · Keputusan · Konsekuensi · Alternatif ditolak · Gotcha). Isi yang **wajib** ada:
 
@@ -1329,7 +1329,7 @@ Buat `internal/docs/adr/0098-putusan-lead-ringkas-terstruktur.md` dengan bentuk 
 - **Alternatif ditolak:** `choice` sebagai enum/number di zod (pilihan karangan lenyap jadi "keluaran rusak" — persis peristiwa yang paling layak dilaporkan); batas panjang sebagai `.max()` zod (keluaran sedikit meleset jadi `gagal` total); `kind: "refusal"` untuk pilihan yang ditolak (SPEC-432: `kind` yang berubah merusak idempotensi denyut); field urutan terstruktur untuk `orderReadyWork` (pertanyaannya "urutkan N", bukan "pilih satu" — layak spec sendiri).
 - **Gotcha:** (a) `clampProse` melipat spasi, dan itu **bukan** kosmetik — satu baris baru yang lolos ke pane adalah `Enter` yang mengirim jawaban dialog separuh jadi (kelas SPEC-452); (b) catatan `DITOLAK`/`KONFLIK` ditempel **sesudah** pemangkasan, kalau tidak justru bagian yang paling perlu dibaca yang terpotong; (c) adopsi `action` dari opsi hanya sah karena label opsi dirakit **pemanggil**, bukan lead — untuk label bebas (dialog `AskUserQuestion`) `optionActionHint` mengembalikan `null` dan tak ada yang diadopsi.
 
-- [ ] **Step 3: Taut ADR di KEDUA index**
+- [x] **Step 3: Taut ADR di KEDUA index**
 
 `internal/docs/README.md` — sisipkan di puncak daftar `## adr`:
 
@@ -1339,24 +1339,24 @@ Buat `internal/docs/adr/0098-putusan-lead-ringkas-terstruktur.md` dengan bentuk 
 
 `internal/docs/adr/README.md` — tambahkan narasinya di posisi yang sama dengan ADR terbaru lain (satu paragraf: apa yang diamandemen, kenapa, gotcha-nya).
 
-- [ ] **Step 4: Perbarui data-model & api-contract**
+- [x] **Step 4: Perbarui data-model & api-contract**
 
 `internal/docs/architecture/data-model.md` — pada bagian `LeadDecision`, tambahkan keempat kolom + satu kalimat kenapa `options` ikut disimpan (jejak tak bisa dibaca ulang tanpa menunya).
 
 `internal/docs/architecture/api-contract.md` — pada `POST /api/lead/decisions`, tambahkan `choice` & `missing` di bentuk balasan, dan sebutkan bahwa `decision`/`reason` yang dikembalikan **terpangkas** sementara `GET /lead/decisions` memberi prosa penuh.
 
-- [ ] **Step 5: Perbarui SKILL.md**
+- [x] **Step 5: Perbarui SKILL.md**
 
 `internal/skills/hanoman/SKILL.md` — tambahkan satu butir di rangkaian butir hanoman-lead (sesudah butir SPEC-474), memuat: `choice` tervalidasi terhadap opsi peminta · out-of-list ditolak-dan-dicatat tanpa mengubah `kind` · `action` diturunkan dari opsi hanya saat lead diam · batas 240/480 dipangkas saat pengiriman & jejak tetap penuh · `missing` memaksa `ragu` · ADR-0098 mengamandemen AC-22.
 
-- [ ] **Step 6: Verifikasi integritas index**
+- [x] **Step 6: Verifikasi integritas index**
 
 ```bash
 node cli/dist/index.js docs index --check 2>/dev/null || ./node_modules/.bin/tsx cli/src/index.ts docs index --check
 ```
 Expected: laporan tanpa berkas yatim. Bila CLI belum ter-build, cukup pastikan tautan ADR ada di kedua README secara manual.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add internal/docs internal/skills

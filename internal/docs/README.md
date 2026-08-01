@@ -49,6 +49,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 > **Narasi tiap keputusan — apa yang diperluas/dicabut/diamandemen, berikut gotcha-nya — ada di
 > [adr/README.md](adr/README.md).** Daftar di bawah sengaja satu baris per ADR: index ini dibaca
 > setiap sesi agen, sub-index hanya saat butuh riwayatnya (SPEC-386).
+- [0098 — Putusan lead ringkas & terstruktur: `choice` tervalidasi, `missing`, batas panjang saat pengiriman](adr/0098-putusan-lead-ringkas-terstruktur.md)
 - [0096 — Telegram gateway: transport ke session operator tmux persisten, bukan runtime agen](adr/0096-telegram-gateway-session-operator-persisten.md)
 - [0095 — Tarik issue GitHub ke backlog: record lokal `GithubIssue`, dua jalur ambil, baca-saja](adr/0095-tarik-issue-github-ke-backlog.md)
 - [0094 — Custom agent: katalog di DB, materialisasi native per agen, anti-loop berlapis](adr/0094-custom-agent-katalog-materialisasi-native.md)

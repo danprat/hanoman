@@ -517,6 +517,37 @@ Pakai skill lebih sempit saat task cocok:
   Dialog **tanpa tab strip** (trust, prompt izin) tetap tak disentuh: di sana `Enter` = baris 1 =
   "ya". Pintu override operator (`POST /lead/decisions/:id/override`) ikut sembuh lewat
   `sendToPane` yang sama, dan sengaja **tak** mengosongkan marker → sisa rantai dilanjutkan lead.
+- **Putusan lead ringkas & TERSTRUKTUR** (SPEC-480/**ADR-0098**, **mengamandemen ADR-0091 AC-1 &
+  AC-22**; ADR-0037 utuh): `DecideRequest.options` sudah dipakai **empat** pemanggil — pintu
+  deteksi dialog (SPEC-452) dan tiga pintu denyut — tapi verdict tak pernah punya field yang
+  menjawab **"opsi yang mana"**. Label opsi denyut sengaja diawali nama tindakan
+  (`"integrate-main — …"`), dan itulah satu-satunya jembatan antara pilihan dan eksekusi: berupa
+  **harapan** bahwa prosa `decision` dan field `action` sepakat. Lead yang memilih opsi 1 di
+  prosanya lalu membiarkan `action` pada default `"none"` melahirkan baris `berlaku` yang **tak
+  berefek apa pun** dan tak terbaca sebagai kesalahan oleh siapa pun; `orderReadyWork` bahkan
+  mem-`split` prosanya dengan regex. Kini verdict punya **`choice`** (string bebas — pilihan
+  karangan harus BISA MASUK supaya ditolak-dan-dicatat, alasan yang sama dengan `action`) yang
+  diselesaikan **`resolveChoice`** (shared, murni, **fail-closed**: nomor · nomor+label yang
+  sepakat · teks persis · kepala label sebelum `—`/`:` · awalan **unik**; ambigu → `null`, karena
+  SPEC-452 sudah mengukur ongkos pencocokan yang "kelihatan benar"). Di luar daftar → **baris tetap
+  lahir** + `DITOLAK:` di `reason` + `weighty`, dan **`kind` TIDAK ditulis ulang** (mengganti `kind`
+  merusak idempotensi denyut — SPEC-432). `action` boleh **diturunkan** dari `optionActionHint`
+  **hanya saat lead diam**; bertentangan → `none` + `KONFLIK:` + notifikasi, tak pernah ditebak —
+  sah hanya karena label opsi dirakit **pemanggil**, bukan lead (label bebas → hint `null`).
+  Ringkas ditegakkan **dua lapis**: prompt menyebut `LEAD_DECISION_MAX = 240`/`LEAD_REASON_MAX = 480`
+  **dengan angkanya** + larangan eksplisit (ringkasan ulang konteks · latar belakang · alternatif tak
+  diminta), sementara `clampProse` memangkas **hanya yang dikirim** (balasan pintu #1 + ketikan ke
+  pane) — **jejak menyimpan prosa UTUH**, dan catatan `DITOLAK`/`KONFLIK` ditempel **sesudah**
+  pemangkasan supaya bagian terpenting tak terpotong. **`missing`** memberi AC-22 satu pengecualian
+  **bernama**: bukan "bukti tipis" (itu `confidence: "ragu"` yang sudah ada) melainkan fakta konkret
+  yang tak ada di repo — terisi ⇒ `ragu` dipaksa ⇒ weighty ⇒ operator dipanggil dengan pertanyaan
+  **presisi**, bukan dengan diam; `decision` tetap wajib = kompatibilitas mundur. Empat kolom aditif
+  nullable (`choice`/`choiceIndex`/`options`/`missing`); `options` disimpan karena `question`
+  tersimpan sedangkan menunya tidak. **Dua gotcha sisa:** `clampProse` melipat spasi bukan demi rapi
+  melainkan karena satu baris baru yang lolos ke pane adalah `Enter` yang mengirim jawaban separuh
+  jadi (kelas SPEC-452); dan saluran `takeDelivery` hidup di memori berumur satu ketikan sehingga
+  fallback ke `answer` wajib — di `detect.ts` ia **disuntikkan** sebagai dep `delivery`, prod tetap
+  satu definisi.
 - **Scope verifikasi per sesi** (SPEC-376/ADR-0080): `verifyScope` (`changed` default | `full`) —
   knob `Setting.verifyScope` (kolom `Json`, **tanpa migration**) + override saat Start. Sesi
   `changed` menguji **berkas yang berubah saja**: `pnpm vitest --run --changed "$HANOMAN_BASE_SHA"`
