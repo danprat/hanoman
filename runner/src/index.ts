@@ -10,3 +10,4 @@ export * from "./agent-cli";
 export * from "./custom-agents";
 export * from "./verify-scope";
 export * from "./paths";
+export * from "./telegram-operator";

@@ -2,6 +2,7 @@ import { prisma } from "../db";
 import {
   zSetting, SCHEDULER_DEFAULTS, GOAL_DEFAULTS, CODEX_DEFAULTS, CONFLICT_DEFAULTS,
   RETIRED_CODEX_MODELS, LEAD_DEFAULTS, coerceCodexEffort, type Setting, type Agent, type Codex,
+  TELEGRAM_DEFAULTS,
 } from "@hanoman/shared";
 
 // Model id + effort yang diteruskan apa adanya ke `claude --model` / `--effort`.
@@ -21,6 +22,7 @@ export const DEFAULT_SETTING: Setting = {
   verifyScope: "changed",          // SPEC-376 · ADR-0080 · uji hanya yang berubah
   conflict: CONFLICT_DEFAULTS,     // SPEC-383 · ADR-0081 · default sesi konflik (opt-in, mati)
   lead: LEAD_DEFAULTS,             // SPEC-409 · ADR-0091 · hanoman-lead (master switch mati)
+  telegram: TELEGRAM_DEFAULTS,     // SPEC-476 · ADR-0096 · gateway Telegram opt-in
 };
 
 // Baris Setting adalah `Json` bebas bentuk, dan baris yang ditulis SEBELUM SPEC-162 masih

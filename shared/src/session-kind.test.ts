@@ -5,7 +5,7 @@ describe("SessionKind (SPEC-362)", () => {
   it("mencakup setiap jenis sesi yang bisa lahir dari createSession", () => {
     expect([...SESSION_KINDS].sort()).toEqual([
       "breakdown", "prd", "reverse", "scaffold", "shell",
-      "spec", "terminal", "vps", "worktree",
+      "spec", "telegram", "terminal", "vps", "worktree",
     ]);
   });
 
@@ -17,7 +17,7 @@ describe("SessionKind (SPEC-362)", () => {
     for (const k of ["spec", "terminal", "shell", "reverse", "scaffold"] as const)
       expect(restartableKind(k)).toBe(true);
     // prd/breakdown butuh brief/prdPath yang tak tersimpan; vps/worktree tak punya arti "mulai lagi".
-    for (const k of ["prd", "breakdown", "vps", "worktree"] as const)
+    for (const k of ["prd", "breakdown", "vps", "worktree", "telegram"] as const)
       expect(restartableKind(k)).toBe(false);
   });
 

@@ -525,6 +525,18 @@ icon `inbox`; `NotificationBell` per-tipe (icon/warna brass, label "keluhan baru
 `notifTarget` → `{ section: "triage", projectFilter }`. Server menotifikasi **setiap** tiket baru (dedup `key`),
 tersiar lewat grup `notifications` WS existing.
 
+## Settings → Telegram (SPEC-476 · ADR-0096)
+
+Tab Telegram memakai pola Settings existing: state loading/error tidak pernah jatuh ke default yang
+dapat menimpa setelan server. Kartu **Kendali & readiness** memuat toggle non-secret
+`Setting.telegram.enabled`, bot username, poller, allowlist count, capability readiness, offset/update
+terakhir, binding, pending/uncertain outbox, dan error terakhir. Kartu **Onboarding** mengeja tiga nama
+env dan alur membuat AgentToken; UI tidak punya input token dan tidak merender masked prefix/value.
+
+Status memakai `GET /api/telegram/status` saat tab dibuka + refresh eksplisit; tidak menambah WebSocket
+baru. Toggle mati menghentikan poll, bukan membunuh tmux/memory. Layout tetap editorial/bone paper/brass;
+daftar readiness ringkas tidak membutuhkan visualisasi terminal atau raw transcript.
+
 **Unduh dokumen** (SPEC-361 · ADR-0078). `ds/DocDownload.tsx` merender sepasang anchor `.md` /
 `.pdf` dan dipasang di **setiap** pratinjau Markdown: `SpecDocsModal` (komponen yang sama dipakai
 Backlog **dan** Terminal, jadi satu pemasangan menutup dua entry point), `PrdScreen` (pane preview),

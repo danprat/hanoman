@@ -501,3 +501,20 @@ Fase Execute **tidak** lagi diverifikasi terhadap DocIndex sebelum jalan — gua
 Truth dicabut (SPEC-160/ADR-0023, supersedes ADR-0001). `internal/docs/**` tetap Source of Truth
 secara konvensi; coverage/DocIndex tetap dihitung dan ditampilkan (di atas), hanya tidak lagi
 memblokir apa pun.
+
+## Telegram channel state (SPEC-476 · [ADR-0096](../adr/0096-telegram-gateway-session-operator-persisten.md))
+
+Tujuh model LOCAL-only menyimpan state yang tidak dapat diturunkan kembali sesudah restart:
+`TelegramGatewayState` (offset/readiness), `TelegramChat` (binding session + active context + summary),
+`TelegramUpdate` (dedupe/status/digest tanpa teks), `TelegramMemory` (curated memory per-item),
+`TelegramOutbox` (delivery state + reply sanitized), `TelegramConfirmation` (approval inline
+single-use), dan `TelegramAudit` (jejak metadata/action tanpa body/header).
+
+Mereka tidak punya `version`, tidak masuk `SYNCED`, dan tidak memanggil `notifySynced`: chat/bot/tmux
+melekat pada satu mesin. Tetap ikut `PG_ORDER` agar instalasi Postgres lama yang sudah memakai gateway
+dapat dimigrasikan. Tidak ada FK ke Project/Spec/session tmux; referensi boleh hilang sementara jejak
+harus bertahan. `TelegramUpdate`/audit tidak pernah menyimpan isi inbound — hanya SHA-256 digest.
+
+`Setting.telegram = { enabled:false, progress:true }` tetap berada di kolom JSON singleton (tanpa
+migration). Personality menunjuk id `CustomAgent`; summary dan memory hanya ditulis dari amplop hasil
+kurasi session operator yang sama, bukan dari transcript mentah atau model summarizer kedua.

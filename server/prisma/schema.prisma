@@ -411,6 +411,116 @@ model RuntimeConfig {
   updatedAt DateTime @updatedAt
 }
 
+// SPEC-476 · ADR-0096 · seluruh state gateway Telegram bersifat LOCAL-only. Telegram adalah kanal
+// menuju tmux di mesin ini, jadi offset/binding/memory/outbox tidak punya arti untuk sync antar-node.
+// Tujuh model ini sengaja tanpa FK: referensi project/spec/session dapat hilang sementara audit dan
+// dedupe harus tetap bertahan. Tidak ada token, credential, atau body inbound di schema ini.
+model TelegramGatewayState {
+  id           Int      @id @default(1)
+  offset       Int      @default(0)
+  botUsername  String?
+  lastUpdateAt DateTime?
+  lastError    String?
+  updatedAt    DateTime @updatedAt
+}
+
+model TelegramChat {
+  chatId             String   @id
+  userId             String   @unique
+  sessionId          String?
+  activeProjectId    String?
+  activeSessionId    String?
+  personalityAgentId String?
+  summary            String?
+  agent              String
+  model              String
+  effort             String
+  lastProgressKey    String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model TelegramUpdate {
+  updateId     Int       @id
+  chatId       String?
+  userId       String?
+  kind         String
+  digest       String
+  state        String    @default("received") // received | rejected | dispatching | dispatched | uncertain
+  rejectReason String?
+  receivedAt   DateTime  @default(now())
+  claimedAt    DateTime?
+  dispatchedAt DateTime?
+
+  @@index([userId, receivedAt])
+  @@index([state])
+}
+
+model TelegramMemory {
+  id        String   @id @default(cuid())
+  chatId    String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([chatId, createdAt])
+}
+
+model TelegramOutbox {
+  id                String    @id @default(cuid())
+  chatId            String
+  updateId          Int
+  kind              String
+  dedupeKey         String    @unique
+  text              String
+  state             String    @default("pending") // pending | sending | sent | failed | uncertain
+  confirmationId    String?
+  telegramMessageId Int?
+  error             String?
+  createdAt         DateTime  @default(now())
+  claimedAt         DateTime?
+  sentAt            DateTime?
+
+  @@index([state, createdAt])
+  @@index([chatId, createdAt])
+}
+
+model TelegramConfirmation {
+  id            String    @id @default(cuid())
+  callbackToken String    @unique
+  chatId        String
+  userId        String
+  updateId      Int
+  description   String
+  method        String
+  path          String
+  state         String    @default("pending") // pending | approved | denied | used | expired
+  expiresAt     DateTime
+  createdAt     DateTime  @default(now())
+  approvedAt    DateTime?
+  usedAt        DateTime?
+
+  @@index([chatId, state])
+  @@index([expiresAt])
+}
+
+model TelegramAudit {
+  id            String   @id @default(cuid())
+  chatId        String?
+  userId        String?
+  updateId      Int?
+  action        String
+  outcome       String
+  correlationId String?
+  method        String?
+  path          String?
+  statusCode    Int?
+  createdAt     DateTime @default(now())
+
+  @@index([chatId, createdAt])
+  @@index([updateId])
+}
+
 
 
 

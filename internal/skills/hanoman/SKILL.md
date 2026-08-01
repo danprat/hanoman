@@ -634,6 +634,19 @@ Pakai skill lebih sempit saat task cocok:
   kemampuan; (7) `"customAgent"` wajib ikut `PG_ORDER` + seluruh kolomnya di `FIELDS.customAgent`.
   Domain capability **baru `agents`**, dipetakan **menurut method** (kelas bug SPEC-405). **Bukan**
   titik spawn agen baru — `services/lead/brain.ts` tetap satu-satunya di luar `pty.ts` (SPEC-448).
+- **Telegram = kanal ke session operator tmux, BUKAN runtime agen kedua** (SPEC-476/ADR-0096): satu
+  private chat/user allowlisted → satu id session `tg-<hash>` durable; natural text, command, dan
+  callback di-steer ke pane yang sama, action produk hanya lewat `/api` ber-AgentToken/capability/
+  correlation/audit. Gateway = satu long-poll `getUpdates` in-process dari `server.ts`, tanpa webhook,
+  worker, Redis, tool bus, shell executor, atau spawn per pesan. Offset+dedupe+binding+outbox+memory+
+  confirmation+audit adalah model SQLite LOCAL-only. **Crash policy mengikat:** state batas
+  `received→dispatching` / `pending→sending` menjadi `uncertain` dan TIDAK diretry otomatis — update
+  yang sama tak pernah masuk pane dua kali. Bot token hanya env gateway dan tak pernah masuk session;
+  AgentToken masuk env session, bukan prompt. Reply Telegram HANYA dari amplop eksplisit tersanitasi,
+  **jangan pernah** dari raw PTY/capture-pane (teks tanpa ANSI pun dapat memuat reasoning/command echo/
+  secret). Aksi sulit dibatalkan membutuhkan confirmation inline single-use sebagai kondisi tambahan
+  token gateway; capability/pagar route existing tetap menang. Personality memakai `CustomAgent`,
+  memory+summary dikurasi session yang sama, dan claude/codex mewarisi `sessionAgentDefaults()`.
 - Stage bergerak **maju** hanya lewat fase yang dilaporkan sesi; **mundur** hanya lewat aksi human eksplisit `PATCH /specs/:id { stage }` (backward-only, ADR-0027). `executing` **tertahan** (tak jadi `done`) selama plan `docs/superpowers/plans/**` masih punya `- [ ]` (ADR-0029).
 - Biaya bersifat **estimasi dan tidak menggerakkan apa pun** (ADR-0012): tak ada `dailyBudget`/budget flag. Indikator limit dibaca dari OAuth usage API Anthropic (`services/limits.ts`), bukan parsing output terminal.
 - **Jangan pernah menjalankan run/sesi di working tree utama** — selalu worktree terpisah. Jangan menyentuh worktree sesi lain.

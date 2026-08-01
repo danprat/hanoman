@@ -211,3 +211,28 @@ tanpa penopang tidak ditulis.
   pertanyaan "lalu sesi konflik memakai apa".
 - THE SYSTEM SHALL tidak menyediakan `dailyBudget` maupun `maxConcurrent` berbasis anggaran — biaya
   adalah estimasi ([ADR-0012](../adr/0012-cost-is-an-estimate-not-a-guardrail.md)).
+
+## Telegram gateway
+
+- WHILE `Setting.telegram.enabled` hidup dan readiness env/auth valid, THE SYSTEM SHALL menerima
+  `message` dan `callback_query` private-chat melalui satu loop `getUpdates` in-process
+  ([ADR-0096](../adr/0096-telegram-gateway-session-operator-persisten.md)).
+- IF chat bukan private atau user id tidak ada di allowlist, THEN THE SYSTEM SHALL tidak membuat
+  binding/session dan SHALL tidak menyimpan isi pesannya.
+- WHEN satu chat mengirim natural text, command, atau callback berulang, THE SYSTEM SHALL mengirim
+  semuanya ke satu session operator tmux deterministik yang sama, bukan men-spawn agen per pesan.
+- WHEN API restart, THE SYSTEM SHALL mempertahankan pane tmux hidup; IF pane hilang, THEN update baru
+  SHALL memulihkannya dengan personality, summary, memory, dan context durable terakhir.
+- WHEN update id direplay, THE SYSTEM SHALL mengeksekusinya paling banyak sekali; outcome batas crash
+  SHALL menjadi `uncertain` dan tidak diretry otomatis.
+- THE SYSTEM SHALL menyediakan command minimum `/help`, `/status`, `/projects`, `/project`, `/backlog`,
+  `/sessions`, `/use`, `/new`, `/stop`, `/memory`, `/personality`, dan `/skills`, namun SHALL tetap
+  memperlakukan bahasa natural sebagai interface utama.
+- THE SYSTEM SHALL menjalankan action produk hanya dari session melalui API Hanoman ber-AgentToken,
+  capability, correlation, dan audit; gateway transport SHALL tidak menjadi shell executor/tool bus.
+- IF action sulit dibatalkan diminta oleh token gateway, THEN THE SYSTEM SHALL meminta confirmation
+  inline single-use yang cocok method/path/chat sebelum handler action berjalan.
+- THE SYSTEM SHALL membentuk reply hanya dari amplop user-facing eksplisit; raw PTY, reasoning, ANSI,
+  token, header, dan credential SHALL tidak pernah menjadi output Telegram.
+- WHERE agent default Settings adalah claude atau codex, THE SYSTEM SHALL memakai helper default sesi,
+  protocol, capability, memory, dan acceptance suite yang sama.

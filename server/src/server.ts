@@ -8,6 +8,8 @@ import { registerTriaseSource } from "./services/scheduler/sources/triase";
 import { installSessionHistory, reconcileHistory } from "./services/session-history";
 import { installCustomAgents } from "./services/custom-agents";
 import { listSessions } from "./services/pty";
+import { installTelegramGateway } from "./services/telegram/bootstrap";
+import type { AddressInfo } from "node:net";
 
 // SPEC-215 · deteksi update default ON (registry HANOMAN_UPDATE_FETCH="1"), dibaca via resolver
 // di services/update.ts. Test memuat buildApp dari app.ts (tak pernah server.ts) dan vitest.config
@@ -55,6 +57,11 @@ app.listen({ port, host }).then(async () => {
   } catch (e) {
     console.error("rekonsiliasi riwayat sesi dilewati — tmux tak terbaca:", e);
   }
+  // SPEC-476 · ADR-0096 · gateway baru boleh polling sesudah server menerima request, katalog
+  // custom agent terpasang, dan hook history siap. API base selalu loopback: session operator
+  // berjalan di proses lokal walau HTTP publik bind ke alamat lain.
+  const boundPort = (app.server.address() as AddressInfo).port;
+  await installTelegramGateway(app, { apiBase: `http://127.0.0.1:${boundPort}` });
   startVpsMonitor(); // healthcheck 5 menit + audit harian (SPEC-164)
   registerBacklogSource(); // SPEC-295 · daftarkan checker backlog sebelum engine tick pertama
   registerTriaseSource(); // SPEC-297 · daftarkan checker triase sebelum engine tick pertama

@@ -21,6 +21,10 @@ export const PG_ORDER = [
   "SessionResult", "SessionHistory",
   "SyncLog", "LocalBinding", "SyncOutbox", "SyncState", "SyncConflict",
   "SchedulerQueueItem", "RuntimeConfig", "LeadDecision",
+  // SPEC-476 · ADR-0096 · tabel gateway LOCAL-only; sumber Postgres lama lazimnya tidak punya
+  // tabel ini dan jalur 42P01 di bawah memperlakukannya sebagai nol baris.
+  "TelegramGatewayState", "TelegramChat", "TelegramUpdate", "TelegramMemory",
+  "TelegramOutbox", "TelegramConfirmation", "TelegramAudit",
   "Ticket", "TicketAttachment",
   // SPEC-471 · ADR-0095 · GithubIssue sesudah Project (FK projectId) DAN sesudah Spec: `specId`
   // memang tanpa FK, tapi memindahkannya lebih awal membuat urutan tabel tak lagi mencerminkan

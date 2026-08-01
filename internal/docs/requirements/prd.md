@@ -41,3 +41,14 @@ Turunan terukur dari `entrypoints/prd.md`.
 ## 8. Settings
 - **Model & effort** satu per sesi, default opus · effort x-high; manusia bisa `/model` di terminal.
 - auto-default; auto-scaffold doc index; notifikasi gagal & selesai (+ sound). Tanpa anggaran harian / konkuren maks (hilang bersama runner headless).
+
+## 9. Telegram gateway (SPEC-476 · ADR-0096)
+- Satu bot, private chat, allowlist user id, text-first; group/media/multi-bot/webhook di luar MVP.
+- Satu chat/operator diikat ke satu session operator tmux persisten. Natural text, command, dan
+  callback masuk session yang sama; Telegram bukan runtime agen atau command executor kedua.
+- Operator dapat memilih project/backlog/session, membaca status, start/stop/resume/interrupt/steer,
+  serta menerima progress ringkas, final, failure, decision, dan confirmation inline.
+- Personality memakai katalog CustomAgent; summary + curated memory bertahan restart dan dapat
+  diperiksa/dilupakan/reset.
+- Secret env-only; action lewat API ber-AgentToken/capability/audit; raw PTY/reasoning/ANSI tidak
+  pernah dijadikan reply Telegram.

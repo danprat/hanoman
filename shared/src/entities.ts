@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { zStage, zSpecSource, zDocStatus, zPriority, zProjectKind, zAgent, zVerifyScope } from "./enums";
+import { TELEGRAM_DEFAULTS, zTelegramSettings } from "./telegram";
 
 export type Stage = z.infer<typeof zStage>;
 // SPEC-338 · ADR-0074 · mesin sesi. Di-re-ekspor dari sini supaya konsumen setelan cukup
@@ -276,6 +277,7 @@ export const zSetting = z.object({
   verifyScope: zVerifyScope.default("changed"),                           // SPEC-376 · ADR-0080 · scope verifikasi sesi
   conflict: zConflict.default(CONFLICT_DEFAULTS),                         // SPEC-383 · ADR-0081 · default sesi konflik rebase/merge
   lead: zLead.default(LEAD_DEFAULTS),                                     // SPEC-409 · ADR-0091 · hanoman-lead (default mati)
+  telegram: zTelegramSettings.default(TELEGRAM_DEFAULTS),                 // SPEC-476 · ADR-0096 · gateway Telegram (default mati)
 });
 export type Setting = z.infer<typeof zSetting>;
 

@@ -32,6 +32,7 @@ import scheduler from "./routes/scheduler";
 import lead from "./routes/lead";
 import customAgents from "./routes/custom-agents";
 import githubIssues from "./routes/github-issues";
+import telegram from "./routes/telegram";
 import fastifyMultipart from "@fastify/multipart";
 import authRoutes from "./routes/auth";
 import agentTokens from "./routes/agent-tokens";
@@ -39,6 +40,8 @@ import { COOKIE_NAME, lookupSession } from "./services/auth";
 import { agentTokenFromReq, authenticateAgent } from "./services/agent-auth";
 import { checkAgentCapability } from "./services/agent-capabilities";
 import { detachAll } from "./services/pty";
+import { auditTelegramGatewayResponse, guardTelegramGatewayRequest } from "./services/telegram/security";
+import { stopTelegramRuntime } from "./services/telegram/runtime";
 
 // Endpoint yang boleh diakses tanpa sesi (path lengkap termasuk prefix /api).
 const PUBLIC = new Set([
@@ -67,7 +70,7 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
   app.register(websocket);
   // Lepaskan klien tmux (PTY yatim menahan proses tetap hidup), tapi JANGAN bunuh sesinya:
   // claude yang sedang bekerja harus selamat dari restart server (ADR-0016).
-  app.addHook("onClose", async () => { detachAll(); });
+  app.addHook("onClose", async () => { await stopTelegramRuntime(); detachAll(); });
   app.register(async (api) => {
     // Cookie parser lebih dulu supaya req.cookies terisi sebelum gate berjalan.
     await api.register(cookie);
@@ -114,6 +117,11 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
         return reply.code(401).send({ error: "unauthorized" });
       });
     }
+    // SPEC-476 · berjalan sesudah onRequest auth/capability agar identitas AgentToken sudah ada.
+    // Cookie dan AgentToken biasa lewat apa adanya; hanya token gateway runtime yang wajib correlation
+    // dan confirmation untuk aksi sulit dibatalkan.
+    api.addHook("preHandler", guardTelegramGatewayRequest);
+    api.addHook("onResponse", auditTelegramGatewayResponse);
     await api.register(authRoutes);
     await api.register(health);
     await api.register(projects);
@@ -142,6 +150,7 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
     await api.register(lead);       // SPEC-409 · ADR-0091 · hanoman-lead (cookie + capability `lead`)
     await api.register(customAgents); // SPEC-450 · ADR-0094 · katalog custom agent (capability `agents`)
     await api.register(githubIssues); // SPEC-471 · ADR-0095 · tarik & triase issue GitHub (capability `support`)
+    await api.register(telegram);     // SPEC-476 · ADR-0096 · context/memory/reply/audit Telegram
   }, { prefix: "/api" });
 
   // Prod: serve the built dashboard from one process; SPA-fallback to

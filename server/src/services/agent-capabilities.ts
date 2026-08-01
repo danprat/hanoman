@@ -31,6 +31,7 @@ export function capabilityForRoute(method: string, path: string): Resolved {
   // SPEC-450 · ADR-0094 keputusan 8 · dipetakan MENURUT METHOD, bukan prefix (kelas bug SPEC-405):
   // menulis definisi agen mengubah apa yang dilihat SETIAP sesi baru di seluruh workspace.
   if (top === "custom-agents") return rw("agents");
+  if (top === "telegram") return rw("telegram");
   if (top === "settings" || top === "config") return rw("settings");
   if (top === "specs") return rw("backlog");
   if (top === "notifications") return rw("notifications");

@@ -839,3 +839,32 @@ DELETE /api/custom-agents/:id -> 204     # mencabut nama itu dari `mentions` age
 > **Verifikasi wajib menanyai agen apa yang benar-benar ia miliki, bukan exit code:** `--agents`
 > ber-JSON rusak keluar **exit 0 dengan nol agen tanpa satu pun pesan**, dan nama tool tak dikenal
 > dibuang senyap.
+
+## Telegram gateway (SPEC-476 · ADR-0096)
+
+```text
+GET    /api/telegram/status
+GET    /api/telegram/chats/:chatId/context
+PATCH  /api/telegram/chats/:chatId/context { activeProjectId?, activeSessionId?, personalityAgentId?, summary? }
+POST   /api/telegram/chats/:chatId/memories { content }
+DELETE /api/telegram/chats/:chatId/memories/:id
+DELETE /api/telegram/chats/:chatId/memories
+POST   /api/telegram/replies { chatId, updateId, kind, text, summary?, remember[]?, confirmation? }
+GET    /api/telegram/audit?chatId&updateId&take&skip
+
+POST   /api/terminal/sessions/:id/steer { text }
+POST   /api/terminal/sessions/:id/interrupt
+```
+
+Prefix `telegram` memakai capability `telegram:read|write` menurut method. Request dari identitas
+`HANOMAN_TELEGRAM_AGENT_TOKEN` wajib membawa `x-hanoman-telegram-update`; reply body wajib cocok
+header dan update/chat binding. Aksi sulit dibatalkan juga wajib
+`x-hanoman-telegram-confirmation` approved yang cocok method/path dan dikonsumsi single-use.
+Untuk route IDE yang memilih operasi lewat body, pagar membaca operasi aktual: `POST
+/projects/:id/git` memeriksa `body.op`, sedangkan revert stage baru destruktif saat
+`confirmDelete:true`; request preview tetap non-destruktif.
+
+`POST /telegram/replies` idempoten per chat/update/kind dan hanya menerima output user-facing
+`progress|final|decision|failure|confirmation`. Raw PTY tidak punya endpoint ekspor ke Telegram.
+Endpoint context/memory tidak pernah mengembalikan token atau teks inbound. Audit hanya metadata
+correlation/method/path/status, tanpa body/header.

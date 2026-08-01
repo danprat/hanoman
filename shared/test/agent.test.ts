@@ -5,13 +5,13 @@ import {
 } from "../src";
 
 describe("agent capabilities", () => {
-  // SPEC-409 · ADR-0091 · +domain `lead` (minta putusan & baca jejak) → 10 domain.
-  // SPEC-450 · ADR-0094 · +domain `agents` (katalog custom agent) → 11 domain.
-  it("has 11 domains × read/write = 22 capability ids, all in metadata", () => {
-    expect(CAPABILITY_IDS.length).toBe(22);
-    expect(new Set(CAPABILITY_IDS).size).toBe(22);
+  // SPEC-476 · ADR-0096 · +domain `telegram` untuk context/memory/reply/audit gateway → 12 domain.
+  it("has 12 domains × read/write = 24 capability ids, all in metadata", () => {
+    expect(CAPABILITY_IDS.length).toBe(24);
+    expect(new Set(CAPABILITY_IDS).size).toBe(24);
     expect(CAPABILITIES.map((c) => c.id).sort()).toEqual([...CAPABILITY_IDS].sort());
     expect(zCapability.safeParse("projects:read").success).toBe(true);
+    expect(zCapability.safeParse("telegram:write").success).toBe(true);
     expect(zCapability.safeParse("nope:read").success).toBe(false);
   });
 
@@ -61,5 +61,6 @@ describe("agent capabilities", () => {
       notifyFail: true, notifyDone: true, notifySound: "short", notifyDecision: true, notifyDecisionSound: "alert",
     });
     expect(s.agentAccessEnabled).toBe(false);
+    expect(s.telegram).toEqual({ enabled: false, progress: true });
   });
 });

@@ -15,7 +15,10 @@ Lihat `requirements/prd.md` untuk detail terukur. Ini gambaran produk.
 5. **Terminal** — sesi Claude Code interaktif multi-pane di tmux: stage live, steer/interupsi, git worktree per backlog.
 6. **Docs · SoT** — index internal/docs, preview markdown ter-render, edit/hapus file, reverse-docs dari codebase.
 7. **VPS** — daftar & harden server, buka sesi `claude` berkonteks VPS.
-8. **Settings** — model & effort sesi, notifikasi, akun & users.
+8. **Settings** — model & effort sesi, notifikasi, akun & users, onboarding/status Telegram.
+9. **Telegram** — satu private chat allowlisted menuju satu session operator tmux persisten; natural
+   text/command mengendalikan capability Hanoman lewat API ber-AgentToken, dengan memory/personality,
+   audit, confirmation inline, dan reply tanpa raw PTY (SPEC-476/ADR-0096).
 
 ## Di luar scope MVP
 - Kolaborasi realtime multi-user, RBAC granular.

@@ -7,6 +7,14 @@ Perilaku per fitur (gaya EARS; lihat `requirements/acceptance-criteria-ears-stan
 - WHILE sebuah sesi berjalan, THE SYSTEM SHALL tetap menerima steer/interupsi dari manusia lewat terminal.
 - Docs acuan yang stale tidak lagi memblokir plan/execute (guardrail Source of Truth dicabut, SPEC-160/ADR-0023) — `internal/docs/**` tetap konvensi, coverage-nya tetap dilaporkan (`docs scan`).
 
+## Telegram (SPEC-476/ADR-0096)
+- WHEN private chat dari user id allowlisted mengirim natural text, command, atau callback, THE SYSTEM
+  SHALL men-steer satu session operator tmux persisten yang sama dan SHALL mengeksekusi update id itu
+  paling banyak sekali.
+- THE SYSTEM SHALL menjalankan action melalui API ber-AgentToken/capability/audit, meminta confirmation
+  inline untuk action sulit dibatalkan, dan SHALL membalas hanya dari amplop user-facing tersanitasi —
+  tidak pernah dari raw PTY/reasoning/ANSI/secret.
+
 ## Projects · from-scratch (scaffold — SPEC-222/ADR-0052)
 - WHEN project `from-scratch` dibuat dengan direktori dipilih, THE SYSTEM SHALL `git init` direktori itu
   dan membuat satu commit seed bila belum ada HEAD, lalu menyimpan `repoDir`. IF `git init`/commit gagal,

@@ -10,6 +10,9 @@ Manusia menuang ide / menulis brief / memfilekan QA finding. hanoman brainstorm 
 ## Objektif MVP
 Satu operator bisa menjalankan & memantau Claude Code di banyak project sekaligus, dengan docs sebagai Source of Truth, tanpa kehilangan kendali atas sesi yang berjalan.
 
+Telegram (SPEC-476/ADR-0096) menjadi kanal opsional ke objective yang sama: satu private chat
+allowlisted menuju satu session operator tmux persisten, bukan agen/runtime kedua.
+
 ## Doc inti
 | Doc | Isi |
 |---|---|

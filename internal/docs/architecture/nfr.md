@@ -4,9 +4,14 @@
 - **Interupsi** — instruksi ke sesi (steer / ctrl-c / tutup) diterapkan ≤ 2 dtk lewat tmux.
 - **Isolasi** — sebuah sesi tak pernah mengganggu working tree utama atau sesi lain; tiap backlog di
   worktree terpisah (ADR-0002).
-- **Durabilitas** — state (project/spec/setting/notification/user/session/vps) bertahan restart via
-  Postgres; sesi terminal yang berjalan bertahan restart API karena hidup di tmux (ADR-0016); docs
+- **Durabilitas** — state bertahan restart via satu berkas SQLite di `$HANOMAN_HOME`; sesi terminal
+  yang berjalan bertahan restart API karena hidup di tmux (ADR-0016); docs
   dibaca live dari disk, tak ada salinan yang bisa basi.
+- **Telegram at-most-once** — offset, dedupe, binding, dispatch, dan outbox durable; state batas crash
+  menjadi `uncertain` dan tak diretry otomatis, sehingga update yang sama tak pernah masuk session
+  dua kali (ADR-0096).
+- **Telegram latency** — update sah di-steer/di-spawn dalam ≤5 dtk di luar waktu long-poll/network;
+  progress berbasis state server, bukan streaming reasoning.
 - **Sumber daya** — beberapa sesi berjalan bersamaan di satu mesin operator, jadi sesi memverifikasi
   **ber-scope** secara default (`Setting.verifyScope = "changed"`, SPEC-376/ADR-0080): test hanya untuk
   berkas yang berubah, typecheck per paket, lint per berkas, build penuh & boot-server hanya bila

@@ -240,6 +240,7 @@ export function sessionKind(
 ): SessionKind {
   if (o.specId) return "spec";
   if (o.flow === "reverse" || o.flow === "prd" || o.flow === "scaffold" || o.flow === "breakdown") return o.flow;
+  if (projectId.startsWith("telegram:")) return "telegram";
   if (projectId.startsWith("vps")) return "vps";           // routes/vps.ts: "vps:<id>" & "vps-console:<id>"
   if (o.command) return "shell";
   if (cwd.includes("/.worktrees/")) return "worktree";     // sesi konflik merge/integrate
@@ -515,6 +516,19 @@ export async function sendToPane(id: string, text: string, chunkMs = 50): Promis
     io.enter();
     return true;
   } catch { return false; }                   // sesi lenyap di tengah pengetikan
+}
+
+/** Interrupt satu pane agen tanpa menyentuh proses/sesi tetangga. Escape adalah kontrak TUI
+ * Claude/Codex untuk menghentikan giliran yang sedang berjalan; target tmux selalu id eksak. */
+export function interruptPane(id: string): boolean {
+  const pane = getSession(id);
+  if (!pane || pane.exited) return false;
+  try {
+    tmux("send-keys", "-t", name(id), "Escape");
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**

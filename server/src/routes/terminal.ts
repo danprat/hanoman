@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { existsSync } from "node:fs";
 import { prisma } from "../db";
-import { zTerminalSession, zIntegrate, type Stage } from "@hanoman/shared";
+import { zTerminalSession, zIntegrate, zTerminalSteerInput, type Stage } from "@hanoman/shared";
 import { realGit, startProjectPrompt, startPrdPrompt, startScaffoldPrompt, startBreakdownPrompt, RESUMED_WORKTREE_NOTE, type Flow } from "@hanoman/runner";
 import { phaseFilePath, decisionFilePath, readPhases, stageForRun } from "../services/session-phases";
 import { specReview, reviewFile } from "../services/spec-review";
@@ -20,7 +20,7 @@ import { recordCompletion } from "../services/notifications";
 import { STAGES } from "../services/stage-machine";
 import {
   createSession, getSession, listSessions, killSession, sessionPhases,
-  attach, detach, writeTo, resize, shellBin, type Client,
+  attach, detach, writeTo, resize, shellBin, sendToPane, interruptPane, type Client,
 } from "../services/pty";
 
 // Sebuah PTY di atas WebSocket adalah remote code execution secara desain — identik
@@ -297,6 +297,22 @@ export default async function (app: FastifyInstance) {
     const phases = sessionPhases(id);
     if (!s?.flow || !phases) return reply.code(404).send({ error: "not found" });
     return { flow: s.flow, phases };
+  });
+
+  // SPEC-476 · ADR-0096 · parity kontrol Telegram. Dua endpoint sempit ini hanya beroperasi pada
+  // pane Hanoman yang sudah ada; tidak menerima argv/command dan capability-nya tetap `sessions`.
+  app.post("/terminal/sessions/:id/steer", async (req, reply) => {
+    const parsed = zTerminalSteerInput.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: "invalid body" });
+    const ok = await sendToPane((req.params as { id: string }).id, parsed.data.text);
+    if (!ok) return reply.code(404).send({ error: "live session not found" });
+    return reply.code(202).send({ accepted: true });
+  });
+
+  app.post("/terminal/sessions/:id/interrupt", async (req, reply) => {
+    const ok = interruptPane((req.params as { id: string }).id);
+    if (!ok) return reply.code(404).send({ error: "live session not found" });
+    return reply.code(202).send({ accepted: true });
   });
 
   // SPEC-230 · review diff worktree hidup sebuah sesi project-level (PRD). Kunci worktree = id

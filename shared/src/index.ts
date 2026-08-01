@@ -13,3 +13,4 @@ export * from "./session-kind";
 export * from "./config";
 export * from "./config-registry";
 export * from "./semver";
+export * from "./telegram";

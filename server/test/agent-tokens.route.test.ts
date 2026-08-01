@@ -31,8 +31,9 @@ describe("/agent-tokens routes (cookie-only)", () => {
     // menyetel ulang angkanya → 18 sejak itu selalu merah. Naikkan HANYA bersama penambahan yang
     // memang disengaja. SPEC-450 (ADR-0094) menambahkan `agents:read`/`agents:write` → 22:
     // `agents:write` mengubah apa yang dilihat SETIAP sesi baru di seluruh workspace, jadi
-    // pelebaran permukaan ini memang harus disadari.
-    expect(r.json().capabilities).toHaveLength(22);
+    // pelebaran permukaan ini memang harus disadari. SPEC-476 (ADR-0096) menambahkan
+    // `telegram:read`/`telegram:write` untuk identitas gateway yang dibatasi capability → 24.
+    expect(r.json().capabilities).toHaveLength(24);
     expect(r.json().capabilities[0]).toMatchObject({ id: expect.any(String), domain: expect.any(String), access: expect.any(String) });
   });
 

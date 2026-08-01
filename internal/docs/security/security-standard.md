@@ -94,3 +94,15 @@
     pegang (Keychain, `~/.claude/.credentials.json`, `Vps.keyPath`) tak pernah dicetak ke pane.
   - **Purge manual ber-scope** (`projectId` dan/atau `before`, minimal satu) adalah satu-satunya
     penghapusan, dan ia ikut membuang berkas transkripnya — tak ada retensi otomatis.
+- **Telegram gateway (SPEC-476, [ADR-0096](../adr/0096-telegram-gateway-session-operator-persisten.md))**:
+  - Bot token, allowlist, dan plaintext AgentToken hanya dari env; bot token tak pernah masuk session,
+    dan tidak ada secret plaintext di DB/log/prompt/transkrip/memory/audit/respons.
+  - Hanya private chat + numeric user id allowlisted; inbound divalidasi, ber-rate-limit durable,
+    idempoten `update_id`, dan tidak disimpan isi teksnya (audit memakai digest).
+  - Session operator memakai API existing dengan AgentToken/capability. Identitas token gateway wajib
+    correlation update id; audit menyimpan method/path/status saja, tanpa body/header.
+  - DELETE/integrate/reset/clean/drop/update/harden/remediate/revert destruktif membutuhkan confirmation
+    inline approved yang terikat chat/update/method/path, expiring, dan single-use. Capability dan pagar
+    endpoint existing tetap ditegakkan sesudahnya.
+  - Reply hanya amplop eksplisit tersanitasi; raw PTY/capture-pane dilarang menjadi chat meski ANSI
+    sudah dibuang, karena tetap dapat memuat reasoning, command echo, atau credential.

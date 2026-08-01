@@ -76,6 +76,8 @@ export const paths = {
   fsBrowse: (path?: string) => `${API}/fs/browse${path ? `?path=${encodeURIComponent(path)}` : ""}`,
   terminalSessions: `${API}/terminal/sessions`,
   terminalSession: (id: string) => `${API}/terminal/sessions/${id}`,
+  terminalSteer: (id: string) => `${API}/terminal/sessions/${id}/steer`,
+  terminalInterrupt: (id: string) => `${API}/terminal/sessions/${id}/interrupt`,
   terminalPhases: (id: string) => `${API}/terminal/sessions/${id}/phases`,
   // SPEC-230 · review + integrate ber-skop sesi (sesi project-level PRD, tanpa Spec).
   sessionReview: (id: string) => `${API}/terminal/sessions/${id}/review`,
@@ -130,6 +132,14 @@ export const paths = {
   // SPEC-450 · ADR-0094 · katalog custom agent. `?projectId=` → himpunan EFEKTIF (global+project).
   customAgents: `${API}/custom-agents`,
   customAgent: (id: string) => `${API}/custom-agents/${encodeURIComponent(id)}`,
+  // SPEC-476 · ADR-0096 · observability/context/reply kanal Telegram.
+  telegramStatus: `${API}/telegram/status`,
+  telegramContext: (chatId: string) => `${API}/telegram/chats/${encodeURIComponent(chatId)}/context`,
+  telegramMemories: (chatId: string) => `${API}/telegram/chats/${encodeURIComponent(chatId)}/memories`,
+  telegramMemory: (chatId: string, id: string) =>
+    `${API}/telegram/chats/${encodeURIComponent(chatId)}/memories/${encodeURIComponent(id)}`,
+  telegramReplies: `${API}/telegram/replies`,
+  telegramAudit: `${API}/telegram/audit`,
   // SPEC-268 · ADR-0066 · pemicu sync manual (cookie-authed)
   syncNow: `${API}/sync/now`,
   // SPEC-270 · ADR-0067 · antrean konflik rekonsil (cookie-authed)

@@ -4,7 +4,7 @@ import { z } from "zod";
 // disimpan di SessionHistory.kind. Label ikut di sini, bukan di UI: SPEC-262/264 sudah membuktikan
 // grid yang merender slug mentah membuat fiturnya tak ketemu saat dicari manusia.
 export const SESSION_KINDS = [
-  "spec", "reverse", "prd", "scaffold", "breakdown", "vps", "shell", "worktree", "terminal",
+  "spec", "reverse", "prd", "scaffold", "breakdown", "vps", "shell", "worktree", "terminal", "telegram",
 ] as const;
 export type SessionKind = (typeof SESSION_KINDS)[number];
 export const zSessionKind = z.enum(SESSION_KINDS);
@@ -19,6 +19,7 @@ export const SESSION_KIND_LABEL: Record<SessionKind, string> = {
   shell: "Terminal biasa",
   worktree: "Worktree (konflik)",
   terminal: "Sesi agen",
+  telegram: "Operator Telegram",
 };
 
 // "Mulai lagi" tak pernah menghidupkan proses lama (tmux sudah membunuhnya) — ia men-spawn sesi

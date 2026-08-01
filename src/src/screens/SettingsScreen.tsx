@@ -3,8 +3,8 @@
 import React from "react";
 import { Card, Switch, Select, Button, Input, Field, HnTextarea, Icon, StateBlock } from "../ds";
 import { api, ApiError } from "../api/client";
-import { CAPABILITY_DOMAINS, SCHEDULER_DEFAULTS, GOAL_DEFAULTS, CODEX_DEFAULTS, CONFLICT_DEFAULTS, LEAD_DEFAULTS, CODEX_MODELS, MODELS, EFFORTS, codexEfforts, coerceCodexEffort, codexModel, codexClientTooOld } from "@hanoman/shared";
-import type { Setting, UserView, DeviceTokenView, SessionResultView, ConfigResponse, ConfigEntryView, AgentTokenView, CapabilityInfo } from "@hanoman/shared";
+import { CAPABILITY_DOMAINS, SCHEDULER_DEFAULTS, GOAL_DEFAULTS, CODEX_DEFAULTS, CONFLICT_DEFAULTS, LEAD_DEFAULTS, TELEGRAM_DEFAULTS, CODEX_MODELS, MODELS, EFFORTS, codexEfforts, coerceCodexEffort, codexModel, codexClientTooOld } from "@hanoman/shared";
+import type { Setting, UserView, DeviceTokenView, SessionResultView, ConfigResponse, ConfigEntryView, AgentTokenView, CapabilityInfo, TelegramGatewayStatus } from "@hanoman/shared";
 import type { ShowToast } from "../ds";
 import { playNotifySound, type NotifySound } from "../notifications/sound";
 import { CustomAgentsPanel } from "./CustomAgentsPanel";
@@ -39,6 +39,7 @@ const S_DEFAULTS: Setting = {
   verifyScope: "changed",          // SPEC-376 · ADR-0080 · uji hanya yang berubah
   conflict: CONFLICT_DEFAULTS,     // SPEC-383 · ADR-0081 · default sesi konflik (opt-in, mati)
   lead: LEAD_DEFAULTS,             // SPEC-409 · ADR-0091 · hanoman-lead (master switch mati)
+  telegram: TELEGRAM_DEFAULTS,     // SPEC-476 · ADR-0096 · gateway Telegram opt-in
 };
 
 // SPEC-383 · label agen dipakai di judul grup model DAN di baris warisan kartu konflik — satu
@@ -473,6 +474,7 @@ const S_SECTIONS = [
   { key: "custom-agent", label: "Custom agent", icon: "bot" },   // SPEC-450 · ADR-0094 · katalog agen global
   { key: "aktivitas", label: "Aktivitas", icon: "activity" },    // SPEC-213 · activity log
   { key: "konfigurasi", label: "Konfigurasi", icon: "sliders" }, // SPEC-215 · env runtime
+  { key: "telegram", label: "Telegram", icon: "send" },          // SPEC-476 · operator gateway
   { key: "umum", label: "Umum", icon: "sliders-horizontal" },
   { key: "model", label: "Model sesi", icon: "cpu" },
   { key: "sesi", label: "Sesi", icon: "bell" },
@@ -483,6 +485,8 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
   const [s, setS] = React.useState<Setting | null>(null);
   const [failed, setFailed] = React.useState(false);
   const [tab, setTab] = React.useState<string>("akun");
+  const [telegramStatus, setTelegramStatus] = React.useState<TelegramGatewayStatus | null>(null);
+  const [telegramFailed, setTelegramFailed] = React.useState(false);
   // SPEC-339 · versi codex CLI, untuk peringatan LUNAK saja. Gagal-diam: endpoint yang error tak
   // boleh membuat layar Settings gagal render.
   const [codexVer, setCodexVer] = React.useState<{ version: string | null; minRequired: string } | null>(null);
@@ -494,6 +498,11 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
     api.getSettings().then(setS).catch(() => setFailed(true));
   }, []);
   React.useEffect(() => { load(); }, [load]);
+  const loadTelegram = React.useCallback(() => {
+    setTelegramFailed(false); setTelegramStatus(null);
+    api.getTelegramStatus().then(setTelegramStatus).catch(() => setTelegramFailed(true));
+  }, []);
+  React.useEffect(() => { if (tab === "telegram") loadTelegram(); }, [tab, loadTelegram]);
 
   // Kartu yang bergantung settings (umum/model/sesi). Loading/failed hanya relevan di sini.
   function prefs() {
@@ -513,6 +522,63 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
     // memperlihatkan default.
     const codex = s.codex ?? CODEX_DEFAULTS;
     const agent = s.agent ?? "claude";
+
+    if (tab === "telegram") {
+      const telegram = s.telegram ?? TELEGRAM_DEFAULTS;
+      const readiness = telegramStatus?.readiness ?? "memuat";
+      return (
+        <>
+          <Card eyebrow="telegram" title="Gateway Telegram">
+            <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.5 }}>
+              Satu private chat yang diizinkan terikat ke satu session operator Hanoman persisten.
+              Bahasa natural tetap antarmuka utama; command hanya shortcut ke session yang sama.
+            </div>
+            <SettingRow title="Gateway aktif"
+              desc="Mulai long polling in-process setelah restart service. Mematikan tidak membunuh session tmux atau memory.">
+              <Switch label="Gateway aktif" checked={telegram.enabled} onChange={(enabled: boolean) => {
+                persist({ ...s, telegram: { ...telegram, enabled } }, `Gateway Telegram · ${enabled ? "aktif" : "nonaktif"}`);
+              }} />
+            </SettingRow>
+            <SettingRow title="Kirim progress ringkas" last
+              desc="Hanya progress eksplisit dan fakta status Hanoman; layar PTY/reasoning tidak pernah diteruskan.">
+              <Switch label="Kirim progress ringkas" checked={telegram.progress} onChange={(progress: boolean) => {
+                persist({ ...s, telegram: { ...telegram, progress } }, `Progress Telegram · ${progress ? "aktif" : "nonaktif"}`);
+              }} />
+            </SettingRow>
+          </Card>
+          <Card eyebrow="readiness" title="Status & onboarding"
+            actions={<Button size="sm" variant="ghost" leftIcon="refresh-cw" onClick={loadTelegram}>Refresh</Button>}>
+            {telegramFailed ? <StateBlock kind="error" compact title="Gagal membaca status Telegram" action={loadTelegram} />
+              : !telegramStatus ? <StateBlock kind="loading" compact title="Memuat status Telegram…" />
+              : <>
+                <SettingRow title={`Readiness · ${readiness}`}
+                  desc={telegramStatus.running ? "Long poll aktif." : telegramStatus.lastError ?? "Gateway belum polling."}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
+                    {telegramStatus.botUsername ? `@${telegramStatus.botUsername}` : "bot belum terverifikasi"}
+                  </span>
+                </SettingRow>
+                <SettingRow title="Allowlist" desc={`${telegramStatus.allowlistCount} Telegram numeric user id diizinkan.`}>
+                  <span>{telegramStatus.configured ? "env lengkap" : "env belum lengkap"}</span>
+                </SettingRow>
+                {telegramStatus.missingCapabilities.length > 0 && <SettingRow title="Capability kurang" last
+                  desc={telegramStatus.missingCapabilities.join(", ")} />}
+              </>}
+            <div style={{ marginTop: 14, fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.7 }}>
+              <b>Onboarding</b>
+              <ol style={{ margin: "8px 0 0", paddingLeft: 20 }}>
+                <li>Buat satu bot private-chat lewat BotFather.</li>
+                <li>Isi <code>HANOMAN_TELEGRAM_BOT_TOKEN</code> dan <code>HANOMAN_TELEGRAM_ALLOWED_USER_IDS</code>.</li>
+                <li>Di Akses AI Agent, aktifkan master switch dan buat AgentToken dengan capability yang ditampilkan status.</li>
+                <li>Isi plaintext sekali ke <code>HANOMAN_TELEGRAM_AGENT_TOKEN</code>, lalu restart service.</li>
+                <li>Nyalakan gateway di atas dan kirim <code>/status</code>.</li>
+              </ol>
+              <div style={{ marginTop: 8 }}><b>Tidak ada input secret di layar ini:</b> credential disimpan di env,
+                bukan database, log, transcript, memory, atau respons.</div>
+            </div>
+          </Card>
+        </>
+      );
+    }
 
     if (tab === "umum") return (
       <>

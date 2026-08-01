@@ -12,6 +12,7 @@
 | VCS | git + **git worktree** | isolasi sesi per backlog/branch (ADR-0002) |
 | Agent | Claude Code CLI **interaktif** + hooks/skills/plugins | eksekusi brainstorm → objective → spec → plan → execute sebagai giliran satu sesi |
 | Auth | cookie sesi opaque revocable | bind `127.0.0.1` + reverse proxy TLS (ADR-0028) |
+| Kanal operator | Telegram Bot API long polling | satu bot/private chat; transport ke session tmux, bukan runtime agen ([ADR-0096](../adr/0096-telegram-gateway-session-operator-persisten.md)) |
 
 Tidak ada message queue, Redis, worker terpisah, cron eksternal, maupun webhook GitHub — semuanya
 dicabut saat pindah ke sesi interaktif (ADR-0024). Pekerjaan latar belakang berjalan **in-process**
@@ -133,10 +134,10 @@ titik berhenti — dan hanya berhenti untuk bertanya di terminal saat butuh kepu
 di `POST /terminal/sessions`) dan berlaku seumur hidup sesi (satu proses); manusia bisa mengetik `/model`
 di dalam terminal untuk menggesernya. Matrix per-fase (ADR-0058) dicabut — tak andal. Model-per-step (ADR-0003) usang bersama runner headless (ADR-0024).
 
-Sesi memakai `--dangerously-skip-permissions` (tak berpenunggu), sehingga guardrail perintah berbahaya
-bersandar sepenuhnya pada **PreToolUse hook** (`runner/src/safety.ts` `deniesDangerous` lewat
-`hanoman hook pretooluse`) yang dipasang di setiap sesi via `--settings` inline — menolak `rm -rf`, push
-ke `main`, dan `git worktree add` liar. Hook tetap jalan di bawah flag itu; yang dilewati hanya prompt izin.
+Sesi memakai `--dangerously-skip-permissions`/padanan codex tanpa hook deny perintah; guardrail itu
+dicabut ADR-0037 dan isolasi worktree adalah batas yang tersisa. Telegram tidak menambah executor:
+session operator memakai API ber-AgentToken/capability, dan confirmation inline menjadi syarat
+tambahan khusus action sulit dibatalkan dari identitas token gateway (ADR-0096).
 Saat hanoman sendiri jalan sebagai **root** (kasus lazim di VPS), claude CLI menolak flag itu dan `exit(1)`
 seketika — `createSession` karena itu memasang `IS_SANDBOX=1` di env sesi claude bila `getuid() === 0`
 (`rootBypassEnv`); lihat [security-standard](../security/security-standard.md).
