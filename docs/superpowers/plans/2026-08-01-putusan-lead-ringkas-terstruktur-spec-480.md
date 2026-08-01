@@ -814,7 +814,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `LEAD_DECISION_MAX`, `LEAD_REASON_MAX` (Task 1).
 - Produces: bentuk blok ```json yang diminta prompt kini memuat `choice` & `missing`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di akhir `server/test/lead-prompt.test.ts`:
 
@@ -871,14 +871,14 @@ describe("leadPrompt · putusan ringkas & terstruktur (SPEC-480)", () => {
 void _lp;
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan GAGAL**
+- [x] **Step 2: Jalankan test — pastikan GAGAL**
 
 ```bash
 ./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/lead-prompt.test.ts
 ```
 Expected: FAIL — prompt belum menyebut `choice`/`missing`/angka batas.
 
-- [ ] **Step 3: Ubah `prompt.ts`**
+- [x] **Step 3: Ubah `prompt.ts`**
 
 Ganti import baris 1:
 
@@ -921,14 +921,14 @@ Ganti contoh blok json (`JSON.stringify({...})`) dengan:
   }, null, 2));
 ```
 
-- [ ] **Step 4: Jalankan test — pastikan LULUS**
+- [x] **Step 4: Jalankan test — pastikan LULUS**
 
 ```bash
 ./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/lead-prompt.test.ts
 ```
 Expected: PASS seluruh berkas.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/lead/prompt.ts server/test/lead-prompt.test.ts

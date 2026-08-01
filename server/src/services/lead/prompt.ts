@@ -1,4 +1,4 @@
-import { LEAD_ACTIONS, type LeadKind } from "@hanoman/shared";
+import { LEAD_ACTIONS, LEAD_DECISION_MAX, LEAD_REASON_MAX, type LeadKind } from "@hanoman/shared";
 
 // SPEC-409 · ADR-0091 · prompt hanoman-lead. Murni (string masuk, string keluar) supaya bentuk
 // kontraknya bisa dites tanpa men-spawn agen apa pun — pola `runner/src/prompt.ts`.
@@ -83,6 +83,10 @@ export function leadPrompt(q: LeadQuestion, c: LeadContext): string {
     lines.push("");
     lines.push("Opsi yang dilihat peminta:");
     for (const [i, o] of q.options.entries()) lines.push(`${i + 1}. ${o}`);
+    // SPEC-480 · ADR-0098 · sampai spec ini, satu-satunya jembatan antara "opsi yang dipilih" dan
+    // "apa yang dijalankan" adalah harapan bahwa prosa `decision` dan field `action` sepakat.
+    lines.push("");
+    lines.push("Salah satu dari daftar itu WAJIB kamu pilih lewat field `choice` — isi nomornya (\"2\") atau labelnya persis. Pilihan di luar daftar ditolak server, dicatat sebagai penolakan, dan peminta kembali menunggu manusia.");
   }
   lines.push("");
   lines.push("## Batas waktu (BACA INI DULU)");
@@ -91,12 +95,16 @@ export function leadPrompt(q: LeadQuestion, c: LeadContext): string {
   lines.push("");
   lines.push("## Cara kerja");
   lines.push("1. KUMPULKAN BUKTI DULU sebelum memutuskan, DI DALAM anggaran waktu di atas: `internal/docs/**` (Source of Truth) dan index-nya, ADR yang relevan, plan `docs/superpowers/plans/**`, kode yang bersangkutan, dan riwayat git. Baca, jangan mengingat — tapi baca seperlunya, bukan sehabisnya.");
-  lines.push("2. Putuskan. Kalau setelah membaca kamu masih ragu, TETAP putuskan: pilih opsi yang PALING MUDAH DIBATALKAN, lalu tandai `confidence: \"ragu\"`. Jangan pernah menjawab \"tidak tahu\" atau meminta manusia memutuskan — itu persis keadaan yang kamu ada untuk menghapusnya.");
+  lines.push("2. Putuskan. Kalau setelah membaca kamu masih ragu, TETAP putuskan: pilih opsi yang PALING MUDAH DIBATALKAN, lalu tandai `confidence: \"ragu\"`. \"Tidak tahu\" bukan jawaban, dan meminta manusia memutuskan adalah persis keadaan yang kamu ada untuk menghapusnya. SATU pengecualian: bila jawabannya menuntut fakta konkret yang memang TIDAK ADA di repo maupun di konteks ini, isi `missing` dengan daftar pendek hal yang kurang — hal yang bisa disediakan seseorang, bukan keluhan — dan tetap tulis `decision` sebagai langkah paling aman sementara. `missing` yang terisi memaksa `confidence` jadi `ragu` dan memanggil operator; jangan memakainya untuk bukti yang cuma tipis.");
   lines.push("3. Rujuk bukti yang BENAR-BENAR kamu baca. Rujukan berupa path berkas relatif terhadap checkout, nomor ADR (`ADR-0091`), atau sha commit. Rujukan yang tak ada di repo akan dibuang server dan membuat jawabanmu tampak tanpa dasar.");
   lines.push("4. JANGAN membaca atau mengutip kredensial (isi `.env*`, token, kunci privat). Jejak keputusan disimpan di basis data; rahasia tak boleh mendarat di sana.");
   lines.push("5. Kamu TIDAK mengeksekusi apa pun sendiri. Kamu mengusulkan satu `action`; server yang menjalankannya, dan hanya bila ia ada di daftar tertutup ini:");
   lines.push(`   ${LEAD_ACTIONS.join(" · ")}`);
   lines.push("   Deploy, perintah/konsol VPS, data produksi, dan penghapusan apa pun (project, backlog, branch, worktree, notifikasi, jejak) TERKUNCI dan tidak akan pernah dijalankan.");
+  lines.push("");
+  lines.push("## Sepanjang apa (WAJIB)");
+  lines.push(`Peminta jawabanmu adalah MESIN yang sedang menunggu, bukan pembaca laporan. \`decision\` paling banyak ${LEAD_DECISION_MAX} karakter (satu kalimat) dan \`reason\` paling banyak ${LEAD_REASON_MAX} karakter (dua-tiga kalimat). Yang lebih panjang dipangkas server sebelum sampai ke peminta.`);
+  lines.push("JANGAN menuliskan: ringkasan ulang konteks yang sudah kamu terima di atas, latar belakang atau sejarah masalahnya, daftar alternatif yang tak diminta, maupun rencana kerja bertahap. Langsung putusannya dan alasannya.");
   lines.push("");
   lines.push("## Bentuk jawaban (WAJIB)");
   lines.push("Akhiri jawabanmu dengan TEPAT SATU blok berikut, tanpa teks sesudahnya:");
@@ -104,10 +112,12 @@ export function leadPrompt(q: LeadQuestion, c: LeadContext): string {
   lines.push("```json");
   lines.push(JSON.stringify({
     decision: "keputusan yang dipilih, satu kalimat",
-    reason: "alasannya, menyebut bukti",
+    choice: "nomor atau label opsi yang kamu pilih; kosongkan bila tak ada daftar opsi",
+    reason: "alasannya, dua-tiga kalimat, menyebut bukti",
     refs: ["internal/docs/…", "ADR-00xx"],
     confidence: "tinggi | sedang | ragu",
     action: "none",
+    missing: [],
     reply: "teks yang akan diketikkan ke terminal agen peminta (kosongkan bila tak relevan)",
   }, null, 2));
   lines.push("```");
