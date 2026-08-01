@@ -35,6 +35,9 @@ export function capabilityForRoute(method: string, path: string): Resolved {
   if (top === "specs") return rw("backlog");
   if (top === "notifications") return rw("notifications");
   if (top === "tickets") return rw("support");   // SPEC-384 · `errors` dicabut (ADR-0092)
+  // SPEC-471 · ADR-0095 · triase issue GitHub satu domain dengan tiket: keduanya permukaan
+  // masuk yang melahirkan backlog. `rw()` menurunkannya dari method (kelas bug SPEC-405).
+  if (top === "github-issues") return rw("support");
   if (top === "vps") return rw("vps");
   if (top === "prds") return rw("docs");
   if (top === "terminal") {
@@ -44,6 +47,7 @@ export function capabilityForRoute(method: string, path: string): Resolved {
   if (top === "projects") {
     const sub = seg[2]; // seg[1] = :id
     if (sub === "docs" || sub === "prds") return rw("docs");
+    if (sub === "github") return rw("support");   // SPEC-471 · ADR-0095 · tarik/daftar issue
     if (sub && IDE_SUBS.has(sub)) return rw("ide");
     return rw("projects");
   }

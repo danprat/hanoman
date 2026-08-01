@@ -1522,7 +1522,7 @@ git commit -m "feat(471): jembatan issue GitHub → Spec, idempoten lewat back-p
 - Consumes: `pullIssues` (Task 5), `acceptGithubIssue` (Task 7), `resolveGithubRepo` (Task 2)
 - Produces: enam endpoint di bawah prefix `/api`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 `server/test/github-routes.test.ts`:
 
@@ -1647,12 +1647,12 @@ Tambahkan ke `server/test/agent-capabilities.test.ts`:
   });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan MERAH**
+- [x] **Step 2: Jalankan, pastikan MERAH**
 
 Run: `./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/github-routes.test.ts server/test/agent-capabilities.test.ts`
 Expected: FAIL — 404 untuk semua route baru; `capabilityForRoute` mengembalikan `projects:read`
 
-- [ ] **Step 3: Implementasi route**
+- [x] **Step 3: Implementasi route**
 
 `server/src/routes/github-issues.ts`:
 
@@ -1790,12 +1790,12 @@ dan di dalam cabang `top === "projects"`, sebelum `if (sub && IDE_SUBS.has(sub))
     if (sub === "github") return rw("support");   // SPEC-471 · ADR-0095
 ```
 
-- [ ] **Step 4: Jalankan, pastikan HIJAU**
+- [x] **Step 4: Jalankan, pastikan HIJAU**
 
 Run: `./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/github-routes.test.ts server/test/agent-capabilities.test.ts`
 Expected: PASS — 9 test route + suite capability lengkap
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/routes/github-issues.ts server/src/app.ts \

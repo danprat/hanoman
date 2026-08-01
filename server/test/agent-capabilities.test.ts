@@ -50,6 +50,15 @@ describe("capabilityForRoute", () => {
   it.each(cases)("%s %s → %s", (m, p, want) => {
     expect(capabilityForRoute(m, p)).toBe(want);
   });
+
+  // SPEC-471 · ADR-0095 · triase issue satu domain dengan tiket; dipetakan MENURUT METHOD
+  // (kelas bug SPEC-405: prefix status yang lolos GLOBAL_READ tanpa melihat method).
+  it("SPEC-471 · github-issues & projects/:id/github → domain support per-method", () => {
+    expect(capabilityForRoute("GET", "/api/projects/p/github/issues")).toBe("support:read");
+    expect(capabilityForRoute("POST", "/api/projects/p/github/pull")).toBe("support:write");
+    expect(capabilityForRoute("GET", "/api/github-issues")).toBe("support:read");
+    expect(capabilityForRoute("POST", "/api/github-issues/x/accept")).toBe("support:write");
+  });
 });
 
 describe("checkAgentCapability", () => {

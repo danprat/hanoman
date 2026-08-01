@@ -31,6 +31,7 @@ import tickets from "./routes/tickets";
 import scheduler from "./routes/scheduler";
 import lead from "./routes/lead";
 import customAgents from "./routes/custom-agents";
+import githubIssues from "./routes/github-issues";
 import fastifyMultipart from "@fastify/multipart";
 import authRoutes from "./routes/auth";
 import agentTokens from "./routes/agent-tokens";
@@ -140,6 +141,7 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
     await api.register(codex);      // SPEC-339 · versi codex CLI untuk peringatan model 5.6
     await api.register(lead);       // SPEC-409 · ADR-0091 · hanoman-lead (cookie + capability `lead`)
     await api.register(customAgents); // SPEC-450 · ADR-0094 · katalog custom agent (capability `agents`)
+    await api.register(githubIssues); // SPEC-471 · ADR-0095 · tarik & triase issue GitHub (capability `support`)
   }, { prefix: "/api" });
 
   // Prod: serve the built dashboard from one process; SPA-fallback to
