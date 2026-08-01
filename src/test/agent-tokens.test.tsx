@@ -46,6 +46,22 @@ describe("AgentAccessPanel", () => {
     await waitFor(() => expect(screen.getByText("hnm_agt_secret")).toBeTruthy());
   });
 
+  // SPEC-482 · ADR-0099 · panduan pemasangan MCP harus benar-benar TERPASANG di tab ini, bukan
+  // sekadar ada sebagai komponen. `mcp-panel.test.tsx` merender McpPanel berdiri sendiri — dengan
+  // itu saja, menghapus <McpPanel/> dari AgentAccessPanel tetap hijau dan panduannya lenyap dari
+  // dashboard tanpa satu pun test merah. Ini call site-nya, dan inilah yang menjaganya.
+  it("SPEC-482 · memuat panduan pemasangan MCP di tab yang sama dengan pengelolaan token", async () => {
+    render(<AgentAccessPanel />);
+    await waitFor(() => expect(api.listAgentTokens).toHaveBeenCalled());
+    const snippet = screen.getByTestId("mcp-snippet").textContent ?? "";
+    expect(snippet).toContain('"command": "hanoman"');
+    expect(snippet).toContain("HANOMAN_AGENT_TOKEN");
+    // Token nyata tak pernah masuk contoh pemasangan — hanya placeholder.
+    expect(snippet).toContain("hnm_agt_…");
+    expect(snippet).not.toContain("hnm_agt_secret");
+    expect(screen.getByTestId("mcp-tools")).toBeTruthy();
+  });
+
   it("toggles the master switch via putSettings", async () => {
     render(<AgentAccessPanel />);
     await waitFor(() => expect(api.getSettings).toHaveBeenCalled());
