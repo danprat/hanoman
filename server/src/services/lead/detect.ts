@@ -5,6 +5,7 @@ import { capturePane, getSession, liveDecisions, markerFilled, sendToPane, submi
 import { dialogKey, readDialogScreen } from "../tui-dialog";
 import { recordLeadDecision } from "../notifications";
 import { getLead, leadActive, leadProjects } from "./config";
+import { closeFlow, LeadFlowClosedError } from "./flow";
 import { readPaneQuestion } from "./pane";
 import { decide, prodDecideDeps, takeDelivery, type DecideDeps } from "./decide";
 import { LeadBusyError, runPool } from "./gate";
@@ -46,6 +47,40 @@ const capped = new Set<string>();
  */
 const failures = new Map<string, number>();
 const failCapped = new Set<string>();
+/** Kapan kegagalan terakhir sesi itu terjadi — pasangan `FAIL_COOLDOWN_MS`. */
+const failedAt = new Map<string, number>();
+
+/**
+ * SPEC-487 (QA) · sesudah sekian lama tanpa kegagalan baru, deretnya dianggap PUTUS.
+ *
+ * Temuan C audit SPEC-479 mengukur `failCapped` sebagai keadaan MENYERAP: sesudah cap tak ada
+ * percobaan, tanpa percobaan tak ada keberhasilan, tanpa keberhasilan `failures` tak pernah
+ * dikosongkan — nol percobaan baru dalam 10 denyut sesudah bebannya hilang. Perbaikan SPEC-479
+ * hanya mengecualikan `LeadBusyError`, yaitu kasus di mana agen BELUM SEMPAT dipanggil; kasus yang
+ * diukur temuan itu — agen dipanggil lalu di-SIGTERM di detik ke-`timeoutSec` karena mesinnya
+ * sedang berat — tetap tiba sebagai `status = "gagal"` biasa. Beban adalah justru tempat deadline
+ * itu terlampaui, jadi pengecualiannya menutup separuh yang salah.
+ *
+ * 15 menit dipilih dari bentuk badainya, bukan dari angka bulat: badai SPEC-472 (152 percobaan
+ * dalam ±13 menit) berjarak `TICK_MS` = 5 detik, jadi ambang `maxAutoAnswers` tetap tercapai dalam
+ * hitungan detik dan masa dingin ini menurunkannya ke ±3 percobaan per 15 menit — sementara sesi
+ * yang cuma korban tiga lonjakan beban tak lagi ditinggalkan selamanya. Konstanta modul, cermin
+ * `MAX_CHAIN_STEPS` (ADR-0091): ia bukan setelan, ia bentuk pagarnya.
+ */
+export const FAIL_COOLDOWN_MS = 15 * 60_000;
+
+/**
+ * SPEC-487 (QA) · ADR-0102 · `LeadFlow` rantai yang sedang berjalan untuk satu sesi.
+ *
+ * Diingat LINTAS DENYUT, bukan lokal di `runChain`: rantai boleh terputus di tengah (gerbang penuh,
+ * agen gagal, layar belum berganti) dan markernya sengaja dipertahankan supaya denyut berikutnya
+ * melanjutkannya. Kalau alurnya tak ikut diingat, lanjutannya lahir sebagai alur BARU dan
+ * `chainSteps` — satu-satunya alasan ADR-0102 ada — kosong lagi tepat di tempat yang paling
+ * membutuhkannya.
+ *
+ * Dibersihkan oleh yang sama dengan penghitung lain: rantai tuntas, `sweep`, dan `resetSession`.
+ */
+const chainFlows = new Map<string, string>();
 
 /**
  * SPEC-474 · batas langkah satu RANTAI dialog. Konstanta modul, bukan konfigurasi (cermin
@@ -59,12 +94,29 @@ export const MAX_CHAIN_STEPS = 6;
 const CHAIN_POLL_MS = 300;
 const CHAIN_POLL_TRIES = 20;
 
+/**
+ * SPEC-487 (QA) · berapa tangkapan layar dibutuhkan sebelum "rantainya sudah tuntas" boleh
+ * dipercaya (±1,5 dtk).
+ *
+ * Vonis itu MENGOSONGKAN marker, dan marker sebuah dialog hanya terisi SEKALI (SPEC-474: 0 B
+ * selama 120 dtk dengan dialognya masih terbuka) — jadi vonis yang salah membuat sisa rantainya
+ * tak terjangkau siapa pun. Sementara itu `waitScreenChange` pulang begitu `dialogKey` berubah,
+ * termasuk berubah jadi `"none"` pada satu frame setengah-render di antara dua pertanyaan. Satu
+ * tangkapan karena itu bukan bukti; beberapa tangkapan berturut-turut baru bukti.
+ *
+ * Cermin `SUBMIT_TRIES` (tui-dialog.ts): yang mahal bukan jedanya, melainkan salah membaca layar
+ * setengah jadi.
+ */
+const CHAIN_END_TRIES = 5;
+
 export function resetSession(sessionId: string): void {
   answers.delete(sessionId); capped.delete(sessionId);
-  failures.delete(sessionId); failCapped.delete(sessionId);
+  failures.delete(sessionId); failCapped.delete(sessionId); failedAt.delete(sessionId);
+  chainFlows.delete(sessionId);
 }
 export function __resetDetect(): void {
-  answers.clear(); capped.clear(); failures.clear(); failCapped.clear();
+  answers.clear(); capped.clear(); failures.clear(); failCapped.clear(); failedAt.clear();
+  chainFlows.clear();
 }
 export function answerCount(sessionId: string): number { return answers.get(sessionId) ?? 0; }
 export function failureCount(sessionId: string): number { return failures.get(sessionId) ?? 0; }
@@ -100,6 +152,16 @@ export type DetectDeps = {
   submit: (id: string) => Promise<boolean>;
   /** Jeda antar-pembacaan layar; disuntikkan supaya rantai bisa diuji tanpa waktu nyata. */
   sleep: (ms: number) => Promise<void>;
+  /**
+   * SPEC-487 · tutup `LeadFlow` sebuah rantai yang benar-benar tuntas.
+   *
+   * Pasangan dari `chain: true` yang dikirim `runChain` ke `decide()`: selama bendera itu menyala
+   * `decide()` sengaja TIDAK menutup alurnya sendiri (ADR-0102), jadi harus ada yang menutupnya di
+   * ujung — dan ujungnya hanya diketahui `runChain`.
+   */
+  closeChain: (flowId: string) => Promise<void>;
+  /** Jam untuk masa dingin `failures` (`FAIL_COOLDOWN_MS`); disuntik supaya teruji deterministik. */
+  now: () => number;
   decide: typeof decide;
   decideDeps: DecideDeps;
   /**
@@ -126,6 +188,10 @@ export const prodDetectDeps: DetectDeps = {
   clearMarker: (file) => { try { writeFileSync(file, ""); } catch { /* marker lenyap = sudah kosong */ } },
   submit: (id) => submitPaneDialog(id),
   sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+  // Alur yang gagal ditutup bukan alasan menggagalkan rantai yang sudah berhasil: penyapu TTL
+  // (ADR-0102) tetap menutupnya.
+  closeChain: async (flowId) => { await closeFlow(flowId, "submit").catch(() => null); },
+  now: Date.now,
   decide,
   decideDeps: prodDecideDeps,
   delivery: takeDelivery,
@@ -163,7 +229,18 @@ export async function scanAndAnswer(deps: DetectDeps = prodDetectDeps): Promise<
     const skip = (reason: string) => out.skipped.push({ id: s.id, reason });
     if (!optIn.has(s.projectId)) { skip("project tak opt-in lead"); continue; }
     if (!leadActive(cfg, s.projectId)) { skip("lead dijeda untuk project ini"); continue; }
-    if (!deps.filled(s.decisionFile)) continue;      // tak menunggu apa-apa
+    // SPEC-487 (QA) · marker adalah PEMBERITAHUAN; layar adalah BUKTI. Hook `Notification` claude
+    // mengisi marker sekali per dialog dan tak pernah menembak lagi (SPEC-474: 0 B / 120 dtk dengan
+    // dialognya masih terbuka), jadi selama marker adalah satu-satunya kunci pintu ini, marker yang
+    // dikosongkan lebih awal — oleh sebab apa pun — membuat dialognya tak terlihat SELAMANYA.
+    // Terukur in-vivo: dialog terbuka + marker kosong = 0 percobaan dalam 20 denyut / 100 dtk, dan
+    // sesinya tak muncul bahkan di `skipped`.
+    //
+    // Kunci kedua fail-closed secara konstruksi: `readDialogScreen` menuntut footer chord claude,
+    // yang tak pernah dirender codex — AC-9 tetap utuh. Ongkosnya satu `capture-pane` per sesi
+    // hidup per denyut untuk sesi ber-marker kosong (terukur 6,28 ms/panggilan, SPEC-479 temuan E).
+    if (!deps.filled(s.decisionFile)
+      && !(!deps.exited(s.id) && readDialogScreen(deps.pane(s.id)))) continue;   // tak menunggu apa-apa
     if (deps.exited(s.id)) { skip("pane mati"); continue; }   // AC-10
 
     if ((answers.get(s.id) ?? 0) >= cfg.maxAutoAnswers) {     // AC-11
@@ -182,6 +259,14 @@ export async function scanAndAnswer(deps: DetectDeps = prodDetectDeps): Promise<
       }
       skip("batas jawaban otomatis tercapai");
       continue;
+    }
+
+    // SPEC-487 · deret kegagalan PUTUS sesudah `FAIL_COOLDOWN_MS` tanpa kegagalan baru. Tanpa ini
+    // `failCapped` adalah keadaan menyerap dan tiga lonjakan beban menutup lead bagi sesi ini
+    // selamanya (temuan C audit SPEC-479, yang perbaikannya hanya menyentuh `LeadBusyError`).
+    const lastFail = failedAt.get(s.id);
+    if (lastFail !== undefined && deps.now() - lastFail > FAIL_COOLDOWN_MS) {
+      failures.delete(s.id); failCapped.delete(s.id); failedAt.delete(s.id);
     }
 
     // SPEC-472 · pagar kedua: menyerah sesudah sederet kegagalan. Ditempatkan SEBELUM `decide()`
@@ -224,7 +309,10 @@ export async function scanAndAnswer(deps: DetectDeps = prodDetectDeps): Promise<
       out.answered.push(s.id);
       return;
     }
-    if (chain.failed) failures.set(s.id, (failures.get(s.id) ?? 0) + 1);
+    if (chain.failed) {
+      failures.set(s.id, (failures.get(s.id) ?? 0) + 1);
+      failedAt.set(s.id, deps.now());
+    }
     out.skipped.push({ id: s.id, reason: chain.reason });
   });
   return out;
@@ -255,8 +343,20 @@ async function runChain(
   deps: DetectDeps,
 ): Promise<ChainResult> {
   let acted = false;
+  // SPEC-487 · seluruh rantai duduk di SATU `LeadFlow` (ADR-0102), termasuk saat ia menyeberangi
+  // beberapa denyut. `done()` menutupnya; jalan keluar lain sengaja meninggalkannya terbuka supaya
+  // lanjutannya menyusul ke alur yang sama.
+  const done = async (r: ChainResult): Promise<ChainResult> => {
+    const flowId = chainFlows.get(s.id);
+    if (flowId) { chainFlows.delete(s.id); await deps.closeChain(flowId).catch(() => {}); }
+    return r;
+  };
   for (let step = 0; step < MAX_CHAIN_STEPS; step++) {
-    const text = deps.pane(s.id);
+    // SPEC-487 · di langkah > 0, "layarnya bukan dialog lagi" adalah VONIS yang mengosongkan marker
+    // — dan marker sebuah dialog hanya terisi sekali. Karena itu ia dibaca dari tangkapan yang
+    // sudah TENANG, bukan dari satu tangkapan yang bisa saja mendarat di frame setengah-render.
+    // Langkah 0 tak butuh itu: di sana layar memang boleh bukan dialog (jalur kolom chat lama).
+    const text = step === 0 ? deps.pane(s.id) : await settledPane(s.id, deps);
     const screen = readDialogScreen(text);
 
     // Layar rekap: langkah MEKANIS, tanpa agen. Menekan `Submit answers` tak butuh pertimbangan —
@@ -270,13 +370,14 @@ async function runChain(
 
     // Layarnya sudah bukan dialog → rantai tuntas. Langkah 0 sengaja dikecualikan: di sana layar
     // memang boleh berupa kolom chat biasa, dan itu jalur lama yang harus tetap dilayani.
-    if (step > 0 && !screen) return { acted, done: true, failed: false, reason: "" };
+    //
+    if (step > 0 && !screen) return done({ acted, done: true, failed: false, reason: "" });
 
     const read = readPaneQuestion(text, agent);
     if (!read.asking) {
       return step === 0
         ? { acted, done: false, failed: false, reason: read.reason }
-        : { acted, done: true, failed: false, reason: "" };
+        : done({ acted, done: true, failed: false, reason: "" });
     }
 
     // SPEC-452 · saat layarnya dialog pilihan, jawaban lead dimasukkan lewat KOLOM JAWABAN BEBAS
@@ -309,19 +410,37 @@ async function runChain(
     //
     // Rantai yang terputus di tengah aman ditinggalkan: markernya belum dikosongkan, jadi denyut
     // berikutnya membaca layar dialog apa adanya dan melanjutkan dari pertanyaan yang tampil.
+    //
+    // SPEC-487 · `chain: true` SELALU dikirim: `runChain` — bukan agen peminta mana pun — adalah
+    // penggerak rantai yang sesungguhnya di produksi, dan tanpa bendera itu `decide()` menutup
+    // alurnya sebagai `tunggal` di tiap langkah. Terukur sebelum perbaikan ini: 22 dari 22 baris
+    // `gate="detected"` ber-`step = 1` dan ketiga alurnya `tunggal`, padahal ketiganya satu dialog
+    // 3-pertanyaan. Konsekuensinya `chainSteps` selalu kosong, dan tiap langkah memutuskan tanpa
+    // tahu langkah sebelumnya — persis "konteks hilang di antaranya" yang ADR-0102 ada untuk
+    // menutupnya.
+    const ask = {
+      projectId: s.projectId, specId: s.specId, sessionId: s.id,
+      gate: "detected" as const, kind: "answer" as const,
+      question: read.question,
+      options: read.choices.length ? read.choices : undefined,
+      notes, chain: true,
+    };
     let row: LeadDecision | null;
     try {
-      row = await deps.decide({
-        projectId: s.projectId, specId: s.specId, sessionId: s.id,
-        gate: "detected", kind: "answer",
-        question: read.question,
-        options: read.choices.length ? read.choices : undefined,
-        notes,
-      }, deps.decideDeps);
+      row = await deps.decide({ ...ask, flowId: chainFlows.get(s.id) ?? null }, deps.decideDeps);
     } catch (e) {
       if (e instanceof LeadBusyError) return { acted, done: false, failed: false, reason: `lead penuh — ${e.message}` };
-      throw e;
+      // Alur yang kedaluwarsa di tengah rantai panjang (`flowTtlMin`) tak boleh menjatuhkan
+      // rantainya: lepaskan ingatannya dan mulai alur baru dari langkah ini.
+      if (!(e instanceof LeadFlowClosedError)) throw e;
+      chainFlows.delete(s.id);
+      try { row = await deps.decide({ ...ask, flowId: null }, deps.decideDeps); }
+      catch (e2) {
+        if (e2 instanceof LeadBusyError) return { acted, done: false, failed: false, reason: `lead penuh — ${e2.message}` };
+        throw e2;
+      }
     }
+    if (row?.flowId) chainFlows.set(s.id, row.flowId);
     // `null` = lead baru saja dijeda/dimatikan di tengah panggilan — bukan kegagalan lead, jadi tak
     // dihitung. Baris ber-status `gagal` ADALAH kegagalan: ia yang harus punya ujung (SPEC-472).
     if (!row) return { acted, done: false, failed: false, reason: "lead tak menghasilkan keputusan yang berlaku" };
@@ -343,7 +462,7 @@ async function runChain(
     acted = true;
 
     // Kolom chat biasa: satu jawaban lalu selesai — perilaku persis sebelum spec ini.
-    if (!screen) return { acted, done: true, failed: false, reason: "" };
+    if (!screen) return done({ acted, done: true, failed: false, reason: "" });
 
     // Dialog: tunggu layarnya BENAR-BENAR berganti sebelum mata rantai berikutnya dibaca. Tanpa
     // jeda ini tangkapan berikutnya masih layar yang sama, dan gerbang anti-loop akan menutup
@@ -352,6 +471,23 @@ async function runChain(
       return { acted, done: false, failed: true, reason: "layar dialog tak berubah sesudah dijawab" };
   }
   return { acted, done: false, failed: true, reason: "batas langkah rantai dialog tercapai" };
+}
+
+/**
+ * SPEC-487 · tangkapan layar yang sudah TENANG: kembalikan tangkapan pertama yang berupa dialog,
+ * atau — bila memang tak ada lagi — tangkapan terakhir sesudah `CHAIN_END_TRIES` percobaan.
+ *
+ * Bukan `waitScreenChange` yang lain: yang itu menunggu layar BERGANTI (dan karena itu puas oleh
+ * frame apa pun yang berbeda), yang ini menunggu layar BERHENTI berubah bentuk. Keduanya dibutuhkan
+ * di tempat yang berbeda, dan menggabungkannya akan membuat salah satunya kehilangan artinya.
+ */
+async function settledPane(id: string, deps: DetectDeps): Promise<string> {
+  let text = deps.pane(id);
+  for (let i = 0; i < CHAIN_END_TRIES && !readDialogScreen(text); i++) {
+    await deps.sleep(CHAIN_POLL_MS);
+    text = deps.pane(id);
+  }
+  return text;
 }
 
 async function waitScreenChange(id: string, before: string, deps: DetectDeps): Promise<boolean> {
@@ -369,4 +505,8 @@ function sweep(liveIds: string[]): void {
   for (const id of [...capped]) if (!live.has(id)) capped.delete(id);
   for (const id of [...failures.keys()]) if (!live.has(id)) failures.delete(id);
   for (const id of [...failCapped]) if (!live.has(id)) failCapped.delete(id);
+  for (const id of [...failedAt.keys()]) if (!live.has(id)) failedAt.delete(id);
+  // Alur rantainya sendiri tak ikut ditutup di sini: penyapu TTL (ADR-0102) yang mengurusnya, dan
+  // "peminta mati di tengah rantai" memang tepat keadaan yang `kedaluwarsa` ada untuk menamainya.
+  for (const id of [...chainFlows.keys()]) if (!live.has(id)) chainFlows.delete(id);
 }

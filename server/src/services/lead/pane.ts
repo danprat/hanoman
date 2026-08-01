@@ -22,6 +22,34 @@ const CODEX_FINISHED = [
 ];
 
 /**
+ * SPEC-487 (QA) · penanda BARIS GILIRAN claude — sesi yang bekerja atau baru saja selesai bekerja,
+ * bukan sesi yang bertanya.
+ *
+ * Marker keputusan adalah pemberitahuan, bukan keadaan: hook `Notification` (SPEC-184) menyala
+ * untuk `idle|permission|waiting for|needs.?input`, tak pernah padam sendiri, dan claude di bawah
+ * ini menerimanya tanpa satu pun syarat lain. Terukur di jejak DB hidup: **6 dari 22** keputusan
+ * pintu deteksi diambil untuk sesi yang layarnya berakhir pada baris giliran, bukan pada
+ * pertanyaan — dan pemisahannya dari 16 baris dialog SEMPURNA (6/6 vs 0/16).
+ *
+ * Claude menulis baris itu dalam dua bentuk, keduanya membawa TIMER giliran, dan keduanya berarti
+ * "agen berbicara, tak bertanya":
+ *
+ * - sedang berjalan  `✳ Scurrying… (3m 24s · ↓ 12.5k tokens)`   (1 dari 6)
+ * - baru saja selesai `✻ Cooked for 40m 4s`                      (5 dari 6, tetap di layar)
+ *
+ * Isi keenamnya diperiksa satu per satu: semuanya LAPORAN akhir giliran (ringkasan perubahan,
+ * catatan lingkungan, alasan sesuatu ditunda) — **nol** di antaranya pertanyaan. Jadi menutup pintu
+ * di sini tak mencabut kemampuan menjawab pertanyaan prosa: pertanyaan prosa yang belum berakhir
+ * giliran tak punya baris ini. Lima dari enam berujung prosa yang benar-benar diketik ke pane (satu
+ * ke sesi yang sudah bekerja 91 menit), dan tiap pesan liar itu menaikkan `answers` — jatah AC-11
+ * yang seharusnya menjawab dialog sungguhan berikutnya.
+ *
+ * Polanya menuntut ANGKA + satuan waktu, bukan kata kerjanya: nama verb claude berganti-ganti tiap
+ * rilis, sementara timernya adalah kontrak tampilan yang tak pernah absen.
+ */
+const AGENT_TURN_LINE = /(?:\bfor\s+\d+\s*[hms]\b|\(\s*\d+\s*[hms][^)]*·)/i;
+
+/**
  * Sinyal "sedang bertanya". Sengaja konservatif: pintu ini MENGETIK ke terminal agen yang sedang
  * bekerja, jadi ragu = diam. Yang dianggap sinyal: baris yang berakhir tanda tanya, daftar opsi
  * bernomor, dan kata kerja permintaan putusan yang lazim dipakai agen berbahasa Indonesia/Inggris.
@@ -59,9 +87,16 @@ export function readPaneQuestion(text: string, agent: Agent): PaneRead {
   const body = lines.join("\n").trim();
   // SPEC-452 · dibaca dari teks ASLI, bukan dari `body`: `CLEAN` membuang `❯` dan garis kotak yang
   // ikut menyusun layar dialog, dan parser dialog memang menunggu bentuknya apa adanya.
-  const choices = readChoiceDialog(text)?.options ?? [];
+  const dialog = readChoiceDialog(text);
+  const choices = dialog?.options ?? [];
   if (!body) return { asking: false, question: "", reason: "layar kosong", choices };
   const question = tail(text, 25).join("\n").trim();
+  // SPEC-487 · dialog di layar adalah bukti LANGSUNG dan menang mutlak: ia tak pernah terbuka
+  // sementara giliran berjalan, sedangkan `capturePane` menyeret 200 baris riwayat yang bisa masih
+  // memuat baris spinner giliran sebelumnya. Menilai busy lebih dulu akan membuang dialog nyata
+  // karena sisa layar lama — tepat kesalahan yang berlawanan.
+  if (!dialog && AGENT_TURN_LINE.test(body))
+    return { asking: false, question, reason: "giliran agen, bukan pertanyaan (baris giliran claude di layar)", choices };
   if (agent === "codex") {
     const finished = CODEX_FINISHED.find((re) => re.test(body));
     if (finished) return { asking: false, question, reason: "sesi codex selesai wajar (ADR-0074)", choices };

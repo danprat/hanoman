@@ -26,6 +26,9 @@ function counters() {
     filled: () => false, pane: () => "", agentOf: () => "claude", exited: () => true,
     send: async () => true, clearMarker: () => { /* diam */ },
     submit: async () => true, sleep: async () => { /* tanpa waktu nyata */ },
+    // SPEC-487 · rantai deteksi hidup di dalam satu `LeadFlow`, dan masa dingin `failures` punya
+    // jamnya sendiri. Denyut ini tak pernah menyentuh keduanya — cukup bentuknya yang sah.
+    closeChain: async () => { /* diam */ }, now: () => clock.t,
     decide: (async () => null) as unknown as DetectDeps["decide"],
     decideDeps: {} as DetectDeps["decideDeps"],
     delivery: () => null,   // SPEC-480 · denyut ini tak pernah sampai ke perakitan teks jawaban
