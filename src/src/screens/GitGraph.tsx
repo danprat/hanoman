@@ -341,7 +341,7 @@ export function GitGraph({ projectId, onRunGit, onMerge, onRebase, onPull, onDro
               <Icon name="search" size={13} color="var(--text-subtle)" />
               <input autoFocus value={find} onChange={(e) => { setFind(e.target.value); setFindIdx(0); }}
                 onKeyDown={(e) => { if (e.key === "Enter") gotoHit(findIdx + (e.shiftKey ? -1 : 1)); if (e.key === "Escape") setFindOpen(false); }}
-                placeholder="cari commit (pesan/author/hash/ref)…"
+                placeholder="mis. auto-merge, 3a3e7e0, atau hanoman/spec-490"
                 style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 12.5, fontFamily: "var(--font-ui)", color: "var(--text-body)" }} />
               <span style={{ fontSize: 11, color: "var(--text-subtle)", fontFamily: "var(--font-mono)" }}>
                 {findHits.length ? `${findIdx + 1}/${findHits.length}` : find ? "0" : ""}

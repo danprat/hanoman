@@ -204,7 +204,9 @@ export function StartSessionModal({ open, spec, onClose, onStarted, onError }:
           </span>
         </div>
         {goalOn && <HnTextarea value={goalCond} rows={4} mono
-          placeholder={goalLocked ? "Kosong = goal backlog item ini" : "Kosong = kondisi bawaan hanoman"}
+          placeholder={goalLocked
+            ? "Kosong = goal backlog item ini · mis. semua fase tercatat & plan tanpa - [ ]"
+            : "Kosong = kondisi bawaan hanoman · mis. semua fase tercatat & plan tanpa - [ ]"}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setGoalCond(e.target.value)} />}
       </Field>
       {/* SPEC-376 · ADR-0080 · scope verifikasi: sesi menguji berkas yang berubah saja supaya
@@ -364,8 +366,8 @@ export function NewSpecModal({ open, onClose, projects, defaultProject, onCreate
             <HnTextarea value={f.steps} onChange={set("steps")} rows={3} mono placeholder={"1. Buka …\n2. Lakukan …\n3. Amati …"} />
           </Field>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <Field label="Diharapkan"><HnTextarea value={f.expected} onChange={set("expected")} rows={2} placeholder="Perilaku yang benar…" /></Field>
-            <Field label="Aktual"><HnTextarea value={f.actual} onChange={set("actual")} rows={2} placeholder="Perilaku yang terjadi…" /></Field>
+            <Field label="Diharapkan"><HnTextarea value={f.expected} onChange={set("expected")} rows={2} placeholder="mis. total funnel sama dengan jumlah baris laporan harian" /></Field>
+            <Field label="Aktual"><HnTextarea value={f.actual} onChange={set("actual")} rows={2} placeholder="mis. total funnel dua kali lipat untuk sesi yang melewati tengah malam" /></Field>
           </div>
           <Field label="Environment" hint="build / kanal tempat finding muncul">
             <Input value={f.env} onChange={set("env")} placeholder="prod · web · v0.9.2" style={{ width: "100%" }} />
@@ -376,11 +378,11 @@ export function NewSpecModal({ open, onClose, projects, defaultProject, onCreate
           <Field label={isAudit ? "Apa yang diaudit / pertanyaan" : "Konteks"}
             hint={isAudit ? "Isu atau pertanyaan yang mau ditelusuri" : "Latar belakang & alasan fitur ini dibutuhkan"}>
             <HnTextarea value={f.context} onChange={set("context")} rows={3}
-              placeholder={isAudit ? "mis. apakah funnel double-count? cek log sesi lintas tengah malam…" : "Situasi & motivasi…"} />
+              placeholder={isAudit ? "mis. apakah funnel double-count? cek log sesi lintas tengah malam…" : "mis. operator harus membuka tiga layar untuk tahu sesi mana yang menunggu"} />
           </Field>
           <Field label={isAudit ? "Temuan/jawaban yang diharapkan" : "Hasil yang diharapkan"}>
             <HnTextarea value={f.outcome} onChange={set("outcome")} rows={2}
-              placeholder={isAudit ? "Jawaban/kepastian yang dicari…" : "Kondisi setelah selesai…"} />
+              placeholder={isAudit ? "Jawaban/kepastian yang dicari…" : "mis. satu badge di Overview menunjukkan jumlah sesi yang menunggu"} />
           </Field>
           <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 12 }}>
             <Field label="Batasan" hint="opsional">
@@ -508,7 +510,7 @@ function NewProjectModal({ open, onClose, onCreate }:
           <FolderPicker open={picker} onClose={() => setPicker(false)}
             start={f.dir} onPick={(p) => setF((s) => ({ ...s, dir: p }))} />
           <Field label="Ide awal" hint="bahan brainstorm objective → jadi deskripsi & seed scaffold">
-            <HnTextarea value={f.objective} onChange={set("objective")} rows={2} placeholder="Tuang ide di sini…" />
+            <HnTextarea value={f.objective} onChange={set("objective")} rows={2} placeholder="mis. POS ritel dengan stok multi-gudang dan laporan harian" />
           </Field>
         </>
       ) : (

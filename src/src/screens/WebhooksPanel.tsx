@@ -221,7 +221,7 @@ export function WebhooksPanel({ onToast, onOpenDocs }:
         <Card eyebrow={draft.id ? "ubah" : "tambah"} title={draft.id ? "Ubah endpoint" : "Endpoint baru"}>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <Field label="Nama">
-              <Input value={draft.name} placeholder="Dashboard internal"
+              <Input value={draft.name} placeholder="mis. Dashboard internal"
                 onChange={(ev: React.ChangeEvent<HTMLInputElement>) => setDraft({ ...draft, name: ev.target.value })} />
             </Field>
             <Field label="URL tujuan">

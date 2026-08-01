@@ -60,7 +60,7 @@ function VpsModal({ open, title, submitLabel, initial, onClose, onSubmit }:
       </div>
       <Field label="Password SSH" hint={PASSWORD_HINT}>
         <Input type="password" value={f.password} onChange={set("password")}
-          placeholder="untuk VPS yang belum punya key" style={{ width: "100%" }} /></Field>
+          placeholder="••••••••" style={{ width: "100%" }} /></Field>
       <Field label="Key path" hint="kosongkan bila memakai password di atas, atau key default mesin server">
         <Input value={f.keyPath} onChange={set("keyPath")} mono placeholder="~/.ssh/id_ed25519" style={{ width: "100%" }} /></Field>
     </Modal>

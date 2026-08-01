@@ -84,7 +84,7 @@ export function SessionHistoryModal({ projects, onClose, onRestart }: {
   return (
     <Modal open title="Riwayat sesi" icon="history" onClose={onClose} width={900}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
-        <Input size="sm" leftIcon="search" placeholder="Cari sesi…" aria-label="Cari riwayat sesi"
+        <Input size="sm" leftIcon="search" placeholder="mis. spec-412 atau reverse" aria-label="Cari riwayat sesi"
           value={q} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value)}
           style={{ flex: "1 1 200px" }} />
         <Select size="sm" aria-label="Filter project" value={project} onChange={(e) => setProject(e.target.value)}

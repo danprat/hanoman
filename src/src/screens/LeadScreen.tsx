@@ -235,7 +235,7 @@ function DecisionRow({ d, onOverride, onCancel, busyId }: {
           )}
           <div style={{ display: "flex", gap: 8 }}>
             <Input style={{ flex: 1 }} aria-label={`jawaban operator untuk ${d.id}`}
-              placeholder="Jawaban kamu — dikirim ke sesi bila panenya masih hidup"
+              placeholder="mis. pilih opsi 2, pakai Node 22"
               value={draft} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDraft(e.target.value)} />
             {/* Centang saja sudah cukup: labelnya yang jadi jawaban bila kolom prosanya kosong. */}
             <Button size="sm" leftIcon="check"

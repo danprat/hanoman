@@ -336,7 +336,7 @@ function BacklogPicker({ seed, activeIds, error, onPick, onClose }: {
       )}
       {/* baris penyaring: search + stage + prioritas (startable tak pernah `done`). */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
-        <Input size="sm" leftIcon="search" placeholder="Cari backlog…" aria-label="Cari backlog"
+        <Input size="sm" leftIcon="search" placeholder="mis. invoice atau SPEC-412" aria-label="Cari backlog"
           value={q} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value)}
           style={{ flex: "1 1 220px" }} />
         <Select size="sm" aria-label="Filter stage" value={stageFilter} onChange={(e) => setStageFilter(e.target.value)}

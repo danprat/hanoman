@@ -788,7 +788,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
         </div>
         {/* SPEC-178 · baris penyaring: search + project + stage + prioritas. */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <Input size="sm" leftIcon="search" placeholder="Cari backlog…" aria-label="Cari backlog"
+          <Input size="sm" leftIcon="search" placeholder="mis. invoice atau SPEC-412" aria-label="Cari backlog"
             value={q} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value)} style={{ flex: "1 1 220px" }} />
           <Select size="sm" value={proj} onChange={(e) => setProj(e.target.value)}
             options={[{ value: "all", label: "Semua project" }].concat(projOptions.map((p) => ({ value: p.id, label: p.name })))} />

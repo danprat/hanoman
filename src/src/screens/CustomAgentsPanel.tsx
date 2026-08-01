@@ -239,7 +239,7 @@ export function CustomAgentsPanel({ projectId, onToast }: CustomAgentsPanelProps
           <Field label="Tools" hint={`Kosongkan untuk memakai default: ${DEFAULT_AGENT_TOOLS.join(", ")}. Alat delegasi (Task) diatur otomatis dari Mention.`}>
             <MultiSelect aria-label="Tools" options={toolOptions} value={editing.draft.tools}
               invalidValues={invalidTools} onChange={setTools}
-              placeholder="Pilih tools…" searchPlaceholder="Cari tool…" />
+              placeholder="Pilih tools…" searchPlaceholder="mis. Read atau Bash" />
           </Field>
           <Field label="Runtime agent" hint="Mesin sesi yang memakai agen ini. Kosongkan untuk ikut sesi induk — dipakai sesi claude maupun codex.">
             <Select aria-label="Runtime agent" value={editing.draft.runtime}
@@ -258,7 +258,7 @@ export function CustomAgentsPanel({ projectId, onToast }: CustomAgentsPanelProps
             <MultiSelect aria-label="Mention" options={mentionOptions} value={editing.draft.mentions}
               invalidValues={invalidMentions}
               onChange={(mentions: string[]) => setEditing({ ...editing, draft: { ...editing.draft, mentions } })}
-              placeholder="Pilih agen…" searchPlaceholder="Cari agen…"
+              placeholder="Pilih agen…" searchPlaceholder="mis. peninjau-keamanan"
               emptyText="Belum ada agen lain." />
           </Field>
           {blocked && (

@@ -125,7 +125,7 @@ export function Shell({ active, title, breadcrumb, actions, showSearch = false, 
           </div>
           <div style={{ flex: 1 }} />
           {showSearch && (
-            <Input placeholder="Cari project…" leftIcon="search" size="sm" style={{ width: 220 }}
+            <Input placeholder="mis. hanoman atau erp" leftIcon="search" size="sm" style={{ width: 220 }}
               value={searchValue}
               onChange={onSearchChange ? (e: React.ChangeEvent<HTMLInputElement>) => onSearchChange(e.target.value) : undefined}
               readOnly={!onSearchChange} />

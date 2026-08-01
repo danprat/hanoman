@@ -55,10 +55,10 @@ export function NewPrdModal({ projects, defaultProject, onClose, onCreate, prefi
         <Input value={f.title} onChange={set("title")} placeholder="mis. Jadwal Invoice Berulang" style={{ width: "100%" }} />
       </Field>
       <Field label="Konteks" hint="Latar belakang & alasan fitur ini dibutuhkan">
-        <HnTextarea value={f.context} onChange={set("context")} rows={3} placeholder="Situasi & motivasi…" />
+        <HnTextarea value={f.context} onChange={set("context")} rows={3} placeholder="mis. operator harus membuka tiga layar untuk tahu sesi mana yang menunggu" />
       </Field>
       <Field label="Hasil yang diharapkan">
-        <HnTextarea value={f.outcome} onChange={set("outcome")} rows={2} placeholder="Kondisi setelah selesai…" />
+        <HnTextarea value={f.outcome} onChange={set("outcome")} rows={2} placeholder="mis. satu badge di Overview menunjukkan jumlah sesi yang menunggu" />
       </Field>
       <Field label="Batasan" hint="opsional">
         <Input value={f.constraints} onChange={set("constraints")} placeholder="mis. reuse queue yang ada" style={{ width: "100%" }} />

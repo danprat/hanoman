@@ -250,7 +250,7 @@ function ActivityPanel({ onToast }: { onToast?: ShowToast }) {
         Ringkasan hasil sesi lintas device (transisi stage, commit, PR) — append-only. Filter per project.
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "end", marginBottom: 12 }}>
-        <Field label="Project id (opsional)"><Input value={projectId} placeholder="semua project"
+        <Field label="Project id (opsional)"><Input value={projectId} placeholder="mis. hanoman — kosong = semua project"
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProjectId(e.target.value)} style={{ width: "100%" }} /></Field>
         <Button size="sm" variant="ghost" leftIcon="trash-2" disabled={!projectId} onClick={purge} style={{ marginBottom: 14 }}>Purge</Button>
       </div>
@@ -438,7 +438,7 @@ export function AgentAccessPanel({ onToast }: { onToast?: ShowToast } = {}) {
           ))}
 
         <div style={{ paddingTop: 14 }}>
-          <Field label="Nama token"><Input value={name} placeholder="mis. nama token (agent-ci)"
+          <Field label="Nama token"><Input value={name} placeholder="mis. agent-ci"
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)} style={{ width: "100%" }} /></Field>
           <div style={{ marginTop: 12, fontSize: 12.5, fontWeight: 600, color: "var(--text-strong)" }}>Capability</div>
           <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr auto auto", gap: "6px 14px", alignItems: "center" }}>
@@ -999,8 +999,10 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
         <SettingRow title="Kondisi (template global)" last
           desc="Kosong = kondisi bawaan hanoman: semua fase tercatat di phase file, plan tak menyisakan task, push sukses.">
           <div style={{ width: 320 }}>
-            <HnTextarea value={s.goal.condition} rows={4} mono
-              placeholder="Kosong = kondisi bawaan hanoman"
+            {/* SPEC-490 · `SettingRow` bukan <label>, jadi textarea ini tak punya nama yang bisa
+                dipegang pembaca layar maupun test — placeholder bukan penggantinya. */}
+            <HnTextarea value={s.goal.condition} rows={4} mono aria-label="Kondisi mode goal"
+              placeholder="Kosong = kondisi bawaan hanoman · mis. semua fase tercatat & plan tanpa - [ ]"
               onChange={(e) => persist({ ...s, goal: { ...s.goal, condition: e.target.value } })} />
           </div>
         </SettingRow>

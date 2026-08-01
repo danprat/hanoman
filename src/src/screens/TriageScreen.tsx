@@ -358,7 +358,7 @@ export function TriageScreen({ projects, onAccepted, onToast }:
         {tab === "tiket" && <>
           <Select size="sm" value={status} onChange={(e) => setStatus(e.target.value)}
             options={[{ value: "", label: "Semua status" }, { value: "new", label: "belum ditinjau" }, { value: "accepted", label: "diterima" }, { value: "rejected", label: "ditutup" }]} />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari judul / email"
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="mis. gagal login atau budi@contoh.id"
             style={{ flex: 1, minWidth: 160, padding: "6px 10px", border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", background: "var(--surface-card)", color: "var(--text-body)", fontSize: 13 }} />
           {unreviewed > 0 && <Badge tone="warn">{unreviewed} belum ditinjau</Badge>}
           <SyncButton onDone={() => load(true)} onToast={onToast} />
