@@ -534,7 +534,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `resolveChoice`, `clampProse`, `optionActionHint`, `LEAD_DECISION_MAX`, `LEAD_REASON_MAX`, `type LeadDelivery`, `type LeadChoice` (Task 1); `TrailInput.choice/choiceIndex/options/missing` (Task 2).
 - Produces: `export function takeDelivery(decisionId: string): LeadDelivery | null` — **menggantikan** `takeReply`. Pemanggil: `routes/lead.ts` (Task 5) dan `services/lead/detect.ts` (Task 6).
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Di `server/test/lead-decide.test.ts`: ganti import baris 5 dan **ganti seluruh** `describe("decide · balasan untuk pane", …)` (baris 194-207) dengan blok di bawah, lalu tambahkan blok SPEC-480 di akhir berkas.
 
@@ -678,14 +678,14 @@ describe("decide · ringkas saat dikirim, penuh di jejak (SPEC-480)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan GAGAL**
+- [x] **Step 2: Jalankan test — pastikan GAGAL**
 
 ```bash
 ./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/lead-decide.test.ts
 ```
 Expected: FAIL — `takeDelivery` belum diekspor.
 
-- [ ] **Step 3: Implementasi di `decide.ts`**
+- [x] **Step 3: Implementasi di `decide.ts`**
 
 Ganti import baris 2-5 menjadi:
 
@@ -782,14 +782,14 @@ export function takeDelivery(decisionId: string): LeadDelivery | null {
 }
 ```
 
-- [ ] **Step 4: Jalankan test — pastikan LULUS**
+- [x] **Step 4: Jalankan test — pastikan LULUS**
 
 ```bash
 ./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/lead-decide.test.ts
 ```
 Expected: PASS seluruh berkas (test SPEC-409/432 lama ikut hijau).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/lead/decide.ts server/test/lead-decide.test.ts

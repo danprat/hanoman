@@ -1,7 +1,8 @@
 import type { LeadDecision } from "@prisma/client";
 import {
   isWeightyDecision, leadActionAllowed, leadRefusalReason,
-  type Agent, type LeadAction, type LeadGate, type LeadKind,
+  resolveChoice, clampProse, optionActionHint, LEAD_DECISION_MAX, LEAD_REASON_MAX,
+  type Agent, type LeadAction, type LeadDelivery, type LeadGate, type LeadKind,
 } from "@hanoman/shared";
 import { prisma } from "../../db";
 import { resolveRepoDir } from "../local-binding";
@@ -121,34 +122,79 @@ export async function decide(req: DecideRequest, deps: DecideDeps = prodDecideDe
 
   const refs = keepExistingRefs(verdict.refs, repoDir);
   const allowed = leadActionAllowed(verdict.action);
-  const action: LeadAction = allowed ? (verdict.action as LeadAction) : "none";
   const kind: LeadKind = allowed ? req.kind : "refusal";
-  const reason = allowed
-    ? verdict.reason
-    : `${verdict.reason}\n\nDITOLAK: ${leadRefusalReason(verdict.action)} berada di luar permukaan tindakan lead (ADR-0091 · AC-31/32).`;
-  const weighty = isWeightyDecision({ kind, action, confidence: verdict.confidence });
+
+  // SPEC-480 · pilihan sebagai DATA. `options` kosong = peminta memang tak menyodorkan menu; di
+  // situ `choice` tak punya arti dan tak pernah ditolak.
+  const options = req.options ?? [];
+  const choice = resolveChoice(verdict.choice, options);
+  const choiceRejected = options.length > 0 && verdict.choice.trim() !== "" && !choice;
+  const missing = verdict.missing.map((m) => m.trim()).filter(Boolean);
+
+  // SPEC-480 · tindakan boleh DITURUNKAN dari opsi terpilih, tapi hanya saat lead diam. Label opsi
+  // dirakit PEMINTA ("integrate-main — …"), jadi hint-nya bukan tebakan atas maksud agen; yang tak
+  // pernah ditebak adalah pertentangan — di sana tindakan dibatalkan dan operator diberi tahu.
+  let action: LeadAction = allowed ? (verdict.action as LeadAction) : "none";
+  let actionNote = "";
+  let conflict = false;
+  if (allowed && choice) {
+    const hint = optionActionHint(choice.option);
+    if (hint && action === "none" && hint !== "none") {
+      action = hint;
+      actionNote = `Tindakan diturunkan dari opsi terpilih ("${hint}") karena lead tak menyebutnya sendiri (SPEC-480).`;
+    } else if (hint && action !== "none" && action !== hint) {
+      conflict = true;
+      actionNote = `KONFLIK: lead memilih opsi "${choice.option}" tetapi menyetel action "${action}" — tindakan dibatalkan (SPEC-480).`;
+      action = "none";
+    }
+  }
+
+  // `missing` terisi ⇒ ragu, apa pun yang ditulis lead. Menyatakan konteksnya kurang DAN mengaku
+  // yakin adalah dua hal yang tak bisa benar bersamaan.
+  const confidence = missing.length ? "ragu" : verdict.confidence;
+
+  const notes: string[] = [];
+  if (!allowed) notes.push(`DITOLAK: ${leadRefusalReason(verdict.action)} berada di luar permukaan tindakan lead (ADR-0091 · AC-31/32).`);
+  if (choiceRejected) notes.push(`DITOLAK: pilihan "${verdict.choice.trim().slice(0, 120)}" tidak ada di daftar opsi yang dikirim peminta (SPEC-480 · ADR-0098).`);
+  if (actionNote) notes.push(actionNote);
+  if (missing.length) notes.push(`KONTEKS KURANG: ${missing.join("; ")}`);
+  const tail = notes.length ? `\n\n${notes.join("\n\n")}` : "";
+
+  const weighty = isWeightyDecision({ kind, action, confidence }) || choiceRejected || conflict;
 
   const row = await recordDecision({
     projectId: req.projectId, specId: req.specId, sessionId: req.sessionId,
-    gate: req.gate, kind, question: req.question, answer: verdict.decision, reason,
-    refs, confidence: verdict.confidence, action, weighty,
+    // Jejak menyimpan prosa lead UTUH: yang dipangkas hanya yang DIKIRIM (SPEC-480). Jejak adalah
+    // tempat orang mencari kenapa sebuah putusan diambil; memangkasnya di sini menukar putusan
+    // yang bertele-tele dengan putusan yang tak bisa diaudit.
+    gate: req.gate, kind, question: req.question, answer: verdict.decision,
+    reason: `${verdict.reason}${tail}`,
+    refs, confidence, action, weighty,
+    choice: choice?.option ?? null, choiceIndex: choice?.index ?? null,
+    options, missing,
   });
   if (weighty) {
-    await deps.notify(row.id, notifTitle(kind, req.question, verdict.decision, verdict.confidence),
+    await deps.notify(row.id, notifTitle(kind, req.question, verdict.decision, confidence),
       req.projectId, req.specId ?? null, req.sessionId ?? null);
   }
-  // `reply` tak disimpan di kolom sendiri: yang perlu bertahan adalah KEPUTUSAN-nya, sementara
-  // teks yang diketik ke pane hanya berumur satu ketikan. Pemanggil membacanya dari verdict.
-  lastReply.set(row.id, verdict.reply || verdict.decision);
+  // Putusan "sebagaimana dikirim": terpangkas di batas kalimat, catatan penolakan ditempelkan
+  // SESUDAH pemangkasan supaya justru bagian yang paling perlu dibaca tak ikut terpotong.
+  lastDelivery.set(row.id, {
+    decision: clampProse(verdict.decision, LEAD_DECISION_MAX),
+    reason: `${clampProse(verdict.reason, LEAD_REASON_MAX)}${tail}`,
+    reply: verdict.reply,
+    choice, missing,
+  });
   return row;
 }
 
-// Teks balasan untuk pane, berumur pendek: dipakai detect.ts sesaat setelah decide() kembali.
-// Map (bukan kolom DB) karena isinya turunan dari `answer` dan tak punya nilai historis.
-const lastReply = new Map<string, string>();
-export function takeReply(decisionId: string): string {
-  const v = lastReply.get(decisionId) ?? "";
-  lastReply.delete(decisionId);
+// Putusan sebagaimana DIKIRIM, berumur pendek: dipakai route (pintu #1) & detect.ts (pintu #2)
+// sesaat setelah decide() kembali. Map (bukan kolom DB) karena isinya turunan dari baris yang
+// sudah tersimpan dan tak punya nilai historis — yang bertahan adalah jejaknya, yang utuh.
+const lastDelivery = new Map<string, LeadDelivery>();
+export function takeDelivery(decisionId: string): LeadDelivery | null {
+  const v = lastDelivery.get(decisionId) ?? null;
+  lastDelivery.delete(decisionId);
   return v;
 }
 
