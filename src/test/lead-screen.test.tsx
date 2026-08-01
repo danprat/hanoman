@@ -312,3 +312,40 @@ describe("LeadScreen · pilihan jamak & rantai (SPEC-485)", () => {
     expect(await screen.findByText(/Pakai kolom baru atau turunkan/)).toBeInTheDocument();
   });
 });
+
+// SPEC-488 · mesin yang menjalankan lead disetel di Settings → Model sesi, tapi layar INI yang
+// dilihat operator saat mengurus lead. Nilainya sudah ada di `config` yang dipoll — menampilkannya
+// tak menambah satu permintaan pun.
+describe("SPEC-488 · baris mesin lead", () => {
+  it("engine mati → menunjuk ke Settings, bukan diam", async () => {
+    getLeadStatus.mockResolvedValue(STATUS);
+    getLeadDecisions.mockResolvedValue(DECISIONS);
+    renderScreen();
+    const line = await screen.findByTestId("lead-engine-line");
+    expect(line).toHaveTextContent("ikut default global");
+    expect(line).toHaveTextContent("Settings");
+  });
+
+  it("engine hidup → runtime, model, dan effort tampil apa adanya", async () => {
+    getLeadStatus.mockResolvedValue({
+      ...STATUS,
+      config: { ...CONFIG, engine: { enabled: true, agent: "codex", model: "gpt-5.6-terra", effort: "medium" } },
+    });
+    getLeadDecisions.mockResolvedValue(DECISIONS);
+    renderScreen();
+    const line = await screen.findByTestId("lead-engine-line");
+    expect(line).toHaveTextContent("Codex CLI");
+    expect(line).toHaveTextContent("gpt-5.6-terra");
+    expect(line).toHaveTextContent("medium");
+  });
+
+  // Server lama tak mengirim blok `engine` sama sekali — barisnya harus tetap terbaca, bukan
+  // meruntuhkan panel dengan `undefined.enabled` (ADR-0087).
+  it("config tanpa blok engine → jatuh ke kalimat warisan", async () => {
+    const { engine: _drop, ...noEngine } = CONFIG as Record<string, unknown>;
+    getLeadStatus.mockResolvedValue({ ...STATUS, config: noEngine });
+    getLeadDecisions.mockResolvedValue(DECISIONS);
+    renderScreen();
+    expect(await screen.findByTestId("lead-engine-line")).toHaveTextContent("ikut default global");
+  });
+});

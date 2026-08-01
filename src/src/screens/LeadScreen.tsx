@@ -112,7 +112,16 @@ function ControlBar({ cfg, onWrite, busy }: { cfg: Lead; onWrite: (n: Lead) => v
             options={[{ value: "wajib", label: "plan tuntas" }, { value: "bebas", label: "tanpa syarat" }]} />
         </label>
       </div>
-      <div style={{ fontSize: "var(--text-xs)", color: "var(--text-subtle)", marginTop: 10 }}>
+      {/* SPEC-488 · mesin yang MENJALANKAN lead. Disetel di Settings → Model sesi (satu tempat,
+          bersama katalog model kedua agen); ditampilkan di sini karena inilah layar tempat
+          operator mengurus lead. `?.` disengaja: dashboard bisa lebih baru daripada server yang
+          dilayaninya (paket npm global, ADR-0087) dan server lama tak mengirim blok `engine`. */}
+      <div data-testid="lead-engine-line" style={{ fontSize: "var(--text-xs)", color: "var(--text-subtle)", marginTop: 10 }}>
+        mesin: {cfg.engine?.enabled
+          ? <>{cfg.engine.agent === "codex" ? "Codex CLI" : "Claude Code"} · <code>{cfg.engine.model}</code> · <code>{cfg.engine.effort}</code></>
+          : <>ikut default global · atur di Settings → Model sesi</>}
+      </div>
+      <div style={{ fontSize: "var(--text-xs)", color: "var(--text-subtle)", marginTop: 6 }}>
         Lead memutuskan lalu melapor. Produksi/VPS dan penghapusan data terkunci secara teknis — apa pun setelannya.
       </div>
     </Card>
