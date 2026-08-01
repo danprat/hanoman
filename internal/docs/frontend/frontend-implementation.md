@@ -581,3 +581,42 @@ sungguhan agar `content-disposition` server yang menamai berkas, dan cookie sesi
 Karena itu `Button` DS menerima prop `as="a"` (menekan atribut `type`/`disabled` yang tak sah pada
 `<a>`, memakai `aria-disabled`). Test yang mem-*mock* `../src/api/client` secara parsial perlu ikut
 menyediakan fungsi URL ini.
+
+## Form Custom Agent — kontrol pilihan, bukan teks bebas (SPEC-484 · ADR-0101)
+
+`CustomAgentsPanel` (satu komponen untuk Settings **dan** Project detail) memakai empat kontrol
+pilihan. Sumbernya API, bukan hardcode di komponen: `GET /api/custom-agents/catalog` untuk
+tools/model/runtime, dan `GET /api/custom-agents?projectId=` — yang sudah dipanggil panel — untuk
+daftar **mention**.
+
+| Field | Kontrol | Default |
+|---|---|---|
+| Tools | `MultiSelect` (cari + chip), opsi **Semua tools (`*`)** paling atas | kosong → `null` = `DEFAULT_AGENT_TOOLS` |
+| Runtime agent | `Select` | **Ikut sesi induk** (`""` → `null`) |
+| Model | `Select`, **menyusut mengikuti runtime** | **Ikut sesi induk** (`""` → `null`) |
+| Mention | `MultiSelect` (cari + chip) | kosong |
+
+**`MultiSelect` (DS baru).** Chip untuk yang terpilih (masing-masing ber-tombol ×), tombol pembuka,
+lalu — saat terbuka — `<input role="searchbox">` + daftar `<button role="option">`. **Inline, bukan
+portal:** portal menuntut outside-click & focus-trap yang panel ini tak perlu bayar, dan `role`
+sungguhan membuatnya bisa diuji lewat `getByRole` alih-alih menembak `<span>` di dalam `<label>`
+seperti `Checkbox`/`Switch` DS — jebakan yang sudah tiga kali membuat test "lulus" tanpa terjadi
+apa-apa (SPEC-299/360/447). Prop `invalidValues` merender chip bertanda ⚠.
+
+**Tiga aturan yang mencerminkan server, ditegakkan di kontrol supaya operator tak pernah bisa
+menyusun kombinasi yang pasti ditolak:**
+
+1. **`*` dan nama eksplisit saling meniadakan.** Memilih *Semua tools* mengosongkan sisanya dan
+   sebaliknya — cermin `400 "pintasan * harus jadi satu-satunya pilihan tools"`.
+2. **Daftar model menyusut mengikuti runtime** (claude → `MODELS`, codex → `CODEX_MODELS`, warisi →
+   keduanya ber-label). Menukar runtime yang membuat model terpilih tak sah **mengosongkan** model.
+3. **Nilai lama di luar katalog tetap TERBACA** sebagai chip ⚠ (dan opsi ⚠ di `Select` model), tapi
+   **Simpan terkunci** selama masih ada — validasi server keras, jadi menguncinya di sini membuat
+   operator melihat sebabnya sebelum menekan tombol, bukan sesudah menerima 400. Saklar
+   aktif/nonaktif di kartu **tak ikut terkunci**: ia mem-`PATCH { enabled }` saja, dan server hanya
+   memvalidasi field yang ada di payload.
+
+Kartu agen menampilkan pil runtime (`claude`/`codex`); **warisi tak menampilkan apa pun** — pil
+untuk keadaan default hanya menambah derau. Kolom Tools di kartu tetap merender **hasil resolusi**
+(`resolveTools`), dan `["*"]` ikut di-expand secara tampilan supaya yang terbaca adalah apa yang
+benar-benar diterima agen.

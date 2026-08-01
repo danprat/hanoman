@@ -847,11 +847,21 @@ GET    /api/custom-agents                 -> CustomAgentView[]        # agen GLO
 GET    /api/custom-agents?projectId=<id>  -> CustomAgentView[]        # himpunan EFEKTIF (global+project),
 #                                            baris global bertanda `inherited: true`; nama yang ditimpa
 #                                            project muncul SEKALI (versi project yang menang)
-POST   /api/custom-agents { projectId?, name, description, instructions, tools?, model?, mentions?, enabled? }
+GET    /api/custom-agents/catalog[?projectId=<id>] -> AgentCatalogView
+#      { tools: {id,label,group:"shortcut"|"builtin"|"mcp"}[], models: {id,label,runtime}[],
+#        runtimes: {id,label}[] }   # SPEC-484 · ADR-0101 · sumber daftar untuk form.
+#      tools = pintasan `*` + DEFAULT_AGENT_TOOLS + satu entri `mcp__<server>__*` per server MCP
+#      yang ditemukan di ~/.claude.json (global + projects[<repoDir>]), <repoDir>/.mcp.json, dan
+#      ~/.codex/config.toml — semuanya GAGAL-TERBUKA (berkas hilang/rusak → sumber dilewati).
+#      Daftar MENTION sengaja TIDAK di sini: ia sudah hidup di `GET /custom-agents?projectId=`
+#      lengkap dengan aturan project-menimpa-global.
+POST   /api/custom-agents { projectId?, name, description, instructions, tools?, model?, mentions?, runtime?, enabled? }
 #      -> 201 CustomAgentView
 #         400 slug nama tak sah · projectId tak ada · mention tak dikenal { unknown: string[] }
+#         400 tool tak dikenal { unknownTools: string[] } · `*` bercampur nama lain
+#         400 model tak dikenal untuk runtime-nya { model, runtime } · runtime di luar {claude,codex}
 #         409 nama sudah dipakai di scope itu · mention membentuk siklus { scope, cycle: string[] }
-PATCH  /api/custom-agents/:id { description?, instructions?, tools?, model?, mentions?, enabled? }
+PATCH  /api/custom-agents/:id { description?, instructions?, tools?, model?, mentions?, runtime?, enabled? }
 #      -> 200 CustomAgentView · 400 (termasuk upaya mengubah `name`/`projectId`) · 404 · 409 siklus
 DELETE /api/custom-agents/:id -> 204     # mencabut nama itu dari `mentions` agen lain (tanpa rujukan yatim)
 ```
@@ -878,6 +888,20 @@ DELETE /api/custom-agents/:id -> 204     # mencabut nama itu dari `mentions` age
 > **Verifikasi wajib menanyai agen apa yang benar-benar ia miliki, bukan exit code:** `--agents`
 > ber-JSON rusak keluar **exit 0 dengan nol agen tanpa satu pun pesan**, dan nama tool tak dikenal
 > dibuang senyap.
+>
+> **Validasi katalog KERAS, tapi hanya atas field yang ADA di payload** (SPEC-484 · ADR-0101
+> keputusan 5). Nilai di luar katalog ditolak `400` yang **menyebut nilainya**; `PATCH { enabled }`
+> pada baris warisan ber-`model`/`tools` asing **tetap 200**, sebab field itu tak ada di payload —
+> tanpa klausa ini gerbangnya mengunci saklar aktif/nonaktif setiap baris lama. Satu pengecualian
+> yang justru menegakkannya: `model` divalidasi **juga** saat hanya `runtime` yang berubah, memakai
+> **runtime efektif** (`payload.runtime` bila ada, selain itu nilai baris) — `?? null` membuat setiap
+> `PATCH { model }` pada agen codex divalidasi terhadap gabungan katalog dan lolos untuk model claude.
+>
+> **`runtime` adalah PENYARING**, bukan pemilih proses: ia menyaring apa yang masuk roster sesi.
+> `null` = ikut sesi induk (dipakai **kedua** mesin), jadi baris yang lahir sebelum SPEC-484
+> berperilaku persis seperti sebelumnya. Penyaringnya di `agentDefsFor(projectId, agent)`, dan
+> `agent` yang dipakai wajib **agen sesi yang sebenarnya** (`agentForDefs` di `createSession`),
+> bukan `Setting.agent` — sesi bisa lahir dengan override per-request (kelas bug SPEC-377).
 
 ## Telegram gateway (SPEC-476 · ADR-0096)
 

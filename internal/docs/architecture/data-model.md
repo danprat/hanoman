@@ -434,6 +434,7 @@ semua project); terisi = milik satu project, dan agen project **menimpa** agen g
 | `tools` | `Json?` | Array nama tool. `null` = pakai `DEFAULT_AGENT_TOOLS`. |
 | `model` | `String?` | `null` = warisi model sesi. |
 | `mentions` | `Json?` | Array nama agen yang boleh dipanggil. `null`/`[]` = daun. |
+| `runtime` | `String?` | **SPEC-484 · [ADR-0101](../adr/0101-form-custom-agent-katalog-runtime.md)** · penyaring mesin sesi. `null` = **ikut sesi induk** (dipakai sesi claude **dan** codex — perilaku ADR-0094 apa adanya, jadi baris lama tak perlu backfill); `"claude"`/`"codex"` = hanya dimaterialisasi di sesi mesin itu. Nilai asing dari sync dibaca sebagai `null`. Ikut `FIELDS.customAgent`. |
 | `enabled` | `Boolean` | Agen project yang **dimatikan menyembunyikan** global bernama sama. |
 | `version` | `Int` | Version-stamp sync (ADR-0045). Ikut `SYNCED`/`FIELDS`/`PG_ORDER`. |
 
@@ -451,7 +452,13 @@ semua project); terisi = milik satu project, dan agen project **menimpa** agen g
 - **`mentions` tanpa FK**, jadi integritas ditegakkan di **boundary route** (rujukan tak dikenal →
   400; graf bersiklus → 409 + jalurnya) dan `DELETE /custom-agents/:id` **mencabut** nama itu dari
   `mentions` agen lain — cermin `dependsOn` (ADR-0093). Kolomnya dibaca **defensif** (`mentionsOf`/
-  `toolsOf`) karena bisa datang dari client versi lain.
+  `toolsOf`/`runtimeOf`) karena bisa datang dari client versi lain.
+- **`tools` punya TIGA nilai yang wajib tetap berbeda** (SPEC-484 · ADR-0101 keputusan 4): `null` =
+  tak diisi (pakai `DEFAULT_AGENT_TOOLS`) · `[]` = sengaja tanpa tool · `["*"]` = semua tool yang
+  dikenal katalog mesin ini. `["*"]` **di-expand** di `agentDefsFor()` sebelum `resolveTools`, tak
+  pernah diteruskan apa adanya (claude **membuangnya senyap** → agen tanpa alat) dan tak pernah
+  diterjemahkan jadi `null` (agen tanpa `tools` mewarisi **seluruh** tool termasuk `Task`, dan lapis
+  2 anti-loop lenyap tanpa jejak). `runner/src/custom-agents.ts` karena itu tak pernah melihat `"*"`.
 
 ## GithubIssue (SPEC-471 · [ADR-0095](../adr/0095-tarik-issue-github-ke-backlog.md))
 

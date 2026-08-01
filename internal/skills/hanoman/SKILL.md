@@ -748,6 +748,33 @@ Pakai skill lebih sempit saat task cocok:
   kemampuan; (7) `"customAgent"` wajib ikut `PG_ORDER` + seluruh kolomnya di `FIELDS.customAgent`.
   Domain capability **baru `agents`**, dipetakan **menurut method** (kelas bug SPEC-405). **Bukan**
   titik spawn agen baru — `services/lead/brain.ts` tetap satu-satunya di luar `pty.ts` (SPEC-448).
+- **Form Custom Agent berbasis katalog + `runtime`** (SPEC-484/ADR-**0101**, memperluas 0094 & 0074):
+  `tools`/`model`/`mention` memakai **kontrol pilihan** bersumber API — `GET /api/custom-agents/catalog`
+  untuk tools/model/runtime, `GET /custom-agents?projectId=` (yang sudah dipanggil panel) untuk mention;
+  dua sumber untuk satu daftar adalah cara dua daftar mulai berbeda. Kolom baru **`runtime`**
+  (`claude`|`codex`|**null = ikut sesi induk**) adalah **PENYARING** di `agentDefsFor(projectId, agent)`,
+  **bukan** pemilih proses: melahirkan codex dari dalam sesi claude adalah titik spawn **ketiga**, dan
+  tiap titik spawn membayar ulang seluruh pelajaran SPEC-448. Nullable **tanpa default** → **tak ada
+  backfill**, baris lama berperilaku persis seperti sebelumnya; alternatif "wajib claude|codex +
+  backfill ke claude" ditolak karena akan **mencabut seluruh roster dari sesi codex** tanpa ada yang
+  memintanya. Katalog tool = pintasan `*` + `DEFAULT_AGENT_TOOLS` + satu entri **`mcp__<server>__*`
+  per server MCP** yang ditemukan di `~/.claude.json` (global + `projects[<repoDir>]`),
+  `<repoDir>/.mcp.json`, dan `~/.codex/config.toml` — semuanya **gagal-terbuka**; nama tool MCP yang
+  sebenarnya hanya bisa didapat dengan **menyambung** ke server (= proses baru, ditolak ADR-0094).
+  Katalog bawaannya **persis `DEFAULT_AGENT_TOOLS`**, bukan daftar kedua: menawarkan nama yang belum
+  diukur berarti menawarkan pilihan yang **tidak melakukan apa-apa** (M4 membuang `TodoWrite` senyap).
+  **Lima gotcha:** (1) `runtime` wajib masuk `FIELDS.customAgent` — kolom terlewat menyeberang sebagai
+  **default palsu tanpa error**; (2) `tools` punya **TIGA** nilai berbeda (`null` default · `[]` tanpa
+  tool · `["*"]` semua) dan `["*"]` **di-expand di `agentDefsFor` sebelum `resolveTools`** —
+  meneruskannya membuat claude membuangnya senyap, menerjemahkannya jadi `null` mencabut lapis 2
+  anti-loop, jadi `runner/src/custom-agents.ts` **tak pernah melihat `"*"`**; (3) `"*"` bercampur nama
+  lain **ditolak 400**, bukan digabung; (4) validasi katalog **keras** tapi **hanya atas field yang ada
+  di payload** (tanpa itu `PATCH {enabled}` mengunci setiap baris warisan), dengan `model` memakai
+  **runtime EFEKTIF** — `?? null` membuat `PATCH {model}` pada agen codex lolos untuk model claude;
+  (5) `agent` yang dipakai penyaring wajib `agentForDefs` milik `createSession`, bukan `Setting.agent`
+  (sesi bisa lahir dengan override per-request — kelas bug SPEC-377). UI: komponen DS **`MultiSelect`**
+  (inline, `role="option"` — bukan `<span>` di dalam `<label>` seperti `Checkbox`/`Switch`), chip ⚠
+  untuk nilai lama di luar katalog, dan **Simpan terkunci** selama chip itu ada.
 - **Telegram = kanal ke session operator tmux, BUKAN runtime agen kedua** (SPEC-476/ADR-0096): satu
   private chat/user allowlisted → satu id session `tg-<hash>` durable; natural text, command, dan
   callback di-steer ke pane yang sama, action produk hanya lewat `/api` ber-AgentToken/capability/

@@ -1803,14 +1803,14 @@ git commit -m "feat(484): form Custom Agent memakai dropdown tools/model/mention
 **Files:**
 - Modify: `internal/docs/architecture/data-model.md:427-438` (tabel kolom `CustomAgent`)
 - Modify: `internal/docs/architecture/api-contract.md:846-856` (blok endpoint custom-agents)
-- Modify: `internal/docs/design-system/design-system.md` (komponen `MultiSelect`)
+- Modify: `internal/docs/frontend/frontend-implementation.md` (form + komponen `MultiSelect`) — `design-system.md` sengaja TAK disentuh: ia stub 5 baris yang mendelegasikan detail komponen ke paket DS terpisah
 - Modify: `internal/skills/hanoman/SKILL.md` (butir custom agent)
 
 **Interfaces:**
 - Consumes: seluruh perilaku Task 1–8.
 - Produces: docs SoT sinkron; bukti endpoint hidup.
 
-- [ ] **Step 1: Perbarui `data-model.md`**
+- [x] **Step 1: Perbarui `data-model.md`**
 
 Tambahkan baris ke tabel kolom `CustomAgent`, setelah `mentions`:
 
@@ -1828,7 +1828,7 @@ Tambahkan satu butir penjelas di bawah tabel:
   tanpa `tools` mewarisi SELURUH tool termasuk `Task`, dan lapis 2 anti-loop lenyap tanpa jejak).
 ```
 
-- [ ] **Step 2: Perbarui `api-contract.md`**
+- [x] **Step 2: Perbarui `api-contract.md`**
 
 Ganti blok `custom-agents` menjadi:
 
@@ -1870,7 +1870,7 @@ Tambahkan paragraf setelah blok `> **Anti-loop tiga lapis** …`:
 > agent)`, dan `agent` yang dipakai wajib agen sesi yang sebenarnya, bukan `Setting.agent`.
 ```
 
-- [ ] **Step 3: Perbarui design-system + SKILL, lalu commit**
+- [x] **Step 3: Perbarui design-system + SKILL, lalu commit**
 
 Tambahkan entri komponen di `internal/docs/design-system/design-system.md` (di daftar komponen form, mengikuti format yang sudah ada di sana):
 
