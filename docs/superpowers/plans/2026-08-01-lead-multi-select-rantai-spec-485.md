@@ -1551,7 +1551,7 @@ git commit -m "feat(485): rantai yang ditinggalkan ditutup penyapu di tick lead"
   - `answerMultiSelectDialog(io: PaneIO, plan: { pick: number[]; line: string; freeIndex: number | null }, chunkMs: number): Promise<boolean>`
   - `sendToPane(id, text, chunkMs?, choices?: string[])`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan ke `server/test/tui-dialog.test.ts` — fixture di bawah adalah tangkapan
 `capture-pane -p -J` **sungguhan** dari claude 2.1.220 (probe SPEC-485), bukan karangan:
@@ -1661,14 +1661,14 @@ describe("SPEC-485 · ADR-0102 · dialog multiSelect", () => {
 `PaneIO` bertambah satu primitif; tambahkan `down: () => void` ke tipenya dan ke stub di atas
 (`down: () => { keys.push("<down>"); i++; }`).
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --no-file-parallelism server/test/tui-dialog.test.ts
 ```
 Expected: FAIL — `d.multi` undefined, `answerMultiSelectDialog is not a function`.
 
-- [ ] **Step 3: Pembacaan di `tui-dialog.ts`**
+- [x] **Step 3: Pembacaan di `tui-dialog.ts`**
 
 ```ts
 // SPEC-485 · ADR-0102 · dialog `multiSelect` merender kotak centang DI DEPAN label:
@@ -1741,7 +1741,7 @@ export function focusedRow(paneText: string): number | null {
   return `q|${s.multi ? "multi|" : ""}${tabs}|${s.title || s.options.join("|")}`;
 ```
 
-- [ ] **Step 4: Penulisan di `tui-dialog.ts`**
+- [x] **Step 4: Penulisan di `tui-dialog.ts`**
 
 Tambahkan `down: () => void` ke `PaneIO`, lalu:
 
@@ -1810,7 +1810,7 @@ export async function answerMultiSelectDialog(
 `freeTextFilled` harus ikut mengupas kotak — ia sudah memakai `readChoiceDialog`, yang sesudah
 Step 3 mengembalikan label terkupas, jadi tak ada perubahan yang perlu di sana.
 
-- [ ] **Step 5: `pty.ts` — pilihan sebagai data**
+- [x] **Step 5: `pty.ts` — pilihan sebagai data**
 
 Tambah `down` ke `dialogIO`:
 
@@ -1837,7 +1837,7 @@ export async function sendToPane(id: string, text: string, chunkMs = 50, choices
     }
 ```
 
-- [ ] **Step 6: `detect.ts` — teruskan pilihannya**
+- [x] **Step 6: `detect.ts` — teruskan pilihannya**
 
 `DetectDeps.send` jadi
 `send: (id: string, text: string, choices: string[]) => Promise<boolean>`; `prodDetectDeps.send`
@@ -1866,7 +1866,7 @@ it("SPEC-485 · pilihan lead diteruskan ke pane sebagai data, bukan cuma prosa",
 });
 ```
 
-- [ ] **Step 7: Jalankan test, pastikan LULUS**
+- [x] **Step 7: Jalankan test, pastikan LULUS**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --no-file-parallelism server/test/tui-dialog.test.ts server/test/lead-detect.test.ts server/test/lead-pane.test.ts server/test/pty.test.ts
@@ -1874,7 +1874,7 @@ TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run -
 Expected: PASS. `pty.test.ts` & `lead-pane.test.ts` ikut sebagai bukti jalur single-select
 SPEC-452/474 tak bergeser satu byte pun.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/src/services/tui-dialog.ts server/src/services/pty.ts server/src/services/lead/detect.ts server/test/tui-dialog.test.ts server/test/lead-detect.test.ts

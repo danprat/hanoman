@@ -8,11 +8,12 @@ import {
   goalOneLine, goalChunks, agentFlags, codexGoalScript,
   renderAgentsJson, agentRosterBlock, type AgentDef, type Flow, type Agent,
 } from "@hanoman/runner";
-import { coerceCodexEffort, type SessionKind } from "@hanoman/shared";
+import { coerceCodexEffort, resolveChoices, type SessionKind } from "@hanoman/shared";
 import { readPhases, sessionComplete, type Phase } from "./session-phases";
 import { sessionIdForSpec } from "./session-id";
 import {
-  answerChoiceDialog, answerNotesDialog, readDialogScreen, submitReview, type PaneIO,
+  answerChoiceDialog, answerMultiSelectDialog, answerNotesDialog, readDialogScreen, submitReview,
+  type PaneIO,
 } from "./tui-dialog";
 import { effectiveStr } from "../config";
 
@@ -488,7 +489,7 @@ export function capturePane(id: string, lines = 200): string {
  * ber-kolom-jawaban-bebas karena itu dijawab lewat `answerChoiceDialog`; selain itu perilakunya
  * tak berubah satu byte pun.
  */
-export async function sendToPane(id: string, text: string, chunkMs = 50): Promise<boolean> {
+export async function sendToPane(id: string, text: string, chunkMs = 50, choices: string[] = []): Promise<boolean> {
   const p = getSession(id);
   if (!p || p.exited) return false;          // AC-10 · pane mati bukan sesi yang menunggu
   const line = text.replace(/\s*\r?\n\s*/g, " ").trim();
@@ -502,6 +503,14 @@ export async function sendToPane(id: string, text: string, chunkMs = 50): Promis
     // yang sedang tersorot.
     if (screen?.kind === "review") return await submitReview(io, screen.submitRow);
     if (screen?.kind === "question") {
+      // SPEC-485 · ADR-0102 · dialog multiSelect dijawab dengan MENCENTANG. Labelnya dipetakan ke
+      // nomor baris lewat `resolveChoices` terhadap opsi LAYAR ITU SENDIRI, jadi kecocokannya
+      // persis. Tanpa satu pun pilihan yang cocok, prosanya tetap disampaikan lewat kolom bebas —
+      // dialognya tetap maju, hanya tanpa kotak tercentang.
+      if (screen.multi && screen.submit.present) {
+        const pick = resolveChoices(choices, screen.options).choices.map((c) => c.index);
+        return await answerMultiSelectDialog(io, { pick, line, freeIndex: screen.freeIndex }, chunkMs);
+      }
       if (screen.freeIndex !== null) return await answerChoiceDialog(io, screen.freeIndex, line, chunkMs);
       // SPEC-474 · varian ber-`preview` tak punya kolom bebas; catatannya dibuka tombol `n`.
       if (screen.notes) return await answerNotesDialog(io, line, chunkMs);
@@ -556,6 +565,9 @@ const dialogIO = (id: string): PaneIO => ({
   capture: () => capturePane(id, DIALOG_CAPTURE_LINES),
   literal: (s) => { tmux("send-keys", "-t", name(id), "-l", s); },
   enter: () => { tmux("send-keys", "-t", name(id), "Enter"); },
+  // SPEC-485 · SATU panah per pemanggilan: terukur, empat `Down` dalam satu `send-keys` memindahkan
+  // fokus satu baris saja (jebakan burst ADR-0085, kali ini pada tombol kendali).
+  down: () => { tmux("send-keys", "-t", name(id), "Down"); },
   sleep,
 });
 

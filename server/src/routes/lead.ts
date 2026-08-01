@@ -207,7 +207,10 @@ export default async function (app: FastifyInstance) {
       // OQ-8 · manusia menang. Penghitung jawaban otomatis sesi ini di-reset: campur tangan
       // operator memutus rantai "berturut-turut" yang dijaga AC-11.
       resetSession(r.next.sessionId);
-      delivered = await sendToPane(r.next.sessionId, parsed.data.answer).catch(() => false);
+      // SPEC-485 · centang operator ikut menyeberang: dialog multiSelect di pane dicentang sesuai
+      // pilihan manusia, bukan cuma menerima prosanya.
+      delivered = await sendToPane(r.next.sessionId, parsed.data.answer, 50,
+        toDecisionView(r.next).choices.map((c) => c.option)).catch(() => false);
     }
     return { old: toDecisionView(r.old), next: toDecisionView(r.next), delivered };
   });

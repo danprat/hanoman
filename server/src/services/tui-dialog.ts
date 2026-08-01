@@ -22,6 +22,12 @@ export type ChoiceRow = {
   free: boolean;
   /** Baris "Chat about this" — menekan nomornya melempar sesi kembali ke percakapan biasa. */
   chat: boolean;
+  /**
+   * SPEC-485 · keadaan kotak centang: `true`/`false` untuk dialog `multiSelect`, `null` untuk
+   * dialog biasa yang memang tak punya kotak. `null` BUKAN "belum tercentang" — membedakan
+   * keduanya adalah cara modul ini tahu ia sedang melihat widget yang mana.
+   */
+  checked: boolean | null;
 };
 
 export type ChoiceDialog = {
@@ -30,6 +36,14 @@ export type ChoiceDialog = {
   freeIndex: number | null;
   /** Label opsi sebenarnya — tanpa baris bebas & tanpa "Chat about this". */
   options: string[];
+  /** SPEC-485 · dialog `multiSelect`: opsinya berkotak dan digit MEN-TOGGLE, bukan memilih. */
+  multi: boolean;
+  /**
+   * SPEC-485 · tombol kirim `Submit`/`Next` — TANPA nomor, jadi ia hanya bisa ditekan dengan
+   * memindahkan fokus ke sana lalu `Enter`. Keberadaannya sekaligus alasan `Enter` di baris opsi
+   * TIDAK mengirim apa pun (ia men-toggle baris tersorot).
+   */
+  submit: { present: boolean; focused: boolean };
 };
 
 // Footer chord dialog. Ini pembeda paling murah antara layar dialog dan kolom chat biasa (yang
@@ -50,6 +64,18 @@ const CHAT_ROW = /^chat about this$/i;
 // kotak. Potong di batas kolomnya — tanpa ini opsi yang disodorkan ke lead penuh garis kotak.
 const SIDE_PANEL = /\s{2,}[│┃┌┐└┘├┤╭╮╰╯─━].*$/;
 const cleanLabel = (s: string): string => s.replace(SIDE_PANEL, "").trim();
+
+// SPEC-485 · dialog `multiSelect` merender kotak centang DI DEPAN label: `1. [ ] alpha` /
+// `2. [✔] beta`. Tanpa dikupas, label yang sampai ke lead penuh ornamen DAN `[ ] Type something`
+// tak lagi cocok `PLACEHOLDER` — kolom bebasnya jadi tak terlihat, dan `sendToPane` jatuh ke jalur
+// terakhir (prosa + `Enter`) yang di widget ini justru men-toggle opsi 1.
+const CHECK = /^\[([ xX✔✓])\]\s*(.*)$/;
+
+// Tombol kirim multiSelect: `     Submit` / `❯    Submit`, dan berbunyi `Next` bila pertanyaannya
+// belum yang terakhir dalam rantai (`submitButtonText: last ? "Submit" : "Next"`). Pola ini sengaja
+// menuntut baris TANPA nomor, supaya `N. Submit answers` milik layar rekap (SPEC-474) tak ikut
+// tertangkap — dua tombol berbeda di dua layar berbeda.
+const SUBMIT_BTN = /^\s*([❯>›])?\s{2,}(Submit|Next)\s*$/;
 
 /**
  * Turunkan bentuk dialog dari layar pane. `null` = ini bukan layar dialog, dan pemanggil harus
@@ -86,16 +112,46 @@ export function readChoiceDialog(paneText: string): ChoiceDialog | null {
   }
   if (run.length < 2 || run[0]!.n !== 1) return null;
 
-  const rows: ChoiceRow[] = run.map((r) => ({
-    n: r.n, label: r.label,
-    free: PLACEHOLDER.test(r.label),
-    chat: CHAT_ROW.test(r.label),
-  }));
+  // SPEC-485 · kotak centang dikupas SEBELUM baris dinilai: `free`/`chat`/`options` semuanya
+  // bertanya pada LABEL, dan label yang masih menyeret `[ ] ` menjawab salah untuk ketiganya.
+  const rows: ChoiceRow[] = run.map((r) => {
+    const m = CHECK.exec(r.label);
+    const label = m ? (m[2] ?? "").trim() : r.label;
+    return {
+      n: r.n, label,
+      checked: m ? m[1] !== " " : null,
+      free: PLACEHOLDER.test(label),
+      chat: CHAT_ROW.test(label),
+    };
+  });
+  let submit = { present: false, focused: false };
+  for (const line of lines.slice(0, footer)) {
+    const m = SUBMIT_BTN.exec(line);
+    if (m) submit = { present: true, focused: !!m[1] };
+  }
   return {
     rows,
     freeIndex: rows.find((r) => r.free)?.n ?? null,
     options: rows.filter((r) => !r.free && !r.chat).map((r) => r.label),
+    multi: rows.some((r) => r.checked !== null),
+    submit,
   };
+}
+
+/**
+ * SPEC-485 · nomor baris yang sedang DISOROT (`❯`), atau `null` bila sorotannya bukan di baris
+ * bernomor — yang di dialog multi berarti ia ada di tombol kirim.
+ *
+ * Dibutuhkan karena di widget `multiSelect` fokus TIDAK bisa dipindahkan dengan menekan nomor
+ * (nomor men-toggle); satu-satunya jalan adalah panah, dan panah harus dibuktikan mendarat.
+ */
+export function focusedRow(paneText: string): number | null {
+  const lines = paneText.split("\n").map((l) => l.trimEnd());
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const m = /^\s*[❯>›]\s*(\d{1,2})\.\s+\S/.exec(lines[i] ?? "");
+    if (m) return Number(m[1]);
+  }
+  return null;
 }
 
 /** Satu tab pertanyaan di strip atas dialog berantai: `☐ Warna` (belum) / `☒ Warna` (sudah). */
@@ -110,7 +166,9 @@ export type DialogTab = { header: string; answered: boolean };
  */
 export type DialogScreen =
   | { kind: "question"; rows: ChoiceRow[]; freeIndex: number | null; notes: boolean;
-      options: string[]; tabs: DialogTab[]; title: string }
+      options: string[]; tabs: DialogTab[]; title: string;
+      /** SPEC-485 · widget `multiSelect`: kotak centang + tombol kirim tanpa nomor. */
+      multi: boolean; submit: { present: boolean; focused: boolean } }
   | { kind: "review"; submitRow: number };
 
 // Layar review TIDAK punya footer chord (terukur: 40 baris pane, delapan baris terakhir kosong),
@@ -200,6 +258,7 @@ export function readDialogScreen(paneText: string): DialogScreen | null {
     kind: "question", rows: d.rows, freeIndex: d.freeIndex, options: d.options,
     notes: d.freeIndex === null && NOTES_FOOTER.test(lines[footer] ?? ""),
     tabs, title: readTitle(lines, at, footer),
+    multi: d.multi, submit: d.submit,
   };
 }
 
@@ -214,10 +273,18 @@ export function dialogKey(paneText: string): string {
   const s = readDialogScreen(paneText);
   if (!s) return "none";
   if (s.kind === "review") return "review";
-  const tabs = s.tabs.map((t) => `${t.answered ? "x" : "o"}${t.header}`).join(",");
+  // GOTCHA ADR-0102 #1 · untuk layar MULTI penanda `☐/☒` tab strip WAJIB dibuang: mencentang satu
+  // opsi sudah membalik tab yang sedang tampil jadi `☒` (terukur in-vivo) tanpa satu pun pertanyaan
+  // berpindah. Kunci yang ikut berubah akan membaca layar yang MACET sebagai layar yang MAJU —
+  // bentuk yang sama persis yang SPEC-474 tutup untuk label kolom bebas, lewat pintu baru.
+  // Kemajuan layar multi terbaca dari JUDUL yang berganti, dari layar rekap, atau dari layar yang
+  // berhenti jadi dialog; judul yang sama karena itu fail-closed ("belum maju").
+  const tabs = s.multi
+    ? s.tabs.map((t) => t.header).join(",")
+    : s.tabs.map((t) => `${t.answered ? "x" : "o"}${t.header}`).join(",");
   // Judul dipakai bila ada; hanya dialog tanpa tab strip (trust, prompt izin) yang jatuh ke
   // label opsi — dan di sana rantai memang tak pernah berjalan.
-  return `q|${tabs}|${s.title || s.options.join("|")}`;
+  return `q|${s.multi ? "multi|" : ""}${tabs}|${s.title || s.options.join("|")}`;
 }
 
 /**
@@ -240,6 +307,12 @@ export type PaneIO = {
   /** Kirim teks APA ADANYA (`send-keys -l`). */
   literal: (text: string) => void;
   enter: () => void;
+  /**
+   * SPEC-485 · geser fokus SATU baris ke bawah. Panggilan terpisah per langkah, bukan satu burst:
+   * terukur, `send-keys Down Down Down Down` dalam satu pemanggilan memindahkan fokus SATU baris
+   * saja — jebakan burst ADR-0085 ternyata tak berhenti di teks.
+   */
+  down: () => void;
   sleep: (ms: number) => Promise<void>;
 };
 
@@ -282,6 +355,67 @@ export async function answerChoiceDialog(
   }
   await io.sleep(DIALOG_SETTLE_MS);
   if (!freeTextFilled(io.capture(), freeIndex)) return false;
+  io.enter();
+  return true;
+}
+
+/** Berapa kali fokus digeser sebelum menyerah. Pane yang tak merespons harus punya ujung. */
+const NAV_TRIES = 24;
+
+/**
+ * SPEC-485 · ADR-0102 · jawab dialog `multiSelect` dengan MENCENTANG.
+ *
+ * Urutannya MENGIKAT, semuanya hasil pengukuran in-vivo (claude 2.1.220):
+ *
+ * 1. **Digit MEN-TOGGLE**, bukan memilih-lalu-mengirim (`b = toggleValue` di widget). Jadi tiap
+ *    opsi ditekan nomornya sebagai `send-keys` tersendiri berisi SATU karakter, lalu layarnya
+ *    DIBACA ULANG untuk membuktikan kotaknya benar-benar berubah. Tanpa pembuktian itu, jawaban
+ *    yang tak mendarat tetap berujung pada tombol kirim — bug SPEC-452 lewat pintu baru.
+ * 2. **Kolom bebas hanya bisa dicapai lewat NAVIGASI.** Menekan nomornya justru men-toggle
+ *    `__other__` dengan teks kosong (kebalikan penuh dari single-select, SPEC-452). Panah dikirim
+ *    satu per pemanggilan dan posisinya dibuktikan lewat `❯`.
+ * 3. **`Enter` hanya di tombol kirim.** Di baris opsi ia men-toggle, karena tombolnya ada.
+ *
+ * Fail-closed di tiap langkah: `false` berarti sesi jatuh ke perilaku pra-ADR-0091 (menunggu
+ * manusia), bukan ke tombol yang ditekan asal.
+ */
+export async function answerMultiSelectDialog(
+  io: PaneIO,
+  plan: { pick: number[]; line: string; freeIndex: number | null },
+  chunkMs: number,
+): Promise<boolean> {
+  const want = new Set(plan.pick);
+  const state = () => readChoiceDialog(io.capture());
+
+  // 1 · samakan kotak centang dengan rencana. Idempoten: yang sudah benar dilewati, yang tercentang
+  //     tapi tak dipilih di-toggle balik — dialog bisa saja sudah disentuh sebelum lead tiba.
+  for (const row of state()?.rows ?? []) {
+    if (row.checked === null || row.free || row.chat) continue;
+    if (row.checked === want.has(row.n)) continue;
+    io.literal(String(row.n));
+    await io.sleep(DIALOG_SETTLE_MS);
+    const after = state()?.rows.find((r) => r.n === row.n);
+    if (!after || after.checked !== want.has(row.n)) return false;
+  }
+
+  // 2 · prosa lewat kolom bebas, bila memang ada yang perlu disampaikan.
+  if (plan.line && plan.freeIndex !== null) {
+    let hop = 0;
+    while (focusedRow(io.capture()) !== plan.freeIndex && hop < NAV_TRIES) {
+      io.down(); await io.sleep(DIALOG_SETTLE_MS); hop++;
+    }
+    if (focusedRow(io.capture()) !== plan.freeIndex) return false;
+    for (const chunk of goalChunks(plan.line)) { io.literal(chunk); await io.sleep(chunkMs); }
+    await io.sleep(DIALOG_SETTLE_MS);
+    if (!freeTextFilled(io.capture(), plan.freeIndex)) return false;
+  }
+
+  // 3 · tombol kirim, lalu Enter. Bukan `Enter` di baris opsi: di sana ia men-toggle.
+  let hop = 0;
+  while (!state()?.submit.focused && hop < NAV_TRIES) {
+    io.down(); await io.sleep(DIALOG_SETTLE_MS); hop++;
+  }
+  if (!state()?.submit.focused) return false;
   io.enter();
   return true;
 }
