@@ -550,7 +550,7 @@ git commit -m "feat(485): model LeadFlow + kolom pilihan jamak di LeadDecision (
   - `expireFlows(now: Date): Promise<LeadFlow[]>`
   - `toFlowView(r: LeadFlow): LeadFlowView`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/lead-flow.test.ts`:
 
@@ -631,14 +631,14 @@ describe("SPEC-485 · ADR-0102 · daur hidup rantai keputusan", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --no-file-parallelism server/test/lead-flow.test.ts
 ```
 Expected: FAIL — `Cannot find module '../src/services/lead/flow'`.
 
-- [ ] **Step 3: Implementasi `server/src/services/lead/flow.ts`**
+- [x] **Step 3: Implementasi `server/src/services/lead/flow.ts`**
 
 ```ts
 import type { LeadFlow } from "@prisma/client";
@@ -770,14 +770,14 @@ export function toFlowView(r: LeadFlow): LeadFlowView {
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --no-file-parallelism server/test/lead-flow.test.ts
 ```
 Expected: PASS (8 test).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/lead/flow.ts server/test/lead-flow.test.ts
