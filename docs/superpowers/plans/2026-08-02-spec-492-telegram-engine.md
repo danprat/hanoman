@@ -1886,7 +1886,7 @@ git commit -m "feat(492): kartu Agen operator Telegram di Settings"
 - Consumes: daftar command dari Task 5.
 - Produces: —
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan ke `runner/src/telegram-operator.test.ts`:
 
@@ -1902,14 +1902,14 @@ Tambahkan ke `runner/src/telegram-operator.test.ts`:
 
 (`input` = fixture yang sudah ada di berkas itu.)
 
-- [ ] **Step 2: Jalankan, pastikan GAGAL**
+- [x] **Step 2: Jalankan, pastikan GAGAL**
 
 ```bash
 ./node_modules/.bin/vitest run --dir runner runner/src/telegram-operator.test.ts
 ```
 Expected: FAIL — `expected '…' to contain '/engine'`.
 
-- [ ] **Step 3: Perbarui prompt operator**
+- [x] **Step 3: Perbarui prompt operator**
 
 Di `runner/src/telegram-operator.ts`, ganti blok `COMMANDS` dan tambahkan satu baris kontrak:
 
@@ -1934,14 +1934,14 @@ Di array `return [...]`, tepat sesudah baris `` `- Command minimum: ${COMMANDS.j
       + "Sebutkan di /help apa adanya; jangan pernah mencoba menjawabnya sendiri.",
 ```
 
-- [ ] **Step 4: Jalankan test runner**
+- [x] **Step 4: Jalankan test runner**
 
 ```bash
 ./node_modules/.bin/vitest run --dir runner runner/src/telegram-operator.test.ts
 ```
 Expected: PASS.
 
-- [ ] **Step 5: Perbarui `api-contract.md`**
+- [x] **Step 5: Perbarui `api-contract.md`**
 
 Di blok `GET/PUT /settings` (sesudah keterangan `conflict { … }`), tambahkan:
 
@@ -1988,7 +1988,7 @@ menyetel nilai lalu tak terjadi apa-apa adalah jebakan yang justru diperbaiki SP
 menyebut daftar yang sah; setelan tersimpan tak berubah.
 ```
 
-- [ ] **Step 6: Perbarui `SKILL.md`**
+- [x] **Step 6: Perbarui `SKILL.md`**
 
 Sisipkan butir baru sesudah butir "Kredensial Telegram = entri config terenkripsi" (sekitar
 baris 899-920):
@@ -2022,7 +2022,7 @@ baris 899-920):
   memanggil `getMe()` dan bisa menjatuhkan `readiness` ke `error` gara-gara satu dropdown.
 ```
 
-- [ ] **Step 7: Verifikasi index docs**
+- [x] **Step 7: Verifikasi index docs**
 
 Kedua berkas sudah ter-link di `internal/docs/README.md` (`architecture` dan skill di `AGENTS.md`),
 jadi tak ada entri index baru. Buktikan:
@@ -2033,7 +2033,7 @@ jadi tak ada entri index baru. Buktikan:
 ```
 Expected: baris index untuk `api-contract` muncul.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add runner/src/telegram-operator.ts runner/src/telegram-operator.test.ts internal/docs/architecture/api-contract.md internal/skills/hanoman/SKILL.md

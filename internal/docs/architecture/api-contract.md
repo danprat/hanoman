@@ -344,6 +344,27 @@ GET/PUT  /settings                      # Setting blob (zSetting): model, effort
 #                                           dikoreksi ke yang didukung model itu (mis. luna+ultra → xhigh).
 #                                           Server tetap lenient (z.string()); PUT nilai apa pun diterima,
 #                                           tapi yang dibaca kembali sudah pasangan yang sah.
+#                                         telegram { enabled:false, progress:true,
+#                                           engine:{ enabled:false, agent:"claude",
+#                                                    model:"claude-opus-5", effort:"xhigh" } }
+#                                           SPEC-476/ADR-0096 + SPEC-492 · `engine` = runtime/model/effort
+#                                           KHUSUS sesi operator Telegram (beban kanal ini beda jauh dari
+#                                           sesi kerja: baca API lalu rangkum, bukan tulis kode). OPT-IN:
+#                                           enabled:false → mewarisi default global persis
+#                                           (sessionAgentDefaults). Bentuknya SAMA dengan lead.engine —
+#                                           satu definisi `zAgentEngine` di shared/src/agent-engine.ts,
+#                                           yang WAJIB duduk di modul daun karena entities.ts sudah
+#                                           meng-import ./telegram (siklus → TDZ saat boot). Effort codex
+#                                           dikoersi saat dibaca (coerceCodexEffort). Blok selalu ADA di
+#                                           response (zod .default()) → baris Setting lama tetap parse,
+#                                           TANPA migration. Dibaca ULANG tiap sesi operator LAHIR (bukan
+#                                           tiap chat lahir — TelegramChat.agent/model/effort MEMBEKUKAN
+#                                           nilai saat chat pertama menyapa dan tak punya penulis lain),
+#                                           jadi ia berlaku untuk sesi BERIKUTNYA; sesi yang sedang jalan
+#                                           tak pernah di-restart diam-diam.
+#                                           Perubahan `engine` SAJA TIDAK memicu reloadTelegramGateway()
+#                                           (telegramReloadNeeded) — reload memanggil getMe() dan bisa
+#                                           menjatuhkan readiness ke `error` gara-gara satu dropdown.
 #                                         PUT ganti seluruh blob (full replace).
 GET      /codex/version                 # { version: string|null, minRequired: "0.144.0", ok: boolean }  (SPEC-339)
 #   Versi codex CLI terpasang (`<HANOMAN_CODEX_BIN> --version`, cache 5 menit). `version: null` =
@@ -996,6 +1017,36 @@ GET    /api/telegram/audit?chatId&updateId&take&skip
 POST   /api/terminal/sessions/:id/steer { text }
 POST   /api/terminal/sessions/:id/interrupt
 ```
+
+### Command runtime — dicegat server (SPEC-492)
+
+Enam bentuk command di bawah **tidak pernah** sampai ke pane sesi operator: coordinator mencegatnya
+di `dispatch()` lalu menjawab lewat outbox (`kind: "gateway-control"` — sengaja di luar
+`TELEGRAM_REPLY_KINDS` karena `dedupeKey` outbox adalah `chat:update:kind`), dan gateway melewati
+balasan progress generiknya (audit `outcome: "control"`). Alasannya: ia soal transport, bukan isi
+hanoman; agen tak bisa mengubah model proses yang menjalankan dirinya sendiri; giliran agen terukur
+14–95 detik; dan ia harus bekerja justru saat agennya macet. Presedennya update `callback`
+konfirmasi, yang juga dicegat sebelum `dispatch`.
+
+| Command | Arti |
+|---|---|
+| `/engine` | Tampilkan sumber nilai, runtime · model · effort, dan keadaan sesi operator |
+| `/engine off` | `enabled:false` → kembali mewarisi default global sesi kerja |
+| `/engine restart` | Tutup sesi operator; pesan berikutnya lahir dengan setelan baru |
+| `/runtime claude\|codex` | Tukar runtime — model & effort ikut ke default agen itu |
+| `/model <id>` | Tukar model (divalidasi katalog agen aktif; effort dikoersi bila codex) |
+| `/effort <nilai>` | Tukar effort (divalidasi `codexEfforts(model)` / `EFFORTS`) |
+
+Ketiganya yang menulis (`/runtime`, `/model`, `/effort`) **menyalakan `enabled` secara implisit** —
+menyetel nilai lalu tak terjadi apa-apa adalah jebakan yang justru diperbaiki SPEC-492. Setelannya
+**global untuk semua chat**, bukan per-chat. Nilai di luar katalog **ditolak** dengan balasan yang
+menyebut daftar yang sah; setelan tersimpan tak berubah. Model milik agen seberang dijawab dengan
+jalan keluarnya (`/runtime codex` dulu), bukan sekadar "tidak valid".
+
+Yang **tidak** dilakukan: mengetik `/model`/`/effort` ke pane yang sedang hidup. ADR-0061 mencabut
+matrix per-fase karena mekanisme itu tak andal, dan SPEC-487 mengukur kelasnya (ketikan ke pane yang
+sedang menjalankan giliran mendarat sebagai **pesan liar**). Jalur yang dijanjikan `/engine restart`
+— deterministik, dan konteks selamat lewat ringkasan + curated memory yang memang hidup di DB.
 
 ### Kredensial dari Settings (SPEC-477 · ADR-0097) — **COOKIE_ONLY**
 

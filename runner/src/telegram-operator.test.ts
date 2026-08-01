@@ -42,6 +42,14 @@ describe("buildTelegramOperatorPrompt (SPEC-476)", () => {
     expect(prompt).toContain("Bahasa natural adalah antarmuka utama");
   });
 
+  // SPEC-492 · empat command ini DICEGAT server dan tak pernah sampai ke agen — tapi `/help`
+  // ditulis agen, jadi tanpa baris ini ia menjanjikan daftar yang tidak lengkap.
+  it("menyebut command runtime yang ditangani server", () => {
+    const prompt = buildTelegramOperatorPrompt(input);
+    for (const c of ["/engine", "/runtime", "/model", "/effort"]) expect(prompt).toContain(c);
+    expect(prompt).toMatch(/ditangani server|dicegat server/i);
+  });
+
   it("requires product APIs, correlation, explicit replies, and secret-safe output", () => {
     const prompt = buildTelegramOperatorPrompt(input);
     expect(prompt).toContain("x-hanoman-telegram-update: 17");

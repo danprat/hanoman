@@ -926,6 +926,34 @@ Pakai skill lebih sempit saat task cocok:
   `getUpdates`-nya, jadi menumpang di sana menukar "uji koneksi" dengan "putuskan polling". Nilai dari
   `.env` **tak divalidasi pola** (validasi = gerbang tulis, bukan gerbang baca), dan bot token
   **tetap tak pernah masuk sesi** (ADR-0096 gotcha 4 utuh).
+- **Sesi operator Telegram punya runtime/model/effort sendiri** (SPEC-492, tanpa ADR — ADR-0096,
+  ADR-0061, ADR-0074, ADR-0081 **ditegakkan**): blok opt-in `Setting.telegram.engine` bertipe
+  **`zAgentEngine`** — bentuk `{enabled, agent, model, effort}` yang kini punya **satu** definisi di
+  `shared/src/agent-engine.ts` dan dipakai `lead.engine` sekaligus (`zLeadEngine` = alias). Bentuknya
+  **wajib** hidup di modul daun: `entities.ts` sudah meng-import `./telegram`, jadi mendefinisikannya
+  di entities lalu meng-import balik menutup siklus modul dan `TELEGRAM_DEFAULTS =
+  zTelegramSettings.parse({})` (top level) membaca binding yang masih **TDZ** → `ReferenceError`
+  sebelum satu route pun terdaftar. Resolvernya `telegramAgentDefaults()` (cermin
+  `leadAgentDefaults()`): mati → `sessionAgentDefaults()`, hidup → nilai engine + `coerceCodexEffort`.
+  **Gotcha yang menentukan seluruh spec:** `TelegramChat.agent/model/effort` **membekukan** default
+  saat chat pertama menyapa — `ensureChat` ber-`update:{userId}` dan **tak ada penulis lain**
+  (`patchChat`/`PATCH …/context` hanya menerima empat field lain), jadi menukar `defaults` di
+  `productionFactory` SENDIRIAN memberi setelan ber-**nol efek** untuk setiap chat yang sudah ada
+  (terukur: instalasi hidup punya 1 baris, sudah beku di `claude · claude-opus-5 · xhigh`) — kelas
+  SPEC-487. Resolver karena itu dibaca ulang di **tiap kelahiran sesi**, dipakai juga untuk
+  **`ensureCodexTrust`** (gotcha SPEC-377/ADR-0081), lalu dicerminkan ke baris chat
+  (`setChatEngine`). Permukaan keduanya **command yang dicegat coordinator** — `/engine`,
+  `/engine off`, `/engine restart`, `/runtime`, `/model`, `/effort` — yang **tak pernah** menyentuh
+  pane: ia soal transport, agen tak bisa mengubah model proses yang menjalankan dirinya sendiri,
+  giliran agen terukur 14–95 dtk, dan ia harus bekerja justru saat agennya macet; balasannya
+  diantre `kind: "gateway-control"` (di luar enum reply — `dedupeKey` outbox `chat:update:kind`,
+  SPEC-491) dan gateway melewati progress generiknya (`outcome: "control"`). Parser
+  (`services/telegram/engine-command.ts`) **murni** dan **fail-closed**: yang tak dikenali kembali
+  `null` → jalur lama persis. **Sengaja TIDAK mengetik `/model` ke pane hidup** (ADR-0061 mencabut
+  matrix per-fase karena itu; SPEC-487 mengukur pesan liarnya) — jalurnya `/engine restart`, dan
+  konteks selamat lewat ringkasan + curated memory. `PUT /settings` **tak lagi** me-reload gateway
+  bila hanya `engine` yang berubah (`telegramReloadNeeded`): reload memanggil `getMe()` dan bisa
+  menjatuhkan `readiness` ke `error` gara-gara satu dropdown digeser.
 - Stage bergerak **maju** hanya lewat fase yang dilaporkan sesi; **mundur** hanya lewat aksi human eksplisit `PATCH /specs/:id { stage }` (backward-only, ADR-0027). `executing` **tertahan** (tak jadi `done`) selama plan `docs/superpowers/plans/**` masih punya `- [ ]` (ADR-0029).
 - Biaya bersifat **estimasi dan tidak menggerakkan apa pun** (ADR-0012): tak ada `dailyBudget`/budget flag. Indikator limit dibaca dari OAuth usage API Anthropic (`services/limits.ts`), bukan parsing output terminal.
 - **Jangan pernah menjalankan run/sesi di working tree utama** — selalu worktree terpisah. Jangan menyentuh worktree sesi lain.

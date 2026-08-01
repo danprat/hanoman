@@ -20,6 +20,12 @@ const COMMANDS = [
   "/personality [nama|reset]", "/skills",
 ];
 
+// SPEC-492 · empat command runtime DICEGAT server sebelum menyentuh pane ini — kamu tak akan
+// pernah menerimanya. Ia disebut di sini semata supaya `/help` yang KAMU tulis tidak berbohong.
+const SERVER_COMMANDS = [
+  "/engine", "/runtime claude|codex", "/model <id>", "/effort <nilai>",
+];
+
 /**
  * Prompt protokol untuk SATU main session operator. Ia sengaja murni dan tidak membaca env:
  * credential hanya disebut sebagai NAMA variabel yang diwariskan proses oleh server.
@@ -58,6 +64,8 @@ export function buildTelegramOperatorPrompt(input: TelegramOperatorPromptInput):
     "",
     "- Bahasa natural adalah antarmuka utama; command hanya shortcut yang tetap kamu tangani di sesi ini.",
     `- Command minimum: ${COMMANDS.join(", ")}.`,
+    `- Command runtime sesi ini ditangani server, bukan kamu: ${SERVER_COMMANDS.join(", ")}. `
+      + "Sebutkan di /help apa adanya; jangan pernah mencoba menjawabnya sendiri.",
     `- Panggil API dengan base $HANOMAN_API_BASE, bearer $HANOMAN_TELEGRAM_AGENT_TOKEN, dan header x-hanoman-telegram-update: ${update.updateId}.`,
     "- Terbitkan jawaban user-facing secara eksplisit melalui POST $HANOMAN_API_BASE/api/telegram/replies.",
     "- Kind reply hanya progress|final|decision|failure|confirmation. Jangan mengandalkan layar PTY sebagai balasan.",
