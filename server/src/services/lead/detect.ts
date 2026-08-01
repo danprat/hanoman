@@ -1,11 +1,11 @@
 import { writeFileSync } from "node:fs";
-import type { Agent, Lead } from "@hanoman/shared";
+import { leadReplyText, type Agent, type Lead, type LeadDelivery } from "@hanoman/shared";
 import { capturePane, getSession, liveDecisions, markerFilled, sendToPane, submitPaneDialog } from "../pty";
 import { dialogKey, readDialogScreen } from "../tui-dialog";
 import { recordLeadDecision } from "../notifications";
 import { getLead, leadActive, leadProjects } from "./config";
 import { readPaneQuestion } from "./pane";
-import { decide, prodDecideDeps, takeReply, type DecideDeps } from "./decide";
+import { decide, prodDecideDeps, takeDelivery, type DecideDeps } from "./decide";
 import { recordDecision } from "./trail";
 
 // SPEC-409 · ADR-0091 · PINTU KEPUTUSAN #2 — deteksi otomatis.
@@ -96,6 +96,12 @@ export type DetectDeps = {
   sleep: (ms: number) => Promise<void>;
   decide: typeof decide;
   decideDeps: DecideDeps;
+  /**
+   * SPEC-480 · putusan "sebagaimana dikirim" milik baris yang baru saja lahir — terpangkas, dengan
+   * pilihan yang sudah terselesaikan. Disuntik (bukan dipanggil langsung) supaya rantai dialog bisa
+   * diuji tanpa menjalankan `decide()` sungguhan; prod tetap satu definisi, `takeDelivery`.
+   */
+  delivery: (decisionId: string) => LeadDelivery | null;
   optIn: () => Promise<string[]>;
   notify: (id: string, title: string, projectId: string, specId: string | null, sessionId: string | null) => Promise<void>;
   cfg: () => Promise<Lead>;
@@ -116,6 +122,7 @@ export const prodDetectDeps: DetectDeps = {
   sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
   decide,
   decideDeps: prodDecideDeps,
+  delivery: takeDelivery,
   optIn: leadProjects,
   notify: recordLeadDecision,
   cfg: getLead,
@@ -254,7 +261,9 @@ async function runChain(
     // jawaban yang berdiri sendiri (boleh menyebut opsi yang dipilihnya), bukan nomor telanjang.
     const notes = [`Sesi ini menunggu di terminal; teks di bawah adalah layar terakhirnya. Jawablah sebagai masukan yang bisa langsung diketik ke terminal itu (isi \`reply\`).`];
     if (read.choices.length) {
-      notes.push("Layarnya adalah dialog pilihan. `reply` akan dimasukkan sebagai JAWABAN BEBAS ke dialog itu, jadi tulislah jawaban yang berdiri sendiri — sebut opsi yang kamu pilih beserta alasan singkatnya, bukan nomornya saja.");
+      // SPEC-480 · yang dituntut sekarang `choice`, bukan prosa yang menyebut opsinya: server
+      // yang merangkai kalimat jawabannya dari label opsi verbatim.
+      notes.push("Layarnya adalah dialog pilihan. Isi `choice` dengan nomor atau label opsi yang kamu pilih — server yang merangkai kalimat jawabannya dari label itu, jadi `reply` tak perlu mengulanginya.");
     }
     // SPEC-474 · dialog berantai menampilkan SATU pertanyaan pada satu waktu. Tanpa keterangan ini
     // lead melihat layar yang seolah berdiri sendiri dan bisa mencoba menjawab semuanya sekaligus.
@@ -281,11 +290,13 @@ async function runChain(
     if (row.status !== "berlaku")
       return { acted, done: false, failed: true, reason: "lead tak menghasilkan keputusan yang berlaku" };
 
-    // `reply` adalah penghalusan opsional dari jawaban — teks yang enak diketik ke TUI ("1")
-    // dibanding kalimat keputusannya. Ia hidup di saluran samping berumur pendek (bukan kolom DB),
-    // jadi ia bisa saja tak ada: yang selalu ada adalah `answer`. Jangan pernah mengetik string
-    // kosong ke pane hanya karena saluran itu meleset.
-    const reply = takeReply(row.id) || row.answer;
+    // SPEC-480 · teks yang diketik DIRAKIT dari putusan terstruktur, bukan dipungut dari prosa:
+    // pilihan yang terselesaikan disebut dengan LABEL VERBATIM, konteks yang kurang disebut apa
+    // adanya, dan panjangnya sudah dipagari sebelum menyentuh `goalChunks`. Saluran pengiriman
+    // hidup di memori dan berumur satu ketikan, jadi ia bisa saja meleset: yang selalu ada adalah
+    // `answer`. Jangan pernah mengetik string kosong ke pane hanya karena saluran itu kosong.
+    const sent = deps.delivery(row.id);
+    const reply = (sent ? leadReplyText(sent) : "") || row.answer;
     if (!(await deps.send(s.id, reply)))
       return { acted, done: false, failed: true, reason: "gagal mengetik ke pane" };
     acted = true;

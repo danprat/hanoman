@@ -4,7 +4,7 @@ import { prisma } from "../db";
 import { listSessions, liveDecisions, markerFilled, sendToPane } from "../services/pty";
 import { listQueue } from "../services/scheduler/queue";
 import { getLead, setLead, leadActive } from "../services/lead/config";
-import { decide, takeReply } from "../services/lead/decide";
+import { decide, takeDelivery } from "../services/lead/decide";
 import { applyAction } from "../services/lead/apply";
 import { listDecisions, overrideDecision, cancelDecision, toDecisionView } from "../services/lead/trail";
 import { decidingIds } from "../services/lead/deciding";
@@ -92,16 +92,23 @@ export default async function (app: FastifyInstance) {
       notes: ask.context ? [ask.context] : undefined,
     });
     if (!row) return reply.code(409).send({ error: "lead tidak aktif untuk project ini" });
-    takeReply(row.id);   // kontrak eksplisit tak mengetik ke pane; buang balasan pane-nya
+    // SPEC-480 · kontrak eksplisit tak mengetik ke pane, tapi ia tetap mengambil putusan
+    // "sebagaimana dikirim": salinan TERPANGKAS-nya. Jejak DB tetap memegang prosa lead yang utuh.
+    const sent = takeDelivery(row.id);
     if (row.status === "gagal") return reply.code(504).send({ error: row.reason, id: row.id });
     // Lead memutuskan LALU melapor: tindakan yang menyusul dijalankan sebelum balasan dikirim,
     // supaya peminta tak menerima keputusan yang belum berlaku di dunia nyata.
     if (row.action !== "none") { try { await applyAction(row); } catch { /* jejak tetap ada */ } }
     const answer: LeadAnswer = {
-      id: row.id, decision: row.answer, reason: row.reason,
+      id: row.id,
+      decision: sent?.decision ?? row.answer,
+      reason: sent?.reason ?? row.reason,
       refs: Array.isArray(row.refs) ? (row.refs as unknown[]).map(String) : [],
       confidence: row.confidence as LeadAnswer["confidence"],
       action: row.action as LeadAnswer["action"],
+      // Saluran pengiriman bisa meleset (baris lahir dari jalur lain); kolomnya yang selalu ada.
+      choice: sent?.choice ?? (row.choice ? { index: row.choiceIndex ?? 1, option: row.choice } : null),
+      missing: sent?.missing ?? (Array.isArray(row.missing) ? (row.missing as unknown[]).map(String) : []),
     };
     return reply.code(201).send(answer);
   });

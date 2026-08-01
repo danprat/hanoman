@@ -44,8 +44,10 @@ export async function recordDecision(i: TrailInput): Promise<LeadDecision> {
       // "menunya kosong" adalah keadaan yang sama, dan kolom nullable menyatakannya sekali.
       choice: i.choice ?? null,
       choiceIndex: i.choiceIndex ?? null,
-      options: i.options?.length ? i.options : null,
-      missing: i.missing?.length ? i.missing : null,
+      // `undefined` (bukan `null`) untuk kolom Json nullable: Prisma menuntut `DbNull` untuk
+      // null eksplisit, sementara "tak disebut" pada create sudah berarti NULL di baris barunya.
+      options: i.options?.length ? i.options : undefined,
+      missing: i.missing?.length ? i.missing : undefined,
       status: i.status ?? "berlaku", weighty: i.weighty ?? false, actor: i.actor ?? "lead",
     },
   });
@@ -112,6 +114,10 @@ export function toDecisionView(r: LeadDecision): LeadDecisionView {
     refs: Array.isArray(r.refs) ? (r.refs as unknown[]).map(String) : [],
     confidence: r.confidence as LeadDecisionView["confidence"],
     action: r.action as LeadDecisionView["action"],
+    // SPEC-480 · bentuk tak terduga jatuh ke [] / null, pola `refs` di atas.
+    choice: r.choice, choiceIndex: r.choiceIndex,
+    options: Array.isArray(r.options) ? (r.options as unknown[]).map(String) : [],
+    missing: Array.isArray(r.missing) ? (r.missing as unknown[]).map(String) : [],
     status: r.status as LeadDecisionView["status"],
     weighty: r.weighty, supersededById: r.supersededById,
     createdAt: r.createdAt.toISOString(),

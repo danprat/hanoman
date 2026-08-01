@@ -28,6 +28,7 @@ function counters() {
     submit: async () => true, sleep: async () => { /* tanpa waktu nyata */ },
     decide: (async () => null) as unknown as DetectDeps["decide"],
     decideDeps: {} as DetectDeps["decideDeps"],
+    delivery: () => null,   // SPEC-480 · denyut ini tak pernah sampai ke perakitan teks jawaban
     optIn: async () => [], notify: async () => { /* diam */ },
     cfg: async () => cfg(),
   } as DetectDeps;

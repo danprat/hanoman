@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { prisma } from "../src/db";
-import { recordDecision } from "../src/services/lead/trail";
+import { recordDecision, type TrailInput } from "../src/services/lead/trail";
 
 // SPEC-480 · ADR-0098 · jejak keputusan menyimpan PILIHAN sebagai data, bukan hanya prosa.
 // `options` ikut disimpan karena tanpa itu jejaknya tak bisa dibaca ulang: `question` tersimpan,
@@ -16,11 +16,11 @@ beforeEach(async () => {
 });
 afterAll(clean);
 
-const base = {
+const base: TrailInput = {
   projectId: "demo", gate: "contract", kind: "answer",
   question: "q?", answer: "a", reason: "r",
   refs: [], confidence: "tinggi", action: "none",
-} as const;
+};
 
 describe("recordDecision · kolom pilihan (SPEC-480)", () => {
   it("stores the chosen option, its 1-based index, the menu, and the missing list", async () => {

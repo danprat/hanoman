@@ -954,7 +954,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `takeDelivery` (Task 3), `zLeadChoice` (Task 1), kolom baru (Task 2).
 - Produces: `LeadAnswer` bertambah `choice: LeadChoice | null` & `missing: string[]`; `LeadDecisionView` bertambah `choice: string | null`, `choiceIndex: number | null`, `options: string[]`, `missing: string[]`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di akhir `server/test/lead-routes.test.ts` (pakai helper `app`/`token` yang sudah ada di berkas itu — bila namanya berbeda, ikuti berkasnya):
 
@@ -983,14 +983,14 @@ describe("POST /lead/decisions · balasan terstruktur (SPEC-480)", () => {
 > `../src/services/lead/brain` yang mengembalikan blok json itu — pola yang sama dipakai
 > `lead-decide.test.ts` lewat `DecideDeps.think`.
 
-- [ ] **Step 2: Jalankan test — pastikan GAGAL**
+- [x] **Step 2: Jalankan test — pastikan GAGAL**
 
 ```bash
 ./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/lead-routes.test.ts
 ```
 Expected: FAIL — `body.choice` `undefined`.
 
-- [ ] **Step 3: Perluas DTO**
+- [x] **Step 3: Perluas DTO**
 
 `shared/src/dto.ts`, di `zLeadDecisionView` sesudah `action: zLeadAction,`:
 
@@ -1012,7 +1012,7 @@ dan di `zLeadAnswer` sesudah `action: zLeadAction,`:
 
 Pastikan `zLeadChoice` ikut diimpor/di-reekspor di `shared/src/index.ts` bila berkas itu mengekspor nama satu per satu (`grep -n "zLeadVerdict" shared/src/index.ts` untuk memastikan polanya).
 
-- [ ] **Step 4: Perluas `toDecisionView`**
+- [x] **Step 4: Perluas `toDecisionView`**
 
 `server/src/services/lead/trail.ts`, di dalam objek yang dikembalikan `toDecisionView`, sesudah `action: …`:
 
@@ -1022,7 +1022,7 @@ Pastikan `zLeadChoice` ikut diimpor/di-reekspor di `shared/src/index.ts` bila be
     missing: Array.isArray(r.missing) ? (r.missing as unknown[]).map(String) : [],
 ```
 
-- [ ] **Step 5: Perluas route**
+- [x] **Step 5: Perluas route**
 
 `server/src/routes/lead.ts` — ganti import baris 7:
 
@@ -1053,7 +1053,7 @@ dan ganti baris 95-106 dengan:
     return reply.code(201).send(answer);
 ```
 
-- [ ] **Step 6: Jalankan test — pastikan LULUS**
+- [x] **Step 6: Jalankan test — pastikan LULUS**
 
 ```bash
 ./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/lead-routes.test.ts
@@ -1061,14 +1061,14 @@ dan ganti baris 95-106 dengan:
 ```
 Expected: PASS keduanya.
 
-- [ ] **Step 7: Typecheck**
+- [x] **Step 7: Typecheck**
 
 ```bash
 pnpm --filter ./shared typecheck && pnpm --filter ./server typecheck
 ```
 Expected: keluar tanpa error.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add shared/src/dto.ts shared/src/index.ts server/src/routes/lead.ts server/src/services/lead/trail.ts server/test/lead-routes.test.ts
@@ -1092,7 +1092,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `takeDelivery` (Task 3), `leadReplyText` (Task 1).
 - Produces: tak ada API baru; `runChain` tetap seperti SPEC-474.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di akhir `server/test/lead-detect.test.ts` (ikuti helper `deps`/`makeDeps` yang sudah ada di berkas itu; yang penting: `decide` distub mengembalikan baris ber-`choice`, dan `send` merekam teks yang diketik):
 
@@ -1133,14 +1133,14 @@ describe("scanAndAnswer · teks jawaban dirakit dari pilihan (SPEC-480)", () => 
 > memalsukan `decide`, tambahkan `deps.delivery` opsional — **jangan** memakai `takeDelivery` dari
 > dua tempat.
 
-- [ ] **Step 2: Jalankan test — pastikan GAGAL**
+- [x] **Step 2: Jalankan test — pastikan GAGAL**
 
 ```bash
 ./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/lead-detect.test.ts
 ```
 Expected: FAIL — yang diketik masih `row.answer` mentah.
 
-- [ ] **Step 3: Ubah `detect.ts`**
+- [x] **Step 3: Ubah `detect.ts`**
 
 Ganti import baris 8:
 
@@ -1175,14 +1175,14 @@ Perbarui juga blok `notes` di atasnya (baris 255-258) supaya menyebut kontrak ba
     }
 ```
 
-- [ ] **Step 4: Jalankan test — pastikan LULUS**
+- [x] **Step 4: Jalankan test — pastikan LULUS**
 
 ```bash
 ./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/lead-detect.test.ts
 ```
 Expected: PASS seluruh berkas — termasuk test rantai SPEC-474 yang tak boleh berubah perilakunya.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/lead/detect.ts server/test/lead-detect.test.ts
