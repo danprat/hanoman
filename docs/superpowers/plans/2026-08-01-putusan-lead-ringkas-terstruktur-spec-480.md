@@ -1206,7 +1206,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `LeadDecisionView.choice/choiceIndex/options/missing` (Task 5).
 - Produces: —
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `src/test/lead-screen.test.tsx` (dan tambahkan keempat field baru ke fixture `DECISIONS` yang sudah ada — `choice: null, choiceIndex: null, options: [], missing: []` untuk `d1`/`d2`):
 
@@ -1239,14 +1239,14 @@ describe("LeadScreen · pilihan terstruktur (SPEC-480)", () => {
 > Props `LeadScreen` diambil dari pemakaian yang sudah ada di berkas test ini — pakai persis
 > bentuk `render(...)` yang dipakai test lain di berkas tersebut.
 
-- [ ] **Step 2: Jalankan test — pastikan GAGAL**
+- [x] **Step 2: Jalankan test — pastikan GAGAL**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --dir src src/test/lead-screen.test.tsx
 ```
 Expected: FAIL — teks "opsi 2/2" tak ada.
 
-- [ ] **Step 3: Render badge di `DecisionRow`**
+- [x] **Step 3: Render badge di `DecisionRow`**
 
 `src/src/screens/LeadScreen.tsx` — sisipkan sesudah badge `{d.weighty && …}` (baris 129):
 
@@ -1277,14 +1277,14 @@ Lalu, di baris jawaban (baris 136-138), sebutkan label opsi terpilih saat ada:
 > Bila `tone="accent"` bukan tone yang sah di `Badge` design system, pakai `"neutral"` —
 > cek `src/src/ds/Badge.tsx` untuk daftar tone yang ada.
 
-- [ ] **Step 4: Jalankan test — pastikan LULUS**
+- [x] **Step 4: Jalankan test — pastikan LULUS**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --dir src src/test/lead-screen.test.tsx
 ```
 Expected: PASS seluruh berkas (test SPEC-409 lama ikut hijau).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/LeadScreen.tsx src/test/lead-screen.test.tsx
