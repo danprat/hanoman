@@ -8,6 +8,8 @@ import type { Setting, UserView, DeviceTokenView, SessionResultView, ConfigRespo
 import type { ShowToast } from "../ds";
 import { playNotifySound, type NotifySound } from "../notifications/sound";
 import { CustomAgentsPanel } from "./CustomAgentsPanel";
+import { WebhooksPanel } from "./WebhooksPanel";
+import { WebhookDocs } from "./WebhookDocs";
 
 // SPEC-383 · katalog claude dibaca dari @hanoman/shared — sumber yang SAMA dengan picker Start
 // (App.tsx). Sebelumnya tab ini menyalinnya (`S_MODELS`/`S_EFFORT` + komentar "keep in sync"),
@@ -475,6 +477,7 @@ const S_SECTIONS = [
   { key: "aktivitas", label: "Aktivitas", icon: "activity" },    // SPEC-213 · activity log
   { key: "konfigurasi", label: "Konfigurasi", icon: "sliders" }, // SPEC-215 · env runtime
   { key: "telegram", label: "Telegram", icon: "send" },          // SPEC-476 · operator gateway
+  { key: "webhook", label: "Webhook", icon: "webhook" },         // SPEC-481 · ADR-0099 · webhook keluar
   { key: "umum", label: "Umum", icon: "sliders-horizontal" },
   { key: "model", label: "Model sesi", icon: "cpu" },
   { key: "sesi", label: "Sesi", icon: "bell" },
@@ -485,6 +488,9 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
   const [s, setS] = React.useState<Setting | null>(null);
   const [failed, setFailed] = React.useState(false);
   const [tab, setTab] = React.useState<string>("akun");
+  // SPEC-481 · halaman dokumentasi webhook hidup DI DALAM tab-nya (bukan modal): brief
+  // meminta "halaman", dan modal di atas Settings membuat Escape ambigu (pola SPEC-385).
+  const [webhookDocs, setWebhookDocs] = React.useState(false);
   const [telegramStatus, setTelegramStatus] = React.useState<TelegramGatewayStatus | null>(null);
   const [telegramFailed, setTelegramFailed] = React.useState(false);
   // SPEC-339 · versi codex CLI, untuk peringatan LUNAK saja. Gagal-diam: endpoint yang error tak
@@ -948,6 +954,9 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
     )
     : tab === "aktivitas" ? <ActivityPanel onToast={onToast} />
     : tab === "konfigurasi" ? <ConfigPanel onToast={onToast} />
+    : tab === "webhook" ? (webhookDocs
+      ? <WebhookDocs onBack={() => setWebhookDocs(false)} />
+      : <WebhooksPanel onToast={onToast} onOpenDocs={() => setWebhookDocs(true)} />)
     : prefs();
 
   return (
