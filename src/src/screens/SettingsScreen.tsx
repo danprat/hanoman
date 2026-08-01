@@ -8,6 +8,7 @@ import type { Setting, UserView, DeviceTokenView, SessionResultView, ConfigRespo
 import type { ShowToast } from "../ds";
 import { playNotifySound, type NotifySound } from "../notifications/sound";
 import { CustomAgentsPanel } from "./CustomAgentsPanel";
+import { McpPanel } from "./McpPanel";   // SPEC-482 · ADR-0099 · pemasangan MCP siap salin
 
 // SPEC-383 · katalog claude dibaca dari @hanoman/shared — sumber yang SAMA dengan picker Start
 // (App.tsx). Sebelumnya tab ini menyalinnya (`S_MODELS`/`S_EFFORT` + komentar "keep in sync"),
@@ -460,6 +461,10 @@ export function AgentAccessPanel({ onToast }: { onToast?: ShowToast } = {}) {
           </div>
         </div>
       </Card>
+
+      {/* SPEC-482 · ADR-0099 · memasang MCP server dan memberi capability adalah satu pekerjaan
+          manusia; panelnya duduk di tab yang sama dengan master switch & daftar token. */}
+      <McpPanel />
     </>
   );
 }
