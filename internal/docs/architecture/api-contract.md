@@ -1042,12 +1042,17 @@ Untuk route IDE yang memilih operasi lewat body, pagar membaca operasi aktual: `
 
 `POST /telegram/replies` idempoten per chat/update/kind dan hanya menerima output user-facing
 `progress|final|decision|failure|confirmation`. Raw PTY tidak punya endpoint ekspor ke Telegram.
-Gateway sendiri **juga** boleh mengantre amplop (ADR-0096 §5, dipasang SPEC-491) — fakta server
-saja: satu baris saat update berhasil di-dispatch (digerbangi `Setting.telegram.progress`) dan satu
-baris kegagalan saat dispatch gagal (**tak** digerbangi; kegagalan bukan progress). `kind`-nya
-`gateway-progress`/`gateway-failure`, di luar enum reply, karena `dedupeKey` outbox adalah
-`chat:update:kind` — memakai `"progress"` akan membuat baris gateway menelan reply session operator
-untuk update yang sama.
+Gateway sendiri **hanya** mengantre satu jenis amplop sejak SPEC-493 ·
+[ADR-0104](../adr/0104-telegram-typing-indicator-long-poll-adaptif.md): `gateway-failure` saat
+dispatch gagal — **tak** digerbangi `Setting.telegram.progress`, karena kegagalan bukan progress dan
+harus terbaca. `kind`-nya di luar enum reply karena `dedupeKey` outbox adalah `chat:update:kind`:
+memakai `"progress"` akan membuat baris gateway menelan reply session operator untuk update yang
+sama. Kind `gateway-progress` **dihapus** — kehadiran gateway sekarang berupa indikator
+`sendChatAction` "typing…" yang **sesaat** (tak meninggalkan jejak di chat), dinyalakan saat update
+di-dispatch, di-arm ulang sesudah tiap chunk, dan **tidak** sesudah balasan final.
+`Setting.telegram.progress` menggerbangi indikator itu: mati = nol panggilan `sendChatAction`.
+Denyutnya adalah long-poll `getUpdates` yang **adaptif** (4 detik saat ada update `dispatched` tanpa
+balasan final, 25 detik saat idle) — nol timer baru, ADR-0024 utuh.
 Endpoint context/memory tidak pernah mengembalikan token atau teks inbound. Audit hanya metadata
 correlation/method/path/status, tanpa body/header.
 

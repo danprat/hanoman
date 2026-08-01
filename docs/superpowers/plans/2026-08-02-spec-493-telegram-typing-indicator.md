@@ -986,7 +986,7 @@ git commit -m "feat(493): gateway memakai indikator typing dan long-poll adaptif
 
 **Nomor ADR:** 0104. Sudah dienumerasi lintas `git branch -a` **dan** `git worktree list` (main = 0103; worktree tetangga `spec-492` eksplisit "tanpa ADR baru"). **Enumerasi ulang tepat sebelum push** (Task 6) — sesi lain bisa mengklaimnya di sela waktu.
 
-- [ ] **Step 1: Tulis ADR**
+- [x] **Step 1: Tulis ADR**
 
 Buat `internal/docs/adr/0104-telegram-typing-indicator-long-poll-adaptif.md`:
 
@@ -1112,7 +1112,7 @@ tanpa rekonsiliasi apa pun. `TelegramChat.lastProgressKey` tetap tak dipakai.
   (ADR-0018: turunkan bila bisa dihitung ulang).
 ```
 
-- [ ] **Step 2: Tautkan ADR di kedua index**
+- [x] **Step 2: Tautkan ADR di kedua index**
 
 Di `internal/docs/README.md`, bagian `## adr`, sisipkan **tepat di atas** baris `- [0103 — Auto-merge…`:
 
@@ -1122,7 +1122,7 @@ Di `internal/docs/README.md`, bagian `## adr`, sisipkan **tepat di atas** baris 
 
 Di `internal/docs/adr/README.md`, temukan entri narasi ADR-0103 dan sisipkan entri 0104 **di atasnya**, mengikuti format yang dipakai berkas itu (baca 2-3 entri di sekitarnya lebih dulu dan tiru bentuknya persis — jangan mengarang format baru). Isinya: mengamandemen 0096 §5 (suara gateway jadi sesaat), menegakkan 0024 (long-poll adaptif, bukan timer baru), dan tiga gotcha teratas dari ADR-nya.
 
-- [ ] **Step 3: Perbarui `api-contract.md`**
+- [x] **Step 3: Perbarui `api-contract.md`**
 
 Di `internal/docs/architecture/api-contract.md`, ganti kalimat yang berbunyi
 "Gateway sendiri **juga** boleh mengantre amplop (ADR-0096 §5, dipasang SPEC-491) — fakta server
@@ -1146,7 +1146,7 @@ final. `Setting.telegram.progress` menggerbangi indikator itu: mati = nol panggi
 `dispatched` tanpa balasan final, 25 detik saat idle) — nol timer baru, ADR-0024 utuh.
 ```
 
-- [ ] **Step 4: Perbarui `SKILL.md`**
+- [x] **Step 4: Perbarui `SKILL.md`**
 
 Di `internal/skills/hanoman/SKILL.md`, sisipkan butir baru **tepat sesudah** butir ADR-0097 yang
 berakhir dengan `**tetap tak pernah masuk sesi** (ADR-0096 gotcha 4 utuh).`:
@@ -1176,7 +1176,7 @@ berakhir dengan `**tetap tak pernah masuk sesi** (ADR-0096 gotcha 4 utuh).`:
   method-nya bisa melempar** — jalur at-most-once update/outbox tak tersentuh.
 ```
 
-- [ ] **Step 5: Verifikasi integritas index docs**
+- [x] **Step 5: Verifikasi integritas index docs**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-493
@@ -1187,7 +1187,7 @@ Harapan: melaporkan index utuh (ADR-0104 ter-link). Bila CLI belum ter-build dan
 verifikasi manual: `grep -n "0104" internal/docs/README.md internal/docs/adr/README.md` harus
 memberi **dua** baris.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/docs internal/skills
