@@ -1306,7 +1306,7 @@ Call site `prisma.spec.create` **keempat** di seluruh server. Cermin `services/t
 - Consumes: `nextSpecId` (`services/id.ts`), `resolveRepoDir` (`services/local-binding.ts`), `sourceForLabels` (Task 1), `notifySynced`
 - Produces: `acceptGithubIssue(issue: GithubIssue, opts: { author: string; priority?: string; source?: "qa" | "brief" | "audit" }): Promise<{ spec: Spec; created: boolean }>`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 `server/test/github-accept.test.ts`:
 
@@ -1418,12 +1418,12 @@ describe("SPEC-471 · acceptGithubIssue", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan MERAH**
+- [x] **Step 2: Jalankan, pastikan MERAH**
 
 Run: `./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/github-accept.test.ts`
 Expected: FAIL — `Cannot find module '../src/services/github-accept'`
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 `server/src/services/github-accept.ts`:
 
@@ -1495,12 +1495,12 @@ export async function acceptGithubIssue(
 }
 ```
 
-- [ ] **Step 4: Jalankan, pastikan HIJAU**
+- [x] **Step 4: Jalankan, pastikan HIJAU**
 
 Run: `./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/github-accept.test.ts`
 Expected: PASS — 7 test
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/github-accept.ts server/test/github-accept.test.ts
