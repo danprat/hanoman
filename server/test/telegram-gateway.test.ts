@@ -18,18 +18,27 @@ const message = (updateId: number, text = "halo", userId = 7) => ({
 function fakeClient(): TelegramGatewayClient & {
   sent: { chatId: string; text: string; replyMarkup?: unknown }[];
   answered: { callbackQueryId: string; text?: string }[];
+  actions: string[];
+  failAction: boolean;
 } {
   const sent: { chatId: string; text: string; replyMarkup?: unknown }[] = [];
   const answered: { callbackQueryId: string; text?: string }[] = [];
-  return {
-    sent, answered,
+  const actions: string[] = [];
+  const client = {
+    sent, answered, actions, failAction: false,
     getUpdates: async () => [],
-    sendMessage: async (input) => {
+    sendMessage: async (input: { chatId: string; text: string; replyMarkup?: unknown }) => {
       sent.push(input);
       return { message_id: sent.length, date: 1, chat: { id: Number(input.chatId), type: "private" }, text: input.text };
     },
-    answerCallbackQuery: async (input) => { answered.push(input); return true; },
+    answerCallbackQuery: async (input: { callbackQueryId: string; text?: string }) => { answered.push(input); return true; },
+    sendChatAction: async (chatId: string) => {
+      if (client.failAction) throw new TelegramApiError("sendChatAction", 429, "429", 5);
+      actions.push(chatId);
+      return true;
+    },
   };
+  return client;
 }
 
 function dispatcher(): TelegramInputDispatcher & { inputs: { updateId: number; text: string }[] } {
@@ -51,7 +60,7 @@ async function clean() {
 beforeEach(clean);
 afterAll(clean);
 
-function gateway(opts: { rateLimit?: number } = {}) {
+function gateway(opts: { rateLimit?: number; progress?: boolean } = {}) {
   const client = fakeClient();
   const dispatch = dispatcher();
   return {
@@ -61,7 +70,7 @@ function gateway(opts: { rateLimit?: number } = {}) {
       allowedUserIds: new Set(["7"]),
       rateLimit: { limit: opts.rateLimit ?? 20, windowMs: 60_000 },
       exactSecrets: ["123456:BOT_SECRET", "hnm_agt_AGENT_SECRET"],
-      progress: true,
+      progress: opts.progress ?? true,
     }),
   };
 }
@@ -184,5 +193,74 @@ describe("TelegramGateway lifecycle recovery (SPEC-476)", () => {
     expect(telegramRuntimeStatus()).toMatchObject({ running: false, readiness: "error" });
     expect(telegramRuntimeStatus().lastError).toContain("409");
     await g.stop();
+  });
+});
+
+describe("TelegramGateway typing indicator (SPEC-493)", () => {
+  it("arms typing on dispatch and queues no progress text at all", async () => {
+    const x = gateway();
+    await x.gateway.processUpdates([message(17)]);
+    expect(x.client.actions).toEqual(["42"]);
+    expect(await prisma.telegramOutbox.count()).toBe(0);
+    expect(x.client.sent).toEqual([]);
+  });
+
+  it("re-arms typing after a non-final chunk but lets the timer die after the final one", async () => {
+    const x = gateway();
+    await x.gateway.processUpdates([message(17)]);
+    x.client.actions.length = 0;
+    await store.enqueueReply({ chatId: "42", updateId: 17, kind: "progress", text: "sebentar" });
+    await x.gateway.flushOutbox();
+    expect(x.client.actions).toEqual(["42"]);
+
+    x.client.actions.length = 0;
+    await store.enqueueReply({ chatId: "42", updateId: 17, kind: "final", text: "selesai" });
+    await x.gateway.flushOutbox();
+    expect(x.client.actions).toEqual([]);
+  });
+
+  it("keeps typing alive between chunks of one long final reply", async () => {
+    const x = gateway();
+    await x.gateway.processUpdates([message(17)]);
+    x.client.actions.length = 0;
+    await store.enqueueReply({ chatId: "42", updateId: 17, kind: "final", text: "x".repeat(9_000) });
+    await x.gateway.flushOutbox();
+    expect(x.client.sent.length).toBeGreaterThan(1);
+    // satu arm per chunk KECUALI chunk terakhir
+    expect(x.client.actions).toHaveLength(x.client.sent.length - 1);
+  });
+
+  it("stays silent end to end when the progress flag is off", async () => {
+    const x = gateway({ progress: false });
+    await x.gateway.processUpdates([message(17)]);
+    await store.enqueueReply({ chatId: "42", updateId: 17, kind: "progress", text: "sebentar" });
+    await x.gateway.flushOutbox();
+    expect(x.client.actions).toEqual([]);
+    expect(x.client.sent.map((item) => item.text)).toEqual(["sebentar"]);
+  });
+
+  it("never lets a failing chat action touch update or outbox state", async () => {
+    const x = gateway();
+    x.client.failAction = true;
+    await x.gateway.processUpdates([message(17)]);
+    expect((await prisma.telegramUpdate.findUnique({ where: { updateId: 17 } }))?.state).toBe("dispatched");
+    await store.enqueueReply({ chatId: "42", updateId: 17, kind: "progress", text: "sebentar" });
+    await x.gateway.flushOutbox();
+    expect(x.client.sent.map((item) => item.text)).toEqual(["sebentar"]);
+    expect((await prisma.telegramOutbox.findFirst())?.state).toBe("sent");
+  });
+
+  it("still reports dispatch failure as readable text, not a vanishing indicator", async () => {
+    const client = fakeClient();
+    const g = new TelegramGateway({
+      client, store,
+      dispatcher: { dispatch: async () => { throw new Error("pane hilang"); } },
+      allowedUserIds: new Set(["7"]),
+      rateLimit: { limit: 20, windowMs: 60_000 }, exactSecrets: [], progress: true,
+    });
+    await g.processUpdates([message(17)]);
+    await g.flushOutbox();
+    expect(client.sent[0]!.text).toContain("gagal diteruskan ke sesi operator");
+    expect((await prisma.telegramOutbox.findFirst())?.kind).toBe("gateway-failure");
   });
 });

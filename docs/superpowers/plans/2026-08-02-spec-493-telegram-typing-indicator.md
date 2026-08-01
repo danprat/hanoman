@@ -670,7 +670,7 @@ git commit -m "feat(493): TelegramTypingIndicator dengan throttle, cooldown, dan
 - Consumes: `TelegramTypingIndicator`, `pollTimeoutFor`, `TYPING_MAX_WAIT_MS` (Task 3) · `TelegramStore.chatsAwaitingReply`, `TELEGRAM_FINAL_REPLY_KINDS`, `TELEGRAM_GATEWAY_FAILURE_KIND` (Task 2) · `TelegramApiClient.sendChatAction` (Task 1)
 - Produces: `TelegramGatewayClient` bertambah `sendChatAction(chatId: string, action: "typing"): Promise<boolean>` · `GatewayDeps` bertambah `typing?: TelegramTypingIndicator`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 **(a)** Di `server/test/telegram-gateway.test.ts`, ganti `fakeClient()` (baris 18-33) menjadi:
 
@@ -810,7 +810,7 @@ describe("TelegramGateway typing indicator (SPEC-493)", () => {
     ]);
 ```
 
-- [ ] **Step 2: Jalankan test dan pastikan GAGAL**
+- [x] **Step 2: Jalankan test dan pastikan GAGAL**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-493
@@ -821,7 +821,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism --dir serve
 
 Harapan: GAGAL — `actions` tetap `[]` (gateway belum memanggil `sendChatAction`) dan `telegramOutbox.count()` masih 1 (baris `gateway-progress` masih diantrekan).
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Di `server/src/services/telegram/gateway.ts`:
 
@@ -942,7 +942,7 @@ export class TelegramGateway {
 
 > `setTimeout` 1 detik di cabang `catch` **sudah ada sebelum spec ini** — ia backoff satu kali di dalam loop, bukan scheduler. Jangan hitung sebagai timer baru.
 
-- [ ] **Step 4: Jalankan test dan pastikan LULUS**
+- [x] **Step 4: Jalankan test dan pastikan LULUS**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-493
@@ -953,7 +953,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism --dir serve
 
 Harapan: LULUS, termasuk seluruh test lama kedua berkas (`gateway-failure`, lifecycle, konfirmasi inline).
 
-- [ ] **Step 5: Typecheck paket server**
+- [x] **Step 5: Typecheck paket server**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-493
@@ -962,7 +962,7 @@ pnpm --filter ./server typecheck
 
 Harapan: keluar tanpa error.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/services/telegram/gateway.ts server/test/telegram-gateway.test.ts server/test/telegram-e2e.test.ts
