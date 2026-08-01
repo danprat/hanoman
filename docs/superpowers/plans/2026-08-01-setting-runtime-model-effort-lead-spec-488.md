@@ -70,7 +70,7 @@ argv hanya memindahkan asumsi.
   satu argumen per baris (kecuali argumen terakhir = prompt), lalu mencetak blok ```json putusan
   sah. Dipakai lagi oleh smoke di Task 5.
 
-- [ ] **Step 1: Tulis fixture perekam argv**
+- [x] **Step 1: Tulis fixture perekam argv**
 
 Create `server/test/fixtures/fake-lead-argv.sh`:
 
@@ -104,7 +104,7 @@ cat >/dev/null
 printf '```json\n{"decision":"lanjut","reason":"argv terekam","confidence":"tinggi"}\n```\n'
 ```
 
-- [ ] **Step 2: Tulis test rantai setelan → argv**
+- [x] **Step 2: Tulis test rantai setelan → argv**
 
 Create `server/test/lead-engine-argv.test.ts`:
 
@@ -268,7 +268,7 @@ describe("SPEC-488 · setelan lead sampai ke ARGV proses lead", () => {
 });
 ```
 
-- [ ] **Step 3: Jalankan test**
+- [x] **Step 3: Jalankan test**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-488
@@ -284,7 +284,7 @@ memerahkan salah satunya.
 Bila muncul kegagalan ramai **404/P2022** → itu DB test bersama yang dihapus run tetangga
 (SPEC-479), bukan regresi: ulangi dengan `TEST_DATABASE_URL` yang baru.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add server/test/fixtures/fake-lead-argv.sh server/test/lead-engine-argv.test.ts
@@ -309,7 +309,7 @@ git commit -m "test(488): kunci rantai Setting.lead.engine → argv proses lead"
 - Produces: `data-testid="lead-engine-inherited"`; `aria-label` `"Override agen lead"`,
   `"Runtime lead"`, `"Model lead"`, `"Effort lead"`.
 
-- [ ] **Step 1: Tulis test kontrak kartu (gagal dulu)**
+- [x] **Step 1: Tulis test kontrak kartu (gagal dulu)**
 
 Create `src/test/settings-lead-engine.test.tsx`:
 
@@ -436,7 +436,7 @@ describe("SPEC-488 · kartu agen hanoman-lead", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan MERAH**
+- [x] **Step 2: Jalankan test — pastikan MERAH**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-488
@@ -446,7 +446,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run --dir src src/test/settings-lead-
 Expected: **7 FAIL** — `Unable to find an element with the text: Agen hanoman-lead` dst.
 (`env -u NODE_ENV` wajib: `NODE_ENV=production` di env sesi membuat RTL `act` gagal massal.)
 
-- [ ] **Step 3: Tambahkan kartu di `SettingsScreen.tsx`**
+- [x] **Step 3: Tambahkan kartu di `SettingsScreen.tsx`**
 
 Di dalam `if (tab === "model") { … }`, **sesudah** deklarasi `inherited` (yang sudah ada untuk kartu
 konflik) sisipkan penulis blok lead:
@@ -546,7 +546,7 @@ Lalu sisipkan kartunya **sesudah** `</Card>` penutup kartu "Konflik rebase & mer
       </Card>
 ```
 
-- [ ] **Step 4: Jalankan test — pastikan HIJAU, dan test Settings lama tak retak**
+- [x] **Step 4: Jalankan test — pastikan HIJAU, dan test Settings lama tak retak**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-488
@@ -558,7 +558,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run --dir src \
 Expected: semua PASS. Test Settings lama memakai mock `api` **tanpa** `getLeadConfig` — itu aman
 justru karena kartu ini tak memanggilnya saat render, hanya saat operator menyimpan.
 
-- [ ] **Step 5: Typecheck paket web**
+- [x] **Step 5: Typecheck paket web**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-488 && pnpm --filter ./src typecheck
@@ -566,7 +566,7 @@ cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-488 && pnpm --
 
 Expected: exit 0.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/src/screens/SettingsScreen.tsx src/test/settings-lead-engine.test.tsx
@@ -588,7 +588,7 @@ ada di `state.config` yang dipoll layar itu — **nol permintaan baru, nol perub
 - Consumes: `cfg: Lead` yang sudah menjadi prop `ControlBar`.
 - Produces: `data-testid="lead-engine-line"`.
 
-- [ ] **Step 1: Tulis test (gagal dulu)**
+- [x] **Step 1: Tulis test (gagal dulu)**
 
 Tambahkan di akhir `src/test/lead-screen.test.tsx`:
 
@@ -624,7 +624,7 @@ describe("SPEC-488 · baris mesin lead", () => {
 **Catatan pemanggilan:** samakan props `<LeadScreen …>` dengan yang sudah dipakai test-test di atas
 di berkas yang sama — bila berbeda, salin bentuk pemanggilan yang ada, jangan yang di plan ini.
 
-- [ ] **Step 2: Jalankan — pastikan MERAH**
+- [x] **Step 2: Jalankan — pastikan MERAH**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-488
@@ -633,7 +633,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run --dir src src/test/lead-screen.te
 
 Expected: 2 FAIL (`Unable to find an element by: [data-testid="lead-engine-line"]`).
 
-- [ ] **Step 3: Tambahkan barisnya di `ControlBar`**
+- [x] **Step 3: Tambahkan barisnya di `ControlBar`**
 
 Ganti blok catatan penutup `ControlBar` (`<div … marginTop: 10 }}>Lead memutuskan lalu melapor…`)
 menjadi:
@@ -653,7 +653,7 @@ menjadi:
       </div>
 ```
 
-- [ ] **Step 4: Jalankan — pastikan HIJAU**
+- [x] **Step 4: Jalankan — pastikan HIJAU**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-488
@@ -662,7 +662,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run --dir src src/test/lead-screen.te
 
 Expected: seluruh berkas PASS (test lama + 2 test baru).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/LeadScreen.tsx src/test/lead-screen.test.tsx
@@ -678,7 +678,7 @@ git commit -m "feat(488): LeadScreen menyebutkan mesin yang menjalankan lead"
 - Modify: `internal/docs/frontend/frontend-implementation.md` (section baru, pola "Settings → Telegram")
 - Modify: `internal/skills/hanoman/SKILL.md` (butir hanoman-lead)
 
-- [ ] **Step 1: `data-model.md` — permukaan operator + alasan penulis kedua**
+- [x] **Step 1: `data-model.md` — permukaan operator + alasan penulis kedua**
 
 Pada bullet `lead`, ganti kalimat yang berbunyi *"…dan blok `engine` `{enabled,agent,model,effort}` =
 agen yang menjalankan lead — **opt-in seperti `conflict`**: selama `engine.enabled` mati,
@@ -700,7 +700,7 @@ agen yang menjalankan lead — **opt-in seperti `conflict`**: selama `engine.ena
   setelan **berlaku tanpa restart**, dikunci `server/test/lead-engine-argv.test.ts`.
 ```
 
-- [ ] **Step 2: `frontend-implementation.md` — section baru**
+- [x] **Step 2: `frontend-implementation.md` — section baru**
 
 Tambahkan section (letakkan sesudah section "Settings → Telegram …", sebelum section berikutnya):
 
@@ -733,7 +733,7 @@ DTO**; `cfg.engine?.` memakai optional chaining karena dashboard bisa lebih baru
 yang dilayaninya (ADR-0087).
 ```
 
-- [ ] **Step 3: `SKILL.md` — butir hanoman-lead**
+- [x] **Step 3: `SKILL.md` — butir hanoman-lead**
 
 Tambahkan bullet baru tepat sesudah butir `- **hanoman-lead — agen pemimpin di atas agen**` (yang
 berakhir dengan "…`services/lead/pane.ts` bias ke DIAM."):
@@ -760,7 +760,7 @@ berakhir dengan "…`services/lead/pane.ts` bias ke DIAM."):
   memerahkan sesuatu.
 ```
 
-- [ ] **Step 4: Periksa index docs tetap sinkron**
+- [x] **Step 4: Periksa index docs tetap sinkron**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-488 && node cli/dist/index.js docs index --check 2>/dev/null \
@@ -770,7 +770,7 @@ cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-488 && node cl
 Expected: tak ada berkas doc baru → `internal/docs/README.md` **tidak** berubah. Ketiga berkas yang
 disunting sudah ter-link di index.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/docs/architecture/data-model.md internal/docs/frontend/frontend-implementation.md internal/skills/hanoman/SKILL.md
@@ -783,7 +783,7 @@ git commit -m "docs(488): permukaan operator runtime/model/effort lead + gotcha 
 
 **Files:** tidak ada perubahan kode; hanya verifikasi + commit penutup plan.
 
-- [ ] **Step 1: Test yang tersentuh saja**
+- [x] **Step 1: Test yang tersentuh saja**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-488
@@ -799,7 +799,7 @@ Expected: semua PASS, dan **jumlah test yang berjalan bukan nol** (`--changed` m
 `passWithNoTests`; di sini path disebut eksplisit justru untuk menghindari "no test files" yang
 terlihat hijau).
 
-- [ ] **Step 2: Typecheck paket tersentuh saja**
+- [x] **Step 2: Typecheck paket tersentuh saja**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-488
@@ -809,7 +809,7 @@ pnpm --filter ./server typecheck && pnpm --filter ./src typecheck
 Expected: exit 0 keduanya. **Jangan** `pnpm -r typecheck` (ADR-0080 — mesin ini menjalankan
 beberapa sesi sekaligus).
 
-- [ ] **Step 3: Smoke nyata — argv proses lead dari endpoint sungguhan**
+- [x] **Step 3: Smoke nyata — argv proses lead dari endpoint sungguhan**
 
 Task ini menyentuh endpoint (`PUT /lead/config`, `POST /lead/decisions`), jadi ia diuji nyata sekali
 di akhir. DB **khusus** dan `DATABASE_URL` **eksplisit**: profil shell mesin ini menyetel
@@ -850,12 +850,12 @@ sampai — hentikan dan perbaiki sebelum melanjutkan.
 Bereskan: `kill <PID server>` (per-PID; **jangan** `pkill -f node` — pola itu mencocoki agen sesi
 lain di mesin ini, SPEC-402).
 
-- [ ] **Step 4: Centang seluruh checklist plan ini**
+- [x] **Step 4: Centang seluruh checklist plan ini**
 
 Pastikan tak ada `- [ ]` tersisa di berkas ini (hanoman menahan backlog di `executing` selama masih
 ada kotak kosong).
 
-- [ ] **Step 5: Commit penutup + push**
+- [x] **Step 5: Commit penutup + push**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-488
@@ -888,3 +888,45 @@ konsisten di keempat handler kartu; `engine`/`lead`/`inherited`/`codexOptions`/`
 `SettingsScreen.tsx`; `data-testid` (`lead-engine-inherited`, `lead-engine-line`) dan `aria-label`
 (`Override agen lead`, `Runtime lead`, `Model lead`, `Effort lead`) identik antara test dan
 implementasi.
+
+---
+
+## Catatan pelaksanaan (2026-08-01)
+
+**Bukti bahwa test Task 1 tidak hampa.** Rantai `Setting.lead.engine` → argv sudah terpasang di
+server sejak ADR-0091, jadi kedelapan test hijau sejak jalan pertama — hijau yang tak berarti apa-apa
+kalau tak dibuktikan bisa merah. Diukur: `leadAgentDefaults()` dipaksa selalu mengembalikan
+`sessionAgentDefaults()` (satu baris) → **5 dari 8 test gagal**; berkas dipulihkan dan
+`git diff --stat` kosong.
+
+**Smoke nyata (server hidup, port 8891, DB `mktemp` khusus, `HANOMAN_CLAUDE_BIN`/`HANOMAN_CODEX_BIN`
+= `fake-lead-argv.sh`).** Tiga keadaan diuji berturut-turut **tanpa satu pun restart**, masing-masing
+`PUT /api/lead/config` lalu `POST /api/lead/decisions`, argv dibaca dari berkas rekaman:
+
+| Setelan yang di-PUT | Argv proses lead yang terekam |
+|---|---|
+| `engine {enabled:true, claude, claude-sonnet-5, low}` | `-p --model claude-sonnet-5 --effort low --dangerously-skip-permissions` |
+| `engine {enabled:true, codex, gpt-5.6-luna, ultra}` | `exec -m gpt-5.6-luna -c model_reasoning_effort="xhigh" --dangerously-bypass-approvals-and-sandbox` |
+| `engine {enabled:false, …}` | `-p --model claude-opus-5 --effort xhigh --dangerously-skip-permissions` |
+
+Baris kedua sekalian membuktikan koersi effort per-model SPEC-339 bekerja di **server**, bukan hanya
+di picker: `ultra` yang di-PUT lewat kontrak HTTP (melewati UI) tetap turun ke `xhigh` karena Luna
+tak mendukungnya. Baris ketiga membuktikan fallback ke default lama. Ketiganya pada proses server
+yang sama → "ganti setelan tanpa restart" terverifikasi di luar test, bukan disimpulkan dari kode.
+
+**Dua gotcha smoke yang termakan waktu.** (1) `Session.id` adalah **sha256 dari token**, bukan
+tokennya (`services/auth.ts:30`) — menyemai baris sesi dengan id = token menghasilkan 401 yang
+terbaca seperti gerbang capability. (2) `curl -H cookie:hn_session=…` **tanpa spasi** sesudah titik
+dua membuat Fastify menolak dengan **400 "Client Error"**, bukan 401 — dua kegagalan yang terlihat
+berbeda untuk satu sebab yang sama.
+
+**Hasil verifikasi akhir.** Server: 84 test lulus (`lead-engine-argv` 8 · `lead-brain` 18 ·
+`lead-decide` 43 · `settings` 15), `pnpm --filter ./server typecheck` bersih. Web: 62 test lulus
+(9 berkas: kartu baru, `lead-screen`, dan seluruh berkas test Settings yang ada — termasuk yang
+mem-*mock* `api` tanpa `getLeadConfig`, yang memang aman karena kartu tak memanggilnya saat render),
+`pnpm --filter ./src typecheck` bersih. Suite penuh sengaja **tidak** dijalankan (ADR-0080).
+
+**Sisa yang sengaja tak dikerjakan.** Bahaya "snapshot Settings basi" berlaku untuk **setiap** save
+di layar itu, bukan hanya blok lead: mengganti model claude pun mem-PUT blok `lead`/`scheduler` dari
+snapshot yang dimuat saat mount. Kartu baru ini kebal karena menulis lewat endpointnya sendiri, tapi
+pola tulis seluruh layar tak disentuh — itu perubahan berdampak luas yang pantas jadi spec sendiri.
