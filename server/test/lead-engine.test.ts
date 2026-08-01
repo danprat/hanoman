@@ -25,6 +25,7 @@ function counters() {
     live: () => { c.detect++; return []; },
     filled: () => false, pane: () => "", agentOf: () => "claude", exited: () => true,
     send: async () => true, clearMarker: () => { /* diam */ },
+    submit: async () => true, sleep: async () => { /* tanpa waktu nyata */ },
     decide: (async () => null) as unknown as DetectDeps["decide"],
     decideDeps: {} as DetectDeps["decideDeps"],
     optIn: async () => [], notify: async () => { /* diam */ },

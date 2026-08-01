@@ -22,12 +22,14 @@ type Harness = {
   sent: { id: string; text: string }[];
   asked: string[];
   notes: string[];
+  submits: string[];
 };
 
 function harness(over: Partial<DetectDeps> = {}, conf: Lead = cfg()): Harness {
   const sent: { id: string; text: string }[] = [];
   const asked: string[] = [];
   const notes: string[] = [];
+  const submits: string[] = [];
   const deps: DetectDeps = {
     live: () => [{ id: "s1", specId: "spec-1", projectId: "demo", decisionFile: "/marker" }],
     filled: () => true,
@@ -48,9 +50,13 @@ function harness(over: Partial<DetectDeps> = {}, conf: Lead = cfg()): Harness {
     optIn: async () => ["demo"],
     notify: async (_id, title) => { notes.push(title); },
     cfg: async () => conf,
+    // SPEC-474 · menekan `Submit answers` adalah langkah mekanis; `sleep` disuntik supaya rantai
+    // bisa diuji tanpa waktu nyata.
+    submit: async (id) => { submits.push(id); return true; },
+    sleep: async () => {},
     ...over,
   };
-  return { deps, sent, asked, notes };
+  return { deps, sent, asked, notes, submits };
 }
 
 describe("scanAndAnswer · gerbang", () => {
@@ -292,5 +298,188 @@ describe("scanAndAnswer · dialog pilihan (SPEC-452)", () => {
     const h = harness({ send: async () => false, clearMarker: (f: string) => { cleared.push(f); } });
     await scanAndAnswer(h.deps);
     expect(cleared).toEqual([]);
+  });
+});
+
+// SPEC-474 · dialog `AskUserQuestion` BERANTAI: satu tool call, beberapa pertanyaan berturut-turut.
+// Menjawab satu pertanyaan hanya MEMAJUKAN dialog; yang menutupnya adalah layar rekap. Sampai spec
+// ini, lead menjawab pertanyaan pertama lalu mengosongkan marker — dan marker itu TAK PERNAH terisi
+// lagi (hook `Notification` menembak sekali per dialog; terukur 0 B selama 120 dtk dengan dialog
+// masih terbuka), jadi sisa rantainya tak terlihat oleh siapa pun dan panenya menahan satu slot
+// governor selamanya.
+const RANTAI_Q1 = [
+  "←  ☐ Warna  ☐ Ukuran  ✔ Submit  →", "", "Pilih warna tema?", "",
+  "❯ 1. Merah", "  2. Biru", "  3. Type something.", "  4. Chat about this", "",
+  "Enter to select · Tab/Arrow keys to navigate · Esc to cancel",
+].join("\n");
+
+const RANTAI_Q2 = [
+  "←  ☒ Warna  ☐ Ukuran  ✔ Submit  →", "", "Pilih ukuran font?", "",
+  "❯ 1. Kecil", "  2. Besar", "  3. Type something.", "  4. Chat about this", "",
+  "Enter to select · Tab/Arrow keys to navigate · Esc to cancel",
+].join("\n");
+
+const RANTAI_REVIEW = [
+  "←  ☒ Warna  ☒ Ukuran  ✔ Submit  →", "", "Review your answers", "",
+  "Ready to submit your answers?", "", "❯ 1. Submit answers", "  2. Cancel",
+].join("\n");
+
+const SELESAI = "⏺ User answered Claude's questions:\n\n❯\n  ⏵⏵ bypass permissions on";
+
+/** `decide` yang menjawab berbeda tiap panggilan — supaya urutan jawabannya bisa diperiksa. */
+const menjawab = (counter: { n: number }): Partial<DetectDeps> => ({
+  decide: (async (req: { question: string; projectId: string; specId?: string | null; sessionId?: string | null; notes?: string[] }) => {
+    counter.n += 1;
+    return recordDecision({
+      projectId: req.projectId, specId: req.specId, sessionId: req.sessionId,
+      gate: "detected", kind: "answer", question: req.question,
+      answer: `jawab-${counter.n}`, reason: "r", refs: [], confidence: "tinggi", action: "none",
+    });
+  }) as unknown as DetectDeps["decide"],
+});
+
+describe("scanAndAnswer · rantai dialog sampai submit (SPEC-474)", () => {
+  it("menjawab tiap pertanyaan lalu MENEKAN submit, satu keputusan per pertanyaan", async () => {
+    const screens = [RANTAI_Q1, RANTAI_Q2, RANTAI_REVIEW, SELESAI];
+    let idx = 0;
+    const counter = { n: 0 };
+    const cleared: string[] = [];
+    const h = harness({
+      ...menjawab(counter),
+      pane: () => screens[Math.min(idx, screens.length - 1)]!,
+      send: async (id, text) => { idx++; return (h.sent.push({ id, text }), true); },
+      submit: async (id) => { idx++; return (h.submits.push(id), true); },
+      clearMarker: (f: string) => { cleared.push(f); },
+    });
+    const r = await scanAndAnswer(h.deps);
+    expect(r.answered).toEqual(["s1"]);
+    expect(counter.n).toBe(2);                       // dua pertanyaan, dua keputusan
+    expect(h.submits).toEqual(["s1"]);               // submit TIDAK memanggil agen
+    expect(h.sent.map((s) => s.text)).toEqual(["jawab-1", "jawab-2"]);
+    expect(cleared).toEqual(["/marker"]);            // marker dikosongkan SEKALI, di ujung rantai
+    expect(answerCount("s1")).toBe(1);               // satu rantai = SATU jawaban otomatis
+  });
+
+  it("memberi tahu lead posisi pertanyaannya di dalam rantai", async () => {
+    const screens = [RANTAI_Q1, RANTAI_Q2, RANTAI_REVIEW, SELESAI];
+    let idx = 0;
+    const seen: string[] = [];
+    const h = harness({
+      pane: () => screens[Math.min(idx, screens.length - 1)]!,
+      send: async () => { idx++; return true; },
+      submit: async () => { idx++; return true; },
+      decide: (async (req: { question: string; projectId: string; notes?: string[] }) => {
+        seen.push((req.notes ?? []).join(" "));
+        return recordDecision({
+          projectId: req.projectId, gate: "detected", kind: "answer", question: req.question,
+          answer: "ok", reason: "r", refs: [], confidence: "tinggi", action: "none",
+        });
+      }) as unknown as DetectDeps["decide"],
+    });
+    await scanAndAnswer(h.deps);
+    expect(seen[0]).toContain("pertanyaan ke-1");
+    expect(seen[1]).toContain("pertanyaan ke-2");
+  });
+
+  // Kebalikan dari perilaku hari ini: rantai yang putus HARUS tetap terlihat menunggu.
+  it("rantai putus TIDAK mengosongkan marker dan dihitung sebagai kegagalan", async () => {
+    const screens = [RANTAI_Q1, RANTAI_Q2];
+    let idx = 0, calls = 0;
+    const cleared: string[] = [];
+    const h = harness({
+      pane: () => screens[Math.min(idx, screens.length - 1)]!,
+      send: async () => { idx++; return true; },
+      clearMarker: (f: string) => { cleared.push(f); },
+      decide: (async (req: { question: string; projectId: string }) => {
+        calls++;
+        return recordDecision({
+          projectId: req.projectId, gate: "detected", kind: "answer", question: req.question,
+          answer: calls === 1 ? "ok" : "", reason: "r", refs: [], confidence: "tinggi",
+          action: "none", ...(calls === 1 ? {} : { status: "gagal" as const }),
+        });
+      }) as unknown as DetectDeps["decide"],
+    });
+    const r = await scanAndAnswer(h.deps);
+    expect(r.answered).toEqual([]);
+    expect(cleared).toEqual([]);                     // operator tetap melihat sesi MENUNGGU
+    expect(failureCount("s1")).toBe(1);
+    expect(answerCount("s1")).toBe(0);
+  });
+
+  // Pane yang tak pernah maju tak boleh membuat lead mengetik berulang-ulang ke layar yang sama.
+  it("berhenti bila layar dialog tak berubah sesudah dijawab (anti-loop)", async () => {
+    const counter = { n: 0 };
+    const cleared: string[] = [];
+    const h = harness({
+      ...menjawab(counter),
+      pane: () => RANTAI_Q1,                          // layar MACET
+      clearMarker: (f: string) => { cleared.push(f); },
+    });
+    await scanAndAnswer(h.deps);
+    expect(counter.n).toBe(1);                        // tak mengulang keputusan untuk layar yang sama
+    expect(cleared).toEqual([]);
+    expect(failureCount("s1")).toBe(1);
+  });
+
+  it("submit yang gagal tak pernah dilaporkan sebagai rantai tuntas", async () => {
+    const cleared: string[] = [];
+    const h = harness({
+      pane: () => RANTAI_REVIEW,
+      submit: async () => false,
+      clearMarker: (f: string) => { cleared.push(f); },
+    });
+    const r = await scanAndAnswer(h.deps);
+    expect(r.answered).toEqual([]);
+    expect(cleared).toEqual([]);
+    expect(r.skipped[0]!.reason).toContain("Submit");
+  });
+
+  // Layar rekap adalah langkah MEKANIS: menutup dialog yang jawabannya sudah masuk tak butuh
+  // pertimbangan apa pun, jadi tak boleh membakar satu giliran agen.
+  it("layar rekap ditutup tanpa memanggil agen sama sekali", async () => {
+    const screens = [RANTAI_REVIEW, SELESAI];
+    let idx = 0;
+    const counter = { n: 0 };
+    const h = harness({
+      ...menjawab(counter),
+      pane: () => screens[Math.min(idx, screens.length - 1)]!,
+      submit: async (id) => { idx++; return (h.submits.push(id), true); },
+    });
+    const r = await scanAndAnswer(h.deps);
+    expect(counter.n).toBe(0);
+    expect(h.submits).toEqual(["s1"]);
+    expect(r.answered).toEqual(["s1"]);
+  });
+
+  // Jalur lama (kolom chat biasa) tak boleh berubah sedikit pun.
+  it("kolom chat biasa tetap satu jawaban lalu selesai", async () => {
+    const cleared: string[] = [];
+    const counter = { n: 0 };
+    const h = harness({ ...menjawab(counter), clearMarker: (f: string) => { cleared.push(f); } });
+    const r = await scanAndAnswer(h.deps);
+    expect(r.answered).toEqual(["s1"]);
+    expect(counter.n).toBe(1);
+    expect(cleared).toEqual(["/marker"]);
+    expect(answerCount("s1")).toBe(1);
+  });
+
+  // Dialog satu pertanyaan: menjawabnya SUDAH men-submit (claude menyembunyikan tab Submit), jadi
+  // layar berikutnya bukan dialog lagi dan rantainya berhenti di situ — tanpa keputusan kedua.
+  it("dialog satu pertanyaan tetap selesai dalam satu jawaban", async () => {
+    const screens = [ASKQ_PANE, SELESAI];
+    let idx = 0;
+    const counter = { n: 0 };
+    const cleared: string[] = [];
+    const h = harness({
+      ...menjawab(counter),
+      pane: () => screens[Math.min(idx, screens.length - 1)]!,
+      send: async () => { idx++; return true; },
+      clearMarker: (f: string) => { cleared.push(f); },
+    });
+    const r = await scanAndAnswer(h.deps);
+    expect(r.answered).toEqual(["s1"]);
+    expect(counter.n).toBe(1);
+    expect(h.submits).toEqual([]);
+    expect(cleared).toEqual(["/marker"]);
   });
 });

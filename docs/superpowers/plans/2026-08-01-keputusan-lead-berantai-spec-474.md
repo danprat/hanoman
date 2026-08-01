@@ -562,7 +562,7 @@ git commit -m "feat(474): jawab dialog ber-preview lewat kolom catatan + tekan S
 - Consumes: `readDialogScreen`, `answerNotesDialog`, `submitReview` (Task 1–2).
 - Produces: `export async function submitPaneDialog(id: string): Promise<boolean>`.
 
-- [ ] **Step 1: Tulis fixture pane**
+- [x] **Step 1: Tulis fixture pane**
 
 `server/test/fixtures/fake-review.sh`:
 
@@ -615,7 +615,7 @@ exec cat
 
 Keduanya `chmod +x`.
 
-- [ ] **Step 2: Tulis test yang gagal**
+- [x] **Step 2: Tulis test yang gagal**
 
 Di `server/test/pty.test.ts`, tambahkan di dalam `describe("sendToPane · dialog pilihan (SPEC-452)")`
 (dan tambahkan konstanta path fixture di sebelah `FAKE_DIALOG` yang sudah ada):
@@ -647,12 +647,12 @@ it("membuka kolom catatan dengan `n` saat dialog tak punya kolom jawaban bebas",
 });
 ```
 
-- [ ] **Step 3: Jalankan test — pastikan GAGAL**
+- [x] **Step 3: Jalankan test — pastikan GAGAL**
 
 Run: `pnpm vitest run --no-file-parallelism server/test/pty.test.ts -t "sendToPane"`
 Expected: FAIL — pane menerima prosa (bukan `1`) di layar review; `n` tak pernah dikirim di varian preview.
 
-- [ ] **Step 4: Implementasi**
+- [x] **Step 4: Implementasi**
 
 Di `server/src/services/pty.ts`, ganti isi `sendToPane` (bagian `try`) dan tambahkan
 `submitPaneDialog` tepat sesudahnya:
@@ -723,12 +723,12 @@ import {
 
 (`readChoiceDialog` tetap dipakai bagian lain berkas ini; biarkan.)
 
-- [ ] **Step 5: Jalankan test — pastikan LULUS**
+- [x] **Step 5: Jalankan test — pastikan LULUS**
 
 Run: `pnpm vitest run --no-file-parallelism server/test/pty.test.ts -t "sendToPane"`
 Expected: PASS — termasuk ketiga test SPEC-452 lama yang tak boleh berubah maknanya.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/services/pty.ts server/test/pty.test.ts server/test/fixtures/fake-review.sh server/test/fixtures/fake-notes-dialog.sh
@@ -753,7 +753,7 @@ git commit -m "feat(474): sendToPane merutekan menurut bentuk layar + submitPane
   //   sleep: (ms: number) => Promise<void>;
   ```
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Di `server/test/lead-detect.test.ts` — tambahkan dua field baru ke helper pembangun deps yang
 sudah ada (`submit: async () => true`, `sleep: async () => {}`) lalu tambahkan blok:
@@ -848,12 +848,12 @@ describe("scanAndAnswer · rantai dialog sampai submit (SPEC-474)", () => {
 itu; `berlaku(answer)` mengembalikan baris jejak ber-`status: "berlaku"` dan `answer` tersebut,
 `gagal()` mengembalikan baris ber-`status: "gagal"`.)
 
-- [ ] **Step 2: Jalankan test — pastikan GAGAL**
+- [x] **Step 2: Jalankan test — pastikan GAGAL**
 
 Run: `pnpm vitest run --no-file-parallelism server/test/lead-detect.test.ts`
 Expected: FAIL — `decides` = 1 (rantai tak pernah maju), `cleared` = 1 pada test rantai putus.
 
-- [ ] **Step 3: Implementasi**
+- [x] **Step 3: Implementasi**
 
 Di `server/src/services/lead/detect.ts`:
 
@@ -1013,17 +1013,17 @@ async function waitScreenChange(id: string, before: string, deps: DetectDeps): P
 
 5. Pastikan `sweep` tetap berada di akhir berkas dan `import type { Agent, Lead }` masih dipakai.
 
-- [ ] **Step 4: Jalankan test — pastikan LULUS**
+- [x] **Step 4: Jalankan test — pastikan LULUS**
 
 Run: `pnpm vitest run --no-file-parallelism server/test/lead-detect.test.ts`
 Expected: PASS — termasuk seluruh test SPEC-409/452/472 lama.
 
-- [ ] **Step 5: Typecheck paket server**
+- [x] **Step 5: Typecheck paket server**
 
 Run: `pnpm --filter ./server typecheck`
 Expected: keluar tanpa error.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/services/lead/detect.ts server/test/lead-detect.test.ts

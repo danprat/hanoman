@@ -25,6 +25,8 @@ const FAKE_CODEX_GOAL = fileURLToPath(new URL("./fixtures/fake-codex-goal.sh", i
 
 // SPEC-452 · berdiri sebagai agen yang sedang menampilkan dialog `AskUserQuestion`.
 const FAKE_DIALOG = fileURLToPath(new URL("./fixtures/fake-dialog.sh", import.meta.url));
+const FAKE_REVIEW = fileURLToPath(new URL("./fixtures/fake-review.sh", import.meta.url));
+const FAKE_NOTES = fileURLToPath(new URL("./fixtures/fake-notes-dialog.sh", import.meta.url));
 
 // SPEC-402 · `tmux` yang gagal karena sebab SELAIN "tak ada server". Ditaruh di PATH sebagai satu
 // berkas bernama `tmux` — pty.ts memanggil `execFileSync("tmux", …)` tanpa path absolut, jadi ini
@@ -693,6 +695,33 @@ describe("hook riwayat sesi (SPEC-362)", () => {
       createSession("p-dlg", process.cwd(), { id, command: [FAKE_DIALOG] });
       await waitFor(() => (tmuxCapture(id) ?? "").includes("Type something."));
       expect(await sendToPane(id, "Tanpa cache dulu")).toBe(false);
+      killSession(id);
+    });
+
+    // SPEC-474 · layar rekap dialog berantai adalah langkah MEKANIS: yang dikirim satu digit,
+    // tanpa prosa dan tanpa Enter. Fixture cuma meng-echo, jadi yang terbaca di pane persis
+    // yang benar-benar dikirim hanoman.
+    it("menekan nomor Submit answers — bukan prosa — saat pane menampilkan layar rekap", async () => {
+      const id = "dlg-review";
+      createSession("p-dlg", process.cwd(), { id, command: [FAKE_REVIEW] });
+      await waitFor(() => (tmuxCapture(id) ?? "").includes("Ready to submit your answers?"));
+      // Fixture hanya meng-echo, jadi layar rekapnya tak pernah pergi → submit dilaporkan GAGAL.
+      // Itu justru gerbangnya: hanoman tak boleh mengaku menutup dialog yang masih terbuka.
+      expect(await sendToPane(id, "jawaban lead yang tak relevan di sini")).toBe(false);
+      const pane = (tmuxCapture(id) ?? "").trimEnd();
+      expect(pane).not.toContain("jawaban lead yang tak relevan");   // prosa tak pernah dikirim
+      expect(pane.endsWith("1")).toBe(true);                          // yang dikirim: satu digit
+      killSession(id);
+    }, 15_000);
+
+    // SPEC-474 · varian ber-preview tak punya kolom jawaban bebas; prosanya masuk lewat kolom
+    // catatan, dan `n` harus dikirim sebagai keystroke tersendiri lebih dulu.
+    it("membuka kolom catatan dengan `n` saat dialog tak punya kolom jawaban bebas", async () => {
+      const id = "dlg-notes";
+      createSession("p-dlg", process.cwd(), { id, command: [FAKE_NOTES] });
+      await waitFor(() => (tmuxCapture(id) ?? "").includes("press n to add notes"));
+      await sendToPane(id, "Pakai map, lebih ekspresif");
+      await waitFor(() => (tmuxCapture(id) ?? "").includes("nPakai map, lebih ekspresif"));
       killSession(id);
     });
 

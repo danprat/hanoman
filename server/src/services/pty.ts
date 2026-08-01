@@ -10,7 +10,9 @@ import {
 } from "@hanoman/runner";
 import { coerceCodexEffort, type SessionKind } from "@hanoman/shared";
 import { readPhases, sessionComplete, type Phase } from "./session-phases";
-import { answerChoiceDialog, readChoiceDialog, type PaneIO } from "./tui-dialog";
+import {
+  answerChoiceDialog, answerNotesDialog, readDialogScreen, submitReview, type PaneIO,
+} from "./tui-dialog";
 import { effectiveStr } from "../config";
 
 // Sesi hidup di dalam tmux server, bukan di proses API (ADR-0016). Restart `pnpm dev`
@@ -493,16 +495,21 @@ export async function sendToPane(id: string, text: string, chunkMs = 50): Promis
   const line = text.replace(/\s*\r?\n\s*/g, " ").trim();
   if (!line) return false;
   try {
-    const io: PaneIO = {
-      capture: () => capturePane(id, DIALOG_CAPTURE_LINES),
-      literal: (s) => { tmux("send-keys", "-t", name(id), "-l", s); },
-      enter: () => { tmux("send-keys", "-t", name(id), "Enter"); },
-      sleep,
-    };
-    // Dialog TANPA kolom bebas (trust, prompt izin) sengaja tak disentuh: di sana `Enter` memilih
-    // baris 1 yang memang berarti "ya", dan mengubahnya menukar bug ini dengan regresi.
-    const free = readChoiceDialog(io.capture())?.freeIndex ?? null;
-    if (free !== null) return await answerChoiceDialog(io, free, line, chunkMs);
+    const io = dialogIO(id);
+    const screen = readDialogScreen(io.capture());
+    // SPEC-474 · layar rekap dialog berantai: tak ada yang perlu diketik, ia tinggal ditutup.
+    // Prosa di sini ditelan tanpa jejak dan `Enter` kebetulan juga men-submit — menekan
+    // tombolnya secara eksplisit adalah satu-satunya bentuk yang tak bergantung baris mana
+    // yang sedang tersorot.
+    if (screen?.kind === "review") return await submitReview(io, screen.submitRow);
+    if (screen?.kind === "question") {
+      if (screen.freeIndex !== null) return await answerChoiceDialog(io, screen.freeIndex, line, chunkMs);
+      // SPEC-474 · varian ber-`preview` tak punya kolom bebas; catatannya dibuka tombol `n`.
+      if (screen.notes) return await answerNotesDialog(io, line, chunkMs);
+      // Dialog TANPA kolom bebas dan tanpa catatan (trust, prompt izin) sengaja tak disentuh:
+      // di sana `Enter` memilih baris 1 yang memang berarti "ya", dan mengubahnya menukar bug
+      // ini dengan regresi.
+    }
     for (const chunk of goalChunks(line)) {
       io.literal(chunk);
       await sleep(chunkMs);
@@ -511,6 +518,34 @@ export async function sendToPane(id: string, text: string, chunkMs = 50): Promis
     return true;
   } catch { return false; }                   // sesi lenyap di tengah pengetikan
 }
+
+/**
+ * SPEC-474 · tutup dialog berantai yang SELURUH pertanyaannya sudah dijawab.
+ *
+ * Dipakai pintu deteksi lead sebagai langkah MEKANIS — tak ada yang perlu dipertimbangkan untuk
+ * menekan `Submit answers`, jadi tak ada agen yang dipanggil untuknya. `false` bila layarnya
+ * bukan layar rekap (fail-closed: jangan menekan apa pun di layar yang belum tentu itu).
+ */
+export async function submitPaneDialog(id: string): Promise<boolean> {
+  const p = getSession(id);
+  if (!p || p.exited) return false;
+  try {
+    const io = dialogIO(id);
+    const screen = readDialogScreen(io.capture());
+    if (screen?.kind !== "review") return false;
+    return await submitReview(io, screen.submitRow);
+  } catch { return false; }
+}
+
+// Primitif pane untuk SELURUH interaksi dialog. Satu tempat supaya `sendToPane` dan
+// `submitPaneDialog` tak bisa berselisih soal cara mengetik (dua titik tulis yang tak sepakat
+// adalah pola kegagalan SPEC-431/448).
+const dialogIO = (id: string): PaneIO => ({
+  capture: () => capturePane(id, DIALOG_CAPTURE_LINES),
+  literal: (s) => { tmux("send-keys", "-t", name(id), "-l", s); },
+  enter: () => { tmux("send-keys", "-t", name(id), "Enter"); },
+  sleep,
+});
 
 // Cukup untuk satu layar dialog penuh (pertanyaan + opsi + keterangan + footer) tanpa menyeret
 // scrollback panjang ke dalam setiap pengetikan.
