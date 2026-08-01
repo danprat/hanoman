@@ -1196,7 +1196,7 @@ git commit -m "feat(471): model GithubIssue + migration + pullIssues idempoten (
 - Consumes: `SYNCED`, `FIELDS`, `DATE_FIELDS`, `DELEGATE` di `services/sync.ts`
 - Produces: entitas `"githubIssue"` terdaftar penuh
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 `server/test/github-sync.test.ts`:
 
@@ -1233,12 +1233,12 @@ describe("SPEC-471 · githubIssue ikut record-sync", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan MERAH**
+- [x] **Step 2: Jalankan, pastikan MERAH**
 
 Run: `./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/github-sync.test.ts`
 Expected: FAIL — `expected [...] to contain 'githubIssue'`
 
-- [ ] **Step 3: Implementasi minimal** — di `server/src/services/sync.ts`
+- [x] **Step 3: Implementasi minimal** — di `server/src/services/sync.ts`
 
 1. Perluas `SYNCED` (tambahkan komentar di atasnya, sejajar catatan `customAgent`):
 
@@ -1280,12 +1280,12 @@ export const __FIELDS = FIELDS;
 export const __DATE_FIELDS = DATE_FIELDS;
 ```
 
-- [ ] **Step 4: Jalankan, pastikan HIJAU**
+- [x] **Step 4: Jalankan, pastikan HIJAU**
 
 Run: `./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/github-sync.test.ts server/test/sync.test.ts`
 Expected: PASS — 3 test baru + test sync lama tetap hijau
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/sync.ts server/test/github-sync.test.ts

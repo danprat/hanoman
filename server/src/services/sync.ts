@@ -10,7 +10,10 @@ import { renameProjectCore } from "./rename-project";
 // SPEC-450 · ADR-0094 · `customAgent` ikut menyeberang: katalog persona adalah pengetahuan
 // bersama, bukan setelan mesin. Id-nya deterministik ("<scope>:<name>") justru supaya dua mesin
 // yang membuat nama sama bertemu sebagai SATU baris di sini, bukan dua yang saling menelan.
-export const SYNCED = ["project", "spec", "vps", "sessionResult", "ticket", "ticketAttachment", "customAgent"] as const;
+// SPEC-471 · ADR-0095 · `githubIssue` ikut menyeberang: cermin issue adalah pengetahuan
+// bersama tim, bukan setelan mesin. Id-nya deterministik ("<projectId>:<slug>#<n>") justru
+// supaya dua mesin yang menarik repo yang sama bertemu sebagai SATU baris di sini.
+export const SYNCED = ["project", "spec", "vps", "sessionResult", "ticket", "ticketAttachment", "customAgent", "githubIssue"] as const;
 export type Entity = (typeof SYNCED)[number];
 
 type Delegate = {
@@ -26,6 +29,7 @@ const DELEGATE: Record<Entity, Delegate> = {
   ticket: prisma.ticket as unknown as Delegate,
   ticketAttachment: prisma.ticketAttachment as unknown as Delegate,
   customAgent: prisma.customAgent as unknown as Delegate,
+  githubIssue: prisma.githubIssue as unknown as Delegate,
 };
 
 // Whitelist field bisnis per entitas — SENGAJA mengecualikan never-sync (Project.repoDir,
@@ -50,6 +54,11 @@ const FIELDS: Record<Entity, string[]> = {
   // mendarat sebagai default palsu di tiap client tanpa satu pun error (kelas ADR-0090/0093).
   // `version` tak pernah masuk FIELDS — ia stempel mekanisme sync itu sendiri.
   customAgent: ["projectId", "name", "description", "instructions", "tools", "model", "mentions", "enabled", "createdAt", "updatedAt"],
+  // SPEC-471 · ADR-0095 · SELURUH kolom bermakna ikut. `status`/`specId` termasuk: keputusan
+  // triase adalah bagian keadaan yang harus dilihat sama oleh semua mesin — tanpa itu satu
+  // mesin bisa menerima ulang issue yang di mesin lain sudah jadi backlog.
+  githubIssue: ["projectId", "repoSlug", "number", "title", "body", "authorLogin", "labels", "url",
+    "issueState", "status", "specId", "issueCreatedAt", "issueUpdatedAt", "pulledAt", "createdAt", "updatedAt"],
 };
 // Field yang JSONB-nya string ISO tapi kolomnya DateTime — dikonversi balik saat menulis.
 const DATE_FIELDS: Record<Entity, string[]> = {
@@ -58,7 +67,13 @@ const DATE_FIELDS: Record<Entity, string[]> = {
   ticket: ["createdAt", "updatedAt"],
   ticketAttachment: ["createdAt", "updatedAt"],
   customAgent: ["createdAt", "updatedAt"],
+  githubIssue: ["issueCreatedAt", "issueUpdatedAt", "pulledAt", "createdAt", "updatedAt"],
 };
+
+// Ekspor test-only: kontrak "setiap kolom bermakna ikut menyeberang" hanya bisa diuji dari
+// luar bila petanya terlihat. Bukan API publik — tak ada kode produksi yang mengimpornya.
+export const __FIELDS = FIELDS;
+export const __DATE_FIELDS = DATE_FIELDS;
 
 export function isEntity(e: string): e is Entity {
   return (SYNCED as readonly string[]).includes(e);
