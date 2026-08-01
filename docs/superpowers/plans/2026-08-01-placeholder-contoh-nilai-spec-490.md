@@ -49,7 +49,7 @@
   - `export function scanDir(root: string): FormField[]`
   - `export function normalizeLabel(s: string): string`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Buat `src/test/form-field-scanner.test.ts`:
 
@@ -123,7 +123,7 @@ describe("scanSource", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run src/test/form-field-scanner.test.ts
@@ -131,7 +131,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run src/test/form-field-scanner.test.
 
 Expected: FAIL — `Failed to resolve import "./helpers/form-fields"`.
 
-- [ ] **Step 3: Write the scanner**
+- [x] **Step 3: Write the scanner**
 
 Buat `src/test/helpers/form-fields.ts`:
 
@@ -262,7 +262,7 @@ export function scanDir(root: string): FormField[] {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run src/test/form-field-scanner.test.ts
@@ -270,7 +270,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run src/test/form-field-scanner.test.
 
 Expected: PASS — `10 passed`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/test/helpers/form-fields.ts src/test/form-field-scanner.test.ts
@@ -341,10 +341,16 @@ env -u NODE_ENV ./node_modules/.bin/vitest run src/test/placeholder-contract.tes
 ```
 
 Expected: **2 failed | 2 passed**.
-- `setiap field teks/textarea/combobox punya placeholder` → daftar **24** entri.
+- `setiap field teks/textarea/combobox punya placeholder` → daftar **23** entri.
 - `placeholder tidak mengulang labelnya` → **2** entri (`BacklogScreen.tsx:781`, `TerminalScreen.tsx:339`, keduanya `"Cari backlog…"` vs label `"Cari backlog"`).
 
-Bila angkanya bukan 24 dan 2, berhenti dan periksa scanner-nya sebelum lanjut — plan ini menghitung mundur dari kedua angka itu.
+> **Terukur 23, bukan 24 seperti perkiraan awal plan.** Honeypot `hc_trap`
+> (`PublicHelpApp.tsx:154`) sudah keluar scope sendiri: ia ditulis `aria-hidden` **tanpa
+> nilai**, dan Task 1 memang mengajari scanner membaca atribut boolean telanjang itu
+> (`ariaHidden()`, bukan `hasAttr` yang menuntut `=`). Komentar `placeholder-exempt`-nya di
+> Task 7 tetap dipasang supaya alasannya terbaca di call site.
+
+Bila angkanya bukan 23 dan 2, berhenti dan periksa scanner-nya sebelum lanjut — plan ini menghitung mundur dari kedua angka itu.
 
 - [ ] **Step 3: Commit**
 
@@ -498,7 +504,7 @@ pnpm --filter ./shared typecheck && pnpm --filter ./src typecheck
 env -u NODE_ENV ./node_modules/.bin/vitest run src/test/settings-nav.test.tsx src/test/config-panel.test.tsx src/test/placeholder-contract.test.ts
 ```
 
-Expected: typecheck bersih; `config-panel`/`settings-nav` PASS; kontrak masih FAIL tapi daftar "punya placeholder" turun **24 → 23** (`SettingsScreen.tsx:343` hilang dari daftar).
+Expected: typecheck bersih; `config-panel`/`settings-nav` PASS; kontrak masih FAIL tapi daftar "punya placeholder" turun **23 → 22** (`SettingsScreen.tsx:343` hilang dari daftar).
 
 - [ ] **Step 8: Commit**
 
@@ -581,7 +587,7 @@ pnpm --filter ./src typecheck
 env -u NODE_ENV ./node_modules/.bin/vitest run src/test/backlog-board.test.tsx src/test/revert-stage.test.tsx src/test/placeholder-contract.test.ts
 ```
 
-Expected: typecheck bersih; test backlog PASS; kontrak "punya placeholder" turun **23 → 22** (`BacklogScreen.tsx:391` hilang).
+Expected: typecheck bersih; test backlog PASS; kontrak "punya placeholder" turun **22 → 21** (`BacklogScreen.tsx:391` hilang).
 
 - [ ] **Step 4: Commit**
 
@@ -681,7 +687,7 @@ pnpm --filter ./src typecheck
 env -u NODE_ENV ./node_modules/.bin/vitest run src/test/edit-project-id.test.tsx src/test/edit-project-gitremote.test.tsx src/test/custom-agents-panel.test.tsx src/test/project-help-center.test.tsx src/test/placeholder-contract.test.ts
 ```
 
-Expected: typecheck bersih; test PASS; kontrak "punya placeholder" turun **22 → 11**.
+Expected: typecheck bersih; test PASS; kontrak "punya placeholder" turun **21 → 10**.
 
 - [ ] **Step 8: Commit**
 
@@ -756,7 +762,7 @@ pnpm --filter ./src typecheck
 env -u NODE_ENV ./node_modules/.bin/vitest run src/test/lead-screen.test.tsx src/test/scheduler-screen.test.tsx src/test/settings-nav.test.tsx src/test/placeholder-contract.test.ts
 ```
 
-Expected: typecheck bersih; test PASS; kontrak "punya placeholder" turun **11 → 3**.
+Expected: typecheck bersih; test PASS; kontrak "punya placeholder" turun **10 → 2**.
 
 - [ ] **Step 5: Commit**
 
@@ -767,7 +773,7 @@ git commit -m "feat(490): placeholder untuk knob angka lead/scheduler dan field 
 
 ---
 
-### Task 7: Editor dokumen + pintu darurat (3 field)
+### Task 7: Editor dokumen + pintu darurat (2 field wajib + 1 penanda)
 
 **Files:**
 - Modify: `src/src/screens/DocsWorkspace.tsx:268`
