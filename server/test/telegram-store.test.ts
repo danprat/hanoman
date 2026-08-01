@@ -73,3 +73,53 @@ describe("TelegramStore outbox claims (SPEC-476)", () => {
     expect(await store.claimNextOutbox()).toBeNull();
   });
 });
+
+describe("TelegramStore typing liveness (SPEC-493)", () => {
+  const dispatched = async (updateId: number, chatId: string) => {
+    await store.recordUpdate({ updateId, chatId, userId: "7", kind: "text", digest: String(updateId).repeat(8).slice(0, 64) });
+    await store.claimUpdate(updateId);
+    await store.markDispatched(updateId);
+  };
+  const since = () => new Date(Date.now() - 600_000);
+
+  it("lists a chat whose dispatched update has no reply at all", async () => {
+    await dispatched(17, "42");
+    expect(await store.chatsAwaitingReply(since())).toEqual(["42"]);
+  });
+
+  it("keeps listing while only a non-final progress reply is queued", async () => {
+    await dispatched(17, "42");
+    await store.enqueueReply({ chatId: "42", updateId: 17, kind: "progress", text: "sebentar" });
+    expect(await store.chatsAwaitingReply(since())).toEqual(["42"]);
+  });
+
+  it("drops the chat as soon as a final reply is enqueued", async () => {
+    await dispatched(17, "42");
+    await store.enqueueReply({ chatId: "42", updateId: 17, kind: "final", text: "selesai" });
+    expect(await store.chatsAwaitingReply(since())).toEqual([]);
+  });
+
+  it("treats decision, confirmation, failure and gateway-failure as final", async () => {
+    const kinds = ["decision", "confirmation", "failure", "gateway-failure"];
+    for (const [index, kind] of kinds.entries()) {
+      const updateId = 100 + index;
+      await dispatched(updateId, String(200 + index));
+      await store.enqueueReply({ chatId: String(200 + index), updateId, kind, text: kind });
+    }
+    expect(await store.chatsAwaitingReply(since())).toEqual([]);
+  });
+
+  it("ignores updates that are not dispatched, and de-duplicates one chat", async () => {
+    await store.recordUpdate({ updateId: 21, chatId: "42", userId: "7", kind: "text", digest: "c".repeat(64) });
+    expect(await store.chatsAwaitingReply(since())).toEqual([]);
+    await store.claimUpdate(21);
+    await store.markDispatched(21);
+    await dispatched(22, "42");
+    expect(await store.chatsAwaitingReply(since())).toEqual(["42"]);
+  });
+
+  it("forgets updates older than the caller's window so typing cannot run forever", async () => {
+    await dispatched(17, "42");
+    expect(await store.chatsAwaitingReply(new Date(Date.now() + 60_000))).toEqual([]);
+  });
+});

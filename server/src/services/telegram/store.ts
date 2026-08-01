@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import type { Db } from "../../db";
 import type { TelegramAuditRecord, TelegramChatContext, TelegramMemoryRecord } from "@hanoman/shared";
+import { TELEGRAM_FINAL_REPLY_KINDS } from "./protocol";
 
 type UpdateMeta = {
   updateId: number;
@@ -149,6 +150,39 @@ export class TelegramStore {
     await this.db.telegramUpdate.updateMany({
       where: { updateId, state: "dispatching" }, data: { state: "uncertain", rejectReason: reason },
     });
+  }
+
+  /**
+   * SPEC-493 · chat yang masih menunggu jawaban: ada `TelegramUpdate` `dispatched` sesudah `since`
+   * yang belum punya baris outbox ber-kind final. Dihitung pada saat **enqueue**, bukan `sent` —
+   * baris outbox lahir begitu session operator memanggil `POST /telegram/replies`, dan jarak
+   * enqueue→kirim paling banyak satu iterasi loop. Menunggu `sent` akan menahan typing melewati
+   * pesan finalnya sendiri.
+   *
+   * `since` adalah pagar keras: update yang session operatornya mati mengendap `dispatched`
+   * SELAMANYA, dan tanpa pagar ini gateway akan mengetik selamanya sekaligus mengunci long-poll
+   * di 4 detik selamanya.
+   */
+  async chatsAwaitingReply(since: Date): Promise<string[]> {
+    const pending = await this.db.telegramUpdate.findMany({
+      where: { state: "dispatched", chatId: { not: null }, dispatchedAt: { gte: since } },
+      select: { updateId: true, chatId: true },
+      orderBy: { updateId: "asc" },
+    });
+    if (!pending.length) return [];
+    const answered = new Set((await this.db.telegramOutbox.findMany({
+      where: {
+        updateId: { in: pending.map((row) => row.updateId) },
+        kind: { in: [...TELEGRAM_FINAL_REPLY_KINDS] },
+      },
+      select: { updateId: true },
+    })).map((row) => row.updateId));
+    const chats: string[] = [];
+    for (const row of pending) {
+      if (answered.has(row.updateId) || !row.chatId || chats.includes(row.chatId)) continue;
+      chats.push(row.chatId);
+    }
+    return chats;
   }
 
   async addMemory(chatId: string, content: string): Promise<TelegramMemoryRecord> {

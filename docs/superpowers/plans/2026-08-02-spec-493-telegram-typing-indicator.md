@@ -223,7 +223,7 @@ git commit -m "feat(493): sendChatAction + retry_after yang bisa dibaca dari res
 
 **Kenapa konstanta duduk di `protocol.ts`:** dua pemakainya adalah `gateway.ts` **dan** `store.ts`. Menaruhnya di `gateway.ts` memaksa `store.ts` meng-import `gateway.ts`, yang sudah meng-import `store.ts` — siklus. `protocol.ts` nol dependensi internal, jadi ia modul daun yang aman.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di akhir `server/test/telegram-store.test.ts` (setelah `describe` terakhir):
 
@@ -279,7 +279,7 @@ describe("TelegramStore typing liveness (SPEC-493)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test dan pastikan GAGAL**
+- [x] **Step 2: Jalankan test dan pastikan GAGAL**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-493
@@ -289,7 +289,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism --dir serve
 
 Harapan: GAGAL — `store.chatsAwaitingReply is not a function`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Tambahkan di **akhir** `server/src/services/telegram/protocol.ts`:
 
@@ -356,7 +356,7 @@ Sisipkan method sesudah `markUpdateUncertain` (sesudah baris 152):
   }
 ```
 
-- [ ] **Step 4: Jalankan test dan pastikan LULUS**
+- [x] **Step 4: Jalankan test dan pastikan LULUS**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-493
@@ -366,7 +366,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism --dir serve
 
 Harapan: LULUS, termasuk seluruh test lama di berkas itu.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/telegram/protocol.ts server/src/services/telegram/store.ts server/test/telegram-store.test.ts
