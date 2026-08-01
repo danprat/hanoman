@@ -1,0 +1,78 @@
+import { z } from "zod";
+import { DEFAULT_AGENT_TOOLS } from "./custom-agent";
+import { MODELS, CODEX_MODELS } from "./entities";
+
+// SPEC-484 · ADR-0101 · katalog pilihan form Custom Agent. Nol I/O: dipakai server (validasi +
+// ekspansi `*`) dan UI (opsi dropdown) dari SATU sumber. Bagian yang butuh I/O — penemuan server
+// MCP dari berkas konfigurasi — hidup di server (`services/agent-tool-catalog.ts`).
+
+/** Mesin sesi (ADR-0074). Di definisi agen ia PENYARING, bukan pemilih proses. */
+export const AGENT_RUNTIMES = ["claude", "codex"] as const;
+export type AgentRuntime = (typeof AGENT_RUNTIMES)[number];
+export const zAgentRuntime = z.enum(AGENT_RUNTIMES);
+
+export const AGENT_RUNTIME_LABELS: Record<AgentRuntime, string> = {
+  claude: "Claude Code",
+  codex: "Codex CLI",
+};
+
+/**
+ * Pintasan "semua tools". Disimpan sebagai `tools: ["*"]` — SENGAJA bukan `null`, sebab tiga
+ * nilai ini wajib tetap berbeda: `null` = tak diisi (pakai DEFAULT_AGENT_TOOLS) · `[]` = sengaja
+ * tanpa tool · `["*"]` = semua tool yang dikenal katalog.
+ */
+export const ALL_TOOLS = "*";
+
+export type AgentToolInfo = { id: string; label: string; group: "shortcut" | "builtin" | "mcp" };
+
+export const ALL_TOOLS_ENTRY: AgentToolInfo = {
+  id: ALL_TOOLS, label: "Semua tools", group: "shortcut",
+};
+
+/**
+ * ADR-0101 keputusan 3 · katalog bawaan PERSIS `DEFAULT_AGENT_TOOLS`, bukan daftar kedua yang
+ * lebih panjang. ADR-0094 M4 mengukur nama tool tak dikenal DIBUANG claude tanpa satu pun pesan,
+ * jadi menawarkan nama yang belum diukur berarti menawarkan pilihan yang tidak melakukan apa-apa.
+ * `Task` tak pernah di sini: ia diturunkan dari `mentions` (lapis 2 anti-loop).
+ */
+export const BUILTIN_AGENT_TOOLS: AgentToolInfo[] = DEFAULT_AGENT_TOOLS.map((id) => ({
+  id, label: id, group: "builtin" as const,
+}));
+
+/**
+ * Satu entri per SERVER MCP. Nama tool aslinya hanya bisa diketahui dengan menyambung ke server
+ * (= melahirkan proses, arah yang ditolak ADR-0094), sementara claude sendiri mengeja bentuk
+ * "semua tool dari satu server" sebagai `mcp__<server>__*`.
+ */
+export const mcpToolEntry = (server: string): AgentToolInfo => ({
+  id: `mcp__${server}__*`, label: `${server} — semua tool`, group: "mcp",
+});
+
+export type AgentModelInfo = { id: string; label: string; runtime: AgentRuntime };
+
+/** Model yang sah untuk sebuah runtime. `null` (warisi) → GABUNGAN keduanya. */
+export function modelsForRuntime(rt: AgentRuntime | null): AgentModelInfo[] {
+  const claude: AgentModelInfo[] = MODELS.map((m) => ({ id: m.id, label: m.label, runtime: "claude" }));
+  const codex: AgentModelInfo[] = CODEX_MODELS.map((m) => ({ id: m.id, label: m.label, runtime: "codex" }));
+  if (rt === "claude") return claude;
+  if (rt === "codex") return codex;
+  return [...claude, ...codex];
+}
+
+/**
+ * `["*"]` → seluruh id katalog; selain itu apa adanya. Idempoten (katalog tak pernah memuat `*`).
+ * Dipanggil SEBELUM `resolveTools` — meneruskan `"*"` apa adanya membuat claude membuangnya
+ * senyap, sementara menerjemahkannya jadi `null` membuat agen mewarisi SELURUH tool termasuk
+ * `Task` dan lapis 2 anti-loop lenyap tanpa jejak (gotcha 5 ADR-0094).
+ */
+export function expandTools(tools: string[] | null, catalogIds: string[]): string[] | null {
+  if (tools === null) return null;
+  if (!tools.includes(ALL_TOOLS)) return tools;
+  return catalogIds.filter((id) => id !== ALL_TOOLS);
+}
+
+export type AgentCatalogView = {
+  tools: AgentToolInfo[];
+  models: AgentModelInfo[];
+  runtimes: { id: AgentRuntime; label: string }[];
+};
