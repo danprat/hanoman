@@ -784,6 +784,33 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
           onToast?.("Gagal menyimpan setelan lead", "err", "alert-triangle");
         }
       };
+      // SPEC-492 · blok `Setting.telegram.engine`. `?? TELEGRAM_DEFAULTS` sama alasannya dengan
+      // `?? CONFLICT_DEFAULTS`: respons GET /settings ter-cache dari instance lama belum punya
+      // kuncinya, dan layar tak boleh mati `undefined.engine`.
+      const telegram = s.telegram ?? TELEGRAM_DEFAULTS;
+      const tgEngine = telegram.engine ?? TELEGRAM_DEFAULTS.engine;
+      // Membaca ULANG sebelum menulis, bukan mengirim snapshot `s` — sejak SPEC-492 blok
+      // `telegram` punya penulis KEDUA di luar browser: command `/runtime|/model|/effort` dari
+      // chat Telegram. Mengirim snapshot yang dimuat saat mount akan mengembalikan setelan yang
+      // baru saja diubah dari ponsel, tanpa satu klik pun yang mengatakannya (kelas SPEC-488).
+      const saveTgEngine = async (patch: Partial<Setting["telegram"]["engine"]>, msg: string) => {
+        const prev = s;
+        setS({ ...s, telegram: { ...telegram, engine: { ...tgEngine, ...patch } } });   // optimistis
+        try {
+          const fresh = await api.getSettings();
+          const freshTg = fresh.telegram ?? TELEGRAM_DEFAULTS;
+          const next = {
+            ...fresh,
+            telegram: { ...freshTg, engine: { ...(freshTg.engine ?? TELEGRAM_DEFAULTS.engine), ...patch } },
+          };
+          const saved = await api.putSettings(next);
+          setS(saved ?? next);
+          onToast?.(msg, "ok", "check-circle-2");
+        } catch {
+          setS(prev);
+          onToast?.("Gagal menyimpan setelan operator Telegram", "err", "alert-triangle");
+        }
+      };
       return (
       <>
       {/* SPEC-338 · ADR-0074 · mesin sesi default. Berlaku untuk SEMUA sesi yang men-spawn agen
@@ -956,6 +983,68 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
                   ? codexEfforts(engine.model).map((v) => ({ value: v, label: v }))
                   : S_EFFORT}
                 onChange={(e) => saveEngine({ effort: e.target.value }, "Effort lead → " + e.target.value)} />
+            </SettingRow>
+          </>
+        )}
+      </Card>
+      {/* SPEC-492 · sesi operator Telegram boleh punya runtime/model/effort sendiri. Bebannya beda
+          jauh dari sesi kerja: ia sebagian besar membaca API lalu merangkum, bukan menulis kode —
+          terukur 95 dtk untuk satu giliran `/start` pada effort xhigh, sementara ongkos kirim ke
+          Telegram sendiri 0,4 dtk. Opt-in seperti kartu konflik & lead: mati = mewarisi. */}
+      <Card eyebrow="telegram" title="Agen operator Telegram">
+        <div data-testid="telegram-engine-desc"
+          style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.5 }}>
+          Mesin yang menjalankan sesi operator Telegram — satu sesi persisten per chat, yang membaca
+          API hanoman lalu merangkum. Berlaku untuk sesi operator <b>berikutnya</b> yang dibuat; sesi
+          yang sedang jalan tetap memakai setelan lamanya (satu proses, satu model seumur hidup) dan
+          tidak di-restart diam-diam — tutup dari chat dengan <code>/engine restart</code>. Setelan
+          yang sama juga bisa diubah dari chat: <code>/engine</code>, <code>/runtime</code>,{" "}
+          <code>/model</code>, <code>/effort</code>. Berlaku global untuk semua chat.
+        </div>
+        <SettingRow title="Pakai setelan sendiri"
+          desc="Mati = ikut default global di atas. Hidup = sesi operator Telegram memakai pilihan di bawah.">
+          <Switch aria-label="Override agen Telegram" checked={tgEngine.enabled}
+            onChange={(v: boolean) => saveTgEngine({ enabled: v },
+              "Setelan operator Telegram" + (v ? " · aktif" : " · ikut default global"))} />
+        </SettingRow>
+        {!tgEngine.enabled ? (
+          <div data-testid="telegram-engine-inherited" style={{ fontSize: 12.5, color: "var(--text-muted)", padding: "12px 0 2px", lineHeight: 1.5 }}>
+            Sesi operator Telegram memakai default global: <b>{AGENT_LABEL[inherited.agent]}</b> ·{" "}
+            <code>{inherited.model}</code> · <code>{inherited.effort}</code>.
+          </div>
+        ) : (
+          <>
+            <SettingRow title="Runtime" desc="Mesin yang menjalankan sesi operator. Bisa beda dari agen sesi kerja.">
+              <Select size="sm" aria-label="Runtime Telegram" value={tgEngine.agent} style={{ width: 190 }}
+                options={[{ value: "claude", label: AGENT_LABEL.claude }, { value: "codex", label: AGENT_LABEL.codex }]}
+                onChange={(e) => {
+                  // Cermin `pickAgent`/kartu konflik/kartu lead: menukar runtime HARUS menukar
+                  // model+effort sekalian, kalau tidak sesi lahir `codex -m claude-opus-5`.
+                  const a = e.target.value as "claude" | "codex";
+                  const d = a === "codex" ? codex : { model: s.model, effort: s.effort };
+                  saveTgEngine({ agent: a, model: d.model,
+                    effort: a === "codex" ? coerceCodexEffort(d.model, d.effort) : d.effort },
+                    "Runtime operator Telegram → " + a);
+                }} />
+            </SettingRow>
+            {tgEngine.agent === "codex" && codexNote(tgEngine.model)}
+            <SettingRow title="Model">
+              <Select size="sm" aria-label="Model Telegram" value={tgEngine.model} style={{ width: 190 }}
+                options={tgEngine.agent === "codex" ? codexOptions(tgEngine.model) : S_MODELS}
+                onChange={(e) => {
+                  const model = e.target.value;
+                  saveTgEngine({ model, ...(tgEngine.agent === "codex"
+                    ? { effort: coerceCodexEffort(model, tgEngine.effort) } : {}) },
+                    "Model operator Telegram → " + model);
+                }} />
+            </SettingRow>
+            <SettingRow title="Effort" last
+              desc="Operator Telegram jarang menulis kode — effort rendah memangkas latensi balasan secara langsung.">
+              <Select size="sm" aria-label="Effort Telegram" value={tgEngine.effort} style={{ width: 130 }}
+                options={tgEngine.agent === "codex"
+                  ? codexEfforts(tgEngine.model).map((v) => ({ value: v, label: v }))
+                  : S_EFFORT}
+                onChange={(e) => saveTgEngine({ effort: e.target.value }, "Effort operator Telegram → " + e.target.value)} />
             </SettingRow>
           </>
         )}

@@ -1608,7 +1608,7 @@ git commit -m "feat(492): command runtime Telegram dicegat coordinator, gateway 
 - Consumes: `api.getSettings`, `api.putSettings`, `TELEGRAM_DEFAULTS`, `MODELS`/`EFFORTS`/`CODEX_MODELS`/`codexEfforts`/`coerceCodexEffort`, helper lokal `codexNote`/`codexOptions`/`inherited`/`AGENT_LABEL` yang sudah ada di berkas.
 - Produces: label a11y `Override agen Telegram`, `Runtime Telegram`, `Model Telegram`, `Effort Telegram`; testid `telegram-engine-inherited`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/test/settings-telegram-engine.test.tsx`:
 
@@ -1739,14 +1739,14 @@ describe("SPEC-492 · kartu agen operator Telegram", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan GAGAL**
+- [x] **Step 2: Jalankan, pastikan GAGAL**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --dir src src/test/settings-telegram-engine.test.tsx
 ```
 Expected: FAIL — `Unable to find an element with the text: Agen operator Telegram`.
 
-- [ ] **Step 3: Tambahkan helper penulis di dalam `if (tab === "model")`**
+- [x] **Step 3: Tambahkan helper penulis di dalam `if (tab === "model")`**
 
 Sisipkan tepat sesudah `saveEngine` (sekitar baris 786), sebelum `return (`:
 
@@ -1780,7 +1780,7 @@ Sisipkan tepat sesudah `saveEngine` (sekitar baris 786), sebelum `return (`:
       };
 ```
 
-- [ ] **Step 4: Tambahkan kartunya**
+- [x] **Step 4: Tambahkan kartunya**
 
 Sisipkan tepat sesudah `</Card>` penutup kartu "Agen hanoman-lead" (sekitar baris 962), sebelum
 `</>`:
@@ -1849,7 +1849,7 @@ Sisipkan tepat sesudah `</Card>` penutup kartu "Agen hanoman-lead" (sekitar bari
       </Card>
 ```
 
-- [ ] **Step 5: Jalankan test web yang tersentuh**
+- [x] **Step 5: Jalankan test web yang tersentuh**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest run --dir src \
@@ -1858,14 +1858,14 @@ env -u NODE_ENV ./node_modules/.bin/vitest run --dir src \
 ```
 Expected: PASS semua.
 
-- [ ] **Step 6: Typecheck web**
+- [x] **Step 6: Typecheck web**
 
 ```bash
 pnpm --filter ./src typecheck
 ```
 Expected: keluar 0. (Bila nama paket berbeda, lihat `src/package.json` dan pakai nama itu.)
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/src/screens/SettingsScreen.tsx src/test/settings-telegram-engine.test.tsx
