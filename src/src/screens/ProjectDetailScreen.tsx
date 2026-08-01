@@ -6,6 +6,7 @@ import { Card, Badge, StatusPill, ProgressBar, Button, Icon } from "../ds";
 import { api } from "../api/client";
 import type { ProjectVM } from "./types";
 import { CustomAgentsPanel } from "./CustomAgentsPanel";
+import { AutoMergeCard } from "./AutoMergeCard";
 
 const COV_TONE = (s: string) => (s === "broken" ? "err" : s === "drift" ? "warn" : "ok");
 
@@ -131,6 +132,9 @@ export function ProjectDetailScreen({ p, onEdit, onGotoDocs, onGotoTerminal, onG
       </Card>
 
       <HelpCenterCard p={p} onToast={onToast} onProjectChanged={onProjectChanged} />
+
+      {/* SPEC-486 · ADR-0103 · kebijakan auto-merge per project (override per item di Backlog). */}
+      <AutoMergeCard p={p} onToast={onToast} onProjectChanged={onProjectChanged} />
 
       {/* SPEC-450 · ADR-0094 · permukaan PER-PROJECT katalog custom agent. Komponen yang sama
           dipakai Settings dengan projectId=null; di sini agen global tampil read-only bertanda
