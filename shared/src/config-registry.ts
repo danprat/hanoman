@@ -7,6 +7,8 @@ export interface ConfigEntry {
   key: string; group: string; label: string; help?: string;
   kind: ConfigKind; default?: string; apply: ApplyMode; category: ConfigCategory;
   min?: number; max?: number;
+  pattern?: string;       // SPEC-477 · regex sumber untuk string|secret|path; ditegakkan parseConfigValue
+  patternError?: string;  // pesan yang dilihat operator saat pattern tak cocok
   inheritEnv?: boolean; // true = dikonsumsi via warisan proses anak (mirror ke process.env, bukan dibaca cfg.*)
 }
 
@@ -37,6 +39,20 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
     help: "PAT scope `repo` (atau `public_repo`). Kosong = andalkan `gh auth login` di mesin ini." },
   { key: "HANOMAN_GH_BIN", group: "github", label: "Biner gh", kind: "path", apply: "live", category: "knob", default: "gh",
     help: "Absen = tarik issue lewat HTTPS langsung ke api.github.com." },
+  // telegram (SPEC-477 · ADR-0097 · kredensial gateway pindah dari .env ke store config).
+  // `.env` lama tetap bekerja: resolver = DB → env → default, dan `sourceOf()` menandainya.
+  { key: "HANOMAN_TELEGRAM_BOT_TOKEN", group: "telegram", label: "Bot token", kind: "secret", apply: "live", category: "credential",
+    pattern: "^\\d{5,}:[A-Za-z0-9_-]{30,}$", patternError: "format BotFather: <bot_id>:<secret>",
+    help: "Token dari BotFather. Disimpan terenkripsi; tak pernah dikembalikan utuh." },
+  { key: "HANOMAN_TELEGRAM_AGENT_TOKEN", group: "telegram", label: "AgentToken gateway", kind: "secret", apply: "live", category: "credential",
+    pattern: "^\\S{20,}$", patternError: "plaintext AgentToken (hnm_agt_…)",
+    help: "Plaintext AgentToken ber-capability Telegram. Dipakai session operator, bukan bot." },
+  { key: "HANOMAN_TELEGRAM_ALLOWED_USER_IDS", group: "telegram", label: "Allowlist user id", kind: "string", apply: "live", category: "credential",
+    pattern: "^\\d+(?:[\\s,]+\\d+)*$", patternError: "numeric user id, dipisah koma/spasi",
+    help: "Siapa yang boleh memerintah bot. Numeric Telegram user id, bukan username." },
+  { key: "HANOMAN_TELEGRAM_TARGET_CHAT_ID", group: "telegram", label: "Chat / Channel ID target", kind: "string", apply: "live", category: "knob",
+    pattern: "^-?\\d+$", patternError: "numeric chat id (channel/supergroup negatif)",
+    help: "Tujuan Test Connection. Kosong = pakai satu-satunya id di allowlist." },
   // runtime
   { key: "HANOMAN_EVENTS_TICK_MS", group: "runtime", label: "Interval events (ms)", kind: "int", apply: "live", category: "knob", default: "1000", min: 100 },
   { key: "HANOMAN_UPDATE_FETCH", group: "runtime", label: "Deteksi update saat boot", kind: "bool", apply: "live", category: "knob", default: "1" },
@@ -105,6 +121,10 @@ export function parseConfigValue(
     }
     default: // string | path | secret
       if (v.length === 0) return { ok: false, error: "tak boleh kosong" };
+      // SPEC-477 · gerbang TULIS. Entri tanpa `pattern` tak berubah perilakunya.
+      if (entry.pattern && !new RegExp(entry.pattern).test(v)) {
+        return { ok: false, error: entry.patternError ?? "format tidak valid" };
+      }
       return { ok: true, value: v };
   }
 }

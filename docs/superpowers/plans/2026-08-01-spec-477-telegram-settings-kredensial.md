@@ -449,7 +449,7 @@ git commit -m "feat(477): kategori config credential hanya bisa ditulis sesi coo
   - `TELEGRAM_CONFIG_KEYS: readonly ["HANOMAN_TELEGRAM_BOT_TOKEN", "HANOMAN_TELEGRAM_AGENT_TOKEN", "HANOMAN_TELEGRAM_ALLOWED_USER_IDS", "HANOMAN_TELEGRAM_TARGET_CHAT_ID"]` (shared, dipakai Task 5–7)
   - `ConfigEntry.pattern?: string` + `ConfigEntry.patternError?: string`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append ke `shared/src/telegram.test.ts`:
 
@@ -522,12 +522,12 @@ Append ke `server/test/config-registry.test.ts` (di dalam `describe("config-regi
   });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `./node_modules/.bin/vitest run --no-file-parallelism shared/src/telegram.test.ts server/test/config-registry.test.ts`
 Expected: FAIL — `TELEGRAM_BOT_TOKEN_PATTERN` tak ter-ekspor; `configEntry("HANOMAN_TELEGRAM_BOT_TOKEN")` `undefined`
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Di `shared/src/telegram.ts`, tepat di bawah `export const TELEGRAM_DEFAULTS`:
 
@@ -589,12 +589,12 @@ Di `parseConfigValue`, ganti cabang `default:`:
       return { ok: true, value: v };
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `./node_modules/.bin/vitest run --no-file-parallelism shared/src/telegram.test.ts server/test/config-registry.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add shared/src/telegram.ts shared/src/config-registry.ts shared/src/telegram.test.ts server/test/config-registry.test.ts

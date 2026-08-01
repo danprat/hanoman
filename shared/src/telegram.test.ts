@@ -8,6 +8,10 @@ import {
   zTelegramReplyInput,
   zTelegramSettings,
   zTerminalSteerInput,
+  TELEGRAM_BOT_TOKEN_PATTERN,
+  TELEGRAM_CHAT_ID_PATTERN,
+  TELEGRAM_ALLOWLIST_PATTERN,
+  TELEGRAM_CONFIG_KEYS,
 } from "./telegram";
 
 describe("Telegram shared contracts (SPEC-476)", () => {
@@ -68,5 +72,38 @@ describe("Telegram shared contracts (SPEC-476)", () => {
     }).action).toBe("dispatch");
     expect(zTerminalSteerInput.parse({ text: "cek migration" }).text).toBe("cek migration");
     expect(zTerminalSteerInput.safeParse({ text: "   " }).success).toBe(false);
+  });
+});
+
+describe("SPEC-477 · pola kredensial Telegram", () => {
+  it("bot token BotFather diterima, bentuk lain ditolak", () => {
+    expect(TELEGRAM_BOT_TOKEN_PATTERN.test("123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw")).toBe(true);
+    expect(TELEGRAM_BOT_TOKEN_PATTERN.test("abc")).toBe(false);
+    expect(TELEGRAM_BOT_TOKEN_PATTERN.test("123456789")).toBe(false);          // tanpa ":"
+    expect(TELEGRAM_BOT_TOKEN_PATTERN.test("123456789:pendek")).toBe(false);   // secret terlalu pendek
+    expect(TELEGRAM_BOT_TOKEN_PATTERN.test(" 123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw")).toBe(false);
+  });
+
+  // Gotcha 4 · channel & supergroup NEGATIF. Pola ^\d+$ menolak persis kasus "Channel ID"
+  // yang diminta brief.
+  it("chat id menerima negatif (channel/supergroup)", () => {
+    expect(TELEGRAM_CHAT_ID_PATTERN.test("42")).toBe(true);
+    expect(TELEGRAM_CHAT_ID_PATTERN.test("-1001234567890")).toBe(true);
+    expect(TELEGRAM_CHAT_ID_PATTERN.test("@channel")).toBe(false);
+    expect(TELEGRAM_CHAT_ID_PATTERN.test("")).toBe(false);
+  });
+
+  it("allowlist user id NON-negatif, boleh banyak, koma atau spasi", () => {
+    expect(TELEGRAM_ALLOWLIST_PATTERN.test("7")).toBe(true);
+    expect(TELEGRAM_ALLOWLIST_PATTERN.test("7,8 9")).toBe(true);
+    expect(TELEGRAM_ALLOWLIST_PATTERN.test("-7")).toBe(false);
+    expect(TELEGRAM_ALLOWLIST_PATTERN.test("")).toBe(false);
+  });
+
+  it("TELEGRAM_CONFIG_KEYS memuat keempat key", () => {
+    expect([...TELEGRAM_CONFIG_KEYS]).toEqual([
+      "HANOMAN_TELEGRAM_BOT_TOKEN", "HANOMAN_TELEGRAM_AGENT_TOKEN",
+      "HANOMAN_TELEGRAM_ALLOWED_USER_IDS", "HANOMAN_TELEGRAM_TARGET_CHAT_ID",
+    ]);
   });
 });

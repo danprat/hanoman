@@ -51,4 +51,31 @@ describe("config-registry", () => {
     expect(bin!.kind).toBe("path");
     expect(bin!.default).toBe("gh");
   });
+  // SPEC-477 · ADR-0097 · kredensial Telegram pindah dari .env ke store config.
+  it("SPEC-477 · empat entri Telegram terdaftar dengan kind & category yang benar", () => {
+    const byKey = (k: string) => CONFIG_REGISTRY.find((e) => e.key === k)!;
+    for (const k of ["HANOMAN_TELEGRAM_BOT_TOKEN", "HANOMAN_TELEGRAM_AGENT_TOKEN"]) {
+      expect(byKey(k).kind).toBe("secret");
+      expect(byKey(k).category).toBe("credential");
+      expect(byKey(k).group).toBe("telegram");
+      expect(byKey(k).apply).toBe("live");
+    }
+    // allowlist BUKAN rahasia (operator harus bisa membacanya kembali) tapi ia memutuskan siapa
+    // yang boleh memerintah bot → kategori credential agar ikut pagar cookie-only.
+    expect(byKey("HANOMAN_TELEGRAM_ALLOWED_USER_IDS").kind).toBe("string");
+    expect(byKey("HANOMAN_TELEGRAM_ALLOWED_USER_IDS").category).toBe("credential");
+    expect(byKey("HANOMAN_TELEGRAM_TARGET_CHAT_ID").category).toBe("knob");
+  });
+
+  it("SPEC-477 · parseConfigValue menegakkan pattern", () => {
+    const tok = configEntry("HANOMAN_TELEGRAM_BOT_TOKEN")!;
+    expect(parseConfigValue(tok, "123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw"))
+      .toEqual({ ok: true, value: "123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw" });
+    expect(parseConfigValue(tok, "bukan-token").ok).toBe(false);
+    const chat = configEntry("HANOMAN_TELEGRAM_TARGET_CHAT_ID")!;
+    expect(parseConfigValue(chat, "-1001234567890")).toEqual({ ok: true, value: "-1001234567890" });
+    expect(parseConfigValue(chat, "@kanal").ok).toBe(false);
+    // entri tanpa pattern tak berubah perilakunya
+    expect(parseConfigValue(configEntry("HANOMAN_CLAUDE_BIN")!, "claude")).toEqual({ ok: true, value: "claude" });
+  });
 });

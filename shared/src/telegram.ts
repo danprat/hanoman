@@ -10,6 +10,25 @@ export const zTelegramSettings = z.object({
 export type TelegramSettings = z.infer<typeof zTelegramSettings>;
 export const TELEGRAM_DEFAULTS: TelegramSettings = zTelegramSettings.parse({});
 
+/**
+ * SPEC-477 · ADR-0097 · pola kredensial. Gerbang TULIS saja — nilai yang datang dari `.env`
+ * sengaja tak divalidasi: instance yang hidup hari ini dengan token berbentuk tak terduga harus
+ * tetap hidup.
+ */
+export const TELEGRAM_BOT_TOKEN_PATTERN = /^\d{5,}:[A-Za-z0-9_-]{30,}$/;
+/** Channel & supergroup NEGATIF — `^\d+$` akan menolak persis kasus "Channel ID". */
+export const TELEGRAM_CHAT_ID_PATTERN = /^-?\d+$/;
+/** Allowlist adalah numeric USER id: selalu non-negatif, dipisah koma/spasi. */
+export const TELEGRAM_ALLOWLIST_PATTERN = /^\d+(?:[\s,]+\d+)*$/;
+
+export const TELEGRAM_CONFIG_KEYS = [
+  "HANOMAN_TELEGRAM_BOT_TOKEN",
+  "HANOMAN_TELEGRAM_AGENT_TOKEN",
+  "HANOMAN_TELEGRAM_ALLOWED_USER_IDS",
+  "HANOMAN_TELEGRAM_TARGET_CHAT_ID",
+] as const;
+export type TelegramConfigKey = (typeof TELEGRAM_CONFIG_KEYS)[number];
+
 export const zTelegramReadiness = z.enum([
   "disabled", "misconfigured", "ready", "running", "error",
 ]);
