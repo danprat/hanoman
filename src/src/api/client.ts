@@ -1,4 +1,4 @@
-import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type SessionHistoryView, type ConfigResponse, type ConfigEntryView, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView, type Agent, type AuditEscalationView, type VerifyScope, type Lead, type LeadStatusView, type LeadDecisionView, type CustomAgentView, type CreateCustomAgent, type UpdateCustomAgent, type GithubIssueView, type TelegramGatewayStatus } from "@hanoman/shared";
+import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type SessionHistoryView, type ConfigResponse, type ConfigEntryView, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView, type Agent, type AuditEscalationView, type VerifyScope, type Lead, type LeadStatusView, type LeadDecisionView, type CustomAgentView, type CreateCustomAgent, type UpdateCustomAgent, type GithubIssueView, type TelegramGatewayStatus, type TelegramCredentialsView, type TelegramTestResult, type TelegramClearResult } from "@hanoman/shared";
 // SPEC-450 · `detail` = body JSON respons galat (best-effort, null bila bukan JSON). Ditambahkan
 // karena penolakan custom agent membawa informasi yang HARUS sampai ke operator — jalur siklus
 // (`cycle`/`scope`) dan daftar mention tak dikenal (`unknown`); "409" saja tak bisa ditindaklanjuti.
@@ -154,6 +154,13 @@ export const api = {
   getSettings: () => j<Setting>(paths.settings),
   putSettings: (b: unknown) => j<Setting>(paths.settings, { method: "PUT", ...body(b) }),
   getTelegramStatus: () => j<TelegramGatewayStatus>(paths.telegramStatus),
+  // SPEC-477 · ADR-0097 · kredensial Telegram dari Settings (cookie-only). Secret tak pernah
+  // balik utuh — `masked` + `hasValue`; mengirim string kosong = pertahankan nilai lama.
+  getTelegramCredentials: () => j<TelegramCredentialsView>(paths.telegramSettings),
+  putTelegramCredentials: (patch: Record<string, string>) =>
+    j<TelegramCredentialsView>(paths.telegramSettings, { method: "PUT", ...body(patch) }),
+  testTelegramConnection: () => j<TelegramTestResult>(paths.telegramTest, { method: "POST", ...body({}) }),
+  deleteTelegramCredentials: () => j<TelegramClearResult>(paths.telegramCredentials, { method: "DELETE" }),
   // SPEC-339 · versi codex CLI; dipakai catatan "CLI terlalu tua" di Settings & picker Start.
   getCodexVersion: () => j<{ version: string | null; minRequired: string; ok: boolean }>(paths.codexVersion),
   // SPEC-215 · config runtime

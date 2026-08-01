@@ -22,26 +22,109 @@ function json(value: unknown, statusCode = 200) {
 
 afterEach(() => vi.restoreAllMocks());
 
-describe("SettingsScreen Telegram onboarding (SPEC-476)", () => {
-  it("shows readiness and env-only onboarding without credential inputs", async () => {
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((url, init) => {
-      const path = String(url);
-      if (path === "/api/settings" && init?.method === "PUT") return json({ ...setting, telegram: { enabled: true, progress: true } });
-      if (path === "/api/settings") return json(setting);
-      if (path === "/api/codex/version") return json({ version: null, minRequired: "0.0.0", ok: true });
-      if (path === "/api/telegram/status") return json(status);
-      throw new Error(`unexpected fetch ${path}`);
+// SPEC-477 · ADR-0097 · test SPEC-476 di sini MENGUNCI perilaku lama sebagai kontrak
+// ("tanpa input credential", "credential disimpan di env"). Ia sengaja diganti, bukan ditambahi:
+// membiarkannya membuat merah yang benar terlihat seperti regresi (pola SPEC-433/475).
+const credentials = {
+  fields: [
+    { key: "HANOMAN_TELEGRAM_BOT_TOKEN", label: "Bot token", kind: "secret", source: "db", hasValue: true, masked: "\u2022\u2022\u2022\u2022Dsaw" },
+    { key: "HANOMAN_TELEGRAM_AGENT_TOKEN", label: "AgentToken gateway", kind: "secret", source: "env", hasValue: true, masked: "\u2022\u2022\u2022\u20223456" },
+    { key: "HANOMAN_TELEGRAM_ALLOWED_USER_IDS", label: "Allowlist user id", kind: "string", source: "db", hasValue: true, value: "7" },
+    { key: "HANOMAN_TELEGRAM_TARGET_CHAT_ID", label: "Chat / Channel ID target", kind: "string", source: "default", hasValue: false, value: null },
+  ],
+};
+
+function telegramFetch(extra: (path: string, init?: RequestInit) => Promise<Response> | null = () => null) {
+  return vi.spyOn(globalThis, "fetch").mockImplementation((url, init) => {
+    const path = String(url);
+    const custom = extra(path, init as RequestInit | undefined);
+    if (custom) return custom;
+    if (path === "/api/settings" && init?.method === "PUT") return json(setting);
+    if (path === "/api/settings") return json(setting);
+    if (path === "/api/codex/version") return json({ version: null, minRequired: "0.0.0", ok: true });
+    if (path === "/api/telegram/status") return json(status);
+    if (path === "/api/telegram/settings") return json(credentials);
+    throw new Error(`unexpected fetch ${path}`);
+  });
+}
+
+async function openTelegramTab() {
+  render(<SettingsScreen
+    me={{ id: "u1", email: "dena@example.test", createdAt: "2026-08-01T00:00:00.000Z" }}
+    onLoggedOut={() => {}}
+  />);
+  fireEvent.click(screen.getByRole("button", { name: "Telegram" }));
+  expect(await screen.findByText("Kredensial Telegram")).toBeInTheDocument();
+}
+
+describe("SettingsScreen Telegram kredensial (SPEC-477)", () => {
+  it("merender empat field; secret masked & tak pernah menampilkan nilai utuh", async () => {
+    telegramFetch();
+    await openTelegramTab();
+    expect(screen.getByLabelText("Bot token")).toHaveAttribute("type", "password");
+    expect(screen.getByLabelText("Bot token")).toHaveAttribute("placeholder", "\u2022\u2022\u2022\u2022Dsaw");
+    expect(screen.getByLabelText("AgentToken gateway")).toBeInTheDocument();
+    expect((screen.getByLabelText("Allowlist user id") as HTMLInputElement).value).toBe("7");
+    expect(screen.getByLabelText("Chat / Channel ID target")).toBeInTheDocument();
+  });
+
+  it("menandai field yang masih datang dari .env sebagai deprecated", async () => {
+    telegramFetch();
+    await openTelegramTab();
+    expect(screen.getByText(/dari \.env . deprecated/i)).toBeInTheDocument();
+  });
+
+  it("Simpan mengirim hanya field yang diisi", async () => {
+    let sent: unknown = null;
+    telegramFetch((path, init) => {
+      if (path === "/api/telegram/settings" && init?.method === "PUT") {
+        sent = JSON.parse(String(init.body));
+        return json(credentials);
+      }
+      return null;
     });
-    render(<SettingsScreen
-      me={{ id: "u1", email: "dena@example.test", createdAt: "2026-08-01T00:00:00.000Z" }}
-      onLoggedOut={() => {}}
-    />);
-    fireEvent.click(screen.getByRole("button", { name: "Telegram" }));
-    expect(await screen.findByText("Gateway Telegram")).toBeInTheDocument();
-    expect(screen.getByText(/@hanoman_bot/)).toBeInTheDocument();
-    expect(screen.getByText(/HANOMAN_TELEGRAM_BOT_TOKEN/)).toBeInTheDocument();
-    expect(screen.getByText(/credential disimpan di env/i)).toBeInTheDocument();
-    expect(screen.queryByRole("textbox", { name: /token/i })).not.toBeInTheDocument();
+    await openTelegramTab();
+    fireEvent.change(screen.getByLabelText("Chat / Channel ID target"), { target: { value: "-1001234567890" } });
+    fireEvent.click(screen.getByRole("button", { name: "Simpan kredensial" }));
+    await waitFor(() => expect(sent).toEqual({ HANOMAN_TELEGRAM_TARGET_CHAT_ID: "-1001234567890" }));
+  });
+
+  it("Test Connection menampilkan hasil sukses", async () => {
+    telegramFetch((path, init) =>
+      path === "/api/telegram/test" && init?.method === "POST"
+        ? json({ ok: true, botUsername: "bot_uji", chatId: "42" }) : null);
+    await openTelegramTab();
+    fireEvent.click(screen.getByRole("button", { name: "Test Connection" }));
+    expect(await screen.findByText(/@bot_uji/)).toBeInTheDocument();
+  });
+
+  it("Test Connection menampilkan galat apa adanya", async () => {
+    telegramFetch((path, init) =>
+      path === "/api/telegram/test" && init?.method === "POST"
+        ? json({ ok: false, error: "Telegram getMe gagal (401): Unauthorized" }) : null);
+    await openTelegramTab();
+    fireEvent.click(screen.getByRole("button", { name: "Test Connection" }));
+    expect(await screen.findByText(/401/)).toBeInTheDocument();
+  });
+
+  it("Hapus kredensial meminta konfirmasi lalu memanggil DELETE", async () => {
+    let deleted = false;
+    telegramFetch((path, init) => {
+      if (path === "/api/telegram/credentials" && init?.method === "DELETE") {
+        deleted = true;
+        return json({ cleared: ["HANOMAN_TELEGRAM_BOT_TOKEN"], envFallback: [] });
+      }
+      return null;
+    });
+    await openTelegramTab();
+    fireEvent.click(screen.getByRole("button", { name: "Hapus kredensial" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Hapus" }));
+    await waitFor(() => expect(deleted).toBe(true));
+  });
+
+  it("toggle gateway & progress tetap ada dan mem-PUT settings", async () => {
+    const fetchMock = telegramFetch();
+    await openTelegramTab();
     expect(screen.getAllByRole("switch")).toHaveLength(2);
     fireEvent.click(screen.getAllByRole("switch")[0]!);
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/settings", expect.objectContaining({ method: "PUT" })));

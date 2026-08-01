@@ -1,10 +1,10 @@
 /* SettingsScreen — workspace settings. Ported; persistence moved from
    localStorage to the API (GET/PUT /settings). Model per pipeline step. */
 import React from "react";
-import { Card, Switch, Select, Button, Input, Field, HnTextarea, Icon, StateBlock } from "../ds";
+import { Card, Switch, Select, Button, Input, Field, HnTextarea, Icon, StateBlock, Badge, Callout, ConfirmDialog } from "../ds";
 import { api, ApiError } from "../api/client";
 import { CAPABILITY_DOMAINS, SCHEDULER_DEFAULTS, GOAL_DEFAULTS, CODEX_DEFAULTS, CONFLICT_DEFAULTS, LEAD_DEFAULTS, TELEGRAM_DEFAULTS, CODEX_MODELS, MODELS, EFFORTS, codexEfforts, coerceCodexEffort, codexModel, codexClientTooOld } from "@hanoman/shared";
-import type { Setting, UserView, DeviceTokenView, SessionResultView, ConfigResponse, ConfigEntryView, AgentTokenView, CapabilityInfo, TelegramGatewayStatus } from "@hanoman/shared";
+import type { Setting, UserView, DeviceTokenView, SessionResultView, ConfigResponse, ConfigEntryView, AgentTokenView, CapabilityInfo, TelegramGatewayStatus, TelegramCredentialsView, TelegramTestResult } from "@hanoman/shared";
 import type { ShowToast } from "../ds";
 import { playNotifySound, type NotifySound } from "../notifications/sound";
 import { CustomAgentsPanel } from "./CustomAgentsPanel";
@@ -503,6 +503,15 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
     api.getTelegramStatus().then(setTelegramStatus).catch(() => setTelegramFailed(true));
   }, []);
   React.useEffect(() => { if (tab === "telegram") loadTelegram(); }, [tab, loadTelegram]);
+  // SPEC-477 · ADR-0097 · kredensial Telegram kini hidup di store config, bukan .env.
+  const [tgCreds, setTgCreds] = React.useState<TelegramCredentialsView | null>(null);
+  const [tgDraft, setTgDraft] = React.useState<Record<string, string>>({});
+  const [tgTest, setTgTest] = React.useState<TelegramTestResult | "sending" | null>(null);
+  const [tgConfirm, setTgConfirm] = React.useState(false);
+  const loadTgCreds = React.useCallback(() => {
+    api.getTelegramCredentials().then((v) => { setTgCreds(v); setTgDraft({}); }).catch(() => setTgCreds(null));
+  }, []);
+  React.useEffect(() => { if (tab === "telegram") loadTgCreds(); }, [tab, loadTgCreds]);
 
   // Kartu yang bergantung settings (umum/model/sesi). Loading/failed hanya relevan di sini.
   function prefs() {
@@ -526,28 +535,114 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
     if (tab === "telegram") {
       const telegram = s.telegram ?? TELEGRAM_DEFAULTS;
       const readiness = telegramStatus?.readiness ?? "memuat";
+      // `source === "env"` = nilai masih datang dari .env — jalur warisan yang sengaja dibiarkan
+      // hidup (ADR-0049 resolver DB → env → default), tapi ditandai agar operator memindahkannya.
+      const sourceBadge = (src: "db" | "env" | "default") =>
+        src === "db" ? <Badge tone="ok">tersimpan</Badge>
+          : src === "env" ? <Badge tone="warn">dari .env · deprecated</Badge>
+            : <Badge>belum diisi</Badge>;
+      const saveCreds = () => {
+        const patch = Object.fromEntries(Object.entries(tgDraft).filter(([, v]) => v !== ""));
+        if (!Object.keys(patch).length) { onToast?.("Tak ada perubahan", "info", "info"); return; }
+        api.putTelegramCredentials(patch)
+          .then((v) => {
+            setTgCreds(v); setTgDraft({}); setTgTest(null);
+            onToast?.("Kredensial Telegram disimpan", "ok", "check-circle-2");
+            loadTelegram();
+          })
+          .catch((e: Error) => onToast?.(e.message || "Gagal menyimpan", "err", "alert-triangle"));
+      };
+      const runTest = () => {
+        setTgTest("sending");
+        api.testTelegramConnection().then(setTgTest)
+          .catch((e: Error) => setTgTest({ ok: false, error: e.message || "Gagal menghubungi server" }));
+      };
+      const removeCreds = () => {
+        setTgConfirm(false);
+        api.deleteTelegramCredentials().then((r) => {
+          onToast?.(r.envFallback.length
+            ? `Kredensial dihapus — ${r.envFallback.length} nilai masih datang dari .env`
+            : "Kredensial Telegram dihapus", "ok", "check-circle-2");
+          setTgTest(null); loadTgCreds(); loadTelegram();
+        }).catch((e: Error) => onToast?.(e.message || "Gagal menghapus", "err", "alert-triangle"));
+      };
       return (
         <>
-          <Card eyebrow="telegram" title="Gateway Telegram">
+          <Card eyebrow="telegram" title="Kredensial Telegram">
+            <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.5 }}>
+              Disimpan terenkripsi di database dan berlaku langsung — tanpa mengedit <code>.env</code>,
+              tanpa restart. Nilai <code>.env</code> lama tetap dipakai selama field-nya masih kosong.
+            </div>
+            {!tgCreds ? <StateBlock kind="loading" compact title="Memuat kredensial…" />
+              : <>
+                {tgCreds.fields.map((f, i) => (
+                  <SettingRow key={f.key} title={f.label} desc={f.help} last={i === tgCreds.fields.length - 1}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {sourceBadge(f.source)}
+                      <Input
+                        aria-label={f.label}
+                        mono
+                        type={f.kind === "secret" ? "password" : "text"}
+                        placeholder={f.kind === "secret" ? (f.masked ?? "belum diisi") : "belum diisi"}
+                        value={tgDraft[f.key] ?? (f.kind === "secret" ? "" : (f.value ?? ""))}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setTgDraft((d) => ({ ...d, [f.key]: e.target.value }))}
+                        style={{ width: 300 }}
+                      />
+                    </div>
+                  </SettingRow>
+                ))}
+                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                  <Button size="sm" leftIcon="save" onClick={saveCreds}>Simpan kredensial</Button>
+                </div>
+              </>}
+          </Card>
+
+          <Card eyebrow="uji" title="Uji koneksi & hapus"
+            actions={<Button size="sm" variant="ghost" leftIcon="refresh-cw" onClick={loadTgCreds}>Refresh</Button>}>
+            <SettingRow title="Test Connection"
+              desc="Mengirim satu pesan percobaan ke chat tujuan. Batas 10 detik — tak pernah menggantung.">
+              <Button size="sm" leftIcon="send" disabled={tgTest === "sending"} onClick={runTest}>Test Connection</Button>
+            </SettingRow>
+            {tgTest && tgTest !== "sending" && (
+              <div style={{ marginTop: 10 }}>
+                {tgTest.ok
+                  ? <Callout tone="ok">Berhasil — bot @{tgTest.botUsername ?? "?"} mengirim ke chat {tgTest.chatId}.</Callout>
+                  : <Callout tone="err">{tgTest.error}</Callout>}
+              </div>
+            )}
+            <SettingRow title="Hapus kredensial" last
+              desc="Menghapus keempat nilai dari database. Bila .env lama masih terisi, nilainya kembali dipakai.">
+              <Button size="sm" variant="danger" leftIcon="trash-2" onClick={() => setTgConfirm(true)}>Hapus kredensial</Button>
+            </SettingRow>
+            <ConfirmDialog
+              open={tgConfirm}
+              title="Hapus kredensial Telegram?"
+              message="Gateway berhenti kecuali nilai .env lama masih tersedia."
+              confirmLabel="Hapus"
+              onConfirm={removeCreds}
+              onCancel={() => setTgConfirm(false)}
+            />
+          </Card>
+
+          <Card eyebrow="gateway" title="Gateway Telegram"
+            actions={<Button size="sm" variant="ghost" leftIcon="refresh-cw" onClick={loadTelegram}>Refresh</Button>}>
             <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.5 }}>
               Satu private chat yang diizinkan terikat ke satu session operator Hanoman persisten.
               Bahasa natural tetap antarmuka utama; command hanya shortcut ke session yang sama.
             </div>
             <SettingRow title="Gateway aktif"
-              desc="Mulai long polling in-process setelah restart service. Mematikan tidak membunuh session tmux atau memory.">
+              desc="Menyalakan long polling in-process seketika. Mematikan tidak membunuh session tmux atau memory.">
               <Switch label="Gateway aktif" checked={telegram.enabled} onChange={(enabled: boolean) => {
                 persist({ ...s, telegram: { ...telegram, enabled } }, `Gateway Telegram · ${enabled ? "aktif" : "nonaktif"}`);
               }} />
             </SettingRow>
-            <SettingRow title="Kirim progress ringkas" last
+            <SettingRow title="Kirim progress ringkas"
               desc="Hanya progress eksplisit dan fakta status Hanoman; layar PTY/reasoning tidak pernah diteruskan.">
               <Switch label="Kirim progress ringkas" checked={telegram.progress} onChange={(progress: boolean) => {
                 persist({ ...s, telegram: { ...telegram, progress } }, `Progress Telegram · ${progress ? "aktif" : "nonaktif"}`);
               }} />
             </SettingRow>
-          </Card>
-          <Card eyebrow="readiness" title="Status & onboarding"
-            actions={<Button size="sm" variant="ghost" leftIcon="refresh-cw" onClick={loadTelegram}>Refresh</Button>}>
             {telegramFailed ? <StateBlock kind="error" compact title="Gagal membaca status Telegram" action={loadTelegram} />
               : !telegramStatus ? <StateBlock kind="loading" compact title="Memuat status Telegram…" />
               : <>
@@ -557,8 +652,9 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
                     {telegramStatus.botUsername ? `@${telegramStatus.botUsername}` : "bot belum terverifikasi"}
                   </span>
                 </SettingRow>
-                <SettingRow title="Allowlist" desc={`${telegramStatus.allowlistCount} Telegram numeric user id diizinkan.`}>
-                  <span>{telegramStatus.configured ? "env lengkap" : "env belum lengkap"}</span>
+                <SettingRow title="Allowlist" last={!telegramStatus.missingCapabilities.length}
+                  desc={`${telegramStatus.allowlistCount} Telegram numeric user id diizinkan.`}>
+                  <span>{telegramStatus.configured ? "kredensial lengkap" : "kredensial belum lengkap"}</span>
                 </SettingRow>
                 {telegramStatus.missingCapabilities.length > 0 && <SettingRow title="Capability kurang" last
                   desc={telegramStatus.missingCapabilities.join(", ")} />}
@@ -566,14 +662,12 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
             <div style={{ marginTop: 14, fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.7 }}>
               <b>Onboarding</b>
               <ol style={{ margin: "8px 0 0", paddingLeft: 20 }}>
-                <li>Buat satu bot private-chat lewat BotFather.</li>
-                <li>Isi <code>HANOMAN_TELEGRAM_BOT_TOKEN</code> dan <code>HANOMAN_TELEGRAM_ALLOWED_USER_IDS</code>.</li>
+                <li>Buat satu bot private-chat lewat BotFather, salin token-nya.</li>
                 <li>Di Akses AI Agent, aktifkan master switch dan buat AgentToken dengan capability yang ditampilkan status.</li>
-                <li>Isi plaintext sekali ke <code>HANOMAN_TELEGRAM_AGENT_TOKEN</code>, lalu restart service.</li>
-                <li>Nyalakan gateway di atas dan kirim <code>/status</code>.</li>
+                <li>Isi keempat field di kartu Kredensial lalu Simpan.</li>
+                <li>Tekan Test Connection sampai hijau.</li>
+                <li>Nyalakan gateway di atas dan kirim <code>/status</code> dari Telegram.</li>
               </ol>
-              <div style={{ marginTop: 8 }}><b>Tidak ada input secret di layar ini:</b> credential disimpan di env,
-                bukan database, log, transcript, memory, atau respons.</div>
             </div>
           </Card>
         </>

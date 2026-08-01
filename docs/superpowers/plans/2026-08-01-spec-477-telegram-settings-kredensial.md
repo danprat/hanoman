@@ -1300,7 +1300,7 @@ git commit -m "feat(477): endpoint kredensial Telegram + Test Connection + hapus
 - Consumes: `paths.telegramSettings|telegramTest|telegramCredentials`, `TelegramCredentialsView`, `TelegramTestResult`, `TelegramClearResult` (Task 6)
 - Produces: `api.getTelegramCredentials()`, `api.putTelegramCredentials(patch)`, `api.testTelegramConnection()`, `api.deleteTelegramCredentials()`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Di `src/src/screens/SettingsScreen.test.tsx`, **hapus** `describe("SettingsScreen Telegram onboarding (SPEC-476)", …)` seluruhnya dan ganti dengan:
 
@@ -1414,14 +1414,14 @@ describe("SettingsScreen Telegram kredensial (SPEC-477)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `env -u NODE_ENV ./node_modules/.bin/vitest run --dir src src/src/screens/SettingsScreen.test.tsx`
 Expected: FAIL — `Unable to find an element with the text: Kredensial Telegram`
 
 > `env -u NODE_ENV` wajib: `NODE_ENV=production` di env sesi membuat RTL `act` gagal massal.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 **3a.** Di `src/src/api/client.ts`, tambahkan setelah `getTelegramStatus`:
 
@@ -1591,12 +1591,12 @@ Ganti seluruh blok `if (tab === "telegram") { … }` dengan:
 
 Pastikan `Badge`, `Callout`, `Input`, dan `ConfirmDialog` ada di impor `../ds` berkas ini (tambahkan yang belum).
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `env -u NODE_ENV ./node_modules/.bin/vitest run --dir src src/src/screens/SettingsScreen.test.tsx`
 Expected: PASS — 7 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/api/client.ts src/src/screens/SettingsScreen.tsx src/src/screens/SettingsScreen.test.tsx
