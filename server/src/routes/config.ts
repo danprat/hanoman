@@ -8,6 +8,13 @@ import { syncStatus } from "../services/sync-client";
 // string tak pernah balik plaintext — hanya masked + hasValue. Bootstrap read-only.
 const isSecret = (e: ConfigEntry) => e.kind === "secret";
 
+// SPEC-477 · ADR-0097 · `capabilityForRoute` hanya melihat method+path dan tak pernah melihat
+// `body.key`, jadi ia struktural tak bisa membedakan PUT /config {key:"SYNC_TICK_MS"} dari
+// PUT /config {key:"GITHUB_TOKEN"}. Pagarnya karena itu di handler. Ini KONDISI TAMBAHAN untuk
+// identitas AgentToken, bukan capability baru — ADR-0065 utuh.
+const agentBlocked = (req: { agent?: unknown }, e: ConfigEntry) =>
+  Boolean(req.agent) && e.category === "credential";
+
 function view(e: ConfigEntry): ConfigEntryView {
   const eff = effectiveStr(e.key);
   const base = {
@@ -29,6 +36,7 @@ export default async function (app: FastifyInstance) {
     const entry = b?.key ? configEntry(b.key) : undefined;
     if (!entry) return reply.code(400).send({ error: "key tak dikenal" });
     if (entry.category === "bootstrap") return reply.code(400).send({ error: "bootstrap read-only" });
+    if (agentBlocked(req, entry)) return reply.code(403).send({ error: "cookie session required" });
     const raw = b.value ?? "";
     // secret dengan value kosong = pertahankan yang lama (no-op DB).
     if (isSecret(entry) && raw.trim() === "") {
@@ -47,6 +55,7 @@ export default async function (app: FastifyInstance) {
     const entry = configEntry(key);
     if (!entry) return reply.code(400).send({ error: "key tak dikenal" });
     if (entry.category === "bootstrap") return reply.code(400).send({ error: "bootstrap read-only" });
+    if (agentBlocked(req, entry)) return reply.code(403).send({ error: "cookie session required" });
     await clearConfig(key);
     await applyConfigSideEffect(key);
     return reply.code(204).send();

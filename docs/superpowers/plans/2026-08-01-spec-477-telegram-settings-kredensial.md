@@ -346,7 +346,7 @@ git commit -m "feat(477): RuntimeConfig menyimpan secret terenkripsi; cache teta
 - Consumes: `req.agent` (di-set `app.ts` onRequest hook untuk Bearer AgentToken; cookie sesi kembali lebih awal sehingga `req.agent` tetap `undefined`)
 - Produces: tak ada simbol baru
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append ke `server/test/config.route.test.ts` (impor tambahan di atas file: `import { issueAgentToken } from "../src/services/agent-token"; import { DEFAULT_SETTING } from "../src/services/settings";`, dan tambahkan `prisma.agentToken.deleteMany()` + `prisma.setting.deleteMany()` ke `clean()`):
 
@@ -393,12 +393,12 @@ describe("SPEC-477 · kategori credential = cookie-only", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `./node_modules/.bin/vitest run --no-file-parallelism server/test/config.route.test.ts`
 Expected: FAIL — dua test pertama dapat `200`/`204`, bukan `403`
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Di `server/src/routes/config.ts`, tambahkan helper setelah `const isSecret = ...`:
 
@@ -422,12 +422,12 @@ Di handler `DELETE /config/:key`, tepat setelah gate `bootstrap read-only`:
     if (agentBlocked(req, entry)) return reply.code(403).send({ error: "cookie session required" });
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `./node_modules/.bin/vitest run --no-file-parallelism server/test/config.route.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/routes/config.ts server/test/config.route.test.ts
