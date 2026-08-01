@@ -23,7 +23,11 @@ const issue = (over: Record<string, unknown> = {}) => ({
   issueCreatedAt: "2026-07-30T11:57:43Z", issueUpdatedAt: "2026-07-30T11:57:43Z", ...over,
 });
 
-const m = api as unknown as Record<string, ReturnType<typeof vi.fn>>;
+type Mock = ReturnType<typeof vi.fn>;
+const m = api as unknown as {
+  listGithubIssues: Mock; pullGithubIssues: Mock;
+  acceptGithubIssues: Mock; rejectGithubIssue: Mock; listTickets: Mock;
+};
 
 beforeEach(() => {
   vi.clearAllMocks();

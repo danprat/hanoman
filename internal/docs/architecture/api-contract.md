@@ -685,6 +685,14 @@ POST /api/github-issues/:id/accept  { priority?, source? }
 POST /api/github-issues/:id/reject  -> 200 { id, status:"rejected" } · 404
 POST /api/github-issues/:id/unlink  -> 200 { id, status:"new", specId:null } · 404   # kebalikan accept
 ```
+> **`:id` WAJIB `encodeURIComponent` penuh.** Id-nya deterministik `"<projectId>:<owner>/<repo>#<n>"`
+> dan **memuat `/`** — terukur di smoke lokal: `%2F` diteruskan utuh oleh Fastify dan cocok, sedangkan
+> `/` telanjang di segmen path menjawab **404 "Route not found"**. Konsekuensi deployment: reverse
+> proxy yang **men-dekode `%2F` jadi `/`** akan membuat ketiga endpoint per-issue 404 di produksi
+> sementara lolos di test (`app.inject` tak melewati proxy). Endpoint massal
+> `POST /github-issues/accept` membawa id di **body** sehingga kebal — itulah yang dipakai UI untuk
+> menerima. Bila suatu saat hanoman dipasang di belakang proxy yang menormalkan `%2F`, pindahkan
+> ketiganya ke body, jangan ubah bentuk id (ia kunci changefeed).
 > **Sync:** `githubIssue` masuk `SYNCED` (ADR-0045) dengan **seluruh** kolom bermakna di `FIELDS`,
 > termasuk `status` & `specId` — keputusan triase harus terlihat sama di semua mesin, dan kolom yang
 > terlewat mendarat sebagai default palsu tanpa satu pun error. **Config:** `GITHUB_TOKEN`

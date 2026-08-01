@@ -2223,7 +2223,7 @@ git commit -m "docs(471): ADR-0095 tarik issue GitHub + data-model + api-contrac
 
 ### Task 12: Verifikasi akhir
 
-- [ ] **Step 1: Typecheck paket yang tersentuh**
+- [x] **Step 1: Typecheck paket yang tersentuh**
 
 ```bash
 pnpm --filter ./shared typecheck && pnpm --filter ./server typecheck && \
@@ -2232,7 +2232,7 @@ pnpm --filter ./cli typecheck && pnpm --filter ./src typecheck
 
 Expected: nol error. (Empat paket memang tersentuh; **jangan** `pnpm -r typecheck`.)
 
-- [ ] **Step 2: Jalankan test yang tersentuh, SERIAL**
+- [x] **Step 2: Jalankan test yang tersentuh, SERIAL**
 
 ```bash
 pnpm vitest --run --changed "$HANOMAN_BASE_SHA" --no-file-parallelism
@@ -2243,7 +2243,7 @@ Expected: semua hijau. **Baca jumlah test yang berjalan** — `--changed` menyal
 `github.test.ts`, `github-repo`, `github-fetch`, `github-pull`, `github-sync`, `github-accept`,
 `github-routes`, `agent-capabilities`, `config-registry`, `doctor`, `triage-github`.
 
-- [ ] **Step 3: Smoke endpoint sungguhan (task ini menyentuh endpoint)**
+- [x] **Step 3: Smoke endpoint sungguhan (task ini menyentuh endpoint)**
 
 DB khusus supaya sesi tetangga tak menghapusnya di tengah smoke:
 
@@ -2265,14 +2265,14 @@ Expected: `pull` menjawab `{"repo":"denameidina/hanoman","pulled":9,...}` dan da
 kesembilan nomor issue. Matikan server **per-PID** (`lsof -ti:8791` → `kill <pid>`) — **jangan**
 `pkill -f node`.
 
-- [ ] **Step 4: Diff bersih & nomor ADR final**
+- [x] **Step 4: Diff bersih & nomor ADR final**
 
 ```bash
 git status --porcelain
 cd /Users/denameidina/Documents/Nafanesia/hanoman && git worktree list
 ```
 
-- [ ] **Step 5: Push**
+- [x] **Step 5: Push**
 
 ```bash
 git push origin HEAD:refs/heads/hanoman/spec-471

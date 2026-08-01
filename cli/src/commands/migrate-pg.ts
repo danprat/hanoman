@@ -22,6 +22,10 @@ export const PG_ORDER = [
   "SyncLog", "LocalBinding", "SyncOutbox", "SyncState", "SyncConflict",
   "SchedulerQueueItem", "RuntimeConfig", "LeadDecision",
   "Ticket", "TicketAttachment",
+  // SPEC-471 · ADR-0095 · GithubIssue sesudah Project (FK projectId) DAN sesudah Spec: `specId`
+  // memang tanpa FK, tapi memindahkannya lebih awal membuat urutan tabel tak lagi mencerminkan
+  // arah tautannya bagi pembaca berikutnya.
+  "GithubIssue",
 ] as const;
 
 const CHUNK = 200;
