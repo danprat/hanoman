@@ -3,6 +3,10 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { zTelegramReplyInput } from "@hanoman/shared";
 import { prisma } from "../db";
+import { reloadTelegramGateway } from "../services/telegram/bootstrap";
+import {
+  clearTelegramCredentials, saveTelegramCredentials, telegramCredentialView, testTelegramConnection,
+} from "../services/telegram/credentials";
 import { telegramRuntimeStatus } from "../services/telegram/runtime";
 import { TelegramStore } from "../services/telegram/store";
 
@@ -17,6 +21,27 @@ const zContextPatch = z.object({
 const zMemory = z.object({ content: z.string().trim().min(1).max(1_000) });
 
 export default async function telegramRoutes(app: FastifyInstance) {
+  // SPEC-477 · ADR-0097 · permukaan KREDENSIAL: cookie-only (lihat `capabilityForRoute`).
+  // Ia menyimpan bot token & AgentToken, jadi agent token mana pun — termasuk milik gateway
+  // itu sendiri, yang wajib memegang `settings:write` — tak boleh menyentuhnya.
+  app.get("/telegram/settings", async () => telegramCredentialView());
+
+  app.put("/telegram/settings", async (req, reply) => {
+    const body = typeof req.body === "object" && req.body !== null ? req.body as Record<string, unknown> : {};
+    const saved = await saveTelegramCredentials(body);
+    if (!saved.ok) return reply.code(400).send({ error: saved.error, key: saved.key });
+    await reloadTelegramGateway();
+    return telegramCredentialView();
+  });
+
+  app.post("/telegram/test", async () => testTelegramConnection());
+
+  app.delete("/telegram/credentials", async () => {
+    const result = await clearTelegramCredentials();
+    await reloadTelegramGateway();
+    return result;
+  });
+
   app.get("/telegram/status", async () => telegramRuntimeStatus());
 
   app.get("/telegram/chats/:chatId/context", async (req, reply) => {

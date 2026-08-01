@@ -140,6 +140,10 @@ export const paths = {
     `${API}/telegram/chats/${encodeURIComponent(chatId)}/memories/${encodeURIComponent(id)}`,
   telegramReplies: `${API}/telegram/replies`,
   telegramAudit: `${API}/telegram/audit`,
+  // SPEC-477 · ADR-0097 · permukaan kredensial (cookie-only, bukan agent token).
+  telegramSettings: `${API}/telegram/settings`,
+  telegramTest: `${API}/telegram/test`,
+  telegramCredentials: `${API}/telegram/credentials`,
   // SPEC-268 · ADR-0066 · pemicu sync manual (cookie-authed)
   syncNow: `${API}/sync/now`,
   // SPEC-270 · ADR-0067 · antrean konflik rekonsil (cookie-authed)
@@ -189,6 +193,22 @@ export type ConfigEntryView = {
   hasValue?: boolean;           // secret: apakah ada nilai efektif
 };
 export type ConfigResponse = { entries: ConfigEntryView[]; sync: { running: boolean; connected: boolean } };
+
+// SPEC-477 · ADR-0097 · view kredensial Telegram. Secret: tanpa `value`, pakai `masked`+`hasValue`.
+// `source === "env"` = nilai masih datang dari `.env` (deprecated), bukan dari Settings.
+export type TelegramCredentialFieldView = {
+  key: string; label: string; help?: string;
+  kind: "secret" | "string";
+  source: "db" | "env" | "default";
+  hasValue: boolean;
+  masked?: string | null;
+  value?: string | null;
+};
+export type TelegramCredentialsView = { fields: TelegramCredentialFieldView[] };
+export type TelegramTestResult =
+  | { ok: true; botUsername: string | null; chatId: string }
+  | { ok: false; error: string };
+export type TelegramClearResult = { cleared: string[]; envFallback: string[] };
 
 // SPEC-270 · ADR-0067 · konflik sync dua-sisi menunggu keputusan manusia (modal rekonsil).
 export type SyncConflictView = {

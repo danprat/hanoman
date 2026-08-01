@@ -887,7 +887,7 @@ git commit -m "feat(477): gateway Telegram membaca store config + reload tanpa r
   - `testTelegramConnection(deps): Promise<TelegramTestResult>`
   - shared: `paths.telegramSettings`, `paths.telegramTest`, `paths.telegramCredentials`, tipe `TelegramCredentialField`, `TelegramCredentialsView`, `TelegramTestResult`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `server/test/telegram-credentials.test.ts`:
 
@@ -1041,12 +1041,12 @@ Append ke `server/test/agent-capabilities.test.ts`:
   });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `./node_modules/.bin/vitest run --no-file-parallelism server/test/telegram-credentials.test.ts server/test/agent-capabilities.test.ts`
 Expected: FAIL — `Failed to resolve import ".../telegram/credentials"`; route `404`
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 **3a.** Create `server/src/services/telegram/credentials.ts`:
 
@@ -1275,12 +1275,12 @@ export type TelegramTestResult =
 export type TelegramClearResult = { cleared: string[]; envFallback: string[] };
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `./node_modules/.bin/vitest run --no-file-parallelism server/test/telegram-credentials.test.ts server/test/agent-capabilities.test.ts server/test/telegram-routes.test.ts server/test/settings.route.test.ts`
 Expected: PASS (bila `settings.route.test.ts` tak ada, hilangkan dari daftar)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/telegram/credentials.ts server/src/routes/telegram.ts server/src/routes/settings.ts server/src/services/agent-capabilities.ts shared/src/api.ts server/test/telegram-credentials.test.ts server/test/agent-capabilities.test.ts
