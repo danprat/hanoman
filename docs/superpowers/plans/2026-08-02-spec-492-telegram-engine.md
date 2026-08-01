@@ -256,7 +256,7 @@ git commit -m "feat(492): zAgentEngine sebagai bentuk bersama + Setting.telegram
   - `telegramAgentDefaults(): Promise<{ agent: Agent; model: string; effort: string }>`
   - `telegramReloadNeeded(before: TelegramSettings, after: TelegramSettings): boolean`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/telegram-engine-config.test.ts`:
 
@@ -332,14 +332,14 @@ describe("SPEC-492 · resolver agen operator Telegram", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan GAGAL**
+- [x] **Step 2: Jalankan, pastikan GAGAL**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/telegram-engine-config.test.ts
 ```
 Expected: FAIL — `Failed to load url ../src/services/telegram/config`.
 
-- [ ] **Step 3: Implementasi resolver**
+- [x] **Step 3: Implementasi resolver**
 
 Buat `server/src/services/telegram/config.ts`:
 
@@ -395,14 +395,14 @@ export function telegramReloadNeeded(before: TelegramSettings, after: TelegramSe
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/telegram-engine-config.test.ts
 ```
 Expected: PASS — 7 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/telegram/config.ts server/test/telegram-engine-config.test.ts
@@ -968,7 +968,7 @@ git commit -m "feat(492): sesi operator lahir dari resolver segar, bukan baris c
   - `formatEngineApplied(next: AgentEngine, label: string, sessionAlive: boolean): string`
   - `TELEGRAM_CONTROL_KIND = "gateway-control"`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/telegram-engine-command.test.ts`:
 
@@ -1085,14 +1085,14 @@ describe("SPEC-492 · parser command runtime Telegram", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan GAGAL**
+- [x] **Step 2: Jalankan, pastikan GAGAL**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/telegram-engine-command.test.ts
 ```
 Expected: FAIL — `Failed to load url ../src/services/telegram/engine-command`.
 
-- [ ] **Step 3: Implementasi parser murni**
+- [x] **Step 3: Implementasi parser murni**
 
 Buat `server/src/services/telegram/engine-command.ts`:
 
@@ -1258,14 +1258,14 @@ export function formatEngineApplied(next: AgentEngine, label: string, sessionAli
 }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/telegram-engine-command.test.ts
 ```
 Expected: PASS — 14 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/telegram/engine-command.ts server/test/telegram-engine-command.test.ts
