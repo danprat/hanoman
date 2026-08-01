@@ -16,7 +16,12 @@ import {
 
 describe("Telegram shared contracts (SPEC-476)", () => {
   it("keeps the gateway opt-in while progress defaults on", () => {
-    expect(TELEGRAM_DEFAULTS).toEqual({ enabled: false, progress: true });
+    // SPEC-492 · `engine` menyusul di sini; default `enabled:false` menjaga janji "instalasi yang
+    // sudah jalan tak berubah perilakunya setelah upgrade".
+    expect(TELEGRAM_DEFAULTS).toEqual({
+      enabled: false, progress: true,
+      engine: { enabled: false, agent: "claude", model: "claude-opus-5", effort: "xhigh" },
+    });
     expect(zTelegramSettings.parse({})).toEqual(TELEGRAM_DEFAULTS);
     expect(zTelegramSettings.safeParse({ enabled: "yes" }).success).toBe(false);
   });

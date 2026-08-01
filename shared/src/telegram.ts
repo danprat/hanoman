@@ -1,11 +1,16 @@
 import { z } from "zod";
+import { zAgentEngine } from "./agent-engine";
 import { zAgent } from "./enums";
 
 // SPEC-476 · ADR-0096 · Telegram hanya kanal ke sesi operator. Master switch opt-in;
 // progress kanal aktif secara default setelah operator menyalakan gateway.
+// SPEC-492 · `engine` = runtime/model/effort KHUSUS sesi operator Telegram. Bebannya beda jauh
+// dari sesi kerja (baca API lalu rangkum, bukan tulis kode), jadi ia boleh punya setelan sendiri.
+// Opt-in, default MATI → instalasi yang sudah jalan tetap mewarisi default global sesudah upgrade.
 export const zTelegramSettings = z.object({
   enabled: z.boolean().default(false),
   progress: z.boolean().default(true),
+  engine: zAgentEngine.default({}),
 });
 export type TelegramSettings = z.infer<typeof zTelegramSettings>;
 export const TELEGRAM_DEFAULTS: TelegramSettings = zTelegramSettings.parse({});

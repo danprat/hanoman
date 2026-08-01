@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { zStage, zSpecSource, zDocStatus, zPriority, zProjectKind, zAgent, zVerifyScope } from "./enums";
 import { TELEGRAM_DEFAULTS, zTelegramSettings } from "./telegram";
+import { zAgentEngine, type AgentEngine } from "./agent-engine";
 import { zAutoMerge } from "./auto-merge";
 
 export type Stage = z.infer<typeof zStage>;
@@ -234,13 +235,11 @@ export const CONFLICT_DEFAULTS: Conflict = zConflict.parse({});
 //
 // `engine` = agen yang menjalankan lead (OQ-1). Opt-in seperti `zConflict`: selama `enabled`
 // mati, lead memakai `sessionAgentDefaults()` — satu setelan agen, bukan dua yang bisa berselisih.
-export const zLeadEngine = z.object({
-  enabled: z.boolean().default(false),
-  agent: zAgent.default("claude"),
-  model: z.string().default("claude-opus-5"),
-  effort: z.string().default("xhigh"),
-});
-export type LeadEngine = z.infer<typeof zLeadEngine>;
+// SPEC-492 · bentuknya pindah ke `./agent-engine` supaya `Setting.telegram.engine` memakai
+// definisi yang SAMA, bukan salinan yang bisa bercabang diam-diam. Nama lama dipertahankan:
+// seluruh pemanggil `zLeadEngine`/`LeadEngine` tetap utuh.
+export const zLeadEngine = zAgentEngine;
+export type LeadEngine = AgentEngine;
 
 export const zLead = z.object({
   enabled: z.boolean().default(false),            // master switch (AC-30)

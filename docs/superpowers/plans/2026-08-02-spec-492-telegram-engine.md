@@ -90,7 +90,7 @@ mengevaluasi `TELEGRAM_DEFAULTS = zTelegramSettings.parse({})` di top level → 
 - Consumes: `zAgent` dari `shared/src/enums.ts`.
 - Produces: `zAgentEngine: ZodObject`, `type AgentEngine = { enabled: boolean; agent: "claude"|"codex"; model: string; effort: string }`, `zTelegramSettings` ber-field `engine`, `TELEGRAM_DEFAULTS.engine`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `shared/src/agent-engine.test.ts`:
 
@@ -133,7 +133,7 @@ describe("zAgentEngine (SPEC-492)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan GAGAL**
+- [x] **Step 2: Jalankan, pastikan GAGAL**
 
 ```bash
 ./node_modules/.bin/vitest run --dir shared shared/src/agent-engine.test.ts
@@ -141,7 +141,7 @@ describe("zAgentEngine (SPEC-492)", () => {
 Expected: FAIL — `Failed to resolve import "./index"` tidak muncul, tapi
 `zAgentEngine is not exported` / `Cannot read properties of undefined (reading 'engine')`.
 
-- [ ] **Step 3: Buat modul daun**
+- [x] **Step 3: Buat modul daun**
 
 Buat `shared/src/agent-engine.ts`:
 
@@ -172,7 +172,7 @@ export const zAgentEngine = z.object({
 export type AgentEngine = z.infer<typeof zAgentEngine>;
 ```
 
-- [ ] **Step 4: Jadikan `zLeadEngine` alias**
+- [x] **Step 4: Jadikan `zLeadEngine` alias**
 
 Di `shared/src/entities.ts`, tambahkan import di dekat import lain di kepala berkas:
 
@@ -191,7 +191,7 @@ export const zLeadEngine = zAgentEngine;
 export type LeadEngine = AgentEngine;
 ```
 
-- [ ] **Step 5: Tambahkan `engine` ke `zTelegramSettings`**
+- [x] **Step 5: Tambahkan `engine` ke `zTelegramSettings`**
 
 Di `shared/src/telegram.ts`, tambahkan import dan field:
 
@@ -211,7 +211,7 @@ export const zTelegramSettings = z.object({
 });
 ```
 
-- [ ] **Step 6: Ekspor modul baru**
+- [x] **Step 6: Ekspor modul baru**
 
 Di `shared/src/index.ts`, tambahkan **sebelum** `export * from "./entities"`:
 
@@ -219,21 +219,21 @@ Di `shared/src/index.ts`, tambahkan **sebelum** `export * from "./entities"`:
 export * from "./agent-engine";
 ```
 
-- [ ] **Step 7: Jalankan test shared yang tersentuh**
+- [x] **Step 7: Jalankan test shared yang tersentuh**
 
 ```bash
 ./node_modules/.bin/vitest run --dir shared shared/src/agent-engine.test.ts shared/src/telegram.test.ts shared/src/lead.test.ts
 ```
 Expected: PASS semua (13+ test). `lead.test.ts` membuktikan alias tak mengubah `LEAD_DEFAULTS`.
 
-- [ ] **Step 8: Typecheck shared**
+- [x] **Step 8: Typecheck shared**
 
 ```bash
 pnpm --filter ./shared typecheck
 ```
 Expected: keluar 0, tanpa output error.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add shared/src/agent-engine.ts shared/src/agent-engine.test.ts shared/src/entities.ts shared/src/telegram.ts shared/src/index.ts docs/superpowers/plans/2026-08-02-spec-492-telegram-engine.md
