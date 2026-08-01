@@ -43,6 +43,7 @@ const client: TelegramGatewayClient = {
     return { message_id: sent.length, date: 1, chat: { id: Number(input.chatId), type: "private" }, text: input.text };
   },
   answerCallbackQuery: async (input) => { answered.push(input.text ?? ""); return true; },
+  sendChatAction: async () => true,
 };
 
 const update = (updateId: number, text: string, userId = 7, chatId = 42) => ({
@@ -139,10 +140,10 @@ describe("Telegram operator live contract E2E (SPEC-476)", () => {
     expect(births[0]!.prompt).toContain("status proyek");
     expect(births[0]!.env.HANOMAN_TELEGRAM_AGENT_TOKEN).toBe(bearer);
     expect(JSON.stringify(births[0]!.env)).not.toContain("BOT_SECRET");
-    // SPEC-491 · dua yang pertama milik session operator; yang ketiga adalah FAKTA SERVER yang
-    // dikarang gateway sendiri (ADR-0096 §5), diantrekan sesudah dispatch berhasil.
+    // SPEC-493 · gateway TAK LAGI mengarang pesan teks progress; kehadirannya sekarang berupa
+    // indikator "typing…" yang tak meninggalkan jejak di chat.
     expect(sent.map((item) => item.text)).toEqual([
-      "Sedang memeriksa.", "Jawaban: status proyek", expect.stringMatching(/^Diterima\./),
+      "Sedang memeriksa.", "Jawaban: status proyek",
     ]);
 
     const restartedGateway = gateway();

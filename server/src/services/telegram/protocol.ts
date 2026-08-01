@@ -132,3 +132,21 @@ export function splitTelegramText(text: string, max = 4_096, exactSecrets: reado
   if (rest) chunks.push(rest);
   return chunks;
 }
+
+/**
+ * SPEC-491 · amplop yang DIKARANG gateway, di luar `TELEGRAM_REPLY_KINDS`: `dedupeKey` outbox
+ * adalah `chat:update:kind`, jadi memakai kind milik session operator akan membuat baris gateway
+ * MENELAN reply session untuk update yang sama.
+ */
+export const TELEGRAM_GATEWAY_FAILURE_KIND = "gateway-failure";
+
+/**
+ * SPEC-493 · balasan yang MENGAKHIRI giliran. Sesudahnya typing tak di-arm ulang — Telegram tak
+ * punya API stop-typing, jadi cara menghentikannya adalah membiarkan timernya habis. `decision` dan
+ * `confirmation` ikut final karena keduanya mengembalikan giliran ke manusia: mengetik "hanoman
+ * sedang mengetik" sementara yang ditunggu justru jawaban user adalah kebohongan. Non-final hanya
+ * `progress`.
+ */
+export const TELEGRAM_FINAL_REPLY_KINDS: ReadonlySet<string> = new Set([
+  "final", "decision", "failure", "confirmation", TELEGRAM_GATEWAY_FAILURE_KIND,
+]);

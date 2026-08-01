@@ -954,6 +954,28 @@ Pakai skill lebih sempit saat task cocok:
   konteks selamat lewat ringkasan + curated memory. `PUT /settings` **tak lagi** me-reload gateway
   bila hanya `engine` yang berubah (`telegramReloadNeeded`): reload memanggil `getMe()` dan bisa
   menjatuhkan `readiness` ke `error` gara-gara satu dropdown digeser.
+- **Kehadiran gateway Telegram = indikator typing, denyutnya long-poll adaptif** (SPEC-493/**ADR-0104**,
+  mengamandemen ADR-0096 §5; ADR-0024 **ditegakkan**): kedua varian teks `gateway-progress`
+  **dihapus** — 7 update pernah menghasilkan 7 pesan robot. Penggantinya `sendChatAction` "typing…"
+  yang **sesaat**: nyala saat update di-dispatch, di-arm ulang **sesudah tiap chunk** `flushOutbox()`
+  (Telegram MENGHAPUS status typing tiap ada pesan masuk), dan **tidak** sesudah chunk terakhir
+  balasan final — Telegram tak punya API stop-typing, jadi menghentikannya = membiarkan timernya
+  habis. `Setting.telegram.progress` tetap saklarnya, sekarang atas typing; mati = **nol** panggilan
+  API. `gateway-failure` **TETAP** pesan teks (kegagalan harus terbaca, bukan indikator yang hilang
+  diam-diam). Denyut ~4 detik didapat **tanpa timer baru**: timeout `getUpdates` turun 25 → **4
+  detik** selama ada `TelegramUpdate` `dispatched` tanpa balasan final (`store.chatsAwaitingReply`,
+  nol kolom baru) — jeda kirim balasan **10,8/11,3/11,9 detik** yang terukur ikut hilang karena
+  `flushOutbox()` kini dijangkau tiap ≤4 detik. **Enam gotcha:** (1) `retry_after` hidup di **BADAN**
+  respons 429 dan `call()` dulu melempar sebelum membacanya → cooldown akan selamanya memakai default
+  **dengan test hijau**; (2) umur menunggu wajib berpagar (`TYPING_MAX_WAIT_MS` 10 mnt) — update
+  yang sesinya mati mengendap `dispatched` selamanya dan akan mengunci long-poll di 4 detik
+  selamanya; (3) arm pasca-chunk **memaksa**, refresh **ter-throttle** (3 dtk) — tertukar berarti
+  diam persis saat paling dibutuhkan, atau banjir saat update beruntun; (4) poll adaptif **tetap
+  hidup** saat `progress` mati (flag itu menggerbangi suara, bukan latensi); (5) kosakata kind
+  (`TELEGRAM_FINAL_REPLY_KINDS`) duduk di `protocol.ts` — dua pemakainya gateway **dan** store, dan
+  menaruhnya di gateway = siklus import; (6) `decision`/`confirmation` **final** (giliran kembali ke
+  manusia). Seluruh state typing in-memory di `services/telegram/typing.ts` dan **tak satu pun
+  method-nya bisa melempar** — jalur at-most-once update/outbox tak tersentuh.
 - Stage bergerak **maju** hanya lewat fase yang dilaporkan sesi; **mundur** hanya lewat aksi human eksplisit `PATCH /specs/:id { stage }` (backward-only, ADR-0027). `executing` **tertahan** (tak jadi `done`) selama plan `docs/superpowers/plans/**` masih punya `- [ ]` (ADR-0029).
 - Biaya bersifat **estimasi dan tidak menggerakkan apa pun** (ADR-0012): tak ada `dailyBudget`/budget flag. Indikator limit dibaca dari OAuth usage API Anthropic (`services/limits.ts`), bukan parsing output terminal.
 - **Jangan pernah menjalankan run/sesi di working tree utama** — selalu worktree terpisah. Jangan menyentuh worktree sesi lain.

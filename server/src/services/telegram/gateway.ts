@@ -1,24 +1,20 @@
 import { createHash } from "node:crypto";
 import type { TelegramInlineKeyboardMarkup, TelegramMessage, TelegramUpdate } from "./client";
 import { TelegramApiError } from "./client";
-import { inboundDigest, parseTelegramUpdate, sanitizeTelegramOutput, splitTelegramText, type AcceptedTelegramInput } from "./protocol";
+import {
+  TELEGRAM_FINAL_REPLY_KINDS, TELEGRAM_GATEWAY_FAILURE_KIND,
+  inboundDigest, parseTelegramUpdate, sanitizeTelegramOutput, splitTelegramText,
+  type AcceptedTelegramInput,
+} from "./protocol";
 import type { TelegramStore } from "./store";
 import { telegramRuntimeStatus, updateTelegramRuntimeStatus } from "./runtime";
-
-/**
- * SPEC-491 · ADR-0096 §5 · amplop yang DIKARANG gateway, bukan session operator. `kind`-nya
- * sengaja di luar `TELEGRAM_REPLY_KINDS`: `dedupeKey` outbox adalah `chat:update:kind`, jadi
- * memakai "progress" akan membuat baris gateway MENELAN reply progress milik session operator
- * untuk update yang sama (`enqueueReply` mengembalikan baris yang sudah ada). Nilai terpisah juga
- * membuat jejak audit bisa membedakan fakta server dari jawaban agen.
- */
-const GATEWAY_PROGRESS_KIND = "gateway-progress";
-const GATEWAY_FAILURE_KIND = "gateway-failure";
+import { TelegramTypingIndicator, TYPING_MAX_WAIT_MS, pollTimeoutFor } from "./typing";
 
 export type TelegramGatewayClient = {
   getUpdates(input: { offset: number; limit: number; timeout: number; signal?: AbortSignal }): Promise<TelegramUpdate[]>;
   sendMessage(input: { chatId: string; text: string; replyMarkup?: TelegramInlineKeyboardMarkup }): Promise<TelegramMessage>;
   answerCallbackQuery(input: { callbackQueryId: string; text?: string }): Promise<boolean>;
+  sendChatAction(chatId: string, action: "typing"): Promise<boolean>;
 };
 
 export type TelegramInputDispatcher = {
@@ -35,6 +31,7 @@ type GatewayDeps = {
   exactSecrets: readonly string[];
   progress: boolean;
   pollTimeout?: number;
+  typing?: TelegramTypingIndicator;
 };
 
 const digestRaw = (update: unknown): string => createHash("sha256").update(JSON.stringify(update)).digest("hex");
@@ -42,8 +39,14 @@ const digestRaw = (update: unknown): string => createHash("sha256").update(JSON.
 export class TelegramGateway {
   private abort: AbortController | null = null;
   private loopPromise: Promise<void> | null = null;
+  private readonly typing: TelegramTypingIndicator;
 
-  constructor(private readonly deps: GatewayDeps) {}
+  constructor(private readonly deps: GatewayDeps) {
+    this.typing = deps.typing ?? new TelegramTypingIndicator({
+      client: deps.client,
+      enabled: deps.progress,
+    });
+  }
 
   async processUpdates(updates: readonly unknown[]): Promise<void> {
     for (const raw of updates) await this.processUpdate(raw);
@@ -120,18 +123,14 @@ export class TelegramGateway {
         outcome: target.control ? "control" : target.created ? "session-created" : "session-reused",
         correlationId: `tg:${input.updateId}`,
       });
-      // Fakta server, bukan layar PTY (ADR-0096 §5). Punya `catch` sendiri: dispatch SUDAH
-      // berhasil, jadi gagalnya mengantre pemberitahuan tak boleh mengubahnya jadi kegagalan.
-      // SPEC-492 · dilewati untuk command runtime: jawabannya sudah diantre coordinator, dan
-      // "Diterima. Diteruskan ke sesi operator." di belakangnya adalah kebohongan kecil.
-      if (this.deps.progress && !target.control) {
-        await this.deps.store.enqueueReply({
-          chatId: input.chatId, updateId: input.updateId, kind: GATEWAY_PROGRESS_KIND,
-          text: target.created
-            ? "Diterima. Sesi operator Hanoman untuk chat ini sedang dijalankan — jawabannya menyusul."
-            : "Diterima. Diteruskan ke sesi operator.",
-        }).catch(() => {});
-      }
+      // SPEC-493 · ADR-0104 (mengamandemen ADR-0096 §5) · gateway TAK LAGI mengarang pesan teks.
+      // Kehadirannya sekarang indikator "typing…" yang tak meninggalkan jejak di chat, digerbangi
+      // `Setting.telegram.progress` di dalam indikator. `arm` tak pernah melempar, jadi ia tak
+      // butuh `catch` sendiri dan tak bisa mengubah dispatch yang SUDAH berhasil jadi kegagalan.
+      // SPEC-492 · tak perlu lagi dilewati untuk command runtime (`target.control`): pengecualian
+      // itu ada karena teks "Diterima. Diteruskan ke sesi operator." adalah kebohongan kecil di
+      // belakang jawaban coordinator — indikator typing tak mengarang apa pun.
+      await this.typing.arm(input.chatId);
       updateTelegramRuntimeStatus({ lastUpdateAt: new Date().toISOString(), lastError: null });
     } catch (error) {
       const reason = sanitizeTelegramOutput((error as Error).message, this.deps.exactSecrets).slice(0, 200);
@@ -143,7 +142,7 @@ export class TelegramGateway {
       // TIDAK digerbangi `progress`: kegagalan bukan progress. Tanpa baris ini update yang
       // tertangkap lalu gagal berakhir sebagai `uncertain` di DB dan DIAM TOTAL di chat.
       await this.deps.store.enqueueReply({
-        chatId: input.chatId, updateId: input.updateId, kind: GATEWAY_FAILURE_KIND,
+        chatId: input.chatId, updateId: input.updateId, kind: TELEGRAM_GATEWAY_FAILURE_KIND,
         text: `Pesan Anda tertangkap tapi gagal diteruskan ke sesi operator: ${reason || "sebab tak diketahui"}. `
           + "Kirim ulang setelah masalahnya beres — hanoman tidak pernah mengulanginya sendiri (at-most-once).",
       }).catch(() => {});
@@ -177,6 +176,11 @@ export class TelegramGateway {
           } : undefined;
           const message = await this.deps.client.sendMessage({ chatId: row.chatId, text: chunks[index]!, replyMarkup });
           messageId = message.message_id;
+          // SPEC-493 · Telegram MENGHAPUS status typing begitu ada pesan masuk, jadi tiap chunk
+          // harus mengembalikannya — kecuali chunk terakhir dari balasan final: di sana giliran
+          // memang sudah selesai dan Telegram tak punya API stop-typing, jadi timernya dibiarkan
+          // habis sendiri.
+          if (!(isLast && TELEGRAM_FINAL_REPLY_KINDS.has(row.kind))) await this.typing.arm(row.chatId);
         }
         await this.deps.store.markOutboxSent(row.id, messageId);
       } catch (error) {
@@ -204,10 +208,18 @@ export class TelegramGateway {
   }
 
   private async loop(signal: AbortSignal): Promise<void> {
+    const idlePollTimeout = this.deps.pollTimeout ?? 25;
     while (!signal.aborted) {
       try {
+        // SPEC-493 · ADR-0104 · long-poll adaptif = denyut typing TANPA timer baru (ADR-0024).
+        // Refresh mendahului `getUpdates` supaya indikator sudah menyala saat poll mulai memblokir;
+        // dengan pekerjaan in-flight timeout turun ke 4 dtk, jadi tiap iterasi jadi tick alami
+        // untuk typing SEKALIGUS `flushOutbox()` — jeda kirim balasan 10-12 dtk ikut hilang.
+        const waiting = await this.deps.store.chatsAwaitingReply(new Date(Date.now() - TYPING_MAX_WAIT_MS));
+        await this.typing.refresh(waiting);
         const updates = await this.deps.client.getUpdates({
-          offset: await this.deps.store.offset(), limit: 100, timeout: this.deps.pollTimeout ?? 25, signal,
+          offset: await this.deps.store.offset(), limit: 100,
+          timeout: pollTimeoutFor(waiting.length, idlePollTimeout), signal,
         });
         // SPEC-491 · poll yang berhasil MEMULIHKAN status. Tanpa ini satu kedip jaringan
         // meninggalkan `readiness: "error"` selamanya — hanya `processUpdate` yang sukses yang

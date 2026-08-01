@@ -150,16 +150,21 @@ describe("SPEC-491 · gateway punya suara sendiri", () => {
     },
   });
 
-  function fakeClient(): TelegramGatewayClient & { sent: { chatId: string; text: string }[] } {
+  function fakeClient(): TelegramGatewayClient & {
+    sent: { chatId: string; text: string }[];
+    actions: string[];
+  } {
     const sent: { chatId: string; text: string }[] = [];
+    const actions: string[] = [];
     return {
-      sent,
+      sent, actions,
       getUpdates: async () => [],
       sendMessage: async (input) => {
         sent.push({ chatId: input.chatId, text: input.text });
         return { message_id: sent.length, date: 1, chat: { id: 42, type: "private" }, text: input.text };
       },
       answerCallbackQuery: async () => true,
+      sendChatAction: async (chatId) => { actions.push(chatId); return true; },
     };
   }
 
@@ -174,24 +179,28 @@ describe("SPEC-491 · gateway punya suara sendiri", () => {
       rateLimit: { limit: 20, windowMs: 60_000 }, exactSecrets: [], progress: opts.progress,
     });
 
-  it("progress ON → update yang tertangkap mendapat satu fakta server di chat", async () => {
+  // SPEC-493 · ADR-0104 mengganti "fakta server sebagai pesan teks" dengan indikator typing.
+  // Kedua test di bawah dulu mengunci teks `gateway-progress` sebagai kontrak; yang dijaga
+  // sekarang adalah kebalikannya — chat tak boleh lagi menerima satu pun kalimat karangan gateway.
+  it("progress ON → update yang tertangkap menyalakan typing, BUKAN pesan teks", async () => {
     const client = fakeClient();
     const g = build({ progress: true, dispatcher: okDispatcher(), client });
     await g.processUpdates([message(17)]);
     await g.flushOutbox();
-    expect(client.sent).toHaveLength(1);
-    expect(client.sent[0]!.chatId).toBe("42");
-    expect(client.sent[0]!.text).toMatch(/diterima/i);
+    expect(client.actions).toEqual(["42"]);
+    expect(client.sent).toHaveLength(0);
+    expect(await prisma.telegramOutbox.count()).toBe(0);
   });
 
-  it("baris gateway TIDAK menelan reply progress milik session operator", async () => {
+  it("chat hanya memuat kalimat session operator, dan typing di-arm ulang sesudahnya", async () => {
     const client = fakeClient();
     const g = build({ progress: true, dispatcher: okDispatcher(), client });
     await g.processUpdates([message(17)]);
     await store.enqueueReply({ chatId: "42", updateId: 17, kind: "progress", text: "Sedang memeriksa." });
     await g.flushOutbox();
-    expect(client.sent.map((s) => s.text)).toContain("Sedang memeriksa.");
-    expect(client.sent).toHaveLength(2);
+    expect(client.sent.map((s) => s.text)).toEqual(["Sedang memeriksa."]);
+    // satu saat dispatch + satu sesudah chunk `progress` (non-final)
+    expect(client.actions).toEqual(["42", "42"]);
   });
 
   it("progress OFF → tak ada fakta server, chat hanya milik session operator", async () => {
@@ -242,6 +251,7 @@ describe("SPEC-491 · readiness pulih dari error", () => {
       },
       sendMessage: async () => ({ message_id: 1, date: 1, chat: { id: 42, type: "private" } }),
       answerCallbackQuery: async () => true,
+      sendChatAction: async () => true,
     };
     const g = new TelegramGateway({
       client, store, dispatcher: { dispatch: async () => ({ sessionId: "s", created: false }) },
