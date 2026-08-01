@@ -24,6 +24,7 @@ model Project {
   specs        Spec[]
   tickets      Ticket[]
   customAgents CustomAgent[] // SPEC-450 · ADR-0094 · custom agent milik project ini
+  githubIssues GithubIssue[] // SPEC-471 · ADR-0095 · cermin issue repo GitHub project ini
 }
 
 model Spec {
@@ -89,6 +90,38 @@ model CustomAgent {
 
   @@unique([projectId, name])
   @@index([projectId])
+}
+
+// SPEC-471 · ADR-0095 · cermin issue GitHub sebagai record lokal, pola Ticket (ADR-0062).
+// `id` DETERMINISTIK "<projectId>:<owner>/<repo>#<number>" ditulis aplikasi, bukan default DB —
+// alasan yang sama dengan CustomAgent (ADR-0094): dua mesin yang menarik repo yang sama harus
+// bertemu sebagai SATU baris di changefeed, bukan dua yang saling menelan. `projectId` ikut di
+// dalam id karena dua project hanoman boleh menunjuk repo yang sama.
+//
+// `specId` sengaja TANPA FK (cermin Ticket.specId): changefeed bisa memancarkan GithubIssue
+// sebelum Spec-nya mendarat (kelas SPEC-382) dan FK akan menolaknya.
+model GithubIssue {
+  id             String   @id
+  projectId      String
+  repoSlug       String   // "owner/repo"
+  number         Int
+  title          String
+  body           String
+  authorLogin    String
+  labels         Json     // string[]
+  url            String
+  issueState     String   // open | closed — keadaan DI GITHUB saat ditarik
+  status         String   @default("new") // new | accepted | rejected (zGithubIssueStatus)
+  specId         String?  // soft-link Spec hasil promosi
+  issueCreatedAt DateTime
+  issueUpdatedAt DateTime
+  pulledAt       DateTime
+  version        Int      @default(0) // SPEC-471 · version-stamp sync (ADR-0045)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, status])
 }
 
 model Setting {

@@ -909,7 +909,7 @@ git commit -m "feat(471): fetchIssues gh→REST; kegagalan gh yang otoritatif TI
   export function pullIssues(projectId: string, opts?: { state?: "open" | "all"; limit?: number }, deps?: FetchDeps): Promise<PullResult>
   ```
 
-- [ ] **Step 1: Tambahkan model ke schema**
+- [x] **Step 1: Tambahkan model ke schema**
 
 `server/prisma/schema.prisma` — sesudah `model CustomAgent`:
 
@@ -951,7 +951,7 @@ Dan tambahkan relasinya di `model Project`, sebaris di bawah `customAgents`:
   githubIssues GithubIssue[] // SPEC-471 · ADR-0095 · cermin issue repo project ini
 ```
 
-- [ ] **Step 2: Tulis migration TANGAN**
+- [x] **Step 2: Tulis migration TANGAN**
 
 `server/prisma/migrations/20260801170000_github_issue/migration.sql`:
 
@@ -989,7 +989,7 @@ CREATE TABLE "GithubIssue" (
 CREATE INDEX "GithubIssue_projectId_status_idx" ON "GithubIssue" ("projectId", "status");
 ```
 
-- [ ] **Step 3: Terapkan migration + regenerate client**
+- [x] **Step 3: Terapkan migration + regenerate client**
 
 ```bash
 pnpm --filter ./server exec prisma migrate deploy
@@ -998,7 +998,7 @@ pnpm --filter ./server exec prisma generate
 
 Expected: `1 migration found` … `Applied`. **Jangan** `migrate dev` — ia me-reset DB saat ada drift worktree tetangga.
 
-- [ ] **Step 4: Tulis test yang gagal**
+- [x] **Step 4: Tulis test yang gagal**
 
 `server/test/github-pull.test.ts`:
 
@@ -1104,12 +1104,12 @@ describe("SPEC-471 · pullIssues", () => {
 });
 ```
 
-- [ ] **Step 5: Jalankan, pastikan MERAH**
+- [x] **Step 5: Jalankan, pastikan MERAH**
 
 Run: `./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/github-pull.test.ts`
 Expected: FAIL — `Cannot find module '../src/services/github-issues'`
 
-- [ ] **Step 6: Implementasi minimal**
+- [x] **Step 6: Implementasi minimal**
 
 `server/src/services/github-issues.ts`:
 
@@ -1171,12 +1171,12 @@ export async function pullIssues(
 }
 ```
 
-- [ ] **Step 7: Jalankan, pastikan HIJAU**
+- [x] **Step 7: Jalankan, pastikan HIJAU**
 
 Run: `./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/github-pull.test.ts`
 Expected: PASS — 5 test
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/prisma/schema.prisma server/prisma/migrations/20260801170000_github_issue \
