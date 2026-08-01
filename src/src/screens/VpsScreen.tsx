@@ -56,7 +56,7 @@ function VpsModal({ open, title, submitLabel, initial, onClose, onSubmit }:
       <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 12 }}>
         <Field label="User SSH" hint="root atau user ber-passwordless-sudo">
           <Input value={f.user} onChange={set("user")} mono placeholder="deploy" style={{ width: "100%" }} /></Field>
-        <Field label="Port"><Input value={f.port} onChange={set("port")} mono style={{ width: "100%" }} /></Field>
+        <Field label="Port"><Input value={f.port} onChange={set("port")} mono placeholder="22" style={{ width: "100%" }} /></Field>
       </div>
       <Field label="Password SSH" hint={PASSWORD_HINT}>
         <Input type="password" value={f.password} onChange={set("password")}

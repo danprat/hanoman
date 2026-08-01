@@ -566,15 +566,15 @@ export function EditProjectModal({ open, project, onClose, onSave }:
       {/* SPEC-255 · ADR-0064 · `id` kini renameable lewat operasi khusus (cascade + rambat sync). */}
       <Field label="ID project" hint="slug unik · huruf-kecil/angka/hubung · ganti = pengaruh Help Center & sync ke server">
         <Input value={f.id} onChange={(e: React.ChangeEvent<any>) => setF((s) => ({ ...s, id: e.target.value }))}
-          leftIcon="hash" mono style={{ width: "100%" }} />
+          leftIcon="hash" mono placeholder="mis. erp-tumbuh-ai" style={{ width: "100%" }} />
       </Field>
       <Field label="Nama project" hint="label tampilan — boleh berbeda dari id">
         <Input value={f.name} onChange={(e: React.ChangeEvent<any>) => setF((s) => ({ ...s, name: e.target.value }))}
-          style={{ width: "100%" }} />
+          placeholder="mis. ERP Tumbuh AI" style={{ width: "100%" }} />
       </Field>
       <Field label="Deskripsi">
         <Input value={f.desc} onChange={(e: React.ChangeEvent<any>) => setF((s) => ({ ...s, desc: e.target.value }))}
-          style={{ width: "100%" }} />
+          placeholder="mis. ERP manufaktur + inventori" style={{ width: "100%" }} />
       </Field>
       <Field label="Path (mesin ini)" hint="opsional · disimpan lokal, tak disync · kosongkan = pakai default">
         <Input value={f.dir} onChange={(e: React.ChangeEvent<any>) => setF((s) => ({ ...s, dir: e.target.value }))}

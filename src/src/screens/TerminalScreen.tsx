@@ -446,7 +446,7 @@ function RenameInput({ initial, onCommit, onCancel }: {
 }) {
   const [value, setValue] = React.useState(initial);
   return (
-    <input autoFocus aria-label="Nama grup" value={value}
+    <input autoFocus aria-label="Nama grup" value={value} placeholder="mis. Rilis"
       onChange={(e) => setValue(e.target.value)}
       onBlur={() => onCommit(value)}
       onKeyDown={(e) => {

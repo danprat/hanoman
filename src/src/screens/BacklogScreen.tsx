@@ -337,7 +337,8 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
         </div>
       )}
       {editing ? (
-        <Field label="Judul"><Input value={form.title ?? ""} onChange={setField("title")} style={{ width: "100%" }} /></Field>
+        <Field label="Judul"><Input value={form.title ?? ""} onChange={setField("title")}
+          placeholder="mis. Jadwal invoice berulang" style={{ width: "100%" }} /></Field>
       ) : (
         <DetailRow label="Objective" value={spec.objective} />
       )}
