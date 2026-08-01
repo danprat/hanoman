@@ -8,6 +8,7 @@ import { getLead, setLead, leadActive } from "../services/lead/config";
 import { decide, takeDelivery } from "../services/lead/decide";
 import { applyAction } from "../services/lead/apply";
 import { listDecisions, overrideDecision, cancelDecision, toDecisionView } from "../services/lead/trail";
+import { listFlows, closeFlow, toFlowView, LeadFlowClosedError } from "../services/lead/flow";
 import { decidingIds, queuedIds } from "../services/lead/deciding";
 import { LeadBusyError, leadGateStats } from "../services/lead/gate";
 import { resetSession } from "../services/lead/detect";
@@ -71,10 +72,41 @@ export default async function (app: FastifyInstance) {
     const q = req.query as Record<string, string | undefined>;
     const rows = await listDecisions({
       projectId: q.projectId, specId: q.specId, sessionId: q.sessionId, status: q.status,
+      // SPEC-485 · satu rantai dibaca lewat filter ini, urut NAIK (lihat `listDecisions`).
+      flowId: q.flowId,
       take: q.take ? Number(q.take) : undefined,
       skip: q.skip ? Number(q.skip) : undefined,
     });
     return { items: rows.map(toDecisionView) };
+  });
+
+  // SPEC-485 · ADR-0102 · daftar RANTAI. Langkahnya dibaca lewat `GET /lead/decisions?flowId=`,
+  // sengaja bukan bersarang di sini: langkah adalah baris jejak biasa, dan menyalinnya ke
+  // serializer kedua berarti dua bentuk yang bisa berselisih diam-diam.
+  app.get("/lead/flows", async (req) => {
+    const q = req.query as Record<string, string | undefined>;
+    const rows = await listFlows({
+      projectId: q.projectId, status: q.status,
+      take: q.take ? Number(q.take) : undefined,
+      skip: q.skip ? Number(q.skip) : undefined,
+    });
+    return { items: rows.map(toFlowView) };
+  });
+
+  // Submit akhir: rantai ditutup dan tak menerima pertanyaan lanjutan lagi. 409 (bukan 404) saat ia
+  // sudah tertutup — tak ada yang rusak, kesempatannya yang sudah lewat.
+  app.post("/lead/flows/:id/submit", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const row = await closeFlow(id, "submit");
+    if (!row) return reply.code(409).send({ error: "rantai tak ada atau sudah tertutup" });
+    return toFlowView(row);
+  });
+
+  app.post("/lead/flows/:id/cancel", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const row = await closeFlow(id, "operator");
+    if (!row) return reply.code(409).send({ error: "rantai tak ada atau sudah tertutup" });
+    return toFlowView(row);
   });
 
   // AC-1/AC-5 · PINTU #1 — kontrak eksplisit "minta putusan". Dipakai sesi internal maupun agen
@@ -91,6 +123,19 @@ export default async function (app: FastifyInstance) {
     if (!project.leadOptIn || !leadActive(cfg, ask.projectId))
       return reply.code(409).send({ error: "lead tidak aktif untuk project ini" });
 
+    // SPEC-485 · ADR-0102 · VALIDASI DI SERVER, bukan hanya UI. Bentuk yang mustahil dipenuhi
+    // ditolak di pintu masuk: melahirkan baris `gagal` untuk permintaan yang memang salah bentuk
+    // hanya memindahkan kesalahannya ke jejak, dan membakar satu proses agen untuknya.
+    const optionCount = ask.options.length;
+    if (ask.select.mode === "multi" && optionCount === 0)
+      return reply.code(400).send({ error: "select.mode `multi` menuntut daftar `options`" });
+    if (ask.select.max !== null && ask.select.min > ask.select.max)
+      return reply.code(400).send({ error: "select.min melebihi select.max" });
+    if (ask.select.max !== null && optionCount > 0 && ask.select.max > optionCount)
+      return reply.code(400).send({ error: `select.max (${ask.select.max}) melebihi jumlah opsi (${optionCount})` });
+    if (ask.select.min > optionCount)
+      return reply.code(400).send({ error: `select.min (${ask.select.min}) melebihi jumlah opsi (${optionCount})` });
+
     // SPEC-479 (QA) · pintu ini tak punya pengereman apa pun sebelum gerbang konkurensi: Fastify
     // melayani permintaan secara konkuren, jadi terukur 12 permintaan bersamaan → 12 proses
     // `claude -p --effort xhigh` sekaligus di mesin 8 GB / 8 core yang sudah menanggung sesi
@@ -101,8 +146,12 @@ export default async function (app: FastifyInstance) {
         projectId: ask.projectId, specId: ask.specId ?? null, sessionId: ask.sessionId ?? null,
         gate: "contract", kind: "answer", question: ask.question, options: ask.options,
         notes: ask.context ? [ask.context] : undefined,
+        select: ask.select, chain: ask.chain, flowId: ask.flowId ?? null,
       });
     } catch (e) {
+      // SPEC-485 · 409 · rantai yang sudah ditutup tak menerima pertanyaan lanjutan. Bukan 400
+      // (bentuknya sah) dan bukan 404 (alurnya ada, hanya sudah selesai).
+      if (e instanceof LeadFlowClosedError) return reply.code(409).send({ error: e.message });
       if (!(e instanceof LeadBusyError)) throw e;
       // 503, dan sengaja BUKAN dua kode yang sudah dipakai di sini: 409 berarti "tak ada yang
       // menjawab, tunggu manusia" (lead mati/dijeda) dan 504 berarti "lead sudah mencoba lalu
@@ -120,6 +169,12 @@ export default async function (app: FastifyInstance) {
     // Lead memutuskan LALU melapor: tindakan yang menyusul dijalankan sebelum balasan dikirim,
     // supaya peminta tak menerima keputusan yang belum berlaku di dunia nyata.
     if (row.action !== "none") { try { await applyAction(row); } catch { /* jejak tetap ada */ } }
+    // SPEC-485 · status alur dibaca SESUDAH `decide()` menutupnya (alur tunggal) atau memajukannya
+    // (alur berantai) — peminta butuh tahu apakah ia masih boleh bertanya lagi tanpa memanggil
+    // endpoint kedua.
+    const flowStatus = row.flowId
+      ? (await prisma.leadFlow.findUnique({ where: { id: row.flowId }, select: { status: true } }))?.status ?? null
+      : null;
     const answer: LeadAnswer = {
       id: row.id,
       decision: sent?.decision ?? row.answer,
@@ -130,6 +185,11 @@ export default async function (app: FastifyInstance) {
       // Saluran pengiriman bisa meleset (baris lahir dari jalur lain); kolomnya yang selalu ada.
       choice: sent?.choice ?? (row.choice ? { index: row.choiceIndex ?? 1, option: row.choice } : null),
       missing: sent?.missing ?? (Array.isArray(row.missing) ? (row.missing as unknown[]).map(String) : []),
+      // SPEC-485 · `choices` bentuk yang berlaku; `toDecisionView` sudah tahu cara menurunkannya
+      // dari kolom lama, jadi pemetaannya tak diduplikasi di sini (kelas bug SPEC-431/448/475).
+      choices: sent?.choices ?? toDecisionView(row).choices,
+      flowId: row.flowId,
+      flowStatus: flowStatus as LeadAnswer["flowStatus"],
     };
     return reply.code(201).send(answer);
   });
@@ -140,7 +200,7 @@ export default async function (app: FastifyInstance) {
     const { id } = req.params as { id: string };
     const parsed = zLeadOverride.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
-    const r = await overrideDecision(id, parsed.data.answer, parsed.data.reason);
+    const r = await overrideDecision(id, parsed.data.answer, parsed.data.reason, parsed.data.choices);
     if (!r) return reply.code(409).send({ error: "keputusan tak ada atau sudah tak berlaku" });
     let delivered = false;
     if (r.next.sessionId) {

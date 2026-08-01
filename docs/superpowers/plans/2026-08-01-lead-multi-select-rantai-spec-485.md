@@ -1217,7 +1217,7 @@ git commit -m "feat(485): decide() menyusun pilihan jamak & memasang rantai kepu
   `GET /lead/decisions?flowId=`, `POST /lead/decisions` ber-`select`/`chain`/`flowId`,
   `POST /lead/decisions/:id/override` ber-`choices`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan ke `server/test/lead-routes.test.ts` (pola `app.inject` yang sudah dipakai berkas itu):
 
@@ -1300,14 +1300,14 @@ describe("SPEC-485 · ADR-0102 · permukaan HTTP rantai & pilihan jamak", () => 
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --no-file-parallelism server/test/lead-routes.test.ts
 ```
 Expected: FAIL — 404 untuk `/api/lead/flows/...`, `flowId` undefined di balasan.
 
-- [ ] **Step 3: Validasi bentuk `select` + teruskan ke `decide` di `POST /lead/decisions`**
+- [x] **Step 3: Validasi bentuk `select` + teruskan ke `decide` di `POST /lead/decisions`**
 
 Sesudah `const ask = parsed.data;` (dan sesudah gerbang project/lead aktif) sisipkan:
 
@@ -1350,7 +1350,7 @@ Perkaya `answer`:
         : null,
 ```
 
-- [ ] **Step 4: Endpoint alur + filter `flowId` + override ber-`choices`**
+- [x] **Step 4: Endpoint alur + filter `flowId` + override ber-`choices`**
 
 Tambahkan sesudah `GET /lead/decisions`:
 
@@ -1419,7 +1419,7 @@ Di route override, teruskan `parsed.data.choices` dan kirim centangnya ke pane:
         toDecisionView(r.next).choices.map((c) => c.option)).catch(() => false);
 ```
 
-- [ ] **Step 5: Jalankan test, pastikan LULUS**
+- [x] **Step 5: Jalankan test, pastikan LULUS**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --no-file-parallelism server/test/lead-routes.test.ts server/test/mcp-capability.test.ts
@@ -1427,7 +1427,7 @@ TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run -
 Expected: PASS. `mcp-capability.test.ts` ikut dijalankan karena ia mengunci peta capability terhadap
 path `/lead/*` — endpoint baru harus jatuh ke `lead:read`/`lead:write` menurut method tanpa peta baru.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/src/routes/lead.ts server/src/services/lead/trail.ts shared/src/lead.ts server/test/lead-routes.test.ts
