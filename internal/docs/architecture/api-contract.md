@@ -770,17 +770,29 @@ PUT  /api/lead/config      { Lead } -> Lead          # ganti blok penuh (pola PU
 GET  /api/lead/status      -> { config, projects:[{projectId,name,optIn,paused,decisions24h,openSessions}],
 #                               queue: SchedulerQueueItem[], deciding:[sessionId], queued:[sessionId],
 #                               waiting:[sessionId], lastPulseAt, gate:{inFlight,queued,capacity} }
-GET  /api/lead/decisions?projectId&specId&sessionId&status&take&skip -> { items: LeadDecisionView[] }
+GET  /api/lead/decisions?projectId&specId&sessionId&flowId&status&take&skip -> { items: LeadDecisionView[] }
 #    LeadDecisionView: { id, projectId, specId, sessionId, gate, kind, question, answer, reason, refs[],
-#                        confidence, action, choice, choiceIndex, options[], missing[], status, weighty,
-#                        supersededById, createdAt }   # answer/reason PENUH di sini (SPEC-480)
-POST /api/lead/decisions   { projectId, specId?, sessionId?, question, options?[], context? }
+#                        confidence, action, choice, choiceIndex, options[], missing[],
+#                        choices[{index,option}], select{mode,min,max}|null, flowId, step,
+#                        status, weighty, supersededById, createdAt }   # answer/reason PENUH di sini (SPEC-480)
+#    `?flowId=` = SATU rantai, urut NAIK (SPEC-485); tanpa itu daftar umum terbaru-dulu (AC-24).
+POST /api/lead/decisions   { projectId, specId?, sessionId?, question, options?[], context?,
+#                            select?{mode:"single"|"multi", min, max|null}, chain?, flowId? }   # SPEC-485
 #                          -> 201 { id, decision, reason, refs[], confidence, action,
-#                                   choice: { index (1-basis), option } | null, missing: string[] }   # PINTU #1
-#                             409 lead tak aktif / project tak opt-in · 404 project · 504 lead gagal memutuskan (AC-4)
+#                                   choice: { index (1-basis), option } | null, choices[{index,option}],
+#                                   missing: string[], flowId, flowStatus }   # PINTU #1
+#                             409 lead tak aktif / project tak opt-in · 409 flowId sudah tertutup (SPEC-485)
+#                             404 project · 504 lead gagal memutuskan (AC-4)
+#                             400 bentuk `select` mustahil dipenuhi daftar opsi yang dikirim (SPEC-485)
 #                             503 { error, retryable:true, queued } + Retry-After  gerbang penuh (SPEC-479)
-POST /api/lead/decisions/:id/override { answer, reason? } -> { old, next, delivered }
+POST /api/lead/decisions/:id/override { answer, reason?, choices?[] } -> { old, next, delivered }
 POST /api/lead/decisions/:id/cancel                       -> LeadDecisionView
+# SPEC-485 · ADR-0102 · RANTAI keputusan
+GET  /api/lead/flows?projectId&status&take&skip -> { items: LeadFlowView[] }
+#    LeadFlowView: { id, projectId, specId, sessionId, gate, status, title, steps, closeReason,
+#                    openedAt, closedAt, expiresAt }   # status: menunggu|sebagian|selesai|dibatalkan
+POST /api/lead/flows/:id/submit -> LeadFlowView   # 409 bila tak ada / sudah tertutup
+POST /api/lead/flows/:id/cancel -> LeadFlowView   # idem; closeReason = "operator"
 ```
 > **Tiga pintu, satu otak** (`services/lead/decide.ts`) — urutan wajibnya bukti → putusan → saring
 > rujukan → gerbang tindakan → **TULIS JEJAK** → notifikasi. Jejak ditulis SEBELUM jawaban dikirim ke
@@ -799,6 +811,19 @@ POST /api/lead/decisions/:id/cancel                       -> LeadDecisionView
 > (≤ 240 / ≤ 480 karakter, dipotong di batas kalimat) — prosa penuhnya ada di jejak, lewat
 > `GET /api/lead/decisions`. Pemanggil lama yang hanya membaca `decision` tetap menerima kalimat
 > yang bermakna: itu kompatibilitas mundur yang disengaja.
+>
+> **Pilihan JAMAK & rantai** (SPEC-485 · ADR-0102). `select` menyatakan bentuk pilihannya; default
+> `{mode:"single",min:0,max:null}` = perilaku sebelum ADR ini, jadi permintaan lama tak berubah satu
+> bit pun. Validasinya **dua lapis dan keduanya di server**: bentuk yang mustahil dipenuhi ditolak
+> **400** di pintu masuk (`multi` tanpa `options`, `min > max`, `max`/`min` melebihi jumlah opsi),
+> sementara jumlah pilihan lead di luar `min`/`max` **membatalkan seluruh pilihan** — bukan
+> memangkasnya: memilih 3 dari maksimum 2 adalah pertanda lead salah membaca soal, dan mengambil dua
+> di antaranya secara sewenang-wenang persis tebakan yang ADR-0098 hapus. `choices` adalah bentuk
+> yang berlaku (**selalu daftar**); `choice` tinggal `choices[0]`, dan baris pra-migrasi diturunkan
+> balik saat dibaca. **`chain: true`** membiarkan alurnya terbuka untuk pertanyaan lanjutan;
+> `flowId` melanjutkannya, dan alur yang sudah di-submit menolak dengan **409**. Alur yang
+> ditinggalkan ditutup penyapu (`Setting.lead.flowTtlMin`, default 60 menit) yang menumpang tick
+> lead — tanpa timer baru (ADR-0024 utuh).
 >
 > **Pintu #2 — deteksi otomatis** (tanpa endpoint): lead melihat sesi hidup ber-marker keputusan
 > terisi (mekanisme SPEC-184/196 yang sudah ada), `capture-pane`, menyimpulkan pertanyaannya, lalu

@@ -2153,7 +2153,7 @@ git commit -m "feat(485): dashboard menampilkan radio/checkbox pilihan lead + ka
 - Consumes: `POST /lead/decisions` ber-`select` (Task 5).
 - Produces: `hanoman_lead_ask` menerima `multi`, `minChoices`, `maxChoices`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan ke `shared/src/mcp-catalog.test.ts`:
 
@@ -2168,14 +2168,14 @@ it("SPEC-485 · lead_ask bisa meminta pilihan jamak, dan defaultnya tetap single
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 ./node_modules/.bin/vitest run --no-file-parallelism shared/src/mcp-catalog.test.ts
 ```
 Expected: FAIL — properti `multi` tak ada.
 
-- [ ] **Step 3: Perbarui `hanoman_lead_ask`**
+- [x] **Step 3: Perbarui `hanoman_lead_ask`**
 
 Tambahkan ke `properties`:
 
@@ -2198,7 +2198,7 @@ dan ke `build`:
 Perbarui `description` tool: tambahkan satu kalimat — *"Bila opsinya tidak saling eksklusif, set
 `multi: true`; balasannya memuat `choices` (daftar), bukan hanya `choice`."*
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 ```bash
 ./node_modules/.bin/vitest run --no-file-parallelism shared/src/mcp-catalog.test.ts shared/src/mcp-schema.test.ts shared/src/mcp-shape.test.ts
@@ -2207,7 +2207,7 @@ TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run -
 Expected: PASS. Bila snapshot `MCP_TOOL_SCHEMA_VERSION` menuntut angka baru, naikkan **minor**-nya
 (aditif dalam versi) dan perbarui snapshot-nya.
 
-- [ ] **Step 5: Docs SoT**
+- [x] **Step 5: Docs SoT**
 
 `internal/docs/architecture/data-model.md` — tambahkan `LeadFlow` ke daftar model LOCAL-only
 (mengikuti bentuk entri `LeadDecision` yang ada) dengan kolomnya, dan tambahkan empat kolom baru
@@ -2226,7 +2226,7 @@ men-toggle · tombol `Submit`/`Next` tanpa nomor · panah satu keystroke per pem
 `dialogKey` membuang `☐/☒`, jawaban selalu daftar, alur selalu ada & yang tunggal langsung
 ditutup, dan penyapu TTL menumpang tick lead.
 
-- [ ] **Step 6: Smoke end-to-end (sekali, di akhir)**
+- [x] **Step 6: Smoke end-to-end (sekali, di akhir)**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-485
@@ -2269,7 +2269,7 @@ curl -sS "localhost:8791/api/lead/flows?projectId=smoke" | head -c 400
 
 Matikan server per-PID (`lsof -ti:8791 | xargs kill`), **jangan** `pkill -f node` (SPEC-402).
 
-- [ ] **Step 7: Verifikasi akhir & commit**
+- [x] **Step 7: Verifikasi akhir & commit**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --no-file-parallelism \

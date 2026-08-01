@@ -631,6 +631,47 @@ Pakai skill lebih sempit saat task cocok:
   menutup pintu deteksi selama satu putaran berjalan, jadi penunggu baru menunggu putaran
   berikutnya (kini hitungan menit, bukan puluhan menit) — mengubahnya menyentuh semantik
   re-entrancy `engine.ts` (SPEC-432) dan pantas dapat spec sendiri.
+- **Pilihan lead JAMAK & rantai keputusan** (SPEC-485/**ADR-0102**, **memperluas ADR-0098** &
+  SPEC-452/474; ADR-0091 ditegakkan, ADR-0024/0037/0039 tak disentuh): dua batas yang tak pernah
+  dinyatakan, dan seperti SPEC-479 keduanya jatuh ke **bentuk kode**. **(A)** `choice` satu `string`
+  di atas sepasang kolom skalar → peminta yang opsinya tak saling eksklusif hanya bisa menuang
+  jawabannya ke prosa (membatalkan yang dibangun ADR-0098) atau memanggil ulang, satu proses
+  `claude -p` per panggilan. **(B)** dialog `AskUserQuestion` ber-**`multiSelect`** adalah widget
+  yang **BERBEDA**, dan empat perbedaannya masing-masing cukup untuk merusak jalur SPEC-452/474 —
+  terukur in-vivo pada claude 2.1.220: (1) tiap label diawali `[ ]`/`[✔]` sehingga
+  `"[ ] Type something"` tak lagi cocok `PLACEHOLDER` → `freeIndex === null` → `sendToPane` jatuh ke
+  jalur prosa+`Enter`; (2) **digit MEN-TOGGLE** (`b = toggleValue` di biner), kebalikan penuh dari
+  single-select yang memilih seketika; (3) ada tombol kirim **tanpa nomor** (`Submit`, atau **`Next`**
+  bila pertanyaannya belum yang terakhir), dan karena tombol itu ada `Enter` di baris opsi men-toggle
+  baris tersorot alih-alih mengirim → jalur lama men-toggle **opsi 1** lalu berhenti: layar tak maju,
+  marker tak dikosongkan, `MAX_CHAIN_STEPS` habis, `failures` naik — persis gejala "hanya bisa dipilih
+  satu" + hang yang dilaporkan; (4) kolom bebas hanya bisa dicapai lewat **navigasi**, dan panah pun
+  **satu keystroke per `send-keys`** (terukur: empat panah dalam satu pemanggilan = satu perpindahan —
+  jebakan burst ADR-0085 tak berhenti di teks). Perbaikannya empat. **(1)** Jawaban **selalu daftar**
+  di penyimpanan (`LeadDecision.choices`/`select`), `choice`/`choiceIndex` tinggal turunan
+  `choices[0]`, dan `toDecisionView` **menurunkan balik** untuk baris pra-migrasi — riwayat lama
+  terbaca tanpa backfill. `resolveChoice` **tak disentuh**; `resolveChoices` memanggilnya per item
+  (satu definisi — kelas bug SPEC-431/448/475/481), dan `optionActionHint` hanya berlaku saat
+  pilihannya **tepat satu**. **(2)** Model **`LeadFlow`** (LOCAL-only, migration tulis tangan, ikut
+  `PG_ORDER`, tanpa FK) berstatus `menunggu`/`sebagian`/`selesai`/`dibatalkan`, dipasang di
+  `decide()` — choke point tunggal yang sama yang memegang gerbang SPEC-479. **Setiap** keputusan
+  punya alur; yang tak berantai ditutup seketika, yang ber-`chain` terbuka sampai
+  `POST /lead/flows/:id/submit`, dan `flowId` ke alur tertutup ditolak **409**. Endpoint tetap
+  **sinkron** — lead yang menjawab, operator tetap pembatal. **(3)** `lead.flowTtlMin` (default 60,
+  kolom `Json`) + penyapu yang **menumpang tick lead** (tanpa timer baru). **(4)**
+  `answerMultiSelectDialog`: toggle per opsi (satu karakter, lalu **dibuktikan** kotaknya berubah) →
+  navigasi ke kolom bebas (satu panah per pemanggilan, dibuktikan lewat `❯`) → prosa ber-`goalChunks`
+  → navigasi ke tombol kirim → `Enter`; fail-closed di tiap langkah, dan `sendToPane` karena itu
+  menerima `choices` sebagai **data** (pintu override operator ikut sembuh). Validasi berlapis dua:
+  bentuk `select` mustahil ditolak **400** di pintu masuk, jumlah di luar `min`/`max` **membatalkan
+  seluruh pilihan** (bukan memangkasnya) tanpa menulis ulang `kind` (SPEC-432). **Gotcha paling
+  mahal:** `dialogKey` untuk layar multi **wajib membuang penanda `☐/☒` tab strip** — mencentang satu
+  opsi sudah membalik tab yang tampil jadi `☒` tanpa satu pun pertanyaan berpindah, dan kunci yang
+  ikut berubah membaca layar yang **MACET** sebagai layar yang **MAJU**, cacat yang sama persis yang
+  SPEC-474 tutup untuk label kolom bebas. UI: `DecisionRow` menampilkan semua label terpilih, Timpa
+  jadi **radio/checkbox** (DS `Radio` baru), plus kartu "Rantai keputusan". MCP hanya dapat tambahan
+  **aditif** (`multi`/`minChoices`/`maxChoices` di `hanoman_lead_ask`) — protokol berantai butuh
+  submit, dan membukanya tanpa itu hanya melahirkan alur menggantung.
 - **Scope verifikasi per sesi** (SPEC-376/ADR-0080): `verifyScope` (`changed` default | `full`) —
   knob `Setting.verifyScope` (kolom `Json`, **tanpa migration**) + override saat Start. Sesi
   `changed` menguji **berkas yang berubah saja**: `pnpm vitest --run --changed "$HANOMAN_BASE_SHA"`
