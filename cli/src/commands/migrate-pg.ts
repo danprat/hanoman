@@ -30,6 +30,8 @@ export const PG_ORDER = [
   // memang tanpa FK, tapi memindahkannya lebih awal membuat urutan tabel tak lagi mencerminkan
   // arah tautannya bagi pembaca berikutnya.
   "GithubIssue",
+  // SPEC-481 · ADR-0099 · WebhookDelivery WAJIB sesudah WebhookEndpoint (FK endpointId).
+  "WebhookEndpoint", "WebhookDelivery",
 ] as const;
 
 const CHUNK = 200;

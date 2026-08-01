@@ -570,3 +570,58 @@ model TicketAttachment {
 
   @@index([ticketId])
 }
+
+// SPEC-481 · ADR-0099 · endpoint webhook keluar. LOCAL-only (cermin AgentToken/RuntimeConfig):
+// barisnya memegang secret dan menunjuk pengiriman dari MESIN INI, jadi menyiarkannya ke hub
+// akan mengirim kredensial dan riwayat yang tak berlaku di sana. Tanpa `version`/notifySynced.
+//
+// `secret` disimpan sebagai ciphertext `enc:v1:` (services/secret-box.ts, ADR-0097) dan TAK PERNAH
+// dikembalikan utuh oleh API — hanya empat karakter terakhir sebagai `secretHint`.
+model WebhookEndpoint {
+  id             String    @id @default(cuid())
+  name           String
+  url            String
+  secret         String
+  events         Json      // string[]; ["*"] = semua, "spec.*" = satu keluarga
+  projectIds     Json?     // string[] | null = semua project
+  enabled        Boolean   @default(true)
+  allowPrivate   Boolean   @default(false) // izin EKSPLISIT alamat internal/loopback (anti-SSRF)
+  apiVersion     Int       @default(1)     // versi amplop yang diminta penerima
+  maxPerMinute   Int       @default(60)
+  disabledAt     DateTime?
+  disabledReason String?
+  lastSuccessAt  DateTime?
+  lastFailureAt  DateTime?
+  failureStreak  Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deliveries     WebhookDelivery[]
+}
+
+// SPEC-481 · ADR-0099 · satu tabel merangkap ANTREAN dan RIWAYAT.
+//
+// `payload` disimpan per pengiriman, bukan dirender ulang: retry wajib mengirim byte yang SAMA
+// supaya `id` peristiwa stabil dan idempotensi penerima berlaku, dan riwayat harus memperlihatkan
+// apa yang benar-benar dikirim, bukan keadaan hari ini.
+model WebhookDelivery {
+  id            String    @id @default(cuid())
+  endpointId    String
+  eventId       String    // SAMA untuk semua endpoint dari satu peristiwa
+  eventType     String
+  projectId     String?
+  payload       Json
+  status        String    @default("pending") // pending | sending | sent | failed | dropped
+  attempt       Int       @default(0)
+  maxAttempts   Int       @default(6)
+  nextAttemptAt DateTime?
+  httpStatus    Int?
+  durationMs    Int?
+  error         String?
+  createdAt     DateTime  @default(now())
+  sentAt        DateTime?
+  endpoint      WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextAttemptAt])
+  @@index([endpointId, createdAt])
+  @@index([eventId])
+}
