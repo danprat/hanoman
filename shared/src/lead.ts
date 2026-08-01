@@ -30,6 +30,19 @@ export const zLeadStatus = z.enum(["berlaku", "ditimpa", "dibatalkan", "gagal"])
 export type LeadStatus = z.infer<typeof zLeadStatus>;
 
 /**
+ * SPEC-485 · ADR-0102 · status satu RANTAI keputusan (outcome #4).
+ *
+ * `menunggu` = alur terbuka yang belum punya satu pun langkah berlaku. `sebagian` = sudah ada
+ * jawaban, rantainya masih menerima pertanyaan lanjutan. `selesai` = di-submit (atau alur tunggal
+ * yang ditutup seketika). `dibatalkan` = operator membatalkannya, atau ia kedaluwarsa.
+ */
+export const zLeadFlowStatus = z.enum(["menunggu", "sebagian", "selesai", "dibatalkan"]);
+export type LeadFlowStatus = z.infer<typeof zLeadFlowStatus>;
+
+/** Alur yang masih boleh menerima langkah baru — satu definisi, dipakai server & UI. */
+export const LEAD_FLOW_OPEN: readonly LeadFlowStatus[] = ["menunggu", "sebagian"];
+
+/**
  * PERMUKAAN TINDAKAN LEAD — allowlist tertutup (AC-31/32/34).
  *
  * Sengaja tak memuat: deploy, perintah/konsol VPS, sentuhan data produksi, dan penghapusan apa pun
@@ -111,6 +124,11 @@ export type LeadDelivery = {
   decision: string;
   reason: string;
   reply: string;
+  /**
+   * SPEC-485 · bentuk yang BERLAKU: selalu daftar, supaya konsumen tak perlu menebak single vs
+   * multi. `choice` di bawah tinggal turunannya (`choices[0]`), dipertahankan demi pembaca lama.
+   */
+  choices: LeadChoice[];
   choice: LeadChoice | null;
   missing: string[];
 };
@@ -165,6 +183,67 @@ export function resolveChoice(raw: string, options: string[]): LeadChoice | null
   return null;
 }
 
+// ── SPEC-485 · ADR-0102 · pilihan JAMAK ──────────────────────────────────────────────────────
+//
+// Kosakata di bawah membungkus `resolveChoice` di atas; ia TIDAK menyalin pencocokannya. Hanoman
+// sudah empat kali membayar kelas bug "satu definisi, N call site" (SPEC-431 predikat, SPEC-448
+// env spawn, SPEC-475 efek samping, SPEC-481 emit peristiwa), dan pencocokan opsi adalah persis
+// bentuk yang gampang bercabang diam-diam.
+
+/**
+ * Bentuk pilihan yang diminta PEMINTA. `single` adalah keadaan hari ini dan karena itu default:
+ * permintaan lama parse tanpa berubah satu bit pun.
+ */
+export const zLeadSelect = z.object({
+  mode: z.enum(["single", "multi"]).default("single"),
+  min: z.number().int().min(0).max(20).default(0),
+  max: z.number().int().min(1).max(20).nullable().default(null),
+});
+export type LeadSelect = z.infer<typeof zLeadSelect>;
+
+/**
+ * Batas yang BENAR-BENAR berlaku. `single` selalu 0..1 — MODE yang menentukan, bukan angka yang
+ * kebetulan dikirim, supaya "single tapi max 5" tak pernah jadi keadaan yang harus ditangani di
+ * hilir. `max: null` berarti "sebanyak opsinya".
+ */
+export function normalizeSelect(sel: LeadSelect, optionCount: number): { mode: "single" | "multi"; min: number; max: number } {
+  const n = Math.max(0, optionCount);
+  if (sel.mode === "single") return { mode: "single", min: Math.min(sel.min, 1), max: 1 };
+  const max = Math.min(sel.max ?? n, n);
+  return { mode: "multi", min: Math.min(sel.min, max), max };
+}
+
+/**
+ * Cermin jamak `resolveChoice`. Hasilnya diurutkan menurut urutan OPSI, bukan urutan lead
+ * menyebutnya: jejak yang dibaca ulang harus cocok dengan menu yang dilihat manusia.
+ *
+ * Duplikat dibuang diam-diam (menyebut opsi dua kali tak menambah apa pun), sementara yang tak
+ * dikenal masuk `rejected` — ia harus terlihat, karena di sanalah lead salah membaca soal.
+ */
+export function resolveChoices(raw: string[], options: string[]): { choices: LeadChoice[]; rejected: string[] } {
+  const seen = new Set<number>();
+  const choices: LeadChoice[] = [];
+  const rejected: string[] = [];
+  for (const r of raw ?? []) {
+    const t = (r ?? "").trim();
+    if (!t) continue;
+    const hit = resolveChoice(t, options);
+    if (!hit) { rejected.push(t); continue; }
+    if (seen.has(hit.index)) continue;
+    seen.add(hit.index);
+    choices.push(hit);
+  }
+  choices.sort((a, b) => a.index - b.index);
+  return { choices, rejected };
+}
+
+/** Alasan penolakan jumlah pilihan yang bisa dibaca manusia; `null` = jumlahnya sah. */
+export function checkChoiceCount(n: number, b: { min: number; max: number }): string | null {
+  if (n > b.max) return `pilihan terlalu banyak (${n}) — paling banyak ${b.max}`;
+  if (n < b.min) return `pilihan terlalu sedikit (${n}) — paling sedikit ${b.min}`;
+  return null;
+}
+
 /**
  * Pangkas prosa untuk PENGIRIMAN — jejak menyimpan yang utuh. Memotong di batas kalimat lebih dulu
  * supaya yang sampai tetap kalimat, bukan penggalan. Spasi dilipat sekalian, dan itu BUKAN
@@ -200,7 +279,11 @@ export function leadReplyText(d: LeadDelivery): string {
   const budget = LEAD_DECISION_MAX + LEAD_REASON_MAX;
   if (d.missing.length)
     return clampProse(`Belum bisa kuputuskan. Yang kurang: ${d.missing.join("; ")}.`, budget);
-  if (d.choice) return clampProse(`Pilih: ${d.choice.option}. ${d.reason}`, budget);
+  // SPEC-485 · SEMUA label terpilih disebut, dipisah `; ` — koma sudah dipakai DI DALAM label opsi
+  // denyut sendiri ("integrate-main — merge, lalu tutup pane"), jadi memisahkan dengan koma
+  // membuat batas antar-opsi tak bisa dibaca model di seberang.
+  const picked = d.choices?.length ? d.choices : (d.choice ? [d.choice] : []);
+  if (picked.length) return clampProse(`Pilih: ${picked.map((c) => c.option).join("; ")}. ${d.reason}`, budget);
   return clampProse(d.reply || d.decision, budget);
 }
 
@@ -227,6 +310,14 @@ export const zLeadVerdict = z.object({
    */
   choice: z.string().default(""),
   /**
+   * SPEC-485 · pilihan JAMAK. `string[]` dengan alasan yang sama persis seperti `choice` & `action`
+   * di atas: pilihan di luar daftar harus BISA MASUK supaya server menolaknya secara sadar dan
+   * mencatatnya. Kosong + `choice` terisi dibaca sebagai satu pilihan — keluaran agen berbentuk
+   * ADR-0098 harus tetap terpakai, dan menuntut field baru berarti setiap agen lama mendadak
+   * "tak memilih apa pun".
+   */
+  choices: z.array(z.string().max(2000)).max(20).default([]),
+  /**
    * SPEC-480 · apa yang KURANG bila konteksnya memang tak cukup untuk memutuskan. Bukan pengganti
    * `confidence: "ragu"` (bukti tipis, jawabannya tetap ada) melainkan untuk fakta konkret yang
    * tak ada di repo maupun konteks. Terisi ⇒ server memaksa `ragu` ⇒ operator dinotifikasi.
@@ -245,6 +336,12 @@ export const zLeadAsk = z.object({
   question: z.string().min(1).max(8000),
   options: z.array(z.string().max(2000)).max(20).default([]),
   context: z.string().max(20_000).default(""),
+  /** SPEC-485 · bentuk pilihan yang diminta peminta. Default = perilaku hari ini (single). */
+  select: zLeadSelect.default({ mode: "single", min: 0, max: null }),
+  /** `true` = peminta akan mengajukan pertanyaan lanjutan; alurnya dibiarkan terbuka sampai submit. */
+  chain: z.boolean().default(false),
+  /** Lanjutkan rantai yang sudah ada. Alur tertutup ditolak 409 — bukan dibuatkan diam-diam. */
+  flowId: z.string().min(1).nullish().default(null),
 });
 export type LeadAsk = z.infer<typeof zLeadAsk>;
 
@@ -252,4 +349,10 @@ export type LeadAsk = z.infer<typeof zLeadAsk>;
 export const zLeadOverride = z.object({
   answer: z.string().min(1).max(8000),
   reason: z.string().max(8000).default(""),
+  /**
+   * SPEC-485 · centang operator sebagai DATA, bukan prosa. Dipetakan ke opsi baris yang ditimpa,
+   * lalu ikut diketikkan ke pane — jadi manusia mencentang di dashboard dan kotaknya benar-benar
+   * tercentang di dialog sesi.
+   */
+  choices: z.array(z.string().max(2000)).max(20).default([]),
 });

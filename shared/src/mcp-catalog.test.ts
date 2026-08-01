@@ -100,3 +100,34 @@ describe("katalog tool MCP", () => {
     ]);
   });
 });
+
+// SPEC-485 · ADR-0102 · tambahan ADITIF pada `hanoman_lead_ask`: agen bisa menyatakan bahwa opsinya
+// TIDAK saling eksklusif. Protokol berantai sengaja TIDAK dibuka lewat MCP — ia butuh beberapa
+// panggilan berurutan + submit, dan tanpa pintu submit yang lahir hanyalah alur menggantung.
+describe("SPEC-485 · lead_ask menerima pilihan jamak", () => {
+  const tool = () => MCP_TOOLS.find((t) => t.name === "hanoman_lead_ask")!;
+
+  it("punya parameter multi/minChoices/maxChoices", () => {
+    expect(Object.keys(tool().inputSchema.properties)).toEqual(
+      expect.arrayContaining(["multi", "minChoices", "maxChoices"]));
+  });
+
+  it("default TETAP single — permintaan lama tak berubah satu bit pun", () => {
+    expect(tool().build({ project: "p", question: "q" })!.body).not.toHaveProperty("select");
+  });
+
+  it("multi merakit blok select yang dimengerti server", () => {
+    expect(tool().build({
+      project: "p", question: "q", options: ["a", "b"], multi: true, minChoices: 1, maxChoices: 2,
+    })!.body).toMatchObject({ select: { mode: "multi", min: 1, max: 2 } });
+  });
+
+  it("maxChoices yang tak disebut jadi null (sebanyak opsinya)", () => {
+    expect(tool().build({ project: "p", question: "q", options: ["a", "b"], multi: true })!.body)
+      .toMatchObject({ select: { mode: "multi", min: 0, max: null } });
+  });
+
+  it("tak ada tool baru untuk rantai — permukaannya tetap 17", () => {
+    expect(MCP_TOOLS.filter((t) => t.name.includes("flow"))).toHaveLength(0);
+  });
+});

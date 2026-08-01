@@ -3,7 +3,7 @@
 // yang benar-benar dituntut tool.
 import {
   DATE_PARAMS, PAGE_PARAMS, PRIORITY, SOURCE_ENUM, SOURCE_PAYLOAD_ALLOF, SPEC_PAYLOAD_ONEOF,
-  STAGE_ENUM, bool, enumStr, obj, str, strArray, type JsonSchemaObject,
+  STAGE_ENUM, bool, enumStr, int, obj, str, strArray, type JsonSchemaObject,
 } from "./mcp-schema";
 import {
   paginateLocal, shapeGithubIssue, shapeLeadDecision, shapeNotification, shapeProject,
@@ -342,7 +342,7 @@ export const MCP_TOOLS: readonly McpToolDef[] = [
     name: "hanoman_lead_ask",
     title: "Minta putusan hanoman-lead",
     description:
-      "Minta putusan ke hanoman-lead saat menemui persimpangan yang biasanya butuh manusia. Jawabannya terbaca mesin (`decision`, `reason`, `refs`, `confidence`, `action`) dan `refs` hanya memuat rujukan yang benar-benar ada di repo. Panggilan ini melahirkan jejak permanen dan putusannya bisa menggerakkan sesi — pakai hanya saat memang buntu. 409 = lead tak aktif atau proyek belum opt-in: kembali ke perilaku biasa, berhenti dan tunggu manusia.",
+      "Minta putusan ke hanoman-lead saat menemui persimpangan yang biasanya butuh manusia. Jawabannya terbaca mesin (`decision`, `reason`, `refs`, `confidence`, `action`, `choices`) dan `refs` hanya memuat rujukan yang benar-benar ada di repo. Bila opsinya TIDAK saling eksklusif, set `multi: true` — balasannya memuat `choices` (daftar), bukan hanya `choice`. Panggilan ini melahirkan jejak permanen dan putusannya bisa menggerakkan sesi — pakai hanya saat memang buntu. 409 = lead tak aktif atau proyek belum opt-in: kembali ke perilaku biasa, berhenti dan tunggu manusia; 400 = bentuk `multi`/`minChoices`/`maxChoices` mustahil dipenuhi oleh daftar opsi yang kamu kirim.",
     inputSchema: obj({
       properties: {
         project: str("Id proyek."),
@@ -351,6 +351,9 @@ export const MCP_TOOLS: readonly McpToolDef[] = [
         session: str("Opsional. Id sesi yang bersangkutan."),
         options: strArray("Opsional. Pilihan yang tersedia, maksimum 20, masing-masing maksimum 2000 karakter. Lead memilih salah satunya."),
         context: str("Opsional. Konteks pendukung, maksimum 20.000 karakter."),
+        multi: bool("Opsional. `true` bila opsinya TIDAK saling eksklusif dan lead boleh memilih beberapa sekaligus. Menuntut `options` terisi."),
+        minChoices: int("Opsional, hanya untuk `multi`. Paling sedikit berapa opsi harus dipilih."),
+        maxChoices: int("Opsional, hanya untuk `multi`. Paling banyak berapa opsi boleh dipilih; tanpa ini sebanyak opsinya."),
       },
       required: ["project", "question"],
     }),
@@ -363,6 +366,11 @@ export const MCP_TOOLS: readonly McpToolDef[] = [
         ...(s(a.session) ? { sessionId: a.session } : {}),
         ...(Array.isArray(a.options) ? { options: a.options } : {}),
         ...(s(a.context) ? { context: a.context } : {}),
+        // SPEC-485 · ADITIF: tanpa `multi` bentuk permintaannya identik dengan sebelum ADR-0102,
+        // jadi klien MCP lama tak berubah perilakunya satu bit pun.
+        ...(a.multi === true
+          ? { select: { mode: "multi", min: n(a.minChoices) ?? 0, max: n(a.maxChoices) ?? null } }
+          : {}),
       },
     }),
     shape: (raw) => raw,

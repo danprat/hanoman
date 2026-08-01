@@ -416,8 +416,37 @@ akan mengirim rujukan yang tak ada di sana). Tanpa `version`/`notifySynced`, **t
   `services/lead/trail.ts` **tak punya fungsi hapus sama sekali** — cara termurah menegakkan larangan
   lead menghapus jejaknya sendiri. Pemangkasan retensi, bila kelak ada, jadi wewenang manusia lewat
   jalur terpisah.
+- **SPEC-485 · [ADR-0102](../adr/0102-lead-multi-select-dan-rantai-keputusan.md) — pilihan JAMAK &
+  tautan rantai:** `choices?` (Json `{index,option}[]`), `select?` (Json `{mode,min,max}` sebagaimana
+  dikirim peminta), `flowId?` (rantai tempat langkah ini duduk), `step?` (1-basis). Index `(flowId)`.
+  Keempatnya aditif & nullable — baris lama sah apa adanya. **`choices` adalah bentuk penyimpanan
+  yang BERLAKU** ("selalu daftar, konsumen tak perlu menebak single vs multi"); `choice`/`choiceIndex`
+  **dipertahankan** dan diisi dari `choices[0]` sebagai turunan, dan `toDecisionView` **menurunkan
+  balik** `choices` dari pasangan skalar itu untuk baris pra-migrasi — itulah yang membuat riwayat
+  lama terbaca sesudah perubahan skema, **tanpa satu pun backfill**.
 - Knob-nya sendiri hidup di `Setting.lead` (kolom `Json` → **tanpa migration**); yang butuh migration
-  hanya tabel ini + `Project.leadOptIn`.
+  hanya tabel ini + `Project.leadOptIn` + `LeadFlow` di bawah.
+
+## LeadFlow (SPEC-485 · [ADR-0102](../adr/0102-lead-multi-select-dan-rantai-keputusan.md))
+Satu **RANTAI keputusan** — beberapa pertanyaan berurutan yang satu urusan, dari pertanyaan pertama
+sampai submit akhir. **LOCAL-ONLY, tak disync** (tanpa `version`, alasan yang sama persis dengan
+`LeadDecision`) dan **tanpa FK**.
+- Kenapa entitas, bukan turunan: sebelum model ini "alur" hanya ada sebagai kebetulan — baris jejak
+  yang berdekatan waktunya. Karena itu tak ada tempat untuk menegakkan *"pertanyaan lanjutan hanya
+  boleh masuk ke alur yang masih aktif"*, dan tak ada yang bisa ditanya *"sudah di-submit belum"*.
+- `id` (cuid), `projectId`, `specId?`, `sessionId?`, `gate` (pintu yang membukanya), `status`
+  (**`menunggu | sebagian | selesai | dibatalkan`**), `title` (pertanyaan pertama, terpangkas — ini
+  yang dibaca operator), `steps`, `closeReason?` (`tunggal|submit|operator|kedaluwarsa`), `openedAt`,
+  `closedAt?`, `expiresAt`, `createdAt`, `updatedAt`. Index `(projectId, createdAt)`, `(status)`.
+- **Setiap keputusan punya alur.** Permintaan tanpa `chain` melahirkan alur yang **ditutup seketika**
+  (`selesai`, `closeReason: "tunggal"`); yang ber-`chain` terbuka sampai `POST /lead/flows/:id/submit`.
+  `flowId` yang menunjuk alur **tertutup** ditolak **409** — bentuk teknis dari "tak bisa menyisipkan
+  pertanyaan ke rantai yang sudah di-submit".
+- **Alur yang ditinggalkan punya ujung:** `expiresAt` diturunkan dari knob `Setting.lead.flowTtlMin`
+  (default 60, kolom `Json` → tanpa migration), dan penyapunya **menumpang tick engine lead yang
+  sudah ada** — ADR-0024 melarang timer/scheduler baru.
+- Langkah `gagal` tetap duduk di alurnya dan tetap menaikkan `steps`, tapi **tak** memindahkan status:
+  alur yang semua langkahnya gagal memang masih "menunggu jawaban".
 
 ## CustomAgent (SPEC-450 · [ADR-0094](../adr/0094-custom-agent-katalog-materialisasi-native.md))
 

@@ -1,4 +1,4 @@
-import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type SessionHistoryView, type ConfigResponse, type ConfigEntryView, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView, type Agent, type AuditEscalationView, type VerifyScope, type Lead, type LeadStatusView, type LeadDecisionView, type CustomAgentView, type CreateCustomAgent, type UpdateCustomAgent, type AgentCatalogView, type GithubIssueView, type TelegramGatewayStatus, type TelegramCredentialsView, type TelegramTestResult, type TelegramClearResult, type WebhookEndpointView, type WebhookDeliveryView, type WebhookTestResult, type CreateWebhookEndpoint, type UpdateWebhookEndpoint } from "@hanoman/shared";
+import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type SessionHistoryView, type ConfigResponse, type ConfigEntryView, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView, type Agent, type AuditEscalationView, type VerifyScope, type Lead, type LeadStatusView, type LeadDecisionView, type LeadFlowView, type CustomAgentView, type CreateCustomAgent, type UpdateCustomAgent, type AgentCatalogView, type GithubIssueView, type TelegramGatewayStatus, type TelegramCredentialsView, type TelegramTestResult, type TelegramClearResult, type WebhookEndpointView, type WebhookDeliveryView, type WebhookTestResult, type CreateWebhookEndpoint, type UpdateWebhookEndpoint } from "@hanoman/shared";
 // SPEC-450 · `detail` = body JSON respons galat (best-effort, null bila bukan JSON). Ditambahkan
 // karena penolakan custom agent membawa informasi yang HARUS sampai ke operator — jalur siklus
 // (`cycle`/`scope`) dan daftar mention tak dikenal (`unknown`); "409" saja tak bisa ditindaklanjuti.
@@ -405,11 +405,18 @@ export const api = {
   getLeadStatus: () => j<LeadStatusView>(paths.leadStatus),
   getLeadDecisions: (params: { projectId?: string; specId?: string; sessionId?: string; status?: string; take?: number } = {}) =>
     j<{ items: LeadDecisionView[] }>(paths.leadDecisions + qs(params)),
-  overrideLeadDecision: (id: string, answer: string, reason = "") =>
+  // SPEC-485 · ADR-0102 · centang operator ikut sebagai DATA: ia disimpan dalam bentuk yang sama
+  // dengan pilihan lead DAN diketikkan ke pane sebagai centang, bukan sebagai prosa.
+  overrideLeadDecision: (id: string, answer: string, reason = "", choices: string[] = []) =>
     j<{ old: LeadDecisionView; next: LeadDecisionView; delivered: boolean }>(
-      paths.leadDecisionOverride(id), { method: "POST", ...body({ answer, reason }) }),
+      paths.leadDecisionOverride(id), { method: "POST", ...body({ answer, reason, choices }) }),
   cancelLeadDecision: (id: string) =>
     j<LeadDecisionView>(paths.leadDecisionCancel(id), { method: "POST", ...body({}) }),
+  // SPEC-485 · rantai keputusan. Tetap polling HTTP — tak ada kanal WS baru (ADR-0039).
+  getLeadFlows: (params: { projectId?: string; status?: string; take?: number } = {}) =>
+    j<{ items: LeadFlowView[] }>(paths.leadFlows + qs(params)),
+  submitLeadFlow: (id: string) => j<LeadFlowView>(paths.leadFlowSubmit(id), { method: "POST", ...body({}) }),
+  cancelLeadFlow: (id: string) => j<LeadFlowView>(paths.leadFlowCancel(id), { method: "POST", ...body({}) }),
   // SPEC-450 · ADR-0094 · katalog custom agent. Tanpa projectId → global saja; dengan projectId →
   // himpunan EFEKTIF (global+project, baris global bertanda `inherited`).
   listCustomAgents: (projectId?: string) =>

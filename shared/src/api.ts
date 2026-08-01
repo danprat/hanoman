@@ -129,6 +129,11 @@ export const paths = {
   leadDecisions: `${API}/lead/decisions`,
   leadDecisionOverride: (id: string) => `${API}/lead/decisions/${encodeURIComponent(id)}/override`,
   leadDecisionCancel: (id: string) => `${API}/lead/decisions/${encodeURIComponent(id)}/cancel`,
+  // SPEC-485 · ADR-0102 · rantai keputusan. Di bawah prefix `lead` supaya capability-nya turunan
+  // method (lead:read/lead:write) tanpa peta baru — kelas bug SPEC-405 sudah ditutup di sana.
+  leadFlows: `${API}/lead/flows`,
+  leadFlowSubmit: (id: string) => `${API}/lead/flows/${encodeURIComponent(id)}/submit`,
+  leadFlowCancel: (id: string) => `${API}/lead/flows/${encodeURIComponent(id)}/cancel`,
   // SPEC-450 · ADR-0094 · katalog custom agent. `?projectId=` → himpunan EFEKTIF (global+project).
   customAgents: `${API}/custom-agents`,
   // SPEC-484 · ADR-0101 · sumber daftar tools/model/runtime untuk form (mention dari `customAgents`).

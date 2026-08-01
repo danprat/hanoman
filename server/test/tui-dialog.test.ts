@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   readChoiceDialog, freeTextFilled, answerChoiceDialog, readDialogScreen, readReviewScreen,
-  dialogKey, answerNotesDialog, submitReview, notesFilled, type PaneIO,
+  dialogKey, answerNotesDialog, submitReview, notesFilled, focusedRow,
+  answerMultiSelectDialog, type PaneIO,
 } from "../src/services/tui-dialog";
 
 // SPEC-452 · dialog pilihan claude (`AskUserQuestion`) BUKAN kolom teks: burst apa pun yang lebih
@@ -266,6 +267,7 @@ function fakeDialogTui(freeIndex: number, opts: { swallow?: boolean } = {}) {
       if (focused) typed += s;                        // kolom teks menerima burst apa adanya
     },
     enter: () => { if (focused) submitted = typed; else pickedRow = 1; },
+    down: () => { /* dialog single-select ini tak diuji lewat navigasi */ },
     sleep: async () => {},
   };
   return { io, literals, get submitted() { return submitted; }, get pickedRow() { return pickedRow; } };
@@ -425,6 +427,7 @@ function fakeNotesTui(opts: { deaf?: boolean } = {}) {
       typed += s;
     },
     enter: () => { if (open) submitted = typed; else pickedRow = 1; },
+    down: () => { /* varian preview dijawab tanpa navigasi */ },
     sleep: async () => {},
   };
   return { io, literals, get submitted() { return submitted; }, get pickedRow() { return pickedRow; } };
@@ -441,6 +444,7 @@ function fakeReviewTui(opts: { deaf?: boolean } = {}) {
     capture: () => render(),
     literal: (s) => { literals.push(s); if (!opts.deaf && s === "1") done = true; },
     enter: () => { throw new Error("submit tak boleh bergantung pada Enter"); },
+    down: () => { throw new Error("layar rekap tak butuh navigasi"); },
     sleep: async () => {},
   };
   return { io, literals, get done() { return done; } };
@@ -504,5 +508,220 @@ describe("submitReview · menutup rantai", () => {
   it("false bila layar review tak kunjung pergi", async () => {
     const t = fakeReviewTui({ deaf: true });
     expect(await submitReview(t.io, 1)).toBe(false);
+  });
+});
+
+// ── SPEC-485 · ADR-0102 · dialog `multiSelect` ─────────────────────────────────────────────────
+//
+// Fixture di bawah adalah tangkapan `capture-pane -p -J` SUNGGUHAN dari claude 2.1.220 (probe
+// SPEC-485), bukan karangan — termasuk kotak centang di depan tiap label, tombol kirim tanpa nomor,
+// dan baris `Chat about this` yang duduk di bawah garis pemisah.
+//
+// Empat perbedaannya dari single-select, semuanya terukur:
+//   1. tiap label diawali `[ ]` / `[✔]` → `[ ] Type something` tak lagi cocok PLACEHOLDER;
+//   2. digit MEN-TOGGLE (b = toggleValue di widget), bukan memilih-lalu-mengirim;
+//   3. ada tombol `Submit` (atau `Next`) TANPA nomor → `Enter` di baris opsi men-toggle;
+//   4. kolom bebas hanya bisa dicapai lewat navigasi, satu panah per `send-keys`.
+
+const ASKQ_MULTI = `
+❯ Panggil tool AskUserQuestion TEPAT SEKALI dengan satu pertanyaan multi-select.
+────────────────────────────────────────────────────────────────────────────────
+←  ☐ Paket  ✔ Submit  →
+
+Paket mana yang dipakai?
+
+❯ 1. [ ] alpha
+  paket alpha
+  2. [ ] beta
+  paket beta
+  3. [ ] gamma
+  paket gamma
+  4. [ ] Type something
+     Submit
+────────────────────────────────────────────────────────────────────────────────
+  5. Chat about this
+
+Enter to select · ↑/↓ to navigate · Esc to cancel
+`;
+
+const ASKQ_MULTI_TERCENTANG = ASKQ_MULTI
+  .replace("2. [ ] beta", "2. [✔] beta")
+  .replace("←  ☐ Paket", "←  ☒ Paket");
+
+const ASKQ_MULTI_SUBMIT_FOKUS = ASKQ_MULTI
+  .replace("❯ 1. [ ] alpha", "  1. [ ] alpha")
+  .replace("     Submit", "❯    Submit");
+
+describe("readChoiceDialog · dialog multiSelect (SPEC-485)", () => {
+  it("mengupas kotak centang sehingga opsi & kolom bebas terbaca benar", () => {
+    const d = readChoiceDialog(ASKQ_MULTI)!;
+    expect(d.multi).toBe(true);
+    expect(d.options).toEqual(["alpha", "beta", "gamma"]);
+    // Tanpa pengupasan, "[ ] Type something" tak cocok PLACEHOLDER → freeIndex null → jalur lama.
+    expect(d.freeIndex).toBe(4);
+    expect(d.rows.find((r) => r.n === 2)!.checked).toBe(false);
+  });
+
+  it("membaca keadaan tercentang", () => {
+    expect(readChoiceDialog(ASKQ_MULTI_TERCENTANG)!.rows.find((r) => r.n === 2)!.checked).toBe(true);
+  });
+
+  it("membaca tombol kirim tanpa nomor, termasuk saat ia yang tersorot", () => {
+    expect(readChoiceDialog(ASKQ_MULTI)!.submit).toEqual({ present: true, focused: false });
+    expect(readChoiceDialog(ASKQ_MULTI_SUBMIT_FOKUS)!.submit).toEqual({ present: true, focused: true });
+  });
+
+  it("`Next` juga terbaca sebagai tombol kirim (pertanyaan belum yang terakhir)", () => {
+    expect(readChoiceDialog(ASKQ_MULTI.replace("     Submit", "     Next"))!.submit.present).toBe(true);
+  });
+
+  it("dialog single-select TIDAK ikut jadi multi (fail-closed)", () => {
+    const d = readChoiceDialog(ASKQ_TIGA_OPSI)!;
+    expect(d.multi).toBe(false);
+    expect(d.submit.present).toBe(false);
+    expect(d.rows[0]!.checked).toBeNull();
+  });
+
+  it("baris bernomor `Submit answers` milik layar rekap tak tertangkap sebagai tombol", () => {
+    expect(readChoiceDialog(RANTAI_Q1)?.submit.present).toBe(false);
+  });
+});
+
+describe("focusedRow · posisi sorotan (SPEC-485)", () => {
+  it("membaca nomor baris yang disorot", () => {
+    expect(focusedRow(ASKQ_MULTI)).toBe(1);
+  });
+  it("null saat sorotannya bukan di baris bernomor (mis. tombol kirim)", () => {
+    expect(focusedRow(ASKQ_MULTI_SUBMIT_FOKUS)).toBeNull();
+  });
+});
+
+describe("dialogKey · layar multi (GOTCHA ADR-0102 #1)", () => {
+  // Mencentang satu opsi sudah membalik tab yang sedang tampil jadi `☒` (terukur) TANPA satu pun
+  // pertanyaan berpindah. Kunci yang ikut berubah membaca layar yang MACET sebagai layar yang MAJU
+  // — cacat yang sama persis yang SPEC-474 tutup untuk label kolom bebas, lewat pintu baru.
+  it("TIDAK berubah saat kotak dicentang", () => {
+    expect(dialogKey(ASKQ_MULTI_TERCENTANG)).toBe(dialogKey(ASKQ_MULTI));
+  });
+  it("tetap berubah saat PERTANYAANNYA berganti", () => {
+    expect(dialogKey(ASKQ_MULTI.replace("Paket mana yang dipakai?", "Versi mana?")))
+      .not.toBe(dialogKey(ASKQ_MULTI));
+  });
+  it("dialog single-select tetap memakai penanda terjawab seperti SPEC-474", () => {
+    expect(dialogKey(RANTAI_Q1)).not.toBe(dialogKey(RANTAI_Q2));
+  });
+});
+
+// TUI palsu yang meniru semantik TERUKUR widget multiSelect:
+//   · digit satu karakter → TOGGLE baris itu (termasuk baris kolom bebas, tanpa memindahkan fokus);
+//   · `down` → memindahkan fokus SATU baris; sesudah baris terakhir, fokus pindah ke tombol kirim;
+//   · burst teks saat fokus di kolom bebas → mendarat & mencentang barisnya; selain itu ditelan;
+//   · `Enter` di tombol kirim → mengirim; di baris opsi → men-toggle baris tersorot.
+function fakeMultiTui(opts: { deadToggle?: boolean } = {}) {
+  const keys: string[] = [];
+  const rows = [
+    { n: 1, label: "alpha", checked: false },
+    { n: 2, label: "beta", checked: false },
+    { n: 3, label: "gamma", checked: false },
+  ];
+  let freeText = "";
+  let freeChecked = false;
+  let focus = 1;                    // 1..4 = baris, 5 = tombol kirim
+  let submitted = false;
+  const render = () => {
+    const line = (n: number, box: string, label: string) =>
+      `${focus === n ? "❯" : " "} ${n}. [${box}] ${label}`;
+    return [
+      "←  ☐ Paket  ✔ Submit  →",
+      "",
+      "Paket mana yang dipakai?",
+      "",
+      ...rows.map((r) => line(r.n, r.checked ? "✔" : " ", r.label)),
+      line(4, freeChecked ? "✔" : " ", freeText || "Type something"),
+      `${focus === 5 ? "❯" : " "}    Submit`,
+      "────────────────────────────────",
+      "  5. Chat about this",
+      "",
+      "Enter to select · ↑/↓ to navigate · Esc to cancel",
+    ].join("\n");
+  };
+  const io: PaneIO = {
+    capture: render,
+    literal: (s) => {
+      keys.push(s);
+      if (s.length === 1 && /\d/.test(s)) {
+        if (opts.deadToggle) return;                 // pane yang menelan toggle tanpa jejak
+        const n = Number(s);
+        const row = rows.find((r) => r.n === n);
+        if (row) { row.checked = !row.checked; return; }
+        if (n === 4) { freeChecked = !freeChecked; return; }   // TOGGLE, bukan pindah fokus
+        return;
+      }
+      if (focus === 4) { freeText += s; freeChecked = true; }  // kolom teks menerima burst
+    },
+    down: () => { keys.push("<down>"); focus = Math.min(5, focus + 1); },
+    enter: () => {
+      keys.push("<enter>");
+      if (focus === 5) { submitted = true; return; }
+      const row = rows.find((r) => r.n === focus);
+      if (row) row.checked = !row.checked;
+    },
+    sleep: async () => {},
+  };
+  return { io, keys, rows, get submitted() { return submitted; }, get freeText() { return freeText; } };
+}
+
+describe("answerMultiSelectDialog · mencentang, bukan mengetik prosa (SPEC-485)", () => {
+  it("men-toggle opsi terpilih lewat digit satu karakter lalu mengirim dari TOMBOL", async () => {
+    const t = fakeMultiTui();
+    expect(await answerMultiSelectDialog(t.io, { pick: [2, 3], line: "", freeIndex: 4 }, 0)).toBe(true);
+    expect(t.rows.map((r) => r.checked)).toEqual([false, true, true]);
+    expect(t.submitted).toBe(true);
+    expect(t.keys[0]).toBe("2");
+    expect(t.keys[t.keys.length - 1]).toBe("<enter>");
+  });
+
+  it("panah dikirim SATU per pemanggilan — burst panah hanya memindahkan satu baris (terukur)", async () => {
+    const t = fakeMultiTui();
+    await answerMultiSelectDialog(t.io, { pick: [1], line: "", freeIndex: 4 }, 0);
+    expect(t.keys.filter((k) => k === "<down>").length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("prosa lead masuk lewat kolom bebas yang DIFOKUSKAN navigasi, bukan lewat digitnya", async () => {
+    const t = fakeMultiTui();
+    expect(await answerMultiSelectDialog(t.io, { pick: [1], line: "karena alpha paling aman", freeIndex: 4 }, 0)).toBe(true);
+    expect(t.freeText).toBe("karena alpha paling aman");
+    expect(t.rows[0]!.checked).toBe(true);
+    expect(t.submitted).toBe(true);
+  });
+
+  it("idempoten: kotak yang sudah benar tak di-toggle dua kali", async () => {
+    const t = fakeMultiTui();
+    t.rows[1]!.checked = true;
+    await answerMultiSelectDialog(t.io, { pick: [2], line: "", freeIndex: 4 }, 0);
+    expect(t.rows.map((r) => r.checked)).toEqual([false, true, false]);
+    expect(t.keys.filter((k) => k === "2")).toHaveLength(0);
+  });
+
+  it("kotak yang tercentang tapi TIDAK dipilih di-toggle balik", async () => {
+    const t = fakeMultiTui();
+    t.rows[0]!.checked = true;
+    await answerMultiSelectDialog(t.io, { pick: [3], line: "", freeIndex: 4 }, 0);
+    expect(t.rows.map((r) => r.checked)).toEqual([false, false, true]);
+  });
+
+  // Gerbang terpenting: kalau toggle tak mendarat, jangan pernah menekan tombol kirim — mengirim
+  // dialog yang isinya bukan keputusan lead adalah bug SPEC-452 lewat pintu baru.
+  it("toggle yang TAK mendarat menggagalkan seluruh jawaban (fail-closed)", async () => {
+    const t = fakeMultiTui({ deadToggle: true });
+    expect(await answerMultiSelectDialog(t.io, { pick: [2], line: "", freeIndex: 4 }, 0)).toBe(false);
+    expect(t.submitted).toBe(false);
+  });
+
+  it("tanpa satu pun pilihan, prosanya tetap disampaikan dan dialognya tetap maju", async () => {
+    const t = fakeMultiTui();
+    expect(await answerMultiSelectDialog(t.io, { pick: [], line: "belum bisa kuputuskan", freeIndex: 4 }, 0)).toBe(true);
+    expect(t.freeText).toBe("belum bisa kuputuskan");
+    expect(t.submitted).toBe(true);
   });
 });

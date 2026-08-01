@@ -18,6 +18,7 @@ vi.mock("../src/services/lead/brain", () => ({ think: async () => leadOutput.raw
 const app = buildApp();
 const clean = async () => {
   await prisma.leadDecision.deleteMany();
+  await prisma.leadFlow.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.agentToken.deleteMany();
   await prisma.setting.deleteMany();
@@ -318,5 +319,129 @@ describe("POST /api/lead/decisions · balasan terstruktur (SPEC-480)", () => {
     expect(b.confidence).toBe("ragu");
     // Kompatibilitas mundur: pemanggil lama yang cuma membaca teks tetap dapat kalimat bermakna.
     expect(b.decision).toContain("Belum bisa diputuskan");
+  });
+});
+
+// SPEC-485 · ADR-0102 · permukaan HTTP pilihan jamak & rantai keputusan.
+describe("SPEC-485 · pilihan jamak & rantai (HTTP)", () => {
+  const verdict = (o: Record<string, unknown>) =>
+    "```json\n" + JSON.stringify({ decision: "d", reason: "r", ...o }) + "\n```";
+
+  const on = async () => {
+    const cookie = await login();
+    await setLead({ ...LEAD_DEFAULTS, enabled: true });
+    return cookie;
+  };
+  const askBody = (over: Record<string, unknown> = {}) =>
+    ({ projectId: "demo", question: "q1", ...over });
+
+  it("400 saat bentuk select mustahil dipenuhi (min > max)", async () => {
+    const cookie = await on();
+    leadOutput.raw = verdict({});
+    const r = await app.inject({ method: "POST", url: "/api/lead/decisions", headers: { cookie },
+      payload: askBody({ options: ["a", "b"], select: { mode: "multi", min: 3, max: 2 } }) });
+    expect(r.statusCode).toBe(400);
+  });
+
+  it("400 saat multi tanpa opsi sama sekali", async () => {
+    const cookie = await on();
+    leadOutput.raw = verdict({});
+    const r = await app.inject({ method: "POST", url: "/api/lead/decisions", headers: { cookie },
+      payload: askBody({ select: { mode: "multi", min: 1, max: 2 } }) });
+    expect(r.statusCode).toBe(400);
+  });
+
+  it("400 saat max melebihi jumlah opsi — batas yang mustahil ditolak di pintu masuk", async () => {
+    const cookie = await on();
+    leadOutput.raw = verdict({});
+    const r = await app.inject({ method: "POST", url: "/api/lead/decisions", headers: { cookie },
+      payload: askBody({ options: ["a", "b"], select: { mode: "multi", min: 1, max: 5 } }) });
+    expect(r.statusCode).toBe(400);
+  });
+
+  it("balasan membawa choices + flowId + flowStatus", async () => {
+    const cookie = await on();
+    leadOutput.raw = verdict({ choices: ["1", "3"] });
+    const r = await app.inject({ method: "POST", url: "/api/lead/decisions", headers: { cookie },
+      payload: askBody({ options: ["a", "b", "c"], select: { mode: "multi", min: 1, max: 2 }, chain: true }) });
+    expect(r.statusCode).toBe(201);
+    const b = r.json();
+    expect(b.choices.map((c: { option: string }) => c.option)).toEqual(["a", "c"]);
+    expect(typeof b.flowId).toBe("string");
+    expect(b.flowStatus).toBe("sebagian");
+  });
+
+  it("alur tunggal (tanpa chain) langsung berstatus selesai di balasannya", async () => {
+    const cookie = await on();
+    leadOutput.raw = verdict({});
+    const r = await app.inject({ method: "POST", url: "/api/lead/decisions", headers: { cookie },
+      payload: askBody() });
+    expect(r.json().flowStatus).toBe("selesai");
+  });
+
+  it("submit menutup alur; menambah langkah sesudahnya ditolak 409", async () => {
+    const cookie = await on();
+    leadOutput.raw = verdict({});
+    const open = await app.inject({ method: "POST", url: "/api/lead/decisions", headers: { cookie },
+      payload: askBody({ chain: true }) });
+    const flowId = open.json().flowId as string;
+
+    const done = await app.inject({ method: "POST", url: `/api/lead/flows/${flowId}/submit`,
+      headers: { cookie }, payload: {} });
+    expect(done.statusCode).toBe(200);
+    expect(done.json().status).toBe("selesai");
+
+    const late = await app.inject({ method: "POST", url: "/api/lead/decisions", headers: { cookie },
+      payload: askBody({ question: "q2", flowId }) });
+    expect(late.statusCode).toBe(409);
+
+    const again = await app.inject({ method: "POST", url: `/api/lead/flows/${flowId}/submit`,
+      headers: { cookie }, payload: {} });
+    expect(again.statusCode).toBe(409);
+  });
+
+  it("cancel menutup alur sebagai `dibatalkan`", async () => {
+    const cookie = await on();
+    leadOutput.raw = verdict({});
+    const open = await app.inject({ method: "POST", url: "/api/lead/decisions", headers: { cookie },
+      payload: askBody({ chain: true }) });
+    const r = await app.inject({ method: "POST", url: `/api/lead/flows/${open.json().flowId}/cancel`,
+      headers: { cookie }, payload: {} });
+    expect(r.json().status).toBe("dibatalkan");
+    expect(r.json().closeReason).toBe("operator");
+  });
+
+  it("GET /lead/flows menyaring per project, GET /lead/decisions?flowId= urut naik", async () => {
+    const cookie = await on();
+    leadOutput.raw = verdict({});
+    const open = await app.inject({ method: "POST", url: "/api/lead/decisions", headers: { cookie },
+      payload: askBody({ chain: true }) });
+    const flowId = open.json().flowId as string;
+    await app.inject({ method: "POST", url: "/api/lead/decisions", headers: { cookie },
+      payload: askBody({ question: "q2", chain: true, flowId }) });
+
+    const flows = await app.inject({ method: "GET", url: "/api/lead/flows?projectId=demo", headers: { cookie } });
+    expect(flows.json().items.some((f: { id: string }) => f.id === flowId)).toBe(true);
+
+    const steps = await app.inject({ method: "GET", url: `/api/lead/decisions?flowId=${flowId}`, headers: { cookie } });
+    expect(steps.json().items.map((d: { question: string }) => d.question)).toEqual(["q1", "q2"]);
+  });
+
+  it("override menerima `choices` dan mengembalikannya di baris baru", async () => {
+    const cookie = await on();
+    leadOutput.raw = verdict({ choice: "b" });
+    const ask = await app.inject({ method: "POST", url: "/api/lead/decisions", headers: { cookie },
+      payload: askBody({ options: ["a", "b", "c"] }) });
+    const r = await app.inject({ method: "POST", url: `/api/lead/decisions/${ask.json().id}/override`,
+      headers: { cookie }, payload: { answer: "pilihan operator", choices: ["a", "c"] } });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().next.choices.map((c: { option: string }) => c.option)).toEqual(["a", "c"]);
+  });
+
+  it("capability endpoint alur turunan METHOD, tanpa peta baru (kelas bug SPEC-405)", () => {
+    expect(capabilityForRoute("GET", "/api/lead/flows")).toBe("lead:read");
+    expect(capabilityForRoute("POST", "/api/lead/flows/x/submit")).toBe("lead:write");
+    expect(checkAgentCapability(["lead:read"], "POST", "/api/lead/flows/x/submit"))
+      .toMatchObject({ ok: false, need: "lead:write" });
   });
 });

@@ -51,6 +51,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 > **Narasi tiap keputusan — apa yang diperluas/dicabut/diamandemen, berikut gotcha-nya — ada di
 > [adr/README.md](adr/README.md).** Daftar di bawah sengaja satu baris per ADR: index ini dibaca
 > setiap sesi agen, sub-index hanya saat butuh riwayatnya (SPEC-386).
+- [0102 — Pilihan lead jamak & rantai keputusan: `LeadFlow` sebagai alur, jawaban selalu daftar](adr/0102-lead-multi-select-dan-rantai-keputusan.md)
 - [0101 — Form Custom Agent berbasis katalog: `runtime` sebagai penyaring, katalog tool turunan konfigurasi MCP](adr/0101-form-custom-agent-katalog-runtime.md)
 - [0100 — Webhook keluar: tap Prisma sebagai satu sumber peristiwa, amplop ber-versi, antrean SQLite](adr/0100-webhook-keluar-peristiwa.md)
 - [0099 — MCP server hanoman: subcommand stdio yang jadi klien REST, katalog tool di `shared`](adr/0099-mcp-server-hanoman.md)

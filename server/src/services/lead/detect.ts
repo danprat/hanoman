@@ -75,7 +75,11 @@ export type DetectDeps = {
   pane: (id: string) => string;
   agentOf: (id: string) => Agent | null;
   exited: (id: string) => boolean;
-  send: (id: string, text: string) => Promise<boolean>;
+  /**
+   * SPEC-485 · pilihan lead ikut sebagai DATA, bukan hanya prosa: dialog `multiSelect` dijawab
+   * dengan mencentang kotaknya, dan label-label inilah yang dipetakan ke nomor baris.
+   */
+  send: (id: string, text: string, choices: string[]) => Promise<boolean>;
   /**
    * SPEC-452 · kosongkan marker keputusan sesudah jawaban mendarat.
    *
@@ -118,7 +122,7 @@ export const prodDetectDeps: DetectDeps = {
   // jawaban otomatis (sesi jatuh ke perilaku hari ini), sementara salah arah membuat lead mengetik
   // ke pane yang sudah tak ada.
   exited: (id) => { try { return getSession(id)?.exited ?? true; } catch { return true; } },
-  send: (id, text) => sendToPane(id, text),
+  send: (id, text, choices) => sendToPane(id, text, 50, choices),
   clearMarker: (file) => { try { writeFileSync(file, ""); } catch { /* marker lenyap = sudah kosong */ } },
   submit: (id) => submitPaneDialog(id),
   sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
@@ -331,7 +335,10 @@ async function runChain(
     // `answer`. Jangan pernah mengetik string kosong ke pane hanya karena saluran itu kosong.
     const sent = deps.delivery(row.id);
     const reply = (sent ? leadReplyText(sent) : "") || row.answer;
-    if (!(await deps.send(s.id, reply)))
+    // SPEC-485 · label opsi terpilih diteruskan apa adanya; `sendToPane` yang memetakannya ke nomor
+    // baris terhadap opsi LAYAR ITU. Dialog non-multi mengabaikannya — jalur SPEC-452/474 utuh.
+    const picked = sent?.choices.map((c) => c.option) ?? [];
+    if (!(await deps.send(s.id, reply, picked)))
       return { acted, done: false, failed: true, reason: "gagal mengetik ke pane" };
     acted = true;
 

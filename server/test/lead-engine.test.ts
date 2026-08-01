@@ -147,3 +147,47 @@ describe("lead engine · dua irama tak boleh saling melaparkan (audit SPEC-432)"
     expect(c.pulse).toBe(2);
   });
 });
+
+// SPEC-485 · ADR-0102 · rantai yang ditinggalkan punya UJUNG. Penyapunya MENUMPANG tick ini —
+// ADR-0024 melarang timer/scheduler baru, dan pola ini sama dengan penguras antrean webhook
+// (ADR-0100) & governor scheduler (ADR-0072).
+describe("lead engine · penyapu rantai kedaluwarsa (SPEC-485)", () => {
+  const expired = [{ id: "f1", projectId: "p", specId: null, sessionId: "s1", title: "q1" }];
+
+  it("menutup rantai kedaluwarsa & menotifikasi sekali per alur", async () => {
+    await setLead(cfg());
+    const seen: string[] = [];
+    const { deps } = counters();
+    await tick(Date.now(), {
+      ...deps,
+      expire: async () => expired,
+      notify: async (_id, title) => { seen.push(title); },
+    });
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatch(/rantai keputusan/i);
+  });
+
+  it("diam saat tak ada yang kedaluwarsa", async () => {
+    await setLead(cfg());
+    const seen: string[] = [];
+    const { deps } = counters();
+    await tick(Date.now(), { ...deps, expire: async () => [], notify: async () => { seen.push("x"); } });
+    expect(seen).toEqual([]);
+  });
+
+  // AC-37 · lead yang mati tak boleh menjatuhkan proses server maupun menghentikan sesi berjalan.
+  it("penyapu yang melempar tak menjatuhkan tick", async () => {
+    await setLead(cfg());
+    const { deps } = counters();
+    await expect(tick(Date.now(), { ...deps, expire: async () => { throw new Error("db mati"); } }))
+      .resolves.toBeUndefined();
+  });
+
+  it("tak menyapu apa pun selagi master switch mati (AC-30)", async () => {
+    await setLead({ ...LEAD_DEFAULTS, enabled: false });
+    let called = 0;
+    const { deps } = counters();
+    await tick(Date.now(), { ...deps, expire: async () => { called++; return []; } });
+    expect(called).toBe(0);
+  });
+});

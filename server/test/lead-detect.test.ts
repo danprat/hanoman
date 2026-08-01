@@ -584,7 +584,9 @@ describe("SPEC-479 · banyak sesi menunggu bersamaan", () => {
 describe("scanAndAnswer · teks jawaban dirakit dari pilihan (SPEC-480)", () => {
   const withDelivery = (d: Partial<LeadDelivery>): Partial<DetectDeps> => ({
     pane: () => ASKQ_PANE,
-    delivery: () => ({ decision: "d", reason: "Redis sudah dipakai modul lain.", reply: "", choice: null, missing: [], ...d }),
+    // SPEC-485 · `choices` adalah bentuk yang berlaku; fixture SPEC-480 memakai `choice` tunggal
+    // dan tetap sah — `leadReplyText` jatuh ke sana saat daftarnya kosong.
+    delivery: () => ({ decision: "d", reason: "Redis sudah dipakai modul lain.", reply: "", choices: [], choice: null, missing: [], ...d }),
   });
 
   it("types the chosen option verbatim instead of the raw prose", async () => {
@@ -606,5 +608,33 @@ describe("scanAndAnswer · teks jawaban dirakit dari pilihan (SPEC-480)", () => 
     const h = harness({ pane: () => ASKQ_PANE, delivery: () => null });
     await scanAndAnswer(h.deps);
     expect(h.sent[0]!.text).toBe("opsi 1");
+  });
+});
+
+// SPEC-485 · ADR-0102 · pilihan lead menyeberang sebagai DATA. Tanpa ini dialog `multiSelect`
+// hanya menerima prosanya dan kotak-kotaknya tetap kosong — maksudnya sampai, pilihannya tidak.
+describe("scanAndAnswer · pilihan diteruskan ke pane (SPEC-485)", () => {
+  it("mengirim label opsi terpilih apa adanya ke `send`", async () => {
+    const seen: string[][] = [];
+    const h = harness({
+      delivery: () => ({
+        decision: "d", reason: "r", reply: "", missing: [],
+        choices: [{ index: 1, option: "alpha" }, { index: 3, option: "gamma" }],
+        choice: { index: 1, option: "alpha" },
+      }) as LeadDelivery,
+      send: async (_id, _text, choices) => { seen.push(choices); return true; },
+    });
+    await scanAndAnswer(h.deps);
+    expect(seen[0]).toEqual(["alpha", "gamma"]);
+  });
+
+  it("saluran pengiriman yang kosong tetap mengirim daftar kosong, bukan undefined", async () => {
+    const seen: string[][] = [];
+    const h = harness({
+      delivery: () => null,
+      send: async (_id, _text, choices) => { seen.push(choices); return true; },
+    });
+    await scanAndAnswer(h.deps);
+    expect(seen[0]).toEqual([]);
   });
 });

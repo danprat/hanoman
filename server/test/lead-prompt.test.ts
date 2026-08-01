@@ -97,3 +97,39 @@ describe("LEAD_DEFAULTS.timeoutSec (audit SPEC-432)", () => {
     expect(LEAD_DEFAULTS.timeoutSec).toBeGreaterThan(306);
   });
 });
+
+// SPEC-485 · ADR-0102 · dua hal yang harus sampai ke agen: BERAPA opsi boleh dipilih (pola anggaran
+// waktu SPEC-432 — batas yang tak diketahui agen adalah batas yang ditabraknya), dan apa yang sudah
+// diputuskan di langkah-langkah rantai ini (keluhan "konteks hilang di antaranya").
+describe("leadPrompt · pilihan jamak & rantai (SPEC-485)", () => {
+  const OPTS = ["alpha", "beta", "gamma"];
+
+  it("menyebut berapa opsi boleh dipilih saat multi, dengan angkanya", () => {
+    const p = leadPrompt({ ...q, options: OPTS }, ctx({ select: { mode: "multi", min: 1, max: 2 } }));
+    expect(p).toContain("`choices`");
+    expect(p).toMatch(/paling sedikit 1/);
+    expect(p).toMatch(/paling banyak 2/);
+  });
+
+  it("tetap menyuruh memilih SATU lewat `choice` saat single (perilaku ADR-0098 utuh)", () => {
+    const p = leadPrompt({ ...q, options: OPTS }, ctx({ select: { mode: "single", min: 0, max: 1 } }));
+    expect(p).toContain("`choice`");
+    // `choices` hanya muncul di contoh blok json (selalu ada, demi kompatibilitas), TIDAK sebagai
+    // perintah — instruksi jamak tak boleh bocor ke pertanyaan single.
+    expect(p).not.toContain("Isi `choices`");
+    expect(p).not.toContain("TIDAK saling eksklusif");
+  });
+
+  it("langkah rantai sebelumnya ikut terbawa, terpisah dari keputusan lain", () => {
+    const p = leadPrompt({ ...q, question: "q2" }, ctx({
+      chainSteps: [{ question: "q1", options: ["a", "b"], picked: ["b"] }],
+    }));
+    expect(p).toContain("Rantai keputusan ini");
+    expect(p).toContain("q1");
+    expect(p).toContain("opsi saat itu: a · b");
+  });
+
+  it("tanpa rantai, blok itu tak muncul sama sekali", () => {
+    expect(leadPrompt(q, ctx())).not.toContain("Rantai keputusan ini");
+  });
+});

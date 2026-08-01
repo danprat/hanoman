@@ -2,7 +2,7 @@
 export { Icon } from "./icon";
 export { Badge, Callout, ProgressBar, StatusPill, Tooltip } from "./components/feedback";
 export { StateBlock } from "./components/state";
-export { Button, IconButton, Input, Select, Checkbox, Switch, MultiSelect } from "./components/forms";
+export { Button, IconButton, Input, Select, Checkbox, Radio, Switch, MultiSelect } from "./components/forms";
 export { Card } from "./components/surfaces";
 export { Tabs } from "./components/ui";
 export { useToast, Toast, Modal, Field, HnTextarea, serverPage, Pager, LIST_SCROLL_STYLE, LIST_SCREEN_STYLE, FIXED_ROW_STYLE } from "./kit";

@@ -263,6 +263,11 @@ export const zLead = z.object({
   // `requestTimeout: 0` (terukur dari `buildApp()`) — tak ada pihak lain yang akan memutus peminta.
   // 0 = tanpa antrean sama sekali: penuh berarti langsung ditolak.
   queueWaitSec: z.number().int().min(0).max(900).default(120),
+  // SPEC-485 · ADR-0102 · umur maksimum satu RANTAI keputusan yang dibiarkan terbuka. Peminta bisa
+  // mati di tengah rantai (sesi ditutup, agen crash); tanpa batas ini alurnya `sebagian` selamanya
+  // dan tak ada yang tahu apakah ia masih ditunggu. Penyapunya menumpang tick lead yang sudah ada —
+  // ADR-0024 melarang timer/scheduler baru.
+  flowTtlMin: z.number().int().min(1).max(1440).default(60),
   // OQ-3 · syarat objektif sebelum lead boleh mengintegrasikan ke branch utama. Default MENYALA:
   // risiko "kode masuk main tanpa mata manusia" diterima sadar, tapi syaratnya tetap terukur.
   requireGreenBeforeIntegrate: z.boolean().default(true),
