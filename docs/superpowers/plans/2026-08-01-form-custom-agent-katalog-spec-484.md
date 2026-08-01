@@ -388,7 +388,7 @@ git commit -m "feat(484): kolom runtime di kontrak zod custom agent + runtimeOf 
 - Consumes: `runtimeOf` (Task 2).
 - Produces: kolom DB `CustomAgent.runtime TEXT NULL`; `FIELDS.customAgent` memuat `"runtime"`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di akhir `server/test/custom-agent-sync.test.ts` (di dalam `describe("wiring sync entitas customAgent", …)`):
 
@@ -416,7 +416,7 @@ import { SYNCED, snapshot, applyPush, __FIELDS } from "../src/services/sync";
 
 (Sesuaikan dengan daftar import yang sudah ada di baris 1–10; tambahkan `__FIELDS` bila belum ada.)
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run:
 ```bash
@@ -424,7 +424,7 @@ TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run -
 ```
 Expected: FAIL — `expected [ … ] to contain 'runtime'`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 `server/prisma/schema.prisma` — tambahkan satu baris setelah `mentions Json?`:
 
@@ -451,7 +451,7 @@ ALTER TABLE "CustomAgent" ADD COLUMN "runtime" TEXT;
   customAgent: ["projectId", "name", "description", "instructions", "tools", "model", "mentions", "runtime", "enabled", "createdAt", "updatedAt"],
 ```
 
-- [ ] **Step 4: Terapkan migration + generate, lalu jalankan test**
+- [x] **Step 4: Terapkan migration + generate, lalu jalankan test**
 
 ```bash
 pnpm --filter ./server exec prisma migrate deploy
@@ -460,7 +460,7 @@ TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run -
 ```
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/prisma/schema.prisma server/prisma/migrations server/src/services/sync.ts server/test/custom-agent-sync.test.ts

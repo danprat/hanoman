@@ -53,7 +53,10 @@ const FIELDS: Record<Entity, string[]> = {
   // ada: `upsert` yang tak menyebut kolom ber-default TETAP berhasil, jadi kolom yang terlewat
   // mendarat sebagai default palsu di tiap client tanpa satu pun error (kelas ADR-0090/0093).
   // `version` tak pernah masuk FIELDS — ia stempel mekanisme sync itu sendiri.
-  customAgent: ["projectId", "name", "description", "instructions", "tools", "model", "mentions", "enabled", "createdAt", "updatedAt"],
+  // SPEC-484 · ADR-0101 · `runtime` ikut: ia menentukan sesi mesin mana yang memakai persona ini,
+  // dan kolom yang terlewat di sini mendarat sebagai default palsu (= "warisi") di setiap mesin
+  // lain tanpa satu pun error.
+  customAgent: ["projectId", "name", "description", "instructions", "tools", "model", "mentions", "runtime", "enabled", "createdAt", "updatedAt"],
   // SPEC-471 · ADR-0095 · SELURUH kolom bermakna ikut. `status`/`specId` termasuk: keputusan
   // triase adalah bagian keadaan yang harus dilihat sama oleh semua mesin — tanpa itu satu
   // mesin bisa menerima ulang issue yang di mesin lain sudah jadi backlog.

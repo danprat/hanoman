@@ -82,6 +82,7 @@ model CustomAgent {
   tools        Json?
   model        String?
   mentions     Json?
+  runtime      String?  // SPEC-484 · ADR-0101 · penyaring mesin sesi; null = ikut sesi induk
   enabled      Boolean  @default(true)
   version      Int      @default(0) // SPEC-213 · version-stamp sync (ADR-0045)
   createdAt    DateTime @default(now())

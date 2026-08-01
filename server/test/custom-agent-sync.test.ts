@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { prisma } from "../src/db";
-import { SYNCED, snapshot, applyPush } from "../src/services/sync";
+import { SYNCED, snapshot, applyPush, __FIELDS } from "../src/services/sync";
 import { PG_ORDER } from "../../cli/src/commands/migrate-pg";
 import { customAgentId } from "@hanoman/shared";
 
@@ -36,7 +36,7 @@ describe("wiring sync entitas customAgent", () => {
     expect(snap).not.toBeNull();
     expect(Object.keys(snap!.data).sort()).toEqual([
       "createdAt", "description", "enabled", "instructions",
-      "mentions", "model", "name", "projectId", "tools", "updatedAt",
+      "mentions", "model", "name", "projectId", "runtime", "tools", "updatedAt",
     ]);
     expect(snap!.data.mentions).toEqual(["lain"]);
     expect(snap!.data.enabled).toBe(false);
@@ -63,5 +63,21 @@ describe("wiring sync entitas customAgent", () => {
     } });
     await prisma.project.delete({ where: { id: "demo" } });
     expect(await prisma.customAgent.count()).toBe(0);
+  });
+
+  // SPEC-484 · GOTCHA ADR-0101 #1 / ADR-0094 gotcha 7 · kolom yang terlewat di FIELDS menyeberang
+  // sebagai DEFAULT PALSU tanpa satu pun error — `upsert` yang tak menyebut kolom nullable tetap
+  // berhasil, jadi agen ber-runtime `codex` akan mendarat sebagai "warisi" di setiap mesin lain.
+  it("runtime ikut FIELDS.customAgent dan menyeberang lewat applyPush", async () => {
+    expect(__FIELDS.customAgent).toContain("runtime");
+    const id = customAgentId(null, "rt");
+    const r = await applyPush("customAgent", id, 0, {
+      projectId: null, name: "rt", description: "d", instructions: "i",
+      tools: null, model: null, mentions: [], runtime: "codex", enabled: true,
+      createdAt: "2026-08-01T00:00:00.000Z", updatedAt: "2026-08-01T00:00:00.000Z",
+    });
+    expect(r.ok).toBe(true);
+    const row = await prisma.customAgent.findUnique({ where: { id } });
+    expect(row?.runtime).toBe("codex");
   });
 });
