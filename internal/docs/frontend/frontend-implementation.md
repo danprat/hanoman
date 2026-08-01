@@ -525,6 +525,28 @@ icon `inbox`; `NotificationBell` per-tipe (icon/warna brass, label "keluhan baru
 `notifTarget` → `{ section: "triage", projectFilter }`. Server menotifikasi **setiap** tiket baru (dedup `key`),
 tersiar lewat grup `notifications` WS existing.
 
+## Settings → Akses AI Agent → MCP server (SPEC-482 · ADR-0099)
+
+`src/src/screens/McpPanel.tsx` dirender **di dalam** `AgentAccessPanel` (tab "Akses AI Agent"), di
+bawah kartu master switch dan daftar token — memasang MCP server dan memberi capability adalah satu
+pekerjaan manusia, dan memisahkannya ke tab lain membuat setengahnya tak pernah terlihat. Dua kartu:
+
+1. **MCP server** — pemilih klien (Claude Code · Claude Desktop · Codex · Cursor/Copilot) yang
+   mengganti bentuk snippet (JSON `mcpServers` / JSON `servers` / TOML `[mcp_servers.hanoman]`),
+   plus sakelar **Mode baca-saja** yang menambahkan `"--read-only"` ke `args`. Host diisi dari
+   `window.location.origin` sehingga snippet selalu menunjuk instance yang sedang dibuka — agent
+   token diterbitkan per-instance. **Token selalu placeholder `hnm_agt_…`**: panel ini memang tak
+   punya aksesnya (server hanya menyimpan sha256), dan batasan SPEC-482 melarang token muncul di
+   contoh pemasangan. Tombol Salin memakai `navigator.clipboard` dengan penanganan gagal yang diam
+   — snippet tetap terlihat dan bisa diblok manual di konteks non-secure.
+2. **Tool yang tersedia** — tabel `nama · mode · capability` yang dirender dari **`MCP_TOOLS`**
+   (`@hanoman/shared`), sumber yang sama dengan runtime MCP. Daftar capability yang ditulis tangan
+   di panel adalah daftar yang akan basi; inilah yang memberi tahu manusia checkbox mana yang perlu
+   dicentang di kartu token tepat di atasnya.
+
+Panel ini **tidak memanggil API sama sekali** — seluruh isinya turunan dari katalog di `shared` dan
+dari `window.location.origin`, jadi ia tak punya state loading/error.
+
 ## Settings → Telegram (SPEC-476 · ADR-0096 · kredensial SPEC-477 · ADR-0097)
 
 Tab Telegram memakai pola Settings existing: state loading/error tidak pernah jatuh ke default yang

@@ -37,6 +37,10 @@ describe("route", () => {
   it("__pack tersembunyi tapi ter-route (perintah rilis dev)", () => {
     expect(route(["__pack", "--out", "tmp"])).toEqual({ cmd: "__pack", args: ["--out", "tmp"] });
   });
+  it("SPEC-482 · mcp adalah perintahnya sendiri, bukan start ber-flag", () => {
+    expect(route(["mcp"]).cmd).toBe("mcp");
+    expect(route(["mcp", "--read-only"]).cmd).toBe("mcp");
+  });
   it("perintah tak dikenal", () => {
     expect(route(["wat"])).toEqual({ cmd: "unknown", args: ["wat"] });
     expect(route(["docs", "wat"])).toEqual({ cmd: "unknown", args: ["docs", "wat"] });

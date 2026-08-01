@@ -6,6 +6,15 @@ ada SSE, tidak ada `/runs`, `/triggers`, maupun `/webhooks` — dicabut bersama 
 WebSocket siar `GET /events/ws` (SPEC-199, ADR-0039) — bukan lagi polling. Terminal PTY punya
 WebSocket per-sesi tersendiri. Endpoint HTTP GET tiap sumber tetap ada untuk paint pertama.
 
+> **MCP adalah KLIEN kontrak ini, bukan permukaan kedua** (SPEC-482 · ADR-0099). `hanoman mcp`
+> memanggil endpoint di dokumen ini lewat HTTP dengan agent token yang sama, jadi tak ada satu pun
+> endpoint yang lahir untuknya dan gate `onRequest` tetap satu-satunya otorisasi. Katalog toolnya
+> ada di `shared/src/mcp-catalog.ts`, dan `server/test/mcp-capability.test.ts` mengikat capability
+> yang dijanjikan tiap tool ke `capabilityForRoute` — kalau peta route→capability berubah dan
+> katalognya tidak, testnya merah. Tool yang **mengeksekusi** (`POST /terminal/sessions`, seluruh
+> `/vps*`) berikut `integrate`, `DELETE /specs/:id`, dan `PATCH /specs/:id {stage}` sengaja **tak
+> punya tool**.
+
 > **Auth (SPEC-169, ADR-0028):** semua endpoint butuh sesi valid (cookie `hn_session`) — gate
 > `onRequest` membalas **401** tanpa sesi. Publik tanpa sesi hanya: `GET /health`,
 > `GET /auth/status`, `POST /auth/login`, `POST /auth/setup`.

@@ -144,6 +144,28 @@ Pakai skill lebih sempit saat task cocok:
   **COOKIE_ONLY** (memegang secret + menentukan ke mana data mengalir), secret terenkripsi lewat
   `secret-box.ts` dan ditampilkan sekali, SSRF diperiksa saat simpan (bentuk + IP literal, **tanpa
   DNS**) dan lagi di **tiap percobaan kirim** (resolve DNS, fail-closed).
+- **MCP server = `hanoman mcp`, KLIEN REST, bukan permukaan kedua** (SPEC-482/ADR-0099, memperluas
+  ADR-0065): subcommand stdio di CLI yang memanggil `/api` dengan agent token yang sama, sehingga
+  gate `onRequest` tetap satu-satunya otorisasi dan route cookie-only tak terjangkau **secara
+  struktural**. **Tanpa endpoint baru, tanpa skema, tanpa migration.** Katalog **17 tool** hidup di
+  `shared/src/mcp-{schema,shape,catalog}.ts` sebagai data murni yang dipakai runtime CLI **dan**
+  panel Settings — dan diikat ke gate oleh `server/test/mcp-capability.test.ts`
+  (`capabilityForRoute(sampleMethod, samplePath) === capability`, plus larangan cookie-only/`/vps`/
+  `/terminal` non-GET). **Tool yang mengeksekusi sengaja tak ada:** `POST /terminal/sessions`,
+  `/vps*`, `integrate`, `DELETE /specs/:id`, `PATCH stage`. Mode `--read-only` **menghilangkan**
+  keempat tool tulis dari `tools/list`, bukan menolaknya saat dipanggil. `MCP_TOOL_SCHEMA_VERSION`
+  aditif-dalam-versi, dijaga test snapshot. **Tiga gotcha wajib:** (1) **stdout milik JSON-RPC** —
+  perintah `mcp` tak pernah memanggil `ctx.stdout`, satu byte diagnostik di sana merusak protokol
+  dan klien melaporkannya sebagai "server rusak" tanpa sebab; (2) `allOf`/`if`/`then` di JSON Schema
+  **ditegakkan validator SDK**, jadi `source:"qa"` + payload brief ditolak **di klien** dan 400
+  `"bentuk payload tak cocok dengan source"` tak pernah lahir — itulah cara "agen dibimbing ke
+  panggilan yang sah" benar-benar bekerja; (3) **401 telanjang tak bisa dibedakan** antara host
+  salah / master switch mati / token dicabut → probe `GET /api/health` (PUBLIC, tanpa auth) sekali
+  lalu di-cache adalah satu-satunya pemisah "host salah" dari "token salah". Selain itu: `GET
+  /specs/:id` **tidak ada** (backlog_get mencocokkan id persis atas `q` yang substring), `startable`
+  diekspos **boolean** (`false` menghilangkan parameternya — string selain `"true"` diabaikan senyap
+  oleh server), token **tak pernah dari flag** (ARGV terbaca `ps`, SPEC-402), redaksi di **satu**
+  titik keluar (SPEC-472), dan pemotongan balasan **wajib tetap JSON sah**.
 - Docs SoT & coverage dipindai **live dari path efektif** tiap request (ADR-0011/0018), bukan tabel DB.
 - Verifikasi doc terkini via Context7 sebelum mengubah keputusan platform/framework.
 

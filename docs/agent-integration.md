@@ -2,7 +2,7 @@
 
 Beri **AI agent eksternal** kendali penuh atas hanoman lewat **agent token** + **capability per-domain**. Seluruh permukaan fitur hanoman sudah berupa REST API di bawah `/api` (projects, backlog, sesi/terminal, docs, ide/git, vps, settings, errors, help/tiket, notifikasi) — dashboard React hanyalah satu klien. Agen memakai API yang sama, hanya jalur auth-nya berbeda: **`Authorization: Bearer <token>`** ketimbang cookie sesi.
 
-> Tak ada SDK/MCP khusus (belum) — agen cukup HTTP client apa pun. Akses dibuka **oleh manusia** di Settings; tanpa itu, semua token ditolak.
+> Ada **MCP server resmi** sejak SPEC-482 · ADR-0099 — lihat **§8**. Agen yang tak berbicara MCP tetap bisa memakai HTTP client apa pun. Akses dibuka **oleh manusia** di Settings; tanpa itu, semua token ditolak.
 
 ## 1. Nyalakan akses & buat token (manusia, sekali)
 
@@ -130,6 +130,79 @@ Endpoint & payload lengkap: lihat **API contract** (`internal/docs/architecture/
 - Beri capability **seminimal** mungkin. `sessions:write` (spawn `claude --dangerously-skip-permissions`) dan `vps:write` (remote exec) adalah RCE efektif — batas eksekusi sesungguhnya tetap **isolasi git worktree** (ADR-0037), tapi tetap tandai high-risk.
 - `lastUsedAt` per token = jejak audit ringan. Matikan master switch untuk kill-switch seluruh workspace.
 
+## 8. MCP server (SPEC-482 · ADR-0099)
+
+Agen yang berbicara **MCP** tak perlu menulis pembungkus sendiri. `hanoman mcp` adalah MCP server
+**stdio** yang membungkus permukaan REST di atas sebagai **17 tool**. Ia memakai **agent token dan
+capability yang sama** — bukan jalur otorisasi baru — jadi seluruh aturan §3–§5 berlaku apa adanya.
+
+Prasyarat: `npm i -g hanoman` di mesin tempat klien AI-nya jalan.
+
+**Claude Code / Claude Desktop / Cursor / Copilot** (`~/.claude.json`,
+`claude_desktop_config.json`, `~/.cursor/mcp.json`, `.vscode/mcp.json` — Cursor & Copilot memakai
+kunci `"servers"` alih-alih `"mcpServers"`):
+
+```json
+{
+  "mcpServers": {
+    "hanoman": {
+      "command": "hanoman",
+      "args": ["mcp"],
+      "env": {
+        "HANOMAN_HOST": "https://hanoman.example",
+        "HANOMAN_AGENT_TOKEN": "hnm_agt_…"
+      }
+    }
+  }
+}
+```
+
+**Codex** (`~/.codex/config.toml`):
+
+```toml
+[mcp_servers.hanoman]
+command = "hanoman"
+args = ["mcp"]
+env = { HANOMAN_HOST = "https://hanoman.example", HANOMAN_AGENT_TOKEN = "hnm_agt_…" }
+```
+
+Panduan siap salin untuk keempat klien, berikut tabel tool → capability, ada di dashboard:
+**Settings → Akses AI Agent → MCP server**.
+
+### Tool
+
+| Tool | Mode | Capability |
+|---|---|---|
+| `hanoman_about` | baca | — (tak memanggil `/api` selain `/health`) |
+| `hanoman_projects_list`, `hanoman_project_get` | baca | `projects:read` |
+| `hanoman_backlog_search`, `hanoman_backlog_get`, `hanoman_backlog_docs_list`, `hanoman_backlog_doc_read` | baca | `backlog:read` |
+| `hanoman_sessions_list` | baca | `sessions:read` |
+| `hanoman_notifications_list` | baca | `notifications:read` |
+| `hanoman_tickets_list`, `hanoman_ticket_get`, `hanoman_github_issues_list` | baca | `support:read` |
+| `hanoman_lead_decisions_list` | baca | `lead:read` |
+| `hanoman_backlog_create`, `hanoman_backlog_update` | tulis | `backlog:write` |
+| `hanoman_notifications_mark_read` | tulis | `notifications:write` |
+| `hanoman_lead_ask` | tulis | `lead:write` |
+
+### Yang sengaja TIDAK tersedia lewat MCP
+
+Membuat sesi terminal (`POST /terminal/sessions` — menjalankan agen di worktree, RCE efektif) dan
+seluruh `/api/vps*` (remote exec) **tidak ikut**, begitu pula merge/rebase (`integrate`), penghapusan
+backlog, dan perubahan `stage`. Batasan ini ada di katalog toolnya, bukan di token: token yang punya
+`sessions:write` sekalipun tak akan menemukan tool untuk memakainya.
+
+### Opsi
+
+| Variabel / flag | Arti |
+|---|---|
+| `HANOMAN_HOST` / `--host <url>` | **Wajib.** Instance yang dituju. Agent token diterbitkan per-instance — token dari instance lain selalu 401 di sini, dan MCP server menjelaskannya, bukan meneruskan 401 telanjang. |
+| `HANOMAN_AGENT_TOKEN` | **Wajib.** Hanya dari env atau `~/.hanoman/agent-token` — **tak pernah** dari argumen baris perintah (ARGV terbaca proses lain di mesin yang sama). |
+| `HANOMAN_MCP_READ_ONLY=1` / `--read-only` | Menyembunyikan seluruh tool tulis dari `tools/list`. |
+| `HANOMAN_MCP_MAX_BYTES` / `--max-bytes <n>` | Plafon ukuran balasan tool. Default 24576. Balasan yang dipotong ditandai `truncated: true` + `shown`/`total`. |
+
+Skema tool berversi (`MCP_TOOL_SCHEMA_VERSION`, saat ini **1**) dan aditif dalam satu versi:
+menambah tool tak mematahkan klien lama.
+
 ---
 
-*Doc-of-record fitur: [ADR-0065](../internal/docs/adr/0065-ai-agent-capability-agent-token.md). Untuk error monitoring project (bukan agent control), lihat [`hanoman-sdk`](../sdk/README.md).*
+*Doc-of-record fitur: [ADR-0065](../internal/docs/adr/0065-ai-agent-capability-agent-token.md) dan, untuk permukaan MCP, [ADR-0099](../internal/docs/adr/0099-mcp-server-hanoman.md).*

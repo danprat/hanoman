@@ -1,0 +1,52 @@
+// SPEC-482 · ADR-0099 · katalog MCP TIDAK boleh menjanjikan capability yang berbeda dari yang
+// benar-benar ditegakkan gate `onRequest`. Peta route→capability hidup di server; katalognya di
+// shared. Test ini satu-satunya tempat keduanya bertemu — tanpa ini, mengubah salah satu diam-diam
+// membuat panel Settings menyuruh manusia mencentang capability yang salah.
+import { describe, expect, it } from "vitest";
+import { MCP_TOOLS } from "@hanoman/shared";
+import { capabilityForRoute } from "../src/services/agent-capabilities";
+
+const withApi = (p: string) => `/api${p}`;
+
+describe("kontrak capability katalog MCP", () => {
+  it("capability yang dijanjikan katalog == yang ditegakkan capabilityForRoute", () => {
+    for (const t of MCP_TOOLS) {
+      if (t.capability === null) continue;
+      expect(capabilityForRoute(t.sampleMethod, withApi(t.samplePath)), t.name).toBe(t.capability);
+    }
+  });
+
+  it("tak ada tool yang mendarat di route cookie-only atau route tak dikenal", () => {
+    for (const t of MCP_TOOLS) {
+      if (t.capability === null) continue;
+      const r = capabilityForRoute(t.sampleMethod, withApi(t.samplePath));
+      expect(r, t.name).not.toBe("COOKIE_ONLY");
+      expect(r, t.name).not.toBeNull();
+    }
+  });
+
+  it("hanoman_about hanya menyentuh /api/health yang memang GLOBAL_READ", () => {
+    expect(capabilityForRoute("GET", "/api/health")).toBe("GLOBAL_READ");
+  });
+
+  it("tak ada tool yang bisa menjalankan sesi atau menyentuh VPS", () => {
+    for (const t of MCP_TOOLS) {
+      expect(t.samplePath, t.name).not.toMatch(/^\/vps/);
+      if (t.samplePath.startsWith("/terminal")) expect(t.sampleMethod, t.name).toBe("GET");
+    }
+    // Kontrol positif: kalau seseorang menambahkannya kelak, peta memang menuntut sessions:write.
+    expect(capabilityForRoute("POST", "/api/terminal/sessions")).toBe("sessions:write");
+    expect(capabilityForRoute("POST", "/api/vps/1/run")).toBe("vps:write");
+  });
+
+  it("tak ada tool yang bisa merge/rebase, menghapus backlog, atau memundurkan stage", () => {
+    for (const t of MCP_TOOLS) {
+      expect(t.samplePath, t.name).not.toMatch(/integrate/);
+      expect(["GET", "POST", "PATCH"], t.name).toContain(t.sampleMethod);
+    }
+    const update = MCP_TOOLS.find((t) => t.name === "hanoman_backlog_update")!;
+    const body = update.build({ spec: "SPEC-1", title: "x", stage: "objective", confirmDelete: true })?.body as Record<string, unknown>;
+    expect(body.stage).toBeUndefined();
+    expect(body.confirmDelete).toBeUndefined();
+  });
+});
