@@ -2046,7 +2046,7 @@ git commit -m "docs(492): kontrak command runtime Telegram + blok telegram.engin
 
 **Files:** —
 
-- [ ] **Step 1: Jalankan seluruh test yang tersentuh perubahan ini**
+- [x] **Step 1: Jalankan seluruh test yang tersentuh perubahan ini**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --no-file-parallelism \
@@ -2068,14 +2068,14 @@ env -u NODE_ENV ./node_modules/.bin/vitest run --dir src \
 ```
 Expected: PASS.
 
-- [ ] **Step 2: Typecheck paket yang tersentuh**
+- [x] **Step 2: Typecheck paket yang tersentuh**
 
 ```bash
 pnpm --filter ./shared typecheck && pnpm --filter ./runner typecheck && pnpm --filter ./server typecheck
 ```
 Expected: keluar 0 ketiganya. (Jangan `pnpm -r typecheck` — mesin ini menjalankan beberapa sesi.)
 
-- [ ] **Step 3: Smoke nyata endpoint yang tersentuh (sekali, di akhir)**
+- [x] **Step 3: Smoke nyata endpoint yang tersentuh (sekali, di akhir)**
 
 Task ini menyentuh `GET`/`PUT /api/settings`, jadi endpoint-nya diuji nyata — DB khusus, port
 bukan 8787 (dipakai instance dev):
@@ -2103,14 +2103,14 @@ Matikan server **per-PID** (JANGAN `pkill -f`):
 lsof -ti:8799 | xargs -r kill
 ```
 
-- [ ] **Step 4: Pastikan semua kotak plan tercentang**
+- [x] **Step 4: Pastikan semua kotak plan tercentang**
 
 ```bash
 /usr/bin/grep -c '^\- \[ \]' docs/superpowers/plans/2026-08-02-spec-492-telegram-engine.md
 ```
 Expected: `0`. hanoman menahan backlog di `executing` selama masih ada `- [ ]`.
 
-- [ ] **Step 5: Commit & push**
+- [x] **Step 5: Commit & push**
 
 ```bash
 git add -A docs/superpowers/plans/2026-08-02-spec-492-telegram-engine.md
@@ -2127,3 +2127,36 @@ git push origin HEAD:refs/heads/hanoman/spec-492
 Task 5 (parser murni) mendahului Task 4 karena `TelegramSessionCoordinatorDeps.engine` memakai
 tipe `EngineContext` miliknya; Task 3 sesudah Task 4/5 karena `telegramSessionDeps` menyebut
 `telegramEngineContext` dan `killSession`.
+
+
+---
+
+## Catatan pelaksanaan (2026-08-02)
+
+**Yang terbukti hijau** (dijalankan, bukan diperkirakan):
+
+- `shared` + `runner` + `server`, 19 berkas test, **199/199 lulus**
+  (`TEST_DATABASE_URL` sendiri + `--no-file-parallelism`).
+- `web`, 8 berkas test settings, **40/40 lulus** (`env -u NODE_ENV`).
+- Typecheck **4 paket tersentuh** (`shared`, `runner`, `server`, `@hanoman/app`) — `tsc --noEmit`
+  keluar 0 keempatnya.
+- Smoke nyata di `127.0.0.1:8799` dengan DB khusus:
+  `GET /api/settings` → `telegram.engine = {enabled:false, agent:"claude", model:"claude-opus-5",
+  effort:"xhigh"}`; `PUT /api/settings` dengan engine berubah → **200**, dan `GET` berikutnya
+  mengembalikan `{enabled:true, agent:"claude", model:"claude-haiku-4-5", effort:"low"}` (AC-1, AC-5).
+  Gerbang reload: `PUT` yang hanya mengubah `engine` **tak mengubah** `readiness`
+  (`misconfigured` → `misconfigured`), sementara `PUT` yang mengubah `telegram.enabled` **memicu**
+  reload (`misconfigured` → `disabled`) — jadi perilaku lama utuh.
+
+**Jebakan yang tertabrak saat smoke, dicatat karena akan terulang:** env sesi hanoman membawa
+`DATABASE_URL=file:~/.hanoman/hanoman.db`, dan **ia mengalahkan `HANOMAN_HOME`** (`resolveDbUrl`
+mendahulukan `DATABASE_URL` eksplisit). Boot pertama karena itu menempel ke **DB live** — terbaca dari
+`config: nilai 'HANOMAN_TELEGRAM_BOT_TOKEN' tak bisa didekripsi` (baris `RuntimeConfig` sungguhan
+dienkripsi `secret.key` lain). Tak ada tulisan yang terjadi (hanya `GET /api/health`); prosesnya
+dimatikan **per-PID** lalu diulang dengan `DATABASE_URL` eksplisit ke DB smoke, dan log-nya bersih.
+Sesuai catatan SPEC-447.
+
+**Batas jujur:** AC-9 (`PUT` engine-saja tak memicu `reloadTelegramGateway()`) dibuktikan **unit test
+murni** `telegramReloadNeeded` — `misconfigured → misconfigured` di smoke bukan pembeda yang ketat
+karena reload pun akan menghitung nilai yang sama. Yang smoke buktikan adalah gerbangnya masih
+menyala untuk perubahan non-engine.
