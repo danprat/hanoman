@@ -11,6 +11,7 @@ import { CustomAgentsPanel } from "./CustomAgentsPanel";
 import { WebhooksPanel } from "./WebhooksPanel";
 import { WebhookDocs } from "./WebhookDocs";
 import { McpPanel } from "./McpPanel";   // SPEC-482 · ADR-0099 · pemasangan MCP siap salin
+import { AgentDocCard } from "./AgentDocCard";   // SPEC-489 · halaman dokumentasi AI Agent
 
 // SPEC-383 · katalog claude dibaca dari @hanoman/shared — sumber yang SAMA dengan picker Start
 // (App.tsx). Sebelumnya tab ini menyalinnya (`S_MODELS`/`S_EFFORT` + komentar "keep in sync"),
@@ -396,15 +397,13 @@ export function AgentAccessPanel({ onToast }: { onToast?: ShowToast } = {}) {
 
   return (
     <>
+      {/* SPEC-489 · panduannya mendahului tokennya: baca dulu, baru buat kredensial. */}
+      <AgentDocCard onToast={onToast} />
+
       <Card eyebrow="ai agent" title="Akses AI Agent">
         <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.5 }}>
           Beri AI agent eksternal kendali hanoman lewat token (header <code>Authorization: Bearer</code>).
           Tiap fitur dibuka per <b>capability</b>. Selagi master switch mati, semua token ditolak.
-        </div>
-        <div style={{ marginBottom: 12 }}>
-          <a href="https://github.com/denameidina/hanoman/blob/main/docs/agent-integration.md" target="_blank" rel="noreferrer">
-            <Button size="sm" variant="ghost" leftIcon="book-open">Dokumentasi integrasi</Button>
-          </a>
         </div>
         <SettingRow title="Aktifkan akses AI agent" last
           desc="Master switch. Nonaktif → semua agent token 401, apa pun capability-nya.">

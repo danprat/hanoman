@@ -26,6 +26,9 @@ export const paths = {
   limits: `${API}/limits`,
   // SPEC-339 · versi codex CLI (peringatan lunak model GPT-5.6).
   codexVersion: `${API}/codex/version`,
+  // SPEC-489 · panduan AI agent — markdown MENTAH & PUBLIC (tanpa auth). Satu definisi URL untuk
+  // klien web dan untuk tautan yang disalin operator ke agennya.
+  agentDoc: `${API}/agent-integration.md`,
   docs: (id: string) => `${API}/projects/${id}/docs`,
   docFile: (id: string, path: string) => `${API}/projects/${id}/docs/${path}`,
   // SPEC-210 · dokumen PRD project (freshest-wins: worktree sesi prd hidup > repoDir)

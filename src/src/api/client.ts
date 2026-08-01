@@ -207,6 +207,14 @@ export const api = {
     paths.download(paths.ideCommitFile(id, sha, path), fmt),
   ideCompareFileDownloadUrl: (id: string, from: string, to: string, path: string, fmt: "md" | "pdf") =>
     paths.download(paths.ideCompareFile(id, from, to, path), fmt),
+  // SPEC-489 · naskah panduan AI agent — teks MENTAH, bukan JSON (`j()` akan mencoba mem-parse
+  // dan gagal). Sengaja tanpa header auth: endpointnya publik, dan itulah yang membuat "cukup
+  // diberi tautan" benar-benar berlaku.
+  agentDoc: async (): Promise<string> => {
+    const res = await fetch(paths.agentDoc, { headers: { accept: "text/markdown" } });
+    if (!res.ok) throw new ApiError(res.status, `GET ${paths.agentDoc} → ${res.status}`);
+    return res.text();
+  },
   // SPEC-340 · ADR-0076 · rekomendasi tindak lanjut audit (turunan dokumen audit, bukan kolom DB).
   getEscalation: (id: string) => j<AuditEscalationView>(paths.specEscalation(id)),
   putDoc: (id: string, path: string, content: string) =>
