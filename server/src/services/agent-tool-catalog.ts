@@ -30,13 +30,23 @@ const serversOf = (node: unknown): string[] => {
   return Object.keys(ms as Record<string, unknown>);
 };
 
-/** Nama seksi `[mcp_servers.<name>]` di config.toml. Regex, bukan parser TOML — nol dependensi. */
+/**
+ * Nama seksi `[mcp_servers.<name>]` di config.toml. Regex, bukan parser TOML — nol dependensi.
+ *
+ * GOTCHA terukur: satu server boleh punya SUB-TABEL (`[mcp_servers.context7.http_headers]`,
+ * `[mcp_servers.node_repl.env]`), dan pola yang mengizinkan titik di dalam nama melahirkan
+ * "server" palsu `context7.http_headers` — entri katalog `mcp__context7.http_headers__*` yang
+ * TAK PERNAH BISA ADA. Itu tepat kelas kegagalan yang spec ini tutup: menawarkan pilihan yang
+ * tidak melakukan apa-apa. Karena itu segmen tak berkutip berhenti di titik pertama, dan sisanya
+ * (`(?:\.[^\]]*)?`) sengaja dibuang. Nama ber-titik yang SUNGGUHAN wajib berkutip di TOML, dan
+ * cabang berkutip menangkapnya utuh.
+ */
 const codexServers = (): string[] => {
   let text: string;
   try { text = readFileSync(join(home(), ".codex", "config.toml"), "utf8"); }
   catch { return []; }
   const out: string[] = [];
-  for (const m of text.matchAll(/^\s*\[mcp_servers\.(?:"([^"]+)"|([A-Za-z0-9_.-]+))\]/gm)) {
+  for (const m of text.matchAll(/^\s*\[mcp_servers\.(?:"([^"]+)"|([A-Za-z0-9_-]+))(?:\.[^\]]*)?\]/gm)) {
     const name = m[1] ?? m[2];
     if (name) out.push(name);
   }

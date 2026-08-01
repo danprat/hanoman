@@ -111,7 +111,14 @@ mulai berbeda.
 4. **Validasi model bergantung pada runtime EFEKTIF**, yaitu `payload.runtime` bila ada, selain itu
    nilai baris yang tersimpan. Memakai `payload.runtime ?? null` membuat setiap `PATCH { model }`
    pada agen ber-runtime `codex` divalidasi terhadap gabungan katalog dan lolos untuk model claude.
-5. **Migration ditulis tangan lalu `migrate deploy`.** `migrate dev` me-reset DB di bawah drift
+5. **Sub-tabel TOML BUKAN server.** Terukur saat smoke pada `~/.codex/config.toml` nyata: satu
+   server boleh punya sub-tabel (`[mcp_servers.context7.http_headers]`, `[mcp_servers.node_repl.env]`),
+   dan regex yang mengizinkan titik di dalam nama melahirkan "server" palsu `context7.http_headers`
+   → entri katalog `mcp__context7.http_headers__*` yang **tak pernah bisa ada**. Itu tepat kelas
+   kegagalan yang ADR ini tutup — pilihan yang tidak melakukan apa-apa — hanya saja lahir dari sisi
+   hanoman. Segmen tak berkutip karena itu berhenti di titik pertama; nama ber-titik yang sungguhan
+   wajib berkutip di TOML dan ditangkap cabang berkutip. Sebelum perbaikan: 10 "server"; sesudah: 8.
+6. **Migration ditulis tangan lalu `migrate deploy`.** `migrate dev` me-reset DB di bawah drift
    worktree tetangga, dan berkas DB itu dibagi seluruh worktree lewat `HANOMAN_HOME` (SPEC-479).
    `ALTER TABLE … ADD COLUMN "runtime" TEXT;` sah di SQLite justru karena kolomnya **nullable tanpa
    default** — larangan `DEFAULT CURRENT_TIMESTAMP` (ADR-0090) tak berlaku di sini.

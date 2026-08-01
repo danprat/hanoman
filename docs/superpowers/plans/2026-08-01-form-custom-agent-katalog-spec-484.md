@@ -1907,7 +1907,7 @@ git add internal/docs internal/skills
 git commit -m "docs(484): data-model, api-contract, design-system, SKILL untuk katalog custom agent"
 ```
 
-- [ ] **Step 4: Smoke endpoint nyata (sekali di akhir)**
+- [x] **Step 4: Smoke endpoint nyata (sekali di akhir)**
 
 ```bash
 export HANOMAN_HOME="$(mktemp -d)"
@@ -1929,9 +1929,20 @@ Expected:
 - POST pertama: `201` ber-`"runtime":"codex"`.
 - POST kedua: `400` ber-`"unknownTools":["read"]`.
 
+**Hasil sebenarnya (2026-08-01).** Semuanya sesuai, plus dua yang sengaja diuji tambahan:
+`PATCH {enabled:false}` pada baris ber-nilai warisan → **200**, dan `PATCH {runtime:"claude"}`
+sendirian pada agen ber-model `gpt-5.6-sol` → **400** (gotcha #4 menembak in-vivo). **Satu bug
+ditemukan justru di sini:** katalog memuat `mcp__context7.http_headers__*` dan
+`mcp__node_repl.env__*` — sub-tabel TOML (`[mcp_servers.context7.http_headers]`) terbaca sebagai
+server. Diperbaiki + dijaga dua test regresi; 10 → **8** server sesudahnya.
+
+**Gotcha smoke:** `DATABASE_URL` menang atas `HANOMAN_HOME` — tanpa menyetelnya eksplisit,
+`migrate deploy` mengenai `~/.hanoman/hanoman.db` yang NYATA. Server juga menegakkan auth, jadi
+smoke perlu `POST /api/auth/setup` + cookie jar lebih dulu.
+
 Bila ada yang tak sesuai, perbaiki sampai hijau **sebelum** melanjutkan.
 
-- [ ] **Step 5: Verifikasi scope-terbatas terakhir + commit penutup**
+- [x] **Step 5: Verifikasi scope-terbatas terakhir + commit penutup**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" env -u NODE_ENV \
@@ -1942,6 +1953,12 @@ pnpm --filter ./server typecheck && pnpm --filter ./src typecheck && pnpm --filt
 Expected: seluruh test yang tersentuh LULUS (pastikan jumlahnya **bukan nol** — `--changed`
 menyalakan `passWithNoTests`, jadi "no test files" terlihat hijau padahal tak menguji apa pun),
 typecheck ketiga paket bersih.
+
+**Hasil sebenarnya:** **2411/2412 lulus** (279 berkas). Satu-satunya merah `update.route.test.ts`
+(`canApply: true` vs `false`) adalah **gagal palsu** yang sudah terdokumentasi di SPEC-450:
+`HANOMAN_SUPERVISOR=1` bocor ke env sesi. Dijalankan ulang dengan `env -u HANOMAN_SUPERVISOR` →
+**8/8 lulus**. Typecheck `shared`/`server`/`src`/`runner` bersih (satu perbaikan: fabrikator
+`CustomAgent` di `shared/test/custom-agent.test.ts` wajib menyebut `runtime`).
 
 ```bash
 git add -A

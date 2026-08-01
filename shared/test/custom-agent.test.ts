@@ -13,6 +13,7 @@ const agent = (o: Partial<CustomAgent> & { name: string }): CustomAgent => ({
   instructions: o.instructions ?? "i",
   tools: o.tools ?? null,
   model: o.model ?? null,
+  runtime: o.runtime ?? null,
   mentions: o.mentions ?? null,
   enabled: o.enabled ?? true,
   createdAt: "2026-08-01T00:00:00.000Z",

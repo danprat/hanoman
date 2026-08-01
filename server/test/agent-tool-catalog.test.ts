@@ -52,6 +52,24 @@ describe("mcpServerNames", () => {
     expect(mcpServerNames()).toEqual(["linear", "zread"]);
   });
 
+  // Terukur pada `~/.codex/config.toml` nyata saat smoke SPEC-484: sub-tabel milik satu server
+  // (`[mcp_servers.context7.http_headers]`) melahirkan "server" palsu `context7.http_headers`,
+  // yakni entri katalog `mcp__context7.http_headers__*` yang tak pernah bisa ada — persis kelas
+  // kegagalan yang spec ini tutup (menawarkan pilihan yang tidak melakukan apa-apa).
+  it("SUB-TABEL server bukan server tersendiri", () => {
+    mkdirSync(join(home, ".codex"), { recursive: true });
+    writeFileSync(join(home, ".codex", "config.toml"),
+      `[mcp_servers.context7]\ncommand = "npx"\n\n[mcp_servers.context7.http_headers]\nX = "1"\n\n` +
+      `[mcp_servers.node_repl]\ncommand = "npx"\n\n[mcp_servers.node_repl.env]\nA = "b"\n`);
+    expect(mcpServerNames()).toEqual(["context7", "node_repl"]);
+  });
+
+  it("nama ber-titik yang SUNGGUHAN (berkutip di TOML) tetap utuh", () => {
+    mkdirSync(join(home, ".codex"), { recursive: true });
+    writeFileSync(join(home, ".codex", "config.toml"), `[mcp_servers."my.server"]\ncommand = "npx"\n`);
+    expect(mcpServerNames()).toEqual(["my.server"]);
+  });
+
   it("dedup lintas sumber & urut deterministik", () => {
     writeFileSync(join(home, ".claude.json"), JSON.stringify({ mcpServers: { zread: {}, context7: {} } }));
     writeFileSync(join(repo, ".mcp.json"), JSON.stringify({ mcpServers: { context7: {}, alpha: {} } }));
