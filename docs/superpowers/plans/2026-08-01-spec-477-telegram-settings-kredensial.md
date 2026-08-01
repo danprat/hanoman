@@ -40,7 +40,7 @@
   - `encryptSecret(plain: string): string` / `decryptSecret(value: string): string | null` — pembungkus yang memakai `secretKey()`
   - `resetSecretKeyCache(): void` — untuk test
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `server/test/secret-box.test.ts`:
 
@@ -90,12 +90,12 @@ describe("secret-box (SPEC-477)", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `./node_modules/.bin/vitest run --no-file-parallelism server/test/secret-box.test.ts`
 Expected: FAIL — `Failed to resolve import "../src/services/secret-box"`
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Create `server/src/services/secret-box.ts`:
 
@@ -190,12 +190,12 @@ export function encryptSecret(plain: string): string { return encryptWithKey(pla
 export function decryptSecret(value: string): string | null { return decryptWithKey(value, secretKey()); }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `./node_modules/.bin/vitest run --no-file-parallelism server/test/secret-box.test.ts`
 Expected: PASS — 7 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/secret-box.ts server/test/secret-box.test.ts
