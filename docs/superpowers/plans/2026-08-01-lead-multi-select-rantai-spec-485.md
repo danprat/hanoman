@@ -1447,7 +1447,7 @@ git commit -m "feat(485): endpoint rantai keputusan + validasi select di server"
 - Produces: `LeadTickDeps.expire?: (now: Date) => Promise<{ id: string; projectId: string; specId: string | null; sessionId: string | null; title: string }[]>`
   dan `LeadTickDeps.notify?` — keduanya disuntikkan supaya penyapu teruji tanpa DB nyata.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan ke `server/test/lead-engine.test.ts`:
 
@@ -1474,14 +1474,14 @@ it("SPEC-485 · penyapu yang melempar tak menjatuhkan tick (AC-37)", async () =>
 
 (`stubDetect`/`stubPulse` sudah ada di berkas itu; kalau namanya berbeda, pakai helper yang ada.)
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --no-file-parallelism server/test/lead-engine.test.ts
 ```
 Expected: FAIL — `expire` bukan properti `LeadTickDeps`, `seen` kosong.
 
-- [ ] **Step 3: Implementasi di `engine.ts`**
+- [x] **Step 3: Implementasi di `engine.ts`**
 
 Tambah import:
 
@@ -1517,14 +1517,14 @@ Di `tick()`, sesudah blok `busyDetect` (dan sebelum blok denyut), tambahkan:
   })().catch((e) => { console.error("lead expire:", e); }));
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --no-file-parallelism server/test/lead-engine.test.ts
 ```
 Expected: PASS, termasuk test irama SPEC-432 yang sudah ada.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/lead/engine.ts server/test/lead-engine.test.ts

@@ -1,6 +1,8 @@
 import { getLead } from "./config";
 import { scanAndAnswer, prodDetectDeps, type DetectDeps } from "./detect";
 import { pulse, prodPulseDeps, type PulseDeps } from "./pulse";
+import { expireFlows } from "./flow";
+import { recordLeadDecision } from "../notifications";
 
 // SPEC-409 · ADR-0091 · AC-12 · denyut hanoman-lead: `setInterval` di dalam proses server, cermin
 // engine scheduler (ADR-0072) dan monitor VPS. TANPA message queue, worker terpisah, atau cron
@@ -39,6 +41,13 @@ export type LeadTickDeps = {
   pulse?: PulseDeps;
   /** Jam untuk menstempel AKHIR denyut. Di-inject agar jeda "sejak selesai" teruji deterministik. */
   now?: () => number;
+  /**
+   * SPEC-485 · ADR-0102 · penyapu RANTAI yang ditinggalkan. Ia MENUMPANG tick ini, bukan membuat
+   * `setInterval` sendiri — ADR-0024 melarang timer/scheduler baru, dan pola ini sama dengan
+   * penguras antrean webhook (ADR-0100) & governor scheduler (ADR-0072).
+   */
+  expire?: (now: Date) => Promise<{ id: string; projectId: string; specId: string | null; sessionId: string | null; title: string }[]>;
+  notify?: (id: string, title: string, projectId: string, specId: string | null, sessionId: string | null) => Promise<void>;
 };
 
 /**
@@ -72,6 +81,20 @@ export async function tick(now: number, deps: LeadTickDeps = {}): Promise<void> 
       .catch((e) => { console.error("lead detect:", e); })
       .finally(() => { busyDetect = false; }));
   }
+
+  // SPEC-485 · penyapu rantai kedaluwarsa. Murah (satu query berindeks `status`), jadi ia ikut
+  // irama 5 detik TANPA penjaga re-entrancy sendiri: `expireFlows` idempoten — `closeFlow`
+  // melewatkan alur yang sudah tertutup, jadi dua putaran yang berpapasan tak saling merusak.
+  // Ia sengaja TIDAK digerbangi `cfg.paused`: Pause menghentikan keputusan BARU (AC-27), sementara
+  // ini justru menutup alur yang sudah tak akan pernah dijawab siapa pun.
+  jobs.push((async () => {
+    const expire = deps.expire ?? expireFlows;
+    const notify = deps.notify ?? recordLeadDecision;
+    for (const f of await expire(new Date())) {
+      await notify(f.id, `Rantai keputusan lead ditutup karena kedaluwarsa: ${f.title.slice(0, 80)}`,
+        f.projectId, f.specId, f.sessionId);
+    }
+  })().catch((e) => { console.error("lead expire:", e); }));
 
   // Rem darurat: denyut proaktif ikut diam saat Pause. Pintu deteksi punya gerbangnya sendiri.
   if (!cfg.paused && !busyPulse && now - Math.max(lastPulseAt, pulseEndedAt) >= cfg.everyMin * 60_000) {
