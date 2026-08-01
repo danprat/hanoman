@@ -7,7 +7,7 @@
    tiket (shareToken) untuk dibagikan ke pelapor. */
 import React from "react";
 import { Button, Badge, Select, StateBlock, Icon, Input, Field, HnTextarea, ConfirmDialog } from "../ds";
-import { paths, publicStatus, type TicketView, type TicketDetail, type Spec } from "@hanoman/shared";
+import { paths, publicStatus, type TicketView, type TicketDetail, type Spec, type GithubIssueView } from "@hanoman/shared";
 import { api } from "../api/client";
 import { specDeepLink } from "./deeplink";
 import { SyncButton } from "./SyncButton";
@@ -208,6 +208,101 @@ function TicketDetailView({ id, onBack, onAccepted, onDeleted, onToast }:
   );
 }
 
+/* SPEC-471 · ADR-0095 · panel issue GitHub. Ditempatkan sebagai TAB di layar Triase, bukan layar
+   baru: keduanya permukaan yang sama — laporan dari luar yang menunggu diputuskan. Tarik → daftar
+   → terima (satu/massal) / tolak. hanoman TIDAK PERNAH menulis ke GitHub. */
+export function GithubIssuesPanel({ projectId, onAccepted }:
+  { projectId: string; onAccepted?: (specs: Spec[]) => void }) {
+  const [items, setItems] = React.useState<GithubIssueView[]>([]);
+  const [state, setState] = React.useState<"loading" | "ready" | "error">("loading");
+  const [busy, setBusy] = React.useState(false);
+  const [note, setNote] = React.useState<string | null>(null);
+  const [err, setErr] = React.useState<string | null>(null);
+  const [picked, setPicked] = React.useState<string[]>([]);
+
+  const load = React.useCallback(async () => {
+    try { setItems((await api.listGithubIssues(projectId)).items); setState("ready"); }
+    catch { setState("error"); }
+  }, [projectId]);
+  React.useEffect(() => { void load(); }, [load]);
+
+  // Sebab kegagalan SELALU ditampilkan. Daftar kosong tanpa penjelasan adalah gejala yang
+  // membuat kanal ini tak terlihat selama 36 jam (audit SPEC-471 B1).
+  const reason = (e: unknown): string => {
+    const d = (e as { detail?: { error?: unknown } }).detail?.error;
+    return typeof d === "string" ? d : (e as Error).message;
+  };
+
+  async function pull() {
+    setBusy(true); setErr(null); setNote(null);
+    try {
+      const r = await api.pullGithubIssues(projectId);
+      setNote(`${r.repo}: ${r.created} baru, ${r.updated} diperbarui`
+        + (r.skippedPullRequests ? ` · ${r.skippedPullRequests} pull request dilewati` : ""));
+      await load();
+    } catch (e) { setErr(reason(e)); }
+    finally { setBusy(false); }
+  }
+
+  async function acceptPicked() {
+    setBusy(true); setErr(null);
+    try {
+      const r = await api.acceptGithubIssues(picked, undefined);
+      setPicked([]);
+      onAccepted?.(r.created);
+      await load();
+    } catch (e) { setErr(reason(e)); }
+    finally { setBusy(false); }
+  }
+
+  async function reject(id: string) {
+    setBusy(true); setErr(null);
+    try { await api.rejectGithubIssue(id); await load(); }
+    catch (e) { setErr(reason(e)); }
+    finally { setBusy(false); }
+  }
+
+  const toggle = (id: string) =>
+    setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12, minHeight: 0, flex: 1 }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <Button size="sm" onClick={pull} disabled={busy}>Tarik issue</Button>
+        <Button size="sm" variant="primary" onClick={acceptPicked} disabled={busy || picked.length === 0}>
+          Terima terpilih{picked.length ? ` (${picked.length})` : ""}
+        </Button>
+        {note && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{note}</span>}
+      </div>
+      {err && <div role="alert" style={{ fontSize: 12, color: "var(--danger, #b00)" }}>{err}</div>}
+      {state === "loading" ? <StateBlock kind="loading" />
+        : state === "error" ? <StateBlock kind="error" hint="Gagal memuat daftar issue." action={() => void load()} actionLabel="Coba lagi" />
+        : items.length === 0 ? <StateBlock kind="empty" icon="inbox" title="Belum ada issue tertarik"
+            hint="Tekan “Tarik issue” untuk menariknya dari repo GitHub project ini." />
+        : <div style={{ overflowY: "auto", minHeight: 0 }}>
+            {items.map((i) => (
+              <div key={i.id} style={{ display: "flex", gap: 8, alignItems: "baseline", padding: "8px 0",
+                borderBottom: "1px solid var(--border-hair)" }}>
+                {i.status === "new" && (
+                  <input type="checkbox" aria-label={`Pilih issue ${i.number}`}
+                    checked={picked.includes(i.id)} onChange={() => toggle(i.id)} />
+                )}
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-muted)" }}>#{i.number}</span>
+                <a href={i.url} target="_blank" rel="noreferrer" style={{ flex: 1, minWidth: 0 }}>{i.title}</a>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>@{i.authorLogin}</span>
+                {i.labels.map((l) => <Badge key={l}>{l}</Badge>)}
+                {i.status === "rejected" && <Badge tone="neutral">ditutup</Badge>}
+                {i.specId && <span style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>{i.specId}</span>}
+                {i.status === "new" && (
+                  <Button size="sm" variant="ghost" onClick={() => reject(i.id)} disabled={busy}>Tolak</Button>
+                )}
+              </div>
+            ))}
+          </div>}
+    </div>
+  );
+}
+
 export function TriageScreen({ projects, onAccepted, onToast }:
   { projects: ProjectVM[]; onAccepted: (spec: Spec, already: boolean) => void;
     onToast: (msg: string, kind?: string, icon?: string) => void }) {
@@ -218,6 +313,9 @@ export function TriageScreen({ projects, onAccepted, onToast }:
   const [project, setProject] = React.useState("");
   const [status, setStatus] = React.useState("");
   const [q, setQ] = React.useState("");
+  // SPEC-471 · dua kanal masuk, satu layar. Pemilih tab pakai Button, BUKAN Switch —
+  // getByLabelText Switch tak terjangkau di test DS (jebakan SPEC-299).
+  const [tab, setTab] = React.useState<"tiket" | "issue">("tiket");
 
   const load = React.useCallback((silent = false) => {
     if (!silent) setState("loading");
@@ -234,19 +332,37 @@ export function TriageScreen({ projects, onAccepted, onToast }:
 
   if (openId) return <TicketDetailView id={openId} onBack={() => { setOpenId(null); load(true); }} onAccepted={onAccepted} onDeleted={() => { setOpenId(null); load(true); }} onToast={onToast} />;
 
+  // SPEC-471 · tab issue butuh SATU project (issue milik satu repo). Selama "Semua project"
+  // dipilih, jelaskan itu alih-alih menampilkan daftar kosong tanpa sebab.
+  const issueTab = (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12, minHeight: 0, flex: 1 }}>
+      {project
+        ? <GithubIssuesPanel projectId={project} onAccepted={(specs) => specs.forEach((s) => onAccepted(s, false))} />
+        : <StateBlock kind="empty" icon="inbox" title="Pilih satu project"
+            hint="Issue GitHub milik satu repo, jadi pilih project-nya lebih dulu di penyaring di atas." />}
+    </div>
+  );
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, minHeight: 0, flex: 1 }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <Button size="sm" variant={tab === "tiket" ? "primary" : "ghost"} onClick={() => setTab("tiket")}>Tiket Help Center</Button>
+        <Button size="sm" variant={tab === "issue" ? "primary" : "ghost"} onClick={() => setTab("issue")}>Issue GitHub</Button>
+      </div>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
         <Select size="sm" value={project} onChange={(e) => setProject(e.target.value)}
           options={[{ value: "", label: "Semua project" }, ...projects.map((p) => ({ value: p.id, label: p.name }))]} />
-        <Select size="sm" value={status} onChange={(e) => setStatus(e.target.value)}
-          options={[{ value: "", label: "Semua status" }, { value: "new", label: "belum ditinjau" }, { value: "accepted", label: "diterima" }, { value: "rejected", label: "ditutup" }]} />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari judul / email"
-          style={{ flex: 1, minWidth: 160, padding: "6px 10px", border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", background: "var(--surface-card)", color: "var(--text-body)", fontSize: 13 }} />
-        {unreviewed > 0 && <Badge tone="warn">{unreviewed} belum ditinjau</Badge>}
-        <SyncButton onDone={() => load(true)} onToast={onToast} />
+        {tab === "tiket" && <>
+          <Select size="sm" value={status} onChange={(e) => setStatus(e.target.value)}
+            options={[{ value: "", label: "Semua status" }, { value: "new", label: "belum ditinjau" }, { value: "accepted", label: "diterima" }, { value: "rejected", label: "ditutup" }]} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari judul / email"
+            style={{ flex: 1, minWidth: 160, padding: "6px 10px", border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", background: "var(--surface-card)", color: "var(--text-body)", fontSize: 13 }} />
+          {unreviewed > 0 && <Badge tone="warn">{unreviewed} belum ditinjau</Badge>}
+          <SyncButton onDone={() => load(true)} onToast={onToast} />
+        </>}
       </div>
-      {state === "loading" ? <StateBlock kind="loading" />
+      {tab === "issue" ? issueTab
+        : state === "loading" ? <StateBlock kind="loading" />
         : state === "error" ? <StateBlock kind="error" hint="Gagal memuat tiket." action={() => load()} actionLabel="Coba lagi" />
         : list.length === 0 ? <StateBlock kind="empty" icon="inbox" title="Belum ada keluhan"
             hint="Aktifkan Help Center di detail project, lalu sebar link publiknya agar keluhan mulai masuk." />

@@ -1,4 +1,4 @@
-import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type SessionHistoryView, type ConfigResponse, type ConfigEntryView, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView, type Agent, type AuditEscalationView, type VerifyScope, type Lead, type LeadStatusView, type LeadDecisionView, type CustomAgentView, type CreateCustomAgent, type UpdateCustomAgent } from "@hanoman/shared";
+import { paths, type Paginated, type ProjectView, type Spec, type Setting, type Notification, type VpsView, type VpsCheck, type ChecklistView, type RemediateStep, type AuthStatus, type UserView, type LimitsDTO, type PrdDoc, type DeviceTokenView, type SessionResultView, type SessionHistoryView, type ConfigResponse, type ConfigEntryView, type TicketView, type TicketDetail, type TicketEditInput, type AgentTokenView, type CapabilityInfo, type SyncConflictView, type BreakdownDoc, type BreakdownItem, type Scheduler, type SchedulerStateView, type Agent, type AuditEscalationView, type VerifyScope, type Lead, type LeadStatusView, type LeadDecisionView, type CustomAgentView, type CreateCustomAgent, type UpdateCustomAgent, type GithubIssueView } from "@hanoman/shared";
 // SPEC-450 · `detail` = body JSON respons galat (best-effort, null bila bukan JSON). Ditambahkan
 // karena penolakan custom agent membawa informasi yang HARUS sampai ke operator — jalur siklus
 // (`cycle`/`scope`) dan daftar mention tak dikenal (`unknown`); "409" saja tak bisa ditindaklanjuti.
@@ -371,6 +371,22 @@ export const api = {
   editTicket: (id: string, input: TicketEditInput) =>
     j<TicketDetail & { spec: Spec | null }>(paths.ticket(id), { method: "PATCH", ...body(input) }),
   deleteTicket: (id: string) => j<{ ok: boolean }>(paths.ticket(id), { method: "DELETE" }),
+  // SPEC-471 · ADR-0095 · tarik & triase issue GitHub. hanoman tak pernah menulis ke GitHub.
+  listGithubIssues: (projectId: string, status?: string) =>
+    j<{ items: GithubIssueView[] }>(paths.githubIssues(projectId) + qs({ status })),
+  pullGithubIssues: (projectId: string, p: { state?: "open" | "all"; limit?: number } = {}) =>
+    j<{ repo: string; pulled: number; created: number; updated: number; via: "gh" | "rest"; skippedPullRequests: number }>(
+      paths.githubPull(projectId), { method: "POST", ...body(p) }),
+  acceptGithubIssue: (id: string, priority?: string, source?: string) =>
+    j<{ spec: Spec; alreadyPromoted?: boolean }>(paths.githubIssueAccept(id),
+      { method: "POST", ...body({ priority, source }) }),
+  acceptGithubIssues: (ids: string[], priority?: string) =>
+    j<{ created: Spec[]; failed: Array<{ id: string; error: string }> }>(paths.githubIssuesAccept,
+      { method: "POST", ...body({ ids, priority }) }),
+  rejectGithubIssue: (id: string) =>
+    j<{ id: string; status: string }>(paths.githubIssueReject(id), { method: "POST", ...body({}) }),
+  unlinkGithubIssue: (id: string) =>
+    j<{ id: string; status: string; specId: string | null }>(paths.githubIssueUnlink(id), { method: "POST", ...body({}) }),
   // SPEC-299 · ADR-0072 · panel scheduler (daun #6) — konsumen read-only fondasi.
   getSchedulerConfig: () => j<Scheduler>(paths.schedulerConfig),
   putSchedulerConfig: (cfg: Scheduler) => j<Scheduler>(paths.schedulerConfig, { method: "PUT", ...body(cfg) }),

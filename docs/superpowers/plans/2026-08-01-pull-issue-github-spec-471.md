@@ -1924,7 +1924,7 @@ git commit -m "feat(471): knob GITHUB_TOKEN & HANOMAN_GH_BIN + probe gh non-fata
 - Consumes: `GithubIssueView` (Task 1), endpoint Task 8
 - Produces: `api.pullGithubIssues`, `api.listGithubIssues`, `api.acceptGithubIssue`, `api.acceptGithubIssues`, `api.rejectGithubIssue`; komponen `GithubIssuesPanel`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 `src/test/triage-github.test.tsx`:
 
@@ -1994,14 +1994,14 @@ describe("SPEC-471 · panel issue GitHub", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan MERAH**
+- [x] **Step 2: Jalankan, pastikan MERAH**
 
 Run: `env -u NODE_ENV ./node_modules/.bin/vitest run --dir src src/test/triage-github.test.tsx`
 Expected: FAIL — `GithubIssuesPanel is not exported`
 
 > `env -u NODE_ENV` wajib: env sesi ini memuat `NODE_ENV=production` yang membuat RTL `act` gagal massal.
 
-- [ ] **Step 3: Implementasi — helper API**
+- [x] **Step 3: Implementasi — helper API**
 
 `src/src/api/client.ts` — tambahkan di objek `api`, sesudah blok tiket:
 
@@ -2026,7 +2026,7 @@ Expected: FAIL — `GithubIssuesPanel is not exported`
 
 Tambahkan `GithubIssueView` ke import tipe `@hanoman/shared` di kepala berkas.
 
-- [ ] **Step 4: Implementasi — panel**
+- [x] **Step 4: Implementasi — panel**
 
 `src/src/screens/TriageScreen.tsx` — tambahkan komponen ter-ekspor (dipakai layar Triase sebagai tab kedua):
 
@@ -2126,12 +2126,12 @@ komponen `Switch`, yang `getByLabelText`-nya tak terjangkau di test DS (jebakan 
 
 Selaraskan import: `Badge`, `Button` dari `../ds`, dan `GithubIssueView` dari `@hanoman/shared`.
 
-- [ ] **Step 5: Jalankan, pastikan HIJAU**
+- [x] **Step 5: Jalankan, pastikan HIJAU**
 
 Run: `env -u NODE_ENV ./node_modules/.bin/vitest run --dir src src/test/triage-github.test.tsx`
 Expected: PASS — 5 test
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/src/api/client.ts src/src/screens/TriageScreen.tsx src/test/triage-github.test.tsx

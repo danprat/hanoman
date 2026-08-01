@@ -153,6 +153,14 @@ export const paths = {
   ticketAccept: (id: string) => `${API}/tickets/${id}/accept`,
   ticketUnlink: (id: string) => `${API}/tickets/${id}/unlink`,  // SPEC-271 · lepas tautan backlog
   ticketReject: (id: string) => `${API}/tickets/${id}/reject`,
+  // SPEC-471 · ADR-0095 · tarik & triase issue GitHub (di belakang gate cookie, capability `support`).
+  // hanoman TIDAK PERNAH menulis ke GitHub — tak ada path komentar/close di sini, dan itu disengaja.
+  githubPull: (id: string) => `${API}/projects/${encodeURIComponent(id)}/github/pull`,
+  githubIssues: (id: string) => `${API}/projects/${encodeURIComponent(id)}/github/issues`,
+  githubIssuesAccept: `${API}/github-issues/accept`,
+  githubIssueAccept: (id: string) => `${API}/github-issues/${encodeURIComponent(id)}/accept`,
+  githubIssueReject: (id: string) => `${API}/github-issues/${encodeURIComponent(id)}/reject`,
+  githubIssueUnlink: (id: string) => `${API}/github-issues/${encodeURIComponent(id)}/unlink`,
   // SPEC-361 · ADR-0078 · unduh dokumen: query ditempelkan ke URL endpoint dokumen yang sudah ada
   // (tak ada endpoint ekspor terpisah). `base` bisa sudah membawa query, mis. ideFile(?path=…).
   download: (base: string, fmt: "md" | "pdf") => `${base}${base.includes("?") ? "&" : "?"}download=${fmt}`,
