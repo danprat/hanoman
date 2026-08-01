@@ -390,7 +390,7 @@ git commit -m "feat(493): chatsAwaitingReply + kosakata kind balasan final"
   - `type TelegramTypingSender = { sendChatAction(chatId: string, action: "typing"): Promise<boolean> }`
   - `class TelegramTypingIndicator` dengan `arm(chatId: string): Promise<void>` dan `refresh(chatIds: readonly string[]): Promise<void>`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/telegram-typing.test.ts`:
 
@@ -524,7 +524,7 @@ describe("TelegramTypingIndicator (SPEC-493)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test dan pastikan GAGAL**
+- [x] **Step 2: Jalankan test dan pastikan GAGAL**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-493
@@ -534,7 +534,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism --dir serve
 
 Harapan: GAGAL — `Failed to resolve import "../src/services/telegram/typing"`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Buat `server/src/services/telegram/typing.ts`:
 
@@ -640,7 +640,7 @@ export class TelegramTypingIndicator {
 }
 ```
 
-- [ ] **Step 4: Jalankan test dan pastikan LULUS**
+- [x] **Step 4: Jalankan test dan pastikan LULUS**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-493
@@ -648,9 +648,9 @@ export TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db"
 env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism --dir server server/test/telegram-typing.test.ts
 ```
 
-Harapan: LULUS, 11 test.
+Harapan: LULUS, 10 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/telegram/typing.ts server/test/telegram-typing.test.ts
