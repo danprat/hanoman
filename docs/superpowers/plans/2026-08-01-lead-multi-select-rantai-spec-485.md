@@ -379,7 +379,7 @@ git commit -m "feat(485): kosakata pilihan jamak + status rantai di shared (ADR-
 - Consumes: `LEAD_FLOW_OPEN`, `zLeadFlowStatus` (Task 1).
 - Produces: model Prisma `LeadFlow`; kolom `LeadDecision.flowId`, `.step`, `.choices`, `.select`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/lead-flow-schema.test.ts`:
 
@@ -418,14 +418,14 @@ describe("skema LeadFlow", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run --no-file-parallelism server/test/lead-flow-schema.test.ts
 ```
 Expected: FAIL — `models.has("LeadFlow")` false.
 
-- [ ] **Step 3: Tambah model & kolom di `server/prisma/schema.prisma`**
+- [x] **Step 3: Tambah model & kolom di `server/prisma/schema.prisma`**
 
 Tepat SEBELUM `model LeadDecision {`:
 
@@ -465,7 +465,7 @@ Di dalam `model LeadDecision`, setelah baris `missing`:
   select         Json?     // {mode,min,max} sebagaimana dikirim peminta
 ```
 
-- [ ] **Step 4: Tulis migration tangan**
+- [x] **Step 4: Tulis migration tangan**
 
 `server/prisma/migrations/20260801230000_lead_flow/migration.sql`:
 
@@ -504,7 +504,7 @@ CREATE INDEX "LeadDecision_flowId_idx" ON "LeadDecision"("flowId");
 
 Tambahkan indeks itu ke schema.prisma juga: `@@index([flowId])` di blok `LeadDecision`.
 
-- [ ] **Step 5: `PG_ORDER`**
+- [x] **Step 5: `PG_ORDER`**
 
 `cli/src/commands/migrate-pg.ts` — ganti baris
 `"SchedulerQueueItem", "RuntimeConfig", "LeadDecision",` menjadi:
@@ -515,7 +515,7 @@ Tambahkan indeks itu ke schema.prisma juga: `@@index([flowId])` di blok `LeadDec
   "SchedulerQueueItem", "RuntimeConfig", "LeadFlow", "LeadDecision",
 ```
 
-- [ ] **Step 6: Generate + deploy + jalankan test**
+- [x] **Step 6: Generate + deploy + jalankan test**
 
 ```bash
 cd server && ./node_modules/.bin/prisma generate && cd ..
@@ -523,7 +523,7 @@ TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run -
 ```
 Expected: PASS keduanya (webhook DMMF ikut dijalankan sebagai bukti katalog tak pecah).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/prisma cli/src/commands/migrate-pg.ts server/test/lead-flow-schema.test.ts

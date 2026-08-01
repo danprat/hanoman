@@ -371,6 +371,33 @@ model SchedulerQueueItem {
   @@index([status])
 }
 
+// SPEC-485 · ADR-0102 · satu RANTAI keputusan lead: beberapa pertanyaan berurutan yang satu urusan,
+// dari pertanyaan pertama sampai submit akhir. Sebelum model ini "alur" hanya ada sebagai kebetulan
+// (baris jejak yang berdekatan waktunya), jadi tak ada tempat untuk menegakkan "pertanyaan lanjutan
+// hanya boleh masuk ke alur yang masih aktif" dan tak ada yang bisa ditanya "sudah di-submit belum".
+//
+// LOCAL-ONLY (tanpa `version`, tak pernah disync) dan TANPA FK — cermin LeadDecision di bawah:
+// id project/spec/sesi boleh lenyap tanpa menyeret jejaknya.
+model LeadFlow {
+  id          String    @id @default(cuid())
+  projectId   String
+  specId      String?
+  sessionId   String?
+  gate        String                              // pintu yang membuka rantai (contract|detected|pulse)
+  status      String    @default("menunggu")      // menunggu | sebagian | selesai | dibatalkan
+  title       String                              // pertanyaan pertama, terpangkas — ini yang dibaca operator
+  steps       Int       @default(0)
+  closeReason String?                             // tunggal | submit | operator | kedaluwarsa
+  openedAt    DateTime  @default(now())
+  closedAt    DateTime?
+  expiresAt   DateTime                            // pagar anti-menggantung; penyapunya menumpang tick lead
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([projectId, createdAt])
+  @@index([status])
+}
+
 // SPEC-409 · ADR-0091 · jejak keputusan hanoman-lead. Data BARU yang harus bertahan (bukan nilai
 // turunan seperti coverage/PRD, ADR-0011/0018): pertanyaan yang ditanyakan sesi yang sudah mati,
 // dan alasan yang dipakai lead, tak bisa dihitung ulang dari sumber mana pun.
@@ -402,12 +429,20 @@ model LeadDecision {
   choiceIndex    Int?      // 1-basis, sepasang dengan `choice`
   options        Json?     // string[] — daftar opsi yang DIKIRIM peminta, supaya jejak bisa diaudit
   missing        Json?     // string[] — apa yang kurang bila lead menyatakan konteksnya tak cukup
+  // SPEC-485 · ADR-0102 · aditif & nullable: baris lama sah apa adanya. `choices` adalah bentuk
+  // penyimpanan yang BERLAKU; `choice`/`choiceIndex` di atas tinggal turunan `choices[0]`, dan
+  // baris pra-migrasi diturunkan balik jadi `choices` saat dibaca (kompatibilitas mundur).
+  flowId         String?   // rantai tempat langkah ini duduk
+  step           Int?      // urutan langkah dalam rantai, 1-basis
+  choices        Json?     // {index,option}[] — SELALU daftar
+  select         Json?     // {mode,min,max} sebagaimana dikirim peminta
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
   @@index([projectId, createdAt])
   @@index([specId])
   @@index([sessionId])
+  @@index([flowId])
 }
 
 // SPEC-215 · ADR-0049 · LOCAL-ONLY: override config runtime (env → DB). Tak pernah disync.
