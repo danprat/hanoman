@@ -32,8 +32,35 @@ hanoman [start]                    jalankan (migrasi + server + dashboard)
 hanoman doctor                     periksa prasyarat
 hanoman update [--check]           pasang versi terbaru dari npm
 hanoman migrate-from-postgres --from <url> [--to <file>] [--dry-run] [--force]
+hanoman mcp [--read-only]          MCP server stdio untuk klien AI
+  [--host <url>] [--max-bytes <n>]
 hanoman docs scan | index | link   operasi index Source of Truth
 ```
+
+## Dipakai agen AI (MCP)
+
+Agen AI mana pun yang berbicara MCP — Claude Code, Claude Desktop, Codex, Cursor, Copilot — bisa
+membaca dan menulis backlog hanoman lewat `hanoman mcp`, tanpa kode pembungkus khusus. Buat agent
+token di **Settings → Akses AI Agent**, lalu:
+
+```json
+{
+  "mcpServers": {
+    "hanoman": {
+      "command": "hanoman",
+      "args": ["mcp"],
+      "env": {
+        "HANOMAN_HOST": "http://localhost:8787",
+        "HANOMAN_AGENT_TOKEN": "hnm_agt_…"
+      }
+    }
+  }
+}
+```
+
+Panduan siap salin per klien ada di halaman Settings itu sendiri. Tambahkan `--read-only` untuk
+menyembunyikan seluruh tool yang menulis. Membuat sesi terminal dan perintah VPS **tidak tersedia**
+lewat MCP.
 
 ## Update
 

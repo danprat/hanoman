@@ -39,6 +39,8 @@ hanoman [start]                         # jalankan hanoman: migrate deploy → s
                                         #   --port <n> --host <h> --db <file> --no-migrate
 hanoman doctor                          # prasyarat non-npm: node/git/tmux/CLI agen/izin tulis/aset web
 hanoman update [--check]                # banding versi vs registry npm; `npm i -g hanoman@latest`
+hanoman mcp [--read-only]               # MCP server stdio (SPEC-482/ADR-0099): klien REST ber-agent
+  [--host <url>] [--max-bytes <n>]      #   token. HANOMAN_HOST + HANOMAN_AGENT_TOKEN dari env.
 hanoman migrate-from-postgres --from <url> [--to <file>] [--dry-run] [--force]
 hanoman docs scan [--json]              # laporan coverage + per-kategori (read-only)
 hanoman docs index --check | --fix      # integritas index
