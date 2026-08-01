@@ -16,8 +16,14 @@ Seluruhnya dari dashboard — tanpa mengedit `.env`, tanpa restart.
    ditampilkan kartu status Telegram; salin plaintext-nya sekali itu.
 3. Di Settings → Telegram, kartu **Kredensial**, isi Bot token, AgentToken gateway, Allowlist user id
    (numeric user id private-chat yang diizinkan), dan Chat / Channel ID target — lalu **Simpan**.
-   Bot token & AgentToken disimpan terenkripsi dan tak pernah ditampilkan kembali utuh.
-4. Tekan **Test Connection** sampai hijau, lalu nyalakan gateway. Berlaku seketika.
+   Bot token & AgentToken disimpan terenkripsi dan tak pernah ditampilkan kembali utuh. **Simpan
+   menolak (400)** bila AgentToken-nya tak dikenal, sudah dicabut, atau capability-nya kurang —
+   yang diminta adalah **plaintext `hnm_agt_…`** yang hanya muncul sekali saat token diterbitkan,
+   bukan hash-nya (SPEC-491).
+4. Tekan **Test Connection** sampai hijau, lalu nyalakan gateway. Berlaku seketika. Perhatikan
+   **dua** baris hasilnya: yang atas menguji jalur **keluar** (bot token), yang bawah jalur
+   **masuk**. Selama baris jalur masuk masih kuning, pesan Telegram tak akan pernah tertangkap —
+   apa pun warna baris atasnya (SPEC-491).
 5. Kirim `/status`. Chat diikat ke satu session operator tmux dan pesan berikutnya kembali ke session
    yang sama. Token tidak pernah diisikan atau ditampilkan di Telegram.
 

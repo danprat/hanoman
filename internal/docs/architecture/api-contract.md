@@ -1003,7 +1003,8 @@ POST   /api/terminal/sessions/:id/interrupt
 GET    /api/telegram/settings      → { fields: [{ key, label, help?, kind, source, hasValue, masked?, value? }] }
 PUT    /api/telegram/settings      { HANOMAN_TELEGRAM_BOT_TOKEN?, HANOMAN_TELEGRAM_AGENT_TOKEN?,
                                      HANOMAN_TELEGRAM_ALLOWED_USER_IDS?, HANOMAN_TELEGRAM_TARGET_CHAT_ID? }
-POST   /api/telegram/test          → { ok: true, botUsername, chatId } | { ok: false, error }
+POST   /api/telegram/test          → { ok, botUsername?, chatId?, error?,
+                                       inbound: { ok, reason, missingCapabilities[], polling } }
 DELETE /api/telegram/credentials   → { cleared: string[], envFallback: string[] }
 ```
 
@@ -1011,9 +1012,21 @@ Keempat nilai adalah entri `CONFIG_REGISTRY` grup `telegram`, jadi resolvernya t
 default** (ADR-0049) dan `source` per field memberi tahu mana yang masih datang dari `.env`
 (deprecated). Nilai `kind: "secret"` disimpan **terenkripsi** di `RuntimeConfig` dan **tak pernah**
 dikembalikan utuh — hanya `masked` + `hasValue`. `PUT` menerima subset; secret bernilai string
-kosong = **pertahankan nilai lama**, dan seluruh patch divalidasi sebelum satu pun ditulis. `POST
-/telegram/test` memakai klien sekali pakai ber-timeout **10 detik** (tujuan = target chat id, atau
-satu-satunya id di allowlist) dan pesan galatnya sudah lewat redaksi token. `DELETE` hanya menghapus
+kosong = **pertahankan nilai lama**, dan seluruh patch divalidasi sebelum satu pun ditulis.
+
+**SPEC-491** menambahkan satu langkah validasi ke `PUT`: bila patch memuat
+`HANOMAN_TELEGRAM_AGENT_TOKEN`, nilainya **diadu ke tabel `AgentToken`** (`verifyAgentToken` +
+`TELEGRAM_REQUIRED_CAPABILITIES`) sebelum apa pun ditulis; token tak dikenal/dicabut atau
+capability kurang → **400** yang menyebut sebabnya. Pola `^\S{20,}$` saja pernah menerima digest
+`sha256` 64-hex sebagai kredensial sah, dan nilai seperti itu membuat `installTelegramGateway`
+berhenti di gerbang readiness — nol `getUpdates`, nol pesan galat, **diam total**.
+
+`POST /telegram/test` memakai klien sekali pakai ber-timeout **10 detik** (tujuan = target chat id,
+atau satu-satunya id di allowlist) dan pesan galatnya sudah lewat redaksi token. Sejak SPEC-491 ia
+**selalu** membawa `inbound` — gerbang yang sama dengan `installTelegramGateway`, dibaca segar:
+AgentToken sah? capability lengkap? master switch akses agent hidup? gateway sedang polling?
+Tanpa itu uji koneksi hanya menguji jalur **keluar** (bot token), dan hijau-nya bisa berdampingan
+dengan jalur masuk yang mati total. `DELETE` hanya menghapus
 baris DB; bila `.env` lama masih terisi, resolver memakainya lagi — itu isi `envFallback`. Ketiga
 sub-path ini `COOKIE_ONLY`: agent token mana pun ditolak **403**, termasuk AgentToken gateway
 Telegram sendiri yang wajib memegang `settings:write`. Sama halnya, `PUT`/`DELETE /config` untuk
@@ -1029,6 +1042,12 @@ Untuk route IDE yang memilih operasi lewat body, pagar membaca operasi aktual: `
 
 `POST /telegram/replies` idempoten per chat/update/kind dan hanya menerima output user-facing
 `progress|final|decision|failure|confirmation`. Raw PTY tidak punya endpoint ekspor ke Telegram.
+Gateway sendiri **juga** boleh mengantre amplop (ADR-0096 §5, dipasang SPEC-491) — fakta server
+saja: satu baris saat update berhasil di-dispatch (digerbangi `Setting.telegram.progress`) dan satu
+baris kegagalan saat dispatch gagal (**tak** digerbangi; kegagalan bukan progress). `kind`-nya
+`gateway-progress`/`gateway-failure`, di luar enum reply, karena `dedupeKey` outbox adalah
+`chat:update:kind` — memakai `"progress"` akan membuat baris gateway menelan reply session operator
+untuk update yang sama.
 Endpoint context/memory tidak pernah mengembalikan token atau teks inbound. Audit hanya metadata
 correlation/method/path/status, tanpa body/header.
 

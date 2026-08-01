@@ -567,7 +567,10 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
       const runTest = () => {
         setTgTest("sending");
         api.testTelegramConnection().then(setTgTest)
-          .catch((e: Error) => setTgTest({ ok: false, error: e.message || "Gagal menghubungi server" }));
+          .catch((e: Error) => setTgTest({
+            ok: false, error: e.message || "Gagal menghubungi server",
+            inbound: { ok: false, reason: "Status jalur masuk tak terbaca — server tak menjawab.", missingCapabilities: [], polling: false },
+          }));
       };
       const removeCreds = () => {
         setTgConfirm(false);
@@ -619,10 +622,22 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
               <Button size="sm" leftIcon="send" disabled={tgTest === "sending"} onClick={runTest}>Test Connection</Button>
             </SettingRow>
             {tgTest && tgTest !== "sending" && (
-              <div style={{ marginTop: 10 }}>
+              <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
                 {tgTest.ok
                   ? <Callout tone="ok">Berhasil — bot @{tgTest.botUsername ?? "?"} mengirim ke chat {tgTest.chatId}.</Callout>
                   : <Callout tone="err">{tgTest.error}</Callout>}
+                {/* SPEC-491 · uji di atas hanya jalur KELUAR (bot token). Hijau di sana pernah
+                    berdampingan dengan jalur masuk yang mati total — itulah keluhan "diam
+                    total": pesan tak pernah tertangkap dan tak ada balasan sama sekali. */}
+                {tgTest.inbound?.ok
+                  ? <Callout tone="ok">Jalur masuk siap — gateway sedang long polling dan AgentToken-nya sah.</Callout>
+                  : <Callout tone="warn">
+                      Jalur masuk BELUM siap: {tgTest.inbound?.reason ?? "status tak terbaca."}
+                      {!!tgTest.inbound?.missingCapabilities.length && (
+                        <> Capability yang kurang: <code>{tgTest.inbound.missingCapabilities.join(", ")}</code>.</>
+                      )}
+                      {" "}Selama ini merah, pesan Telegram tidak akan pernah tertangkap.
+                    </Callout>}
               </div>
             )}
             <SettingRow title="Hapus kredensial" last
