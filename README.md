@@ -62,6 +62,25 @@ utuh dari awal sampai selesai.
 - **From-scratch atau existing.** Project baru di-scaffold dari nol; codebase yang sudah ada
   di-*reverse-engineer* docs-nya lebih dulu.
 
+## Untuk AI agent
+
+Panduan lengkap supaya agen mana pun bisa langsung memakai hanoman — cukup diberi **tautan + satu
+agent token**, tanpa penjelasan tambahan dari manusia:
+**[docs/agent-integration.md](docs/agent-integration.md)**.
+
+Isinya: model kerja hanoman (backlog → sesi → worktree), autentikasi `Bearer hnm_agt_…`, capability
+per-domain dan arti 403, endpoint tersering + bentuk payload `POST /specs`, tindakan berbahaya yang
+wajib dikonfirmasi manusia, jebakan yang sudah diketahui, dan alur end-to-end siap salin.
+
+Instance hanoman yang berjalan menyajikan **naskah yang sama** sebagai markdown mentah, tanpa auth —
+jadi agen bisa membacanya sendiri:
+
+```bash
+curl -fsS https://hanoman.example/api/agent-integration.md
+```
+
+Agen yang berbicara **MCP** cukup memasang `hanoman mcp` (17 tool, capability yang sama).
+
 ## Pasang sebagai paket npm
 
 ```bash

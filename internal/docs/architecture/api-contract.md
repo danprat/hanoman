@@ -17,7 +17,8 @@ WebSocket per-sesi tersendiri. Endpoint HTTP GET tiap sumber tetap ada untuk pai
 
 > **Auth (SPEC-169, ADR-0028):** semua endpoint butuh sesi valid (cookie `hn_session`) — gate
 > `onRequest` membalas **401** tanpa sesi. Publik tanpa sesi hanya: `GET /health`,
-> `GET /auth/status`, `POST /auth/login`, `POST /auth/setup`.
+> `GET /auth/status`, `POST /auth/login`, `POST /auth/setup`, dan `GET /agent-integration.md`
+> (SPEC-489 · panduan AI agent, lihat bagiannya di bawah).
 >
 > **Agent token (SPEC-257 · ADR-0065):** jalur auth **kedua** untuk AI agent eksternal —
 > `Authorization: Bearer <token>` (upgrade WebSocket: `?agent_token=`) digerbang gate yang sama,
@@ -388,13 +389,42 @@ GET      /fs/browse?path=               # directory picker sisi server (untuk me
 GET      /health                        # publik; liveness
 ```
 
+## Dokumentasi AI Agent (SPEC-489) — **PUBLIC**
+
+```
+GET /agent-integration.md   -> 200 text/markdown; charset=utf-8   # isi docs/agent-integration.md apa adanya
+#   404 { error } bila naskahnya tak ada di instalasi (pesan menyebut berkasnya, BUKAN 500)
+#   Tak ada method tulis. Tak ada varian JSON/PDF.
+```
+
+> **Tanpa auth**, masuk daftar `PUBLIC` di `app.ts` sejajar `GET /health`. Alasannya bukan kelalaian:
+> byte-nya sudah publik di repo GitHub (paket MIT), dan menggerbanginya berarti agen yang
+> capability-nya kurang menerima **403 pada dokumen yang justru menjelaskan arti 403 itu** — persis
+> kelas "401 telanjang tak bisa dibedakan" yang sudah dibayar ADR-0099. Ia juga yang membuat
+> janji fitur ini ("cukup diberi tautan + token") benar-benar berlaku: tautannya terbaca **sebelum**
+> token disetel.
+>
+> **Satu naskah, tiga permukaan, nol salinan:** berkas `docs/agent-integration.md` di repo →
+> endpoint ini → kartu "Dokumentasi AI Agent" di Settings (yang me-render respons endpoint ini,
+> bukan salinannya). Berkasnya dicari `pickGuideFile()` (`server/src/guide-file.ts`) di dua layout —
+> `<pkg>/docs/…` untuk paket npm, `<repo>/docs/…` untuk checkout (`server/dist` **dan** `server/src`
+> sama dalamnya) — dengan override `HANOMAN_AGENT_DOC` yang **melempar** bila di-set tapi tak ada
+> (cermin `HANOMAN_WEB_DIR`). Resolusinya duduk di `app.ts`, bukan di route-nya: `import.meta.url`
+> sebuah route sedalam `server/src/routes` saat tsx tapi `server/dist` sesudah dibundel esbuild.
+> Naskahnya ikut `copyPlan`/`files`/`REQUIRED_ARTIFACTS` paket npm — tanpa itu setiap instalasi npm
+> menjawab 404 sementara checkout dev terlihat sehat.
+>
+> Kelengkapan isinya diikat ke katalog oleh `server/test/agent-doc-contract.test.ts`
+> (`CAPABILITY_DOMAINS`, daftar `COOKIE_ONLY`, `zSpecSource`, plus larangan token nyata) — pengganti
+> render-dari-katalog ADR-0100 yang tak mungkin di sini karena kendalanya satu berkas markdown.
+
 ## Agent tokens (SPEC-257 · ADR-0065)
 
-> Panduan berhadapan-agen (cara AI agent eksternal terhubung, langkah demi langkah + contoh `curl`): [`docs/agent-integration.md`](../../../docs/agent-integration.md) — ditaut juga dari panel "Akses AI Agent" di UI (SPEC-265).
+> Panduan berhadapan-agen (cara AI agent eksternal terhubung, langkah demi langkah + contoh `curl`): [`docs/agent-integration.md`](../../../docs/agent-integration.md) — **naskah yang sama** disajikan runtime di `GET /api/agent-integration.md` (publik, markdown mentah) dan dirender di panel "Akses AI Agent" di UI (SPEC-265/489).
 
 ```
 # Kelola kredensial AI agent — COOKIE-ONLY (agent token sendiri → 403; anti privilege-escalation).
-GET    /agent-tokens/capabilities   -> { capabilities: CapabilityInfo[] }   # katalog 18 (9 domain × read/write) untuk UI
+GET    /agent-tokens/capabilities   -> { capabilities: CapabilityInfo[] }   # katalog 24 (12 domain × read/write) untuk UI
 GET    /agent-tokens                 -> { items: AgentTokenView[] }          # tanpa hash/plaintext
 POST   /agent-tokens { name, capabilities[] }  -> 201 { ...AgentTokenView, token }   # plaintext hnm_agt_… SEKALI
 #   400 nama kosong / capability asing (divalidasi vs CAPABILITY_IDS). createdBy = user pemanggil.
@@ -403,14 +433,19 @@ DELETE /agent-tokens/:id             # 204 · revoke (set revokedAt); 404 tak ad
 #   AgentTokenView = { id, name, tokenPrefix, capabilities[], enabled, createdBy|null, createdAt, lastUsedAt|null, revokedAt|null }
 ```
 
-> **Capability** = `"<domain>:<access>"`, `access ∈ {read,write}`, **write⊇read**. 9 domain: `projects`,
-> `backlog`, `sessions` (spawn claude = RCE), `docs`, `ide`, `vps` (remote exec), `settings`, `support`
-> (errors+tickets), `notifications`. Peta route→capability di `server/src/services/agent-capabilities.ts`:
+> **Capability** = `"<domain>:<access>"`, `access ∈ {read,write}`, **write⊇read**. 12 domain: `projects`,
+> `backlog`, `sessions` (spawn agen = RCE), `docs`, `ide`, `vps` (remote exec), `settings` (+`/scheduler`),
+> `support` (tickets + issue GitHub), `notifications`, `lead` (ADR-0091), `agents` (ADR-0094),
+> `telegram` (ADR-0096). Peta route→capability di `server/src/services/agent-capabilities.ts`:
 > GET/HEAD → `:read`, selainnya → `:write`; sub-path `/projects/:id/{docs,prds}` → `docs`,
 > `/projects/:id/{tree,file,git,status,graph,commit,compare,remotes,…}` → `ide`; WS terminal → `sessions:write`.
-> **Read-only global** (`/limits`,`/update`,`/events/ws`,`/fs/browse`,`/health`) → token ber-capability apa pun.
-> **Tak-boleh-didelegasikan** (agent → 403): `/auth`, `/agent-tokens`, `/device-tokens`, `/sync`; route tak
-> dikenal peta → cookie-only. Master switch `Setting.agentAccessEnabled` (PUT /settings) mematikan semua.
+> **Read-only global** (`/limits`,`/update`,`/events/ws`,`/fs/browse`,`/health`) → token ber-capability apa
+> pun, **hanya untuk method baca** (SPEC-405 · ADR-0088). **Tak-boleh-didelegasikan** (agent → 403):
+> `/auth`, `/agent-tokens`, `/device-tokens`, `/sync`, `/webhooks` (ADR-0100), dan
+> `/telegram/{settings,test,credentials}` (ADR-0097); route tak dikenal peta → cookie-only. Master switch
+> `Setting.agentAccessEnabled` (PUT /settings) mematikan semua. **Kecuali** endpoint `PUBLIC`
+> (`/health`, `/auth/status`, `/auth/login`, `/auth/setup`, `/agent-integration.md`) yang tak pernah
+> menyentuh gate ini sama sekali.
 
 > **Sync mesin-ke-mesin** (SPEC-213 · ADR-0043/0045/0046): surface `/api/sync/{pull,push,ws}` diotorisasi
 > **device token** (Bearer / `?token=` WS), di-**bypass** gate cookie.

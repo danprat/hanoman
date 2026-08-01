@@ -170,6 +170,25 @@ Pakai skill lebih sempit saat task cocok:
   (rebase = force-push, dilarang) dan branch kerja tak pernah dihapus sebelum hasil `clean`
   (`deleteBranch` opt-in, default mati). Konflik **tidak** melahirkan sesi agen — notifikasi + branch
   utuh, lalu tombol Rebase/Merge ADR-0031 tetap memberi jalur konflik yang lengkap.
+- **Panduan AI agent punya URL** (SPEC-489, tanpa ADR — ADR-0065 & ADR-0099 **ditegakkan**):
+  `docs/agent-integration.md` adalah **naskah tunggal**, disajikan mentah di
+  **`GET /api/agent-integration.md`** (`text/markdown`, masuk daftar `PUBLIC` `app.ts` bersama
+  `/health` — bukan kelalaian: byte-nya sudah publik di GitHub, dan menggerbanginya berarti agen
+  yang capability-nya kurang menerima **403 pada dokumen yang menjelaskan arti 403**, sekaligus
+  mematahkan janji "cukup diberi tautan + token" karena tautannya harus terbaca SEBELUM token
+  disetel). **Tiga jebakan mengikat:** (1) resolusinya duduk di **`app.ts`**, bukan di route-nya —
+  `import.meta.url` sebuah route sedalam `server/src/routes` saat tsx tapi `server/dist` sesudah
+  dibundel esbuild, dua kedalaman berbeda, sementara `app.ts` invarian (persis alasan `pickWebDir`
+  duduk di sana); `pickGuideFile()` karena itu cukup punya dua kandidat (`../docs/…` paket npm,
+  `../../docs/…` checkout yang melayani `server/src` **dan** `server/dist`), dengan override
+  `HANOMAN_AGENT_DOC` yang **melempar** bila di-set tapi tak ada (cermin `HANOMAN_WEB_DIR`);
+  (2) naskahnya **wajib** masuk `copyPlan`/`files`/`REQUIRED_ARTIFACTS` (`cli/src/release/pack.ts`)
+  — tanpa itu setiap instalasi npm menjawab 404 sementara checkout dev terlihat sehat sempurna;
+  (3) kartu Settings me-render **respons endpoint itu**, bukan salinan — kendalanya satu sumber
+  tulisan, jadi versi dashboard/GitHub/runtime tak boleh bisa berbeda. Anti-basi tak bisa memakai
+  render-dari-katalog (ADR-0100) karena sumbernya markdown; gantinya `agent-doc-contract.test.ts`
+  mengikat naskah ke `CAPABILITY_DOMAINS`, daftar `COOKIE_ONLY`, `zSpecSource`, dan larangan token
+  nyata — katalog bertambah → test merah → naskah ikut diperbarui.
 - **MCP server = `hanoman mcp`, KLIEN REST, bukan permukaan kedua** (SPEC-482/ADR-0099, memperluas
   ADR-0065): subcommand stdio di CLI yang memanggil `/api` dengan agent token yang sama, sehingga
   gate `onRequest` tetap satu-satunya otorisasi dan route cookie-only tak terjangkau **secara
