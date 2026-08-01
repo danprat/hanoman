@@ -22,6 +22,13 @@ export type TrailInput = {
   refs: string[];
   confidence: LeadConfidence;
   action: LeadAction;
+  /** SPEC-480 · pilihan yang terselesaikan terhadap `options`; null bila tak ada / ditolak. */
+  choice?: string | null;
+  choiceIndex?: number | null;
+  /** Daftar opsi yang dikirim peminta — disimpan supaya jejak bisa dibaca ulang tanpa peminta. */
+  options?: string[] | null;
+  /** Apa yang kurang bila lead menyatakan konteksnya tak cukup untuk memutuskan. */
+  missing?: string[] | null;
   status?: LeadStatus;
   weighty?: boolean;
   actor?: "lead" | "operator";
@@ -33,6 +40,12 @@ export async function recordDecision(i: TrailInput): Promise<LeadDecision> {
       projectId: i.projectId, specId: i.specId ?? null, sessionId: i.sessionId ?? null,
       gate: i.gate, kind: i.kind, question: i.question, answer: i.answer, reason: i.reason,
       refs: i.refs, confidence: i.confidence, action: i.action,
+      // SPEC-480 · daftar kosong disimpan sebagai NULL: "peminta tak menyodorkan menu" dan
+      // "menunya kosong" adalah keadaan yang sama, dan kolom nullable menyatakannya sekali.
+      choice: i.choice ?? null,
+      choiceIndex: i.choiceIndex ?? null,
+      options: i.options?.length ? i.options : null,
+      missing: i.missing?.length ? i.missing : null,
       status: i.status ?? "berlaku", weighty: i.weighty ?? false, actor: i.actor ?? "lead",
     },
   });

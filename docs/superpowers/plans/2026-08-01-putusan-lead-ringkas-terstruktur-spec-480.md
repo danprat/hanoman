@@ -41,7 +41,7 @@
   - `zLeadVerdict` bertambah `choice: string` (default `""`) & `missing: string[]` (default `[]`)
   - `zLeadChoice` (zod object `{ index, option }`)
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di akhir `shared/src/lead.test.ts`, dan **ubah** dua test lama yang akan pecah karena field baru:
 
@@ -202,14 +202,14 @@ describe("SPEC-480 · verdict terstruktur", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan GAGAL**
+- [x] **Step 2: Jalankan test — pastikan GAGAL**
 
 ```bash
 ./node_modules/.bin/vitest run --dir shared shared/src/lead.test.ts
 ```
 Expected: FAIL — `resolveChoice is not a function` / `clampProse is not exported` dan test default verdict pecah pada `choice`/`missing`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Tambahkan di `shared/src/lead.ts`, di bawah `isWeightyDecision` (sebelum `zLeadVerdict`):
 
@@ -337,21 +337,21 @@ Lalu tambahkan dua field di `zLeadVerdict` (sesudah `action`, sebelum `reply`):
   missing: z.array(z.string().max(200)).max(10).default([]),
 ```
 
-- [ ] **Step 4: Jalankan test — pastikan LULUS**
+- [x] **Step 4: Jalankan test — pastikan LULUS**
 
 ```bash
 ./node_modules/.bin/vitest run --dir shared shared/src/lead.test.ts
 ```
 Expected: PASS, seluruh `describe` SPEC-480 hijau dan test SPEC-409 lama tetap hijau.
 
-- [ ] **Step 5: Typecheck paket shared**
+- [x] **Step 5: Typecheck paket shared**
 
 ```bash
 pnpm --filter ./shared typecheck
 ```
 Expected: keluar tanpa error.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add shared/src/lead.ts shared/src/lead.test.ts
@@ -377,7 +377,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: —
 - Produces: kolom `LeadDecision.choice: String?`, `choiceIndex: Int?`, `options: Json?`, `missing: Json?`; `TrailInput` menerima keempatnya sebagai field opsional.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/lead-trail-choice.test.ts`:
 
@@ -434,14 +434,14 @@ describe("recordDecision · kolom pilihan (SPEC-480)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan GAGAL**
+- [x] **Step 2: Jalankan test — pastikan GAGAL**
 
 ```bash
 ./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/lead-trail-choice.test.ts
 ```
 Expected: FAIL — TypeScript menolak `choice` di `TrailInput` / Prisma tak mengenal kolomnya.
 
-- [ ] **Step 3: Tambahkan kolom di schema**
+- [x] **Step 3: Tambahkan kolom di schema**
 
 `server/prisma/schema.prisma`, di dalam `model LeadDecision`, sesudah baris `actor`:
 
@@ -454,7 +454,7 @@ Expected: FAIL — TypeScript menolak `choice` di `TrailInput` / Prisma tak meng
   missing        Json?     // string[] — apa yang kurang bila lead menyatakan konteksnya tak cukup
 ```
 
-- [ ] **Step 4: Tulis migration tangan**
+- [x] **Step 4: Tulis migration tangan**
 
 Buat `server/prisma/migrations/20260801190000_lead_choice/migration.sql`:
 
@@ -471,7 +471,7 @@ ALTER TABLE "LeadDecision" ADD COLUMN "options" JSONB;
 ALTER TABLE "LeadDecision" ADD COLUMN "missing" JSONB;
 ```
 
-- [ ] **Step 5: Terapkan migration & regenerate client**
+- [x] **Step 5: Terapkan migration & regenerate client**
 
 ```bash
 cd server && ./node_modules/.bin/prisma migrate deploy && ./node_modules/.bin/prisma generate && cd ..
@@ -481,7 +481,7 @@ Expected: `1 migration applied` (atau "No pending migrations" bila DB dev belum 
 > Bila `prisma migrate deploy` mengeluh soal drift dari worktree tetangga, terapkan hanya berkas ini:
 > `sqlite3 "$(node -e 'console.log(require("./runner/dist/paths.js")?.dbFilePath?.()||"")')" < server/prisma/migrations/20260801190000_lead_choice/migration.sql` — atau jalankan `migrate deploy` sekali lagi setelah `prisma migrate resolve --applied <nama-migration-tetangga>`.
 
-- [ ] **Step 6: Teruskan kolom baru lewat `TrailInput`**
+- [x] **Step 6: Teruskan kolom baru lewat `TrailInput`**
 
 `server/src/services/lead/trail.ts` — tambahkan di `TrailInput` (sesudah `action`):
 
@@ -504,14 +504,14 @@ dan di `recordDecision`, di dalam `data:` sesudah `action: i.action,`:
       missing: i.missing?.length ? i.missing : null,
 ```
 
-- [ ] **Step 7: Jalankan test — pastikan LULUS**
+- [x] **Step 7: Jalankan test — pastikan LULUS**
 
 ```bash
 ./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/lead-trail-choice.test.ts
 ```
 Expected: PASS 2 test.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/prisma/schema.prisma server/prisma/migrations/20260801190000_lead_choice server/src/services/lead/trail.ts server/test/lead-trail-choice.test.ts
