@@ -128,14 +128,17 @@ function TicketDetailView({ id, onBack, onAccepted, onDeleted, onToast }:
           <span style={{ flex: 1 }} />
           <Button size="sm" variant="primary" leftIcon="check" onClick={save} disabled={busy}>Simpan</Button>
         </div>
-        <Field label="Judul"><Input value={form.title} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, title: e.target.value })} /></Field>
+        <Field label="Judul"><Input value={form.title} placeholder="mis. Tombol Simpan tak berfungsi di HP"
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, title: e.target.value })} /></Field>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <Field label="Kategori"><Select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
             options={[{ value: "bug", label: "bug" }, { value: "fitur", label: "fitur" }, { value: "pertanyaan", label: "pertanyaan" }, { value: "lainnya", label: "lainnya" }]} /></Field>
           <Field label="Status"><Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}
             options={[{ value: "new", label: "belum ditinjau" }, { value: "accepted", label: "diterima" }, { value: "rejected", label: "ditutup" }]} /></Field>
         </div>
-        <Field label="Detail keluhan"><HnTextarea value={form.detail} rows={6} onChange={(e) => setForm({ ...form, detail: e.target.value })} /></Field>
+        <Field label="Detail keluhan"><HnTextarea value={form.detail} rows={6}
+          placeholder="mis. Buka halaman Pesanan di HP, tekan Simpan — layar diam dan datanya tak tersimpan."
+          onChange={(e) => setForm({ ...form, detail: e.target.value })} /></Field>
       </div>
     );
   }
@@ -355,7 +358,7 @@ export function TriageScreen({ projects, onAccepted, onToast }:
         {tab === "tiket" && <>
           <Select size="sm" value={status} onChange={(e) => setStatus(e.target.value)}
             options={[{ value: "", label: "Semua status" }, { value: "new", label: "belum ditinjau" }, { value: "accepted", label: "diterima" }, { value: "rejected", label: "ditutup" }]} />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari judul / email"
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="mis. gagal login atau budi@contoh.id"
             style={{ flex: 1, minWidth: 160, padding: "6px 10px", border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", background: "var(--surface-card)", color: "var(--text-body)", fontSize: 13 }} />
           {unreviewed > 0 && <Badge tone="warn">{unreviewed} belum ditinjau</Badge>}
           <SyncButton onDone={() => load(true)} onToast={onToast} />

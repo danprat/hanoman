@@ -86,21 +86,21 @@ function ControlBar({ cfg, onWrite, busy }: { cfg: Lead; onWrite: (n: Lead) => v
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-xs)" }}>
           denyut tiap
           <Input type="number" min={1} style={{ width: 76 }} aria-label="denyut lead (menit)"
-            value={String(cfg.everyMin)} disabled={busy}
+            placeholder="5" value={String(cfg.everyMin)} disabled={busy}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onWrite({ ...cfg, everyMin: num(e.target.value, 1) })} />
           menit
         </label>
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-xs)" }}>
           batas waktu putusan
           <Input type="number" min={10} style={{ width: 84 }} aria-label="batas waktu putusan (detik)"
-            value={String(cfg.timeoutSec)} disabled={busy}
+            placeholder="600" value={String(cfg.timeoutSec)} disabled={busy}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onWrite({ ...cfg, timeoutSec: num(e.target.value, 10) })} />
           detik
         </label>
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-xs)" }}>
           maks jawaban otomatis/sesi
           <Input type="number" min={1} style={{ width: 76 }} aria-label="maksimum jawaban otomatis per sesi"
-            value={String(cfg.maxAutoAnswers)} disabled={busy}
+            placeholder="3" value={String(cfg.maxAutoAnswers)} disabled={busy}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onWrite({ ...cfg, maxAutoAnswers: num(e.target.value, 1) })} />
         </label>
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-xs)" }}>
@@ -235,7 +235,7 @@ function DecisionRow({ d, onOverride, onCancel, busyId }: {
           )}
           <div style={{ display: "flex", gap: 8 }}>
             <Input style={{ flex: 1 }} aria-label={`jawaban operator untuk ${d.id}`}
-              placeholder="Jawaban kamu — dikirim ke sesi bila panenya masih hidup"
+              placeholder="mis. pilih opsi 2, pakai Node 22"
               value={draft} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDraft(e.target.value)} />
             {/* Centang saja sudah cukup: labelnya yang jadi jawaban bila kolom prosanya kosong. */}
             <Button size="sm" leftIcon="check"

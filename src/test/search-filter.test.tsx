@@ -25,7 +25,7 @@ function renderBacklog() {
 describe("search + filter backlog via API (SPEC-178 → SPEC-198)", () => {
   it("mengirim q ke API saat mengetik (debounced)", async () => {
     renderBacklog();
-    fireEvent.change(screen.getByPlaceholderText("Cari backlog…"), { target: { value: "csv" } });
+    fireEvent.change(screen.getByLabelText("Cari backlog"), { target: { value: "csv" } });
     await waitFor(() => expect(lastParams()).toMatchObject({ q: "csv" }));
   });
 
@@ -43,7 +43,7 @@ describe("search + filter backlog via API (SPEC-178 → SPEC-198)", () => {
 
   it("kombinasi search + stage + priority = satu query berisi ketiganya", async () => {
     renderBacklog();
-    fireEvent.change(screen.getByPlaceholderText("Cari backlog…"), { target: { value: "alpha" } });
+    fireEvent.change(screen.getByLabelText("Cari backlog"), { target: { value: "alpha" } });
     fireEvent.change(screen.getByLabelText("Filter stage"), { target: { value: "planned" } });
     fireEvent.change(screen.getByLabelText("Filter prioritas"), { target: { value: "tinggi" } });
     await waitFor(() => expect(lastParams()).toMatchObject({ q: "alpha", stage: "planned", priority: "tinggi" }));

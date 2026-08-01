@@ -128,17 +128,17 @@ function ReportForm({ slug }: { slug: string }) {
           <div>
             <label htmlFor="hc-title" className="hn-eyebrow">Judul</label>
             <input id="hc-title" value={title} onChange={(e) => setTitle(e.target.value)} required maxLength={200}
-              style={inputStyle} placeholder="Ringkas masalahnya" />
+              style={inputStyle} placeholder="mis. Tombol Simpan tak berfungsi di HP" />
           </div>
           <div>
             <label htmlFor="hc-detail" className="hn-eyebrow">Detail</label>
             <textarea id="hc-detail" value={detail} onChange={(e) => setDetail(e.target.value)} required maxLength={10_000} rows={6}
-              style={{ ...inputStyle, resize: "vertical" }} placeholder="Ceritakan apa yang terjadi. Jangan sertakan data sensitif (kata sandi, dsb)." />
+              style={{ ...inputStyle, resize: "vertical" }} placeholder="mis. Buka halaman Pesanan di HP, tekan Simpan — layar diam dan datanya tak tersimpan. Jangan sertakan data sensitif (kata sandi, dsb)." />
           </div>
           <div>
             <label htmlFor="hc-email" className="hn-eyebrow">Email Anda</label>
             <input id="hc-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required maxLength={200}
-              style={inputStyle} placeholder="agar kami bisa menautkan laporan Anda" />
+              style={inputStyle} placeholder="nama@contoh.id" />
           </div>
           <div>
             <label htmlFor="hc-files" className="hn-eyebrow">Lampiran gambar (opsional, maks {MAX_FILES})</label>
@@ -151,6 +151,7 @@ function ReportForm({ slug }: { slug: string }) {
               (= "handphone") dengan `autocomplete="off"` — atribut yang diabaikan browser untuk
               autofill — sehingga autofill mengisinya untuk pelapor sungguhan dan submit mereka
               tertelan sukses palsu. `new-password` dihormati semua browser. */}
+          {/* placeholder-exempt: honeypot SPEC-352 — sengaja tak terlihat manusia; placeholder justru memandu bot */}
           <input tabIndex={-1} autoComplete="new-password" aria-hidden value={trap} onChange={(e) => setTrap(e.target.value)}
             name="hc_trap" style={{ position: "absolute", left: "-9999px", width: 1, height: 1 }} />
           {err && <div style={{ color: "var(--clay-600)", fontSize: 13 }}>{err}</div>}
@@ -159,7 +160,7 @@ function ReportForm({ slug }: { slug: string }) {
       </Card>
       <Card eyebrow="sudah pernah lapor?" title="Cek status tiket">
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input value={checkKey} onChange={(e) => setCheckKey(e.target.value)} placeholder="Tempel link / kode status"
+          <input value={checkKey} onChange={(e) => setCheckKey(e.target.value)} placeholder="mis. a1b2c3d4e5f6 — atau tempel link statusnya"
             style={{ ...inputStyle, flex: 1, minWidth: 200 }} />
           <Button variant="secondary" onClick={goCheck}>Cek</Button>
         </div>

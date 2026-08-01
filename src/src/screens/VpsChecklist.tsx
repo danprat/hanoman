@@ -235,7 +235,7 @@ export function VpsChecklistModal({ vpsId, vpsName, lastAuditAt, health, onClose
               border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", padding: "2px 8px", background: "var(--bone-50)" }}>
               <Icon name="search" size={13} color="var(--text-subtle)" />
               <input aria-label="cari item" value={search} onChange={(e) => setSearch(e.target.value)}
-                placeholder="cari item, id, atau kode…"
+                placeholder="mis. ssh atau 5.2.1"
                 style={{ flex: 1, border: "none", background: "transparent", fontSize: 12, color: "var(--text)", outline: "none" }} />
             </div>
             <Select label="seksi" value={filter.section} onChange={set("section")}

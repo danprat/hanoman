@@ -39,7 +39,7 @@ describe("AgentAccessPanel", () => {
   it("creates a token and shows plaintext once", async () => {
     render(<AgentAccessPanel />);
     await waitFor(() => expect(api.listAgentTokens).toHaveBeenCalled());
-    fireEvent.change(screen.getByPlaceholderText(/nama token/i), { target: { value: "ci" } });
+    fireEvent.change(screen.getByLabelText("Nama token"), { target: { value: "ci" } });
     fireEvent.click(screen.getByLabelText("projects:read"));
     fireEvent.click(screen.getByRole("button", { name: /buat token/i }));
     await waitFor(() => expect(api.createAgentToken).toHaveBeenCalledWith({ name: "ci", capabilities: ["projects:read"] }));

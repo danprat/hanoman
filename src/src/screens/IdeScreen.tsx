@@ -66,8 +66,8 @@ function RemotesModal({ projectId, onClose }: { projectId: string; onClose: () =
           </div>
         ))}
         <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="nama" style={{ width: 100, padding: "5px 8px", border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", fontSize: 12.5 }} />
-          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="url" style={{ flex: 1, padding: "5px 8px", border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", fontSize: 12.5 }} />
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="origin" style={{ width: 100, padding: "5px 8px", border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", fontSize: 12.5 }} />
+          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://github.com/org/repo.git" style={{ flex: 1, padding: "5px 8px", border: "1px solid var(--border-hair)", borderRadius: "var(--radius-sm)", fontSize: 12.5 }} />
           <Button size="sm" leftIcon="plus" disabled={!name || !url}
             onClick={() => api.ideAddRemote(projectId, name, url).then((rs) => { setRemotes(rs); setName(""); setUrl(""); }).catch(() => {})}>Tambah</Button>
         </div>
@@ -345,6 +345,7 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
                     : file === null ? <StateBlock kind="loading" title="Memuat…" hint={selected} />
                     : file.binary ? <StateBlock kind="empty" icon="file" title="File biner" hint={selected} />
                     : mode === "edit"
+                      /* placeholder-exempt: isi berkas apa pun bahasanya — tak ada satu contoh yang benar lintas .ts/.json/.sh */
                       ? <textarea value={draft} onChange={(e) => setDraft(e.target.value)} spellCheck={false} style={{
                           width: "100%", minHeight: 560, boxSizing: "border-box", resize: "vertical", border: "none",
                           outline: "none", padding: "16px 18px", fontFamily: "var(--font-mono)", fontSize: 12.5,

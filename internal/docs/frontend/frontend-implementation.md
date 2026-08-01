@@ -357,6 +357,41 @@ tangan. Tak ada `favicon.ico`: Safari 26+ sudah mendukung favicon SVG, dan bila 
 lawas perlu didukung, `.ico` cukup dijatuhkan ke `src/public/` **tanpa perubahan markup** — browser
 me-request `/favicon.ico` dari root dengan sendirinya.
 
+## Placeholder tiap field form (SPEC-490)
+
+Aturan isinya ada di [design-system](../design-system/design-system.md). Yang menjaganya
+tetap berlaku ada tiga lapis, karena ini bentuk "satu definisi, N call site" yang sudah
+berulang di repo ini (SPEC-431/448/475/481):
+
+1. **Katalog** untuk field yang dirender dari data — `ConfigEntry.example`
+   (`shared/src/config-registry.ts`) menyetir **dua** panel Settings sekaligus (Config
+   runtime + Kredensial Telegram, ~25 field lewat satu `<Input>`), dan
+   `BRIEF_FIELDS`/`GOAL_FIELDS`/`QA_FIELDS` (`screens/BacklogScreen.tsx`, kini triple
+   `[key, label, placeholder]`) menyetir 3–5 field detail spec lewat satu `<HnTextarea>`.
+   Contohnya **tidak** ikut `ConfigEntryView`/`GET /api/config`: klien menghitungnya dari
+   katalog yang memang sudah ter-bundle (`configEntry(key)`), jadi wire contract tak melebar
+   untuk nilai presentasi — semangat ADR-0018. Nol perubahan server.
+2. **Call site** untuk sisanya.
+3. **Kontrak** `src/test/placeholder-contract.test.ts` di atas scanner bersama
+   `src/test/helpers/form-fields.ts`: memindai `src/src/**/*.tsx` non-test dan menolak
+   field dalam scope yang tak punya placeholder, atau yang placeholder-nya identik dengan
+   labelnya. Ia menegakkan atas **sumber**, bukan DOM — field tanpa placeholder terlihat
+   persis seperti field yang belum diketik, jadi tak ada test render yang akan
+   menangkapnya. Terukur saat lahir: **23** field kosong dari **82** yang dalam scope.
+
+**Empat gotcha scanner:** (a) isi komentar di-**blank** dulu — `<input>` yang hidup di dalam
+prosa komentar memberi 5 positif palsu; (b) ujung tag pembuka dicari sebagai `>` di luar
+`{…}` dan string, karena `onChange={(e) => …}` memuat `>`; (c) `aria-hidden` sah ditulis
+**tanpa nilai** di JSX (honeypot SPEC-352), jadi deteksinya tak boleh menuntut `=` — itulah
+yang membuat honeypot keluar scope sendiri tanpa daftar khusus; (d) pemeriksaan "tak
+mengulang label" hanya menyala saat placeholder **dan** namanya sama-sama literal statis —
+banyak placeholder di sini ekspresi kondisional. Ia lantai, bukan seluruh aturan; sisanya
+editorial.
+
+**Konsekuensi untuk test:** kueri `getByPlaceholderText(...)` mengunci **salinan** UI, dan
+salinan itu memang yang diperbaiki spec ini — tiga test pecah karenanya. Peganglah nama
+aksesibilitasnya (`getByLabelText`), bukan placeholder-nya.
+
 ## Notifikasi backlog selesai (SPEC-180)
 Awareness saat backlog mencapai `done`: toast, daftar (lonceng), dan sound. Semua sisi klien
 bersandar pada notifikasi yang **dibuat server-side** (`GET /notifications`) — lihat

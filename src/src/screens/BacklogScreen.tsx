@@ -86,16 +86,25 @@ function StageBar({ stage }: { stage: string }) {
   );
 }
 
+// SPEC-490 · elemen ketiga = placeholder (contoh nilai). Satu <HnTextarea> merender
+// ketiga daftar ini, jadi contohnya milik katalog fieldnya — bukan call site.
 const BRIEF_FIELDS = [
-  ["context", "Konteks"], ["outcome", "Outcome"], ["constraints", "Constraints"],
+  ["context", "Konteks", "mis. operator harus membuka tiga layar untuk tahu sesi mana yang menunggu"],
+  ["outcome", "Outcome", "mis. satu badge di Overview menunjukkan jumlah sesi yang menunggu"],
+  ["constraints", "Constraints", "mis. reuse queue yang ada"],
 ] as const;
 // SPEC-407 · ADR-0089 · bentuk payload backlog goal (zGoalPayload) — bukan konteks/outcome.
 const GOAL_FIELDS = [
-  ["goal", "Goal"], ["done", "Selesai bila"], ["constraints", "Batasan"],
+  ["goal", "Goal", "mis. p95 GET /api/specs di bawah 200 ms"],
+  ["done", "Selesai bila", "mis. output benchmark menunjukkan < 200 ms"],
+  ["constraints", "Batasan", "mis. tanpa cache eksternal"],
 ] as const;
 const QA_FIELDS = [
-  ["severity", "Severity"], ["steps", "Langkah reproduksi"], ["expected", "Diharapkan"],
-  ["actual", "Aktual"], ["env", "Environment"],
+  ["severity", "Severity", ""],
+  ["steps", "Langkah reproduksi", "1. Buka …\n2. Lakukan …\n3. Amati …"],
+  ["expected", "Diharapkan", "mis. total funnel sama dengan jumlah baris laporan harian"],
+  ["actual", "Aktual", "mis. total funnel dua kali lipat untuk sesi yang melewati tengah malam"],
+  ["env", "Environment", "prod · web · v0.9.2"],
 ] as const;
 
 function DetailRow({ label, value }: { label: string; value: string }) {
@@ -213,7 +222,7 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
   // SPEC-447 · kandidat dependency = backlog project yang sama, kecuali diri sendiri (server pun
   // menolak keduanya). Diambil dari daftar yang sudah dimuat layar — tanpa fetch tambahan.
   const depPickList = (allSpecs ?? []).filter((c) => c.projectId === spec.projectId && c.id !== spec.id);
-  const fields: readonly (readonly [string, string])[] = qa ? QA_FIELDS : isGoal ? GOAL_FIELDS : BRIEF_FIELDS;
+  const fields: readonly (readonly [string, string, string])[] = qa ? QA_FIELDS : isGoal ? GOAL_FIELDS : BRIEF_FIELDS;
   return (
     <Modal open title={spec.title} eyebrow={spec.id + " · " + spec.projectId}
       icon={sourceMeta(spec.source).icon} onClose={() => { setEditing(false); onClose(); }}>
@@ -328,7 +337,8 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
         </div>
       )}
       {editing ? (
-        <Field label="Judul"><Input value={form.title ?? ""} onChange={setField("title")} style={{ width: "100%" }} /></Field>
+        <Field label="Judul"><Input value={form.title ?? ""} onChange={setField("title")}
+          placeholder="mis. Jadwal invoice berulang" style={{ width: "100%" }} /></Field>
       ) : (
         <DetailRow label="Objective" value={spec.objective} />
       )}
@@ -384,11 +394,11 @@ function SpecDetail({ spec, onClose, onEditBranch, onRevertStage, onOpenReview, 
               <Select value={form.priority ?? "sedang"} onChange={setField("priority")} options={PRIO_OPTS} style={{ width: "100%" }} />
             </Field>
           )}
-          {fields.map(([k, label]) => (
+          {fields.map(([k, label, ph]) => (
             <Field key={k} label={label}>
               {k === "severity"
                 ? <Select value={form[k] ?? "major"} onChange={setField(k)} options={SEV_OPTS} style={{ width: "100%" }} />
-                : <HnTextarea value={form[k] ?? ""} onChange={setField(k)} rows={2} />}
+                : <HnTextarea value={form[k] ?? ""} onChange={setField(k)} rows={2} placeholder={ph} />}
             </Field>
           ))}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 }}>
@@ -778,7 +788,7 @@ export function BacklogScreen({ backlog, projects, pageSize = 20, onStart, activ
         </div>
         {/* SPEC-178 · baris penyaring: search + project + stage + prioritas. */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <Input size="sm" leftIcon="search" placeholder="Cari backlog…" aria-label="Cari backlog"
+          <Input size="sm" leftIcon="search" placeholder="mis. invoice atau SPEC-412" aria-label="Cari backlog"
             value={q} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value)} style={{ flex: "1 1 220px" }} />
           <Select size="sm" value={proj} onChange={(e) => setProj(e.target.value)}
             options={[{ value: "all", label: "Semua project" }].concat(projOptions.map((p) => ({ value: p.id, label: p.name })))} />

@@ -39,7 +39,7 @@ describe("SettingsScreen · kartu mode goal", () => {
   it("mengetik template global → PUT settings dengan kondisinya", async () => {
     vi.mocked(api.getSettings).mockResolvedValue(settings({ enabled: true, condition: "" }) as any);
     openSesi();
-    const ta = await screen.findByPlaceholderText("Kosong = kondisi bawaan hanoman");
+    const ta = await screen.findByLabelText("Kondisi mode goal");
     fireEvent.change(ta, { target: { value: "KONDISI-TEMPLATE" } });
     await waitFor(() => expect(api.putSettings).toHaveBeenCalledWith(
       expect.objectContaining({ goal: { enabled: true, condition: "KONDISI-TEMPLATE" } })));

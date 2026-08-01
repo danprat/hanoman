@@ -3,7 +3,7 @@
 import React from "react";
 import { Card, Switch, Select, Button, Input, Field, HnTextarea, Icon, StateBlock, Badge, Callout, ConfirmDialog } from "../ds";
 import { api, ApiError } from "../api/client";
-import { CAPABILITY_DOMAINS, SCHEDULER_DEFAULTS, GOAL_DEFAULTS, CODEX_DEFAULTS, CONFLICT_DEFAULTS, LEAD_DEFAULTS, TELEGRAM_DEFAULTS, CODEX_MODELS, MODELS, EFFORTS, codexEfforts, coerceCodexEffort, codexModel, codexClientTooOld } from "@hanoman/shared";
+import { CAPABILITY_DOMAINS, SCHEDULER_DEFAULTS, GOAL_DEFAULTS, CODEX_DEFAULTS, CONFLICT_DEFAULTS, LEAD_DEFAULTS, TELEGRAM_DEFAULTS, CODEX_MODELS, MODELS, EFFORTS, codexEfforts, coerceCodexEffort, codexModel, codexClientTooOld, configEntry } from "@hanoman/shared";
 import type { Setting, UserView, DeviceTokenView, SessionResultView, ConfigResponse, ConfigEntryView, AgentTokenView, CapabilityInfo, TelegramGatewayStatus, TelegramCredentialsView, TelegramTestResult } from "@hanoman/shared";
 import type { ShowToast } from "../ds";
 import { playNotifySound, type NotifySound } from "../notifications/sound";
@@ -106,10 +106,10 @@ function AccountPanel({ me, onLoggedOut, onToast }: { me: UserView; onLoggedOut:
       <div style={{ paddingTop: 14 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-strong)", marginBottom: 10 }}>Ganti password</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 10, alignItems: "end" }}>
-          <Field label="Password lama"><Input type="password" autoComplete="current-password" value={cur}
+          <Field label="Password lama"><Input type="password" autoComplete="current-password" placeholder="••••••••" value={cur}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCur(e.target.value)} style={{ width: "100%" }} /></Field>
           <Field label={<>Password baru <span style={{ fontWeight: 400, color: "var(--text-subtle)" }}>· min 8</span></>}>
-            <Input type="password" autoComplete="new-password" value={next}
+            <Input type="password" autoComplete="new-password" placeholder="minimal 8 karakter" value={next}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNext(e.target.value)} style={{ width: "100%" }} /></Field>
           {/* marginBottom = Field.marginBottom (kit.tsx). alignItems:end mendasarkan tombol
               ke dasar baris, tapi margin bawah Field mengangkat input 14px dari sana; tanpa
@@ -164,7 +164,7 @@ function UsersPanel({ me, onToast }: { me: UserView; onToast?: ShowToast }) {
           <Field label="Email"><Input type="email" value={email} placeholder="user@nafanesia.id"
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)} style={{ width: "100%" }} /></Field>
           <Field label={<>Password <span style={{ fontWeight: 400, color: "var(--text-subtle)" }}>· min 8</span></>}>
-            <Input type="password" autoComplete="new-password" value={password}
+            <Input type="password" autoComplete="new-password" placeholder="minimal 8 karakter" value={password}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)} style={{ width: "100%" }} /></Field>
           {/* marginBottom = Field.marginBottom — sejajarkan dasar tombol dengan dasar input (lihat AccountPanel). */}
           <Button size="sm" leftIcon="user-plus" disabled={!canInvite} onClick={invite}
@@ -251,7 +251,7 @@ function ActivityPanel({ onToast }: { onToast?: ShowToast }) {
         Ringkasan hasil sesi lintas device (transisi stage, commit, PR) — append-only. Filter per project.
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "end", marginBottom: 12 }}>
-        <Field label="Project id (opsional)"><Input value={projectId} placeholder="semua project"
+        <Field label="Project id (opsional)"><Input value={projectId} placeholder="mis. hanoman — kosong = semua project"
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProjectId(e.target.value)} style={{ width: "100%" }} /></Field>
         <Button size="sm" variant="ghost" leftIcon="trash-2" disabled={!projectId} onClick={purge} style={{ marginBottom: 14 }}>Purge</Button>
       </div>
@@ -328,7 +328,8 @@ function ConfigField({ entry, draft, onDraft, onSave, onReset }: {
         ? <><code style={{ fontSize: 12 }}>{entry.masked}</code>
             <Button size="sm" variant="ghost" leftIcon="pencil" onClick={() => onDraft("")}>Ganti</Button>
             <Button size="sm" variant="ghost" leftIcon="trash-2" onClick={onReset}>Hapus</Button></>
-        : <><Input aria-label={entry.label} type="password" placeholder={entry.hasValue ? "biarkan kosong = pertahankan" : "tempel token…"}
+        : <><Input aria-label={entry.label} type="password"
+              placeholder={entry.hasValue ? "biarkan kosong = pertahankan" : (configEntry(entry.key)?.example ?? "tempel token…")}
               value={draft ?? ""} onChange={(ev: React.ChangeEvent<HTMLInputElement>) => onDraft(ev.target.value)} style={{ width: 240 }} />
             <Button size="sm" leftIcon="save" onClick={onSave}>Simpan</Button></>}
     </div>;
@@ -342,6 +343,7 @@ function ConfigField({ entry, draft, onDraft, onSave, onReset }: {
   // url | int | string | path
   return <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{badge}
     <Input aria-label={entry.label} type={entry.kind === "int" ? "number" : "text"}
+      placeholder={configEntry(entry.key)?.example}
       value={draft ?? entry.value ?? ""} onChange={(ev: React.ChangeEvent<HTMLInputElement>) => onDraft(ev.target.value)} style={{ width: 240 }} />
     <Button size="sm" leftIcon="save" onClick={onSave}>Simpan</Button>
     {entry.source === "db" && <Button size="sm" variant="ghost" leftIcon="rotate-ccw" onClick={onReset}>Reset</Button>}</div>;
@@ -435,7 +437,7 @@ export function AgentAccessPanel({ onToast }: { onToast?: ShowToast } = {}) {
           ))}
 
         <div style={{ paddingTop: 14 }}>
-          <Field label="Nama token"><Input value={name} placeholder="mis. nama token (agent-ci)"
+          <Field label="Nama token"><Input value={name} placeholder="mis. agent-ci"
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)} style={{ width: "100%" }} /></Field>
           <div style={{ marginTop: 12, fontSize: 12.5, fontWeight: 600, color: "var(--text-strong)" }}>Capability</div>
           <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr auto auto", gap: "6px 14px", alignItems: "center" }}>
@@ -593,7 +595,9 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
                         aria-label={f.label}
                         mono
                         type={f.kind === "secret" ? "password" : "text"}
-                        placeholder={f.kind === "secret" ? (f.masked ?? "belum diisi") : "belum diisi"}
+                        placeholder={f.kind === "secret"
+                          ? (f.masked ?? configEntry(f.key)?.example ?? "belum diisi")
+                          : (configEntry(f.key)?.example ?? "belum diisi")}
                         value={tgDraft[f.key] ?? (f.kind === "secret" ? "" : (f.value ?? ""))}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                           setTgDraft((d) => ({ ...d, [f.key]: e.target.value }))}
@@ -994,8 +998,10 @@ export function SettingsScreen({ onToast, me, onLoggedOut }:
         <SettingRow title="Kondisi (template global)" last
           desc="Kosong = kondisi bawaan hanoman: semua fase tercatat di phase file, plan tak menyisakan task, push sukses.">
           <div style={{ width: 320 }}>
-            <HnTextarea value={s.goal.condition} rows={4} mono
-              placeholder="Kosong = kondisi bawaan hanoman"
+            {/* SPEC-490 · `SettingRow` bukan <label>, jadi textarea ini tak punya nama yang bisa
+                dipegang pembaca layar maupun test — placeholder bukan penggantinya. */}
+            <HnTextarea value={s.goal.condition} rows={4} mono aria-label="Kondisi mode goal"
+              placeholder="Kosong = kondisi bawaan hanoman · mis. semua fase tercatat & plan tanpa - [ ]"
               onChange={(e) => persist({ ...s, goal: { ...s.goal, condition: e.target.value } })} />
           </div>
         </SettingRow>
