@@ -42,6 +42,39 @@ describe("TelegramApiClient fake contract (SPEC-476)", () => {
     expect(calls.some((call) => "parse_mode" in call.body)).toBe(false);
   });
 
+  it("arms the Telegram typing indicator through sendChatAction (SPEC-493)", async () => {
+    const { client, calls } = fakeClient([{ ok: true, result: true }]);
+    expect(await client.sendChatAction("42", "typing")).toBe(true);
+    expect(calls[0]!.url).toMatch(/\/sendChatAction$/);
+    expect(calls[0]!.body).toEqual({ chat_id: "42", action: "typing" });
+  });
+
+  it("defaults the chat action to typing (SPEC-493)", async () => {
+    const { client, calls } = fakeClient([{ ok: true, result: true }]);
+    await client.sendChatAction("42");
+    expect(calls[0]!.body).toEqual({ chat_id: "42", action: "typing" });
+  });
+
+  it("keeps retry_after readable when Telegram answers HTTP 429 (SPEC-493)", async () => {
+    const transport: TelegramTransport = async () => new Response(JSON.stringify({
+      ok: false, error_code: 429,
+      description: "Too Many Requests: retry after 7",
+      parameters: { retry_after: 7 },
+    }), { status: 429, headers: { "content-type": "application/json" } });
+    const client = new TelegramApiClient("123456:TEST_TOKEN_abcdefghijklmnopqrstuvwxyz", transport);
+    await expect(client.sendChatAction("42", "typing")).rejects.toMatchObject({
+      name: "TelegramApiError", code: 429, retryAfter: 7,
+    });
+  });
+
+  it("survives a non-JSON error body without losing the status code (SPEC-493)", async () => {
+    const transport: TelegramTransport = async () => new Response("<html>502</html>", { status: 502 });
+    const client = new TelegramApiClient("123456:TEST_TOKEN_abcdefghijklmnopqrstuvwxyz", transport);
+    await expect(client.sendChatAction("42", "typing")).rejects.toMatchObject({
+      name: "TelegramApiError", code: 502, retryAfter: undefined,
+    });
+  });
+
   it("supports inline confirmation markup and callback acknowledgement", async () => {
     const message = { message_id: 9, date: 1, chat: { id: 42, type: "private" }, text: "confirm" };
     const { client, calls } = fakeClient([{ ok: true, result: message }, { ok: true, result: true }]);

@@ -70,7 +70,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism --dir serve
 
 **Kenapa `retryAfter` masuk di task ini:** Telegram mengirim 429 sebagai **HTTP 429** dengan `parameters.retry_after` di badan JSON, sementara `call()` hari ini melempar di `if (!response.ok)` **sebelum** badan itu dibaca. Tanpa perbaikan ini, cooldown di Task 3 akan selamanya memakai nilai default dan test-nya tetap hijau — kegagalan senyap.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `server/test/telegram-client.test.ts`, di dalam `describe("TelegramApiClient fake contract (SPEC-476)", …)`, tepat sesudah test `"sends and edits plain text without parse_mode"`:
 
@@ -109,7 +109,7 @@ Tambahkan di `server/test/telegram-client.test.ts`, di dalam `describe("Telegram
   });
 ```
 
-- [ ] **Step 2: Jalankan test dan pastikan GAGAL**
+- [x] **Step 2: Jalankan test dan pastikan GAGAL**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-493
@@ -119,7 +119,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism --dir serve
 
 Harapan: GAGAL — `client.sendChatAction is not a function` pada tiga test pertama.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Di `server/src/services/telegram/client.ts`, ganti tipe envelope (baris 34-39) menjadi:
 
@@ -188,7 +188,7 @@ Sisipkan method sesudah `sendMessage` (sesudah baris 111):
   }
 ```
 
-- [ ] **Step 4: Jalankan test dan pastikan LULUS**
+- [x] **Step 4: Jalankan test dan pastikan LULUS**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-493
@@ -198,7 +198,7 @@ env -u NODE_ENV ./node_modules/.bin/vitest run --no-file-parallelism --dir serve
 
 Harapan: LULUS, semua test di berkas itu (termasuk test lama `"throws typed API errors without leaking the bot token"` yang **tak boleh** berubah).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/telegram/client.ts server/test/telegram-client.test.ts
