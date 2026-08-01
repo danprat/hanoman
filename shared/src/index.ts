@@ -16,3 +16,4 @@ export * from "./semver";
 export * from "./telegram";
 export * from "./webhook";
 export * from "./mcp";
+export * from "./auto-merge";
