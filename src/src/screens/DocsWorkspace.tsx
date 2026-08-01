@@ -265,7 +265,8 @@ export function DocsWorkspace({ projectId, projectName, docStatus }:
               <div style={{ padding: "8px 14px", borderBottom: "1px solid var(--border-hair)", background: "var(--bone-100)" }}>
                 <span className="hn-eyebrow">Markdown</span>
               </div>
-              <textarea value={draft} onChange={(e) => setDraft(e.target.value)} spellCheck={false} style={{
+              <textarea value={draft} onChange={(e) => setDraft(e.target.value)} spellCheck={false}
+                placeholder={"# Judul dokumen\n\nParagraf pembuka…"} style={{
                 flex: 1, width: "100%", boxSizing: "border-box", resize: "none", border: "none", outline: "none",
                 padding: "16px 18px", fontFamily: "var(--font-mono)", fontSize: 12.5, lineHeight: 1.7,
                 color: "var(--text-body)", background: "var(--surface-card)",

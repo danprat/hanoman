@@ -151,6 +151,7 @@ function ReportForm({ slug }: { slug: string }) {
               (= "handphone") dengan `autocomplete="off"` — atribut yang diabaikan browser untuk
               autofill — sehingga autofill mengisinya untuk pelapor sungguhan dan submit mereka
               tertelan sukses palsu. `new-password` dihormati semua browser. */}
+          {/* placeholder-exempt: honeypot SPEC-352 — sengaja tak terlihat manusia; placeholder justru memandu bot */}
           <input tabIndex={-1} autoComplete="new-password" aria-hidden value={trap} onChange={(e) => setTrap(e.target.value)}
             name="hc_trap" style={{ position: "absolute", left: "-9999px", width: 1, height: 1 }} />
           {err && <div style={{ color: "var(--clay-600)", fontSize: 13 }}>{err}</div>}

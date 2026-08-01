@@ -345,6 +345,7 @@ export function IdeScreen({ projects, projectId, onProject, onToast, onGotoTermi
                     : file === null ? <StateBlock kind="loading" title="Memuat…" hint={selected} />
                     : file.binary ? <StateBlock kind="empty" icon="file" title="File biner" hint={selected} />
                     : mode === "edit"
+                      /* placeholder-exempt: isi berkas apa pun bahasanya — tak ada satu contoh yang benar lintas .ts/.json/.sh */
                       ? <textarea value={draft} onChange={(e) => setDraft(e.target.value)} spellCheck={false} style={{
                           width: "100%", minHeight: 560, boxSizing: "border-box", resize: "vertical", border: "none",
                           outline: "none", padding: "16px 18px", fontFamily: "var(--font-mono)", fontSize: 12.5,
