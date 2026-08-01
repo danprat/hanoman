@@ -6,7 +6,9 @@ import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 import { existsSync } from "node:fs";
 import { pickWebDir } from "./web-dir";
+import { pickGuideFile } from "./guide-file";
 import health from "./routes/health";
+import agentDoc from "./routes/agent-doc";
 import projects from "./routes/projects";
 import specs from "./routes/specs";
 import notifications from "./routes/notifications";
@@ -51,11 +53,25 @@ const PUBLIC = new Set([
   "GET /api/auth/status",
   "POST /api/auth/login",
   "POST /api/auth/setup",
+  // SPEC-489 · panduan AI agent. Sengaja tanpa auth: byte-nya sudah publik di GitHub, dan
+  // "cukup diberi link + token" hanya benar bila link-nya terbaca SEBELUM token disetel —
+  // menggerbanginya berarti agen yang capability-nya kurang menerima 403 pada dokumen yang
+  // justru menjelaskan arti 403 itu.
+  "GET /api/agent-integration.md",
 ]);
 
 // requireAuth default true: prod (server.ts) selalu tergerbang. Test route yang tak
 // menguji auth mem-build dgn { requireAuth: false } untuk melewati gate.
-export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {}): FastifyInstance {
+export function buildApp(
+  { requireAuth = true, agentDocFile }:
+  { requireAuth?: boolean; agentDocFile?: string | null } = {},
+): FastifyInstance {
+  // SPEC-489 · diresolve DI SINI, bukan di route-nya: `import.meta.url` app.ts sedalam
+  // `server/src` (tsx) DAN `server/dist` (esbuild) — satu kedalaman, jadi satu kandidat melayani
+  // keduanya. Pola & alasan identik dengan pickWebDir di bawah.
+  const docFile = agentDocFile !== undefined
+    ? agentDocFile
+    : pickGuideFile(dirname(fileURLToPath(import.meta.url)), process.env, existsSync);
   // trustProxy: deploy resmi bind 127.0.0.1 di belakang reverse proxy (server.ts), jadi req.ip
   // default = IP proxy untuk SEMUA request. trustProxy membuat req.ip membaca X-Forwarded-For →
   // throttle login (services/auth.ts) jadi per-klien, bukan satu bucket global (SPEC-197).
@@ -132,6 +148,7 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
     api.addHook("onResponse", auditTelegramGatewayResponse);
     await api.register(authRoutes);
     await api.register(health);
+    await api.register(agentDoc, { file: docFile });   // SPEC-489 · panduan AI agent (PUBLIC)
     await api.register(projects);
     await api.register(specs);
     await api.register(notifications);
