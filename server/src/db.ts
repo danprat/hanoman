@@ -4,6 +4,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PrismaClient } from "@prisma/client";
 import { resolveDbUrl, dbFilePath, dbUrlNotice } from "@hanoman/runner";
+import { webhookTap, type TapBase } from "./services/webhooks/tap";
 
 // SPEC-398 · ADR-0086 · satu titik yang menormalkan DATABASE_URL sebelum PrismaClient dibuat:
 // `file:` absolut, default `~/.hanoman/hanoman.db`. `HANOMAN_DATABASE_URL` non-`file:` melempar;
@@ -17,4 +18,14 @@ if (notice) console.warn(notice);
 const url = resolveDbUrl(process.env, schemaDir);
 process.env.DATABASE_URL = url;
 mkdirSync(dirname(dbFilePath(url)), { recursive: true }); // SQLite tak membuat direktori sendiri
-export const prisma = new PrismaClient();
+// SPEC-481 · ADR-0099 · tap webhook dipasang DI SINI, satu-satunya tempat klien Prisma lahir.
+// `base` dipakai tap untuk membaca keadaan sebelum/sesudah TANPA melewati extension lagi
+// (rekursi), sekaligus berbagi engine & koneksi yang sama dengan klien yang diekspor.
+const base = new PrismaClient();
+export const prisma = base.$extends(webhookTap(base as unknown as TapBase));
+
+// Klien yang diekspor kini ber-extension, jadi ia TAK assignable ke `PrismaClient` polos maupun
+// `Prisma.TransactionClient`. Kedua alias ini yang dipakai konsumen — diturunkan dari nilai
+// nyatanya supaya menambah/mencabut extension kelak tak menuntut menyunting tanda tangan mana pun.
+export type Db = typeof prisma;
+export type DbTx = Parameters<Parameters<Db["$transaction"]>[0]>[0];

@@ -1,4 +1,5 @@
-import { Prisma, type PrismaClient } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+import type { Db } from "../../db";
 import type { TelegramAuditRecord, TelegramChatContext, TelegramMemoryRecord } from "@hanoman/shared";
 
 type UpdateMeta = {
@@ -40,7 +41,9 @@ const isUnique = (error: unknown): boolean =>
   error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 
 export class TelegramStore {
-  constructor(private readonly db: PrismaClient) {}
+  // SPEC-481 · klien yang diekspor kini ber-extension (tap webhook) sehingga tak lagi
+  // assignable ke `PrismaClient` polos. `Db` diturunkan dari nilai nyatanya.
+  constructor(private readonly db: Db) {}
 
   async recordUpdate(input: UpdateMeta): Promise<boolean> {
     try {

@@ -9,6 +9,8 @@ import { installSessionHistory, reconcileHistory } from "./services/session-hist
 import { installCustomAgents } from "./services/custom-agents";
 import { listSessions } from "./services/pty";
 import { installTelegramGateway } from "./services/telegram/bootstrap";
+import { installWebhooks } from "./services/webhooks/install";
+import { startWebhookEngine } from "./services/webhooks/engine";
 import type { AddressInfo } from "node:net";
 
 // SPEC-215 · deteksi update default ON (registry HANOMAN_UPDATE_FETCH="1"), dibaca via resolver
@@ -43,6 +45,9 @@ app.listen({ port, host }).then(async () => {
   // pertama. Ditunggu (bukan fire-and-forget): sesi yang lahir sebelum cache terisi akan lahir
   // TANPA custom agent, dan itu gejala senyap — argv-nya sah, agennya cuma tak ada.
   await installCustomAgents();
+  // SPEC-481 · ADR-0099 · daftarkan tap webhook SEBELUM apa pun bisa menulis baris. Sebelum ini
+  // tap diam, jadi peristiwa yang lahir di antara boot dan pemasangan hilang — dan itu senyap.
+  await installWebhooks();
   // SPEC-362 · ADR-0079 · pasang hook riwayat SEBELUM apa pun bisa melahirkan sesi, lalu tutup
   // baris "berjalan" yang panenya sudah lenyap (tmux mati di luar hanoman: kill-server, reboot).
   installSessionHistory();
@@ -85,4 +90,7 @@ app.listen({ port, host }).then(async () => {
   // SPEC-409 · ADR-0091 · denyut hanoman-lead (in-process, cermin scheduler). Master switch default
   // MATI: tick pertama membaca Setting dan langsung kembali bila lead tak dinyalakan operator (AC-30).
   startLead();
+  // SPEC-481 · ADR-0099 · worker antrean webhook (in-process, cermin scheduler). Idle penuh saat
+  // tak ada baris `pending` — biayanya satu query ringan tiap 2 detik.
+  startWebhookEngine();
 }).catch((err) => { console.error("listen gagal:", err); process.exit(1); });

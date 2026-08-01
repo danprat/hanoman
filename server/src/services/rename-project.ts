@@ -3,8 +3,7 @@
 // (tanpa FK) + LocalBinding (@id, LOCAL-only) di-update manual. `renameProjectCore` = helper murni:
 // TANPA validasi slug / cek konflik / cek sesi (itu di `renameProject` & applyPush) dan TANPA
 // menaikkan version (pemanggil yang atur).
-import type { Prisma } from "@prisma/client";
-import { prisma } from "../db";
+import { prisma, type DbTx } from "../db";
 import { listSessions } from "./pty";
 import { enqueueOutbox } from "./outbox";
 import { zProjectId } from "@hanoman/shared";
@@ -20,7 +19,7 @@ export type RenameAffected = {
 };
 
 export async function renameProjectCore(
-  tx: Prisma.TransactionClient, oldId: string, newId: string,
+  tx: DbTx, oldId: string, newId: string,
 ): Promise<RenameAffected> {
   // Cascade FK menangani Spec/Ticket saat id berubah. updatedAt disegarkan.
   await tx.project.update({ where: { id: oldId }, data: { id: newId, updatedAt: new Date() } });
