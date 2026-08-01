@@ -482,7 +482,7 @@ git commit -m "feat(484): kolom CustomAgent.runtime + migration + FIELDS sync"
   - `agentToolCatalog(repoDir?: string | null): AgentToolInfo[]`
   - `agentToolIds(repoDir?: string | null): string[]`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Create `server/test/agent-tool-catalog.test.ts`:
 
@@ -574,7 +574,7 @@ describe("agentToolCatalog", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run:
 ```bash
@@ -582,7 +582,7 @@ TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run -
 ```
 Expected: FAIL — `Failed to resolve import "../src/services/agent-tool-catalog"`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Create `server/src/services/agent-tool-catalog.ts`:
 
@@ -658,7 +658,7 @@ export const agentToolIds = (repoDir?: string | null): string[] =>
   agentToolCatalog(repoDir).map((t) => t.id);
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run:
 ```bash
@@ -666,7 +666,7 @@ TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run -
 ```
 Expected: PASS, 9 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/agent-tool-catalog.ts server/test/agent-tool-catalog.test.ts
