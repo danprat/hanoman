@@ -1,9 +1,14 @@
 import {
-  configEntry, maskSecret, parseConfigValue, TELEGRAM_CONFIG_KEYS, type TelegramConfigKey,
+  configEntry, maskSecret, parseConfigValue, TELEGRAM_CONFIG_KEYS,
+  type TelegramConfigKey, type TelegramInboundReadinessView,
 } from "@hanoman/shared";
 import { clearConfig, effectiveStr, setConfig, sourceOf } from "../../config";
+import { verifyAgentToken as verifyAgentTokenReal } from "../agent-token";
+import { getSetting as getSettingReal } from "../settings";
+import { TELEGRAM_REQUIRED_CAPABILITIES } from "./bootstrap";
 import { TelegramApiClient, type TelegramTransport } from "./client";
 import { sanitizeTelegramOutput } from "./protocol";
+import { telegramRuntimeStatus } from "./runtime";
 
 /**
  * SPEC-477 · ADR-0097 · permukaan kredensial Telegram. Semua I/O lewat resolver config
@@ -20,9 +25,62 @@ export type TelegramCredentialField = {
   value?: string | null;    // hanya kind non-secret
 };
 export type TelegramCredentialsView = { fields: TelegramCredentialField[] };
+/**
+ * SPEC-491 · kesiapan jalur MASUK. Test Connection lama hanya `getMe` + `sendMessage` dengan bot
+ * token, jadi hijau-nya bisa berdampingan dengan inbound yang mati total — persis kegagalan yang
+ * dilaporkan. Ini gerbang yang sama dengan `installTelegramGateway`, dibaca ulang segar.
+ */
+export type TelegramInboundReadiness = TelegramInboundReadinessView;
 export type TelegramTestResult =
-  | { ok: true; botUsername: string | null; chatId: string }
-  | { ok: false; error: string };
+  | { ok: true; botUsername: string | null; chatId: string; inbound: TelegramInboundReadiness }
+  | { ok: false; error: string; inbound: TelegramInboundReadiness };
+
+export type TelegramGateDeps = {
+  agentToken?: string;
+  verify?: (token: string) => Promise<{ id: string; capabilities: string[] } | null>;
+  getSetting?: typeof getSettingReal;
+  polling?: boolean;
+};
+
+/**
+ * Gerbang yang menilai TOKEN-nya sendiri — cermin `installTelegramGateway`. Sengaja tak melihat
+ * master switch maupun polling: keduanya setelan yang bisa dinyalakan kapan saja, sementara token
+ * tak dikenal / capability kurang adalah sifat kredensialnya yang tak akan berubah sendiri.
+ */
+export async function verifyTelegramAgentToken(token: string, deps: TelegramGateDeps = {}):
+  Promise<{ ok: true } | { ok: false; reason: string; missing: string[] }> {
+  const agent = await (deps.verify ?? verifyAgentTokenReal)(token);
+  if (!agent) {
+    return {
+      ok: false,
+      missing: [...TELEGRAM_REQUIRED_CAPABILITIES],
+      reason: "AgentToken tidak dikenal atau sudah dicabut — salin plaintext `hnm_agt_…` dari Akses AI Agent, bukan hash-nya.",
+    };
+  }
+  const missing = TELEGRAM_REQUIRED_CAPABILITIES.filter((c) => !agent.capabilities.includes(c));
+  return missing.length
+    ? { ok: false, missing, reason: `AgentToken kurang ${missing.length} capability.` }
+    : { ok: true };
+}
+
+export async function telegramInboundReadiness(deps: TelegramGateDeps = {}): Promise<TelegramInboundReadiness> {
+  const polling = deps.polling ?? telegramRuntimeStatus().running;
+  const empty: string[] = [];
+  const token = deps.agentToken ?? effectiveStr("HANOMAN_TELEGRAM_AGENT_TOKEN")?.trim();
+  if (!token) {
+    return { ok: false, reason: "AgentToken gateway belum diisi.", missingCapabilities: [...TELEGRAM_REQUIRED_CAPABILITIES], polling };
+  }
+  const setting = await (deps.getSetting ?? getSettingReal)();
+  if (!setting.agentAccessEnabled) {
+    return { ok: false, reason: "Akses agent mati — nyalakan master switch di Akses AI Agent.", missingCapabilities: empty, polling };
+  }
+  const gate = await verifyTelegramAgentToken(token, deps);
+  if (!gate.ok) return { ok: false, reason: gate.reason, missingCapabilities: gate.missing, polling };
+  if (!polling) {
+    return { ok: false, reason: "Kredensial sudah sah tapi gateway belum polling — nyalakan “Gateway aktif”.", missingCapabilities: empty, polling };
+  }
+  return { ok: true, reason: null, missingCapabilities: empty, polling };
+}
 
 const KEYS = TELEGRAM_CONFIG_KEYS;
 
@@ -50,6 +108,7 @@ export function telegramCredentialView(): TelegramCredentialsView {
  */
 export async function saveTelegramCredentials(
   patch: Record<string, unknown>,
+  deps: TelegramGateDeps = {},
 ): Promise<{ ok: true } | { ok: false; key: string; error: string }> {
   const writes: [TelegramConfigKey, string][] = [];
   for (const [key, raw] of Object.entries(patch)) {
@@ -63,6 +122,21 @@ export async function saveTelegramCredentials(
     const parsed = parseConfigValue(entry, raw);
     if (!parsed.ok) return { ok: false, key, error: parsed.error };
     writes.push([key as TelegramConfigKey, parsed.value]);
+  }
+  // SPEC-491 · pola `^\S{20,}$` menerima apa saja yang panjang — termasuk digest sha256 64-hex,
+  // yang persis tersimpan di instalasi yang melaporkan "diam total". Nilai seperti itu membuat
+  // `installTelegramGateway` `return` di gerbang readiness SEBELUM poller lahir: nol `getUpdates`,
+  // nol `TelegramUpdate`, nol audit, nol pesan galat. Diadu ke tabel di sini — saat operator masih
+  // memandangi formulirnya dan bisa memperbaikinya.
+  const agentToken = writes.find(([key]) => key === "HANOMAN_TELEGRAM_AGENT_TOKEN")?.[1];
+  if (agentToken !== undefined) {
+    const gate = await verifyTelegramAgentToken(agentToken, deps);
+    if (!gate.ok) {
+      const detail = gate.missing.length < TELEGRAM_REQUIRED_CAPABILITIES.length
+        ? `${gate.reason} Kurang: ${gate.missing.join(", ")}.`
+        : gate.reason;
+      return { ok: false, key: "HANOMAN_TELEGRAM_AGENT_TOKEN", error: detail };
+    }
   }
   // Validasi SELURUH patch dulu, baru tulis: satu field salah tak boleh meninggalkan
   // separuh kredensial tersimpan.
@@ -82,7 +156,7 @@ export async function clearTelegramCredentials(): Promise<{ cleared: string[]; e
   return { cleared, envFallback: KEYS.filter((k) => sourceOf(k) === "env") };
 }
 
-export type TestConnectionDeps = {
+export type TestConnectionDeps = TelegramGateDeps & {
   botToken?: string;
   chatId?: string;
   transport?: TelegramTransport;
@@ -95,11 +169,15 @@ export type TestConnectionDeps = {
  * `AbortController` loop-nya; menumpang di sana menukar "uji koneksi" dengan "putuskan polling".
  */
 export async function testTelegramConnection(deps: TestConnectionDeps = {}): Promise<TelegramTestResult> {
+  // SPEC-491 · dibaca SELALU, apa pun hasil bot token: keluhan "diam total" justru berasal dari
+  // Test Connection hijau yang berdampingan dengan inbound mati. Uji koneksi tanpa kabar soal
+  // gerbang masuk adalah uji yang menyesatkan.
+  const inbound = await telegramInboundReadiness(deps);
   const botToken = deps.botToken ?? effectiveStr("HANOMAN_TELEGRAM_BOT_TOKEN");
-  if (!botToken) return { ok: false, error: "Bot token belum diisi." };
+  if (!botToken) return { ok: false, error: "Bot token belum diisi.", inbound };
   const chatId = deps.chatId ?? resolveTestChatId();
   if (!chatId) {
-    return { ok: false, error: "Isi Chat / Channel ID target — atau isi allowlist dengan tepat satu user id." };
+    return { ok: false, inbound, error: "Isi Chat / Channel ID target — atau isi allowlist dengan tepat satu user id." };
   }
   const timeoutMs = deps.timeoutMs ?? 10_000;
   const controller = new AbortController();
@@ -111,12 +189,12 @@ export async function testTelegramConnection(deps: TestConnectionDeps = {}): Pro
     const me = await client.getMe();
     const stamp = (deps.now?.() ?? new Date()).toISOString();
     await client.sendMessage({ chatId, text: `hanoman: uji koneksi Telegram berhasil (${stamp}).` });
-    return { ok: true, botUsername: me.username ?? null, chatId };
+    return { ok: true, botUsername: me.username ?? null, chatId, inbound };
   } catch (error) {
     const raw = (error as Error).message || "gagal menghubungi Telegram";
     const message = controller.signal.aborted ? `Timeout ${timeoutMs} ms — Telegram tidak menjawab.` : raw;
     // Lapis kedua di atas `TelegramApiClient.safe()`: token & pola credential dibuang total.
-    return { ok: false, error: sanitizeTelegramOutput(message, [botToken]).slice(0, 500) };
+    return { ok: false, inbound, error: sanitizeTelegramOutput(message, [botToken]).slice(0, 500) };
   } finally {
     clearTimeout(timer);
   }

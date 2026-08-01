@@ -218,9 +218,18 @@ export type TelegramCredentialFieldView = {
   value?: string | null;
 };
 export type TelegramCredentialsView = { fields: TelegramCredentialFieldView[] };
+// SPEC-491 · Test Connection lama hanya `getMe` + `sendMessage` dengan BOT token, jadi hijau-nya
+// bisa berdampingan dengan jalur MASUK yang mati total. `inbound` membawa gerbang yang sama dengan
+// `installTelegramGateway` supaya "uji koneksi" tak lagi berarti "uji separuh".
+export type TelegramInboundReadinessView = {
+  ok: boolean;
+  reason: string | null;
+  missingCapabilities: string[];
+  polling: boolean;
+};
 export type TelegramTestResult =
-  | { ok: true; botUsername: string | null; chatId: string }
-  | { ok: false; error: string };
+  | { ok: true; botUsername: string | null; chatId: string; inbound: TelegramInboundReadinessView }
+  | { ok: false; error: string; inbound: TelegramInboundReadinessView };
 export type TelegramClearResult = { cleared: string[]; envFallback: string[] };
 
 // SPEC-270 · ADR-0067 · konflik sync dua-sisi menunggu keputusan manusia (modal rekonsil).

@@ -131,8 +131,11 @@ describe("SPEC-477 · Test Connection", () => {
         ? { ok: true, result: { id: 1, is_bot: true, first_name: "H", username: "bot_uji" } }
         : { ok: true, result: { message_id: 5, date: 0, chat: { id: 42, type: "private" } } },
     ), { status: 200 });
+    // SPEC-491 · hasilnya SELALU membawa kesiapan jalur masuk: hijau bot token saja pernah
+    // berdampingan dengan inbound mati total, dan itulah keluhan yang dilaporkan.
     await expect(testTelegramConnection({ ...base, transport })).resolves.toEqual({
       ok: true, botUsername: "bot_uji", chatId: "42",
+      inbound: { ok: false, reason: expect.any(String), missingCapabilities: expect.any(Array), polling: false },
     });
   });
 
@@ -170,7 +173,7 @@ describe("SPEC-477 · Test Connection", () => {
         ? { ok: true, result: { id: 1, is_bot: true, first_name: "H", username: "bot_uji" } }
         : { ok: true, result: { message_id: 5, date: 0, chat: { id: 77, type: "private" } } },
     ), { status: 200 });
-    await expect(testTelegramConnection({ botToken: TOKEN, transport })).resolves.toEqual({
+    await expect(testTelegramConnection({ botToken: TOKEN, transport })).resolves.toMatchObject({
       ok: true, botUsername: "bot_uji", chatId: "77",
     });
   });

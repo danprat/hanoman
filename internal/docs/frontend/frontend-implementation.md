@@ -558,10 +558,15 @@ dapat menimpa setelan server. Tiga kartu:
    Channel ID target teks biasa. Tiap field diberi badge sumber: `tersimpan` (`source==="db"`),
    `dari .env · deprecated` (`"env"`), `belum diisi` (`"default"`). Tombol **Simpan kredensial**
    hanya mengirim field yang benar-benar diisi.
-2. **Uji koneksi & hapus** — **Test Connection** (`POST /api/telegram/test`) menampilkan `Callout`
-   `ok`/`err`; tombolnya `disabled` selama menunggu dan server membatasi 10 detik, jadi UI tak
-   pernah menggantung. **Hapus kredensial** lewat `ConfirmDialog`, lalu memuat ulang kartu &
-   status — toast menyebut bila ada nilai `.env` yang kembali dipakai.
+2. **Uji koneksi & hapus** — **Test Connection** (`POST /api/telegram/test`) menampilkan **dua**
+   `Callout` bertumpuk (SPEC-491): yang atas hasil jalur **keluar** (`ok`/`err` — bot token), yang
+   bawah `inbound` dari respons yang sama — `ok` bila gateway sedang polling dengan AgentToken sah,
+   `warn` berikut `reason` dan daftar capability yang kurang bila belum. Dua baris, bukan satu,
+   karena hijau jalur keluar pernah berdampingan dengan jalur masuk yang mati total — persis
+   keluhan "diam total"; satu `Callout` gabungan akan mengulang kesalahan yang sama. Tombolnya
+   `disabled` selama menunggu dan server membatasi 10 detik, jadi UI tak pernah menggantung.
+   **Hapus kredensial** lewat `ConfirmDialog`, lalu memuat ulang kartu & status — toast menyebut
+   bila ada nilai `.env` yang kembali dipakai.
 3. **Gateway** — toggle `Setting.telegram.enabled`/`progress` (berlaku seketika, tanpa restart),
    readiness, bot username, allowlist count, capability kurang, dan onboarding lima langkah yang
    kini seluruhnya di dalam dashboard.

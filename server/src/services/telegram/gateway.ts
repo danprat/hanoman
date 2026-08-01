@@ -3,7 +3,17 @@ import type { TelegramInlineKeyboardMarkup, TelegramMessage, TelegramUpdate } fr
 import { TelegramApiError } from "./client";
 import { inboundDigest, parseTelegramUpdate, sanitizeTelegramOutput, splitTelegramText, type AcceptedTelegramInput } from "./protocol";
 import type { TelegramStore } from "./store";
-import { updateTelegramRuntimeStatus } from "./runtime";
+import { telegramRuntimeStatus, updateTelegramRuntimeStatus } from "./runtime";
+
+/**
+ * SPEC-491 · ADR-0096 §5 · amplop yang DIKARANG gateway, bukan session operator. `kind`-nya
+ * sengaja di luar `TELEGRAM_REPLY_KINDS`: `dedupeKey` outbox adalah `chat:update:kind`, jadi
+ * memakai "progress" akan membuat baris gateway MENELAN reply progress milik session operator
+ * untuk update yang sama (`enqueueReply` mengembalikan baris yang sudah ada). Nilai terpisah juga
+ * membuat jejak audit bisa membedakan fakta server dari jawaban agen.
+ */
+const GATEWAY_PROGRESS_KIND = "gateway-progress";
+const GATEWAY_FAILURE_KIND = "gateway-failure";
 
 export type TelegramGatewayClient = {
   getUpdates(input: { offset: number; limit: number; timeout: number; signal?: AbortSignal }): Promise<TelegramUpdate[]>;
@@ -106,14 +116,35 @@ export class TelegramGateway {
         action: "dispatch", outcome: target.created ? "session-created" : "session-reused",
         correlationId: `tg:${input.updateId}`,
       });
+      // Fakta server, bukan layar PTY (ADR-0096 §5). Punya `catch` sendiri: dispatch SUDAH
+      // berhasil, jadi gagalnya mengantre pemberitahuan tak boleh mengubahnya jadi kegagalan.
+      if (this.deps.progress) {
+        await this.deps.store.enqueueReply({
+          chatId: input.chatId, updateId: input.updateId, kind: GATEWAY_PROGRESS_KIND,
+          text: target.created
+            ? "Diterima. Sesi operator Hanoman untuk chat ini sedang dijalankan — jawabannya menyusul."
+            : "Diterima. Diteruskan ke sesi operator.",
+        }).catch(() => {});
+      }
       updateTelegramRuntimeStatus({ lastUpdateAt: new Date().toISOString(), lastError: null });
     } catch (error) {
+      const reason = sanitizeTelegramOutput((error as Error).message, this.deps.exactSecrets).slice(0, 200);
       await this.deps.store.markUpdateUncertain(input.updateId, "dispatch-failed");
       await this.deps.store.audit({
         chatId: input.chatId, userId: input.userId, updateId: input.updateId,
         action: "dispatch", outcome: "uncertain", correlationId: `tg:${input.updateId}`,
       });
-      throw error;
+      // TIDAK digerbangi `progress`: kegagalan bukan progress. Tanpa baris ini update yang
+      // tertangkap lalu gagal berakhir sebagai `uncertain` di DB dan DIAM TOTAL di chat.
+      await this.deps.store.enqueueReply({
+        chatId: input.chatId, updateId: input.updateId, kind: GATEWAY_FAILURE_KIND,
+        text: `Pesan Anda tertangkap tapi gagal diteruskan ke sesi operator: ${reason || "sebab tak diketahui"}. `
+          + "Kirim ulang setelah masalahnya beres — hanoman tidak pernah mengulanginya sendiri (at-most-once).",
+      }).catch(() => {});
+      updateTelegramRuntimeStatus({ lastError: reason });
+      // Sengaja TIDAK dilempar ulang: satu update yang gagal tak boleh menghentikan sisa batch
+      // (sebelumnya lemparan ini keluar sampai `loop`, jadi update berikutnya tak pernah diproses
+      // dan `flushOutbox` pada siklus itu terlewat).
     }
   }
 
@@ -172,8 +203,15 @@ export class TelegramGateway {
         const updates = await this.deps.client.getUpdates({
           offset: await this.deps.store.offset(), limit: 100, timeout: this.deps.pollTimeout ?? 25, signal,
         });
-        await this.processUpdates(updates);
-        await this.flushOutbox();
+        // SPEC-491 · poll yang berhasil MEMULIHKAN status. Tanpa ini satu kedip jaringan
+        // meninggalkan `readiness: "error"` selamanya — hanya `processUpdate` yang sukses yang
+        // membersihkan `lastError`, dan itu tak terjadi pada poll kosong (kasus lazim).
+        if (telegramRuntimeStatus().readiness === "error") {
+          updateTelegramRuntimeStatus({ running: true, readiness: "running", lastError: null });
+        }
+        // `finally`: outbox tetap harus terkuras walau pemrosesan batch melempar — di dalamnya
+        // ada justru pemberitahuan kegagalan yang harus sampai ke operator.
+        try { await this.processUpdates(updates); } finally { await this.flushOutbox(); }
       } catch (error) {
         if (signal.aborted) return;
         const message = sanitizeTelegramOutput((error as Error).message, this.deps.exactSecrets).slice(0, 500);

@@ -132,7 +132,11 @@ describe("Telegram operator live contract E2E (SPEC-476)", () => {
     expect(births[0]!.prompt).toContain("status proyek");
     expect(births[0]!.env.HANOMAN_TELEGRAM_AGENT_TOKEN).toBe(bearer);
     expect(JSON.stringify(births[0]!.env)).not.toContain("BOT_SECRET");
-    expect(sent.map((item) => item.text)).toEqual(["Sedang memeriksa.", "Jawaban: status proyek"]);
+    // SPEC-491 · dua yang pertama milik session operator; yang ketiga adalah FAKTA SERVER yang
+    // dikarang gateway sendiri (ADR-0096 §5), diantrekan sesudah dispatch berhasil.
+    expect(sent.map((item) => item.text)).toEqual([
+      "Sedang memeriksa.", "Jawaban: status proyek", expect.stringMatching(/^Diterima\./),
+    ]);
 
     const restartedGateway = gateway();
     await restartedGateway.processUpdates([update(17, "replay"), update(18, "/status")]);
@@ -158,7 +162,9 @@ describe("Telegram operator live contract E2E (SPEC-476)", () => {
     const g = gateway();
     await g.processUpdates([update(20, "/stop")]);
     await g.flushOutbox();
-    const markup = sent.at(-1)!.replyMarkup as { inline_keyboard: { callback_data: string }[][] };
+    // Bukan `sent.at(-1)`: sejak SPEC-491 baris fakta server gateway ikut antre sesudahnya.
+    const markup = sent.filter((item) => item.replyMarkup).at(-1)!.replyMarkup as
+      { inline_keyboard: { callback_data: string }[][] };
     const callbackData = markup.inline_keyboard[0]![0]!.callback_data;
     await g.processUpdates([{
       update_id: 21,
