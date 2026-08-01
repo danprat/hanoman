@@ -4,6 +4,37 @@ Design doc. Sumber: brief SPEC-482, `internal/docs/README.md`, `docs/agent-integ
 ADR-0065 (agent token + capability), ADR-0087 (distribusi npm global), ADR-0092 (error monitoring
 dicabut), ADR-0095 (issue GitHub), ADR-0091 (hanoman-lead).
 
+## 0. Objective (terkunci)
+
+hanoman menyediakan MCP server resmi yang membungkus permukaan REST-nya sebagai tool MCP, sehingga
+agen AI mana pun yang berbicara MCP bisa memakainya tanpa kode pembungkus khusus per-klien.
+
+Selesai bila, semuanya sekaligus:
+
+1. `hanoman mcp` berdiri sebagai MCP server stdio dan menjawab `initialize` + `tools/list` +
+   `tools/call` dari klien MCP sungguhan.
+2. Tool mencakup pekerjaan yang paling sering dilakukan: daftar & detail proyek; cari, baca, buat,
+   dan ubah backlog; dokumen hasil sesi; sesi berjalan; notifikasi; tiket; issue GitHub; jejak &
+   permintaan putusan lead.
+3. Skema tiap tool mendeskripsikan parameternya secara ketat — bentuk payload yang benar per
+   `source`, enum `priority`/`severity`/`stage`, dan jebakan yang sudah diketahui tertulis di
+   deskripsi parameternya — sehingga agen dibimbing ke panggilan yang sah, bukan menemukannya
+   lewat 400.
+4. Autentikasi memakai agent token yang sama dengan REST; capability yang kurang dilaporkan sebagai
+   kalimat yang menyebut capability persis yang harus ditambahkan manusia di Settings.
+5. Settings memuat panduan pemasangan siap salin untuk klien MCP populer, bersebelahan dengan
+   pengelolaan akses.
+6. Mode baca-saja menyembunyikan seluruh tool yang menulis.
+7. Tool yang **mengeksekusi** (membuat sesi terminal, perintah VPS) tidak ikut.
+8. Agent token tak pernah muncul di keluaran tool, log, pesan galat, maupun contoh pemasangan.
+9. Balasan tool berbatas ukuran dan berpaginasi; galat berupa kalimat yang bisa ditindaklanjuti.
+10. Salah instance terdeteksi dan dijelaskan, bukan tampil sebagai 401 telanjang.
+11. Skema tool berversi.
+
+**Yang berubah dari objective brief:** tool `errors` **tidak** dibuat — `/api/errors*` sudah dicabut
+SPEC-384/ADR-0092 dan permukaannya tak ada lagi. Sebagai gantinya kanal masuk yang tersedia adalah
+tiket Help Center dan issue GitHub (ADR-0095).
+
 ## 1. Masalah
 
 Permukaan fitur hanoman seluruhnya REST di bawah `/api` dan sudah punya jalur auth agen
