@@ -632,7 +632,7 @@ Aturan fallback adalah bagian paling halus dari spec ini. `gh` menjawab **exit 1
   export function fetchIssues(repo: GithubRepo, opts: { state: "open" | "all"; limit: number }, deps?: FetchDeps): Promise<FetchOutcome>
   ```
 
-- [ ] **Step 1: Tulis test yang gagal** — tambahkan di `server/test/github-fetch.test.ts`
+- [x] **Step 1: Tulis test yang gagal** — tambahkan di `server/test/github-fetch.test.ts`
 
 ```ts
 import { fetchIssues } from "../src/services/github-fetch";
@@ -756,12 +756,12 @@ describe("SPEC-471 · fetchIssues — jalur REST", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan MERAH**
+- [x] **Step 2: Jalankan, pastikan MERAH**
 
 Run: `./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/github-fetch.test.ts`
 Expected: FAIL — `fetchIssues is not a function`
 
-- [ ] **Step 3: Implementasi minimal** — tambahkan ke `server/src/services/github-fetch.ts`
+- [x] **Step 3: Implementasi minimal** — tambahkan ke `server/src/services/github-fetch.ts`
 
 ```ts
 import { execFile } from "node:child_process";
@@ -876,12 +876,12 @@ export async function fetchIssues(
 }
 ```
 
-- [ ] **Step 4: Jalankan, pastikan HIJAU**
+- [x] **Step 4: Jalankan, pastikan HIJAU**
 
 Run: `./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/github-fetch.test.ts`
 Expected: PASS — 15 test (5 dari Task 3 + 10 baru)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/github-fetch.ts server/test/github-fetch.test.ts
