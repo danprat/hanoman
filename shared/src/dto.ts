@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { zProject, zBriefPayload, zQaPayload, zGoalPayload, zSpec, zScheduler, zAgent, zLead } from "./entities";
 import { zLeadGate, zLeadKind, zLeadConfidence, zLeadAction, zLeadStatus, zLeadChoice } from "./lead";
+import { zAutoMerge } from "./auto-merge";
 import type { Spec, Notification } from "./entities";
 import { zProjectKind, zSpecSource, zPriority, zStage, zTicketCategory, zTicketStatus, zVerifyScope } from "./enums";
 
@@ -49,6 +50,9 @@ export const zUpdateProject = z.object({
   repoDir: z.string().nullable().optional(),   // SPEC-217 · path default/server editable (null = kosongkan)
   schedulerOptIn: z.boolean().optional(),   // SPEC-294 · opt-in scheduler otonom (lokal, tak disync)
   leadOptIn: z.boolean().optional(),        // SPEC-409 · ADR-0091 · opt-in hanoman-lead (lokal, tak disync)
+  // SPEC-486 · ADR-0103 · kebijakan auto-merge project (null = kosongkan → tanpa auto-merge).
+  // Divalidasi server terhadap repo (checkAutoMerge): repoDir wajib ada, branch wajib nyata.
+  autoMerge: zAutoMerge.nullable().optional(),
 });
 export const zCreateSpec = z.object({
   project: z.string(), source: zSpecSource, title: z.string().min(1),
@@ -84,6 +88,10 @@ export const zPatchSpec = z.object({
   // melindungi konten yang sudah jadi dasar kerja sesi berjalan, sedangkan dependsOn hanya
   // menggerbangi peluncuran BERIKUTNYA. `[]` = kosongkan.
   dependsOn: z.array(z.string()).optional(),
+  // SPEC-486 · ADR-0103 · override per item; `null` mengembalikannya ke warisan project.
+  // SENGAJA di luar gerbang `editingContent` (SPEC-186), sama seperti dependsOn: ia menggerbangi
+  // apa yang terjadi SESUDAH kerja, bukan konten yang sedang dikerjakan sesi hidup.
+  autoMerge: zAutoMerge.nullable().optional(),
 });
 // SPEC-175 · rebase/merge branch hasil done spec. target = "local:<b>" | "origin:<b>".
 export const zIntegrate = z.object({
@@ -102,7 +110,8 @@ export const zProjectView = zProject.extend({
   activity: z.string(), commit: z.string(),
   helpEnabled: z.boolean().default(false),   // SPEC-253 · Help Center publik aktif
   schedulerOptIn: z.boolean().default(false),   // SPEC-294 · opt-in scheduler otonom
-  leadOptIn: z.boolean().default(false) });     // SPEC-409 · ADR-0091 · opt-in hanoman-lead
+  leadOptIn: z.boolean().default(false),        // SPEC-409 · ADR-0091 · opt-in hanoman-lead
+  autoMerge: zAutoMerge.nullable().default(null) });   // SPEC-486 · ADR-0103 · null = tanpa auto-merge
 export type ProjectView = z.infer<typeof zProjectView>;
 
 // SPEC-294 · ADR-0072 · baris antrean scheduler untuk panel (daun #6). Tanggal = string ISO.

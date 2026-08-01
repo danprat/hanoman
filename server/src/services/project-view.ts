@@ -6,6 +6,7 @@ import { docStatusFor } from "./coverage";
 import { sessionPhases, type SessionInfo } from "./pty";
 import type { Project } from "@prisma/client";
 import type { ProjectView } from "@hanoman/shared";
+import { autoMergeOf } from "@hanoman/shared";
 
 const IDLE = { status: "idle" as const, phase: null as string | null, flow: null as string | null };
 
@@ -55,5 +56,7 @@ export async function toProjectView(p: Project, sessions: SessionInfo[]): Promis
     schedulerOptIn: p.schedulerOptIn,
     // SPEC-409 · ADR-0091 · opt-in hanoman-lead (lokal per-instance, cermin schedulerOptIn).
     leadOptIn: p.leadOptIn,
+    // SPEC-486 · ADR-0103 · kebijakan auto-merge (lokal per-instance, cermin schedulerOptIn).
+    autoMerge: autoMergeOf((p as { autoMerge?: unknown }).autoMerge),
   };
 }

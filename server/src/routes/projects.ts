@@ -4,7 +4,9 @@ import { prisma } from "../db";
 import { renameProject } from "../services/rename-project";
 import { toProjectView } from "../services/project-view";
 import { notifySynced } from "../services/sync-notify";
-import { listRepoBranches, listRepoRemoteBranches } from "../services/branches";
+import { listRepoBranches, listRepoRemoteBranches, defaultBranch } from "../services/branches";
+import { checkAutoMerge } from "../services/auto-merge-gate";
+import { Prisma } from "@prisma/client";
 import { resolveRepoDir } from "../services/local-binding";
 import { listSessions } from "../services/pty";
 import { paginate } from "../services/paginate";
@@ -62,7 +64,15 @@ export default async function (app: FastifyInstance) {
     const parsed = zUpdateProject.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
     if (!(await prisma.project.findUnique({ where: { id } }))) return reply.code(404).send({ error: "not found" });
-    const updated = await prisma.project.update({ where: { id }, data: parsed.data });
+    // SPEC-486 · ADR-0103 · kebijakan divalidasi terhadap repo EFEKTIF (binding ?? repoDir).
+    if ("autoMerge" in parsed.data) {
+      const gate = await checkAutoMerge(await resolveRepoDir(id), parsed.data.autoMerge);
+      if (!gate.ok) return reply.code(gate.code).send({ error: gate.error });
+    }
+    // Prisma `Json?` menolak `null` polos — `Prisma.DbNull` yang mengosongkan kolomnya.
+    const data: Record<string, unknown> = { ...parsed.data };
+    if ("autoMerge" in data && data.autoMerge === null) data.autoMerge = Prisma.DbNull;
+    const updated = await prisma.project.update({ where: { id }, data });
     await notifySynced("project", id); // SPEC-213/330 · sadar-peran: client antre push, hub publish ke feed
     return toProjectView(updated, listSessions());
   });
@@ -103,7 +113,12 @@ export default async function (app: FastifyInstance) {
     if (!p) return reply.code(404).send({ error: "not found" });
     // SPEC-217 · path efektif (binding lokal per-mesin ?? Project.repoDir).
     const repoDir = await resolveRepoDir(id);
-    return { branches: await listRepoBranches(repoDir), remotes: await listRepoRemoteBranches(repoDir) };
+    // SPEC-486 · defaultBranch memasok label opsi "default branch repo" di kartu auto-merge.
+    return {
+      branches: await listRepoBranches(repoDir),
+      remotes: await listRepoRemoteBranches(repoDir),
+      defaultBranch: await defaultBranch(repoDir),
+    };
   });
 
   // SPEC-253 · ADR-0062 · Help Center publik per project (opt-in). Link publik terikat Project.id (slug).
