@@ -214,7 +214,7 @@ git commit -m "feat(477): secret-box — enkripsi at-rest AES-256-GCM + kunci me
 - Consumes: `encryptSecret`, `decryptSecret`, `isEncrypted` (Task 1); `configEntry` dari `@hanoman/shared`
 - Produces: tak ada simbol baru — `effectiveStr`/`effectiveInt`/`effectiveBool`/`rawDbValue`/`sourceOf` **tak berubah tanda tangan maupun semantiknya**
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append ke `server/test/config-resolver.test.ts` (di dalam file, sebagai `describe` baru di akhir):
 
@@ -254,12 +254,12 @@ describe("SPEC-477 · secret at-rest", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `./node_modules/.bin/vitest run --no-file-parallelism server/test/config-resolver.test.ts`
 Expected: FAIL — test pertama gagal di `expect(row!.value.startsWith(ENC_PREFIX)).toBe(true)` (nilai masih plaintext)
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Ganti isi `server/src/config.ts` menjadi:
 
@@ -322,12 +322,12 @@ export async function clearConfig(key: string): Promise<void> {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `./node_modules/.bin/vitest run --no-file-parallelism server/test/config-resolver.test.ts server/test/config.route.test.ts server/test/config-apply.test.ts`
 Expected: PASS — semua file hijau (config.route & config-apply membuktikan tak ada regresi pada pemakai lama)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/config.ts server/test/config-resolver.test.ts

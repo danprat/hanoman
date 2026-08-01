@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach, afterAll } from "vitest";
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
 import { prisma } from "../src/db";
 import * as cfg from "../src/config";
+import { ENC_PREFIX } from "../src/services/secret-box";
 
 const clean = async () => { await prisma.runtimeConfig.deleteMany(); };
 beforeEach(async () => { await clean(); delete process.env.SYNC_TICK_MS; await cfg.loadConfig(); });
@@ -35,5 +36,41 @@ describe("config resolver (DB → env → default)", () => {
   });
   it("effectiveStr tanpa default → undefined", () => {
     expect(cfg.effectiveStr("SYNC_SERVER_URL")).toBeUndefined();
+  });
+});
+
+// SPEC-477 · ADR-0097 · nilai `kind: "secret"` terenkripsi at-rest. Cache memegang PLAINTEXT,
+// DB memegang ciphertext — mendekripsi di `effectiveStr` akan memaksa kripto di hot-path sinkron.
+describe("SPEC-477 · secret at-rest", () => {
+  it("kind:secret disimpan sebagai ciphertext di DB tapi terbaca plaintext lewat resolver", async () => {
+    await cfg.setConfig("GITHUB_TOKEN", "ghp_rahasia_sekali_123456");
+    const row = await prisma.runtimeConfig.findUnique({ where: { key: "GITHUB_TOKEN" } });
+    expect(row!.value.startsWith(ENC_PREFIX)).toBe(true);
+    expect(row!.value).not.toContain("ghp_rahasia_sekali_123456");
+    expect(cfg.effectiveStr("GITHUB_TOKEN")).toBe("ghp_rahasia_sekali_123456");
+    expect(cfg.rawDbValue("GITHUB_TOKEN")).toBe("ghp_rahasia_sekali_123456");
+    await cfg.loadConfig();
+    expect(cfg.effectiveStr("GITHUB_TOKEN")).toBe("ghp_rahasia_sekali_123456");
+  });
+
+  it("knob non-secret tetap plaintext (tak ada enkripsi yang tak perlu)", async () => {
+    await cfg.setConfig("SYNC_TICK_MS", "5000");
+    const row = await prisma.runtimeConfig.findUnique({ where: { key: "SYNC_TICK_MS" } });
+    expect(row!.value).toBe("5000");
+  });
+
+  // Gotcha 3 · instance yang sudah hidup punya baris plaintext. Ia wajib tetap terbaca.
+  it("baris plaintext lama tetap terbaca lewat loadConfig", async () => {
+    await prisma.runtimeConfig.create({ data: { key: "GITHUB_TOKEN", value: "ghp_lama_plaintext" } });
+    await cfg.loadConfig();
+    expect(cfg.effectiveStr("GITHUB_TOKEN")).toBe("ghp_lama_plaintext");
+  });
+
+  it("ciphertext tak terbaca (kunci berganti) dianggap ABSEN, bukan melempar", async () => {
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+    await prisma.runtimeConfig.create({ data: { key: "GITHUB_TOKEN", value: `${ENC_PREFIX}aaa:bbb:ccc` } });
+    await expect(cfg.loadConfig()).resolves.toBeUndefined();
+    expect(cfg.effectiveStr("GITHUB_TOKEN")).toBeUndefined();
+    quiet.mockRestore();
   });
 });
