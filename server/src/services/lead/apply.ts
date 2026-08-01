@@ -9,6 +9,7 @@ import { startSpecSession } from "../session-launch";
 import { integrate } from "../integrate";
 import { recordLeadDecision } from "../notifications";
 import { getLead } from "./config";
+import { withActor } from "../webhooks/actor";
 
 // SPEC-409 · ADR-0091 · H · PERMUKAAN TINDAKAN LEAD. Satu-satunya tempat sebuah keputusan lead
 // berubah jadi perbuatan.
@@ -40,7 +41,15 @@ export const prodApplyDeps: ApplyDeps = {
   notify: recordLeadDecision,
 };
 
-export async function applyAction(row: LeadDecision, deps: ApplyDeps = prodApplyDeps): Promise<ApplyResult> {
+// SPEC-481 · ADR-0099 · tindakan lead adalah satu-satunya penulis latar yang punya identitas
+// sendiri. Dibungkus di SATU titik terluar, bukan per tindakan: membungkus tiap `case` adalah N
+// call site untuk satu keputusan — kelas bug SPEC-475. Tanpa ini integrate/stop yang dilakukan
+// lead terbaca `system` di amplop webhook.
+export function applyAction(row: LeadDecision, deps: ApplyDeps = prodApplyDeps): Promise<ApplyResult> {
+  return withActor({ kind: "lead", id: null, label: "hanoman-lead" }, () => applyActionInner(row, deps));
+}
+
+async function applyActionInner(row: LeadDecision, deps: ApplyDeps): Promise<ApplyResult> {
   const action = row.action;
   // Sabuk kedua: `decide()` sudah menurunkan aksi tak dikenal jadi `none`, tapi baris jejak bisa
   // datang dari mana saja (override operator, migrasi data). Gerbangnya tak boleh cuma satu.

@@ -42,6 +42,7 @@ import { checkAgentCapability } from "./services/agent-capabilities";
 import { detachAll } from "./services/pty";
 import { auditTelegramGatewayResponse, guardTelegramGatewayRequest } from "./services/telegram/security";
 import { stopTelegramRuntime } from "./services/telegram/runtime";
+import { actorFromRequest, setActor } from "./services/webhooks/actor";
 
 // Endpoint yang boleh diakses tanpa sesi (path lengkap termasuk prefix /api).
 const PUBLIC = new Set([
@@ -121,6 +122,12 @@ export function buildApp({ requireAuth = true }: { requireAuth?: boolean } = {})
     // Cookie dan AgentToken biasa lewat apa adanya; hanya token gateway runtime yang wajib correlation
     // dan confirmation untuk aksi sulit dibatalkan.
     api.addHook("preHandler", guardTelegramGatewayRequest);
+    // SPEC-481 · ADR-0099 · stempel aktor untuk amplop webhook. Dipasang di `preHandler` (bukan
+    // `onRequest`) supaya `req.user`/`req.agent` sudah terisi gate auth di atas; tanpa itu setiap
+    // peristiwa yang lahir dari request akan berkata `system` dan riwayatnya kehilangan pelakunya.
+    api.addHook("preHandler", async (req) => {
+      setActor(actorFromRequest({ user: req.user ?? null, agent: req.agent ?? null }));
+    });
     api.addHook("onResponse", auditTelegramGatewayResponse);
     await api.register(authRoutes);
     await api.register(health);
