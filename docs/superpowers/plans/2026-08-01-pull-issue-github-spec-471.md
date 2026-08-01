@@ -1818,7 +1818,7 @@ git commit -m "feat(471): endpoint tarik/triase issue GitHub + gerbang capabilit
 - Consumes: `ConfigEntry` (`shared/src/config-registry.ts`), `Probes`/`doctorReport` (`cli/src/commands/doctor.ts`)
 - Produces: dua entri registry; `Probes` bertambah field `gh: string | null`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan ke `server/test/config-registry.test.ts`:
 
@@ -1854,12 +1854,12 @@ Tambahkan ke `cli/test/doctor.test.ts`:
   });
 ```
 
-- [ ] **Step 2: Jalankan, pastikan MERAH**
+- [x] **Step 2: Jalankan, pastikan MERAH**
 
 Run: `./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/config-registry.test.ts` dan `./node_modules/.bin/vitest run --dir cli cli/test/doctor.test.ts`
 Expected: FAIL — entri tak ditemukan; `gh` bukan properti `Probes`
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 `shared/src/config-registry.ts` — sisipkan grup baru sesudah blok `vps`:
 
@@ -1898,12 +1898,12 @@ Di dalam `doctor()`, di objek `doctorReport({…})`:
     gh: version(ctx.env.HANOMAN_GH_BIN ?? "gh", ["--version"]),
 ```
 
-- [ ] **Step 4: Jalankan, pastikan HIJAU**
+- [x] **Step 4: Jalankan, pastikan HIJAU**
 
 Run: `./node_modules/.bin/vitest run --dir server --no-file-parallelism server/test/config-registry.test.ts` lalu `./node_modules/.bin/vitest run --dir cli cli/test/doctor.test.ts`
 Expected: PASS keduanya
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add shared/src/config-registry.ts cli/src/commands/doctor.ts \

@@ -30,6 +30,13 @@ export const CONFIG_REGISTRY: ConfigEntry[] = [
   // vps
   { key: "HANOMAN_SSH_KEY_DIR", group: "vps", label: "Dir key SSH", kind: "path", apply: "new-session", category: "knob", help: "Default ~/.hanoman." },
   { key: "HANOMAN_SSH_BIN", group: "vps", label: "Biner ssh", kind: "path", apply: "new-session", category: "knob", default: "ssh" },
+  // github (SPEC-471 · ADR-0095 · tarik issue → backlog). Dua mode auth, satu jalur kode:
+  // `gh` memakai keyring mesin; bila GITHUB_TOKEN diisi ia diteruskan sebagai GH_TOKEN ke
+  // proses gh DAN dipakai jalur REST (hub VPS yang tak punya keyring).
+  { key: "GITHUB_TOKEN", group: "github", label: "GitHub token", kind: "secret", apply: "live", category: "credential",
+    help: "PAT scope `repo` (atau `public_repo`). Kosong = andalkan `gh auth login` di mesin ini." },
+  { key: "HANOMAN_GH_BIN", group: "github", label: "Biner gh", kind: "path", apply: "live", category: "knob", default: "gh",
+    help: "Absen = tarik issue lewat HTTPS langsung ke api.github.com." },
   // runtime
   { key: "HANOMAN_EVENTS_TICK_MS", group: "runtime", label: "Interval events (ms)", kind: "int", apply: "live", category: "knob", default: "1000", min: 100 },
   { key: "HANOMAN_UPDATE_FETCH", group: "runtime", label: "Deteksi update saat boot", kind: "bool", apply: "live", category: "knob", default: "1" },

@@ -12,6 +12,7 @@ import { distDir } from "./start";
 export type Probes = {
   node: string; git: string | null; tmux: string | null;
   claude: string | null; codex: string | null;
+  gh: string | null;   // SPEC-471 · opsional: tanpa gh, tarik issue lewat REST + GITHUB_TOKEN
   homeWritable: boolean; web: boolean; db: string;
 };
 
@@ -23,6 +24,10 @@ export function doctorReport(p: Probes): { lines: string[]; ok: boolean } {
     { mark: p.tmux ? "✓" : "✗", text: p.tmux ?? "tmux — TAK ADA (wajib: sesi agen hidup di tmux)", fatal: !p.tmux },
     { mark: p.claude ? "✓" : "·", text: p.claude ? `claude ${p.claude}` : "claude — tak ada", fatal: false },
     { mark: p.codex ? "✓" : "·", text: p.codex ? `codex ${p.codex}` : "codex — tak ada", fatal: false },
+    // SPEC-471 · ADR-0095 · `gh` opsional: tanpa dia tarik issue jatuh ke HTTPS + GITHUB_TOKEN.
+    { mark: p.gh ? "✓" : "·",
+      text: p.gh ? `gh ${p.gh}` : "gh — tak ada (tarik issue akan lewat HTTP + GITHUB_TOKEN)",
+      fatal: false },
     { mark: p.homeWritable ? "✓" : "✗", text: `data dir ${p.homeWritable ? "bisa ditulis" : "TAK bisa ditulis"}`, fatal: !p.homeWritable },
     { mark: p.web ? "✓" : "!", text: p.web ? "aset dashboard ada" : "aset dashboard tak ada — API jalan, dashboard tidak", fatal: false },
     { mark: "·", text: `db ${p.db}`, fatal: false },
@@ -57,6 +62,7 @@ export default async function doctor(_argv: string[], ctx: Ctx): Promise<number>
     tmux: version("tmux", ["-V"]),
     claude: version(ctx.env.HANOMAN_CLAUDE_BIN ?? "claude", ["--version"]),
     codex: version(ctx.env.HANOMAN_CODEX_BIN ?? "codex", ["--version"]),
+    gh: version(ctx.env.HANOMAN_GH_BIN ?? "gh", ["--version"]),
     homeWritable, web: layout.web !== null, db,
   });
   ctx.stdout(`hanoman doctor\n${r.lines.join("\n")}\n`);

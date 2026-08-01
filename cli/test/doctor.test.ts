@@ -3,7 +3,7 @@ import { doctorReport } from "../src/commands/doctor";
 
 const ok = {
   node: "v22.0.0", git: "git version 2.44.0", tmux: "tmux 3.4",
-  claude: "1.0.0", codex: null, homeWritable: true, web: true, db: "/h/.hanoman/hanoman.db",
+  claude: "1.0.0", codex: null, gh: null, homeWritable: true, web: true, db: "/h/.hanoman/hanoman.db",
 };
 
 describe("doctorReport", () => {
@@ -37,5 +37,15 @@ describe("doctorReport", () => {
   });
   it("path db selalu dilaporkan", () => {
     expect(doctorReport(ok).lines.join("\n")).toContain("/h/.hanoman/hanoman.db");
+  });
+  // SPEC-471 · `gh` opsional (cermin claude/codex): absen TIDAK boleh menggagalkan doctor —
+  // jalur REST + GITHUB_TOKEN tetap bekerja tanpa biner itu.
+  it("SPEC-471 · gh absen = baris informatif, BUKAN fatal", () => {
+    const tanpa = doctorReport({ ...ok, gh: null });
+    expect(tanpa.ok).toBe(true);
+    expect(tanpa.lines.join("\n")).toContain("GITHUB_TOKEN");
+    const dengan = doctorReport({ ...ok, gh: "gh version 2.96.0" });
+    expect(dengan.ok).toBe(true);
+    expect(dengan.lines.join("\n")).toContain("gh version 2.96.0");
   });
 });

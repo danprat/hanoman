@@ -39,4 +39,16 @@ describe("config-registry", () => {
     expect(parseConfigValue(load, "0")).toEqual({ ok: false, error: "min 1" });
     expect(CONFIG_REGISTRY.filter((e) => e.group === "gitGraph").length).toBeGreaterThanOrEqual(14);
   });
+  // SPEC-471 · ADR-0095 · dua knob untuk tarik issue. Token BUKAN knob biasa: ia kredensial,
+  // jadi kind `secret` (UI tak pernah menampilkan nilainya kembali).
+  it("SPEC-471 · GITHUB_TOKEN & HANOMAN_GH_BIN terdaftar dengan kind yang benar", () => {
+    const tok = CONFIG_REGISTRY.find((e) => e.key === "GITHUB_TOKEN");
+    expect(tok).toBeDefined();
+    expect(tok!.kind).toBe("secret");
+    expect(tok!.category).toBe("credential");
+    const bin = CONFIG_REGISTRY.find((e) => e.key === "HANOMAN_GH_BIN");
+    expect(bin).toBeDefined();
+    expect(bin!.kind).toBe("path");
+    expect(bin!.default).toBe("gh");
+  });
 });
