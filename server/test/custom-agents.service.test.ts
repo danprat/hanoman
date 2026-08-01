@@ -28,40 +28,40 @@ describe("agentDefsFor — resolusi scope (sinkron, dari cache)", () => {
     await mk("p1", "lokal");
     await mk("p2", "asing");
     await loadCustomAgents();
-    expect(agentDefsFor("p1").map((a) => a.name)).toEqual(["glob", "lokal"]);
+    expect(agentDefsFor("p1", "claude").map((a) => a.name)).toEqual(["glob", "lokal"]);
   });
 
   it("agen project menimpa global bernama sama", async () => {
     await mk(null, "rev", { instructions: "GLOBAL" });
     await mk("p1", "rev", { instructions: "PROJECT" });
     await loadCustomAgents();
-    const defs = agentDefsFor("p1");
+    const defs = agentDefsFor("p1", "claude");
     expect(defs).toHaveLength(1);
     expect(defs[0]!.instructions).toBe("PROJECT");
-    expect(agentDefsFor("p2")[0]!.instructions).toBe("GLOBAL");
+    expect(agentDefsFor("p2", "claude")[0]!.instructions).toBe("GLOBAL");
   });
 
   it("agen yang dimatikan tak ikut", async () => {
     await mk(null, "mati", { enabled: false });
     await loadCustomAgents();
-    expect(agentDefsFor("p1")).toHaveLength(0);
+    expect(agentDefsFor("p1", "claude")).toHaveLength(0);
   });
 
   it("project tanpa agen apa pun mengembalikan daftar kosong", async () => {
     await loadCustomAgents();
-    expect(agentDefsFor("p1")).toEqual([]);
+    expect(agentDefsFor("p1", "claude")).toEqual([]);
   });
 
   it("projectId sintetis (sesi VPS) tak meledak — global tetap terbawa", async () => {
     await mk(null, "glob");
     await loadCustomAgents();
-    expect(agentDefsFor("vps:9").map((a) => a.name)).toEqual(["glob"]);
+    expect(agentDefsFor("vps:9", "claude").map((a) => a.name)).toEqual(["glob"]);
   });
 
   it("kolom Json rusak dari sync dibaca defensif", async () => {
     await mk(null, "a", { mentions: "bukan array", tools: 42 });
     await loadCustomAgents();
-    const d = agentDefsFor("p1")[0]!;
+    const d = agentDefsFor("p1", "claude")[0]!;
     expect(d.mentions).toEqual([]);
     expect(d.tools).toBeNull();
   });
@@ -142,5 +142,51 @@ describe("toDef", () => {
       name: "a", description: "desc", instructions: "ins",
       tools: ["Read"], model: "haiku", mentions: ["b"],
     });
+  });
+});
+
+// SPEC-484 · ADR-0101 · penyaring runtime + ekspansi `*`, keduanya di `agentDefsFor`.
+describe("agentDefsFor · penyaring runtime & ekspansi *", () => {
+  beforeEach(async () => {
+    await prisma.customAgent.deleteMany();
+    await prisma.customAgent.create({ data: {
+      id: "global:warisi", projectId: null, name: "warisi", description: "d", instructions: "i",
+      mentions: [] as never, runtime: null,
+    } });
+    await prisma.customAgent.create({ data: {
+      id: "global:hanya-claude", projectId: null, name: "hanya-claude", description: "d", instructions: "i",
+      mentions: [] as never, runtime: "claude",
+    } });
+    await prisma.customAgent.create({ data: {
+      id: "global:hanya-codex", projectId: null, name: "hanya-codex", description: "d", instructions: "i",
+      mentions: [] as never, runtime: "codex",
+    } });
+    await loadCustomAgents();
+  });
+
+  it("sesi claude melihat warisi + hanya-claude", () => {
+    expect(agentDefsFor("p1", "claude").map((d) => d.name).sort())
+      .toEqual(["hanya-claude", "warisi"]);
+  });
+
+  it("sesi codex melihat warisi + hanya-codex", () => {
+    expect(agentDefsFor("p1", "codex").map((d) => d.name).sort())
+      .toEqual(["hanya-codex", "warisi"]);
+  });
+
+  it("runtime asing dari sync dibaca sebagai warisi, bukan disaring habis", async () => {
+    await prisma.customAgent.update({ where: { id: "global:warisi" }, data: { runtime: "gemini" } });
+    await loadCustomAgents();
+    expect(agentDefsFor("p1", "claude").map((d) => d.name)).toContain("warisi");
+    expect(agentDefsFor("p1", "codex").map((d) => d.name)).toContain("warisi");
+  });
+
+  it("tools ['*'] di-EXPAND jadi daftar eksplisit, tak pernah diteruskan apa adanya", async () => {
+    await prisma.customAgent.update({ where: { id: "global:warisi" }, data: { tools: ["*"] as never } });
+    await loadCustomAgents();
+    const def = agentDefsFor("p1", "claude").find((d) => d.name === "warisi")!;
+    expect(def.tools).not.toBeNull();
+    expect(def.tools).not.toContain("*");
+    expect(def.tools).toContain("Read");
   });
 });

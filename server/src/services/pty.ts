@@ -225,12 +225,17 @@ const emitDeath = (d: SessionDeath): void => { try { hooks.onDeath?.(d); } catch
 // Sumbernya SINKRON, bukan Promise: definisi agen harus sudah ada saat argv dirakit, bukan sesaat
 // sesudahnya. Yang menjembatani Prisma yang async adalah cache di sisi service (pola effectiveStr,
 // ADR-0049).
-type CustomAgentSource = (projectId: string) => AgentDef[];
+//
+// SPEC-484 · ADR-0101 · sumber kini menerima AGEN SESI: `runtime` di definisi agen adalah
+// PENYARING, dan yang dipakai wajib agen sesi yang sebenarnya (`agentForDefs` di `createSession`),
+// bukan `Setting.agent` — sesi bisa lahir dengan override per-request, dan membaca yang salah
+// mengulang bug SPEC-377 dalam bentuk baru.
+type CustomAgentSource = (projectId: string, agent: Agent) => AgentDef[];
 let customAgentSource: CustomAgentSource = () => [];
 export function registerCustomAgentSource(fn: CustomAgentSource): void { customAgentSource = fn; }
 // Gagal baca → daftar KOSONG. Katalog agen tak pernah boleh menggagalkan kelahiran sesi.
-const customAgentsFor = (projectId: string): AgentDef[] => {
-  try { return customAgentSource(projectId); } catch { return []; }
+const customAgentsFor = (projectId: string, agent: Agent): AgentDef[] => {
+  try { return customAgentSource(projectId, agent); } catch { return []; }
 };
 
 // Jenis sesi diturunkan saat LAHIR, saat opsinya masih di tangan — sesudah itu tmux hanya menyimpan
@@ -304,7 +309,7 @@ export function createSession(projectId: string, cwd: string, opts: CreateOpts =
   // menempelkan roster ke prompt, jadi ia harus sudah ada saat berkasnya dibuat. Sesi ber-
   // `opts.command` (shell mentah ADR-0056, konsol VPS) tak menerima apa pun — tak ada agen di sana.
   const agentForDefs: Agent = opts.agent ?? "claude";
-  const customDefs = opts.command ? [] : customAgentsFor(projectId);
+  const customDefs = opts.command ? [] : customAgentsFor(projectId, agentForDefs);
   // codex tak punya padanan `--agents` yang bisa diverifikasi (ADR-0094 M5: kunci `-c` tak dikenal
   // diterima diam-diam), jadi rosternya lewat kanal yang memang milik hanoman sendiri: prompt.
   // Mengembalikan "" saat katalog kosong → prompt sesi lain byte-identik seperti sebelumnya.

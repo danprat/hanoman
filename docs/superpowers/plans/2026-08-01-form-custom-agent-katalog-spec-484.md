@@ -1011,7 +1011,7 @@ git commit -m "feat(484): endpoint katalog custom agent + validasi keras tools/m
   - `type CustomAgentSource = (projectId: string, agent: Agent) => AgentDef[]`
   - `agentDefsFor(projectId: string, agent: Agent): AgentDef[]`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di `server/test/custom-agents.pty.test.ts`:
 
@@ -1047,14 +1047,17 @@ describe("penyaring runtime (SPEC-484 · ADR-0101)", () => {
     expect(existsSync(agentsFilePath(s.id))).toBe(false);
   });
 
-  it("tools sudah TER-EXPAND saat sampai ke berkas --agents (tak ada '*' di JSON)", () => {
-    registerCustomAgentSource(() => [
-      { name: "all", description: "d", instructions: "i", tools: ["Read", "Bash"], model: null, mentions: [] },
-    ]);
-    const s = createSession("p1", cwd, { id: born("ca-rt-4"), agent: "claude", prompt: "halo" });
-    const json = readFileSync(agentsFilePath(s.id), "utf8");
-    expect(json).not.toContain('"*"');
-    expect(json).toContain('"Read"');
+  // Penyaring wajib mengenai KEDUA permukaan materialisasi — roster codex punya jalur sendiri
+  // (prompt, bukan argv), jadi menyaring hanya di jalur claude meninggalkan separuh bug.
+  it("roster codex hanya memuat agen yang lolos saring untuk codex", () => {
+    registerCustomAgentSource((_p, agent) =>
+      agent === "codex"
+        ? [{ name: "cx", description: "d", instructions: "khusus codex", tools: null, model: null, mentions: [] }]
+        : [{ name: "cl", description: "d", instructions: "khusus claude", tools: null, model: null, mentions: [] }]);
+    const s = createSession("p1", cwd, { id: born("ca-rt-4"), agent: "codex", prompt: "halo" });
+    const prompt = readFileSync(promptFilePath(s.id), "utf8");
+    expect(prompt).toContain("@cx");
+    expect(prompt).not.toContain("@cl");
   });
 });
 ```
@@ -1108,7 +1111,7 @@ describe("agentDefsFor · penyaring runtime & ekspansi * (SPEC-484)", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run:
 ```bash
@@ -1116,7 +1119,7 @@ TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest run -
 ```
 Expected: FAIL — `agentDefsFor` menerima 1 argumen; sumber dipanggil tanpa `agent`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 `server/src/services/pty.ts` — ubah tipe & helper (baris ~228–234):
 
@@ -1238,7 +1241,7 @@ Ubah pemanggil `agentDefsFor` di `server/test/custom-agents.route.test.ts` yang 
 
 Tambahkan `runtime` ke `zCustomAgent`-turunan `CustomAgent` sudah dilakukan di Task 2, jadi `a.runtime` bertipe `AgentRuntime | null`.
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run:
 ```bash
@@ -1247,7 +1250,7 @@ pnpm --filter ./server typecheck
 ```
 Expected: PASS semua; typecheck bersih.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/custom-agents.ts server/src/services/pty.ts server/test/custom-agents.pty.test.ts server/test/custom-agents.service.test.ts server/test/custom-agents.route.test.ts

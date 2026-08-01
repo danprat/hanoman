@@ -1,10 +1,11 @@
 import { prisma } from "../db";
 import {
-  effectiveAgents, detectCycle, mentionsOf, toolsOf, runtimeOf, GLOBAL_SCOPE,
-  type CustomAgent, type AgentNode,
+  effectiveAgents, detectCycle, mentionsOf, toolsOf, runtimeOf, expandTools, ALL_TOOLS, GLOBAL_SCOPE,
+  type CustomAgent, type AgentNode, type Agent,
 } from "@hanoman/shared";
 import type { AgentDef } from "@hanoman/runner";
 import { registerCustomAgentSource } from "./pty";
+import { agentToolIds } from "./agent-tool-catalog";
 
 // SPEC-450 · ADR-0094 keputusan 7 · katalog custom agent untuk lapis proses.
 //
@@ -30,6 +31,12 @@ export type CustomAgentRow = {
 };
 
 let cache: CustomAgentRow[] = [];
+// SPEC-484 · ADR-0101 · repoDir per project untuk sumber MCP ber-scope project
+// (`<repoDir>/.mcp.json`, `~/.claude.json` projects[<repoDir>]). Di-cache karena `agentDefsFor`
+// SINKRON — ia dibaca dari `createSession`, sementara resolusi binding butuh DB. Di-refresh
+// bersama katalog agen; binding yang berubah tanpa mutasi agen paling buruk membuat ekspansi `*`
+// melewatkan server MCP ber-scope project sampai mutasi berikutnya.
+let repoDirCache = new Map<string, string | null>();
 
 const asCustomAgent = (r: CustomAgentRow): CustomAgent => ({
   id: r.id, projectId: r.projectId, name: r.name,
@@ -51,19 +58,37 @@ export function toDef(r: CustomAgentRow): AgentDef {
 export async function loadCustomAgents(): Promise<void> {
   try {
     cache = (await prisma.customAgent.findMany()) as unknown as CustomAgentRow[];
+    // Binding per-mesin menang atas `Project.repoDir` — urutan yang sama dengan `resolveRepoDir`.
+    const projects = await prisma.project.findMany({ select: { id: true, repoDir: true } });
+    const bindings = await prisma.localBinding.findMany({ select: { projectId: true, repoDir: true } });
+    const next = new Map<string, string | null>();
+    for (const p of projects) next.set(p.id, p.repoDir ?? null);
+    for (const b of bindings) next.set(b.projectId, b.repoDir ?? null);
+    repoDirCache = next;
   } catch {
     // Katalog agen tak pernah boleh menggagalkan boot maupun kelahiran sesi (ADR-0094 keputusan 7).
     cache = [];
+    repoDirCache = new Map();
   }
 }
 
 /** SINKRON — dibaca dari titik cekik `createSession`. */
-export function agentDefsFor(projectId: string): AgentDef[] {
+export function agentDefsFor(projectId: string, agent: Agent): AgentDef[] {
   const globals = cache.filter((r) => r.projectId === null).map(asCustomAgent);
   const project = cache.filter((r) => r.projectId === projectId).map(asCustomAgent);
-  return effectiveAgents(globals, project).map((a) => ({
+  // SPEC-484 · ADR-0101 keputusan 2 · penyaring: null = ikut sesi induk (dipakai KEDUA mesin).
+  const eff = effectiveAgents(globals, project)
+    .filter((a) => a.runtime === null || a.runtime === agent);
+  // Katalog hanya dihitung bila ada yang benar-benar memakai `*` — pembacaan berkas konfigurasi
+  // tak perlu terjadi di setiap kelahiran sesi.
+  const needsCatalog = eff.some((a) => (a.tools ?? []).includes(ALL_TOOLS));
+  const catalogIds = needsCatalog ? agentToolIds(repoDirCache.get(projectId) ?? null) : [];
+  return eff.map((a) => ({
     name: a.name, description: a.description, instructions: a.instructions,
-    tools: a.tools, model: a.model, mentions: a.mentions ?? [],
+    // Ekspansi terjadi DI SINI, sebelum `resolveTools` di runner: meneruskan `"*"` apa adanya
+    // membuat claude membuangnya senyap (agen tanpa alat), sementara menerjemahkannya jadi `null`
+    // membuat agen mewarisi SELURUH tool termasuk `Task` — lapis 2 anti-loop lenyap tanpa jejak.
+    tools: expandTools(a.tools, catalogIds), model: a.model, mentions: a.mentions ?? [],
   }));
 }
 
@@ -102,5 +127,5 @@ export function unknownMentions(row: CustomAgentRow, all: CustomAgentRow[]): str
 /** Dipanggil sekali dari server.ts, SEBELUM sesi pertama bisa lahir. */
 export async function installCustomAgents(): Promise<void> {
   await loadCustomAgents();
-  registerCustomAgentSource((projectId) => agentDefsFor(projectId));
+  registerCustomAgentSource((projectId, agent) => agentDefsFor(projectId, agent));
 }

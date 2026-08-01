@@ -114,3 +114,48 @@ describe("sumber yang melempar", () => {
     expect(paneCmd(s.id)).not.toContain("--agents");
   });
 });
+
+// SPEC-484 · ADR-0101 keputusan 2 · `runtime` adalah PENYARING: ia menyaring apa yang masuk
+// roster sesi, bukan proses mana yang dijalankan. Diperiksa lewat argv & isi berkas, bukan
+// bentuk respons (pelajaran `sessionModel()`).
+describe("penyaring runtime (SPEC-484 · ADR-0101)", () => {
+  it("sumber menerima agen sesi sebagai argumen KEDUA", () => {
+    const seen: string[] = [];
+    registerCustomAgentSource((_p, agent) => { seen.push(agent); return []; });
+    createSession("p1", cwd, { id: born("ca-rt-1"), agent: "codex", prompt: "halo" });
+    expect(seen).toContain("codex");
+  });
+
+  it("agen yang lolos saring untuk claude masuk --agents", () => {
+    registerCustomAgentSource((_p, agent) =>
+      agent === "claude"
+        ? [{ name: "cl", description: "d", instructions: "i", tools: null, model: null, mentions: [] }]
+        : []);
+    const s = createSession("p1", cwd, { id: born("ca-rt-2"), agent: "claude", prompt: "halo" });
+    expect(existsSync(agentsFilePath(s.id))).toBe(true);
+    expect(readFileSync(agentsFilePath(s.id), "utf8")).toContain('"cl"');
+  });
+
+  it("katalog kosong untuk agen itu → --agents TIDAK dipasang sama sekali", () => {
+    registerCustomAgentSource((_p, agent) =>
+      agent === "codex"
+        ? [{ name: "cx", description: "d", instructions: "i", tools: null, model: null, mentions: [] }]
+        : []);
+    const s = createSession("p1", cwd, { id: born("ca-rt-3"), agent: "claude", prompt: "halo" });
+    expect(paneCmd(s.id)).not.toContain("--agents");
+    expect(existsSync(agentsFilePath(s.id))).toBe(false);
+  });
+
+  // Penyaring wajib mengenai KEDUA permukaan materialisasi — roster codex punya jalur sendiri
+  // (prompt, bukan argv), jadi menyaring hanya di jalur claude meninggalkan separuh bug.
+  it("roster codex hanya memuat agen yang lolos saring untuk codex", () => {
+    registerCustomAgentSource((_p, agent) =>
+      agent === "codex"
+        ? [{ name: "cx", description: "d", instructions: "khusus codex", tools: null, model: null, mentions: [] }]
+        : [{ name: "cl", description: "d", instructions: "khusus claude", tools: null, model: null, mentions: [] }]);
+    const s = createSession("p1", cwd, { id: born("ca-rt-4"), agent: "codex", prompt: "halo" });
+    const prompt = readFileSync(promptFilePath(s.id), "utf8");
+    expect(prompt).toContain("@cx");
+    expect(prompt).not.toContain("@cl");
+  });
+});

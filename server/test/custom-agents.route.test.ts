@@ -176,9 +176,9 @@ describe("DELETE /api/custom-agents/:id", () => {
 describe("cache di-invalidasi tiap mutasi", () => {
   it("agen baru langsung terbaca sumber sinkron", async () => {
     await post({ name: "baru", description: "d", instructions: "i" });
-    expect(agentDefsFor("p1").map((a) => a.name)).toContain("baru");
+    expect(agentDefsFor("p1", "claude").map((a) => a.name)).toContain("baru");
     await app.inject({ method: "DELETE", url: "/api/custom-agents/global:baru" });
-    expect(agentDefsFor("p1").map((a) => a.name)).not.toContain("baru");
+    expect(agentDefsFor("p1", "claude").map((a) => a.name)).not.toContain("baru");
   });
 });
 
