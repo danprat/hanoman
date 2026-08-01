@@ -91,7 +91,7 @@ tmux/node-pty.
   - `zLead.flowTtlMin` (default 60)
   - `paths.leadFlows`, `paths.leadFlowSubmit(id)`, `paths.leadFlowCancel(id)`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan di akhir `shared/src/lead.test.ts` (dan tambahkan simbol baru ke blok `import` di atasnya:
 `zLeadSelect, normalizeSelect, resolveChoices, checkChoiceCount`):
@@ -156,7 +156,7 @@ describe("SPEC-485 · ADR-0102 · pilihan jamak", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 ```bash
 cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-485
@@ -164,7 +164,7 @@ cd /Users/denameidina/Documents/Nafanesia/hanoman/.worktrees/spec-485
 ```
 Expected: FAIL — `resolveChoices is not a function` / `normalizeSelect is not exported`.
 
-- [ ] **Step 3: Implementasi di `shared/src/lead.ts`**
+- [x] **Step 3: Implementasi di `shared/src/lead.ts`**
 
 Sisipkan setelah `resolveChoice` (jangan ubah `resolveChoice` sendiri):
 
@@ -273,7 +273,7 @@ Tambahkan ke `zLeadAsk`:
   flowId: z.string().min(1).nullish().default(null),
 ```
 
-- [ ] **Step 4: Tambah DTO & path & knob**
+- [x] **Step 4: Tambah DTO & path & knob**
 
 `shared/src/dto.ts` — tambahkan ke `zLeadDecisionView` (setelah `missing`):
 
@@ -340,7 +340,7 @@ export const LEAD_FLOW_OPEN: readonly LeadFlowStatus[] = ["menunggu", "sebagian"
 Pastikan simbol baru terekspor lewat `shared/src/index.ts` (berkas itu mem-`export *` dari
 `lead.ts`/`dto.ts`/`entities.ts`/`api.ts`; verifikasi dan tambahkan bila tidak).
 
-- [ ] **Step 5: Jalankan test, pastikan LULUS**
+- [x] **Step 5: Jalankan test, pastikan LULUS**
 
 ```bash
 ./node_modules/.bin/vitest run --no-file-parallelism shared/src/lead.test.ts
@@ -348,7 +348,7 @@ Pastikan simbol baru terekspor lewat `shared/src/index.ts` (berkas itu mem-`expo
 Expected: PASS, termasuk seluruh test SPEC-409/480 yang sudah ada (bukti `resolveChoice` &
 `clampProse` tak berubah perilaku).
 
-- [ ] **Step 6: Typecheck shared**
+- [x] **Step 6: Typecheck shared**
 
 ```bash
 pnpm --filter ./shared typecheck
@@ -358,7 +358,7 @@ menunjuk berkasnya — biarkan gagal di sini dan perbaiki di Task 4 (pemanggilny
 Untuk menjaga langkah ini hijau, beri `choices` nilai default di `decide.ts` sekarang juga:
 `lastDelivery.set(row.id, { …, choices: choice ? [choice] : [], choice, missing })`.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add shared/src/lead.ts shared/src/lead.test.ts shared/src/dto.ts shared/src/entities.ts shared/src/api.ts shared/src/index.ts server/src/services/lead/decide.ts

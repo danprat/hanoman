@@ -4,6 +4,7 @@ import {
   isWeightyDecision, zLeadVerdict, zLeadAsk,
   resolveChoice, clampProse, optionActionHint, leadReplyText,
   LEAD_DECISION_MAX, LEAD_REASON_MAX,
+  normalizeSelect, resolveChoices, checkChoiceCount, zLeadFlowStatus, LEAD_FLOW_OPEN,
 } from "./lead";
 import { zLead, LEAD_DEFAULTS, zSetting } from "./entities";
 import { CAPABILITY_IDS, grantsCapability } from "./agent";
@@ -63,7 +64,7 @@ describe("SPEC-409 · bentuk jawaban (AC-1)", () => {
     const v = zLeadVerdict.parse({ decision: "pakai opsi 1", reason: "ADR-0029" });
     expect(v).toEqual({
       decision: "pakai opsi 1", reason: "ADR-0029", refs: [], confidence: "sedang",
-      action: "none", reply: "", choice: "", missing: [],
+      action: "none", reply: "", choice: "", choices: [], missing: [],
     });
   });
   it("rejects a verdict without a decision or a reason", () => {
@@ -240,7 +241,7 @@ describe("SPEC-480 · optionActionHint", () => {
 });
 
 describe("SPEC-480 · leadReplyText", () => {
-  const base = { decision: "d", reason: "karena begitu.", reply: "", choice: null, missing: [] };
+  const base = { decision: "d", reason: "karena begitu.", reply: "", choices: [], choice: null, missing: [] };
 
   it("names the chosen option verbatim so the model on the other side cannot mis-read it", () => {
     const out = leadReplyText({ ...base, choice: { index: 2, option: "Node 22" } });
@@ -282,5 +283,68 @@ describe("SPEC-480 · verdict terstruktur", () => {
     expect(zLeadVerdict.safeParse({
       decision: "d", reason: "r", missing: Array.from({ length: 11 }, (_, i) => `x${i}`),
     }).success).toBe(false);
+  });
+});
+
+describe("SPEC-485 · ADR-0102 · pilihan jamak", () => {
+  const OPTS = ["alpha — paket alpha", "beta", "gamma"];
+
+  it("resolveChoices memetakan nomor & label, membuang duplikat", () => {
+    const r = resolveChoices(["2", "gamma", "beta"], OPTS);
+    expect(r.choices.map((c) => c.index)).toEqual([2, 3]);
+    expect(r.choices.map((c) => c.option)).toEqual(["beta", "gamma"]);
+    expect(r.rejected).toEqual([]);
+  });
+
+  it("yang di luar daftar & yang ambigu masuk `rejected`, bukan ditebak", () => {
+    const r = resolveChoices(["delta", "9"], OPTS);
+    expect(r.choices).toEqual([]);
+    expect(r.rejected).toEqual(["delta", "9"]);
+  });
+
+  it("urutannya urutan OPSI, bukan urutan lead menyebutnya", () => {
+    expect(resolveChoices(["3", "1"], OPTS).choices.map((c) => c.index)).toEqual([1, 3]);
+  });
+
+  it("normalizeSelect: single selalu 0..1, apa pun yang diminta", () => {
+    expect(normalizeSelect({ mode: "single", min: 0, max: 5 }, 3)).toEqual({ mode: "single", min: 0, max: 1 });
+  });
+
+  it("normalizeSelect: multi dijepit ke jumlah opsi", () => {
+    expect(normalizeSelect({ mode: "multi", min: 2, max: null }, 3)).toEqual({ mode: "multi", min: 2, max: 3 });
+    expect(normalizeSelect({ mode: "multi", min: 0, max: 9 }, 3)).toEqual({ mode: "multi", min: 0, max: 3 });
+  });
+
+  it("checkChoiceCount menolak di bawah min & di atas max, dengan alasan terbaca", () => {
+    expect(checkChoiceCount(2, { min: 0, max: 1 })).toMatch(/paling banyak 1/);
+    expect(checkChoiceCount(0, { min: 1, max: 3 })).toMatch(/paling sedikit 1/);
+    expect(checkChoiceCount(2, { min: 1, max: 3 })).toBeNull();
+  });
+
+  it("leadReplyText menyebut SEMUA label terpilih, verbatim", () => {
+    const line = leadReplyText({
+      decision: "d", reason: "karena X.", reply: "",
+      choices: [{ index: 1, option: "alpha — paket alpha" }, { index: 3, option: "gamma" }],
+      choice: { index: 1, option: "alpha — paket alpha" }, missing: [],
+    });
+    expect(line).toContain("alpha — paket alpha");
+    expect(line).toContain("gamma");
+  });
+
+  it("zLeadVerdict menerima `choices`, dan `choice` lama tetap sah", () => {
+    expect(zLeadVerdict.parse({ decision: "d", reason: "r", choices: ["1", "2"] }).choices).toEqual(["1", "2"]);
+    expect(zLeadVerdict.parse({ decision: "d", reason: "r", choice: "2" }).choices).toEqual([]);
+  });
+
+  it("zLeadAsk membawa select/chain/flowId dengan default yang meniru perilaku hari ini", () => {
+    const a = zLeadAsk.parse({ projectId: "p", question: "q" });
+    expect(a.select).toEqual({ mode: "single", min: 0, max: null });
+    expect(a.chain).toBe(false);
+    expect(a.flowId).toBeNull();
+  });
+
+  it("status rantai punya empat keadaan; dua di antaranya masih menerima langkah", () => {
+    expect(zLeadFlowStatus.options).toEqual(["menunggu", "sebagian", "selesai", "dibatalkan"]);
+    expect([...LEAD_FLOW_OPEN]).toEqual(["menunggu", "sebagian"]);
   });
 });

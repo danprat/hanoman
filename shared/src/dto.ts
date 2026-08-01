@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { zProject, zBriefPayload, zQaPayload, zGoalPayload, zSpec, zScheduler, zAgent, zLead } from "./entities";
-import { zLeadGate, zLeadKind, zLeadConfidence, zLeadAction, zLeadStatus, zLeadChoice } from "./lead";
+import {
+  zLeadGate, zLeadKind, zLeadConfidence, zLeadAction, zLeadStatus, zLeadChoice,
+  zLeadFlowStatus, zLeadSelect,
+} from "./lead";
 import type { Spec, Notification } from "./entities";
 import { zProjectKind, zSpecSource, zPriority, zStage, zTicketCategory, zTicketStatus, zVerifyScope } from "./enums";
 
@@ -153,11 +156,31 @@ export const zLeadDecisionView = z.object({
   choiceIndex: z.number().nullable().default(null),
   options: z.array(z.string()).default([]),
   missing: z.array(z.string()).default([]),
+  // SPEC-485 · ADR-0102 · jawaban SELALU daftar di permukaan baca. Baris pra-migrasi tak punya
+  // kolomnya, jadi `toDecisionView` MENURUNKANNYA dari `choice`/`choiceIndex` — itulah yang
+  // membuat riwayat lama tetap terbaca sesudah perubahan skema.
+  choices: z.array(zLeadChoice).default([]),
+  select: zLeadSelect.nullable().default(null),
+  flowId: z.string().nullable().default(null),
+  step: z.number().nullable().default(null),
   status: zLeadStatus, weighty: z.boolean(),
   supersededById: z.string().nullable(),
   createdAt: z.string(),
 });
 export type LeadDecisionView = z.infer<typeof zLeadDecisionView>;
+
+// SPEC-485 · ADR-0102 · satu RANTAI keputusan sebagai objek berstatus. Langkahnya dibaca lewat
+// `GET /lead/decisions?flowId=` — sengaja bukan bersarang di sini: langkah adalah baris jejak
+// biasa, dan menyalinnya ke serializer kedua berarti dua bentuk yang bisa berselisih.
+export const zLeadFlowView = z.object({
+  id: z.string(), projectId: z.string(),
+  specId: z.string().nullable(), sessionId: z.string().nullable(),
+  gate: zLeadGate, status: zLeadFlowStatus,
+  title: z.string(), steps: z.number(),
+  closeReason: z.string().nullable(),
+  openedAt: z.string(), closedAt: z.string().nullable(), expiresAt: z.string(),
+});
+export type LeadFlowView = z.infer<typeof zLeadFlowView>;
 
 // Balasan kontrak "minta putusan" (pintu #1). Peminta mesin membaca ini, bukan prosa bebas (AC-1).
 export const zLeadAnswer = z.object({
@@ -170,6 +193,11 @@ export const zLeadAnswer = z.object({
   // di sini TERPANGKAS (jejak penuh ada di `GET /lead/decisions`).
   choice: zLeadChoice.nullable().default(null),
   missing: z.array(z.string()).default([]),
+  // SPEC-485 · ADR-0102 · `choices` adalah bentuk yang berlaku; `choice` di atas tinggal
+  // `choices[0]`. `flowId`/`flowStatus` memberi peminta pegangan untuk melanjutkan rantainya.
+  choices: z.array(zLeadChoice).default([]),
+  flowId: z.string().nullable().default(null),
+  flowStatus: zLeadFlowStatus.nullable().default(null),
 });
 export type LeadAnswer = z.infer<typeof zLeadAnswer>;
 

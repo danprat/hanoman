@@ -203,7 +203,7 @@ export async function decide(req: DecideRequest, deps: DecideDeps = prodDecideDe
     decision: clampProse(verdict.decision, LEAD_DECISION_MAX),
     reason: `${clampProse(verdict.reason, LEAD_REASON_MAX)}${tail}`,
     reply: verdict.reply,
-    choice, missing,
+    choices: choice ? [choice] : [], choice, missing,
   });
   return row;
 }
