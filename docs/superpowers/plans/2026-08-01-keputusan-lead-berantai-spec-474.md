@@ -1038,25 +1038,25 @@ git commit -m "feat(474): pintu deteksi menuntaskan rantai dialog sampai submit"
 - Modify: `internal/skills/hanoman/SKILL.md`
 - Modify: `docs/superpowers/plans/2026-08-01-keputusan-lead-berantai-spec-474.md` (centang kotak)
 
-- [ ] **Step 1: Tulis butir permanen di SKILL.md**
+- [x] **Step 1: Tulis butir permanen di SKILL.md**
 
 Tambahkan satu butir sesudah butir SPEC-472 (“Lead yang gagal WAJIB mengatakan kenapa…”), memuat
 sekurang-kurangnya: bentuk rantai (tab strip + auto-advance), layar review tanpa footer, marker
 yang terisi **sekali**, satu rantai = satu jawaban otomatis, submit tanpa agen, varian preview
 (catatan lewat `n`), dan `MAX_CHAIN_STEPS` sebagai konstanta.
 
-- [ ] **Step 2: Jalankan seluruh test yang tersentuh**
+- [x] **Step 2: Jalankan seluruh test yang tersentuh**
 
 Run: `pnpm vitest run --no-file-parallelism server/test/tui-dialog.test.ts server/test/pty.test.ts server/test/lead-detect.test.ts server/test/lead-pane.test.ts`
 Expected: PASS semuanya. **Pastikan jumlah test yang berjalan > 0** — `--changed` menyalakan
 `passWithNoTests`, jadi “no test files” terlihat hijau padahal tak menguji apa pun.
 
-- [ ] **Step 3: Typecheck paket server**
+- [x] **Step 3: Typecheck paket server**
 
 Run: `pnpm --filter ./server typecheck`
 Expected: bersih.
 
-- [ ] **Step 4: Commit + push**
+- [x] **Step 4: Commit + push**
 
 ```bash
 git add internal/skills/hanoman/SKILL.md docs/superpowers/plans/2026-08-01-keputusan-lead-berantai-spec-474.md
@@ -1089,3 +1089,35 @@ git push origin HEAD:refs/heads/hanoman/spec-474
 **Type consistency:** `DialogScreen`/`DialogTab` dipakai identik di Task 1/3/4; `readDialogScreen`,
 `dialogKey`, `readReviewScreen`, `notesFilled`, `answerNotesDialog`, `submitReview`,
 `submitPaneDialog`, `MAX_CHAIN_STEPS` bernama sama di seluruh plan.
+
+---
+
+## Catatan pelaksanaan (diisi saat Execute)
+
+Tiga hal yang berbeda dari plan, semuanya karena test yang menemukan, bukan karena selera:
+
+1. **`DialogScreen` bertambah `title`.** Rancangan awal mengunci identitas layar (`dialogKey`) pada
+   label baris opsi. Test `dialogKey` membuktikan itu salah: begitu prosa lead mendarat di kolom
+   bebas, label baris itu **menjadi teks kita**, jadi kuncinya berubah tanpa satu pun pertanyaan
+   berpindah — dan gerbang anti-loop akan membaca layar yang MACET sebagai layar yang sudah maju.
+   Kunci sekarang memakai **judul pertanyaan** (baris berisi pertama di bawah tab strip), yang tak
+   tersentuh pengetikan.
+2. **`cleanLabel` di `readChoiceDialog`.** Varian ber-`preview` menaruh panel pratinjau di **kolom
+   yang sama** dengan baris opsi, jadi label mentahnya menyeret ornamen kotak
+   (`for                    ┌────┐`). Opsi yang disodorkan ke lead dipotong di batas kolom itu.
+3. **Test rekap di `pty.test.ts` menegaskan `false`.** Fixture hanya meng-echo, jadi layar rekapnya
+   tak pernah pergi → `submitReview` melaporkan **gagal**. Itu justru gerbangnya: hanoman tak boleh
+   mengaku menutup dialog yang masih terbuka.
+
+**Smoke end-to-end (claude 2.1.220 sungguhan, sesi tmux nyata, `decide` distub):** dialog dua
+pertanyaan dituntaskan dalam **satu** putaran `scanAndAnswer` — 2 keputusan, **1** submit mekanis,
+marker dikosongkan **sekali**, dan claude menerima **kedua** jawabannya verbatim
+(`Pilih warna tema? → Merah, kontrasnya paling tinggi di layar terang.` ·
+`Pilih ukuran font? → Besar, supaya terbaca dari jauh.`). Berkas smoke-nya sementara dan sudah
+dihapus — yang permanen adalah unit test di atas.
+
+**Verifikasi:** `tui-dialog` 38 · `pty` 53 · `lead-detect` 31 · `lead-pane` 12 · `lead-engine` 8 ·
+`lead-routes` 20 → **162 hijau**; `pnpm --filter ./server typecheck` bersih. Set `--changed` penuh:
+**979/980** — satu-satunya merah `update.route.test.ts` adalah gagal palsu yang sudah dikenal
+(`HANOMAN_SUPERVISOR=1` bocor ke env sesi, SPEC-450), terbukti **8/8 hijau** dengan
+`env -u HANOMAN_SUPERVISOR`.

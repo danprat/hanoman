@@ -483,6 +483,40 @@ Pakai skill lebih sempit saat task cocok:
   langganan yang sama dengan sesi pekerja). Gerbangnya **sebelum** `decide()` — yang mahal adalah
   panggilannya. `null` dari `decide()` (lead dijeda di tengah panggilan) **bukan** kegagalan dan tak
   dihitung; keberhasilan mengosongkan rantainya ("beruntun"), begitu pula `resetSession`/`sweep`.
+- **Dialog `AskUserQuestion` BERANTAI harus dituntaskan sampai submit** (SPEC-474, tanpa ADR —
+  brief; ADR-0091 ditegakkan, SPEC-452 diperluas): satu tool call boleh memuat **1–4 pertanyaan**,
+  dan menjawab satu pertanyaan **hanya memajukan** dialognya. Terukur in-vivo (claude 2.1.220):
+  layar berantai memuat **tab strip** `←  ☐ Warna  ☐ Ukuran  ✔ Submit  →` (`☒` = sudah dijawab) dan
+  footer `Tab/Arrow keys to navigate`; sesudah pertanyaan terakhir muncul **layar rekap** —
+  `Review your answers` · `Ready to submit your answers?` · `❯ 1. Submit answers` / `2. Cancel` —
+  yang **tak punya baris footer chord sama sekali**, jadi parser SPEC-452 (berpangkal pada
+  `enter to select|confirm`) **tak pernah melihatnya**. Di layar itu prosa **ditelan** (layar
+  byte-identik) dan **satu digit** memilih seketika. Cacat yang diperbaiki bukan "jawaban salah"
+  melainkan **hang senyap**: `detect.ts` menjawab pertanyaan pertama lalu mengosongkan marker,
+  padahal hook `Notification` mengisi marker **SEKALI per dialog** dan **tak pernah menembak lagi**
+  (terukur **0 B selama 120 dtk** dengan dialog masih terbuka) → sisa rantai tak terlihat pintu
+  mana pun (`if (!filled) continue` bahkan tak meninggalkan baris skip), pane hidup terus, satu
+  slot governor terkunci (kelas SPEC-451). **Empat aturan mengikat:** (1) rantai dituntaskan dalam
+  **satu putaran deteksi** — menunggu denyut berikutnya mustahil karena markernya takkan terisi
+  lagi; (2) **satu rantai = satu jawaban otomatis** terhadap `maxAutoAnswers` (default 3) —
+  menghitung per pertanyaan membuat dialog 4 pertanyaan **mustahil selesai**; (3) **submit tak
+  pernah memanggil agen** (`deps.submit` → `submitPaneDialog`, keystroke satu karakter lalu
+  **membuktikan** layar rekapnya pergi) — menekan tombol yang tak butuh pertimbangan tak boleh
+  membakar giliran; (4) rantai yang **putus di tengah** membiarkan marker **tetap terisi** +
+  menaikkan `failures`, jadi sesinya tetap terbaca menunggu oleh operator. Anti-loop lewat
+  **identitas layar** (`dialogKey` = tab strip + **judul** pertanyaan) — bukan label baris:
+  label kolom-bebas berubah begitu prosa lead mendarat, sehingga kunci berbasis label membaca
+  layar yang MACET sebagai layar yang maju. Batasnya `MAX_CHAIN_STEPS = 6`, **konstanta modul**
+  (cermin `LEAD_ACTIONS`). **Varian ketiga yang wajib diingat:** `AskUserQuestion` yang opsinya
+  ber-**`preview`** dirender widget lain — **tak ada baris `Type something.`**, `Chat about this`
+  tanpa nomor, catatan lewat tombol **`n`**, dan panel pratinjau duduk di **kolom yang sama**
+  dengan baris opsi (label mentahnya menyeret ornamen kotak → `cleanLabel`). Sebelum spec ini ia
+  lolos sebagai "dialog tanpa kolom bebas" → jalur lama → `Enter` memilih **opsi 1** secara senyap.
+  Jalur benarnya `answerNotesDialog` (`n` → prosa ber-`goalChunks` → `Enter` **hanya** sesudah
+  `notesFilled`); layar rekap menampilkan `(notes only)` tapi prosanya sampai ke model **verbatim**.
+  Dialog **tanpa tab strip** (trust, prompt izin) tetap tak disentuh: di sana `Enter` = baris 1 =
+  "ya". Pintu override operator (`POST /lead/decisions/:id/override`) ikut sembuh lewat
+  `sendToPane` yang sama, dan sengaja **tak** mengosongkan marker → sisa rantai dilanjutkan lead.
 - **Scope verifikasi per sesi** (SPEC-376/ADR-0080): `verifyScope` (`changed` default | `full`) —
   knob `Setting.verifyScope` (kolom `Json`, **tanpa migration**) + override saat Start. Sesi
   `changed` menguji **berkas yang berubah saja**: `pnpm vitest --run --changed "$HANOMAN_BASE_SHA"`
