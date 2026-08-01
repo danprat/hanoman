@@ -388,3 +388,121 @@ describe("dialogKey · kunci anti-loop", () => {
     expect(dialogKey(KOLOM_CHAT)).toBe("none");
   });
 });
+
+// ── SPEC-474 · menulis ke dua bentuk layar yang baru ────────────────────────────────────────────
+//
+// TUI palsu di bawah meniru semantik TERUKUR pada claude 2.1.220, bukan yang diandaikan:
+//   · `n` (tepat satu karakter) membuka kolom catatan varian preview;
+//   · sebelum kolom itu terbuka, burst apa pun ditelan tanpa jejak;
+//   · `Enter` saat fokus masih di daftar memilih baris tersorot (baris 1);
+//   · di layar review, satu digit memilih SEKETIKA dan prosa ditelan.
+function fakeNotesTui(opts: { deaf?: boolean } = {}) {
+  const literals: string[] = [];
+  let open = false;
+  let typed = "";
+  let submitted: string | null = null;
+  let pickedRow: number | null = null;
+  const render = () => [
+    "←  ☐ Loop  ☐ Nama  ✔ Submit  →",
+    "",
+    "Pakai for atau map?",
+    "",
+    "❯ 1. for",
+    "  2. map",
+    "",
+    `                    Notes: ${open ? (typed || "Add notes on this design…") : "press n to add notes"}`,
+    "────────────────────────────────",
+    "  Chat about this",
+    "",
+    "Enter to select · ↑/↓ to navigate · n to add notes · Tab to switch questions · Esc to cancel",
+  ].join("\n");
+  const io: PaneIO = {
+    capture: () => render(),
+    literal: (s) => {
+      literals.push(s);
+      if (opts.deaf) return;                       // pane yang tak pernah menerima apa pun
+      if (!open) { if (s === "n") open = true; return; }   // daftar menelan burst > 1 karakter
+      typed += s;
+    },
+    enter: () => { if (open) submitted = typed; else pickedRow = 1; },
+    sleep: async () => {},
+  };
+  return { io, literals, get submitted() { return submitted; }, get pickedRow() { return pickedRow; } };
+}
+
+function fakeReviewTui(opts: { deaf?: boolean } = {}) {
+  const literals: string[] = [];
+  let done = false;
+  const render = () => done
+    ? "⏺ User answered Claude's questions:\n"
+    : ["←  ☒ Warna  ☒ Ukuran  ✔ Submit  →", "", "Review your answers", "",
+       "Ready to submit your answers?", "", "❯ 1. Submit answers", "  2. Cancel"].join("\n");
+  const io: PaneIO = {
+    capture: () => render(),
+    literal: (s) => { literals.push(s); if (!opts.deaf && s === "1") done = true; },
+    enter: () => { throw new Error("submit tak boleh bergantung pada Enter"); },
+    sleep: async () => {},
+  };
+  return { io, literals, get done() { return done; } };
+}
+
+describe("answerNotesDialog · varian preview", () => {
+  const JAWABAN = "Pakai map karena ekspresif dan tanpa efek samping.";
+
+  it("membuka kolom catatan dengan `n` sebagai keystroke tersendiri sebelum prosanya", async () => {
+    const t = fakeNotesTui();
+    await answerNotesDialog(t.io, JAWABAN, 0);
+    expect(t.literals[0]).toBe("n");
+  });
+
+  it("menyerahkan prosa lead UTUH ke claude, lalu menekan Enter", async () => {
+    const t = fakeNotesTui();
+    expect(await answerNotesDialog(t.io, JAWABAN, 0)).toBe(true);
+    expect(t.submitted).toBe(JAWABAN);
+    expect(t.pickedRow).toBeNull();                   // bukan "opsi 1 karena kebetulan disorot"
+  });
+
+  it("TIDAK menekan Enter bila kolom catatan tak pernah menerima teks", async () => {
+    const t = fakeNotesTui({ deaf: true });
+    expect(await answerNotesDialog(t.io, JAWABAN, 0)).toBe(false);
+    expect(t.pickedRow).toBeNull();
+  });
+
+  it("memotong jawaban panjang seperti arming goal (ADR-0085)", async () => {
+    const t = fakeNotesTui();
+    const panjang = `${"a".repeat(700)} ekor`;
+    expect(await answerNotesDialog(t.io, panjang, 0)).toBe(true);
+    expect(t.literals.slice(1).every((c) => c.length <= 500)).toBe(true);
+    expect(t.submitted).toBe(panjang);
+  });
+});
+
+describe("notesFilled · gerbang sebelum Enter", () => {
+  it("false selama kolom catatan masih menampilkan placeholder-nya", () => {
+    expect(notesFilled("   Notes: press n to add notes")).toBe(false);
+    expect(notesFilled("   Notes: Add notes on this design…")).toBe(false);
+  });
+
+  it("true begitu teks benar-benar mendarat", () => {
+    expect(notesFilled("   Notes: Pakai map karena ekspresif.")).toBe(true);
+  });
+
+  it("false bila layarnya tak punya kolom catatan sama sekali", () => {
+    expect(notesFilled(KOLOM_CHAT)).toBe(false);
+  });
+});
+
+describe("submitReview · menutup rantai", () => {
+  it("menekan nomor baris Submit sebagai SATU karakter, tanpa Enter", async () => {
+    const t = fakeReviewTui();
+    expect(await submitReview(t.io, 1)).toBe(true);
+    expect(t.literals).toEqual(["1"]);
+    expect(t.done).toBe(true);
+  });
+
+  // Gerbang yang sama seperti SPEC-452: kalau layarnya tak bergerak, jangan mengaku berhasil.
+  it("false bila layar review tak kunjung pergi", async () => {
+    const t = fakeReviewTui({ deaf: true });
+    expect(await submitReview(t.io, 1)).toBe(false);
+  });
+});

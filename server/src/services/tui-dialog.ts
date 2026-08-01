@@ -285,3 +285,65 @@ export async function answerChoiceDialog(
   io.enter();
   return true;
 }
+
+// Placeholder kolom catatan, keduanya dari biner claude 2.1.220: sebelum kolomnya dibuka
+// (`press n to add notes`) dan sesudah dibuka tapi masih kosong (`Add notes on this design…`).
+const NOTES_PLACEHOLDER = /^(?:press n to add notes|add notes on this design(?:…|\.\.\.)?)$/i;
+const NOTES_LINE = /(?:^|\s)Notes:\s*(.*)$/;
+
+/** Apakah kolom catatan sudah TERISI teks (bukan placeholder-nya lagi)? Cermin `freeTextFilled`. */
+export function notesFilled(paneText: string): boolean {
+  const lines = paneText.split("\n").map((l) => l.trimEnd());
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const m = NOTES_LINE.exec(lines[i] ?? "");
+    if (!m) continue;
+    const v = (m[1] ?? "").trim();
+    return v.length > 0 && !NOTES_PLACEHOLDER.test(v);
+  }
+  return false;
+}
+
+/**
+ * SPEC-474 · jawab varian dialog yang opsinya ber-`preview`. Layar itu TAK punya baris
+ * `Type something.` sama sekali — jalan masuk prosanya kolom catatan yang dibuka tombol `n`.
+ *
+ * Urutannya mengikat, cermin `answerChoiceDialog`: `n` sebagai keystroke tersendiri (satu
+ * karakter, supaya handler daftar mengenalinya) → prosa (tetap ber-`goalChunks`, kolom catatan
+ * adalah kolom teks) → `Enter` HANYA sesudah teksnya terbukti mendarat. Tanpa gerbang terakhir
+ * itu `Enter` memilih baris tersorot — bug SPEC-452 lewat pintu yang baru.
+ *
+ * Terukur: catatan sampai ke model VERBATIM meski nilai yang tampil di layar rekap berbunyi
+ * `(notes only)` — jadi keputusan lead tetap menyeberang utuh.
+ */
+export async function answerNotesDialog(io: PaneIO, line: string, chunkMs: number): Promise<boolean> {
+  io.literal("n");
+  await io.sleep(DIALOG_SETTLE_MS);
+  for (const chunk of goalChunks(line)) {
+    io.literal(chunk);
+    await io.sleep(chunkMs);
+  }
+  await io.sleep(DIALOG_SETTLE_MS);
+  if (!notesFilled(io.capture())) return false;
+  io.enter();
+  return true;
+}
+
+/** Berapa kali layar review dibaca ulang sebelum submit dinyatakan gagal (±2 dtk). */
+export const SUBMIT_TRIES = 8;
+
+/**
+ * SPEC-474 · tutup rantai dengan menekan `Submit answers` di layar rekap.
+ *
+ * Nomor barisnya dikirim sebagai keystroke SATU karakter — terukur: satu digit memilih seketika
+ * di layar ini, sementara prosa apa pun ditelan tanpa mengubah satu piksel. `Enter` sengaja TIDAK
+ * dipakai meski hari ini kebetulan juga men-submit (baris 1 memang yang tersorot): benar karena
+ * kebetulan bukan kontrak, dan barisnya bisa bergeser tanpa hanoman tahu.
+ */
+export async function submitReview(io: PaneIO, submitRow: number): Promise<boolean> {
+  io.literal(String(submitRow));
+  for (let i = 0; i < SUBMIT_TRIES; i++) {
+    await io.sleep(DIALOG_SETTLE_MS);
+    if (!readReviewScreen(io.capture())) return true;
+  }
+  return false;
+}
