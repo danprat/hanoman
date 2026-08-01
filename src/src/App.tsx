@@ -8,7 +8,7 @@ import { Shell, Modal, Field, HnTextarea, Button, StatusPill, Select, Input, Swi
 import { api, ApiError, type TerminalSession } from "./api/client";
 import { subscribe } from "./api/events";
 import type { ProjectView, Spec, AuthStatus, UserView, Notification, BreakdownItem } from "@hanoman/shared";
-import { flowForSource, MODELS, EFFORTS, CODEX_MODELS, codexEfforts, coerceCodexEffort, codexModel, codexClientTooOld, CODEX_DEFAULTS, type Agent, type VerifyScope } from "@hanoman/shared";
+import { flowForSource, MODELS, EFFORTS, CODEX_MODELS, codexEfforts, coerceCodexEffort, codexModel, codexClientTooOld, CODEX_DEFAULTS, type Agent, type VerifyScope, type AutoMerge } from "@hanoman/shared";
 import { AuthScreen } from "./screens/AuthScreen";
 import { AuthProvider } from "./auth/AuthContext";
 import type { ProjectVM } from "./screens/types";
@@ -981,6 +981,21 @@ export default function App() {
     }
   }
 
+  // SPEC-486 · ADR-0103 · override kebijakan auto-merge item; `null` = kembali ikut project.
+  // Alasan yang sama dengan editDeps: ia menggerbangi apa yang terjadi SESUDAH kerja, jadi
+  // boleh diubah kapan saja. 400/409 = gerbang server (branch karangan / project tanpa repoDir).
+  async function editAutoMerge(spec: Spec, autoMerge: AutoMerge | null) {
+    try {
+      const updated = await api.patchSpec(spec.id, { autoMerge });
+      if ("pending" in updated) return;
+      setBacklog((b) => b.map((s) => (s.id === updated.id ? updated : s)));
+      showToast(spec.id + " · auto-merge diperbarui", "ok", "git-merge");
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : "Gagal menyimpan auto-merge " + spec.id;
+      showToast(msg, "warn", "x-circle");
+    }
+  }
+
   // SPEC-167 · revert backward-only. Respons `pending` = dry-run: kembalikan ke pemanggil
   // supaya dialog konfirmasi muncul; hanya panggilan confirmDelete yang mengubah state.
   async function revertStage(spec: Spec, target: string, confirmDelete?: boolean) {
@@ -1091,7 +1106,7 @@ export default function App() {
         {gate(<BacklogScreen backlog={backlog} projects={projectsView} pageSize={20}
           onStart={startSession} activeSpecs={activeSpecs} onNew={() => setModal("brief")}
           onDelete={deleteSpec} onOpenRun={() => setSection("terminal")} onOpenReview={openReview}
-          onEditBranch={editBranch} onRevertStage={revertStage} onIntegrate={integrateSpec} onEditSpec={editSpec} onEditDeps={editDeps}
+          onEditBranch={editBranch} onRevertStage={revertStage} onIntegrate={integrateSpec} onEditSpec={editSpec} onEditDeps={editDeps} onEditAutoMerge={editAutoMerge}
           onPromoteToQa={promoteToQa} onPromoteToBrief={promoteToBrief} onPromoteToPrd={promoteToPrd}
           onToast={showToast} initialDetailId={openSpecId}
           projectFilter={projectFilter} onProjectFilter={setProjectFilter} dataVersion={dataVersion} />)}

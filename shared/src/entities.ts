@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { zStage, zSpecSource, zDocStatus, zPriority, zProjectKind, zAgent, zVerifyScope } from "./enums";
 import { TELEGRAM_DEFAULTS, zTelegramSettings } from "./telegram";
+import { zAutoMerge } from "./auto-merge";
 
 export type Stage = z.infer<typeof zStage>;
 // SPEC-338 · ADR-0074 · mesin sesi. Di-re-ekspor dari sini supaya konsumen setelan cukup
@@ -58,6 +59,9 @@ export const zSpec = z.object({
   // Turunan (bukan kolom): dihitung `liveSpecs` dari stage dependency + git. Klien tak pernah
   // mengirimkannya — `.default([])` supaya bentuk lama tetap parse.
   blockedBy: z.array(zSpecBlocker).default([]),
+  // SPEC-486 · ADR-0103 · override kebijakan auto-merge item ini; null = warisi project.
+  // `.nullable().default(null)` menjaga respons/klien versi lama tetap parse.
+  autoMerge: zAutoMerge.nullable().default(null),
 });
 export type Spec = z.infer<typeof zSpec>;
 
