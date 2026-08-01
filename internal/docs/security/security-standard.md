@@ -123,3 +123,34 @@
     terakhir) + `hasValue`. Galat Test Connection dilewatkan redaksi token dua lapis.
   - `secret.key` wajib ikut dicadangkan bersama berkas DB; kehilangannya membuat secret tersimpan
     tak terbaca (instance tetap boot, nilainya harus diisi ulang).
+
+## Webhook keluar (SPEC-481 · [ADR-0100](../adr/0100-webhook-keluar-peristiwa.md))
+
+- **Pengelolaan endpoint COOKIE_ONLY.** Seluruh prefix `/api/webhooks` dipetakan `COOKIE_ONLY` apa
+  pun method-nya. Permukaan ini memegang secret penandatanganan **dan** menentukan ke mana data
+  workspace mengalir keluar; tak ada capability yang cukup untuk itu. Preseden `/telegram/
+  {settings,test,credentials}` (ADR-0097).
+- **Secret per endpoint.** 32 byte acak, disimpan **terenkripsi** (`services/secret-box.ts`,
+  AES-256-GCM, kunci `<HANOMAN_HOME>/secret.key` mode `0600`). Dikembalikan **plaintext sekali**
+  saat dibuat atau dirotasi (pola AgentToken); `GET` hanya mengembalikan empat karakter terakhir
+  sebagai `secretHint`, dan secret tak pernah masuk log. Ciphertext yang tak bisa dibuka membuat
+  pengiriman **gagal dengan alasan jelas** — tak pernah dikirim tanpa tanda tangan, karena penerima
+  yang lalai akan menerimanya.
+- **Tanda tangan & anti-replay.** `X-Hanoman-Signature: v1=<hex>` = HMAC-SHA256 atas
+  `<timestamp>.<raw body>`; timestamp ikut ditandatangani lewat `X-Hanoman-Timestamp`. Penerima
+  diminta membandingkan dengan perbandingan waktu-tetap **atas byte mentah** (serialisasi ulang
+  mengubah byte) dan menolak selisih waktu > **300 detik**.
+- **Data sensitif tak pernah ikut payload.** Isi amplop dibatasi **allowlist field** per entitas di
+  `WEBHOOK_ENTITIES` — yang tak disebut tak pernah keluar. Test DMMF menjaga nama kolomnya tetap
+  nyata; notifikasi bertipe `webhook` sengaja tak difan-out agar kegagalan satu endpoint tak
+  mengirim lalu lintas ke endpoint lain.
+- **Pagar SSRF dua lapis, dengan batas yang dinyatakan.** Saat **simpan**: hanya `http`/`https`,
+  tanpa kredensial di URL, tolak IP literal privat/loopback/link-local/ULA/multicast dan
+  `localhost` — tanpa menyentuh DNS, supaya pendaftaran endpoint tak bergantung jaringan. Saat
+  **setiap percobaan kirim**: resolve DNS dan tolak bila **satu pun** alamat hasilnya internal;
+  DNS yang tak menjawab dibaca **gagal-tertutup**. Keduanya bisa dibuka per endpoint lewat
+  `allowPrivate` yang eksplisit. **Jendela DNS rebinding tetap ada** (antara resolve dan connect) —
+  dipersempit, tidak ditutup; ini dinyatakan apa adanya di halaman dokumentasi in-app.
+- **Batas laju & ukuran.** Token bucket per endpoint (`maxPerMinute`), antrean per endpoint dibatasi
+  1000 kiriman menunggu (kelebihannya tercatat `dropped` — terlihat, bukan hilang diam-diam), dan
+  amplop dipangkas bertahap di 64 KiB dengan penanda `truncated`/`truncatedFields`.

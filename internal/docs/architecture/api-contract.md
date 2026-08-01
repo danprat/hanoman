@@ -920,3 +920,33 @@ Untuk route IDE yang memilih operasi lewat body, pagar membaca operasi aktual: `
 `progress|final|decision|failure|confirmation`. Raw PTY tidak punya endpoint ekspor ke Telegram.
 Endpoint context/memory tidak pernah mengembalikan token atau teks inbound. Audit hanya metadata
 correlation/method/path/status, tanpa body/header.
+
+## Webhook keluar (SPEC-481 · [ADR-0100](../adr/0100-webhook-keluar-peristiwa.md)) — **COOKIE_ONLY**
+
+`capabilityForRoute` memetakan seluruh prefix `webhooks` ke `COOKIE_ONLY`, apa pun method-nya:
+permukaan ini memegang **secret penandatanganan** dan menentukan ke mana data workspace mengalir
+keluar (preseden `/telegram/{settings,test,credentials}`, ADR-0097). Tak ada jalur AgentToken.
+
+| Method | Path | Keterangan |
+| --- | --- | --- |
+| `GET` | `/api/webhooks` | `{ endpoints: WebhookEndpointView[], eventTypes: string[] }`. Secret **tak pernah** ikut — hanya `secretHint` (4 karakter terakhir). |
+| `POST` | `/api/webhooks` | Body `zCreateWebhookEndpoint` (`name`, `url`, `events[]`, `projectIds?`, `enabled?`, `allowPrivate?`, `maxPerMinute?`, `secret?`). **201** membawa `secret` plaintext **sekali seumur hidup** (pola AgentToken). `400` untuk URL non-http(s), URL ber-kredensial, alamat internal tanpa `allowPrivate`, atau jenis peristiwa di luar katalog (respons menyebut `unknown`). |
+| `PATCH` | `/api/webhooks/:id` | `zUpdateWebhookEndpoint` (semua field opsional) + `rotateSecret?`. `rotateSecret: true` mengembalikan secret baru **sekali**. Mengaktifkan ulang endpoint yang dinonaktifkan otomatis membersihkan `disabledAt`/`disabledReason`/`failureStreak`. `404` bila tak ada. |
+| `DELETE` | `/api/webhooks/:id` | `204`. Riwayat pengirimannya ikut cascade. |
+| `POST` | `/api/webhooks/:id/test` | Ping **sinkron** (`webhook.ping`, timeout 10 dtk) → `{ ok, httpStatus, durationMs, error }`. Tetap mencatat baris riwayat; ping yang gagal **tidak** diulang. `409` bila secret tak bisa didekripsi. |
+| `GET` | `/api/webhooks/:id/deliveries?limit=` | Riwayat pengiriman, terbaru dulu (`limit` 1…200, default 50). |
+| `POST` | `/api/webhooks/deliveries/:id/retry` | Kembalikan satu baris `failed`/`dropped` ke antrean (`attempt` direset). `409` bila masih `pending`/`sending`. |
+
+Perubahan konfigurasi **berlaku tanpa restart**: setiap mutasi menyegarkan cache endpoint yang
+menggerbangi tap.
+
+### Bentuk kiriman keluar
+
+`POST` ke URL endpoint, `Content-Type: application/json`, badan = amplop `hanoman.webhook/1`.
+Header: `X-Hanoman-Event`, `X-Hanoman-Event-Id`, `X-Hanoman-Delivery`, `X-Hanoman-Attempt`,
+`X-Hanoman-Timestamp`, `X-Hanoman-Signature` (`v1=` + HMAC-SHA256 heksadesimal atas
+`<timestamp>.<raw body>`). Sukses = 2xx. `410 Gone` menonaktifkan endpoint seketika. Retry
+berbackoff tabel (6 percobaan: 0 · 30 dtk · 2 mnt · 10 mnt · 30 mnt · 2 jam); 5 kegagalan beruntun
+menonaktifkan endpoint otomatis + satu `Notification` bertipe `webhook`. Katalog jenis peristiwa
+hidup di `shared/src/webhook.ts` (`WEBHOOK_ENTITIES`) dan dirender apa adanya oleh halaman
+dokumentasi in-app.

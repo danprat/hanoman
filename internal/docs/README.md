@@ -43,6 +43,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 - [vps-compliance](architecture/vps-compliance.md) — kerangka kepatuhan checklist 232 item (SPEC-220 · ADR-0050)
 
 ## integrasi (untuk project yang memakai hanoman)
+- **Webhook keluar** — hanoman mem-POST amplop bertanda tangan HMAC ke endpoint yang didaftarkan operator setiap kali sebuah baris berubah. Dokumentasinya hidup **di dalam aplikasi** (Settings → Webhook → Dokumentasi webhook), dirender dari katalog `WEBHOOK_ENTITIES` yang sama dengan pengirimnya — tak ada salinan markdown yang bisa basi (SPEC-481 · ADR-0100)
 - [Integrasi AI agent — agent token + capability](../../docs/agent-integration.md) — panduan berhadapan-agen: nyalakan akses di Settings → buat token `hnm_agt_…` → `Authorization: Bearer` ke seluruh `/api`, digerbang capability per-domain; ditaut dari panel "Akses AI Agent" di UI (SPEC-257/265 · ADR-0065)
 
 ## adr
@@ -50,6 +51,7 @@ gerbang mekanis (guardrail dicabut, ADR-0023). Kategori mengikuti vocabulary tet
 > **Narasi tiap keputusan — apa yang diperluas/dicabut/diamandemen, berikut gotcha-nya — ada di
 > [adr/README.md](adr/README.md).** Daftar di bawah sengaja satu baris per ADR: index ini dibaca
 > setiap sesi agen, sub-index hanya saat butuh riwayatnya (SPEC-386).
+- [0100 — Webhook keluar: tap Prisma sebagai satu sumber peristiwa, amplop ber-versi, antrean SQLite](adr/0100-webhook-keluar-peristiwa.md)
 - [0098 — Putusan lead ringkas & terstruktur: `choice` tervalidasi, `missing`, batas panjang saat pengiriman](adr/0098-putusan-lead-ringkas-terstruktur.md)
 - [0097 — Kredensial Telegram di Settings: entri config terenkripsi, bukan `.env`](adr/0097-kredensial-telegram-di-settings-terenkripsi.md)
 - [0096 — Telegram gateway: transport ke session operator tmux persisten, bukan runtime agen](adr/0096-telegram-gateway-session-operator-persisten.md)

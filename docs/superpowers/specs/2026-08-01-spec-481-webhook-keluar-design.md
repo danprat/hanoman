@@ -344,9 +344,9 @@ terpicu", dan contoh payload semuanya dibaca dari `WEBHOOK_ENTITIES`/`WEBHOOK_EV
 
 ## Docs SoT yang tersentuh (commit yang sama)
 
-- `internal/docs/adr/0099-webhook-keluar-peristiwa.md` **(baru)**
-- `internal/docs/README.md` — baris ADR-0099 + entri seksi integrasi
-- `internal/docs/adr/README.md` — narasi ADR-0099
+- `internal/docs/adr/0100-webhook-keluar-peristiwa.md` **(baru)**
+- `internal/docs/README.md` — baris ADR-0100 + entri seksi integrasi
+- `internal/docs/adr/README.md` — narasi ADR-0100
 - `internal/docs/architecture/api-contract.md` — tujuh endpoint `/webhooks`
 - `internal/docs/architecture/data-model.md` — dua model baru, LOCAL-only
 - `internal/docs/security/security-standard.md` — HMAC, anti-replay, SSRF, secret at-rest

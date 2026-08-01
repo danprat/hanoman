@@ -118,6 +118,32 @@ Pakai skill lebih sempit saat task cocok:
   ada di `FIELDS.spec` + `DATE_FIELDS.spec` — `upsert` yang tak menyebut kolom ber-default **tetap
   berhasil**, jadi tanpa itu spec asal-hub mendapat `createdAt` lokal palsu di tiap client tanpa
   satu pun error.
+- **Webhook keluar — tap Prisma, bukan emit di call site** (SPEC-481/**ADR-0100**; ADR-0024, ADR-0037,
+  ADR-0039 utuh): hanoman mem-POST amplop bertanda tangan HMAC ke endpoint yang didaftarkan operator
+  setiap kali sebuah baris DB berubah. Peristiwanya diambil di **satu** client extension Prisma
+  (`services/webhooks/tap.ts`) yang dipasang di `db.ts` — satu-satunya tempat klien lahir — bukan
+  di call site, karena "pancarkan peristiwa" adalah **efek samping murni** dan hanoman sudah tiga
+  kali membayar kelas bug "satu definisi, N call site" pada bentuk itu (SPEC-431/448/**475**).
+  Katalog **`WEBHOOK_ENTITIES`** (`@hanoman/shared`) menyetir tap **dan** halaman dokumentasi
+  in-app, jadi jenis peristiwa tak bisa basi; **allowlist field** di dalamnya sekaligus pagar data
+  sensitif dan kontrak payload, dijaga test DMMF (cermin `PG_ORDER`). Antreannya `WebhookDelivery`
+  — satu tabel merangkap antrean **dan** riwayat, dikuras `setInterval` dari `server.ts` (pola
+  ADR-0072/0096) — dan `payload` disimpan **per baris** supaya retry mengirim byte identik (id
+  peristiwa stabil ⇒ penerima bisa idempoten). **Enam gotcha wajib:** (1) gerbang `webhooksActive()`
+  dibaca pada SETIAP tulisan Prisma — jaga tetap satu boolean, dan dengan nol endpoint (default)
+  tap tak melakukan apa pun; (2) **diff kosong tak memancarkan** — tanpa itu overlay stage-live
+  `liveSpecs` (menulis tiap `GET /specs`) dan bump `version` mesin sync jadi banjir peristiwa hampa;
+  (3) peristiwa turunan **menggantikan**, `spec.stage_changed` alih-alih `spec.updated`; (4) cascade
+  delete tingkat-DB **tak terlihat** tap (dilaporkan sebagai `data.cascade`), dan `$executeRaw`/
+  `createMany` atas model terlacak **dilarang** — dijaga `webhook-no-raw-writes.test.ts` karena
+  pelanggarannya gagal SENYAP; (5) baris `sending` yang tertinggal crash **DIULANG** saat boot,
+  sengaja berlawanan dengan `TelegramOutbox` yang memilih `uncertain` (di sana kembarannya pesan
+  ganda ke manusia; di sini kontraknya at-least-once ber-id stabil); (6) klien Prisma yang diekspor
+  kini **ber-extension** sehingga tak assignable ke `PrismaClient`/`Prisma.TransactionClient` —
+  pakai alias **`Db`/`DbTx`** dari `db.ts`, jangan mengetik ulang tipe Prisma polos. Pengelolaannya
+  **COOKIE_ONLY** (memegang secret + menentukan ke mana data mengalir), secret terenkripsi lewat
+  `secret-box.ts` dan ditampilkan sekali, SSRF diperiksa saat simpan (bentuk + IP literal, **tanpa
+  DNS**) dan lagi di **tiap percobaan kirim** (resolve DNS, fail-closed).
 - Docs SoT & coverage dipindai **live dari path efektif** tiap request (ADR-0011/0018), bukan tabel DB.
 - Verifikasi doc terkini via Context7 sebelum mengubah keputusan platform/framework.
 

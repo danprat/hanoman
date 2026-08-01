@@ -530,3 +530,31 @@ harus bertahan. `TelegramUpdate`/audit tidak pernah menyimpan isi inbound — ha
 `Setting.telegram = { enabled:false, progress:true }` tetap berada di kolom JSON singleton (tanpa
 migration). Personality menunjuk id `CustomAgent`; summary dan memory hanya ditulis dari amplop hasil
 kurasi session operator yang sama, bukan dari transcript mentah atau model summarizer kedua.
+
+## Webhook keluar (SPEC-481 · [ADR-0100](../adr/0100-webhook-keluar-peristiwa.md))
+
+Dua model, keduanya **LOCAL-only** — tak pernah disync (cermin `AgentToken`/`RuntimeConfig`):
+barisnya memegang secret dan menunjuk pengiriman dari **mesin ini**. Tanpa kolom `version`, tanpa
+`notifySynced`. Keduanya wajib ada di `PG_ORDER` (`cli/src/commands/migrate-pg.ts`) — test DMMF
+merah bila lupa.
+
+**`WebhookEndpoint`** — `id` · `name` · `url` · `secret` (ciphertext `enc:v1:`, ADR-0097) ·
+`events` (`Json` string[]; `["*"]` = semua, `"spec.*"` = satu keluarga) · `projectIds`
+(`Json?`; null = semua project) · `enabled` · `allowPrivate` (izin **eksplisit** alamat
+internal/loopback) · `apiVersion` · `maxPerMinute` · `disabledAt`/`disabledReason` ·
+`lastSuccessAt`/`lastFailureAt`/`failureStreak` · `createdAt`/`updatedAt`.
+
+**`WebhookDelivery`** — satu tabel merangkap **antrean dan riwayat**. `endpointId` (FK cascade) ·
+`eventId` (SAMA untuk semua endpoint dari satu peristiwa) · `eventType` · `projectId` ·
+**`payload`** · `status` (`pending|sending|sent|failed|dropped`) · `attempt`/`maxAttempts` ·
+`nextAttemptAt` · `httpStatus`/`durationMs`/`error` · `createdAt`/`sentAt`.
+
+`payload` disimpan **per baris**, bukan dirender ulang saat kirim: retry wajib mengirim byte yang
+persis sama supaya `id` peristiwa stabil dan idempotensi penerima berlaku, dan riwayat harus
+memperlihatkan apa yang **benar-benar dikirim**, bukan keadaan hari ini. Retensi
+`WEBHOOK_HISTORY_KEEP = 200` baris per endpoint, dipangkas worker; baris yang masih mengantre tak
+pernah ikut dipangkas.
+
+Peristiwanya sendiri **bukan** kolom di mana pun: ia diturunkan tap Prisma dari perubahan baris
+model yang dienumerasi `WEBHOOK_ENTITIES` (`@hanoman/shared`), dengan **allowlist field** sebagai
+pagar data sensitif sekaligus kontrak payload.

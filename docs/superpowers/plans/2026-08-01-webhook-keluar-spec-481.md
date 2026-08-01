@@ -19,7 +19,7 @@ yang sama dengan pengirimnya.
 ## Global Constraints
 
 - **Spec:** `docs/superpowers/specs/2026-08-01-spec-481-webhook-keluar-design.md` — baca sebelum
-  mulai. ADR yang lahir: **ADR-0099**.
+  mulai. ADR yang lahir: **ADR-0100**.
 - **Verifikasi HANYA yang berubah** (ADR-0080). Jalankan path test yang disebut tiap task, bukan
   suite penuh. Wajib `--no-file-parallelism` untuk test server, dan wajib
   `TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db"` karena mesin ini menjalankan beberapa sesi
@@ -57,7 +57,7 @@ Satu modul murni yang jadi sumber tunggal untuk tap **dan** halaman dokumentasi.
   `eventTypeFor(def,action,changed)`, `matchesEvent(subscribed,type)`, `clampEnvelope(env)`,
   `sampleEnvelope(type)`; skema `zCreateWebhookEndpoint`, `zUpdateWebhookEndpoint`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `shared/src/webhook.test.ts`:
 
@@ -211,17 +211,17 @@ describe("zCreateWebhookEndpoint", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test untuk memastikan gagal**
+- [x] **Step 2: Jalankan test untuk memastikan gagal**
 
 ```bash
 ./node_modules/.bin/vitest --run shared/src/webhook.test.ts
 ```
 Expected: FAIL — `Failed to resolve import "./webhook"`.
 
-- [ ] **Step 3: Tulis `shared/src/webhook.ts`**
+- [x] **Step 3: Tulis `shared/src/webhook.ts`**
 
 ```ts
-// SPEC-481 · ADR-0099 · sumber TUNGGAL peristiwa webhook: katalog ini menyetir tap Prisma
+// SPEC-481 · ADR-0100 · sumber TUNGGAL peristiwa webhook: katalog ini menyetir tap Prisma
 // (server/src/services/webhooks/tap.ts) DAN halaman dokumentasi in-app. Menambah peristiwa =
 // menambah entri di sini; tak ada jalan lain, jadi dokumentasi tak bisa basi.
 import { z } from "zod";
@@ -396,7 +396,7 @@ export const WEBHOOK_ENTITIES: WebhookEntityDef[] = [
       id: "cld…", projectId: "hanoman", specId: "SPEC-481", sessionId: "spec_481",
       gate: "detected", kind: "answer", question: "Pakai tap Prisma atau emit manual?",
       answer: "Tap Prisma — satu choke point.", reason: "Kelas bug SPEC-431/448/475.",
-      refs: ["internal/docs/adr/0099-webhook-keluar-peristiwa.md"], confidence: "tinggi",
+      refs: ["internal/docs/adr/0100-webhook-keluar-peristiwa.md"], confidence: "tinggi",
       action: "none", status: "berlaku", weighty: false, choice: "Tap di layer Prisma",
       choiceIndex: 1, missing: null, createdAt: "2026-08-01T03:00:00.000Z",
     },
@@ -615,7 +615,7 @@ export interface WebhookTestResult {
 }
 ```
 
-- [ ] **Step 4: Ekspor dari barrel**
+- [x] **Step 4: Ekspor dari barrel**
 
 Di `shared/src/index.ts`, tambahkan setelah baris `export * from "./telegram";`:
 
@@ -623,21 +623,21 @@ Di `shared/src/index.ts`, tambahkan setelah baris `export * from "./telegram";`:
 export * from "./webhook";
 ```
 
-- [ ] **Step 5: Jalankan test sampai hijau**
+- [x] **Step 5: Jalankan test sampai hijau**
 
 ```bash
 ./node_modules/.bin/vitest --run shared/src/webhook.test.ts
 ```
 Expected: PASS, ±20 test.
 
-- [ ] **Step 6: Typecheck paket shared**
+- [x] **Step 6: Typecheck paket shared**
 
 ```bash
 pnpm --filter ./shared typecheck
 ```
 Expected: keluar 0, tanpa output error.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add shared/src/webhook.ts shared/src/webhook.test.ts shared/src/index.ts
@@ -659,7 +659,7 @@ git commit -m "feat(481): katalog peristiwa webhook + amplop v1 di @hanoman/shar
 - Produces: model Prisma `WebhookEndpoint` & `WebhookDelivery`; klien Prisma ber-delegate
   `prisma.webhookEndpoint` / `prisma.webhookDelivery`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/webhook-catalog-dmmf.test.ts`:
 
@@ -712,7 +712,7 @@ describe("model webhook", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan untuk memastikan gagal**
+- [x] **Step 2: Jalankan untuk memastikan gagal**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism --dir server server/test/webhook-catalog-dmmf.test.ts
@@ -720,12 +720,12 @@ TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run
 Expected: FAIL — `models.has("Spec")` lolos tapi `PG_ORDER` tak memuat `WebhookEndpoint`, dan
 `Prisma.dmmf` belum punya model webhook.
 
-- [ ] **Step 3: Tambah model ke `server/prisma/schema.prisma`**
+- [x] **Step 3: Tambah model ke `server/prisma/schema.prisma`**
 
 Tempel di akhir berkas:
 
 ```prisma
-// SPEC-481 · ADR-0099 · endpoint webhook keluar. LOCAL-only (cermin AgentToken/RuntimeConfig):
+// SPEC-481 · ADR-0100 · endpoint webhook keluar. LOCAL-only (cermin AgentToken/RuntimeConfig):
 // barisnya memegang secret dan menunjuk pengiriman dari MESIN INI, jadi menyiarkannya ke hub
 // akan mengirim kredensial dan riwayat yang tak berlaku di sana. Tanpa `version`/notifySynced.
 //
@@ -752,7 +752,7 @@ model WebhookEndpoint {
   deliveries     WebhookDelivery[]
 }
 
-// SPEC-481 · ADR-0099 · satu tabel merangkap ANTREAN dan RIWAYAT.
+// SPEC-481 · ADR-0100 · satu tabel merangkap ANTREAN dan RIWAYAT.
 //
 // `payload` disimpan per pengiriman, bukan dirender ulang: retry wajib mengirim byte yang SAMA
 // supaya `id` peristiwa stabil dan idempotensi penerima berlaku, dan riwayat harus memperlihatkan
@@ -781,12 +781,12 @@ model WebhookDelivery {
 }
 ```
 
-- [ ] **Step 4: Tulis migration tangan**
+- [x] **Step 4: Tulis migration tangan**
 
 Buat `server/prisma/migrations/20260801220000_webhook/migration.sql`:
 
 ```sql
--- SPEC-481 · ADR-0099 · webhook keluar: endpoint + antrean/riwayat pengiriman.
+-- SPEC-481 · ADR-0100 · webhook keluar: endpoint + antrean/riwayat pengiriman.
 --
 -- Dua tabel BARU → `CREATE TABLE` polos; tak ada redefinisi tabel seperti migration SPEC-408.
 -- Keduanya LOCAL-only (tanpa kolom `version`): barisnya memegang secret dan menunjuk pengiriman
@@ -836,16 +836,16 @@ CREATE INDEX "WebhookDelivery_endpointId_createdAt_idx" ON "WebhookDelivery" ("e
 CREATE INDEX "WebhookDelivery_eventId_idx" ON "WebhookDelivery" ("eventId");
 ```
 
-- [ ] **Step 5: Tambah ke `PG_ORDER`**
+- [x] **Step 5: Tambah ke `PG_ORDER`**
 
 Di `cli/src/commands/migrate-pg.ts`, sebelum baris `"GithubIssue",` sisipkan:
 
 ```ts
-  // SPEC-481 · ADR-0099 · WebhookDelivery WAJIB sesudah WebhookEndpoint (FK endpointId).
+  // SPEC-481 · ADR-0100 · WebhookDelivery WAJIB sesudah WebhookEndpoint (FK endpointId).
   "WebhookEndpoint", "WebhookDelivery",
 ```
 
-- [ ] **Step 6: Generate klien & terapkan migrasi ke DB dev**
+- [x] **Step 6: Generate klien & terapkan migrasi ke DB dev**
 
 ```bash
 pnpm --filter ./server exec prisma generate
@@ -854,14 +854,14 @@ pnpm --filter ./server exec prisma migrate deploy
 Expected: `Applied 1 migration` (atau "No pending migrations" bila sudah). **Jangan** `migrate dev`
 — ia me-reset saat ada drift worktree tetangga.
 
-- [ ] **Step 7: Jalankan test sampai hijau**
+- [x] **Step 7: Jalankan test sampai hijau**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism --dir server server/test/webhook-catalog-dmmf.test.ts
 ```
 Expected: PASS, 5 test.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add server/prisma/schema.prisma server/prisma/migrations/20260801220000_webhook \
@@ -889,7 +889,7 @@ git commit -m "feat(481): model WebhookEndpoint & WebhookDelivery + migration + 
   - `type Lookup = (host: string) => Promise<{ address: string }[]>`
   - `checkDestination(url: URL, allowPrivate: boolean, lookup?: Lookup): Promise<{ ok: true } | { ok: false; error: string }>`
 
-- [ ] **Step 1: Tulis test tanda tangan yang gagal**
+- [x] **Step 1: Tulis test tanda tangan yang gagal**
 
 Buat `server/test/webhook-sign.test.ts`:
 
@@ -931,7 +931,7 @@ describe("signedHeaders", () => {
 });
 ```
 
-- [ ] **Step 2: Tulis test SSRF yang gagal**
+- [x] **Step 2: Tulis test SSRF yang gagal**
 
 Buat `server/test/webhook-ssrf.test.ts`:
 
@@ -998,7 +998,7 @@ describe("checkDestination", () => {
 });
 ```
 
-- [ ] **Step 3: Jalankan keduanya untuk memastikan gagal**
+- [x] **Step 3: Jalankan keduanya untuk memastikan gagal**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism --dir server \
@@ -1006,13 +1006,13 @@ TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run
 ```
 Expected: FAIL — modul `../src/services/webhooks/sign` & `…/ssrf` belum ada.
 
-- [ ] **Step 4: Tulis `server/src/services/webhooks/sign.ts`**
+- [x] **Step 4: Tulis `server/src/services/webhooks/sign.ts`**
 
 ```ts
 import { createHmac } from "node:crypto";
 import { WEBHOOK_HEADERS, WEBHOOK_USER_AGENT } from "@hanoman/shared";
 
-// SPEC-481 · ADR-0099 · tanda tangan v1 = HMAC-SHA256 atas `<timestamp>.<raw body>`.
+// SPEC-481 · ADR-0100 · tanda tangan v1 = HMAC-SHA256 atas `<timestamp>.<raw body>`.
 //
 // Timestamp IKUT ditandatangani: tanpa itu penerima tak punya cara menolak replay — badan yang
 // sama akan selamanya lolos verifikasi. Penerima diminta menolak selisih > WEBHOOK_TOLERANCE_SEC.
@@ -1038,13 +1038,13 @@ export function signedHeaders(o: {
 }
 ```
 
-- [ ] **Step 5: Tulis `server/src/services/webhooks/ssrf.ts`**
+- [x] **Step 5: Tulis `server/src/services/webhooks/ssrf.ts`**
 
 ```ts
 import { lookup as dnsLookup } from "node:dns/promises";
 import { isIPv4 } from "node:net";
 
-// SPEC-481 · ADR-0099 · pagar SSRF. Dua lapis dengan pertanyaan berbeda:
+// SPEC-481 · ADR-0100 · pagar SSRF. Dua lapis dengan pertanyaan berbeda:
 //   validateWebhookUrl  — bentuk URL, ditegakkan saat DISIMPAN.
 //   checkDestination    — alamat yang benar-benar akan dihubungi, ditegakkan SETIAP percobaan.
 // Lapis kedua wajib per-percobaan: host publik hari ini bisa menunjuk 127.0.0.1 besok. Ini
@@ -1113,7 +1113,7 @@ export async function checkDestination(
 }
 ```
 
-- [ ] **Step 6: Jalankan test sampai hijau**
+- [x] **Step 6: Jalankan test sampai hijau**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism --dir server \
@@ -1121,7 +1121,7 @@ TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run
 ```
 Expected: PASS, 12 test.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/services/webhooks/sign.ts server/src/services/webhooks/ssrf.ts \
@@ -1148,7 +1148,7 @@ di bawahnya. Satu `AsyncLocalStorage` menjembataninya tanpa mengoper argumen lew
   `withActor<T>(a: WebhookActor, fn: () => Promise<T>): Promise<T>`,
   `actorFromRequest(req: { user?: {id:string;email:string}; agent?: {id:string;name:string} }): WebhookActor`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/webhook-actor.test.ts`:
 
@@ -1200,20 +1200,20 @@ describe("actorFromRequest", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan untuk memastikan gagal**
+- [x] **Step 2: Jalankan untuk memastikan gagal**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism --dir server server/test/webhook-actor.test.ts
 ```
 Expected: FAIL — modul belum ada.
 
-- [ ] **Step 3: Tulis `server/src/services/webhooks/actor.ts`**
+- [x] **Step 3: Tulis `server/src/services/webhooks/actor.ts`**
 
 ```ts
 import { AsyncLocalStorage } from "node:async_hooks";
 import { SYSTEM_ACTOR, type WebhookActor } from "@hanoman/shared";
 
-// SPEC-481 · ADR-0099 · amplop menjanjikan SIAPA yang memicu, tapi identitas itu hanya hidup di
+// SPEC-481 · ADR-0100 · amplop menjanjikan SIAPA yang memicu, tapi identitas itu hanya hidup di
 // request sementara tap berjalan di layer Prisma. AsyncLocalStorage menjembataninya tanpa mengoper
 // argumen lewat setiap penulis. Di luar konteks mana pun jawabannya `system` — jujur, bukan tebakan.
 const als = new AsyncLocalStorage<WebhookActor>();
@@ -1243,7 +1243,7 @@ export function actorFromRequest(req: {
 }
 ```
 
-- [ ] **Step 4: Pasang hook di `server/src/app.ts`**
+- [x] **Step 4: Pasang hook di `server/src/app.ts`**
 
 Tambah import di dekat import service lain:
 
@@ -1254,7 +1254,7 @@ import { actorFromRequest, setActor } from "./services/webhooks/actor";
 Lalu, **tepat setelah** baris `api.addHook("preHandler", guardTelegramGatewayRequest);`, sisipkan:
 
 ```ts
-    // SPEC-481 · ADR-0099 · stempel aktor untuk amplop webhook. Dipasang di `preHandler` (bukan
+    // SPEC-481 · ADR-0100 · stempel aktor untuk amplop webhook. Dipasang di `preHandler` (bukan
     // `onRequest`) supaya `req.user`/`req.agent` sudah terisi gate auth di atas; tanpa itu setiap
     // peristiwa yang lahir dari request akan berkata `system` dan riwayatnya kehilangan pelakunya.
     api.addHook("preHandler", async (req) => {
@@ -1262,7 +1262,7 @@ Lalu, **tepat setelah** baris `api.addHook("preHandler", guardTelegramGatewayReq
     });
 ```
 
-- [ ] **Step 5: Beri identitas pada tindakan hanoman-lead**
+- [x] **Step 5: Beri identitas pada tindakan hanoman-lead**
 
 Di `server/src/services/lead/apply.ts`, temukan fungsi yang mengeksekusi tindakan (yang menerima
 verdict lalu memanggil `integrateMain`/`stopSession`/dst — cari `export async function apply`).
@@ -1283,7 +1283,7 @@ export async function applyAction(/* argumen apa adanya */) {
 Bila nama fungsinya berbeda, pilih **satu** titik terluar di `apply.ts` — jangan membungkus tiap
 tindakan (itu N call site untuk satu keputusan; kelas bug SPEC-475).
 
-- [ ] **Step 6: Jalankan test sampai hijau + typecheck**
+- [x] **Step 6: Jalankan test sampai hijau + typecheck**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism --dir server \
@@ -1292,7 +1292,7 @@ pnpm --filter ./server typecheck
 ```
 Expected: PASS 7 test + app.test.ts tetap hijau; typecheck keluar 0.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/services/webhooks/actor.ts server/test/webhook-actor.test.ts \
@@ -1324,7 +1324,7 @@ memang tak dipakai. Tanpa cache ini setiap tulisan Prisma membayar satu query "a
   - `secretOf(row: { secret: string }): string | null`
   - `endpointView(row, pending: number, plainSecret?: string): WebhookEndpointView`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/webhook-endpoints.test.ts`:
 
@@ -1429,14 +1429,14 @@ describe("endpointView", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan untuk memastikan gagal**
+- [x] **Step 2: Jalankan untuk memastikan gagal**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism --dir server server/test/webhook-endpoints.test.ts
 ```
 Expected: FAIL — modul belum ada.
 
-- [ ] **Step 3: Tulis `server/src/services/webhooks/endpoints.ts`**
+- [x] **Step 3: Tulis `server/src/services/webhooks/endpoints.ts`**
 
 ```ts
 import { randomBytes } from "node:crypto";
@@ -1444,7 +1444,7 @@ import { matchesEvent, type WebhookEndpointView } from "@hanoman/shared";
 import { prisma } from "../../db";
 import { decryptSecret, encryptSecret } from "../secret-box";
 
-// SPEC-481 · ADR-0099 · daftar endpoint aktif dipegang di MEMORI dan disegarkan tiap mutasi.
+// SPEC-481 · ADR-0100 · daftar endpoint aktif dipegang di MEMORI dan disegarkan tiap mutasi.
 // Alasannya bukan kecepatan query melainkan gerbang tap: `webhooksActive()` dibaca pada SETIAP
 // tulisan Prisma, dan default hanoman adalah nol endpoint. Cache sinkron (cermin katalog custom
 // agent ADR-0094) karena tap tak boleh menunggu Prisma untuk memutuskan "tak ada apa-apa di sini".
@@ -1527,14 +1527,14 @@ export function endpointView(r: EndpointRow, pending: number, plainSecret?: stri
 }
 ```
 
-- [ ] **Step 4: Jalankan test sampai hijau**
+- [x] **Step 4: Jalankan test sampai hijau**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism --dir server server/test/webhook-endpoints.test.ts
 ```
 Expected: PASS, 10 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/webhooks/endpoints.ts server/test/webhook-endpoints.test.ts
@@ -1558,7 +1558,7 @@ git commit -m "feat(481): store endpoint webhook + cache gate + secret terenkrip
   - `emitWebhook(input: EmitInput): Promise<void>` — fan-out + tulis baris `WebhookDelivery`
   - `enqueueEnvelope(env: WebhookEnvelope, endpoints: Endpoint[]): Promise<void>`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/webhook-emit.test.ts`:
 
@@ -1694,14 +1694,14 @@ describe("emitWebhook", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan untuk memastikan gagal**
+- [x] **Step 2: Jalankan untuk memastikan gagal**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism --dir server server/test/webhook-emit.test.ts
 ```
 Expected: FAIL — modul belum ada.
 
-- [ ] **Step 3: Tulis `server/src/services/webhooks/emit.ts`**
+- [x] **Step 3: Tulis `server/src/services/webhooks/emit.ts`**
 
 ```ts
 import { randomUUID } from "node:crypto";
@@ -1714,7 +1714,7 @@ import { prisma } from "../../db";
 import { currentActor } from "./actor";
 import { matchingEndpoints, webhooksActive, type Endpoint } from "./endpoints";
 
-// SPEC-481 · ADR-0099 · dari "sebuah baris berubah" menjadi "n baris antrean". Dipanggil
+// SPEC-481 · ADR-0100 · dari "sebuah baris berubah" menjadi "n baris antrean". Dipanggil
 // fire-and-forget oleh tap: apa pun yang salah di sini TIDAK boleh menggagalkan tulisan yang
 // memicunya — janji "endpoint lambat tak memperlambat hanoman" dimulai di titik ini.
 
@@ -1812,14 +1812,14 @@ export async function emitWebhook(i: EmitInput): Promise<void> {
 }
 ```
 
-- [ ] **Step 4: Jalankan test sampai hijau**
+- [x] **Step 4: Jalankan test sampai hijau**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism --dir server server/test/webhook-emit.test.ts
 ```
 Expected: PASS, 12 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/services/webhooks/emit.ts server/test/webhook-emit.test.ts
@@ -1850,7 +1850,7 @@ otomatis memancarkan peristiwa tanpa tahu webhook itu ada.
   - `webhookTap(base: TapBase): { name: string; query: … }` — objek extension untuk `$extends`
   - `installWebhooks(): Promise<void>` (di `install.ts`) — refresh cache + daftarkan sink
 
-- [ ] **Step 1: Tulis test tap yang gagal**
+- [x] **Step 1: Tulis test tap yang gagal**
 
 Buat `server/test/webhook-tap.test.ts`:
 
@@ -2020,7 +2020,7 @@ describe("tap · cascade project", () => {
 });
 ```
 
-- [ ] **Step 2: Tulis test penjaga "tak ada penulis mentah"**
+- [x] **Step 2: Tulis test penjaga "tak ada penulis mentah"**
 
 Buat `server/test/webhook-no-raw-writes.test.ts`:
 
@@ -2059,7 +2059,7 @@ describe("penulis yang tak terlihat tap", () => {
 });
 ```
 
-- [ ] **Step 3: Jalankan keduanya untuk memastikan gagal**
+- [x] **Step 3: Jalankan keduanya untuk memastikan gagal**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism --dir server \
@@ -2069,7 +2069,7 @@ Expected: `webhook-tap` FAIL (modul belum ada). `webhook-no-raw-writes` mungkin 
 sah; ia penjaga, bukan pendorong. Bila ia MERAH, hentikan dan laporkan temuannya: ada penulis yang
 tak akan terlihat tap dan spec ini harus menyebutkannya.
 
-- [ ] **Step 4: Tulis `server/src/services/webhooks/tap.ts`**
+- [x] **Step 4: Tulis `server/src/services/webhooks/tap.ts`**
 
 ```ts
 import {
@@ -2077,7 +2077,7 @@ import {
   type WebhookAction, type WebhookEntityDef,
 } from "@hanoman/shared";
 
-// SPEC-481 · ADR-0099 · SATU choke point untuk seluruh peristiwa perubahan.
+// SPEC-481 · ADR-0100 · SATU choke point untuk seluruh peristiwa perubahan.
 //
 // Kenapa di layer Prisma dan bukan di call site: hanoman sudah tiga kali kena kelas bug "satu
 // definisi, N call site" (SPEC-431 predikat, SPEC-448 env spawn, SPEC-475 efek samping), dan
@@ -2241,14 +2241,14 @@ export function webhookTap(base: TapBase) {
 export { projectRow };
 ```
 
-- [ ] **Step 5: Tulis `server/src/services/webhooks/install.ts`**
+- [x] **Step 5: Tulis `server/src/services/webhooks/install.ts`**
 
 ```ts
 import { refreshWebhookCache, webhooksActive } from "./endpoints";
 import { registerWebhookTap } from "./tap";
 import { emitWebhook } from "./emit";
 
-// SPEC-481 · ADR-0099 · menghubungkan tap (yang tak boleh meng-import `db.ts`) dengan pengirimnya
+// SPEC-481 · ADR-0100 · menghubungkan tap (yang tak boleh meng-import `db.ts`) dengan pengirimnya
 // (yang harus). Dipanggil `server.ts` sebelum request pertama; sebelum itu tap diam total.
 export async function installWebhooks(): Promise<void> {
   await refreshWebhookCache();
@@ -2261,12 +2261,12 @@ export async function installWebhooks(): Promise<void> {
 }
 ```
 
-- [ ] **Step 6: Bungkus klien di `server/src/db.ts`**
+- [x] **Step 6: Bungkus klien di `server/src/db.ts`**
 
 Ganti baris terakhir `export const prisma = new PrismaClient();` dengan:
 
 ```ts
-// SPEC-481 · ADR-0099 · tap webhook dipasang DI SINI, satu-satunya tempat klien Prisma lahir.
+// SPEC-481 · ADR-0100 · tap webhook dipasang DI SINI, satu-satunya tempat klien Prisma lahir.
 // `base` dipakai tap untuk membaca keadaan sebelum/sesudah TANPA melewati extension lagi
 // (rekursi), sekaligus berbagi engine & koneksi yang sama dengan klien yang diekspor.
 const base = new PrismaClient();
@@ -2279,7 +2279,7 @@ dan tambahkan importnya di kepala berkas:
 import { webhookTap, type TapBase } from "./services/webhooks/tap";
 ```
 
-- [ ] **Step 7: Perbaiki tipe `TelegramStore`**
+- [x] **Step 7: Perbaiki tipe `TelegramStore`**
 
 `prisma` bukan lagi `PrismaClient` telanjang. Di `server/src/services/telegram/store.ts:43` ganti:
 
@@ -2299,7 +2299,7 @@ menjadi:
 Bila `pnpm --filter ./server typecheck` masih mengeluh, sempitkan lagi ke delegate yang benar-benar
 dipakai berkas itu (baca error-nya; jangan `any`).
 
-- [ ] **Step 8: Panggil `installWebhooks()` dari `server.ts`**
+- [x] **Step 8: Panggil `installWebhooks()` dari `server.ts`**
 
 Tambah import:
 
@@ -2310,12 +2310,12 @@ import { installWebhooks } from "./services/webhooks/install";
 dan **setelah** `await installCustomAgents();`:
 
 ```ts
-  // SPEC-481 · ADR-0099 · daftarkan tap SEBELUM apa pun bisa menulis baris. Sebelum ini tap diam,
+  // SPEC-481 · ADR-0100 · daftarkan tap SEBELUM apa pun bisa menulis baris. Sebelum ini tap diam,
   // jadi peristiwa yang lahir di antara boot dan pemasangan hilang — dan itu senyap.
   await installWebhooks();
 ```
 
-- [ ] **Step 9: Jalankan test sampai hijau**
+- [x] **Step 9: Jalankan test sampai hijau**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism --dir server \
@@ -2324,7 +2324,7 @@ pnpm --filter ./server typecheck
 ```
 Expected: PASS semua; typecheck keluar 0.
 
-- [ ] **Step 10: Buktikan tak ada regresi di jalur tulis yang paling ramai**
+- [x] **Step 10: Buktikan tak ada regresi di jalur tulis yang paling ramai**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism --dir server \
@@ -2334,7 +2334,7 @@ TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run
 Expected: PASS. (Bila nama berkasnya berbeda, jalankan yang ada — inti langkah ini: `db.ts` kini
 membungkus klien, jadi jalur tulis terpadat wajib diuji ulang.)
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add server/src/services/webhooks/tap.ts server/src/services/webhooks/install.ts \
@@ -2364,7 +2364,7 @@ git commit -m "feat(481): tap Prisma sebagai satu-satunya sumber peristiwa webho
   - `resetStuckDeliveries(): Promise<number>`
   - `startWebhookEngine(): void` / `stopWebhookEngine(): void`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/webhook-queue.test.ts`:
 
@@ -2530,14 +2530,14 @@ describe("pruneHistory", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan untuk memastikan gagal**
+- [x] **Step 2: Jalankan untuk memastikan gagal**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism --dir server server/test/webhook-queue.test.ts
 ```
 Expected: FAIL — `engine`/`sender` belum ada.
 
-- [ ] **Step 3: Tulis `server/src/services/webhooks/sender.ts`**
+- [x] **Step 3: Tulis `server/src/services/webhooks/sender.ts`**
 
 ```ts
 import { WEBHOOK_TIMEOUT_MS } from "@hanoman/shared";
@@ -2545,7 +2545,7 @@ import { signedHeaders } from "./sign";
 import { checkDestination, validateWebhookUrl, type Lookup } from "./ssrf";
 import { secretOf, type Endpoint } from "./endpoints";
 
-// SPEC-481 · ADR-0099 · satu pengiriman HTTP. Murni terhadap DB — pemanggilnya yang membukukan
+// SPEC-481 · ADR-0100 · satu pengiriman HTTP. Murni terhadap DB — pemanggilnya yang membukukan
 // hasilnya, supaya jalur ini bisa dites tanpa jaringan maupun tabel.
 
 export type Fetcher = (url: string, init: {
@@ -2604,7 +2604,7 @@ export async function sendOnce(o: {
 }
 ```
 
-- [ ] **Step 4: Tulis `server/src/services/webhooks/engine.ts`**
+- [x] **Step 4: Tulis `server/src/services/webhooks/engine.ts`**
 
 ```ts
 import {
@@ -2614,7 +2614,7 @@ import { prisma } from "../../db";
 import { normalize, refreshWebhookCache, type EndpointRow } from "./endpoints";
 import { sendOnce, type SenderDeps } from "./sender";
 
-// SPEC-481 · ADR-0099 · worker antrean in-process. Bukan message queue (ADR-0024 utuh): tabel
+// SPEC-481 · ADR-0100 · worker antrean in-process. Bukan message queue (ADR-0024 utuh): tabel
 // durable + `setInterval` yang di-start dari `server.ts`, persis pola governor scheduler
 // (ADR-0072) dan outbox Telegram (ADR-0096).
 
@@ -2783,7 +2783,7 @@ export function startWebhookEngine(): void {
 export function stopWebhookEngine(): void { if (timer) clearInterval(timer); timer = undefined; ticks = 0; }
 ```
 
-- [ ] **Step 5: Start worker di `server.ts`**
+- [x] **Step 5: Start worker di `server.ts`**
 
 Tambah import:
 
@@ -2794,12 +2794,12 @@ import { startWebhookEngine } from "./services/webhooks/engine";
 dan setelah `startLead();`:
 
 ```ts
-  // SPEC-481 · ADR-0099 · worker antrean webhook (in-process, cermin scheduler). Idle penuh saat
+  // SPEC-481 · ADR-0100 · worker antrean webhook (in-process, cermin scheduler). Idle penuh saat
   // tak ada baris `pending` — biayanya satu query ringan tiap 2 detik.
   startWebhookEngine();
 ```
 
-- [ ] **Step 6: Jalankan test sampai hijau**
+- [x] **Step 6: Jalankan test sampai hijau**
 
 Catatan: test memanggil `__resetBuckets()` secara implisit lewat `beforeEach` yang membersihkan
 endpoint; bila test batas laju bocor antar-berkas, tambahkan `import { __resetBuckets }` +
@@ -2811,7 +2811,7 @@ pnpm --filter ./server typecheck
 ```
 Expected: PASS 13 test; typecheck keluar 0.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add server/src/services/webhooks/sender.ts server/src/services/webhooks/engine.ts \
@@ -2839,7 +2839,7 @@ git commit -m "feat(481): pengirim bertanda tangan + worker antrean berbackoff &
   `listWebhooks`, `createWebhook`, `updateWebhook`, `deleteWebhook`, `testWebhook`,
   `listWebhookDeliveries`, `retryWebhookDelivery`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `server/test/webhook-routes.test.ts`:
 
@@ -2997,25 +2997,25 @@ describe("POST /api/webhooks/deliveries/:id/retry", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan untuk memastikan gagal**
+- [x] **Step 2: Jalankan untuk memastikan gagal**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism --dir server server/test/webhook-routes.test.ts
 ```
 Expected: FAIL — 404 di semua route.
 
-- [ ] **Step 3: Petakan capability**
+- [x] **Step 3: Petakan capability**
 
 Di `server/src/services/agent-capabilities.ts`, tepat setelah blok `if (top === "telegram") { … }`:
 
 ```ts
-  // SPEC-481 · ADR-0099 · pengelolaan webhook memegang SECRET penandatanganan dan menentukan ke
+  // SPEC-481 · ADR-0100 · pengelolaan webhook memegang SECRET penandatanganan dan menentukan ke
   // mana data workspace mengalir keluar. Tak ada capability yang cukup untuk itu — cookie-only,
   // apa pun methodnya (preseden /telegram/{settings,test,credentials}, ADR-0097).
   if (top === "webhooks") return "COOKIE_ONLY";
 ```
 
-- [ ] **Step 4: Tulis `server/src/routes/webhooks.ts`**
+- [x] **Step 4: Tulis `server/src/routes/webhooks.ts`**
 
 ```ts
 import type { FastifyInstance } from "fastify";
@@ -3032,7 +3032,7 @@ import {
 import { checkDestination, validateWebhookUrl } from "../services/webhooks/ssrf";
 import { sendOnce } from "../services/webhooks/sender";
 
-// SPEC-481 · ADR-0099 · pengelolaan endpoint webhook. COOKIE_ONLY ditegakkan
+// SPEC-481 · ADR-0100 · pengelolaan endpoint webhook. COOKIE_ONLY ditegakkan
 // `capabilityForRoute`; route ini tak perlu memeriksanya lagi.
 
 const KNOWN = new Set(webhookEventTypes());
@@ -3214,21 +3214,21 @@ export default async function (app: FastifyInstance) {
 }
 ```
 
-- [ ] **Step 5: Daftarkan route di `app.ts`**
+- [x] **Step 5: Daftarkan route di `app.ts`**
 
 Tambah import `import webhooks from "./routes/webhooks";` dan, setelah
 `await api.register(telegram);`:
 
 ```ts
-    await api.register(webhooks);     // SPEC-481 · ADR-0099 · webhook keluar (cookie-only)
+    await api.register(webhooks);     // SPEC-481 · ADR-0100 · webhook keluar (cookie-only)
 ```
 
-- [ ] **Step 6: Tambah path helper di `shared/src/api.ts`**
+- [x] **Step 6: Tambah path helper di `shared/src/api.ts`**
 
 Di dalam objek `paths`, setelah baris `custom-agents`:
 
 ```ts
-  // SPEC-481 · ADR-0099 · webhook keluar (cookie-only)
+  // SPEC-481 · ADR-0100 · webhook keluar (cookie-only)
   webhooks: `${API}/webhooks`,
   webhook: (id: string) => `${API}/webhooks/${encodeURIComponent(id)}`,
   webhookTest: (id: string) => `${API}/webhooks/${encodeURIComponent(id)}/test`,
@@ -3236,7 +3236,7 @@ Di dalam objek `paths`, setelah baris `custom-agents`:
   webhookDeliveryRetry: (id: string) => `${API}/webhooks/deliveries/${encodeURIComponent(id)}/retry`,
 ```
 
-- [ ] **Step 7: Tambah metode klien di `src/src/api/client.ts`**
+- [x] **Step 7: Tambah metode klien di `src/src/api/client.ts`**
 
 Tambahkan tipe ke daftar import dari `@hanoman/shared`:
 `type WebhookEndpointView, type WebhookDeliveryView, type WebhookTestResult, type CreateWebhookEndpoint, type UpdateWebhookEndpoint`.
@@ -3244,7 +3244,7 @@ Tambahkan tipe ke daftar import dari `@hanoman/shared`:
 Lalu, sebelum penutup objek `api` (setelah `deleteCustomAgent`):
 
 ```ts
-  // SPEC-481 · ADR-0099 · webhook keluar. Semua cookie-only; tak ada jalur agent token.
+  // SPEC-481 · ADR-0100 · webhook keluar. Semua cookie-only; tak ada jalur agent token.
   listWebhooks: () => j<{ endpoints: WebhookEndpointView[]; eventTypes: string[] }>(paths.webhooks),
   createWebhook: (b: CreateWebhookEndpoint) =>
     j<WebhookEndpointView>(paths.webhooks, { method: "POST", ...body(b) }),
@@ -3258,7 +3258,7 @@ Lalu, sebelum penutup objek `api` (setelah `deleteCustomAgent`):
     j<WebhookDeliveryView>(paths.webhookDeliveryRetry(id), { method: "POST", ...body({}) }),
 ```
 
-- [ ] **Step 8: Jalankan test sampai hijau**
+- [x] **Step 8: Jalankan test sampai hijau**
 
 ```bash
 TEST_DATABASE_URL="file:$(mktemp -d)/t.test.db" ./node_modules/.bin/vitest --run --no-file-parallelism --dir server \
@@ -3267,7 +3267,7 @@ pnpm --filter ./server typecheck && pnpm --filter ./shared typecheck
 ```
 Expected: PASS; typecheck keluar 0.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add server/src/routes/webhooks.ts server/src/app.ts server/src/services/agent-capabilities.ts \
@@ -3291,7 +3291,7 @@ git commit -m "feat(481): endpoint /api/webhooks cookie-only + klien"
   `ConfirmDialog`, `Field`, `Icon`).
 - Produces: `<WebhooksPanel onToast={…} onOpenDocs={() => void} />`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/src/screens/WebhooksPanel.test.tsx`:
 
@@ -3389,14 +3389,14 @@ describe("WebhooksPanel", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan untuk memastikan gagal**
+- [x] **Step 2: Jalankan untuk memastikan gagal**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest --run --dir src src/src/screens/WebhooksPanel.test.tsx
 ```
 Expected: FAIL — komponen belum ada.
 
-- [ ] **Step 3: Tulis `src/src/screens/WebhooksPanel.tsx`**
+- [x] **Step 3: Tulis `src/src/screens/WebhooksPanel.tsx`**
 
 Bangun komponen dengan struktur ini (ikuti design system: `Card` untuk tiap blok, `SettingRow`
 tidak tersedia di luar `SettingsScreen` jadi pakai baris flex sendiri, warna dari token CSS
@@ -3410,7 +3410,7 @@ import { api } from "../api/client";
 import { WEBHOOK_EVENTS } from "@hanoman/shared";
 import type { WebhookDeliveryView, WebhookEndpointView, WebhookTestResult } from "@hanoman/shared";
 
-// SPEC-481 · ADR-0099 · pengelolaan endpoint webhook. Daftar jenis peristiwa dibaca dari KATALOG
+// SPEC-481 · ADR-0100 · pengelolaan endpoint webhook. Daftar jenis peristiwa dibaca dari KATALOG
 // (@hanoman/shared) — sumber yang sama dengan pengirimnya, jadi pilihan di sini tak bisa basi.
 
 type Draft = {
@@ -3475,12 +3475,12 @@ Aturan yang harus dipenuhi test (dan operator):
 5. Tombol berlabel: `Test`, `Riwayat`, `Ubah`, `Hapus`, `Dokumentasi webhook`, `Antre ulang`.
 6. Setiap mutasi memanggil `load()` lagi — daftar tak boleh basi setelah aksi.
 
-- [ ] **Step 4: Sambungkan ke `SettingsScreen.tsx`**
+- [x] **Step 4: Sambungkan ke `SettingsScreen.tsx`**
 
 Di `S_SECTIONS`, setelah baris `telegram`:
 
 ```ts
-  { key: "webhook", label: "Webhook", icon: "webhook" },       // SPEC-481 · ADR-0099 · webhook keluar
+  { key: "webhook", label: "Webhook", icon: "webhook" },       // SPEC-481 · ADR-0100 · webhook keluar
 ```
 
 Tambah state di komponen: `const [webhookDocs, setWebhookDocs] = React.useState(false);`
@@ -3502,7 +3502,7 @@ import { WebhooksPanel } from "./WebhooksPanel";
 import { WebhookDocs } from "./WebhookDocs";
 ```
 
-- [ ] **Step 5: Jalankan test sampai hijau**
+- [x] **Step 5: Jalankan test sampai hijau**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest --run --dir src \
@@ -3511,7 +3511,7 @@ pnpm --filter ./src typecheck
 ```
 Expected: PASS 7 test baru + SettingsScreen tetap hijau; typecheck keluar 0.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/src/screens/WebhooksPanel.tsx src/src/screens/WebhooksPanel.test.tsx \
@@ -3535,7 +3535,7 @@ Syarat mengikat brief: **tak satu pun daftar jenis peristiwa ditulis tangan di b
   `WEBHOOK_FAIL_LIMIT`, `WEBHOOK_MAX_BYTES`, `WEBHOOK_TOLERANCE_SEC`, `WEBHOOK_HEADERS`.
 - Produces: `<WebhookDocs onBack={() => void} />`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `src/src/screens/WebhookDocs.test.tsx`:
 
@@ -3603,14 +3603,14 @@ describe("WebhookDocs", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan untuk memastikan gagal**
+- [x] **Step 2: Jalankan untuk memastikan gagal**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest --run --dir src src/src/screens/WebhookDocs.test.tsx
 ```
 Expected: FAIL — stub mengembalikan `null`.
 
-- [ ] **Step 3: Isi `src/src/screens/WebhookDocs.tsx`**
+- [x] **Step 3: Isi `src/src/screens/WebhookDocs.tsx`**
 
 Struktur wajib (semua prosa Indonesia; blok kode dalam `<pre>` ber-`font-mono`):
 
@@ -3623,7 +3623,7 @@ import {
   sampleEnvelope,
 } from "@hanoman/shared";
 
-// SPEC-481 · ADR-0099 · dokumentasi webhook DI DALAM aplikasi, dibangun dari katalog yang sama
+// SPEC-481 · ADR-0100 · dokumentasi webhook DI DALAM aplikasi, dibangun dari katalog yang sama
 // dengan pengirimnya. Tak ada daftar jenis peristiwa yang ditulis tangan di berkas ini — brief
 // mensyaratkan dokumentasi yang tak bisa basi saat peristiwa baru ditambahkan.
 
@@ -3716,7 +3716,7 @@ def hanoman():
    buat penerima (kode di atas) → jalankan & buka lewat URL publik → daftarkan di
    Settings → Webhook, salin secret → tekan **Test**, lalu cek riwayat pengiriman.
 
-- [ ] **Step 4: Jalankan test sampai hijau**
+- [x] **Step 4: Jalankan test sampai hijau**
 
 ```bash
 env -u NODE_ENV ./node_modules/.bin/vitest --run --dir src \
@@ -3725,7 +3725,7 @@ pnpm --filter ./src typecheck
 ```
 Expected: PASS 8 test; typecheck keluar 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/src/screens/WebhookDocs.tsx src/src/screens/WebhookDocs.test.tsx
@@ -3734,10 +3734,10 @@ git commit -m "feat(481): halaman dokumentasi webhook in-app dari katalog"
 
 ---
 
-### Task 12: ADR-0099, docs Source of Truth, dan smoke end-to-end
+### Task 12: ADR-0100, docs Source of Truth, dan smoke end-to-end
 
 **Files:**
-- Create: `internal/docs/adr/0099-webhook-keluar-peristiwa.md`
+- Create: `internal/docs/adr/0100-webhook-keluar-peristiwa.md`
 - Modify: `internal/docs/README.md` (baris ADR + seksi integrasi)
 - Modify: `internal/docs/adr/README.md` (narasi)
 - Modify: `internal/docs/architecture/api-contract.md`
@@ -3759,7 +3759,7 @@ berikutnya** dan ganti seluruh rujukan `0099` di spec, plan, dan kode komentar.
 
 - [ ] **Step 2: Tulis ADR**
 
-Buat `internal/docs/adr/0099-webhook-keluar-peristiwa.md` dengan bagian:
+Buat `internal/docs/adr/0100-webhook-keluar-peristiwa.md` dengan bagian:
 **Status** (Diterima, 2026-08-01, SPEC-481) · **Konteks** (polling itu boros & selalu terlambat;
 gateway Telegram ADR-0096 adalah bukti bahwa integrasi keluar terpaksa dibangun *di dalam*
 hanoman) · **Keputusan** — enam butir:
@@ -3795,16 +3795,16 @@ justru di separuh topologi).
 `internal/docs/README.md` — di seksi `## adr`, **di atas** baris 0098:
 
 ```markdown
-- [0099 — Webhook keluar: tap Prisma sebagai satu sumber peristiwa, amplop ber-versi, antrean SQLite](adr/0099-webhook-keluar-peristiwa.md)
+- [0099 — Webhook keluar: tap Prisma sebagai satu sumber peristiwa, amplop ber-versi, antrean SQLite](adr/0100-webhook-keluar-peristiwa.md)
 ```
 
 dan di seksi `## integrasi (untuk project yang memakai hanoman)`:
 
 ```markdown
-- Webhook keluar — dokumentasinya hidup **di dalam aplikasi** (Settings → Webhook → Dokumentasi webhook), dibangun dari katalog `WEBHOOK_ENTITIES` yang sama dengan pengirimnya; tak ada salinan markdown yang bisa basi (SPEC-481 · ADR-0099)
+- Webhook keluar — dokumentasinya hidup **di dalam aplikasi** (Settings → Webhook → Dokumentasi webhook), dibangun dari katalog `WEBHOOK_ENTITIES` yang sama dengan pengirimnya; tak ada salinan markdown yang bisa basi (SPEC-481 · ADR-0100)
 ```
 
-`internal/docs/adr/README.md` — tambahkan narasi ADR-0099 di posisi paling atas daftar, mengikuti
+`internal/docs/adr/README.md` — tambahkan narasi ADR-0100 di posisi paling atas daftar, mengikuti
 gaya entri 0098 (apa yang diperluas/diamandemen + gotcha-nya).
 
 - [ ] **Step 4: Perbarui doc arsitektur & keamanan**
@@ -3922,7 +3922,7 @@ Expected: semuanya hijau.
 
 ```bash
 git add internal/docs internal/skills
-git commit -m "docs(481): ADR-0099 webhook keluar + docs SoT tersentuh"
+git commit -m "docs(481): ADR-0100 webhook keluar + docs SoT tersentuh"
 git push origin HEAD:refs/heads/hanoman/spec-481
 ```
 
