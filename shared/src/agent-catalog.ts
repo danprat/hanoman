@@ -1,20 +1,13 @@
-import { z } from "zod";
-import { DEFAULT_AGENT_TOOLS } from "./custom-agent";
+import { DEFAULT_AGENT_TOOLS, type AgentRuntime } from "./custom-agent";
 import { MODELS, CODEX_MODELS } from "./entities";
 
 // SPEC-484 · ADR-0101 · katalog pilihan form Custom Agent. Nol I/O: dipakai server (validasi +
 // ekspansi `*`) dan UI (opsi dropdown) dari SATU sumber. Bagian yang butuh I/O — penemuan server
 // MCP dari berkas konfigurasi — hidup di server (`services/agent-tool-catalog.ts`).
-
-/** Mesin sesi (ADR-0074). Di definisi agen ia PENYARING, bukan pemilih proses. */
-export const AGENT_RUNTIMES = ["claude", "codex"] as const;
-export type AgentRuntime = (typeof AGENT_RUNTIMES)[number];
-export const zAgentRuntime = z.enum(AGENT_RUNTIMES);
-
-export const AGENT_RUNTIME_LABELS: Record<AgentRuntime, string> = {
-  claude: "Claude Code",
-  codex: "Codex CLI",
-};
+//
+// Impor SATU ARAH: berkas ini membaca `custom-agent.ts`, tak pernah sebaliknya. `AGENT_RUNTIMES`
+// karena itu tinggal di sana — melingkarkannya membuat `DEFAULT_AGENT_TOOLS` terbaca `undefined`
+// saat modul dievaluasi, dan gejalanya "Cannot read properties of undefined", bukan galat impor.
 
 /**
  * Pintasan "semua tools". Disimpan sebagai `tools: ["*"]` — SENGAJA bukan `null`, sebab tiga

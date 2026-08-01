@@ -45,7 +45,7 @@
   - `expandTools(tools: string[] | null, catalogIds: string[]): string[] | null`
   - `type AgentCatalogView = { tools: AgentToolInfo[]; models: AgentModelInfo[]; runtimes: { id: AgentRuntime; label: string }[] }`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Create `shared/src/agent-catalog.test.ts`:
 
@@ -134,12 +134,12 @@ describe("ALL_TOOLS_ENTRY", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `./node_modules/.bin/vitest run --dir shared shared/src/agent-catalog.test.ts`
 Expected: FAIL — `Failed to resolve import` / `AGENT_RUNTIMES is not exported`.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
 Create `shared/src/agent-catalog.ts`:
 
@@ -230,12 +230,12 @@ Modify `shared/src/index.ts` — sisipkan setelah baris `export * from "./custom
 export * from "./agent-catalog";
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run: `./node_modules/.bin/vitest run --dir shared shared/src/agent-catalog.test.ts`
 Expected: PASS, 12 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add shared/src/agent-catalog.ts shared/src/agent-catalog.test.ts shared/src/index.ts
@@ -254,7 +254,7 @@ git commit -m "feat(484): katalog pilihan custom agent di shared (runtime, tools
 - Consumes: `zAgentRuntime` (Task 1).
 - Produces: `zCreateCustomAgent` menerima `runtime?: AgentRuntime | null`; `CustomAgentView.runtime: AgentRuntime | null`; `CustomAgent.runtime: AgentRuntime | null`; `runtimeOf(v: unknown): AgentRuntime | null`.
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Create `shared/src/custom-agent-runtime.test.ts`:
 
@@ -301,19 +301,31 @@ describe("runtimeOf", () => {
 });
 ```
 
-- [ ] **Step 2: Jalankan test, pastikan GAGAL**
+- [x] **Step 2: Jalankan test, pastikan GAGAL**
 
 Run: `./node_modules/.bin/vitest run --dir shared shared/src/custom-agent-runtime.test.ts`
 Expected: FAIL — `runtimeOf is not a function` dan `runtime: "gemini"` lolos.
 
-- [ ] **Step 3: Implementasi minimal**
+- [x] **Step 3: Implementasi minimal**
 
-Di `shared/src/custom-agent.ts`, tambahkan import di baris 1–2:
+Di `shared/src/custom-agent.ts`, tambahkan konstanta runtime **di berkas ini**, bukan mengimpornya
+dari `agent-catalog.ts`: berkas itu sudah membaca `DEFAULT_AGENT_TOOLS` dari sini, jadi impor
+sebaliknya membuat siklus dan `DEFAULT_AGENT_TOOLS` terbaca `undefined` saat modul dievaluasi
+(gejalanya `Cannot read properties of undefined (reading 'map')`, bukan galat impor). Sisipkan
+setelah komentar kepala berkas:
 
 ```ts
-import { z } from "zod";
-import { AGENT_RUNTIMES, type AgentRuntime } from "./agent-catalog";
+export const AGENT_RUNTIMES = ["claude", "codex"] as const;
+export type AgentRuntime = (typeof AGENT_RUNTIMES)[number];
+export const zAgentRuntime = z.enum(AGENT_RUNTIMES);
+export const AGENT_RUNTIME_LABELS: Record<AgentRuntime, string> = {
+  claude: "Claude Code",
+  codex: "Codex CLI",
+};
 ```
+
+…dan di `shared/src/agent-catalog.ts` ganti barisnya jadi
+`import { DEFAULT_AGENT_TOOLS, type AgentRuntime } from "./custom-agent";` (impor SATU ARAH).
 
 Tambahkan field ke `zCustomAgent` (setelah `mentions`):
 
@@ -350,12 +362,12 @@ export function runtimeOf(v: unknown): AgentRuntime | null {
 
 `zUpdateCustomAgent` tak perlu disentuh: ia `.omit({name,projectId}).partial()` dari `zCreateCustomAgent`, jadi `runtime` ikut otomatis.
 
-- [ ] **Step 4: Jalankan test, pastikan LULUS**
+- [x] **Step 4: Jalankan test, pastikan LULUS**
 
 Run: `./node_modules/.bin/vitest run --dir shared shared/src/custom-agent-runtime.test.ts shared/src/agent-catalog.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add shared/src/custom-agent.ts shared/src/custom-agent-runtime.test.ts

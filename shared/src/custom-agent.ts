@@ -3,6 +3,21 @@ import { z } from "zod";
 // SPEC-450 · ADR-0094 · kontrak murni custom agent. Nol I/O: dipakai server (validasi + resolusi
 // scope), runner (render argv/prompt), dan UI (bentuk form) dari satu sumber.
 
+/**
+ * SPEC-484 · ADR-0101 · mesin sesi (ADR-0074) sebagai PENYARING di definisi agen.
+ * Tinggal DI SINI, bukan di `agent-catalog.ts`, karena `runtime` adalah bagian kontrak custom
+ * agent sementara katalog membutuhkan `DEFAULT_AGENT_TOOLS` dari berkas ini — menaruhnya di sana
+ * membuat impor melingkar, dan konstanta yang dibaca saat modul dievaluasi jadi `undefined`.
+ */
+export const AGENT_RUNTIMES = ["claude", "codex"] as const;
+export type AgentRuntime = (typeof AGENT_RUNTIMES)[number];
+export const zAgentRuntime = z.enum(AGENT_RUNTIMES);
+
+export const AGENT_RUNTIME_LABELS: Record<AgentRuntime, string> = {
+  claude: "Claude Code",
+  codex: "Codex CLI",
+};
+
 /** Slug nama agen. Nama adalah KUNCI objek `--agents` claude, jadi ia harus aman & stabil. */
 export const AGENT_NAME_RE = /^[a-z][a-z0-9-]{1,39}$/;
 
@@ -34,6 +49,7 @@ export const zCustomAgent = z.object({
   tools: z.array(z.string()).nullable(),
   model: z.string().nullable(),
   mentions: z.array(z.string()).nullable(),
+  runtime: z.enum(AGENT_RUNTIMES).nullable(),
   enabled: z.boolean(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -48,6 +64,8 @@ export const zCreateCustomAgent = z.object({
   tools: z.array(z.string()).nullable().optional(),
   model: z.string().nullable().optional(),
   mentions: z.array(z.string()).nullable().optional(),
+  // SPEC-484 · ADR-0101 · PENYARING mesin sesi, bukan pemilih proses. null/absen = ikut sesi induk.
+  runtime: z.enum(AGENT_RUNTIMES).nullable().optional(),
   enabled: z.boolean().optional(),
 });
 export type CreateCustomAgent = z.infer<typeof zCreateCustomAgent>;
@@ -71,7 +89,21 @@ export function mentionsOf(v: unknown): string[] {
   return out;
 }
 
-/** null = "tak diisi" (pakai DEFAULT); [] = "sengaja kosong" (agen tanpa tool sama sekali). */
+/**
+ * Kolom ini menyeberang sync dari client versi lain. Nilai asing dibaca sebagai `null` (warisi) —
+ * katalog persona tak pernah boleh menyusut habis karena satu string yang tak dikenal.
+ */
+export function runtimeOf(v: unknown): AgentRuntime | null {
+  return typeof v === "string" && (AGENT_RUNTIMES as readonly string[]).includes(v)
+    ? (v as AgentRuntime)
+    : null;
+}
+
+/**
+ * `tools` punya TIGA nilai yang wajib tetap berbeda (ADR-0101 keputusan 4):
+ * `null` = "tak diisi" (pakai DEFAULT) · `[]` = "sengaja kosong" (agen tanpa tool sama sekali) ·
+ * `["*"]` = "semua tool yang dikenal katalog", di-expand `expandTools()` sebelum materialisasi.
+ */
 export function toolsOf(v: unknown): string[] | null {
   if (!Array.isArray(v)) return null;
   const out: string[] = [];
@@ -107,6 +139,8 @@ export type CustomAgentView = {
   tools: string[] | null;
   model: string | null;
   mentions: string[];
+  /** SPEC-484 · ADR-0101 · null = ikut sesi induk (dipakai sesi claude MAUPUN codex). */
+  runtime: AgentRuntime | null;
   enabled: boolean;
   inherited?: boolean;
 };
