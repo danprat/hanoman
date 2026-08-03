@@ -29,6 +29,14 @@ export function TerminalPane({ sessionId, onExit, onPhases }: {
     const term = new Terminal({
       fontFamily: token("--font-mono", "monospace"),
       fontSize: 13, cursorBlink: true,
+      // SPEC-511 · tmux lahir dengan `mouse on` (SPEC-209) supaya wheel browser menggulir riwayat
+      // pane; harganya, tmux menyalakan mouse-reporting di terminal klien (terukur: `?1000h`
+      // `?1002h` `?1006h`) — dan xterm memanggil `SelectionService.disable()` begitu ada protokol
+      // mouse aktif. Di macOS satu-satunya jalan keluarnya `altKey && macOptionClickForcesSelection`;
+      // tanpa opsi ini drag polos MAUPUN Option+drag sama-sama nol karakter, `hasSelection()`
+      // selamanya false, dan wiring salin SPEC-289 tak pernah punya apa pun untuk disalin.
+      // Mematikan `mouse on` bukan alternatif: TUI claude menyalakan mode yang sama sendiri.
+      macOptionClickForcesSelection: true,
       theme: { background: token("--term-bg", "#1c1810"), foreground: token("--term-fg", "#e9e0cd") },
     });
     const fit = new FitAddon();

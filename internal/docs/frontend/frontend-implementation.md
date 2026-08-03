@@ -229,6 +229,24 @@ memasang `attachCustomKeyEventHandler` yang mendelegasikan keputusan ke fungsi m
 Ctrl+C tetap SIGINT dan Ctrl+V tetap literal (milik TUI Claude Code). Copy hanya aktif bila ada
 seleksi. `navigator.clipboard` butuh secure context — terpenuhi di https VPS & localhost.
 
+**Menyeleksinya butuh modifier — dan itu wajib disetel eksplisit** (SPEC-511, memperbaiki premis
+SPEC-289 "seleksi mouse jalan"): sesi lahir dengan tmux `mouse on` (SPEC-209) supaya wheel browser
+menggulir riwayat pane, dan harganya tmux **menyalakan mouse-reporting di terminal klien** — terukur
+`ESC[?1000h ESC[?1002h ESC[?1006h` dengan `mouse on`, nol dengan `mouse off`. xterm.js memanggil
+`SelectionService.disable()` begitu ada protokol mouse aktif (`CoreBrowserTerminal.ts`
+`onProtocolChange`), dan satu-satunya jalan keluarnya `shouldForceSelection()`: di **macOS**
+`altKey && macOptionClickForcesSelection`, di **non-macOS** `shiftKey` tanpa syarat. Opsi itu
+default `false`, jadi sebelum SPEC-511 macOS **tak punya cara menyeleksi sama sekali** — drag polos
+0 karakter, Option+drag 0 karakter, `hasSelection()` selamanya `false`, dan `clipboardIntent`
+karenanya selalu `null` untuk `C`. `TerminalPane` kini menyetel **`macOptionClickForcesSelection:
+true`**; konsekuensi sadar, Option+drag di macOS berhenti berarti block/column select. **Mematikan
+`mouse on` bukan alternatif:** biner `claude` memuat `ESC[?1000h ESC[?1006h` sendiri, jadi mode itu
+tetap diteruskan ke klien sementara scroll riwayat SPEC-209 ikut hilang. Karena modifier tak
+terlihat, header `Cell` membawa ikon `clipboard` ber-`title` yang menyebut Option/Shift + kombo
+salin-tempelnya. Test yang mengikat memeriksa **opsi di konstruktor `Terminal`**
+(`test/terminal-pane.test.tsx`, `@xterm/xterm` di-mock) — bukan helper murni, karena helper-nya
+memang tak pernah salah.
+
 Sesi yang **berakhir** (`exited`) ditandai kontras di header cell dengan `StatusPill`
 hijau **"Selesai"**, dan badan terminalnya diredupkan (`opacity: 0.6`) untuk menandakan
 proses sudah beku — menggantikan suffix teks `· berakhir` yang lama (SPEC-188).
